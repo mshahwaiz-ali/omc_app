@@ -12,6 +12,9 @@ import '../../documents/data/document_attachment.dart';
 import '../../service_catalogue/application/service_catalogue_controller.dart';
 import '../../service_catalogue/data/service_item.dart';
 
+import '../../../core/network/api_error.dart';
+import '../data/service_request_repository.dart';
+
 class ServiceRequestDraftScreen extends ConsumerStatefulWidget {
   const ServiceRequestDraftScreen({super.key, required this.serviceId});
 
@@ -35,6 +38,7 @@ class _ServiceRequestDraftScreenState
 
   bool _prefilledEmail = false;
   bool _isPickingDocuments = false;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -179,9 +183,10 @@ class _ServiceRequestDraftScreenState
                   ),
                   const SizedBox(height: 18),
                   AppButton(
-                    label: 'Submit draft',
+                    label: 'Submit request',
                     icon: Icons.send_rounded,
-                    onPressed: () => _submit(service),
+                    isLoading: _isSubmitting,
+                    onPressed: _isSubmitting ? null : () => _submit(service),
                   ),
                 ],
               ),
@@ -277,7 +282,7 @@ class _ServiceRequestDraftScreenState
     });
   }
 
-  void _submit(ServiceItem service) {
+  Future<void> _submit(ServiceItem service) async {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
 
@@ -291,13 +296,61 @@ class _ServiceRequestDraftScreenState
     }
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${service.title} draft is ready with ${_attachments.length} attachment(s). ERP submission will be connected after request schema confirmation.',
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final result = await ref
+          .read(serviceRequestRepositoryProvider)
+          .createServiceRequest(
+            ServiceRequestPayload(
+              service: service,
+              fullName: _nameController.text.trim(),
+              phone: _phoneController.text.trim(),
+              email: _emailController.text.trim(),
+              taxId: _taxIdController.text.trim(),
+              remarks: _remarksController.text.trim(),
+              attachments: List<DocumentAttachment>.unmodifiable(_attachments),
+            ),
+          );
+
+      if (!mounted) return;
+
+      final requestId = result.requestId;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            requestId == null
+                ? 'Service request submitted successfully.'
+                : 'Service request submitted successfully. Ref: $requestId',
+          ),
         ),
-      ),
-    );
+      );
+
+      Navigator.of(context).pop();
+    } on ApiError catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to submit request right now. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 }
 
