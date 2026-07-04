@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_button.dart';
@@ -122,8 +123,11 @@ class _ServiceCatalogueScreenState
                         ),
                         child: _ServiceCatalogueCard(
                           service: service,
-                          onRequest: () => _showSoonMessage(
-                            'Request wizard will be connected in the service request phase.',
+                          onOpenDetails: () => context.push(
+                            '/services/${Uri.encodeComponent(service.id)}',
+                          ),
+                          onRequest: () => context.push(
+                            '/services/${Uri.encodeComponent(service.id)}/request',
                           ),
                           onWhatsApp: () => _showSoonMessage(
                             'WhatsApp support will be connected in the support phase.',
@@ -257,11 +261,13 @@ class _CategoryFilter extends StatelessWidget {
 class _ServiceCatalogueCard extends StatelessWidget {
   const _ServiceCatalogueCard({
     required this.service,
+    required this.onOpenDetails,
     required this.onRequest,
     required this.onWhatsApp,
   });
 
   final ServiceItem service;
+  final VoidCallback onOpenDetails;
   final VoidCallback onRequest;
   final VoidCallback onWhatsApp;
 
@@ -273,6 +279,7 @@ class _ServiceCatalogueCard extends StatelessWidget {
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
+      onTap: onOpenDetails,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../core/widgets/feature_placeholder_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
+import '../features/service_catalogue/presentation/service_detail_screen.dart';
+import '../features/service_requests/presentation/service_request_draft_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'main_shell.dart';
 
@@ -29,6 +31,28 @@ final GoRouter appRouter = GoRouter(
       path: '/home',
       name: 'home',
       builder: (context, state) => const MainShell(),
+    ),
+    GoRoute(
+      path: '/services/:serviceId',
+      name: 'service-detail',
+      builder: (context, state) {
+        final serviceId = Uri.decodeComponent(
+          state.pathParameters['serviceId'] ?? '',
+        );
+
+        return ServiceDetailScreen(serviceId: serviceId);
+      },
+    ),
+    GoRoute(
+      path: '/services/:serviceId/request',
+      name: 'service-request-draft',
+      builder: (context, state) {
+        final serviceId = Uri.decodeComponent(
+          state.pathParameters['serviceId'] ?? '',
+        );
+
+        return ServiceRequestDraftScreen(serviceId: serviceId);
+      },
     ),
     GoRoute(
       path: '/notifications',
