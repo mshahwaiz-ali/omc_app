@@ -17,15 +17,18 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> checkSession() async {
-    state = const AuthState.checking();
+    try {
+      final session = await _authRepository.readStoredSession();
+      if (session == null) {
+        state = const AuthState.unauthenticated();
+        return;
+      }
 
-    final session = await _authRepository.readStoredSession();
-    if (session == null) {
+      state = AuthState.authenticated(userId: session.userId);
+    } catch (_) {
+      await _authRepository.clearSession();
       state = const AuthState.unauthenticated();
-      return;
     }
-
-    state = AuthState.authenticated(userId: session.userId);
   }
 
   Future<void> login({required String email, required String password}) async {
