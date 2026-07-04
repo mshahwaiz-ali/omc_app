@@ -8,6 +8,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../application/service_catalogue_controller.dart';
+import '../../support/application/support_launcher.dart';
 import '../data/service_item.dart';
 
 class ServiceDetailScreen extends ConsumerWidget {
@@ -56,7 +57,7 @@ class ServiceDetailScreen extends ConsumerWidget {
             actions: [
               IconButton(
                 tooltip: 'WhatsApp support',
-                onPressed: () => _showSupportPlaceholder(context),
+                onPressed: () => SupportLauncher.openWhatsApp(context),
                 icon: const Icon(Icons.chat_bubble_outline_rounded),
               ),
             ],
@@ -87,7 +88,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
-                  onPressed: () => _showSupportPlaceholder(context),
+                  onPressed: () => SupportLauncher.openWhatsApp(context),
                   icon: const Icon(Icons.support_agent_rounded),
                   label: const Text('Ask OMC support'),
                 ),
@@ -107,15 +108,6 @@ class ServiceDetailScreen extends ConsumerWidget {
     return null;
   }
 
-  void _showSupportPlaceholder(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'WhatsApp support will be connected in the support phase.',
-        ),
-      ),
-    );
-  }
 }
 
 class _ServiceHero extends StatelessWidget {

@@ -6,6 +6,7 @@ import '../core/widgets/premium_card.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
+import '../features/support/presentation/support_screen.dart';
 import 'theme.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -47,12 +48,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         subtitle: 'Salary and business tax estimates are next in the roadmap.',
         icon: Icons.calculate_rounded,
       ),
-      const _PlaceholderScreen(
-        title: 'Support',
-        subtitle:
-            'WhatsApp, call and email support actions are next in the roadmap.',
-        icon: Icons.support_agent_rounded,
-      ),
+      const SupportScreen(),
       _MoreScreen(
         onOpenProfile: () => context.push('/profile'),
         onOpenSettings: () => context.push('/settings'),

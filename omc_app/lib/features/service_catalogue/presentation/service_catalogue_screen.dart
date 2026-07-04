@@ -8,6 +8,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../application/service_catalogue_controller.dart';
+import '../../support/application/support_launcher.dart';
 import '../data/service_item.dart';
 
 class ServiceCatalogueScreen extends ConsumerStatefulWidget {
@@ -31,12 +32,6 @@ class _ServiceCatalogueScreenState
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _showSoonMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -129,9 +124,8 @@ class _ServiceCatalogueScreenState
                           onRequest: () => context.push(
                             '/services/${Uri.encodeComponent(service.id)}/request',
                           ),
-                          onWhatsApp: () => _showSoonMessage(
-                            'WhatsApp support will be connected in the support phase.',
-                          ),
+                          onWhatsApp: () => SupportLauncher.openWhatsApp(context),
+                          
                         ),
                       );
                     },
