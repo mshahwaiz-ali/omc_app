@@ -29,7 +29,7 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> login({required String email, required String password}) async {
-    state = const AuthState.checking();
+    state = const AuthState.authenticating();
 
     try {
       final session = await _authRepository.loginWithPassword(

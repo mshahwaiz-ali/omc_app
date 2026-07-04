@@ -1,4 +1,4 @@
-enum AuthStatus { checking, authenticated, unauthenticated }
+enum AuthStatus { checking, authenticating, authenticated, unauthenticated }
 
 class AuthState {
   const AuthState({required this.status, this.userId, this.message});
@@ -9,6 +9,11 @@ class AuthState {
 
   const AuthState.checking()
     : status = AuthStatus.checking,
+      userId = null,
+      message = null;
+
+  const AuthState.authenticating()
+    : status = AuthStatus.authenticating,
       userId = null,
       message = null;
 

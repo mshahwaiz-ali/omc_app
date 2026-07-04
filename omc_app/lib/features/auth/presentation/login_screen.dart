@@ -71,7 +71,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
-    final isLoading = _submitted && authState.status == AuthStatus.checking;
+    final isLoading = _submitted && authState.status == AuthStatus.authenticating;
 
     return Scaffold(
       body: SafeArea(

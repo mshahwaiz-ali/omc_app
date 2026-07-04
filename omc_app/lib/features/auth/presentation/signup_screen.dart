@@ -35,6 +35,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _remarksController = TextEditingController();
 
   bool _isSubmitting = false;
+  String? _submitError;
 
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -67,6 +68,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     setState(() {
       _isSubmitting = true;
+      _submitError = null;
     });
 
     try {
@@ -101,17 +103,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     } on ApiError catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      setState(() {
+        _submitError = error.message;
+      });
     } catch (_) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to create account right now. Please try again.'),
-        ),
-      );
+      setState(() {
+        _submitError = 'Unable to create account right now. Please try again.';
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -128,13 +128,71 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return null;
   }
 
+  String? _emailValidator(String? value) {
+    final requiredMessage = _required(value, 'Email');
+    if (requiredMessage != null) return requiredMessage;
+
+    final email = value!.trim();
+    final isValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+    if (!isValid) {
+      return 'Enter a valid email address.';
+    }
+
+    return null;
+  }
+
+  String? _phoneValidator(String? value, String label) {
+    final requiredMessage = _required(value, label);
+    if (requiredMessage != null) return requiredMessage;
+
+    final digits = value!.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 10 || digits.length > 15) {
+      return '$label must be 10 to 15 digits.';
+    }
+
+    return null;
+  }
+
+  String? _optionalPhoneValidator(String? value, String label) {
+    if (value == null || value.trim().isEmpty) return null;
+
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 10 || digits.length > 15) {
+      return '$label must be 10 to 15 digits.';
+    }
+
+    return null;
+  }
+
+  String? _cnicValidator(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != 13) {
+      return 'CNIC must be 13 digits.';
+    }
+
+    return null;
+  }
+
+  String? _passwordValidator(String? value) {
+    final requiredMessage = _required(value, 'Password');
+    if (requiredMessage != null) return requiredMessage;
+
+    if (value!.length < 8) {
+      return 'Password must be at least 8 characters.';
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Back to login',
-          onPressed: () => context.go('/login'),
+          onPressed: _isSubmitting ? null : () => context.go('/login'),
           icon: const Icon(Icons.arrow_back_rounded),
         ),
       ),
@@ -177,7 +235,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               labelText: 'Email',
                               prefixIcon: Icon(Icons.email_outlined),
                             ),
-                            validator: (value) => _required(value, 'Email'),
+                            validator: _emailValidator,
                           ),
                           const SizedBox(height: 14),
                           TextFormField(
@@ -191,7 +249,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               labelText: 'Mobile number',
                               prefixIcon: Icon(Icons.phone_outlined),
                             ),
-                            validator: (value) => _required(value, 'Mobile number'),
+                            validator: (value) => _phoneValidator(value, 'Mobile number'),
                           ),
                           const SizedBox(height: 14),
                           TextFormField(
@@ -202,6 +260,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               labelText: 'WhatsApp number',
                               prefixIcon: Icon(Icons.chat_outlined),
                             ),
+                            validator: (value) =>
+                                _optionalPhoneValidator(value, 'WhatsApp number'),
                           ),
                           const SizedBox(height: 14),
                           TextFormField(
@@ -212,6 +272,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               labelText: 'CNIC',
                               prefixIcon: Icon(Icons.credit_card_outlined),
                             ),
+                            validator: _cnicValidator,
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
@@ -304,7 +365,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                 ),
                               ),
                             ),
-                            validator: (value) => _required(value, 'Password'),
+                            validator: _passwordValidator,
                           ),
                           const SizedBox(height: 14),
                           TextFormField(
@@ -351,6 +412,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               return null;
                             },
                           ),
+                          if (_submitError != null &&
+                              _submitError!.trim().isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            _SignupErrorBanner(message: _submitError!),
+                          ],
                           const SizedBox(height: 20),
                           AppButton(
                             label: 'Create account',
@@ -374,7 +440,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () => context.go('/login'),
+                        onPressed: _isSubmitting ? null : () => context.go('/login'),
                         child: const Text('Login'),
                       ),
                     ],
@@ -384,6 +450,47 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+class _SignupErrorBanner extends StatelessWidget {
+  const _SignupErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.shade100),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: Colors.red.shade700,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: Colors.red.shade800,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
