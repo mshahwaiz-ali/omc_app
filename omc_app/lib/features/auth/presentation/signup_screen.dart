@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../data/auth_repository.dart';
 
-class SignupScreen extends StatefulWidget {
+class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
   static const List<String> _roles = [
     'Customer',
     'Consultant',
@@ -24,6 +27,15 @@ class _SignupScreenState extends State<SignupScreen> {
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _mobileController = TextEditingController();
+  final _whatsappController = TextEditingController();
+  final _cnicController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _educationController = TextEditingController();
+  final _experienceController = TextEditingController();
+  final _remarksController = TextEditingController();
+
+  bool _isSubmitting = false;
+
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -38,21 +50,75 @@ class _SignupScreenState extends State<SignupScreen> {
     _mobileController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _whatsappController.dispose();
+    _cnicController.dispose();
+    _addressController.dispose();
+    _educationController.dispose();
+    _experienceController.dispose();
+    _remarksController.dispose();
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Signup flow will be connected after API schema confirmation.',
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      await ref.read(authRepositoryProvider).signUp(
+        data: {
+          'full_name': _fullNameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'mobile_no': _mobileController.text.trim(),
+          'whatsapp_no': _whatsappController.text.trim(),
+          'cnic': _cnicController.text.trim(),
+          'register_as': _selectedRole,
+          'address': _addressController.text.trim(),
+          'password': _passwordController.text,
+          'confirm_password': _confirmPasswordController.text,
+          if (_selectedRole == 'Tax Associate') ...{
+            'education': _educationController.text.trim(),
+            'experience': _experienceController.text.trim(),
+            'remarks': _remarksController.text.trim(),
+          },
+        },
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created successfully. Please login.'),
         ),
-      ),
-    );
+      );
+
+      context.go('/login');
+    } on ApiError catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to create account right now. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   String? _required(String? value, String label) {
@@ -125,8 +191,27 @@ class _SignupScreenState extends State<SignupScreen> {
                               labelText: 'Mobile number',
                               prefixIcon: Icon(Icons.phone_outlined),
                             ),
-                            validator: (value) =>
-                                _required(value, 'Mobile number'),
+                            validator: (value) => _required(value, 'Mobile number'),
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _whatsappController,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'WhatsApp number',
+                              prefixIcon: Icon(Icons.chat_outlined),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _cnicController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'CNIC',
+                              prefixIcon: Icon(Icons.credit_card_outlined),
+                            ),
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
@@ -150,6 +235,48 @@ class _SignupScreenState extends State<SignupScreen> {
                               });
                             },
                           ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _addressController,
+                            textInputAction: TextInputAction.next,
+                            minLines: 1,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              labelText: 'Address',
+                              prefixIcon: Icon(Icons.location_on_outlined),
+                            ),
+                          ),
+                          if (_selectedRole == 'Tax Associate') ...[
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _educationController,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                labelText: 'Education',
+                                prefixIcon: Icon(Icons.school_outlined),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _experienceController,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                labelText: 'Experience',
+                                prefixIcon: Icon(Icons.timeline_outlined),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _remarksController,
+                              textInputAction: TextInputAction.next,
+                              minLines: 1,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                labelText: 'Remarks',
+                                prefixIcon: Icon(Icons.notes_outlined),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 14),
                           TextFormField(
                             controller: _passwordController,
@@ -228,7 +355,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           AppButton(
                             label: 'Create account',
                             icon: Icons.person_add_alt_1_rounded,
-                            onPressed: _submit,
+                            isLoading: _isSubmitting,
+                            onPressed: _isSubmitting ? null : _submit,
                           ),
                         ],
                       ),
