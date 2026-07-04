@@ -1,0 +1,72 @@
+# Dart / Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+**/doc/api/
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+android/app/google-services.json
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Runner/GoogleService-Info.plist
+
+# macOS
+macos/Flutter/ephemeral/
+
+# Linux / Windows generated
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env / secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.cer
+*.crt
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# Flutter release metadata
+app.*.symbols
+app.*.map.json
+current
