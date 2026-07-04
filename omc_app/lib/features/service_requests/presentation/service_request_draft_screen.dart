@@ -282,46 +282,48 @@ class _ServiceRequestDraftScreenState
     });
   }
 
-  Future<void> _submit(ServiceItem service) async {
-    final formState = _formKey.currentState;
-    if (formState == null || !formState.validate()) return;
+    Future<void> _submit(ServiceItem service) async {
+      final formState = _formKey.currentState;
+      if (formState == null || !formState.validate()) return;
 
-    if (service.requirements.isNotEmpty && _attachments.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Attach at least one document before submitting.'),
-        ),
-      );
-      return;
-    }
+      if (service.requirements.isNotEmpty && _attachments.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Attach at least one document before submitting.'),
+          ),
+        );
+        return;
+      }
 
-    FocusScope.of(context).unfocus();
+      FocusScope.of(context).unfocus();
 
-    setState(() {
-      _isSubmitting = true;
-    });
+      setState(() {
+        _isSubmitting = true;
+      });
 
-    try {
-      final result = await ref
-          .read(serviceRequestRepositoryProvider)
-          .createServiceRequest(
-            ServiceRequestPayload(
-              service: service,
-              fullName: _nameController.text.trim(),
-              phone: _phoneController.text.trim(),
-              email: _emailController.text.trim(),
-              taxId: _taxIdController.text.trim(),
-              remarks: _remarksController.text.trim(),
-              attachments: List<DocumentAttachment>.unmodifiable(_attachments),
-            ),
-          );
+      try {
+        final result = await ref
+            .read(serviceRequestRepositoryProvider)
+            .createServiceRequest(
+              ServiceRequestPayload(
+                service: service,
+                fullName: _nameController.text.trim(),
+                phone: _phoneController.text.trim(),
+                email: _emailController.text.trim(),
+                taxId: _taxIdController.text.trim(),
+                remarks: _remarksController.text.trim(),
+                attachments: List<DocumentAttachment>.unmodifiable(_attachments),
+              ),
+            );
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      final requestId = result.requestId;
+        final requestId = result.requestId;
         var uploadedCount = 0;
 
-        if (requestId != null && requestId.isNotEmpty && _attachments.isNotEmpty) {
+        if (requestId != null &&
+            requestId.isNotEmpty &&
+            _attachments.isNotEmpty) {
           final uploadedFiles = await ref
               .read(serviceRequestRepositoryProvider)
               .uploadRequestAttachments(
@@ -345,28 +347,28 @@ class _ServiceRequestDraftScreenState
         );
 
         Navigator.of(context).pop();
-    } on ApiError catch (error) {
-      if (!mounted) return;
+      } on ApiError catch (error) {
+        if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
-    } catch (_) {
-      if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      } catch (_) {
+        if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to submit request right now. Please try again.'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to submit request right now. Please try again.'),
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+        }
       }
     }
-  }
 }
 
 class _SelectedServiceCard extends StatelessWidget {

@@ -32,16 +32,27 @@ class ServiceRequestPayload {
   final List<DocumentAttachment> attachments;
 
   Map<String, dynamic> toJson() {
-    return {
-      'service_id': service.id,
-      'service_title': service.title,
-      'service_category': service.category,
-      'full_name': fullName,
-      'phone': phone,
-      'email': email,
-      'tax_id': taxId,
-      'remarks': remarks,
-      'attachments': attachments
+    final data = <String, dynamic>{
+      'service_id': service.id.trim(),
+      'service_title': service.title.trim(),
+      'service_category': service.category.trim(),
+      'full_name': fullName.trim(),
+      'phone': phone.trim(),
+      'email': email.trim(),
+    };
+
+    final normalizedTaxId = taxId.trim();
+    if (normalizedTaxId.isNotEmpty) {
+      data['tax_id'] = normalizedTaxId;
+    }
+
+    final normalizedRemarks = remarks.trim();
+    if (normalizedRemarks.isNotEmpty) {
+      data['remarks'] = normalizedRemarks;
+    }
+
+    if (attachments.isNotEmpty) {
+      data['attachments'] = attachments
           .map(
             (attachment) => {
               'file_name': attachment.name,
@@ -49,8 +60,10 @@ class ServiceRequestPayload {
               'file_extension': attachment.extension,
             },
           )
-          .toList(growable: false),
-    };
+          .toList(growable: false);
+    }
+
+    return data;
   }
 }
 
@@ -113,34 +126,58 @@ class ServiceRequestRepository {
   }
 
   String? _extractRequestId(Map<String, dynamic> response) {
-    final message = response['message'];
+    final directCandidates = [
+      response['name'],
+      response['request_id'],
+      response['service_request'],
+    ];
 
-    if (message is String && message.trim().isNotEmpty) {
-      return message.trim();
+    for (final candidate in directCandidates) {
+      final value = _stringOrNull(candidate);
+      if (value != null) return value;
     }
 
+    final message = response['message'];
+
+    final messageValue = _stringOrNull(message);
+    if (messageValue != null) return messageValue;
+
     if (message is Map<String, dynamic>) {
-      final candidates = [
+      final nestedCandidates = [
         message['name'],
         message['request_id'],
         message['service_request'],
       ];
 
-      for (final candidate in candidates) {
-        if (candidate is String && candidate.trim().isNotEmpty) {
-          return candidate.trim();
-        }
+      for (final candidate in nestedCandidates) {
+        final value = _stringOrNull(candidate);
+        if (value != null) return value;
       }
     }
 
     final data = response['data'];
     if (data is Map<String, dynamic>) {
-      final name = data['name'];
-      if (name is String && name.trim().isNotEmpty) {
-        return name.trim();
+      final dataCandidates = [
+        data['name'],
+        data['request_id'],
+        data['service_request'],
+      ];
+
+      for (final candidate in dataCandidates) {
+        final value = _stringOrNull(candidate);
+        if (value != null) return value;
       }
     }
 
     return null;
+  }
+
+  String? _stringOrNull(Object? value) {
+    if (value == null) return null;
+
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+
+    return text;
   }
 }

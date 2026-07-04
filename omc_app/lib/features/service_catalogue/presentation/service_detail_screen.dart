@@ -70,6 +70,11 @@ class ServiceDetailScreen extends ConsumerWidget {
                 _ServiceHero(service: service),
                 const SizedBox(height: 16),
                 _ServiceFacts(service: service),
+                if (service.description != null &&
+                    service.description!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _DescriptionCard(description: service.description!),
+                ],
                 const SizedBox(height: 16),
                 _RequirementCard(service: service),
                 const SizedBox(height: 18),
@@ -210,6 +215,41 @@ class _ServiceFacts extends StatelessWidget {
   }
 }
 
+class _DescriptionCard extends StatelessWidget {
+  const _DescriptionCard({required this.description});
+
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Overview',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FactRow extends StatelessWidget {
   const _FactRow({
     required this.icon,
@@ -223,6 +263,8 @@ class _FactRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final safeValue = value.trim().isEmpty ? 'To be confirmed' : value.trim();
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -250,7 +292,7 @@ class _FactRow extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                value,
+                safeValue,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 15,
