@@ -7,6 +7,8 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../documents/application/document_attachment_controller.dart';
+import '../../documents/data/document_attachment.dart';
 import '../../service_catalogue/application/service_catalogue_controller.dart';
 import '../../service_catalogue/data/service_item.dart';
 
@@ -29,7 +31,10 @@ class _ServiceRequestDraftScreenState
   final _taxIdController = TextEditingController();
   final _remarksController = TextEditingController();
 
+  final List<DocumentAttachment> _attachments = [];
+
   bool _prefilledEmail = false;
+  bool _isPickingDocuments = false;
 
   @override
   void dispose() {
@@ -162,7 +167,16 @@ class _ServiceRequestDraftScreenState
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _DocumentHintCard(service: service),
+                  _DocumentHintCard(
+                    service: service,
+                    attachments: _attachments,
+                    isPickingDocuments: _isPickingDocuments,
+                    onPickDocuments: _pickDocuments,
+                    onRemoveDocument: _removeDocument,
+                    formatFileSize: ref
+                        .read(documentAttachmentControllerProvider)
+                        .formatFileSize,
+                  ),
                   const SizedBox(height: 18),
                   AppButton(
                     label: 'Submit draft',
@@ -217,15 +231,70 @@ class _ServiceRequestDraftScreenState
     return null;
   }
 
+  Future<void> _pickDocuments() async {
+    setState(() {
+      _isPickingDocuments = true;
+    });
+
+    try {
+      final result = await ref
+          .read(documentAttachmentControllerProvider)
+          .pickDocuments(existingAttachments: _attachments);
+
+      if (!mounted) return;
+
+      if (result.hasAcceptedFiles) {
+        setState(() {
+          _attachments.addAll(result.accepted);
+        });
+      }
+
+      if (result.hasRejectedFiles) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.rejectedMessages.join('\n'))),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open the document picker right now.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPickingDocuments = false;
+        });
+      }
+    }
+  }
+
+  void _removeDocument(DocumentAttachment attachment) {
+    setState(() {
+      _attachments.removeWhere((item) => item.id == attachment.id);
+    });
+  }
+
   void _submit(ServiceItem service) {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
+
+    if (service.requirements.isNotEmpty && _attachments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Attach at least one document before submitting.'),
+        ),
+      );
+      return;
+    }
 
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${service.title} draft is ready. ERP submission will be connected after request schema confirmation.',
+          '${service.title} draft is ready with ${_attachments.length} attachment(s). ERP submission will be connected after request schema confirmation.',
         ),
       ),
     );
@@ -298,9 +367,21 @@ class _SelectedServiceCard extends StatelessWidget {
 }
 
 class _DocumentHintCard extends StatelessWidget {
-  const _DocumentHintCard({required this.service});
+  const _DocumentHintCard({
+    required this.service,
+    required this.attachments,
+    required this.isPickingDocuments,
+    required this.onPickDocuments,
+    required this.onRemoveDocument,
+    required this.formatFileSize,
+  });
 
   final ServiceItem service;
+  final List<DocumentAttachment> attachments;
+  final bool isPickingDocuments;
+  final VoidCallback onPickDocuments;
+  final ValueChanged<DocumentAttachment> onRemoveDocument;
+  final String Function(int bytes) formatFileSize;
 
   @override
   Widget build(BuildContext context) {
@@ -321,8 +402,10 @@ class _DocumentHintCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Upload comes in the next documents phase. For now, keep these ready.',
+          Text(
+            service.requirements.isEmpty
+                ? 'Attach any helpful files for OMC review.'
+                : 'Attach at least one relevant file now. ERP upload starts after the request schema is confirmed.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
@@ -355,6 +438,97 @@ class _DocumentHintCard extends StatelessWidget {
                 ),
               ),
           ],
+          const SizedBox(height: 14),
+          AppButton(
+            label: attachments.isEmpty ? 'Attach documents' : 'Add more files',
+            icon: Icons.attach_file_rounded,
+            isLoading: isPickingDocuments,
+            onPressed: isPickingDocuments ? null : onPickDocuments,
+          ),
+          if (attachments.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            for (final attachment in attachments)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _AttachedDocumentTile(
+                  attachment: attachment,
+                  sizeLabel: formatFileSize(attachment.sizeInBytes),
+                  onRemove: () => onRemoveDocument(attachment),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AttachedDocumentTile extends StatelessWidget {
+  const _AttachedDocumentTile({
+    required this.attachment,
+    required this.sizeLabel,
+    required this.onRemove,
+  });
+
+  final DocumentAttachment attachment;
+  final String sizeLabel;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.description_outlined,
+              color: AppTheme.primaryRed,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  attachment.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  sizeLabel,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Remove document',
+            onPressed: onRemove,
+            icon: const Icon(Icons.close_rounded),
+          ),
         ],
       ),
     );
