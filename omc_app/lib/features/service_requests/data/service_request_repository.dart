@@ -87,6 +87,31 @@ class ServiceRequestRepository {
     );
   }
 
+  Future<List<Map<String, dynamic>>> uploadRequestAttachments({
+    required String requestId,
+    required List<DocumentAttachment> attachments,
+  }) async {
+    final uploadedFiles = <Map<String, dynamic>>[];
+
+    for (final attachment in attachments) {
+      final filePath = attachment.path;
+      if (filePath == null || filePath.trim().isEmpty) {
+        continue;
+      }
+
+      final response = await _frappeClient.uploadFile(
+        filePath: filePath,
+        fileName: attachment.name,
+        doctype: 'Service Request',
+        docname: requestId,
+      );
+
+      uploadedFiles.add(response);
+    }
+
+    return uploadedFiles;
+  }
+
   String? _extractRequestId(Map<String, dynamic> response) {
     final message = response['message'];
 

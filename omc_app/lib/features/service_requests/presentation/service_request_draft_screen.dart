@@ -319,17 +319,32 @@ class _ServiceRequestDraftScreenState
       if (!mounted) return;
 
       final requestId = result.requestId;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            requestId == null
-                ? 'Service request submitted successfully.'
-                : 'Service request submitted successfully. Ref: $requestId',
-          ),
-        ),
-      );
+        var uploadedCount = 0;
 
-      Navigator.of(context).pop();
+        if (requestId != null && requestId.isNotEmpty && _attachments.isNotEmpty) {
+          final uploadedFiles = await ref
+              .read(serviceRequestRepositoryProvider)
+              .uploadRequestAttachments(
+                requestId: requestId,
+                attachments: _attachments,
+              );
+
+          uploadedCount = uploadedFiles.length;
+        }
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              requestId == null
+                  ? 'Service request submitted successfully. Attachments will be uploaded after reference confirmation.'
+                  : 'Service request submitted successfully. Ref: $requestId. Uploaded $uploadedCount attachment(s).',
+            ),
+          ),
+        );
+
+        Navigator.of(context).pop();
     } on ApiError catch (error) {
       if (!mounted) return;
 
