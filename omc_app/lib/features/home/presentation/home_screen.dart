@@ -1,54 +1,108 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../auth/application/auth_controller.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomeScreen extends ConsumerWidget {
+  const HomeScreen({
+    super.key,
+    this.onOpenServices,
+    this.onOpenCalculator,
+    this.onOpenSupport,
+    this.onOpenNotifications,
+  });
+
+  final VoidCallback? onOpenServices;
+  final VoidCallback? onOpenCalculator;
+  final VoidCallback? onOpenSupport;
+  final VoidCallback? onOpenNotifications;
 
   static const List<_HomeAction> _quickServices = [
     _HomeAction(
       title: 'File Tax Return',
       subtitle: 'Start your tax filing request',
       icon: Icons.receipt_long_rounded,
+      target: _HomeActionTarget.services,
     ),
     _HomeAction(
       title: 'NTN Registration',
       subtitle: 'Register NTN with documents',
       icon: Icons.badge_rounded,
+      target: _HomeActionTarget.services,
     ),
     _HomeAction(
       title: 'GST Registration',
       subtitle: 'Business sales tax setup',
       icon: Icons.storefront_rounded,
+      target: _HomeActionTarget.services,
     ),
     _HomeAction(
       title: 'Tax Calculator',
       subtitle: 'Estimate payable tax',
       icon: Icons.calculate_rounded,
+      target: _HomeActionTarget.calculator,
+    ),
+  ];
+
+  static const List<_WorkspaceAction> _workspaceActions = [
+    _WorkspaceAction(
+      title: 'My Services',
+      subtitle: 'Cases and request status',
+      icon: Icons.assignment_outlined,
+      target: _HomeActionTarget.services,
+    ),
+    _WorkspaceAction(
+      title: 'Documents',
+      subtitle: 'CNIC, proofs and files',
+      icon: Icons.folder_copy_outlined,
+      target: _HomeActionTarget.services,
+    ),
+    _WorkspaceAction(
+      title: 'Payments',
+      subtitle: 'Invoices and receipts',
+      icon: Icons.account_balance_wallet_outlined,
+      target: _HomeActionTarget.services,
+    ),
+    _WorkspaceAction(
+      title: 'Support',
+      subtitle: 'Help from OMC team',
+      icon: Icons.support_agent_rounded,
+      target: _HomeActionTarget.support,
     ),
   ];
 
   static const List<_StatusItem> _statusItems = [
-    _StatusItem(label: 'Active Cases', value: '03'),
-    _StatusItem(label: 'Completed', value: '12'),
-    _StatusItem(label: 'Pending Docs', value: '02'),
+    _StatusItem(label: 'Active Cases', value: '0'),
+    _StatusItem(label: 'Completed', value: '0'),
+    _StatusItem(label: 'Pending Docs', value: '0'),
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+    final displayName = _displayNameFromUserId(authState.userId);
+
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 18, 20, 0),
-              sliver: SliverToBoxAdapter(child: _HomeHeader()),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: _HomeHeader(
+                  displayName: displayName,
+                  onOpenNotifications: onOpenNotifications,
+                ),
+              ),
             ),
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 22, 20, 0),
-              sliver: SliverToBoxAdapter(child: _HeroCard()),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: _HeroCard(onStartRequest: onOpenServices),
+              ),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
@@ -63,12 +117,13 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 28, 20, 12),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
               sliver: SliverToBoxAdapter(
                 child: _SectionHeader(
                   title: 'Quick Services',
                   actionText: 'View all',
+                  onAction: onOpenServices,
                 ),
               ),
             ),
@@ -80,35 +135,104 @@ class HomeScreen extends StatelessWidget {
                   crossAxisCount: 2,
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 14,
-                  childAspectRatio: 0.9,
+                  childAspectRatio: 0.92,
                 ),
                 itemBuilder: (context, index) {
-                  return _ServiceCard(action: _quickServices[index]);
+                  final action = _quickServices[index];
+                  return _ServiceCard(
+                    action: action,
+                    onTap: () => _handleAction(action.target),
+                  );
                 },
               ),
             ),
             const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+              sliver: SliverToBoxAdapter(
+                child: _SectionHeader(title: 'Workspace'),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              sliver: SliverGrid.builder(
+                itemCount: _workspaceActions.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 14,
+                  childAspectRatio: 1.18,
+                ),
+                itemBuilder: (context, index) {
+                  final action = _workspaceActions[index];
+                  return _WorkspaceCard(
+                    action: action,
+                    onTap: () => _handleAction(action.target),
+                  );
+                },
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
               sliver: SliverToBoxAdapter(
                 child: _SectionHeader(
                   title: 'Recent Activity',
                   actionText: 'Track',
+                  onAction: onOpenServices,
                 ),
               ),
             ),
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 28),
-              sliver: SliverToBoxAdapter(child: _RecentActivityCard()),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+              sliver: SliverToBoxAdapter(
+                child: _RecentActivityCard(onTrack: onOpenServices),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  void _handleAction(_HomeActionTarget target) {
+    switch (target) {
+      case _HomeActionTarget.services:
+        onOpenServices?.call();
+        return;
+      case _HomeActionTarget.calculator:
+        onOpenCalculator?.call();
+        return;
+      case _HomeActionTarget.support:
+        onOpenSupport?.call();
+        return;
+    }
+  }
+
+  String _displayNameFromUserId(String? userId) {
+    final value = userId?.trim();
+    if (value == null || value.isEmpty) return 'OMC Customer';
+
+    final localPart = value.split('@').first;
+    final cleaned = localPart.replaceAll(RegExp(r'[._-]+'), ' ').trim();
+    if (cleaned.isEmpty) return value;
+
+    return cleaned
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+        })
+        .join(' ');
+  }
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader();
+  const _HomeHeader({
+    required this.displayName,
+    required this.onOpenNotifications,
+  });
+
+  final String displayName;
+  final VoidCallback? onOpenNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -133,11 +257,11 @@ class _HomeHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 14),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Welcome back',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
@@ -145,12 +269,12 @@ class _HomeHeader extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              SizedBox(height: 3),
+              const SizedBox(height: 3),
               Text(
-                'Muhammad Shahwaiz',
+                displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
@@ -160,7 +284,8 @@ class _HomeHeader extends StatelessWidget {
           ),
         ),
         IconButton.filled(
-          onPressed: () {},
+          tooltip: 'Notifications',
+          onPressed: onOpenNotifications,
           style: IconButton.styleFrom(
             backgroundColor: Colors.white,
             foregroundColor: AppTheme.primaryRed,
@@ -173,7 +298,9 @@ class _HomeHeader extends StatelessWidget {
 }
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard();
+  const _HeroCard({required this.onStartRequest});
+
+  final VoidCallback? onStartRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -222,7 +349,7 @@ class _HeroCard extends StatelessWidget {
             SizedBox(
               height: 48,
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: onStartRequest,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: AppTheme.primaryRed,
@@ -282,10 +409,11 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.actionText});
+  const _SectionHeader({required this.title, this.actionText, this.onAction});
 
   final String title;
-  final String actionText;
+  final String? actionText;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -301,22 +429,24 @@ class _SectionHeader extends StatelessWidget {
             ),
           ),
         ),
-        TextButton(onPressed: () {}, child: Text(actionText)),
+        if (actionText != null)
+          TextButton(onPressed: onAction, child: Text(actionText!)),
       ],
     );
   }
 }
 
 class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({required this.action});
+  const _ServiceCard({required this.action, required this.onTap});
 
   final _HomeAction action;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
       padding: const EdgeInsets.all(18),
-      onTap: () {},
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -354,13 +484,58 @@ class _ServiceCard extends StatelessWidget {
   }
 }
 
+class _WorkspaceCard extends StatelessWidget {
+  const _WorkspaceCard({required this.action, required this.onTap});
+
+  final _WorkspaceAction action;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(action.icon, color: AppTheme.primaryRed, size: 28),
+          const Spacer(),
+          Text(
+            action.title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            action.subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              height: 1.25,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RecentActivityCard extends StatelessWidget {
-  const _RecentActivityCard();
+  const _RecentActivityCard({required this.onTrack});
+
+  final VoidCallback? onTrack;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
       padding: const EdgeInsets.all(18),
+      onTap: onTrack,
       child: Row(
         children: [
           Container(
@@ -390,7 +565,7 @@ class _RecentActivityCard extends StatelessWidget {
                 ),
                 SizedBox(height: 5),
                 Text(
-                  'Your submitted requests and status updates will appear here.',
+                  'Submitted requests and status updates stay here.',
                   style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12,
@@ -401,22 +576,45 @@ class _RecentActivityCard extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 10),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
+          ),
         ],
       ),
     );
   }
 }
 
+enum _HomeActionTarget { services, calculator, support }
+
 class _HomeAction {
   const _HomeAction({
     required this.title,
     required this.subtitle,
     required this.icon,
+    required this.target,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
+  final _HomeActionTarget target;
+}
+
+class _WorkspaceAction {
+  const _WorkspaceAction({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.target,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final _HomeActionTarget target;
 }
 
 class _StatusItem {

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/widgets/premium_card.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import 'theme.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -17,6 +18,12 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0;
 
+  void _selectTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
   Future<void> _logout() async {
     await ref.read(authControllerProvider.notifier).logout();
 
@@ -28,23 +35,31 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      const HomeScreen(),
-      const _PlaceholderScreen(
-        title: 'Services',
-        subtitle: 'Service catalogue and request tracking will be built here.',
-        icon: Icons.grid_view_rounded,
+      HomeScreen(
+        onOpenServices: () => _selectTab(1),
+        onOpenCalculator: () => _selectTab(2),
+        onOpenSupport: () => _selectTab(3),
+        onOpenNotifications: () => context.push('/notifications'),
       ),
+      const ServiceCatalogueScreen(),
       const _PlaceholderScreen(
         title: 'Calculator',
-        subtitle: 'Tax calculator module will be connected here.',
+        subtitle: 'Salary and business tax estimates are next in the roadmap.',
         icon: Icons.calculate_rounded,
       ),
       const _PlaceholderScreen(
         title: 'Support',
-        subtitle: 'WhatsApp, call, email and help center will be built here.',
+        subtitle:
+            'WhatsApp, call and email support actions are next in the roadmap.',
         icon: Icons.support_agent_rounded,
       ),
-      _MoreScreen(onLogout: _logout),
+      _MoreScreen(
+        onOpenProfile: () => context.push('/profile'),
+        onOpenSettings: () => context.push('/settings'),
+        onOpenNotifications: () => context.push('/notifications'),
+        onOpenInternalWorkspace: () => context.push('/internal-workspace'),
+        onLogout: _logout,
+      ),
     ];
 
     return Scaffold(
@@ -89,8 +104,18 @@ class _MainShellState extends ConsumerState<MainShell> {
 }
 
 class _MoreScreen extends StatelessWidget {
-  const _MoreScreen({required this.onLogout});
+  const _MoreScreen({
+    required this.onOpenProfile,
+    required this.onOpenSettings,
+    required this.onOpenNotifications,
+    required this.onOpenInternalWorkspace,
+    required this.onLogout,
+  });
 
+  final VoidCallback onOpenProfile;
+  final VoidCallback onOpenSettings;
+  final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenInternalWorkspace;
   final VoidCallback onLogout;
 
   @override
@@ -109,7 +134,7 @@ class _MoreScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Profile, settings and internal modules will appear here.',
+            'Profile, preferences and workspace shortcuts.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 14,
@@ -126,14 +151,28 @@ class _MoreScreen extends StatelessWidget {
                   icon: Icons.person_outline_rounded,
                   title: 'Profile',
                   subtitle: 'Personal info and account details',
-                  onTap: () {},
+                  onTap: onOpenProfile,
+                ),
+                const _DividerIndent(),
+                _MoreTile(
+                  icon: Icons.notifications_none_rounded,
+                  title: 'Notifications',
+                  subtitle: 'Service updates and tax alerts',
+                  onTap: onOpenNotifications,
                 ),
                 const _DividerIndent(),
                 _MoreTile(
                   icon: Icons.settings_outlined,
                   title: 'Settings',
                   subtitle: 'Theme, notifications and preferences',
-                  onTap: () {},
+                  onTap: onOpenSettings,
+                ),
+                const _DividerIndent(),
+                _MoreTile(
+                  icon: Icons.admin_panel_settings_outlined,
+                  title: 'Internal Workspace',
+                  subtitle: 'Leads, customers, tasks and payments',
+                  onTap: onOpenInternalWorkspace,
                 ),
                 const _DividerIndent(),
                 _MoreTile(

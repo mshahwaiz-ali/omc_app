@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/widgets/feature_placeholder_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -27,6 +29,43 @@ final GoRouter appRouter = GoRouter(
       path: '/home',
       name: 'home',
       builder: (context, state) => const MainShell(),
+    ),
+    GoRoute(
+      path: '/notifications',
+      name: 'notifications',
+      builder: (context, state) => const FeaturePlaceholderScreen(
+        title: 'Notifications',
+        message:
+            'Service updates, document requests and tax alerts appear here.',
+        icon: Icons.notifications_none_rounded,
+      ),
+    ),
+    GoRoute(
+      path: '/profile',
+      name: 'profile',
+      builder: (context, state) => const FeaturePlaceholderScreen(
+        title: 'Profile',
+        message: 'Personal information and account preferences appear here.',
+        icon: Icons.person_outline_rounded,
+      ),
+    ),
+    GoRoute(
+      path: '/settings',
+      name: 'settings',
+      builder: (context, state) => const FeaturePlaceholderScreen(
+        title: 'Settings',
+        message: 'Theme, notification and app preferences appear here.',
+        icon: Icons.settings_outlined,
+      ),
+    ),
+    GoRoute(
+      path: '/internal-workspace',
+      name: 'internal-workspace',
+      builder: (context, state) => const FeaturePlaceholderScreen(
+        title: 'Internal Workspace',
+        message: 'Leads, customers, tasks and payments appear here.',
+        icon: Icons.admin_panel_settings_outlined,
+      ),
     ),
   ],
 );
