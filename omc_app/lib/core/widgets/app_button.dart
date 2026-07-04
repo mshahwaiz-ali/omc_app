@@ -22,9 +22,7 @@ class AppButton extends StatelessWidget {
       onPressed: isLoading ? null : onPressed,
       style: FilledButton.styleFrom(
         minimumSize: const Size(0, 54),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 180),
@@ -45,9 +43,7 @@ class AppButton extends StatelessWidget {
                   ],
                   Text(
                     label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ],
               ),
@@ -56,9 +52,6 @@ class AppButton extends StatelessWidget {
 
     if (!isExpanded) return button;
 
-    return SizedBox(
-      width: double.infinity,
-      child: button,
-    );
+    return SizedBox(width: double.infinity, child: button);
   }
 }

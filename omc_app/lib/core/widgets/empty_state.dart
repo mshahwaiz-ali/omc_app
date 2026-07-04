@@ -26,28 +26,18 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 58,
-              color: Colors.grey.shade500,
-            ),
+            Icon(icon, size: 58, color: Colors.grey.shade500),
             const SizedBox(height: 18),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w900,
-              ),
+              style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                height: 1.45,
-                color: Colors.grey.shade700,
-              ),
+              style: TextStyle(height: 1.45, color: Colors.grey.shade700),
             ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 22),

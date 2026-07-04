@@ -6,9 +6,5 @@ import 'app/app.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(
-    const ProviderScope(
-      child: OmcApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: OmcApp()));
 }

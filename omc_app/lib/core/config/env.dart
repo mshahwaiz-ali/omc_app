@@ -1,8 +1,4 @@
-enum AppEnvironment {
-  development,
-  staging,
-  production,
-}
+enum AppEnvironment { development, staging, production }
 
 class Env {
   const Env._();

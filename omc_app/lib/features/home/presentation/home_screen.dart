@@ -44,15 +44,11 @@ class HomeScreen extends StatelessWidget {
           slivers: [
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(20, 18, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _HomeHeader(),
-              ),
+              sliver: SliverToBoxAdapter(child: _HomeHeader()),
             ),
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(20, 22, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _HeroCard(),
-              ),
+              sliver: SliverToBoxAdapter(child: _HeroCard()),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
@@ -102,9 +98,7 @@ class HomeScreen extends StatelessWidget {
             ),
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 28),
-              sliver: SliverToBoxAdapter(
-                child: _RecentActivityCard(),
-              ),
+              sliver: SliverToBoxAdapter(child: _RecentActivityCard()),
             ),
           ],
         ),
@@ -192,10 +186,7 @@ class _HeroCard extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppTheme.primaryRed,
-              AppTheme.darkRed,
-            ],
+            colors: [AppTheme.primaryRed, AppTheme.darkRed],
           ),
           borderRadius: BorderRadius.circular(24),
         ),
@@ -250,9 +241,7 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({
-    required this.item,
-  });
+  const _StatusCard({required this.item});
 
   final _StatusItem item;
 
@@ -293,10 +282,7 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    required this.actionText,
-  });
+  const _SectionHeader({required this.title, required this.actionText});
 
   final String title;
   final String actionText;
@@ -315,19 +301,14 @@ class _SectionHeader extends StatelessWidget {
             ),
           ),
         ),
-        TextButton(
-          onPressed: () {},
-          child: Text(actionText),
-        ),
+        TextButton(onPressed: () {}, child: Text(actionText)),
       ],
     );
   }
 }
 
 class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({
-    required this.action,
-  });
+  const _ServiceCard({required this.action});
 
   final _HomeAction action;
 
@@ -346,11 +327,7 @@ class _ServiceCard extends StatelessWidget {
               color: AppTheme.primaryRed.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(17),
             ),
-            child: Icon(
-              action.icon,
-              color: AppTheme.primaryRed,
-              size: 25,
-            ),
+            child: Icon(action.icon, color: AppTheme.primaryRed, size: 25),
           ),
           const Spacer(),
           Text(
@@ -443,10 +420,7 @@ class _HomeAction {
 }
 
 class _StatusItem {
-  const _StatusItem({
-    required this.label,
-    required this.value,
-  });
+  const _StatusItem({required this.label, required this.value});
 
   final String label;
   final String value;

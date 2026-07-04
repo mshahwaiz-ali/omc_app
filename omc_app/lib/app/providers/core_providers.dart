@@ -11,9 +11,7 @@ final secureStorageServiceProvider = Provider<SecureStorageService>((ref) {
 final dioClientProvider = Provider<DioClient>((ref) {
   final secureStorageService = ref.watch(secureStorageServiceProvider);
 
-  return DioClient(
-    secureStorageService: secureStorageService,
-  );
+  return DioClient(secureStorageService: secureStorageService);
 });
 
 final frappeClientProvider = Provider<FrappeClient>((ref) {
