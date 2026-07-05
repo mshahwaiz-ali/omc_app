@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
@@ -33,16 +32,15 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
         child: caseAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _LoadErrorState(
-            title: 'Unable to load service',
-            message: error.toString(),
+            title: 'Tracking detail unavailable',
+            message: _cleanErrorMessage(error),
             onRetry: () => ref.invalidate(serviceCaseDetailProvider(caseId)),
+            onSupport: () => SupportLauncher.openWhatsApp(context),
           ),
           data: (serviceCase) {
             if (serviceCase == null) {
-              return const EmptyState(
-                title: 'Case not found',
-                message: 'This service case may no longer be available.',
-                icon: Icons.search_off_rounded,
+              return _CaseNotFoundState(
+                onSupport: () => SupportLauncher.openWhatsApp(context),
               );
             }
 
@@ -70,16 +68,86 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
   }
 }
 
+String _cleanErrorMessage(Object error) {
+  final rawMessage = error.toString().trim();
+
+  if (rawMessage.startsWith('ApiError:')) {
+    return rawMessage.replaceFirst('ApiError:', '').trim();
+  }
+
+  if (rawMessage.isEmpty) {
+    return 'Service tracking detail is unavailable right now.';
+  }
+
+  return rawMessage;
+}
+
+class _CaseNotFoundState extends StatelessWidget {
+  const _CaseNotFoundState({required this.onSupport});
+
+  final VoidCallback onSupport;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: PremiumCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.search_off_rounded,
+                color: AppTheme.primaryRed,
+                size: 42,
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Case not found',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'This tracking reference may no longer be available, or the server has not returned its detail yet.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: onSupport,
+                icon: const Icon(Icons.support_agent_rounded),
+                label: const Text('Ask support'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LoadErrorState extends StatelessWidget {
   const _LoadErrorState({
     required this.title,
     required this.message,
     required this.onRetry,
+    required this.onSupport,
   });
 
   final String title;
   final String message;
   final VoidCallback onRetry;
+  final VoidCallback onSupport;
 
   @override
   Widget build(BuildContext context) {
@@ -117,10 +185,24 @@ class _LoadErrorState extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onSupport,
+                      icon: const Icon(Icons.support_agent_rounded),
+                      label: const Text('Support'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -420,7 +502,7 @@ class _RequiredDocumentsCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Document upload will connect with the backend once OMC API testing resumes.',
+            'Track submitted, missing and required documents for this case.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
@@ -531,24 +613,73 @@ class _CaseActionsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Document upload will be enabled after backend integration.',
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.cloud_upload_outlined),
-            label: const Text('Upload documents'),
+          _ActionNotice(
+            icon: Icons.cloud_upload_outlined,
+            title: 'Document upload pending backend',
+            message:
+                'Once OMC enables the tracking upload endpoint, this case will support direct document submission.',
           ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
+          const SizedBox(height: 12),
+          FilledButton.icon(
             onPressed: () => SupportLauncher.openWhatsApp(context),
             icon: const Icon(Icons.chat_bubble_outline_rounded),
             label: const Text('Ask OMC support'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionNotice extends StatelessWidget {
+  const _ActionNotice({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -577,7 +708,7 @@ class _SupportCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Contact OMC support for updates or document help.',
+            'Contact OMC support for tracking updates, missing documents or urgent follow-up.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
