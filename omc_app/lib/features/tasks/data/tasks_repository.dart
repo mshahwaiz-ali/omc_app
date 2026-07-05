@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import 'task_item.dart';
 
@@ -33,33 +32,21 @@ class TasksRepository {
   final FrappeClient _frappeClient;
 
   Future<List<TaskItem>> fetchTasks() async {
-    try {
-      final response = await _frappeClient.getMethod(ApiConfig.tasksMethod);
+    final response = await _frappeClient.getMethod(ApiConfig.tasksMethod);
 
-      return _mapTasksResponse(response);
-    } on ApiError {
-      return const [];
-    } catch (_) {
-      return const [];
-    }
+    return _mapTasksResponse(response);
   }
 
   Future<TaskItem?> fetchTaskDetail(String taskId) async {
     final cleanTaskId = taskId.trim();
     if (cleanTaskId.isEmpty) return null;
 
-    try {
-      final response = await _frappeClient.getMethod(
-        ApiConfig.taskDetailMethod,
-        queryParameters: {'task_id': cleanTaskId, 'name': cleanTaskId},
-      );
+    final response = await _frappeClient.getMethod(
+      ApiConfig.taskDetailMethod,
+      queryParameters: {'task_id': cleanTaskId, 'name': cleanTaskId},
+    );
 
-      return _mapTaskDetailResponse(response);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
-    }
+    return _mapTaskDetailResponse(response);
   }
 
   List<TaskItem> _mapTasksResponse(Map<String, dynamic> data) {

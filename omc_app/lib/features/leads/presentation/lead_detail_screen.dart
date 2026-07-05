@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../data/leads_repository.dart';
@@ -31,15 +32,24 @@ class LeadDetailScreen extends ConsumerWidget {
           return _LeadDetailBody(lead: lead);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => PremiumEmptyState(
+        error: (error, _) => PremiumEmptyState(
           icon: Icons.trending_up_rounded,
           title: 'Lead detail unavailable',
-          message:
-              'Lead $leadId could not be loaded right now. Please try again later.',
+          message: _backendErrorMessage(error),
+          actionLabel: 'Retry',
+          onAction: () => ref.invalidate(leadDetailProvider(leadId)),
         ),
       ),
     );
   }
+}
+
+String _backendErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  return 'Could not load detail from the backend right now. Please try again.';
 }
 
 class _LeadDetailBody extends StatelessWidget {

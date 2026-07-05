@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/api_error.dart';
+import '../../../core/widgets/premium_empty_state.dart';
 import '../domain/internal_workspace_summary.dart';
 import 'internal_workspace_providers.dart';
 
@@ -22,11 +24,47 @@ class InternalWorkspaceScreen extends ConsumerWidget {
         child: summaryAsync.when(
           data: (summary) => _InternalWorkspaceContent(summary: summary),
           loading: () => const _InternalWorkspaceLoading(),
-          error: (_, _) => _InternalWorkspaceContent(
-            summary: InternalWorkspaceSummary.empty(),
+          error: (error, _) => _InternalWorkspaceUnavailable(
+            message: _backendErrorMessage(error),
+            onRetry: () => ref.invalidate(internalWorkspaceSummaryProvider),
           ),
         ),
       ),
+    );
+  }
+}
+
+String _backendErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  return 'Could not load internal workspace summary from the backend right now.';
+}
+
+class _InternalWorkspaceUnavailable extends StatelessWidget {
+  const _InternalWorkspaceUnavailable({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      children: [
+        PremiumEmptyState(
+          icon: Icons.dashboard_customize_rounded,
+          title: 'Workspace unavailable',
+          message: message,
+          actionLabel: 'Retry',
+          onAction: onRetry,
+        ),
+      ],
     );
   }
 }

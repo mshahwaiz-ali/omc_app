@@ -23,9 +23,10 @@ class HomeDashboardSummary {
     required this.activeCases,
     required this.completedCases,
     required this.pendingDocuments,
+    this.fallbackMessage,
   });
 
-  const HomeDashboardSummary.empty()
+  const HomeDashboardSummary.empty({this.fallbackMessage})
     : activeCases = 0,
       completedCases = 0,
       pendingDocuments = 0;
@@ -33,6 +34,7 @@ class HomeDashboardSummary {
   final int activeCases;
   final int completedCases;
   final int pendingDocuments;
+  final String? fallbackMessage;
 }
 
 class HomeDashboardRepository {
@@ -47,12 +49,15 @@ class HomeDashboardRepository {
       );
 
       return _summaryFromResponse(response);
-    } on ApiError {
+    } on ApiError catch (error) {
       // Dashboard is supportive UI. Do not block Home if backend dashboard
       // mapping is not ready yet.
-      return const HomeDashboardSummary.empty();
+      return HomeDashboardSummary.empty(fallbackMessage: error.message);
     } catch (_) {
-      return const HomeDashboardSummary.empty();
+      return const HomeDashboardSummary.empty(
+        fallbackMessage:
+            'Dashboard summary could not be loaded from the backend right now.',
+      );
     }
   }
 

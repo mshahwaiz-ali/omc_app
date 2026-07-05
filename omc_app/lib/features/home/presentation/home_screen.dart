@@ -80,10 +80,14 @@ class HomeScreen extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final dashboardSummary = ref.watch(homeDashboardSummaryProvider);
     final displayName = _displayNameFromUserId(authState.userId);
-    final statusItems = dashboardSummary.maybeWhen(
-      data: _statusItemsFromSummary,
-      orElse: () => _statusItemsFromSummary(const HomeDashboardSummary.empty()),
+    final summary = dashboardSummary.maybeWhen(
+      data: (summary) => summary,
+      orElse: () => const HomeDashboardSummary.empty(
+        fallbackMessage:
+            'Dashboard summary is loading from the backend right now.',
+      ),
     );
+    final statusItems = _statusItemsFromSummary(summary);
 
     return Scaffold(
       body: SafeArea(
@@ -118,6 +122,15 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            if (summary.fallbackMessage != null)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _DashboardFallbackNote(
+                    message: summary.fallbackMessage!,
+                  ),
+                ),
+              ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
               sliver: SliverToBoxAdapter(
@@ -385,6 +398,40 @@ class _HeroCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DashboardFallbackNote extends StatelessWidget {
+  const _DashboardFallbackNote({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: AppTheme.textSecondary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

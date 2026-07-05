@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_card.dart';
@@ -47,13 +48,21 @@ class TasksScreen extends ConsumerWidget {
         error: (error, _) => PremiumEmptyState(
           icon: Icons.error_outline_rounded,
           title: 'Tasks unavailable',
-          message: error.toString(),
+          message: _backendErrorMessage(error),
           actionLabel: 'Retry',
           onAction: () => ref.invalidate(tasksProvider),
         ),
       ),
     );
   }
+}
+
+String _backendErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  return 'Could not load tasks from the backend right now. Please try again.';
 }
 
 class _TaskCard extends StatelessWidget {
