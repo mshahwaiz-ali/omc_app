@@ -12,6 +12,7 @@ class ServiceItem {
     this.processSteps = const [],
     this.requiredDocuments = const [],
     this.supportMessage,
+    this.wizardType,
   });
 
   final String id;
@@ -26,6 +27,7 @@ class ServiceItem {
   final List<String> processSteps;
   final List<String> requiredDocuments;
   final String? supportMessage;
+  final String? wizardType;
 
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
     return ServiceItem(
@@ -54,6 +56,11 @@ class ServiceItem {
         'supportMessage',
         'support_message',
         'whatsapp_message',
+      ]),
+      wizardType: _readNullableString(json, [
+        'wizardType',
+        'wizard_type',
+        'request_wizard_type',
       ]),
       requirements: _readStringList(json, ['requirements']),
       processSteps: _readStringList(json, [

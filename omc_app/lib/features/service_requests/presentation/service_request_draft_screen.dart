@@ -819,20 +819,36 @@ String _serviceSearchText(ServiceItem service) {
   return '${service.id} ${service.title} ${service.category}'.toLowerCase();
 }
 
+String _normalizedWizardType(ServiceItem service) {
+  return service.wizardType?.trim().toLowerCase() ?? '';
+}
+
+bool _hasWizardType(ServiceItem service, String type) {
+  return _normalizedWizardType(service) == type;
+}
+
 bool _isNtnService(ServiceItem service) {
+  if (_hasWizardType(service, 'ntn')) return true;
+
   return _serviceSearchText(service).contains('ntn');
 }
 
 bool _isIrisService(ServiceItem service) {
+  if (_hasWizardType(service, 'iris')) return true;
+
   return _serviceSearchText(service).contains('iris');
 }
 
 bool _isGstService(ServiceItem service) {
+  if (_hasWizardType(service, 'gst')) return true;
+
   final text = _serviceSearchText(service);
   return text.contains('gst') || text.contains('sales tax');
 }
 
 bool _isBusinessService(ServiceItem service) {
+  if (_hasWizardType(service, 'business')) return true;
+
   final text = _serviceSearchText(service);
   return text.contains('business') ||
       text.contains('company registration') ||
