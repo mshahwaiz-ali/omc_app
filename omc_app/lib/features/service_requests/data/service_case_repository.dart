@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import 'service_case.dart';
 
@@ -56,25 +57,46 @@ class ServiceCaseRepository {
     // - call authenticated Frappe endpoint
     // - map backend case/request records into ServiceCase
     // - never create fake production cases locally
-    final response = await _frappeClient.getMethod(
-      ApiConfig.serviceCasesMethod,
-    );
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.serviceCasesMethod,
+      );
 
-    return _mapServiceCasesResponse(response);
+      return _mapServiceCasesResponse(response);
+    } on ApiError catch (error) {
+      throw _trackingApiUnavailable(error);
+    } catch (error) {
+      throw _trackingApiUnavailable(error);
+    }
   }
 
   Future<ServiceCase?> fetchServiceCaseDetail(String caseId) async {
     // Backend-first hook.
     // TODO(backend): replace endpoint/mapping with confirmed OMC Frappe API.
-    final response = await _frappeClient.getMethod(
-      ApiConfig.serviceCaseDetailMethod,
-      queryParameters: {'case_id': caseId},
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.serviceCaseDetailMethod,
+        queryParameters: {'case_id': caseId},
+      );
+
+      final cases = _mapServiceCasesResponse(response);
+      if (cases.isEmpty) return null;
+
+      return cases.first;
+    } on ApiError catch (error) {
+      throw _trackingApiUnavailable(error);
+    } catch (error) {
+      throw _trackingApiUnavailable(error);
+    }
+  }
+
+  ApiError _trackingApiUnavailable(Object details) {
+    return ApiError(
+      message:
+          'Service tracking is not connected on the server yet. Your submitted requests are still sent to OMC, and live tracking will appear after the backend endpoint is enabled.',
+      code: 'service_tracking_unavailable',
+      details: details,
     );
-
-    final cases = _mapServiceCasesResponse(response);
-    if (cases.isEmpty) return null;
-
-    return cases.first;
   }
 
   List<ServiceCase> _mapServiceCasesResponse(Map<String, dynamic>? data) {
