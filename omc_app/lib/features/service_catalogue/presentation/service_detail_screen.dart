@@ -73,6 +73,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                 _ServiceFacts(service: service),
                 const SizedBox(height: 16),
                 _OverviewCard(service: service),
+                _GuidedWizardCard(service: service),
                 const SizedBox(height: 16),
                 _ChecklistCard(
                   title: 'Requirements',
@@ -95,8 +96,10 @@ class ServiceDetailScreen extends ConsumerWidget {
                 _ProcessCard(steps: service.processSteps),
                 const SizedBox(height: 18),
                 AppButton(
-                  label: 'Start request',
-                  icon: Icons.add_rounded,
+                  label: _startRequestLabel(service),
+                  icon: _hasGuidedWizard(service)
+                      ? Icons.auto_awesome_rounded
+                      : Icons.add_rounded,
                   onPressed: () => context.push(
                     '/services/${Uri.encodeComponent(service.id)}/request',
                   ),
@@ -330,6 +333,119 @@ class _FactRow extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _GuidedWizardCard extends StatelessWidget {
+  const _GuidedWizardCard({required this.service});
+
+  final ServiceItem service;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_hasGuidedWizard(service)) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: PremiumCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: AppTheme.primaryRed,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _wizardTitle(service),
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _wizardSubtitle(service),
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _startRequestLabel(ServiceItem service) {
+  switch (_normalizedWizardType(service)) {
+    case 'ntn':
+      return 'Start NTN wizard';
+    case 'iris':
+      return 'Start IRIS wizard';
+    case 'gst':
+      return 'Start GST wizard';
+    case 'business':
+      return 'Start business wizard';
+    default:
+      return 'Start request';
+  }
+}
+
+bool _hasGuidedWizard(ServiceItem service) {
+  return _normalizedWizardType(service).isNotEmpty;
+}
+
+String _normalizedWizardType(ServiceItem service) {
+  return service.wizardType?.trim().toLowerCase() ?? '';
+}
+
+String _wizardTitle(ServiceItem service) {
+  switch (_normalizedWizardType(service)) {
+    case 'ntn':
+      return 'Guided NTN request';
+    case 'iris':
+      return 'Guided IRIS profile request';
+    case 'gst':
+      return 'Guided GST registration request';
+    case 'business':
+      return 'Guided business request';
+    default:
+      return 'Guided request';
+  }
+}
+
+String _wizardSubtitle(ServiceItem service) {
+  switch (_normalizedWizardType(service)) {
+    case 'ntn':
+      return 'Collect CNIC, occupation, income source, documents and contact details in one flow.';
+    case 'iris':
+      return 'Collect income-source and profile update details before submitting to OMC.';
+    case 'gst':
+      return 'Collect business type, business nature, consumer number and required documents.';
+    case 'business':
+      return 'Collect business structure, setup context, documents and contact details.';
+    default:
+      return 'Use a structured request flow for faster OMC review.';
   }
 }
 
