@@ -26,7 +26,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'App preferences, environment details and security information.',
+              'Account controls, preferences, environment details and security information.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 14,
@@ -35,78 +35,159 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            PremiumCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: const [
-                  _SettingsTile(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Notifications',
-                    subtitle: 'Service updates and document reminders',
-                    trailing: 'Default',
+            _SettingsSection(
+              title: 'Account',
+              children: [
+                _SettingsTile(
+                  icon: Icons.person_outline_rounded,
+                  title: 'Profile preferences',
+                  subtitle: 'Manage customer profile settings',
+                  trailing: 'Ready',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Profile settings endpoint is not connected yet.',
                   ),
-                  _DividerIndent(),
-                  _SettingsTile(
-                    icon: Icons.palette_outlined,
-                    title: 'Appearance',
-                    subtitle: 'Premium OMC theme',
-                    trailing: 'System',
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.lock_outline_rounded,
+                  title: 'Security',
+                  subtitle: 'Password, session and device security',
+                  trailing: 'Secure',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Security settings endpoint is not connected yet.',
                   ),
-                  _DividerIndent(),
-                  _SettingsTile(
-                    icon: Icons.lock_outline_rounded,
-                    title: 'Security',
-                    subtitle: 'Session is stored securely on device',
-                    trailing: 'Enabled',
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.logout_rounded,
+                  title: 'Session',
+                  subtitle: 'Logout and active session controls',
+                  trailing: 'Active',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Session management action is not connected here yet.',
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
-            const Text(
-              'Backend',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
+            _SettingsSection(
+              title: 'Preferences',
+              children: [
+                _SettingsTile(
+                  icon: Icons.notifications_none_rounded,
+                  title: 'Notifications',
+                  subtitle: 'Service updates and document reminders',
+                  trailing: 'Default',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Notification preferences endpoint is not connected yet.',
+                  ),
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.palette_outlined,
+                  title: 'Appearance',
+                  subtitle: 'Premium OMC theme',
+                  trailing: 'System',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Appearance settings are fixed to the premium OMC theme for now.',
+                  ),
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.privacy_tip_outlined,
+                  title: 'Privacy & data',
+                  subtitle: 'Data export, consent and account privacy',
+                  trailing: 'Ready',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Privacy and data endpoint is not connected yet.',
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            PremiumCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  _SettingsTile(
-                    icon: Icons.cloud_outlined,
-                    title: 'Environment',
-                    subtitle: _environmentLabel,
-                    trailing: Env.isProduction ? 'Live' : 'Dev',
+            const SizedBox(height: 18),
+            _SettingsSection(
+              title: 'Backend',
+              children: [
+                _SettingsTile(
+                  icon: Icons.cloud_outlined,
+                  title: 'Environment',
+                  subtitle: _environmentLabel,
+                  trailing: Env.isProduction ? 'Live' : 'Dev',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Environment is configured at build time.',
                   ),
-                  const _DividerIndent(),
-                  _SettingsTile(
-                    icon: Icons.link_rounded,
-                    title: 'API Server',
-                    subtitle: ApiConfig.baseUrl,
-                    trailing: 'Frappe',
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.link_rounded,
+                  title: 'API Server',
+                  subtitle: ApiConfig.baseUrl,
+                  trailing: 'Frappe',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'API server is configured through ApiConfig.',
                   ),
-                  const _DividerIndent(),
-                  _SettingsTile(
-                    icon: Icons.grid_view_outlined,
-                    title: 'Service Catalogue',
-                    subtitle: Env.useBackendServiceCatalogue
-                        ? 'Backend catalogue enabled'
-                        : 'Asset catalogue fallback enabled',
-                    trailing: Env.useBackendServiceCatalogue ? 'API' : 'Local',
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.grid_view_outlined,
+                  title: 'Service Catalogue',
+                  subtitle: Env.useBackendServiceCatalogue
+                      ? 'Backend catalogue enabled'
+                      : 'Asset catalogue fallback enabled',
+                  trailing: Env.useBackendServiceCatalogue ? 'API' : 'Local',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Catalogue source is configured through environment flags.',
                   ),
-                  const _DividerIndent(),
-                  _SettingsTile(
-                    icon: Icons.science_outlined,
-                    title: 'Testing Flags',
-                    subtitle: _testingFlagsLabel,
-                    trailing: _hasTestingFlags ? 'On' : 'Off',
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.science_outlined,
+                  title: 'Testing Flags',
+                  subtitle: _testingFlagsLabel,
+                  trailing: _hasTestingFlags ? 'On' : 'Off',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Testing flags are configured at build time.',
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _SettingsSection(
+              title: 'About',
+              children: [
+                _SettingsTile(
+                  icon: Icons.phone_iphone_rounded,
+                  title: 'OMC Mobile App',
+                  subtitle: 'Premium customer service app',
+                  trailing: 'Flutter',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'App version display will be connected with package info later.',
+                  ),
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.info_outline_rounded,
+                  title: 'Backend contract',
+                  subtitle:
+                      'Editable preferences are backend-ready placeholders',
+                  trailing: 'Pending',
+                  onTap: () => _showBackendPendingSnack(
+                    context,
+                    'Settings API contract is pending backend confirmation.',
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
             PremiumCard(
@@ -121,14 +202,14 @@ class SettingsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
-                      Icons.info_outline_rounded,
+                      Icons.verified_user_outlined,
                       color: AppTheme.primaryRed,
                     ),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
                     child: Text(
-                      'Editable preferences will be connected after the backend settings contract is confirmed.',
+                      'Settings actions are backend-ready. Editable preferences will activate after the OMC settings contract is confirmed.',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12,
@@ -168,6 +249,41 @@ class SettingsScreen extends StatelessWidget {
     if (enabled.isEmpty) return 'No local testing flags enabled';
     return enabled.join(', ');
   }
+
+  void _showBackendPendingSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _SettingsSection extends StatelessWidget {
+  const _SettingsSection({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 12),
+        PremiumCard(
+          padding: EdgeInsets.zero,
+          child: Column(children: children),
+        ),
+      ],
+    );
+  }
 }
 
 class _SettingsTile extends StatelessWidget {
@@ -176,17 +292,20 @@ class _SettingsTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.trailing,
+    required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final String trailing;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      onTap: onTap,
       leading: Container(
         width: 42,
         height: 42,
@@ -216,13 +335,23 @@ class _SettingsTile extends StatelessWidget {
           ),
         ),
       ),
-      trailing: Text(
-        trailing,
-        style: const TextStyle(
-          color: AppTheme.primaryRed,
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
-        ),
+      trailing: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 4,
+        children: [
+          Text(
+            trailing,
+            style: const TextStyle(
+              color: AppTheme.primaryRed,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
+          ),
+        ],
       ),
     );
   }
