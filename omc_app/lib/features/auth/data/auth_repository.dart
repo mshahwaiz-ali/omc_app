@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/config/env.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
@@ -54,6 +55,19 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
+    if (Env.useMockAuth) {
+      // Local testing bypass only.
+      // Keep real Frappe login below for staging/production.
+      final normalizedEmail = email.trim().isEmpty
+          ? 'local.tester@omc.local'
+          : email.trim();
+
+      await _secureStorageService.saveSessionCookie('mock-local-session');
+      await _secureStorageService.saveUserId(normalizedEmail);
+
+      return AuthSession(userId: normalizedEmail);
+    }
+
     final result = await _frappeClient.loginWithPassword(
       email: email,
       password: password,

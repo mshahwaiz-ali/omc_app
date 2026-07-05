@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/env.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../application/auth_controller.dart';
@@ -71,7 +72,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
-    final isLoading = _submitted && authState.status == AuthStatus.authenticating;
+    final isLoading =
+        _submitted && authState.status == AuthStatus.authenticating;
 
     return Scaffold(
       body: SafeArea(
@@ -89,6 +91,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         'Access your OMC services, requests and tax dashboard.',
                   ),
                   const SizedBox(height: 28),
+                  if (Env.useMockAuth) ...[
+                    const _LocalTestingBanner(),
+                    const SizedBox(height: 14),
+                  ],
                   PremiumCard(
                     padding: const EdgeInsets.all(22),
                     child: Form(
@@ -199,6 +205,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LocalTestingBanner extends StatelessWidget {
+  const _LocalTestingBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.22)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.science_outlined, color: AppTheme.primaryRed, size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Local Testing Mode is enabled. Any email and password will continue without calling Frappe.',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
