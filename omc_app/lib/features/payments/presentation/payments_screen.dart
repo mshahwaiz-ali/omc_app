@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
@@ -268,7 +269,7 @@ class _EmptyPaymentsView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Invoices, dues and receipts will appear here once the backend payment endpoint is enabled.',
+                'Invoices, dues and receipts will appear here when records are available.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.textSecondary,
@@ -286,6 +287,10 @@ class _EmptyPaymentsView extends StatelessWidget {
 }
 
 String _cleanError(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
   final message = error.toString().replaceFirst('ApiError:', '').trim();
   if (message.isEmpty) {
     return 'Payments could not be loaded right now. Please try again.';
@@ -325,7 +330,7 @@ class _PaymentsErrorView extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Unable to load payments',
+                'Payments unavailable',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.textPrimary,

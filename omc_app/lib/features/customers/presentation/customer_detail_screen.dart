@@ -88,7 +88,7 @@ class _CustomerDetailBody extends StatelessWidget {
         const CrmActivityTimelineCard(
           title: 'Relationship timeline',
           emptyMessage:
-              'No relationship activity yet. Services, documents, payments, and support events will appear here once backend activity data is available.',
+              'No relationship activity yet. Services, documents, payments, and support events will appear here when activity data is available.',
         ),
         const SizedBox(height: 16),
         const CrmDetailInfoCard(

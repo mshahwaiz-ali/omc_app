@@ -32,7 +32,7 @@ class ProfileScreen extends ConsumerWidget {
                     ref.watch(authControllerProvider).userId,
                   ),
                   message:
-                      'Signed in as ${ProfileSummary.fromUserId(ref.watch(authControllerProvider).userId).email}. Full customer profile will appear when the backend profile endpoint responds.',
+                      'Signed in as ${ProfileSummary.fromUserId(ref.watch(authControllerProvider).userId).email}. Full customer profile will appear when profile details are available.',
                   onRetry: () => ref.invalidate(profileSummaryProvider),
                 );
               }
@@ -59,7 +59,7 @@ String _profileErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  return 'Full customer profile could not be loaded from the backend right now.';
+  return 'Full customer profile is unavailable right now. Please try again.';
 }
 
 class _ProfileLoadingView extends StatelessWidget {

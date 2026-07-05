@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
@@ -28,9 +29,9 @@ class NotificationDetailScreen extends ConsumerWidget {
           if (notification == null) {
             return PremiumEmptyState(
               icon: Icons.notifications_none_rounded,
-              title: 'Notification detail unavailable',
+              title: 'Notification details unavailable',
               message:
-                  'Notification $notificationId is ready for the backend detail endpoint. Full message, reference, and actions will appear once data is available.',
+                  'Notification $notificationId could not be loaded right now. Full message, reference, and actions will appear when data is available.',
             );
           }
 
@@ -39,7 +40,7 @@ class NotificationDetailScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => PremiumEmptyState(
           icon: Icons.cloud_off_rounded,
-          title: 'Unable to load notification',
+          title: 'Notification unavailable',
           message: _cleanError(error),
         ),
       ),
@@ -48,6 +49,10 @@ class NotificationDetailScreen extends ConsumerWidget {
 }
 
 String _cleanError(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
   final message = error.toString().replaceFirst('ApiError:', '').trim();
   if (message.isEmpty) {
     return 'Notification details could not be loaded right now. Please try again.';
@@ -226,7 +231,9 @@ class _NotificationDetailBodyState
     } catch (error) {
       if (!mounted) return;
 
-      final message = error.toString().replaceFirst('ApiError:', '').trim();
+      final message = error is ApiError && error.message.trim().isNotEmpty
+          ? error.message.trim()
+          : error.toString().replaceFirst('ApiError:', '').trim();
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -299,7 +306,7 @@ class _NotificationDetailBodyState
     if (uri == null) {
       _showBackendPendingSnack(
         context,
-        'Invalid notification action URL received from backend.',
+        'Invalid notification action link received.',
       );
       return;
     }
@@ -310,7 +317,7 @@ class _NotificationDetailBodyState
     if (!opened) {
       _showBackendPendingSnack(
         context,
-        'Unable to open notification action right now.',
+        'Notification action could not be opened right now.',
       );
     }
   }

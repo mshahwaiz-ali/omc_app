@@ -30,7 +30,7 @@ class KnowledgeScreen extends ConsumerWidget {
               return _KnowledgeEmptyState(
                 title: 'No updates yet',
                 message:
-                    'OMC knowledge articles and news will appear here once the backend endpoint is ready.',
+                    'OMC knowledge articles and news will appear here when content is available.',
                 onRetry: () => ref.invalidate(knowledgeArticlesProvider),
               );
             }
@@ -99,7 +99,7 @@ String _knowledgeErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  return 'We could not load OMC updates from the backend right now. Please try again.';
+  return 'OMC updates could not be loaded right now. Please try again.';
 }
 
 class _FeaturedArticleCard extends StatelessWidget {

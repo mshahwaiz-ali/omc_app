@@ -112,7 +112,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Calculate tax from monthly income using OMC backend slabs when available, with a safe local estimate fallback.',
+            'Calculate tax from monthly income using OMC backend slabs when available.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 14,
@@ -289,7 +289,7 @@ class _TaxResultCard extends StatelessWidget {
               note ??
                   (isBackendResult
                       ? 'Calculated from OMC backend tax data.'
-                      : 'Local estimate only. Backend tax slabs are not connected yet.'),
+                      : 'Estimated calculation shown. Final tax may vary after backend slab verification.'),
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 12,

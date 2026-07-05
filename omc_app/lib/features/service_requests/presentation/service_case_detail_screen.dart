@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../support/application/support_launcher.dart';
@@ -92,7 +93,7 @@ class _ServiceCaseDetailScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Unable to upload because this case does not have a backend reference yet.',
+            'Upload cannot continue because this case is missing its service reference.',
           ),
         ),
       );
@@ -145,7 +146,7 @@ class _ServiceCaseDetailScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Unable to upload missing documents right now. Please try again.',
+            'Missing documents could not be uploaded right now. Please try again.',
           ),
         ),
       );
@@ -174,11 +175,11 @@ class _ServiceCaseDetailScreenState
 }
 
 String _cleanErrorMessage(Object error) {
-  final rawMessage = error.toString().trim();
-
-  if (rawMessage.startsWith('ApiError:')) {
-    return rawMessage.replaceFirst('ApiError:', '').trim();
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
   }
+
+  final rawMessage = error.toString().replaceFirst('ApiError:', '').trim();
 
   if (rawMessage.isEmpty) {
     return 'Service tracking detail is unavailable right now.';

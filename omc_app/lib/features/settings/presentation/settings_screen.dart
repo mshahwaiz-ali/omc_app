@@ -50,7 +50,7 @@ class SettingsScreen extends ConsumerWidget {
                   trailing: 'Ready',
                   onTap: () => _showBackendPendingSnack(
                     context,
-                    'Profile settings endpoint is not connected yet.',
+                    'Profile settings will be available when account preferences are enabled.',
                   ),
                 ),
                 const _DividerIndent(),
@@ -61,7 +61,7 @@ class SettingsScreen extends ConsumerWidget {
                   trailing: 'Secure',
                   onTap: () => _showBackendPendingSnack(
                     context,
-                    'Security settings endpoint is not connected yet.',
+                    'Security settings will be available when account security preferences are enabled.',
                   ),
                 ),
                 const _DividerIndent(),
@@ -126,7 +126,7 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Service Catalogue',
                   subtitle: Env.useBackendServiceCatalogue
                       ? 'Backend catalogue enabled'
-                      : 'Asset catalogue fallback enabled',
+                      : 'Asset catalogue available from bundled data',
                   trailing: Env.useBackendServiceCatalogue ? 'API' : 'Local',
                   onTap: () => _showBackendPendingSnack(
                     context,
@@ -273,7 +273,7 @@ class SettingsScreen extends ConsumerWidget {
       return error.message.trim();
     }
 
-    return 'Settings preferences could not be loaded from the backend right now.';
+    return 'Settings preferences could not be loaded right now. Please try again.';
   }
 
   void _showBackendPendingSnack(BuildContext context, String message) {
@@ -310,7 +310,7 @@ class _PreferencesSection extends StatelessWidget {
           subtitle: isBackendAvailable
               ? 'Notify me about service request progress'
               : errorMessage ??
-                    'Backend preferences unavailable; showing safe defaults',
+                    'Preferences unavailable; showing safe defaults',
           value: activePreferences.serviceUpdatesEnabled,
           onChanged: isBackendAvailable
               ? (value) => onToggle(

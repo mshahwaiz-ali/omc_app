@@ -58,7 +58,7 @@ class DocumentsRepository {
   }) async {
     final cleanDocumentId = documentId.trim();
     if (cleanDocumentId.isEmpty) {
-      throw const ApiError(message: 'Missing backend document reference.');
+      throw const ApiError(message: 'Missing document reference for upload.');
     }
 
     final uploadableAttachments = attachments

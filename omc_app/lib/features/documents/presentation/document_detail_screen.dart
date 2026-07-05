@@ -27,9 +27,9 @@ class DocumentDetailScreen extends ConsumerWidget {
           if (document == null) {
             return PremiumEmptyState(
               icon: Icons.description_rounded,
-              title: 'Document detail unavailable',
+              title: 'Document details unavailable',
               message:
-                  'Document $documentId is ready for the backend detail endpoint. File status, remarks, and service links will appear once data is available.',
+                  'Document $documentId could not be loaded right now. File status, remarks, and service links will appear when data is available.',
             );
           }
 
@@ -38,7 +38,7 @@ class DocumentDetailScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => PremiumEmptyState(
           icon: Icons.cloud_off_rounded,
-          title: 'Unable to load document',
+          title: 'Document unavailable',
           message: _cleanError(error),
         ),
       ),
@@ -47,6 +47,10 @@ class DocumentDetailScreen extends ConsumerWidget {
 }
 
 String _cleanError(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
   final message = error.toString().replaceFirst('ApiError:', '').trim();
   if (message.isEmpty) {
     return 'Document details could not be loaded right now. Please try again.';
@@ -103,7 +107,7 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
         const CrmActivityTimelineCard(
           title: 'Document timeline',
           emptyMessage:
-              'No document timeline yet. Uploads, review updates, approvals, and rejection notes will appear here once backend activity data is available.',
+              'No document timeline yet. Uploads, review updates, approvals, and rejection notes will appear here when activity data is available.',
         ),
         const SizedBox(height: 16),
         DocumentActionCard(
@@ -111,14 +115,16 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
           onPreview: () => _openDocumentUrl(
             context,
             document.previewUrl ?? document.fileUrl,
-            fallbackMessage: 'Document preview URL is not available yet.',
+            fallbackMessage:
+                'Document preview link is not available for this record.',
           ),
           isUploading: _isUploading,
           onUpload: _isUploading ? null : () => _pickAndStageUpload(context),
           onDownload: () => _openDocumentUrl(
             context,
             document.downloadUrl ?? document.fileUrl,
-            fallbackMessage: 'Document download URL is not available yet.',
+            fallbackMessage:
+                'Document download link is not available for this record.',
           ),
         ),
         const SizedBox(height: 8),
@@ -177,7 +183,7 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
       messenger.showSnackBar(
         const SnackBar(
           content: Text(
-            'Unable to upload document right now. Please try again.',
+            'Document upload could not be completed right now. Please try again.',
           ),
         ),
       );
@@ -201,7 +207,7 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
 
     final uri = _documentUri(cleanUrl);
     if (uri == null) {
-      _showSnack(context, 'Invalid document URL received from backend.');
+      _showSnack(context, 'Invalid document link received.');
       return;
     }
 
@@ -209,7 +215,7 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
     if (!context.mounted) return;
 
     if (!opened) {
-      _showSnack(context, 'Unable to open document link right now.');
+      _showSnack(context, 'Document link could not be opened right now.');
     }
   }
 

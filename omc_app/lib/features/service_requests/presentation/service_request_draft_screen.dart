@@ -127,7 +127,7 @@ class _ServiceRequestDraftScreenState
         appBar: AppBar(),
         body: EmptyState(
           title: 'Request form unavailable',
-          message: error.toString(),
+          message: _serviceRequestDraftErrorMessage(error),
           icon: Icons.cloud_off_outlined,
           actionLabel: 'Retry',
           onAction: () => ref.invalidate(serviceCatalogueProvider),
@@ -455,7 +455,7 @@ class _ServiceRequestDraftScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Unable to open the document picker right now.'),
+          content: Text('Document picker could not be opened right now.'),
         ),
       );
     } finally {
@@ -603,7 +603,7 @@ class _ServiceRequestDraftScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Unable to submit request right now. Please try again.',
+            'Request could not be submitted right now. Please try again.',
           ),
         ),
       );
@@ -1713,4 +1713,15 @@ class _WizardBlueprint {
       ],
     );
   }
+}
+
+String _serviceRequestDraftErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  if (message.isNotEmpty) return message;
+
+  return 'Service request form is unavailable right now. Please try again.';
 }

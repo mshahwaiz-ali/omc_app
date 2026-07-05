@@ -34,7 +34,7 @@ class ProfileActionCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Profile edit, contact update, and support actions are prepared for backend endpoints.',
+              'Profile edit, contact update, and support actions are available when account services are enabled.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12,

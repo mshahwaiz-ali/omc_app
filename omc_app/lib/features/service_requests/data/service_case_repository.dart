@@ -93,7 +93,7 @@ class ServiceCaseRepository {
   ApiError _trackingApiUnavailable(Object details) {
     return ApiError(
       message:
-          'Service tracking is not connected on the server yet. Your submitted requests are still sent to OMC, and live tracking will appear after the backend endpoint is enabled.',
+          'Service tracking is unavailable on the server right now. Your submitted requests are still sent to OMC, and live tracking will appear when service updates are available.',
       code: 'service_tracking_unavailable',
       details: details,
     );

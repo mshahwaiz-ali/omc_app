@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
@@ -41,7 +42,7 @@ class MyServicesScreen extends ConsumerWidget {
         child: casesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _LoadErrorState(
-            title: 'Tracking not connected yet',
+            title: 'Service tracking unavailable',
             message: _cleanErrorMessage(error),
             onRetry: () => ref.invalidate(serviceCasesProvider),
             onStartRequest: () => context.go('/services'),
@@ -70,11 +71,11 @@ class MyServicesScreen extends ConsumerWidget {
 }
 
 String _cleanErrorMessage(Object error) {
-  final rawMessage = error.toString().trim();
-
-  if (rawMessage.startsWith('ApiError:')) {
-    return rawMessage.replaceFirst('ApiError:', '').trim();
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
   }
+
+  final rawMessage = error.toString().replaceFirst('ApiError:', '').trim();
 
   if (rawMessage.isEmpty) {
     return 'Service tracking is unavailable right now. Submitted requests are still sent to OMC.';

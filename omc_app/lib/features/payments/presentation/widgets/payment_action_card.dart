@@ -36,7 +36,7 @@ class PaymentActionCard extends StatelessWidget {
             Text('Actions', style: theme.textTheme.titleMedium),
             const SizedBox(height: 6),
             Text(
-              'Invoice, receipt, and payment actions are prepared for backend payment endpoints.',
+              'Invoice, receipt, and payment actions are available when payment links are provided.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -47,7 +47,7 @@ class PaymentActionCard extends StatelessWidget {
               title: 'View invoice',
               subtitle: canOpenInvoice
                   ? 'Open the payment invoice.'
-                  : 'Invoice URL is not available yet.',
+                  : 'Invoice link is not available for this record.',
               enabled: canOpenInvoice,
               onTap: onInvoice,
             ),
@@ -57,7 +57,7 @@ class PaymentActionCard extends StatelessWidget {
               title: 'Download receipt',
               subtitle: canOpenReceipt
                   ? 'Download the paid receipt.'
-                  : 'Receipt will be available after backend reconciliation.',
+                  : 'Receipt will be available after reconciliation.',
               enabled: canOpenReceipt,
               onTap: onReceipt,
             ),
@@ -71,7 +71,7 @@ class PaymentActionCard extends StatelessWidget {
                   : 'Upload receipt',
               subtitle: isUploadingReceipt
                   ? 'Please wait while the receipt is uploaded.'
-                  : 'Attach payment proof for backend verification.',
+                  : 'Attach payment proof for verification.',
               enabled: !isUploadingReceipt,
               onTap: onUploadReceipt,
             ),
@@ -82,8 +82,8 @@ class PaymentActionCard extends StatelessWidget {
               subtitle: payment.status == PaymentStatus.paid
                   ? 'No payment action is required.'
                   : payment.paymentUrl == null
-                  ? 'Payment gateway URL is not available yet.'
-                  : 'Continue to backend payment gateway.',
+                  ? 'Payment gateway link is not available for this record.'
+                  : 'Continue to payment gateway.',
               enabled: canPay,
               onTap: onPayNow,
             ),

@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../../auth/application/auth_controller.dart';
 import 'profile_summary.dart';
@@ -35,35 +34,23 @@ class ProfileRepository {
   Future<bool> requestProfileUpdate(Map<String, dynamic> payload) async {
     if (payload.isEmpty) return false;
 
-    try {
-      await _frappeClient.postMethod(
-        ApiConfig.updateProfileMethod,
-        data: payload,
-      );
+    await _frappeClient.postMethod(
+      ApiConfig.updateProfileMethod,
+      data: payload,
+    );
 
-      return true;
-    } on ApiError {
-      return false;
-    } catch (_) {
-      return false;
-    }
+    return true;
   }
 
   Future<bool> requestContactUpdate(Map<String, dynamic> payload) async {
     if (payload.isEmpty) return false;
 
-    try {
-      await _frappeClient.postMethod(
-        ApiConfig.updateContactMethod,
-        data: payload,
-      );
+    await _frappeClient.postMethod(
+      ApiConfig.updateContactMethod,
+      data: payload,
+    );
 
-      return true;
-    } on ApiError {
-      return false;
-    } catch (_) {
-      return false;
-    }
+    return true;
   }
 
   ProfileSummary? _mapProfileResponse(

@@ -31,8 +31,7 @@ class KnowledgeDetailScreen extends ConsumerWidget {
           data: (article) {
             if (article == null) {
               return _KnowledgeDetailUnavailable(
-                message:
-                    'This knowledge item could not be loaded from the backend.',
+                message: 'This knowledge item could not be loaded right now.',
                 onRetry: () =>
                     ref.invalidate(knowledgeArticleDetailProvider(articleId)),
               );
@@ -120,11 +119,16 @@ Uri? _resolvedArticleUri(String? value) {
 }
 
 Future<void> _openExternalArticle(BuildContext context, Uri uri) async {
-  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  final canOpen = await canLaunchUrl(uri);
+  final opened = canOpen
+      ? await launchUrl(uri, mode: LaunchMode.externalApplication)
+      : false;
 
   if (!opened && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open this article link.')),
+      const SnackBar(
+        content: Text('Article link could not be opened right now.'),
+      ),
     );
   }
 }
@@ -134,7 +138,7 @@ String _knowledgeDetailErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  return 'This knowledge item could not be loaded from the backend.';
+  return 'This knowledge item could not be loaded right now.';
 }
 
 class _ArticleMetaRow extends StatelessWidget {

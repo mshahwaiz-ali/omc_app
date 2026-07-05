@@ -34,7 +34,7 @@ class DocumentActionCard extends StatelessWidget {
             Text('Actions', style: theme.textTheme.titleMedium),
             const SizedBox(height: 6),
             Text(
-              'Upload, preview, and download actions are prepared for backend file endpoints.',
+              'Upload, preview, and download actions are available when file links are provided.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -61,7 +61,7 @@ class DocumentActionCard extends StatelessWidget {
                   : 'Replace document',
               subtitle: isUploading
                   ? 'Please wait while the file is uploaded.'
-                  : 'Attach a new file for backend upload.',
+                  : 'Attach a new file for upload.',
               enabled: !isUploading,
               onTap: onUpload,
             ),

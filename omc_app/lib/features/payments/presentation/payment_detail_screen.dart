@@ -27,9 +27,9 @@ class PaymentDetailScreen extends ConsumerWidget {
           if (payment == null) {
             return PremiumEmptyState(
               icon: Icons.account_balance_wallet_outlined,
-              title: 'Payment detail unavailable',
+              title: 'Payment details unavailable',
               message:
-                  'Payment $paymentId is ready for the backend detail endpoint. Invoice, receipt, and payment actions will appear once data is available.',
+                  'Payment $paymentId could not be loaded right now. Invoice, receipt, and payment actions will appear when data is available.',
             );
           }
 
@@ -38,7 +38,7 @@ class PaymentDetailScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => PremiumEmptyState(
           icon: Icons.cloud_off_rounded,
-          title: 'Unable to load payment',
+          title: 'Payment unavailable',
           message: _cleanError(error),
         ),
       ),
@@ -47,6 +47,10 @@ class PaymentDetailScreen extends ConsumerWidget {
 }
 
 String _cleanError(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
   final message = error.toString().replaceFirst('ApiError:', '').trim();
   if (message.isEmpty) {
     return 'Payment details could not be loaded right now. Please try again.';
@@ -111,7 +115,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
         const CrmActivityTimelineCard(
           title: 'Payment timeline',
           emptyMessage:
-              'No payment timeline yet. Invoice creation, due reminders, receipt uploads, and reconciliation events will appear here once backend activity data is available.',
+              'No payment timeline yet. Invoice creation, due reminders, receipt uploads, and reconciliation events will appear here when activity data is available.',
         ),
         const SizedBox(height: 16),
         PaymentActionCard(
@@ -120,12 +124,14 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
           onInvoice: () => _openPaymentUrl(
             context,
             payment.invoiceUrl,
-            fallbackMessage: 'Payment invoice URL is not available yet.',
+            fallbackMessage:
+                'Payment invoice link is not available for this record.',
           ),
           onReceipt: () => _openPaymentUrl(
             context,
             payment.receiptUrl,
-            fallbackMessage: 'Payment receipt URL is not available yet.',
+            fallbackMessage:
+                'Payment receipt link is not available for this record.',
           ),
           onUploadReceipt: _isUploadingReceipt
               ? null
@@ -133,7 +139,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
           onPayNow: () => _openPaymentUrl(
             context,
             payment.paymentUrl,
-            fallbackMessage: 'Payment gateway URL is not available yet.',
+            fallbackMessage:
+                'Payment gateway link is not available for this record.',
           ),
         ),
         const SizedBox(height: 8),
@@ -192,7 +199,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       messenger.showSnackBar(
         const SnackBar(
           content: Text(
-            'Unable to upload receipt right now. Please try again.',
+            'Receipt upload could not be completed right now. Please try again.',
           ),
         ),
       );
@@ -216,7 +223,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
 
     final uri = _paymentUri(cleanUrl);
     if (uri == null) {
-      _showSnack(context, 'Invalid payment URL received from backend.');
+      _showSnack(context, 'Invalid payment link received.');
       return;
     }
 
@@ -224,7 +231,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     if (!context.mounted) return;
 
     if (!opened) {
-      _showSnack(context, 'Unable to open payment link right now.');
+      _showSnack(context, 'Payment link could not be opened right now.');
     }
   }
 

@@ -55,7 +55,7 @@ class PaymentsRepository {
   }) async {
     final cleanPaymentId = paymentId.trim();
     if (cleanPaymentId.isEmpty) {
-      throw const ApiError(message: 'Missing backend payment reference.');
+      throw const ApiError(message: 'Missing payment reference for upload.');
     }
 
     final uploadableAttachments = attachments

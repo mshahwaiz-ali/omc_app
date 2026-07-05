@@ -204,7 +204,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Unable to submit support ticket right now.'),
+          content: Text(
+            'Support ticket could not be submitted right now. Please try again.',
+          ),
         ),
       );
     } finally {

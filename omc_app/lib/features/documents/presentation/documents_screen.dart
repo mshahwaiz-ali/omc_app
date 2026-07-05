@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
@@ -27,12 +28,72 @@ class DocumentsScreen extends ConsumerWidget {
                 ? const _EmptyDocumentsView()
                 : _DocumentsList(documents: documents),
             loading: () => const _DocumentsLoadingView(),
-            error: (_, _) => const _EmptyDocumentsView(),
+            error: (error, _) =>
+                _DocumentsErrorView(message: _documentsErrorMessage(error)),
           ),
         ),
       ),
     );
   }
+}
+
+class _DocumentsErrorView extends StatelessWidget {
+  const _DocumentsErrorView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 48, 20, 28),
+      children: [
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                color: AppTheme.primaryRed,
+                size: 42,
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Documents unavailable',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _documentsErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  if (message.isNotEmpty) return message;
+
+  return 'Document records are unavailable right now. Please try again.';
 }
 
 class _DocumentsList extends StatelessWidget {
@@ -281,7 +342,7 @@ class _EmptyDocumentsView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Required and submitted documents will appear here once the backend document endpoint is enabled.',
+                'Required and submitted documents will appear here when records are available.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.textSecondary,

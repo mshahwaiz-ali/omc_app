@@ -80,18 +80,18 @@ class TaxCalculationRepository {
       return _localEstimate(
         input,
         backendMessage:
-            'Backend returned an incomplete tax response. Showing local estimate.',
+            'Backend returned an incomplete tax response, so an estimated calculation is shown.',
       );
     } on ApiError catch (error) {
       return _localEstimate(
         input,
-        backendMessage: '${error.message} Showing local estimate.',
+        backendMessage: '${error.message} An estimated calculation is shown.',
       );
     } catch (_) {
       return _localEstimate(
         input,
         backendMessage:
-            'Backend tax calculator is unavailable. Showing local estimate.',
+            'Estimated calculation shown. Final tax may vary after slab verification.',
       );
     }
   }
@@ -157,7 +157,7 @@ class TaxCalculationRepository {
       isBackendResult: false,
       note:
           backendMessage ??
-          'Backend tax slabs are not connected yet, so this is a local estimate.',
+          'Estimated calculation shown. Final tax may vary after backend slab verification.',
     );
   }
 

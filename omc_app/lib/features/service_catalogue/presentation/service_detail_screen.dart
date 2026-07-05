@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
@@ -30,7 +31,7 @@ class ServiceDetailScreen extends ConsumerWidget {
         appBar: AppBar(),
         body: EmptyState(
           title: 'Service unavailable',
-          message: error.toString(),
+          message: _serviceCatalogueErrorMessage(error),
           icon: Icons.cloud_off_outlined,
           actionLabel: 'Retry',
           onAction: () => ref.invalidate(serviceCatalogueProvider),
@@ -637,4 +638,15 @@ class _ProcessStep extends StatelessWidget {
 
 String _clean(String? value) {
   return value?.trim() ?? '';
+}
+
+String _serviceCatalogueErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  if (message.isNotEmpty) return message;
+
+  return 'Service catalogue is unavailable right now. Please try again.';
 }

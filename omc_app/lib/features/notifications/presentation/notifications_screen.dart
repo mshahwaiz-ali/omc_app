@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/notification_item.dart';
 import '../data/notifications_repository.dart';
@@ -282,7 +283,7 @@ class _EmptyNotificationsView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Updates will appear here once the backend notifications endpoint is enabled.',
+                'Updates will appear here when notifications are available.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.textSecondary,
@@ -300,6 +301,10 @@ class _EmptyNotificationsView extends StatelessWidget {
 }
 
 String _cleanError(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
   final message = error.toString().replaceFirst('ApiError:', '').trim();
   if (message.isEmpty) {
     return 'Notifications could not be loaded right now. Please try again.';
@@ -339,7 +344,7 @@ class _NotificationsErrorView extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Unable to load notifications',
+                'Notifications unavailable',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.textPrimary,
