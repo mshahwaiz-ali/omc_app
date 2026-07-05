@@ -69,6 +69,9 @@ class ApiConfig {
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
 
+  // TODO(backend): Replace with confirmed OMC/Frappe leads API.
+  static const String leadsMethod = 'omc_app.api.mobile.get_leads';
+
   static const String uploadFileMethod = 'upload_file';
 
   static String _withoutTrailingSlash(String value) {
