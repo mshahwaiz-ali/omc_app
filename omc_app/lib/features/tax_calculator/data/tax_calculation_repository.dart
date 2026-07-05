@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 
 final taxCalculationRepositoryProvider = Provider<TaxCalculationRepository>((
@@ -75,11 +76,24 @@ class TaxCalculationRepository {
 
       final result = _mapBackendResult(response, input);
       if (result != null) return result;
-    } catch (_) {
-      // Safe fallback below. No fake backend success.
-    }
 
-    return _localEstimate(input);
+      return _localEstimate(
+        input,
+        backendMessage:
+            'Backend returned an incomplete tax response. Showing local estimate.',
+      );
+    } on ApiError catch (error) {
+      return _localEstimate(
+        input,
+        backendMessage: '${error.message} Showing local estimate.',
+      );
+    } catch (_) {
+      return _localEstimate(
+        input,
+        backendMessage:
+            'Backend tax calculator is unavailable. Showing local estimate.',
+      );
+    }
   }
 
   TaxCalculationResult? _mapBackendResult(
@@ -124,7 +138,10 @@ class TaxCalculationRepository {
     );
   }
 
-  TaxCalculationResult _localEstimate(TaxCalculationInput input) {
+  TaxCalculationResult _localEstimate(
+    TaxCalculationInput input, {
+    String? backendMessage,
+  }) {
     final monthlyIncome = input.monthlyIncome;
     final yearlyIncome = monthlyIncome * 12;
     final yearlyTax = _estimateLocalTax(yearlyIncome);
@@ -139,6 +156,7 @@ class TaxCalculationRepository {
       yearlyAfterTax: yearlyIncome - yearlyTax,
       isBackendResult: false,
       note:
+          backendMessage ??
           'Backend tax slabs are not connected yet, so this is a local estimate.',
     );
   }

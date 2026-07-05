@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../domain/customer_item.dart';
 
@@ -33,36 +32,24 @@ class CustomersRepository {
   final FrappeClient _frappeClient;
 
   Future<List<CustomerItem>> fetchCustomers() async {
-    try {
-      final response = await _frappeClient.getMethod(ApiConfig.customersMethod);
+    final response = await _frappeClient.getMethod(ApiConfig.customersMethod);
 
-      return _mapCustomersResponse(response);
-    } on ApiError {
-      return const [];
-    } catch (_) {
-      return const [];
-    }
+    return _mapCustomersResponse(response);
   }
 
   Future<CustomerItem?> fetchCustomerDetail(String customerId) async {
     final cleanCustomerId = customerId.trim();
     if (cleanCustomerId.isEmpty) return null;
 
-    try {
-      final response = await _frappeClient.getMethod(
-        ApiConfig.customerDetailMethod,
-        queryParameters: {
-          'customer_id': cleanCustomerId,
-          'name': cleanCustomerId,
-        },
-      );
+    final response = await _frappeClient.getMethod(
+      ApiConfig.customerDetailMethod,
+      queryParameters: {
+        'customer_id': cleanCustomerId,
+        'name': cleanCustomerId,
+      },
+    );
 
-      return _mapCustomerDetailResponse(response);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
-    }
+    return _mapCustomerDetailResponse(response);
   }
 
   List<CustomerItem> _mapCustomersResponse(Map<String, dynamic> data) {

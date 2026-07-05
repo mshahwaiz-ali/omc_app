@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../domain/lead_item.dart';
 
@@ -33,33 +32,21 @@ class LeadsRepository {
   final FrappeClient _frappeClient;
 
   Future<List<LeadItem>> fetchLeads() async {
-    try {
-      final response = await _frappeClient.getMethod(ApiConfig.leadsMethod);
+    final response = await _frappeClient.getMethod(ApiConfig.leadsMethod);
 
-      return _mapLeadsResponse(response);
-    } on ApiError {
-      return const [];
-    } catch (_) {
-      return const [];
-    }
+    return _mapLeadsResponse(response);
   }
 
   Future<LeadItem?> fetchLeadDetail(String leadId) async {
     final cleanLeadId = leadId.trim();
     if (cleanLeadId.isEmpty) return null;
 
-    try {
-      final response = await _frappeClient.getMethod(
-        ApiConfig.leadDetailMethod,
-        queryParameters: {'lead_id': cleanLeadId, 'name': cleanLeadId},
-      );
+    final response = await _frappeClient.getMethod(
+      ApiConfig.leadDetailMethod,
+      queryParameters: {'lead_id': cleanLeadId, 'name': cleanLeadId},
+    );
 
-      return _mapLeadDetailResponse(response);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
-    }
+    return _mapLeadDetailResponse(response);
   }
 
   List<LeadItem> _mapLeadsResponse(Map<String, dynamic> data) {

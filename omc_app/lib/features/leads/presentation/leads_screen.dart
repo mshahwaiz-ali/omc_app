@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_card.dart';
@@ -25,9 +26,53 @@ class LeadsScreen extends ConsumerWidget {
         child: leadsAsync.when(
           data: (leads) => _LeadsContent(leads: leads),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => const _LeadsContent(leads: []),
+          error: (error, _) => _BackendUnavailableState(
+            icon: Icons.trending_up_rounded,
+            title: 'Leads unavailable',
+            message: _backendErrorMessage(error),
+            onRetry: () => ref.invalidate(leadsProvider),
+          ),
         ),
       ),
+    );
+  }
+}
+
+String _backendErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  return 'Could not load data from the backend right now. Please try again.';
+}
+
+class _BackendUnavailableState extends StatelessWidget {
+  const _BackendUnavailableState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      children: [
+        PremiumEmptyState(
+          icon: icon,
+          title: title,
+          message: message,
+          actionLabel: 'Retry',
+          onAction: onRetry,
+        ),
+      ],
     );
   }
 }
