@@ -7,6 +7,10 @@ import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
+import '../features/documents/presentation/documents_screen.dart';
+import '../features/payments/presentation/payments_screen.dart';
+import '../features/profile/presentation/profile_screen.dart';
+import '../features/settings/presentation/settings_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/service_request_draft_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
@@ -88,6 +92,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MyServicesScreen(),
       ),
       GoRoute(
+        path: '/documents',
+        name: 'documents',
+        builder: (context, state) => const DocumentsScreen(),
+      ),
+      GoRoute(
+        path: '/payments',
+        name: 'payments',
+        builder: (context, state) => const PaymentsScreen(),
+      ),
+      GoRoute(
         path: '/my-services/:caseId',
         name: 'service-case-detail',
         builder: (context, state) {
@@ -111,20 +125,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         name: 'profile',
-        builder: (context, state) => const FeaturePlaceholderScreen(
-          title: 'Profile',
-          message: 'Personal information and account preferences appear here.',
-          icon: Icons.person_outline_rounded,
-        ),
+        builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
         path: '/settings',
         name: 'settings',
-        builder: (context, state) => const FeaturePlaceholderScreen(
-          title: 'Settings',
-          message: 'Theme, notification and app preferences appear here.',
-          icon: Icons.settings_outlined,
-        ),
+        builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
         path: '/internal-workspace',

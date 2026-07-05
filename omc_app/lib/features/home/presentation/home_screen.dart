@@ -59,13 +59,13 @@ class HomeScreen extends ConsumerWidget {
       title: 'Documents',
       subtitle: 'CNIC, proofs and files',
       icon: Icons.folder_copy_outlined,
-      target: _HomeActionTarget.services,
+      target: _HomeActionTarget.documents,
     ),
     _WorkspaceAction(
       title: 'Payments',
       subtitle: 'Invoices and receipts',
       icon: Icons.account_balance_wallet_outlined,
-      target: _HomeActionTarget.services,
+      target: _HomeActionTarget.payments,
     ),
     _WorkspaceAction(
       title: 'Support',
@@ -214,6 +214,12 @@ class HomeScreen extends ConsumerWidget {
         return;
       case _HomeActionTarget.services:
         onOpenServices?.call();
+        return;
+      case _HomeActionTarget.documents:
+        context.go('/documents');
+        return;
+      case _HomeActionTarget.payments:
+        context.go('/payments');
         return;
       case _HomeActionTarget.calculator:
         onOpenCalculator?.call();
@@ -604,7 +610,14 @@ class _RecentActivityCard extends StatelessWidget {
   }
 }
 
-enum _HomeActionTarget { myServices, services, calculator, support }
+enum _HomeActionTarget {
+  myServices,
+  services,
+  documents,
+  payments,
+  calculator,
+  support,
+}
 
 class _HomeAction {
   const _HomeAction({

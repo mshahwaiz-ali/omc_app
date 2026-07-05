@@ -52,6 +52,15 @@ class ApiConfig {
   static const String serviceCaseDetailMethod =
       'omc_app.api.mobile.get_service_case';
 
+  // TODO(backend): Replace with confirmed OMC/Frappe documents API.
+  static const String documentsMethod = 'omc_app.api.mobile.get_documents';
+
+  // TODO(backend): Replace with confirmed OMC/Frappe payments API.
+  static const String paymentsMethod = 'omc_app.api.mobile.get_payments';
+
+  // TODO(backend): Replace with confirmed OMC/Frappe profile API.
+  static const String profileMethod = 'omc_app.api.mobile.get_profile';
+
   static const String uploadFileMethod = 'upload_file';
 
   static String _withoutTrailingSlash(String value) {
