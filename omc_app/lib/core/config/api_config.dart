@@ -39,6 +39,15 @@ class ApiConfig {
   static const String createLeadMethod = 'lead_app.lead_app.apis.create_lead';
   static const String dashboardDataMethod =
       'lead_app.lead_app.apis.get_dashboard_data';
+
+  // TODO(backend): Replace these with confirmed OMC/Frappe tracking APIs.
+  // Keep centralized so My Services can be wired without hardcoded
+  // placeholder method names inside feature repositories.
+  static const String serviceCasesMethod =
+      'omc_app.api.mobile.get_service_cases';
+  static const String serviceCaseDetailMethod =
+      'omc_app.api.mobile.get_service_case';
+
   static const String uploadFileMethod = 'upload_file';
 
   static String _withoutTrailingSlash(String value) {

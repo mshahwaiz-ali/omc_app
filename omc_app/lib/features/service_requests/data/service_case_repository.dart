@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
 import '../../../core/network/frappe_client.dart';
 import 'service_case.dart';
@@ -56,7 +57,7 @@ class ServiceCaseRepository {
     // - map backend case/request records into ServiceCase
     // - never create fake production cases locally
     final response = await _frappeClient.getMethod(
-      'omc_app.api.mobile.get_service_cases',
+      ApiConfig.serviceCasesMethod,
     );
 
     return _mapServiceCasesResponse(response);
@@ -66,7 +67,7 @@ class ServiceCaseRepository {
     // Backend-first hook.
     // TODO(backend): replace endpoint/mapping with confirmed OMC Frappe API.
     final response = await _frappeClient.getMethod(
-      'omc_app.api.mobile.get_service_case',
+      ApiConfig.serviceCaseDetailMethod,
       queryParameters: {'case_id': caseId},
     );
 
