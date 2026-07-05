@@ -33,9 +33,19 @@ class _ServiceRequestDraftScreenState
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _taxIdController = TextEditingController();
+  final _cnicController = TextEditingController();
+  final _occupationController = TextEditingController();
+  final _sourceOfIncomeController = TextEditingController();
+  final _gstBusinessTypeController = TextEditingController();
+  final _gstBusinessNatureController = TextEditingController();
+  final _consumerNumberController = TextEditingController();
+  final _businessContextController = TextEditingController();
   final _remarksController = TextEditingController();
 
   final List<DocumentAttachment> _attachments = [];
+
+  String? _irisIncomeSource;
+  String? _businessOption;
 
   bool _prefilledEmail = false;
   bool _isPickingDocuments = false;
@@ -50,6 +60,13 @@ class _ServiceRequestDraftScreenState
       _phoneController,
       _emailController,
       _taxIdController,
+      _cnicController,
+      _occupationController,
+      _sourceOfIncomeController,
+      _gstBusinessTypeController,
+      _gstBusinessNatureController,
+      _consumerNumberController,
+      _businessContextController,
       _remarksController,
     ]) {
       controller.addListener(_refreshReviewSummary);
@@ -68,6 +85,13 @@ class _ServiceRequestDraftScreenState
       _phoneController,
       _emailController,
       _taxIdController,
+      _cnicController,
+      _occupationController,
+      _sourceOfIncomeController,
+      _gstBusinessTypeController,
+      _gstBusinessNatureController,
+      _consumerNumberController,
+      _businessContextController,
       _remarksController,
     ]) {
       controller.removeListener(_refreshReviewSummary);
@@ -129,6 +153,28 @@ class _ServiceRequestDraftScreenState
                   _SelectedServiceCard(service: service),
                   const SizedBox(height: 16),
                   _WizardFoundationCard(service: service),
+                  _WizardSpecificFieldsCard(
+                    service: service,
+                    cnicController: _cnicController,
+                    occupationController: _occupationController,
+                    sourceOfIncomeController: _sourceOfIncomeController,
+                    gstBusinessTypeController: _gstBusinessTypeController,
+                    gstBusinessNatureController: _gstBusinessNatureController,
+                    consumerNumberController: _consumerNumberController,
+                    businessContextController: _businessContextController,
+                    irisIncomeSource: _irisIncomeSource,
+                    businessOption: _businessOption,
+                    onIrisIncomeSourceChanged: (value) {
+                      setState(() {
+                        _irisIncomeSource = value;
+                      });
+                    },
+                    onBusinessOptionChanged: (value) {
+                      setState(() {
+                        _businessOption = value;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 16),
                   PremiumCard(
                     child: Column(
@@ -222,6 +268,7 @@ class _ServiceRequestDraftScreenState
                     emailController: _emailController,
                     taxIdController: _taxIdController,
                     remarksController: _remarksController,
+                    additionalDetails: _wizardDetailsFor(service),
                     attachments: _attachments,
                     formatFileSize: ref
                         .read(documentAttachmentControllerProvider)
@@ -280,6 +327,60 @@ class _ServiceRequestDraftScreenState
     }
 
     return null;
+  }
+
+  Map<String, String> _wizardDetailsFor(ServiceItem service) {
+    final details = <String, String>{};
+
+    if (_isNtnService(service)) {
+      _putIfNotEmpty(details, 'ntn_cnic', _cnicController.text);
+      _putIfNotEmpty(details, 'occupation', _occupationController.text);
+      _putIfNotEmpty(
+        details,
+        'source_of_income',
+        _sourceOfIncomeController.text,
+      );
+    }
+
+    if (_isIrisService(service)) {
+      _putIfNotEmpty(details, 'iris_income_source', _irisIncomeSource);
+    }
+
+    if (_isGstService(service)) {
+      _putIfNotEmpty(
+        details,
+        'gst_business_type',
+        _gstBusinessTypeController.text,
+      );
+      _putIfNotEmpty(
+        details,
+        'gst_business_nature',
+        _gstBusinessNatureController.text,
+      );
+      _putIfNotEmpty(
+        details,
+        'consumer_number',
+        _consumerNumberController.text,
+      );
+    }
+
+    if (_isBusinessService(service)) {
+      _putIfNotEmpty(details, 'business_option', _businessOption);
+      _putIfNotEmpty(
+        details,
+        'business_context',
+        _businessContextController.text,
+      );
+    }
+
+    return details;
+  }
+
+  void _putIfNotEmpty(Map<String, String> details, String key, String? value) {
+    final normalizedValue = value?.trim();
+    if (normalizedValue == null || normalizedValue.isEmpty) return;
+
+    details[key] = normalizedValue;
   }
 
   Future<void> _pickDocuments() async {
@@ -357,6 +458,7 @@ class _ServiceRequestDraftScreenState
           email: _emailController.text.trim(),
           taxId: _taxIdController.text.trim(),
           remarks: _remarksController.text.trim(),
+          additionalDetails: _wizardDetailsFor(service),
           attachments: List<DocumentAttachment>.unmodifiable(_attachments),
         ),
       );
@@ -520,6 +622,248 @@ class _SelectedServiceCard extends StatelessWidget {
   }
 }
 
+class _WizardSpecificFieldsCard extends StatelessWidget {
+  const _WizardSpecificFieldsCard({
+    required this.service,
+    required this.cnicController,
+    required this.occupationController,
+    required this.sourceOfIncomeController,
+    required this.gstBusinessTypeController,
+    required this.gstBusinessNatureController,
+    required this.consumerNumberController,
+    required this.businessContextController,
+    required this.irisIncomeSource,
+    required this.businessOption,
+    required this.onIrisIncomeSourceChanged,
+    required this.onBusinessOptionChanged,
+  });
+
+  final ServiceItem service;
+  final TextEditingController cnicController;
+  final TextEditingController occupationController;
+  final TextEditingController sourceOfIncomeController;
+  final TextEditingController gstBusinessTypeController;
+  final TextEditingController gstBusinessNatureController;
+  final TextEditingController consumerNumberController;
+  final TextEditingController businessContextController;
+  final String? irisIncomeSource;
+  final String? businessOption;
+  final ValueChanged<String?> onIrisIncomeSourceChanged;
+  final ValueChanged<String?> onBusinessOptionChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final showNtnFields = _isNtnService(service);
+    final showIrisFields = _isIrisService(service);
+    final showGstFields = _isGstService(service);
+    final showBusinessFields = _isBusinessService(service);
+
+    if (!showNtnFields &&
+        !showIrisFields &&
+        !showGstFields &&
+        !showBusinessFields) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: PremiumCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Service-specific details',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'These fields help OMC route the request correctly while keeping the same backend submission flow.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (showNtnFields) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: cnicController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'CNIC',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: occupationController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Occupation',
+                  prefixIcon: Icon(Icons.work_outline_rounded),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: sourceOfIncomeController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Source of income',
+                  prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                ),
+              ),
+            ],
+            if (showIrisFields) ...[
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: irisIncomeSource,
+                decoration: const InputDecoration(
+                  labelText: 'Income source',
+                  prefixIcon: Icon(Icons.payments_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Salary', child: Text('Salary')),
+                  DropdownMenuItem(value: 'Business', child: Text('Business')),
+                  DropdownMenuItem(
+                    value: 'Freelance',
+                    child: Text('Freelance'),
+                  ),
+                  DropdownMenuItem(value: 'Property', child: Text('Property')),
+                  DropdownMenuItem(value: 'Other', child: Text('Other')),
+                ],
+                onChanged: onIrisIncomeSourceChanged,
+              ),
+            ],
+            if (showGstFields) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: gstBusinessTypeController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Business type',
+                  prefixIcon: Icon(Icons.storefront_outlined),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: gstBusinessNatureController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Business nature',
+                  prefixIcon: Icon(Icons.category_outlined),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: consumerNumberController,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Consumer number',
+                  prefixIcon: Icon(Icons.receipt_long_outlined),
+                ),
+              ),
+            ],
+            if (showBusinessFields) ...[
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: businessOption,
+                decoration: const InputDecoration(
+                  labelText: 'Business option',
+                  prefixIcon: Icon(Icons.business_center_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Sole Proprietor',
+                    child: Text('Sole Proprietor'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Partnership',
+                    child: Text('Partnership'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Private Limited Company',
+                    child: Text('Private Limited Company'),
+                  ),
+                  DropdownMenuItem(value: 'Other', child: Text('Other')),
+                ],
+                onChanged: onBusinessOptionChanged,
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: businessContextController,
+                minLines: 2,
+                maxLines: 4,
+                textInputAction: TextInputAction.newline,
+                decoration: const InputDecoration(
+                  labelText: 'Business context',
+                  alignLabelWithHint: true,
+                  prefixIcon: Icon(Icons.notes_outlined),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _serviceSearchText(ServiceItem service) {
+  return '${service.id} ${service.title} ${service.category}'.toLowerCase();
+}
+
+bool _isNtnService(ServiceItem service) {
+  return _serviceSearchText(service).contains('ntn');
+}
+
+bool _isIrisService(ServiceItem service) {
+  return _serviceSearchText(service).contains('iris');
+}
+
+bool _isGstService(ServiceItem service) {
+  final text = _serviceSearchText(service);
+  return text.contains('gst') || text.contains('sales tax');
+}
+
+bool _isBusinessService(ServiceItem service) {
+  final text = _serviceSearchText(service);
+  return text.contains('business') ||
+      text.contains('company registration') ||
+      text.contains('sole proprietor');
+}
+
+String _detailLabel(String key) {
+  switch (key) {
+    case 'ntn_cnic':
+      return 'CNIC';
+    case 'occupation':
+      return 'Occupation';
+    case 'source_of_income':
+      return 'Income source';
+    case 'iris_income_source':
+      return 'IRIS income';
+    case 'gst_business_type':
+      return 'Business type';
+    case 'gst_business_nature':
+      return 'Business nature';
+    case 'consumer_number':
+      return 'Consumer no.';
+    case 'business_option':
+      return 'Business option';
+    case 'business_context':
+      return 'Business context';
+    default:
+      return key;
+  }
+}
+
 class _DocumentHintCard extends StatelessWidget {
   const _DocumentHintCard({
     required this.service,
@@ -625,6 +969,7 @@ class _ReviewSummaryCard extends StatelessWidget {
     required this.emailController,
     required this.taxIdController,
     required this.remarksController,
+    required this.additionalDetails,
     required this.attachments,
     required this.formatFileSize,
   });
@@ -635,6 +980,7 @@ class _ReviewSummaryCard extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController taxIdController;
   final TextEditingController remarksController;
+  final Map<String, String> additionalDetails;
   final List<DocumentAttachment> attachments;
   final String Function(int bytes) formatFileSize;
 
@@ -670,6 +1016,8 @@ class _ReviewSummaryCard extends StatelessWidget {
           _ReviewRow(label: 'Email', value: emailController.text),
           if (taxIdController.text.trim().isNotEmpty)
             _ReviewRow(label: 'CNIC / NTN', value: taxIdController.text),
+          for (final detail in additionalDetails.entries)
+            _ReviewRow(label: _detailLabel(detail.key), value: detail.value),
           if (remarksController.text.trim().isNotEmpty)
             _ReviewRow(label: 'Remarks', value: remarksController.text),
           const Divider(height: 22),

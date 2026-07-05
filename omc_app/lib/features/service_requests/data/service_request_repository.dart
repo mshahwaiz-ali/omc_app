@@ -6,7 +6,9 @@ import '../../../core/network/frappe_client.dart';
 import '../../documents/data/document_attachment.dart';
 import '../../service_catalogue/data/service_item.dart';
 
-final serviceRequestRepositoryProvider = Provider<ServiceRequestRepository>((ref) {
+final serviceRequestRepositoryProvider = Provider<ServiceRequestRepository>((
+  ref,
+) {
   return ServiceRequestRepository(
     frappeClient: ref.watch(frappeClientProvider),
   );
@@ -20,6 +22,7 @@ class ServiceRequestPayload {
     required this.email,
     required this.taxId,
     required this.remarks,
+    required this.additionalDetails,
     required this.attachments,
   });
 
@@ -29,6 +32,7 @@ class ServiceRequestPayload {
   final String email;
   final String taxId;
   final String remarks;
+  final Map<String, String> additionalDetails;
   final List<DocumentAttachment> attachments;
 
   Map<String, dynamic> toJson() {
@@ -51,6 +55,20 @@ class ServiceRequestPayload {
       data['remarks'] = normalizedRemarks;
     }
 
+    final normalizedDetails = <String, String>{};
+    for (final entry in additionalDetails.entries) {
+      final key = entry.key.trim();
+      final value = entry.value.trim();
+
+      if (key.isNotEmpty && value.isNotEmpty) {
+        normalizedDetails[key] = value;
+      }
+    }
+
+    if (normalizedDetails.isNotEmpty) {
+      data['service_details'] = normalizedDetails;
+    }
+
     if (attachments.isNotEmpty) {
       data['attachments'] = attachments
           .map(
@@ -68,19 +86,15 @@ class ServiceRequestPayload {
 }
 
 class ServiceRequestResult {
-  const ServiceRequestResult({
-    required this.raw,
-    this.requestId,
-  });
+  const ServiceRequestResult({required this.raw, this.requestId});
 
   final Map<String, dynamic> raw;
   final String? requestId;
 }
 
 class ServiceRequestRepository {
-  const ServiceRequestRepository({
-    required FrappeClient frappeClient,
-  }) : this._(frappeClient);
+  const ServiceRequestRepository({required FrappeClient frappeClient})
+    : this._(frappeClient);
 
   const ServiceRequestRepository._(this._frappeClient);
 
