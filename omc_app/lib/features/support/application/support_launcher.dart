@@ -45,19 +45,26 @@ class SupportLauncher {
     Uri uri,
     String failureMessage,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
-
     try {
       final launched = await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,
       );
 
+      if (!context.mounted) return;
+
       if (!launched) {
-        messenger.showSnackBar(SnackBar(content: Text(failureMessage)));
+        _showFailure(context, failureMessage);
       }
     } catch (_) {
-      messenger.showSnackBar(SnackBar(content: Text(failureMessage)));
+      if (!context.mounted) return;
+      _showFailure(context, failureMessage);
     }
+  }
+
+  static void _showFailure(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

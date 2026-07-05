@@ -152,10 +152,11 @@ class _DocumentCard extends StatelessWidget {
                         _InfoChip(label: document.updatedAtLabel!),
                     ],
                   ),
-                  if (document.fileName != null) ...[
+                  if (document.fileName != null ||
+                      document.fileUrl != null) ...[
                     const SizedBox(height: 10),
                     Text(
-                      document.fileName!,
+                      document.fileName ?? 'File link available',
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12,

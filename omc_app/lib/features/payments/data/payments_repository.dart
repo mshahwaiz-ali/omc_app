@@ -4,6 +4,7 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../documents/data/document_attachment.dart';
 import 'payment_item.dart';
 
 final paymentsRepositoryProvider = Provider<PaymentsRepository>((ref) {
@@ -32,32 +33,60 @@ class PaymentsRepository {
   final FrappeClient _frappeClient;
 
   Future<List<PaymentItem>> fetchPayments() async {
-    try {
-      final response = await _frappeClient.getMethod(ApiConfig.paymentsMethod);
-      return _mapPaymentsResponse(response);
-    } on ApiError {
-      return const [];
-    } catch (_) {
-      return const [];
-    }
+    final response = await _frappeClient.getMethod(ApiConfig.paymentsMethod);
+    return _mapPaymentsResponse(response);
   }
 
   Future<PaymentItem?> fetchPaymentDetail(String paymentId) async {
     final cleanPaymentId = paymentId.trim();
     if (cleanPaymentId.isEmpty) return null;
 
-    try {
-      final response = await _frappeClient.getMethod(
-        ApiConfig.paymentDetailMethod,
-        queryParameters: {'payment_id': cleanPaymentId, 'name': cleanPaymentId},
+    final response = await _frappeClient.getMethod(
+      ApiConfig.paymentDetailMethod,
+      queryParameters: {'payment_id': cleanPaymentId, 'name': cleanPaymentId},
+    );
+
+    return _mapPaymentDetailResponse(response);
+  }
+
+  Future<List<Map<String, dynamic>>> uploadPaymentReceipts({
+    required String paymentId,
+    required List<DocumentAttachment> attachments,
+  }) async {
+    final cleanPaymentId = paymentId.trim();
+    if (cleanPaymentId.isEmpty) {
+      throw const ApiError(message: 'Missing backend payment reference.');
+    }
+
+    final uploadableAttachments = attachments
+        .where((attachment) => attachment.hasUploadPath)
+        .toList(growable: false);
+
+    if (uploadableAttachments.isEmpty) {
+      throw const ApiError(
+        message: 'Selected receipt is not available for upload on this device.',
+      );
+    }
+
+    final uploadedFiles = <Map<String, dynamic>>[];
+
+    for (final attachment in uploadableAttachments) {
+      final filePath = attachment.path;
+      if (filePath == null || filePath.trim().isEmpty) {
+        continue;
+      }
+
+      final response = await _frappeClient.uploadFile(
+        filePath: filePath,
+        fileName: attachment.name,
+        doctype: ApiConfig.paymentUploadDoctype,
+        docname: cleanPaymentId,
       );
 
-      return _mapPaymentDetailResponse(response);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
+      uploadedFiles.add(response);
     }
+
+    return uploadedFiles;
   }
 
   List<PaymentItem> _mapPaymentsResponse(Map<String, dynamic>? data) {
@@ -101,6 +130,15 @@ class PaymentsRepository {
         json['amount_label'] ?? json['amount'] ?? json['grand_total'],
       ),
       reference: _nullableString(json['reference'] ?? json['invoice_number']),
+      invoiceUrl: _nullableString(
+        json['invoice_url'] ?? json['invoice_file'] ?? json['invoice_link'],
+      ),
+      receiptUrl: _nullableString(
+        json['receipt_url'] ?? json['receipt_file'] ?? json['receipt_link'],
+      ),
+      paymentUrl: _nullableString(
+        json['payment_url'] ?? json['payment_link'] ?? json['gateway_url'],
+      ),
       dueDateLabel: _nullableString(json['due_date_label'] ?? json['due_date']),
       paidDateLabel: _nullableString(
         json['paid_date_label'] ?? json['paid_date'],

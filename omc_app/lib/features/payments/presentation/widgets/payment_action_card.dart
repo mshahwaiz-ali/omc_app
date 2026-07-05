@@ -7,20 +7,25 @@ class PaymentActionCard extends StatelessWidget {
     required this.payment,
     required this.onInvoice,
     required this.onReceipt,
+    required this.onUploadReceipt,
     required this.onPayNow,
+    this.isUploadingReceipt = false,
     super.key,
   });
 
   final PaymentItem payment;
   final VoidCallback onInvoice;
   final VoidCallback onReceipt;
+  final VoidCallback? onUploadReceipt;
   final VoidCallback onPayNow;
+  final bool isUploadingReceipt;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canPay = payment.requiresAction;
-    final canOpenReceipt = payment.status == PaymentStatus.paid;
+    final canPay = payment.requiresAction && payment.paymentUrl != null;
+    final canOpenInvoice = payment.invoiceUrl != null;
+    final canOpenReceipt = payment.receiptUrl != null;
 
     return Card(
       child: Padding(
@@ -40,7 +45,10 @@ class PaymentActionCard extends StatelessWidget {
             _ActionTile(
               icon: Icons.receipt_long_outlined,
               title: 'View invoice',
-              subtitle: 'Open the payment invoice when backend URL is ready.',
+              subtitle: canOpenInvoice
+                  ? 'Open the payment invoice.'
+                  : 'Invoice URL is not available yet.',
+              enabled: canOpenInvoice,
               onTap: onInvoice,
             ),
             const SizedBox(height: 10),
@@ -49,17 +57,33 @@ class PaymentActionCard extends StatelessWidget {
               title: 'Download receipt',
               subtitle: canOpenReceipt
                   ? 'Download the paid receipt.'
-                  : 'Receipt will be available after payment.',
+                  : 'Receipt will be available after backend reconciliation.',
               enabled: canOpenReceipt,
               onTap: onReceipt,
             ),
             const SizedBox(height: 10),
             _ActionTile(
+              icon: isUploadingReceipt
+                  ? Icons.hourglass_top_rounded
+                  : Icons.upload_file_rounded,
+              title: isUploadingReceipt
+                  ? 'Uploading receipt'
+                  : 'Upload receipt',
+              subtitle: isUploadingReceipt
+                  ? 'Please wait while the receipt is uploaded.'
+                  : 'Attach payment proof for backend verification.',
+              enabled: !isUploadingReceipt,
+              onTap: onUploadReceipt,
+            ),
+            const SizedBox(height: 10),
+            _ActionTile(
               icon: Icons.payments_outlined,
               title: 'Pay now',
-              subtitle: canPay
-                  ? 'Continue to backend payment gateway.'
-                  : 'No payment action is required.',
+              subtitle: payment.status == PaymentStatus.paid
+                  ? 'No payment action is required.'
+                  : payment.paymentUrl == null
+                  ? 'Payment gateway URL is not available yet.'
+                  : 'Continue to backend payment gateway.',
               enabled: canPay,
               onTap: onPayNow,
             ),
@@ -82,7 +106,7 @@ class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool enabled;
 
   @override

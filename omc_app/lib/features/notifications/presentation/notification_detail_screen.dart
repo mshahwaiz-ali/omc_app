@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../data/notification_item.dart';
@@ -32,58 +34,42 @@ class NotificationDetailScreen extends ConsumerWidget {
             );
           }
 
-          return _NotificationDetailBody(
-            notification: notification,
-            onMarkRead: () => _markNotificationAsRead(context, ref),
-          );
+          return _NotificationDetailBody(notification: notification);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => PremiumEmptyState(
-          icon: Icons.notifications_none_rounded,
-          title: 'Notification detail unavailable',
-          message:
-              'Notification $notificationId could not be loaded right now. Please try again later.',
+        error: (error, _) => PremiumEmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: 'Unable to load notification',
+          message: _cleanError(error),
         ),
-      ),
-    );
-  }
-
-  Future<void> _markNotificationAsRead(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final repository = ref.read(notificationsRepositoryProvider);
-    final didMarkRead = await repository.markNotificationAsRead(notificationId);
-
-    if (!context.mounted) return;
-
-    if (didMarkRead) {
-      ref
-        ..invalidate(notificationsProvider)
-        ..invalidate(notificationDetailProvider(notificationId));
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notification marked as read.')),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Could not mark this notification as read yet.'),
       ),
     );
   }
 }
 
-class _NotificationDetailBody extends StatelessWidget {
-  const _NotificationDetailBody({
-    required this.notification,
-    required this.onMarkRead,
-  });
+String _cleanError(Object error) {
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  if (message.isEmpty) {
+    return 'Notification details could not be loaded right now. Please try again.';
+  }
+  return message;
+}
+
+class _NotificationDetailBody extends ConsumerStatefulWidget {
+  const _NotificationDetailBody({required this.notification});
 
   final NotificationItem notification;
-  final Future<void> Function() onMarkRead;
+
+  @override
+  ConsumerState<_NotificationDetailBody> createState() =>
+      _NotificationDetailBodyState();
+}
+
+class _NotificationDetailBodyState
+    extends ConsumerState<_NotificationDetailBody> {
+  bool _isMarkingRead = false;
+
+  NotificationItem get notification => widget.notification;
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +149,14 @@ class _NotificationDetailBody extends StatelessWidget {
               ),
               const Divider(height: 1, indent: 76),
               _DetailTile(
+                icon: Icons.link_rounded,
+                label: 'Action Link',
+                value: notification.actionUrl == null
+                    ? 'Not available'
+                    : 'Available',
+              ),
+              const Divider(height: 1, indent: 76),
+              _DetailTile(
                 icon: Icons.fingerprint_rounded,
                 label: 'Notification ID',
                 value: notification.id,
@@ -192,17 +186,61 @@ class _NotificationDetailBody extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               _ActionButton(
-                icon: Icons.done_all_rounded,
+                icon: _isMarkingRead
+                    ? Icons.hourglass_top_rounded
+                    : Icons.done_all_rounded,
                 label: notification.isRead
                     ? 'Already marked read'
+                    : _isMarkingRead
+                    ? 'Marking as read...'
                     : 'Mark as read',
-                onTap: notification.isRead ? null : () => onMarkRead(),
+                onTap: notification.isRead || _isMarkingRead
+                    ? null
+                    : _markNotificationAsRead,
               ),
             ],
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _markNotificationAsRead() async {
+    final repository = ref.read(notificationsRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _isMarkingRead = true);
+
+    try {
+      await repository.markNotificationAsRead(notification.id);
+
+      if (!mounted) return;
+
+      ref
+        ..invalidate(notificationsProvider)
+        ..invalidate(notificationDetailProvider(notification.id));
+
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Notification marked as read.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      final message = error.toString().replaceFirst('ApiError:', '').trim();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            message.isEmpty
+                ? 'Could not mark this notification as read yet.'
+                : message,
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isMarkingRead = false);
+      }
+    }
   }
 
   String _relatedActionLabel(NotificationItem notification) {
@@ -224,6 +262,12 @@ class _NotificationDetailBody extends StatelessWidget {
   }
 
   void _openRelatedRecord(BuildContext context, NotificationItem notification) {
+    final actionUrl = notification.actionUrl?.trim();
+    if (actionUrl != null && actionUrl.isNotEmpty) {
+      _openActionUrl(context, actionUrl);
+      return;
+    }
+
     final reference = notification.reference?.trim();
     if (reference == null || reference.isEmpty) {
       _showBackendPendingSnack(
@@ -248,6 +292,47 @@ class _NotificationDetailBody extends StatelessWidget {
         );
         return;
     }
+  }
+
+  Future<void> _openActionUrl(BuildContext context, String url) async {
+    final uri = _notificationUri(url);
+    if (uri == null) {
+      _showBackendPendingSnack(
+        context,
+        'Invalid notification action URL received from backend.',
+      );
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!context.mounted) return;
+
+    if (!opened) {
+      _showBackendPendingSnack(
+        context,
+        'Unable to open notification action right now.',
+      );
+    }
+  }
+
+  Uri? _notificationUri(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+
+    if (uri.hasScheme) {
+      return uri;
+    }
+
+    if (!url.startsWith('/')) {
+      return null;
+    }
+
+    final baseUri = Uri.tryParse(ApiConfig.baseUrl);
+    if (baseUri == null || !baseUri.hasScheme) {
+      return null;
+    }
+
+    return baseUri.resolve(url);
   }
 
   void _showBackendPendingSnack(BuildContext context, String message) {

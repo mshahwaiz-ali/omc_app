@@ -1,12 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../application/support_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/support_config.dart';
+import '../../../core/network/api_error.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../data/support_repository.dart';
 
-class SupportScreen extends StatelessWidget {
+class SupportScreen extends ConsumerStatefulWidget {
   const SupportScreen({super.key});
+
+  @override
+  ConsumerState<SupportScreen> createState() => _SupportScreenState();
+}
+
+class _SupportScreenState extends ConsumerState<SupportScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  String _selectedTopic = _SupportCategoriesCard.categories.first.title;
+  bool _isSubmitting = false;
+
+  bool get _canSubmit =>
+      !_isSubmitting && _messageController.text.trim().length >= 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _messageController.addListener(_handleMessageChanged);
+  }
+
+  @override
+  void dispose() {
+    _messageController.removeListener(_handleMessageChanged);
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  void _handleMessageChanged() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +111,21 @@ class SupportScreen extends StatelessWidget {
           const SizedBox(height: 16),
           const _SupportCategoriesCard(),
           const SizedBox(height: 16),
+          _CreateSupportTicketCard(
+            selectedTopic: _selectedTopic,
+            messageController: _messageController,
+            isSubmitting: _isSubmitting,
+            canSubmit: _canSubmit,
+            topics: _SupportCategoriesCard.categories
+                .map((category) => category.title)
+                .toList(growable: false),
+            onTopicChanged: (value) {
+              if (value == null) return;
+              setState(() => _selectedTopic = value);
+            },
+            onSubmit: _submitSupportTicket,
+          ),
+          const SizedBox(height: 16),
           PremiumCard(
             padding: EdgeInsets.zero,
             child: Column(
@@ -128,12 +176,136 @@ class SupportScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _submitSupportTicket() async {
+    final repository = ref.read(supportRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await repository.createSupportTicket(
+        topic: _selectedTopic,
+        message: _messageController.text,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _messageController.clear();
+      });
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Support ticket submitted.')),
+      );
+    } on ApiError catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Unable to submit support ticket right now.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+}
+
+class _CreateSupportTicketCard extends StatelessWidget {
+  const _CreateSupportTicketCard({
+    required this.selectedTopic,
+    required this.messageController,
+    required this.isSubmitting,
+    required this.canSubmit,
+    required this.topics,
+    required this.onTopicChanged,
+    required this.onSubmit,
+  });
+
+  final String selectedTopic;
+  final TextEditingController messageController;
+  final bool isSubmitting;
+  final bool canSubmit;
+  final List<String> topics;
+  final ValueChanged<String?> onTopicChanged;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Create support ticket',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Send a backend support request for tracking and team follow-up.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: selectedTopic,
+            items: topics
+                .map(
+                  (topic) => DropdownMenuItem<String>(
+                    value: topic,
+                    child: Text(topic),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: isSubmitting ? null : onTopicChanged,
+            decoration: const InputDecoration(
+              labelText: 'Topic',
+              prefixIcon: Icon(Icons.category_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: messageController,
+            enabled: !isSubmitting,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              labelText: 'Message',
+              hintText: 'Describe the issue or support request',
+              helperText: 'Minimum 10 characters required.',
+              prefixIcon: Icon(Icons.message_outlined),
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 14),
+          AppButton(
+            label: isSubmitting ? 'Submitting...' : 'Submit ticket',
+            icon: Icons.send_rounded,
+            onPressed: canSubmit ? onSubmit : null,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SupportCategoriesCard extends StatelessWidget {
   const _SupportCategoriesCard();
 
-  static const _categories = [
+  static const categories = [
     _SupportCategory(
       icon: Icons.receipt_long_outlined,
       title: 'Income Tax',
@@ -191,9 +363,9 @@ class _SupportCategoriesCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          for (final category in _categories) ...[
+          for (final category in categories) ...[
             _SupportCategoryTile(category: category),
-            if (category != _categories.last) const SizedBox(height: 10),
+            if (category != categories.last) const SizedBox(height: 10),
           ],
         ],
       ),

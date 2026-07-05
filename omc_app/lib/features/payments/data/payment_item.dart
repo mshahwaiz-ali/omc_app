@@ -7,6 +7,9 @@ class PaymentItem {
     required this.amountLabel,
     required this.status,
     this.reference,
+    this.invoiceUrl,
+    this.receiptUrl,
+    this.paymentUrl,
     this.dueDateLabel,
     this.paidDateLabel,
     this.serviceReference,
@@ -17,6 +20,9 @@ class PaymentItem {
   final String title;
   final String amountLabel;
   final String? reference;
+  final String? invoiceUrl;
+  final String? receiptUrl;
+  final String? paymentUrl;
   final String? dueDateLabel;
   final String? paidDateLabel;
   final String? serviceReference;

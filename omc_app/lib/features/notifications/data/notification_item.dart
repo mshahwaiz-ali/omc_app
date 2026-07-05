@@ -11,29 +11,31 @@ class NotificationItem {
     required this.title,
     required this.message,
     required this.type,
-    this.createdAtLabel,
+    required this.isRead,
     this.reference,
-    this.isRead = false,
+    this.actionUrl,
+    this.createdAtLabel,
   });
 
   final String id;
   final String title;
   final String message;
   final AppNotificationType type;
-  final String? createdAtLabel;
-  final String? reference;
   final bool isRead;
+  final String? reference;
+  final String? actionUrl;
+  final String? createdAtLabel;
 }
 
 extension AppNotificationTypeLabel on AppNotificationType {
   String get label {
     switch (this) {
       case AppNotificationType.serviceUpdate:
-        return 'Service';
+        return 'Service Update';
       case AppNotificationType.documentRequest:
-        return 'Document';
+        return 'Document Request';
       case AppNotificationType.paymentAlert:
-        return 'Payment';
+        return 'Payment Alert';
       case AppNotificationType.general:
         return 'General';
     }

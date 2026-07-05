@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import 'knowledge_article.dart';
 
@@ -32,32 +31,20 @@ class KnowledgeRepository {
   final FrappeClient frappeClient;
 
   Future<List<KnowledgeArticle>> fetchArticles() async {
-    try {
-      final response = await frappeClient.getMethod(ApiConfig.knowledgeMethod);
-      return _mapArticlesResponse(response);
-    } on ApiError {
-      return const [];
-    } catch (_) {
-      return const [];
-    }
+    final response = await frappeClient.getMethod(ApiConfig.knowledgeMethod);
+    return _mapArticlesResponse(response);
   }
 
   Future<KnowledgeArticle?> fetchArticleDetail(String articleId) async {
     final cleanArticleId = articleId.trim();
     if (cleanArticleId.isEmpty) return null;
 
-    try {
-      final response = await frappeClient.getMethod(
-        ApiConfig.knowledgeDetailMethod,
-        queryParameters: {'article_id': cleanArticleId, 'name': cleanArticleId},
-      );
+    final response = await frappeClient.getMethod(
+      ApiConfig.knowledgeDetailMethod,
+      queryParameters: {'article_id': cleanArticleId, 'name': cleanArticleId},
+    );
 
-      return _mapArticleDetailResponse(response);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
-    }
+    return _mapArticleDetailResponse(response);
   }
 
   List<KnowledgeArticle> _mapArticlesResponse(Map<String, dynamic>? data) {

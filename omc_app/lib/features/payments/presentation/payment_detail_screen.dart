@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
+import '../../documents/application/document_attachment_controller.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
 import 'widgets/payment_action_card.dart';
@@ -32,21 +36,37 @@ class PaymentDetailScreen extends ConsumerWidget {
           return _PaymentDetailBody(payment: payment);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => PremiumEmptyState(
-          icon: Icons.account_balance_wallet_outlined,
-          title: 'Payment detail unavailable',
-          message:
-              'Payment $paymentId could not be loaded right now. Please try again later.',
+        error: (error, _) => PremiumEmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: 'Unable to load payment',
+          message: _cleanError(error),
         ),
       ),
     );
   }
 }
 
-class _PaymentDetailBody extends StatelessWidget {
+String _cleanError(Object error) {
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  if (message.isEmpty) {
+    return 'Payment details could not be loaded right now. Please try again.';
+  }
+  return message;
+}
+
+class _PaymentDetailBody extends ConsumerStatefulWidget {
   const _PaymentDetailBody({required this.payment});
 
   final PaymentItem payment;
+
+  @override
+  ConsumerState<_PaymentDetailBody> createState() => _PaymentDetailBodyState();
+}
+
+class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
+  bool _isUploadingReceipt = false;
+
+  PaymentItem get payment => widget.payment;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +87,18 @@ class _PaymentDetailBody extends StatelessWidget {
           rows: [
             CrmInfoRow(label: 'Reference', value: payment.reference ?? '-'),
             CrmInfoRow(
+              label: 'Invoice Link',
+              value: payment.invoiceUrl == null ? '-' : 'Available',
+            ),
+            CrmInfoRow(
+              label: 'Receipt Link',
+              value: payment.receiptUrl == null ? '-' : 'Available',
+            ),
+            CrmInfoRow(
+              label: 'Payment Link',
+              value: payment.paymentUrl == null ? '-' : 'Available',
+            ),
+            CrmInfoRow(
               label: 'Service',
               value: payment.serviceReference ?? '-',
             ),
@@ -84,17 +116,24 @@ class _PaymentDetailBody extends StatelessWidget {
         const SizedBox(height: 16),
         PaymentActionCard(
           payment: payment,
-          onInvoice: () => _showBackendPendingSnack(
+          isUploadingReceipt: _isUploadingReceipt,
+          onInvoice: () => _openPaymentUrl(
             context,
-            'Payment invoice endpoint is not connected yet.',
+            payment.invoiceUrl,
+            fallbackMessage: 'Payment invoice URL is not available yet.',
           ),
-          onReceipt: () => _showBackendPendingSnack(
+          onReceipt: () => _openPaymentUrl(
             context,
-            'Payment receipt endpoint is not connected yet.',
+            payment.receiptUrl,
+            fallbackMessage: 'Payment receipt URL is not available yet.',
           ),
-          onPayNow: () => _showBackendPendingSnack(
+          onUploadReceipt: _isUploadingReceipt
+              ? null
+              : () => _pickAndUploadReceipt(context),
+          onPayNow: () => _openPaymentUrl(
             context,
-            'Payment gateway endpoint is not connected yet.',
+            payment.paymentUrl,
+            fallbackMessage: 'Payment gateway URL is not available yet.',
           ),
         ),
         const SizedBox(height: 8),
@@ -108,7 +147,108 @@ class _PaymentDetailBody extends StatelessWidget {
     );
   }
 
-  void _showBackendPendingSnack(BuildContext context, String message) {
+  Future<void> _pickAndUploadReceipt(BuildContext context) async {
+    final controller = ref.read(documentAttachmentControllerProvider);
+    final result = await controller.pickDocuments();
+
+    if (!context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    for (final message in result.rejectedMessages) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    }
+
+    if (!result.hasAcceptedFiles) {
+      return;
+    }
+
+    final repository = ref.read(paymentsRepositoryProvider);
+
+    setState(() => _isUploadingReceipt = true);
+
+    try {
+      final uploadedFiles = await repository.uploadPaymentReceipts(
+        paymentId: payment.id,
+        attachments: result.accepted,
+      );
+
+      if (!context.mounted) return;
+
+      final uploadedCount = uploadedFiles.length;
+      final skippedCount = result.accepted.length - uploadedCount;
+      final message = skippedCount > 0
+          ? 'Uploaded $uploadedCount receipt(s). $skippedCount file(s) were skipped because their local path was unavailable.'
+          : 'Uploaded $uploadedCount receipt(s).';
+
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+
+      ref.invalidate(paymentDetailProvider(payment.id));
+      ref.invalidate(paymentsProvider);
+    } on ApiError catch (error) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to upload receipt right now. Please try again.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingReceipt = false);
+      }
+    }
+  }
+
+  Future<void> _openPaymentUrl(
+    BuildContext context,
+    String? url, {
+    required String fallbackMessage,
+  }) async {
+    final cleanUrl = url?.trim();
+    if (cleanUrl == null || cleanUrl.isEmpty) {
+      _showSnack(context, fallbackMessage);
+      return;
+    }
+
+    final uri = _paymentUri(cleanUrl);
+    if (uri == null) {
+      _showSnack(context, 'Invalid payment URL received from backend.');
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!context.mounted) return;
+
+    if (!opened) {
+      _showSnack(context, 'Unable to open payment link right now.');
+    }
+  }
+
+  Uri? _paymentUri(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+
+    if (uri.hasScheme) {
+      return uri;
+    }
+
+    if (!url.startsWith('/')) {
+      return null;
+    }
+
+    final baseUri = Uri.tryParse(ApiConfig.baseUrl);
+    if (baseUri == null || !baseUri.hasScheme) {
+      return null;
+    }
+
+    return baseUri.resolve(url);
+  }
+
+  void _showSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));

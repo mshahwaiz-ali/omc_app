@@ -34,37 +34,25 @@ class NotificationsRepository {
   final FrappeClient _frappeClient;
 
   Future<List<NotificationItem>> fetchNotifications() async {
-    try {
-      final response = await _frappeClient.getMethod(
-        ApiConfig.notificationsMethod,
-      );
-      return _mapNotificationsResponse(response);
-    } on ApiError {
-      return const [];
-    } catch (_) {
-      return const [];
-    }
+    final response = await _frappeClient.getMethod(
+      ApiConfig.notificationsMethod,
+    );
+    return _mapNotificationsResponse(response);
   }
 
-  Future<bool> markNotificationAsRead(String notificationId) async {
+  Future<void> markNotificationAsRead(String notificationId) async {
     final cleanNotificationId = notificationId.trim();
-    if (cleanNotificationId.isEmpty) return false;
-
-    try {
-      await _frappeClient.postMethod(
-        ApiConfig.markNotificationReadMethod,
-        data: {
-          'notification_id': cleanNotificationId,
-          'name': cleanNotificationId,
-        },
-      );
-
-      return true;
-    } on ApiError {
-      return false;
-    } catch (_) {
-      return false;
+    if (cleanNotificationId.isEmpty) {
+      throw const ApiError(message: 'Missing backend notification reference.');
     }
+
+    await _frappeClient.postMethod(
+      ApiConfig.markNotificationReadMethod,
+      data: {
+        'notification_id': cleanNotificationId,
+        'name': cleanNotificationId,
+      },
+    );
   }
 
   Future<NotificationItem?> fetchNotificationDetail(
@@ -73,21 +61,15 @@ class NotificationsRepository {
     final cleanNotificationId = notificationId.trim();
     if (cleanNotificationId.isEmpty) return null;
 
-    try {
-      final response = await _frappeClient.getMethod(
-        ApiConfig.notificationDetailMethod,
-        queryParameters: {
-          'notification_id': cleanNotificationId,
-          'name': cleanNotificationId,
-        },
-      );
+    final response = await _frappeClient.getMethod(
+      ApiConfig.notificationDetailMethod,
+      queryParameters: {
+        'notification_id': cleanNotificationId,
+        'name': cleanNotificationId,
+      },
+    );
 
-      return _mapNotificationDetailResponse(response);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
-    }
+    return _mapNotificationDetailResponse(response);
   }
 
   List<NotificationItem> _mapNotificationsResponse(Map<String, dynamic>? data) {
@@ -134,6 +116,9 @@ class NotificationsRepository {
         json['created_at_label'] ?? json['creation'] ?? json['created_at'],
       ),
       reference: _nullableString(json['reference'] ?? json['case_reference']),
+      actionUrl: _nullableString(
+        json['action_url'] ?? json['link'] ?? json['route'] ?? json['url'],
+      ),
       isRead: json['is_read'] == true || json['read'] == true,
     );
   }

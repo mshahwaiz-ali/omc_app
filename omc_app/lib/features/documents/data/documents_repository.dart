@@ -4,6 +4,7 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import 'document_attachment.dart';
 import 'document_item.dart';
 
 final documentsRepositoryProvider = Provider<DocumentsRepository>((ref) {
@@ -32,35 +33,63 @@ class DocumentsRepository {
   final FrappeClient _frappeClient;
 
   Future<List<DocumentItem>> fetchDocuments() async {
-    try {
-      final response = await _frappeClient.getMethod(ApiConfig.documentsMethod);
-      return _mapDocumentsResponse(response);
-    } on ApiError {
-      return const [];
-    } catch (_) {
-      return const [];
-    }
+    final response = await _frappeClient.getMethod(ApiConfig.documentsMethod);
+    return _mapDocumentsResponse(response);
   }
 
   Future<DocumentItem?> fetchDocumentDetail(String documentId) async {
     final cleanDocumentId = documentId.trim();
     if (cleanDocumentId.isEmpty) return null;
 
-    try {
-      final response = await _frappeClient.getMethod(
-        ApiConfig.documentDetailMethod,
-        queryParameters: {
-          'document_id': cleanDocumentId,
-          'name': cleanDocumentId,
-        },
+    final response = await _frappeClient.getMethod(
+      ApiConfig.documentDetailMethod,
+      queryParameters: {
+        'document_id': cleanDocumentId,
+        'name': cleanDocumentId,
+      },
+    );
+
+    return _mapDocumentDetailResponse(response);
+  }
+
+  Future<List<Map<String, dynamic>>> uploadDocumentAttachments({
+    required String documentId,
+    required List<DocumentAttachment> attachments,
+  }) async {
+    final cleanDocumentId = documentId.trim();
+    if (cleanDocumentId.isEmpty) {
+      throw const ApiError(message: 'Missing backend document reference.');
+    }
+
+    final uploadableAttachments = attachments
+        .where((attachment) => attachment.hasUploadPath)
+        .toList(growable: false);
+
+    if (uploadableAttachments.isEmpty) {
+      throw const ApiError(
+        message: 'Selected file is not available for upload on this device.',
+      );
+    }
+
+    final uploadedFiles = <Map<String, dynamic>>[];
+
+    for (final attachment in uploadableAttachments) {
+      final filePath = attachment.path;
+      if (filePath == null || filePath.trim().isEmpty) {
+        continue;
+      }
+
+      final response = await _frappeClient.uploadFile(
+        filePath: filePath,
+        fileName: attachment.name,
+        doctype: ApiConfig.documentUploadDoctype,
+        docname: cleanDocumentId,
       );
 
-      return _mapDocumentDetailResponse(response);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
+      uploadedFiles.add(response);
     }
+
+    return uploadedFiles;
   }
 
   List<DocumentItem> _mapDocumentsResponse(Map<String, dynamic>? data) {
@@ -102,6 +131,13 @@ class DocumentsRepository {
       ),
       subtitle: _nullableString(json['subtitle'] ?? json['description']),
       fileName: _nullableString(json['file_name'] ?? json['filename']),
+      fileUrl: _nullableString(json['file_url'] ?? json['file'] ?? json['url']),
+      previewUrl: _nullableString(
+        json['preview_url'] ?? json['file_url'] ?? json['file'] ?? json['url'],
+      ),
+      downloadUrl: _nullableString(
+        json['download_url'] ?? json['file_url'] ?? json['file'] ?? json['url'],
+      ),
       updatedAtLabel: _nullableString(
         json['updated_at_label'] ?? json['modified'] ?? json['updated_at'],
       ),

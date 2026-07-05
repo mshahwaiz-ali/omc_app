@@ -27,7 +27,8 @@ class NotificationsScreen extends ConsumerWidget {
                 ? const _EmptyNotificationsView()
                 : _NotificationsList(notifications: notifications),
             loading: () => const _NotificationsLoadingView(),
-            error: (_, _) => const _EmptyNotificationsView(),
+            error: (error, _) =>
+                _NotificationsErrorView(message: _cleanError(error)),
           ),
         ),
       ),
@@ -167,6 +168,8 @@ class _NotificationCard extends StatelessWidget {
                         _InfoChip(label: notification.type.label),
                         if (notification.reference != null)
                           _InfoChip(label: notification.reference!),
+                        if (notification.actionUrl != null)
+                          const _InfoChip(label: 'Action available'),
                         if (notification.createdAtLabel != null)
                           _InfoChip(label: notification.createdAtLabel!),
                       ],
@@ -282,6 +285,73 @@ class _EmptyNotificationsView extends StatelessWidget {
                 'Updates will appear here once the backend notifications endpoint is enabled.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _cleanError(Object error) {
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  if (message.isEmpty) {
+    return 'Notifications could not be loaded right now. Please try again.';
+  }
+  return message;
+}
+
+class _NotificationsErrorView extends StatelessWidget {
+  const _NotificationsErrorView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      children: [
+        const _NotificationsHeader(),
+        const SizedBox(height: 24),
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.cloud_off_rounded,
+                  color: Colors.red,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Unable to load notifications',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 13,
                   height: 1.45,

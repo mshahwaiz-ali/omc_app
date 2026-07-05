@@ -7,6 +7,9 @@ class DocumentItem {
     required this.status,
     this.subtitle,
     this.fileName,
+    this.fileUrl,
+    this.previewUrl,
+    this.downloadUrl,
     this.updatedAtLabel,
     this.serviceReference,
     this.remarks,
@@ -16,6 +19,9 @@ class DocumentItem {
   final String title;
   final String? subtitle;
   final String? fileName;
+  final String? fileUrl;
+  final String? previewUrl;
+  final String? downloadUrl;
   final String? updatedAtLabel;
   final String? serviceReference;
   final String? remarks;

@@ -92,6 +92,10 @@ class ApiConfig {
   static const String updateSettingsPreferencesMethod =
       'omc_app.api.mobile.update_settings_preferences';
 
+  // TODO(backend): Replace with confirmed OMC/Frappe support ticket API.
+  static const String createSupportTicketMethod =
+      'omc_app.api.mobile.create_support_ticket';
+
   // TODO(backend): Replace with confirmed OMC/Frappe internal workspace API.
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
@@ -107,6 +111,12 @@ class ApiConfig {
   static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
 
   static const String serviceRequestUploadDoctype = 'Service Request';
+
+  // TODO(backend): Replace with confirmed OMC/Frappe document doctype.
+  static const String documentUploadDoctype = 'OMC Document';
+
+  // TODO(backend): Replace with confirmed OMC/Frappe payment doctype.
+  static const String paymentUploadDoctype = 'Sales Invoice';
 
   static const String uploadFileMethod = 'upload_file';
 

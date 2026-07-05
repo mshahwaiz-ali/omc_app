@@ -8,19 +8,22 @@ class DocumentActionCard extends StatelessWidget {
     required this.onPreview,
     required this.onUpload,
     required this.onDownload,
+    this.isUploading = false,
     super.key,
   });
 
   final DocumentItem document;
   final VoidCallback onPreview;
-  final VoidCallback onUpload;
+  final VoidCallback? onUpload;
   final VoidCallback onDownload;
+  final bool isUploading;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canPreview = document.fileName != null;
-    final canDownload = document.fileName != null;
+    final canPreview = document.previewUrl != null || document.fileUrl != null;
+    final canDownload =
+        document.downloadUrl != null || document.fileUrl != null;
 
     return Card(
       child: Padding(
@@ -48,11 +51,18 @@ class DocumentActionCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _ActionTile(
-              icon: Icons.upload_file_rounded,
-              title: document.requiresAction
+              icon: isUploading
+                  ? Icons.hourglass_top_rounded
+                  : Icons.upload_file_rounded,
+              title: isUploading
+                  ? 'Uploading document'
+                  : document.requiresAction
                   ? 'Upload document'
                   : 'Replace document',
-              subtitle: 'Attach a new file for backend upload.',
+              subtitle: isUploading
+                  ? 'Please wait while the file is uploaded.'
+                  : 'Attach a new file for backend upload.',
+              enabled: !isUploading,
               onTap: onUpload,
             ),
             const SizedBox(height: 10),
@@ -84,7 +94,7 @@ class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool enabled;
 
   @override
