@@ -17,6 +17,15 @@ final paymentsProvider = FutureProvider<List<PaymentItem>>((ref) async {
   return repository.fetchPayments();
 });
 
+final paymentDetailProvider = FutureProvider.family<PaymentItem?, String>((
+  ref,
+  paymentId,
+) {
+  final repository = ref.watch(paymentsRepositoryProvider);
+
+  return repository.fetchPaymentDetail(paymentId);
+});
+
 class PaymentsRepository {
   const PaymentsRepository({required this._frappeClient});
 
@@ -33,6 +42,24 @@ class PaymentsRepository {
     }
   }
 
+  Future<PaymentItem?> fetchPaymentDetail(String paymentId) async {
+    final cleanPaymentId = paymentId.trim();
+    if (cleanPaymentId.isEmpty) return null;
+
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.paymentDetailMethod,
+        queryParameters: {'payment_id': cleanPaymentId, 'name': cleanPaymentId},
+      );
+
+      return _mapPaymentDetailResponse(response);
+    } on ApiError {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   List<PaymentItem> _mapPaymentsResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];
 
@@ -40,8 +67,8 @@ class PaymentsRepository {
     final rawPayments = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['payments']
-        : data['payments'];
+        ? message['payments'] ?? message['data'] ?? message['items']
+        : data['payments'] ?? data['data'] ?? data['items'];
 
     if (rawPayments is! List) return const [];
 
@@ -49,6 +76,19 @@ class PaymentsRepository {
         .whereType<Map<String, dynamic>>()
         .map(_mapPayment)
         .toList(growable: false);
+  }
+
+  PaymentItem? _mapPaymentDetailResponse(Map<String, dynamic>? data) {
+    if (data == null) return null;
+
+    final message = data['message'];
+    final rawPayment = message is Map<String, dynamic>
+        ? message['payment'] ?? message['data'] ?? message['item'] ?? message
+        : data['payment'] ?? data['data'] ?? data['item'];
+
+    if (rawPayment is! Map<String, dynamic>) return null;
+
+    return _mapPayment(rawPayment);
   }
 
   PaymentItem _mapPayment(Map<String, dynamic> json) {

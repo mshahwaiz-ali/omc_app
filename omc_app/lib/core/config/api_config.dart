@@ -54,9 +54,11 @@ class ApiConfig {
 
   // TODO(backend): Replace with confirmed OMC/Frappe documents API.
   static const String documentsMethod = 'omc_app.api.mobile.get_documents';
+  static const String documentDetailMethod = 'omc_app.api.mobile.get_document';
 
   // TODO(backend): Replace with confirmed OMC/Frappe payments API.
   static const String paymentsMethod = 'omc_app.api.mobile.get_payments';
+  static const String paymentDetailMethod = 'omc_app.api.mobile.get_payment';
 
   // TODO(backend): Replace with confirmed OMC/Frappe profile API.
   static const String profileMethod = 'omc_app.api.mobile.get_profile';

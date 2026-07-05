@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -96,74 +97,78 @@ class _PaymentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColor = _statusColor(payment.status);
 
-    return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(16),
+    return InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: () => context.push('/payments/${Uri.encodeComponent(payment.id)}'),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(_statusIcon(payment.status), color: statusColor),
             ),
-            child: Icon(_statusIcon(payment.status), color: statusColor),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  payment.title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  payment.amountLabel,
-                  style: const TextStyle(
-                    color: AppTheme.primaryRed,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _InfoChip(label: payment.status.label),
-                    if (payment.reference != null)
-                      _InfoChip(label: payment.reference!),
-                    if (payment.dueDateLabel != null)
-                      _InfoChip(label: 'Due ${payment.dueDateLabel!}'),
-                    if (payment.paidDateLabel != null)
-                      _InfoChip(label: 'Paid ${payment.paidDateLabel!}'),
-                    if (payment.serviceReference != null)
-                      _InfoChip(label: payment.serviceReference!),
-                  ],
-                ),
-                if (payment.remarks != null) ...[
-                  const SizedBox(height: 10),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    payment.remarks!,
+                    payment.title,
                     style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
+                  const SizedBox(height: 7),
+                  Text(
+                    payment.amountLabel,
+                    style: const TextStyle(
+                      color: AppTheme.primaryRed,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _InfoChip(label: payment.status.label),
+                      if (payment.reference != null)
+                        _InfoChip(label: payment.reference!),
+                      if (payment.dueDateLabel != null)
+                        _InfoChip(label: 'Due ${payment.dueDateLabel!}'),
+                      if (payment.paidDateLabel != null)
+                        _InfoChip(label: 'Paid ${payment.paidDateLabel!}'),
+                      if (payment.serviceReference != null)
+                        _InfoChip(label: payment.serviceReference!),
+                    ],
+                  ),
+                  if (payment.remarks != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      payment.remarks!,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

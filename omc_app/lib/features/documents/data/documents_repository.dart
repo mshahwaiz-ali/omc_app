@@ -17,6 +17,15 @@ final documentsProvider = FutureProvider<List<DocumentItem>>((ref) async {
   return repository.fetchDocuments();
 });
 
+final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
+  ref,
+  documentId,
+) {
+  final repository = ref.watch(documentsRepositoryProvider);
+
+  return repository.fetchDocumentDetail(documentId);
+});
+
 class DocumentsRepository {
   const DocumentsRepository({required this._frappeClient});
 
@@ -33,6 +42,27 @@ class DocumentsRepository {
     }
   }
 
+  Future<DocumentItem?> fetchDocumentDetail(String documentId) async {
+    final cleanDocumentId = documentId.trim();
+    if (cleanDocumentId.isEmpty) return null;
+
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.documentDetailMethod,
+        queryParameters: {
+          'document_id': cleanDocumentId,
+          'name': cleanDocumentId,
+        },
+      );
+
+      return _mapDocumentDetailResponse(response);
+    } on ApiError {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   List<DocumentItem> _mapDocumentsResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];
 
@@ -40,8 +70,8 @@ class DocumentsRepository {
     final rawDocuments = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['documents']
-        : data['documents'];
+        ? message['documents'] ?? message['data'] ?? message['items']
+        : data['documents'] ?? data['data'] ?? data['items'];
 
     if (rawDocuments is! List) return const [];
 
@@ -51,10 +81,25 @@ class DocumentsRepository {
         .toList(growable: false);
   }
 
+  DocumentItem? _mapDocumentDetailResponse(Map<String, dynamic>? data) {
+    if (data == null) return null;
+
+    final message = data['message'];
+    final rawDocument = message is Map<String, dynamic>
+        ? message['document'] ?? message['data'] ?? message['item'] ?? message
+        : data['document'] ?? data['data'] ?? data['item'];
+
+    if (rawDocument is! Map<String, dynamic>) return null;
+
+    return _mapDocument(rawDocument);
+  }
+
   DocumentItem _mapDocument(Map<String, dynamic> json) {
     return DocumentItem(
       id: _stringValue(json['id'] ?? json['name'] ?? json['document_id']),
-      title: _stringValue(json['title'] ?? json['document_name'] ?? json['name']),
+      title: _stringValue(
+        json['title'] ?? json['document_name'] ?? json['name'],
+      ),
       subtitle: _nullableString(json['subtitle'] ?? json['description']),
       fileName: _nullableString(json['file_name'] ?? json['filename']),
       updatedAtLabel: _nullableString(

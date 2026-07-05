@@ -5,6 +5,7 @@ import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
+import '../features/documents/presentation/document_detail_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
 import '../features/tasks/presentation/task_detail_screen.dart';
@@ -14,6 +15,7 @@ import '../features/customers/presentation/customers_screen.dart';
 import '../features/leads/presentation/lead_detail_screen.dart';
 import '../features/leads/presentation/leads_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
+import '../features/payments/presentation/payment_detail_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
@@ -103,9 +105,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DocumentsScreen(),
       ),
       GoRoute(
+        path: '/documents/:documentId',
+        name: 'document-detail',
+        builder: (context, state) {
+          final documentId = Uri.decodeComponent(
+            state.pathParameters['documentId'] ?? '',
+          );
+
+          return DocumentDetailScreen(documentId: documentId);
+        },
+      ),
+      GoRoute(
         path: '/payments',
         name: 'payments',
         builder: (context, state) => const PaymentsScreen(),
+      ),
+      GoRoute(
+        path: '/payments/:paymentId',
+        name: 'payment-detail',
+        builder: (context, state) {
+          final paymentId = Uri.decodeComponent(
+            state.pathParameters['paymentId'] ?? '',
+          );
+
+          return PaymentDetailScreen(paymentId: paymentId);
+        },
       ),
       GoRoute(
         path: '/leads',

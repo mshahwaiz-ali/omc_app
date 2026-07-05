@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -96,83 +97,88 @@ class _DocumentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColor = _statusColor(document.status);
 
-    return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(16),
+    return InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: () =>
+          context.push('/documents/${Uri.encodeComponent(document.id)}'),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(_statusIcon(document.status), color: statusColor),
             ),
-            child: Icon(_statusIcon(document.status), color: statusColor),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  document.title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                if (document.subtitle != null) ...[
-                  const SizedBox(height: 5),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    document.subtitle!,
+                    document.title,
                     style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                ],
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _InfoChip(label: document.status.label),
-                    if (document.serviceReference != null)
-                      _InfoChip(label: document.serviceReference!),
-                    if (document.updatedAtLabel != null)
-                      _InfoChip(label: document.updatedAtLabel!),
+                  if (document.subtitle != null) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      document.subtitle!,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
-                ),
-                if (document.fileName != null) ...[
                   const SizedBox(height: 10),
-                  Text(
-                    document.fileName!,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _InfoChip(label: document.status.label),
+                      if (document.serviceReference != null)
+                        _InfoChip(label: document.serviceReference!),
+                      if (document.updatedAtLabel != null)
+                        _InfoChip(label: document.updatedAtLabel!),
+                    ],
                   ),
-                ],
-                if (document.remarks != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    document.remarks!,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
+                  if (document.fileName != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      document.fileName!,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                  ],
+                  if (document.remarks != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      document.remarks!,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
