@@ -129,7 +129,7 @@ class ServiceRequestRepository {
       final response = await _frappeClient.uploadFile(
         filePath: filePath,
         fileName: attachment.name,
-        doctype: 'Service Request',
+        doctype: ApiConfig.serviceRequestUploadDoctype,
         docname: requestId,
       );
 
@@ -144,6 +144,10 @@ class ServiceRequestRepository {
       response['name'],
       response['request_id'],
       response['service_request'],
+      response['service_request_id'],
+      response['case_id'],
+      response['reference'],
+      response['docname'],
     ];
 
     for (final candidate in directCandidates) {
@@ -161,6 +165,10 @@ class ServiceRequestRepository {
         message['name'],
         message['request_id'],
         message['service_request'],
+        message['service_request_id'],
+        message['case_id'],
+        message['reference'],
+        message['docname'],
       ];
 
       for (final candidate in nestedCandidates) {
@@ -175,6 +183,10 @@ class ServiceRequestRepository {
         data['name'],
         data['request_id'],
         data['service_request'],
+        data['service_request_id'],
+        data['case_id'],
+        data['reference'],
+        data['docname'],
       ];
 
       for (final candidate in dataCandidates) {

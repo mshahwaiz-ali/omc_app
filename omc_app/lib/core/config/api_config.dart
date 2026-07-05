@@ -85,6 +85,8 @@ class ApiConfig {
   static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
   static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
 
+  static const String serviceRequestUploadDoctype = 'Service Request';
+
   static const String uploadFileMethod = 'upload_file';
 
   static String _withoutTrailingSlash(String value) {

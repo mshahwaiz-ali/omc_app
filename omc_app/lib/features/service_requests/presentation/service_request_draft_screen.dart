@@ -504,21 +504,22 @@ class _ServiceRequestDraftScreenState
         context: context,
         builder: (dialogContext) {
           final referenceLine = requestId == null || requestId.isEmpty
-              ? 'OMC will confirm your reference shortly.'
+              ? 'OMC will confirm your reference after backend processing.'
               : 'Reference: $requestId';
 
           final uploadLine = _attachments.isEmpty
-              ? 'No attachments were selected.'
+              ? 'No documents were attached with this request.'
               : uploadWarning == null
-              ? 'Uploaded $uploadedCount attachment(s).'
+              ? 'Uploaded $uploadedCount document(s).'
               : 'Document upload note: $uploadWarning';
 
           return AlertDialog(
             title: const Text('Request submitted'),
             content: Text(
-              'Your service request has been submitted successfully.\n\n'
+              'Your request has been sent to OMC.\n\n'
               '$referenceLine\n'
-              '$uploadLine',
+              '$uploadLine\n\n'
+              'You can track updates from My Services once tracking data is available.',
             ),
             actions: [
               TextButton(
