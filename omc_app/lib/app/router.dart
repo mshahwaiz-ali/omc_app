@@ -8,6 +8,7 @@ import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
+import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
@@ -103,6 +104,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PaymentsScreen(),
       ),
       GoRoute(
+        path: '/leads',
+        name: 'leads',
+        builder: (context, state) => const FeaturePlaceholderScreen(
+          title: 'Leads',
+          message:
+              'Lead pipeline, follow-ups, and opportunities will appear here.',
+          icon: Icons.trending_up_rounded,
+        ),
+      ),
+      GoRoute(
+        path: '/customers',
+        name: 'customers',
+        builder: (context, state) => const FeaturePlaceholderScreen(
+          title: 'Customers',
+          message:
+              'Customer records, activity, and service history will appear here.',
+          icon: Icons.groups_2_rounded,
+        ),
+      ),
+      GoRoute(
+        path: '/tasks',
+        name: 'tasks',
+        builder: (context, state) => const FeaturePlaceholderScreen(
+          title: 'Tasks',
+          message:
+              'Assigned work, reminders, and pending actions will appear here.',
+          icon: Icons.task_alt_rounded,
+        ),
+      ),
+      GoRoute(
         path: '/my-services/:caseId',
         name: 'service-case-detail',
         builder: (context, state) {
@@ -131,11 +162,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/internal-workspace',
         name: 'internal-workspace',
-        builder: (context, state) => const FeaturePlaceholderScreen(
-          title: 'Internal Workspace',
-          message: 'Leads, customers, tasks and payments appear here.',
-          icon: Icons.admin_panel_settings_outlined,
-        ),
+        builder: (context, state) => const InternalWorkspaceScreen(),
       ),
     ],
   );
