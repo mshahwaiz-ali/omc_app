@@ -69,12 +69,15 @@ class ApiConfig {
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe leads API.
+  // TODO(backend): Replace with confirmed OMC/Frappe CRM APIs.
   static const String leadsMethod = 'omc_app.api.mobile.get_leads';
+  static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe customers API.
   static const String customersMethod = 'omc_app.api.mobile.get_customers';
+  static const String customerDetailMethod = 'omc_app.api.mobile.get_customer';
+
   static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
+  static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
 
   static const String uploadFileMethod = 'upload_file';
 

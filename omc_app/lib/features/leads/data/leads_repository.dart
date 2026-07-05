@@ -18,6 +18,15 @@ final leadsProvider = FutureProvider<List<LeadItem>>((ref) {
   return repository.fetchLeads();
 });
 
+final leadDetailProvider = FutureProvider.family<LeadItem?, String>((
+  ref,
+  leadId,
+) {
+  final repository = ref.watch(leadsRepositoryProvider);
+
+  return repository.fetchLeadDetail(leadId);
+});
+
 class LeadsRepository {
   const LeadsRepository(this._frappeClient);
 
@@ -32,6 +41,24 @@ class LeadsRepository {
       return const [];
     } catch (_) {
       return const [];
+    }
+  }
+
+  Future<LeadItem?> fetchLeadDetail(String leadId) async {
+    final cleanLeadId = leadId.trim();
+    if (cleanLeadId.isEmpty) return null;
+
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.leadDetailMethod,
+        queryParameters: {'lead_id': cleanLeadId, 'name': cleanLeadId},
+      );
+
+      return _mapLeadDetailResponse(response);
+    } on ApiError {
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -50,5 +77,17 @@ class LeadsRepository {
         .whereType<Map<String, dynamic>>()
         .map(LeadItem.fromJson)
         .toList(growable: false);
+  }
+
+  LeadItem? _mapLeadDetailResponse(Map<String, dynamic> data) {
+    final message = data['message'];
+
+    final rawLead = message is Map<String, dynamic>
+        ? message['lead'] ?? message['data'] ?? message['item'] ?? message
+        : data['lead'] ?? data['data'] ?? data['item'];
+
+    if (rawLead is! Map<String, dynamic>) return null;
+
+    return LeadItem.fromJson(rawLead);
   }
 }

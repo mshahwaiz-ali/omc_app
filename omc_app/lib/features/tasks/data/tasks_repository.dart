@@ -18,6 +18,15 @@ final tasksProvider = FutureProvider<List<TaskItem>>((ref) {
   return repository.fetchTasks();
 });
 
+final taskDetailProvider = FutureProvider.family<TaskItem?, String>((
+  ref,
+  taskId,
+) {
+  final repository = ref.watch(tasksRepositoryProvider);
+
+  return repository.fetchTaskDetail(taskId);
+});
+
 class TasksRepository {
   const TasksRepository(this._frappeClient);
 
@@ -32,6 +41,24 @@ class TasksRepository {
       return const [];
     } catch (_) {
       return const [];
+    }
+  }
+
+  Future<TaskItem?> fetchTaskDetail(String taskId) async {
+    final cleanTaskId = taskId.trim();
+    if (cleanTaskId.isEmpty) return null;
+
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.taskDetailMethod,
+        queryParameters: {'task_id': cleanTaskId, 'name': cleanTaskId},
+      );
+
+      return _mapTaskDetailResponse(response);
+    } on ApiError {
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -50,5 +77,17 @@ class TasksRepository {
         .whereType<Map<String, dynamic>>()
         .map(TaskItem.fromJson)
         .toList(growable: false);
+  }
+
+  TaskItem? _mapTaskDetailResponse(Map<String, dynamic> data) {
+    final message = data['message'];
+
+    final rawTask = message is Map<String, dynamic>
+        ? message['task'] ?? message['data'] ?? message['item'] ?? message
+        : data['task'] ?? data['data'] ?? data['item'];
+
+    if (rawTask is! Map<String, dynamic>) return null;
+
+    return TaskItem.fromJson(rawTask);
   }
 }

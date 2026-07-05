@@ -18,6 +18,15 @@ final customersProvider = FutureProvider<List<CustomerItem>>((ref) {
   return repository.fetchCustomers();
 });
 
+final customerDetailProvider = FutureProvider.family<CustomerItem?, String>((
+  ref,
+  customerId,
+) {
+  final repository = ref.watch(customersRepositoryProvider);
+
+  return repository.fetchCustomerDetail(customerId);
+});
+
 class CustomersRepository {
   const CustomersRepository(this._frappeClient);
 
@@ -32,6 +41,27 @@ class CustomersRepository {
       return const [];
     } catch (_) {
       return const [];
+    }
+  }
+
+  Future<CustomerItem?> fetchCustomerDetail(String customerId) async {
+    final cleanCustomerId = customerId.trim();
+    if (cleanCustomerId.isEmpty) return null;
+
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.customerDetailMethod,
+        queryParameters: {
+          'customer_id': cleanCustomerId,
+          'name': cleanCustomerId,
+        },
+      );
+
+      return _mapCustomerDetailResponse(response);
+    } on ApiError {
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -50,5 +80,17 @@ class CustomersRepository {
         .whereType<Map<String, dynamic>>()
         .map(CustomerItem.fromJson)
         .toList(growable: false);
+  }
+
+  CustomerItem? _mapCustomerDetailResponse(Map<String, dynamic> data) {
+    final message = data['message'];
+
+    final rawCustomer = message is Map<String, dynamic>
+        ? message['customer'] ?? message['data'] ?? message['item'] ?? message
+        : data['customer'] ?? data['data'] ?? data['item'];
+
+    if (rawCustomer is! Map<String, dynamic>) return null;
+
+    return CustomerItem.fromJson(rawCustomer);
   }
 }
