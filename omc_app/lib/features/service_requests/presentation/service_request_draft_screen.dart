@@ -13,6 +13,7 @@ import '../../service_catalogue/application/service_catalogue_controller.dart';
 import '../../service_catalogue/data/service_item.dart';
 
 import '../../../core/network/api_error.dart';
+import '../data/service_case_repository.dart';
 import '../data/service_request_repository.dart';
 
 class ServiceRequestDraftScreen extends ConsumerStatefulWidget {
@@ -325,104 +326,130 @@ class _ServiceRequestDraftScreenState
     });
   }
 
-    Future<void> _submit(ServiceItem service) async {
-      final formState = _formKey.currentState;
-      if (formState == null || !formState.validate()) return;
+  Future<void> _submit(ServiceItem service) async {
+    final formState = _formKey.currentState;
+    if (formState == null || !formState.validate()) return;
 
-      if (service.requiredDocuments.isNotEmpty && _attachments.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Attach at least one document before submitting.'),
-          ),
-        );
-        return;
+    if (service.requiredDocuments.isNotEmpty && _attachments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Attach at least one document before submitting.'),
+        ),
+      );
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final repository = ref.read(serviceRequestRepositoryProvider);
+      final result = await repository.createServiceRequest(
+        ServiceRequestPayload(
+          service: service,
+          fullName: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          email: _emailController.text.trim(),
+          taxId: _taxIdController.text.trim(),
+          remarks: _remarksController.text.trim(),
+          attachments: List<DocumentAttachment>.unmodifiable(_attachments),
+        ),
+      );
+
+      if (!mounted) return;
+
+      final requestId = result.requestId;
+      var uploadedCount = 0;
+      String? uploadWarning;
+
+      if (_attachments.isNotEmpty) {
+        if (requestId == null || requestId.isEmpty) {
+          uploadWarning =
+              'Documents could not be uploaded automatically because the server did not return a request reference.';
+        } else {
+          try {
+            final uploadedFiles = await repository.uploadRequestAttachments(
+              requestId: requestId,
+              attachments: _attachments,
+            );
+
+            uploadedCount = uploadedFiles.length;
+
+            if (uploadedCount < _attachments.length) {
+              uploadWarning =
+                  'Some documents were skipped because their local file paths were unavailable.';
+            }
+          } on ApiError catch (error) {
+            uploadWarning = error.message;
+          } catch (_) {
+            uploadWarning =
+                'The request was created, but documents could not be uploaded right now.';
+          }
+        }
       }
 
-      FocusScope.of(context).unfocus();
+      if (!mounted) return;
 
-      setState(() {
-        _isSubmitting = true;
-      });
+      ref.invalidate(serviceCasesProvider);
 
-      try {
-        final result = await ref
-            .read(serviceRequestRepositoryProvider)
-            .createServiceRequest(
-              ServiceRequestPayload(
-                service: service,
-                fullName: _nameController.text.trim(),
-                phone: _phoneController.text.trim(),
-                email: _emailController.text.trim(),
-                taxId: _taxIdController.text.trim(),
-                remarks: _remarksController.text.trim(),
-                attachments: List<DocumentAttachment>.unmodifiable(_attachments),
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          final referenceLine = requestId == null || requestId.isEmpty
+              ? 'OMC will confirm your reference shortly.'
+              : 'Reference: $requestId';
+
+          final uploadLine = _attachments.isEmpty
+              ? 'No attachments were selected.'
+              : uploadWarning == null
+                  ? 'Uploaded $uploadedCount attachment(s).'
+                  : 'Document upload note: $uploadWarning';
+
+          return AlertDialog(
+            title: const Text('Request submitted'),
+            content: Text(
+              'Your service request has been submitted successfully.\n\n'
+              '$referenceLine\n'
+              '$uploadLine',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Done'),
               ),
-            );
+            ],
+          );
+        },
+      );
 
-        if (!mounted) return;
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } on ApiError catch (error) {
+      if (!mounted) return;
 
-        final requestId = result.requestId;
-        var uploadedCount = 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
 
-        if (requestId != null &&
-            requestId.isNotEmpty &&
-            _attachments.isNotEmpty) {
-          final uploadedFiles = await ref
-              .read(serviceRequestRepositoryProvider)
-              .uploadRequestAttachments(
-                requestId: requestId,
-                attachments: _attachments,
-              );
-
-          uploadedCount = uploadedFiles.length;
-        }
-
-        if (!mounted) return;
-
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) {
-            return AlertDialog(
-              title: const Text('Request submitted'),
-              content: Text(
-                requestId == null
-                    ? 'Your service request has been submitted successfully. OMC will confirm the reference and documents shortly.'
-                    : 'Your service request has been submitted successfully. Reference: $requestId. Uploaded $uploadedCount attachment(s).',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Done'),
-                ),
-              ],
-            );
-          },
-        );
-
-        if (!mounted) return;
-        Navigator.of(context).pop();
-      } on ApiError catch (error) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
-      } catch (_) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to submit request right now. Please try again.'),
-          ),
-        );
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isSubmitting = false;
-          });
-        }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to submit request right now. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
       }
     }
+  }
+
 }
 
 class _SelectedServiceCard extends StatelessWidget {
