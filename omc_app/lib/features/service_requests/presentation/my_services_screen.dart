@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
@@ -42,16 +41,14 @@ class MyServicesScreen extends ConsumerWidget {
         child: casesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _LoadErrorState(
-            title: 'Unable to load services',
-            message: error.toString(),
+            title: 'Tracking not connected yet',
+            message: _cleanErrorMessage(error),
             onRetry: () => ref.invalidate(serviceCasesProvider),
+            onStartRequest: () => context.go('/services'),
           ),
           data: (cases) => cases.isEmpty
-              ? const EmptyState(
-                  title: 'No service requests yet',
-                  message:
-                      'Start a request from the service catalogue to track it here.',
-                  icon: Icons.assignment_outlined,
+              ? _EmptyServicesState(
+                  onStartRequest: () => context.go('/services'),
                 )
               : ListView(
                   physics: const BouncingScrollPhysics(),
@@ -72,16 +69,86 @@ class MyServicesScreen extends ConsumerWidget {
   }
 }
 
+String _cleanErrorMessage(Object error) {
+  final rawMessage = error.toString().trim();
+
+  if (rawMessage.startsWith('ApiError:')) {
+    return rawMessage.replaceFirst('ApiError:', '').trim();
+  }
+
+  if (rawMessage.isEmpty) {
+    return 'Service tracking is unavailable right now. Submitted requests are still sent to OMC.';
+  }
+
+  return rawMessage;
+}
+
+class _EmptyServicesState extends StatelessWidget {
+  const _EmptyServicesState({required this.onStartRequest});
+
+  final VoidCallback onStartRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: PremiumCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.assignment_add,
+                color: AppTheme.primaryRed,
+                size: 44,
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'No service requests yet',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Start a guided request from the catalogue. Once the backend returns tracking data, active cases will appear here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onStartRequest,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Start a request'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LoadErrorState extends StatelessWidget {
   const _LoadErrorState({
     required this.title,
     required this.message,
     required this.onRetry,
+    required this.onStartRequest,
   });
 
   final String title;
   final String message;
   final VoidCallback onRetry;
+  final VoidCallback onStartRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -119,10 +186,24 @@ class _LoadErrorState extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onStartRequest,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('New request'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -188,8 +269,9 @@ class _ServiceCaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progressPercent =
-        (serviceCase.progress.clamp(0, 1) * 100).round().toString();
+    final progressPercent = (serviceCase.progress.clamp(0, 1) * 100)
+        .round()
+        .toString();
 
     return PremiumCard(
       onTap: () => context.go('/my-services/${serviceCase.id}'),
@@ -237,8 +319,9 @@ class _ServiceCaseCard extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: serviceCase.progress.clamp(0, 1),
                     minHeight: 8,
-                    backgroundColor:
-                        AppTheme.primaryRed.withValues(alpha: 0.08),
+                    backgroundColor: AppTheme.primaryRed.withValues(
+                      alpha: 0.08,
+                    ),
                   ),
                 ),
               ),
@@ -307,8 +390,8 @@ class _StatusIcon extends StatelessWidget {
     final icon = normalized.contains('complete')
         ? Icons.check_circle_rounded
         : normalized.contains('document')
-            ? Icons.description_outlined
-            : Icons.pending_actions_rounded;
+        ? Icons.description_outlined
+        : Icons.pending_actions_rounded;
 
     return Container(
       width: 44,
@@ -401,7 +484,6 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-
 class ServiceCaseStatusBadge extends StatelessWidget {
   const ServiceCaseStatusBadge({super.key, required this.status});
 
@@ -418,8 +500,8 @@ ServiceCaseStatusStyle serviceCaseStatusStyle(String status) {
     icon: status.toLowerCase().contains('complete')
         ? Icons.check_circle_rounded
         : status.toLowerCase().contains('document')
-            ? Icons.description_outlined
-            : Icons.pending_actions_rounded,
+        ? Icons.description_outlined
+        : Icons.pending_actions_rounded,
     label: status,
   );
 }
