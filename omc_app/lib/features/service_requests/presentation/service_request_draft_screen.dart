@@ -9,6 +9,8 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../customers/data/customers_repository.dart';
+import '../../customers/domain/customer_item.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../documents/data/document_attachment.dart';
 import '../../service_catalogue/application/service_catalogue_controller.dart';
@@ -46,6 +48,7 @@ class _ServiceRequestDraftScreenState
 
   final List<DocumentAttachment> _attachments = [];
 
+  CustomerItem? _selectedCustomer;
   String? _irisIncomeSource;
   String? _businessOption;
 
@@ -112,6 +115,7 @@ class _ServiceRequestDraftScreenState
     _prefillEmail();
 
     final servicesAsync = ref.watch(serviceCatalogueProvider);
+    final customersAsync = ref.watch(customersProvider);
 
     return servicesAsync.when(
       loading: () => const Scaffold(
@@ -154,6 +158,28 @@ class _ServiceRequestDraftScreenState
                 children: [
                   _SelectedServiceCard(service: service),
                   const SizedBox(height: 16),
+                  customersAsync.when(
+                    data: (customers) {
+                      if (customers.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _CustomerPickerCard(
+                          customers: customers,
+                          selectedCustomer: _selectedCustomer,
+                          onChanged: (customer) {
+                            setState(() {
+                              _selectedCustomer = customer;
+                            });
+                          },
+                        ),
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
+                  ),
                   _WizardFoundationCard(service: service),
                   _WizardSpecificFieldsCard(
                     service: service,
@@ -233,8 +259,11 @@ class _ServiceRequestDraftScreenState
                           textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
                             labelText: 'CNIC / NTN (optional)',
+                            helperText:
+                                'CNIC must be 13 digits. NTN should be 7-9 digits if provided.',
                             prefixIcon: Icon(Icons.badge_outlined),
                           ),
+                          validator: _validateOptionalCnicOrNtn,
                         ),
                         const SizedBox(height: 14),
                         TextFormField(
@@ -269,6 +298,7 @@ class _ServiceRequestDraftScreenState
                     phoneController: _phoneController,
                     emailController: _emailController,
                     taxIdController: _taxIdController,
+                    selectedCustomer: _selectedCustomer,
                     remarksController: _remarksController,
                     additionalDetails: _wizardDetailsFor(service),
                     attachments: _attachments,
@@ -329,6 +359,18 @@ class _ServiceRequestDraftScreenState
     }
 
     return null;
+  }
+
+  String? _validateOptionalCnicOrNtn(String? value) {
+    final normalizedValue = value?.trim() ?? '';
+    if (normalizedValue.isEmpty) return null;
+
+    final digits = normalizedValue.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.length == 13) return null;
+    if (digits.length >= 7 && digits.length <= 9) return null;
+
+    return 'Enter a valid CNIC or NTN.';
   }
 
   Map<String, String> _wizardDetailsFor(ServiceItem service) {
@@ -462,6 +504,8 @@ class _ServiceRequestDraftScreenState
           remarks: _remarksController.text.trim(),
           additionalDetails: _wizardDetailsFor(service),
           attachments: List<DocumentAttachment>.unmodifiable(_attachments),
+          customerId: _selectedCustomer?.id,
+          customerName: _selectedCustomer?.name,
         ),
       );
 
@@ -638,6 +682,137 @@ class _SelectedServiceCard extends StatelessWidget {
   }
 }
 
+class _CustomerPickerCard extends StatelessWidget {
+  const _CustomerPickerCard({
+    required this.customers,
+    required this.selectedCustomer,
+    required this.onChanged,
+  });
+
+  final List<CustomerItem> customers;
+  final CustomerItem? selectedCustomer;
+  final ValueChanged<CustomerItem?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Customer',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'For internal users, link this request to an existing customer before submission.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            key: ValueKey(selectedCustomer?.id ?? 'no-customer'),
+            initialValue: selectedCustomer?.id,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Select customer (optional)',
+              prefixIcon: Icon(Icons.people_outline_rounded),
+            ),
+            items: [
+              const DropdownMenuItem<String>(
+                value: '',
+                child: Text('No customer selected'),
+              ),
+              ...customers.map(
+                (customer) => DropdownMenuItem<String>(
+                  value: customer.id,
+                  child: Text(customer.name),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null || value.isEmpty) {
+                onChanged(null);
+                return;
+              }
+
+              for (final customer in customers) {
+                if (customer.id == value) {
+                  onChanged(customer);
+                  return;
+                }
+              }
+
+              onChanged(null);
+            },
+          ),
+          if (selectedCustomer != null) ...[
+            const SizedBox(height: 12),
+            _CustomerSelectionSummary(customer: selectedCustomer!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomerSelectionSummary extends StatelessWidget {
+  const _CustomerSelectionSummary({required this.customer});
+
+  final CustomerItem customer;
+
+  @override
+  Widget build(BuildContext context) {
+    final details = [
+      if (customer.email != null) customer.email!,
+      if (customer.phone != null) customer.phone!,
+      if (customer.city != null) customer.city!,
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            customer.name,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          if (details.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Text(
+              details.join(' • '),
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _WizardSpecificFieldsCard extends StatelessWidget {
   const _WizardSpecificFieldsCard({
     required this.service,
@@ -720,6 +895,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                   helperText: 'Enter 13 digits without dashes.',
                   prefixIcon: Icon(Icons.badge_outlined),
                 ),
+                validator: _validateRequiredCnic,
               ),
               const SizedBox(height: 14),
               TextFormField(
@@ -746,6 +922,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
             if (showIrisFields) ...[
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
+                key: ValueKey(irisIncomeSource ?? 'no-iris-income-source'),
                 initialValue: irisIncomeSource,
                 decoration: const InputDecoration(
                   labelText: 'Income source',
@@ -762,6 +939,9 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                   DropdownMenuItem(value: 'Property', child: Text('Property')),
                   DropdownMenuItem(value: 'Other', child: Text('Other')),
                 ],
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Select an income source.'
+                    : null,
                 onChanged: onIrisIncomeSourceChanged,
               ),
             ],
@@ -801,6 +981,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
             if (showBusinessFields) ...[
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
+                key: ValueKey(businessOption ?? 'no-business-option'),
                 initialValue: businessOption,
                 decoration: const InputDecoration(
                   labelText: 'Business option',
@@ -822,6 +1003,9 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                   ),
                   DropdownMenuItem(value: 'Other', child: Text('Other')),
                 ],
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Select a business option.'
+                    : null,
                 onChanged: onBusinessOptionChanged,
               ),
               const SizedBox(height: 14),
@@ -855,6 +1039,13 @@ String _normalizedWizardType(ServiceItem service) {
 
 bool _hasWizardType(ServiceItem service, String type) {
   return _normalizedWizardType(service) == type;
+}
+
+String? _validateRequiredCnic(String? value) {
+  final digits = value?.replaceAll(RegExp(r'\D'), '') ?? '';
+  if (digits.isEmpty) return 'CNIC is required.';
+  if (digits.length != 13) return 'CNIC must be exactly 13 digits.';
+  return null;
 }
 
 bool _isNtnService(ServiceItem service) {
@@ -1014,6 +1205,7 @@ class _ReviewSummaryCard extends StatelessWidget {
     required this.phoneController,
     required this.emailController,
     required this.taxIdController,
+    required this.selectedCustomer,
     required this.remarksController,
     required this.additionalDetails,
     required this.attachments,
@@ -1025,6 +1217,7 @@ class _ReviewSummaryCard extends StatelessWidget {
   final TextEditingController phoneController;
   final TextEditingController emailController;
   final TextEditingController taxIdController;
+  final CustomerItem? selectedCustomer;
   final TextEditingController remarksController;
   final Map<String, String> additionalDetails;
   final List<DocumentAttachment> attachments;
@@ -1060,6 +1253,8 @@ class _ReviewSummaryCard extends StatelessWidget {
           _ReviewRow(label: 'Name', value: fullNameController.text),
           _ReviewRow(label: 'Phone', value: phoneController.text),
           _ReviewRow(label: 'Email', value: emailController.text),
+          if (selectedCustomer != null)
+            _ReviewRow(label: 'Customer', value: selectedCustomer!.name),
           if (taxIdController.text.trim().isNotEmpty)
             _ReviewRow(label: 'CNIC / NTN', value: taxIdController.text),
           for (final detail in _orderedDetails(additionalDetails))
@@ -1380,7 +1575,7 @@ class _WizardFoundationCard extends StatelessWidget {
           ],
           const SizedBox(height: 14),
           Text(
-            'This wizard uses the existing backend service request submission path. Service-specific fields will be expanded after the backend contract is confirmed.',
+            'This guided flow collects service-specific details, documents and review data while using the existing secure backend submission path.',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,

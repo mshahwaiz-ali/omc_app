@@ -3,18 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../documents/application/document_attachment_controller.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
+import '../data/service_request_repository.dart';
 
-class ServiceCaseDetailScreen extends ConsumerWidget {
+class ServiceCaseDetailScreen extends ConsumerStatefulWidget {
   const ServiceCaseDetailScreen({super.key, required this.caseId});
 
   final String caseId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final caseAsync = ref.watch(serviceCaseDetailProvider(caseId));
+  ConsumerState<ServiceCaseDetailScreen> createState() =>
+      _ServiceCaseDetailScreenState();
+}
+
+class _ServiceCaseDetailScreenState
+    extends ConsumerState<ServiceCaseDetailScreen> {
+  bool _isUploadingDocument = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final caseAsync = ref.watch(serviceCaseDetailProvider(widget.caseId));
 
     return Scaffold(
       appBar: AppBar(
@@ -34,7 +45,8 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
           error: (error, stackTrace) => _LoadErrorState(
             title: 'Tracking detail unavailable',
             message: _cleanErrorMessage(error),
-            onRetry: () => ref.invalidate(serviceCaseDetailProvider(caseId)),
+            onRetry: () =>
+                ref.invalidate(serviceCaseDetailProvider(widget.caseId)),
             onSupport: () => SupportLauncher.openWhatsApp(context),
           ),
           data: (serviceCase) {
@@ -56,7 +68,12 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _RequiredDocumentsCard(serviceCase: serviceCase),
                 const SizedBox(height: 16),
-                _CaseActionsCard(serviceCase: serviceCase),
+                _CaseActionsCard(
+                  serviceCase: serviceCase,
+                  isUploading: _isUploadingDocument,
+                  onUploadMissingDocument: () =>
+                      _uploadMissingDocument(serviceCase),
+                ),
                 const SizedBox(height: 16),
                 _SupportCard(serviceCase: serviceCase),
               ],
@@ -65,6 +82,94 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _uploadMissingDocument(ServiceCase serviceCase) async {
+    if (_isUploadingDocument) return;
+
+    final uploadDocname = _uploadDocnameFor(serviceCase);
+    if (uploadDocname == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to upload because this case does not have a backend reference yet.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isUploadingDocument = true;
+    });
+
+    try {
+      final picker = ref.read(documentAttachmentControllerProvider);
+      final pickResult = await picker.pickDocuments();
+
+      if (!mounted) return;
+
+      if (pickResult.hasRejectedFiles) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(pickResult.rejectedMessages.join('\n'))),
+        );
+      }
+
+      if (!pickResult.hasAcceptedFiles) {
+        return;
+      }
+
+      final repository = ref.read(serviceRequestRepositoryProvider);
+      final uploadedFiles = await repository.uploadRequestAttachments(
+        requestId: uploadDocname,
+        attachments: pickResult.accepted,
+      );
+
+      if (!mounted) return;
+
+      ref.invalidate(serviceCaseDetailProvider(widget.caseId));
+      ref.invalidate(serviceCasesProvider);
+
+      final uploadedCount = uploadedFiles.length;
+      final skippedCount = pickResult.accepted.length - uploadedCount;
+      final message = skippedCount > 0
+          ? 'Uploaded $uploadedCount document(s). $skippedCount file(s) were skipped because their local path was unavailable.'
+          : 'Uploaded $uploadedCount document(s).';
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to upload missing documents right now. Please try again.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingDocument = false;
+        });
+      }
+    }
+  }
+
+  String? _uploadDocnameFor(ServiceCase serviceCase) {
+    final reference = serviceCase.reference?.trim();
+    if (reference != null && reference.isNotEmpty) {
+      return reference;
+    }
+
+    final id = serviceCase.id.trim();
+    if (id.isNotEmpty && id != '-') {
+      return id;
+    }
+
+    return null;
   }
 }
 
@@ -594,9 +699,15 @@ class _DocumentRequirementRow extends StatelessWidget {
 }
 
 class _CaseActionsCard extends StatelessWidget {
-  const _CaseActionsCard({required this.serviceCase});
+  const _CaseActionsCard({
+    required this.serviceCase,
+    required this.isUploading,
+    required this.onUploadMissingDocument,
+  });
 
   final ServiceCase serviceCase;
+  final bool isUploading;
+  final VoidCallback onUploadMissingDocument;
 
   @override
   Widget build(BuildContext context) {
@@ -613,14 +724,36 @@ class _CaseActionsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _ActionNotice(
-            icon: Icons.cloud_upload_outlined,
-            title: 'Document upload pending backend',
-            message:
-                'Once OMC enables the tracking upload endpoint, this case will support direct document submission.',
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
+          if (serviceCase.missingDocuments.isNotEmpty) ...[
+            _ActionNotice(
+              icon: Icons.cloud_upload_outlined,
+              title: 'Missing documents required',
+              message:
+                  'Upload the requested documents directly to this case. The files will be attached to the backend service request reference.',
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isUploading ? null : onUploadMissingDocument,
+              icon: isUploading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.upload_file_rounded),
+              label: Text(isUploading ? 'Uploading...' : 'Upload documents'),
+            ),
+            const SizedBox(height: 10),
+          ] else ...[
+            _ActionNotice(
+              icon: Icons.check_circle_outline_rounded,
+              title: 'No missing documents',
+              message:
+                  'All currently required documents for this case appear submitted.',
+            ),
+            const SizedBox(height: 12),
+          ],
+          OutlinedButton.icon(
             onPressed: () => SupportLauncher.openWhatsApp(context),
             icon: const Icon(Icons.chat_bubble_outline_rounded),
             label: const Text('Ask OMC support'),

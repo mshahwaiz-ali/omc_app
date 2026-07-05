@@ -40,6 +40,9 @@ class ApiConfig {
   static const String dashboardDataMethod =
       'lead_app.lead_app.apis.get_dashboard_data';
 
+  // TODO(backend): Replace with confirmed OMC/Frappe tax calculator API.
+  static const String taxCalculatorMethod = 'omc_app.api.mobile.calculate_tax';
+
   // TODO(backend): Replace with confirmed OMC/Frappe service catalogue API.
   static const String serviceCatalogueMethod =
       'omc_app.api.mobile.get_service_catalogue';

@@ -7,9 +7,19 @@ class SupportLauncher {
   const SupportLauncher._();
 
   static Future<void> openWhatsApp(BuildContext context) async {
-    final message = Uri.encodeComponent(SupportConfig.whatsappMessage);
+    await openWhatsAppWithMessage(
+      context,
+      message: SupportConfig.whatsappMessage,
+    );
+  }
+
+  static Future<void> openWhatsAppWithMessage(
+    BuildContext context, {
+    required String message,
+  }) async {
+    final encodedMessage = Uri.encodeComponent(message);
     final uri = Uri.parse(
-      'https://wa.me/${SupportConfig.whatsappNumber}?text=$message',
+      'https://wa.me/${SupportConfig.whatsappNumber}?text=$encodedMessage',
     );
 
     await _launchUri(context, uri, 'Unable to open WhatsApp right now.');
@@ -24,9 +34,7 @@ class SupportLauncher {
     final uri = Uri(
       scheme: 'mailto',
       path: SupportConfig.email,
-      queryParameters: const {
-        'subject': 'OMC App Support',
-      },
+      queryParameters: const {'subject': 'OMC App Support'},
     );
 
     await _launchUri(context, uri, 'Unable to open email app right now.');

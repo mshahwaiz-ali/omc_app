@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../data/tax_calculation_repository.dart';
 
-enum TaxIncomeType { salary, rental, soleProprietor }
-
-class TaxCalculatorScreen extends StatefulWidget {
+class TaxCalculatorScreen extends ConsumerStatefulWidget {
   const TaxCalculatorScreen({super.key});
 
   @override
-  State<TaxCalculatorScreen> createState() => _TaxCalculatorScreenState();
+  ConsumerState<TaxCalculatorScreen> createState() =>
+      _TaxCalculatorScreenState();
 }
 
-class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
+class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   final _incomeController = TextEditingController();
 
   TaxIncomeType _incomeType = TaxIncomeType.salary;
-  double? _monthlyIncome;
-  double? _estimatedMonthlyTax;
-  double? _estimatedYearlyTax;
+  TaxCalculationResult? _result;
+  bool _isCalculating = false;
 
   @override
   void dispose() {
@@ -27,15 +27,13 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
     super.dispose();
   }
 
-  void _calculate() {
+  Future<void> _calculate() async {
     final rawValue = _incomeController.text.replaceAll(',', '').trim();
     final monthlyIncome = double.tryParse(rawValue);
 
     if (monthlyIncome == null || monthlyIncome <= 0) {
       setState(() {
-        _monthlyIncome = null;
-        _estimatedMonthlyTax = null;
-        _estimatedYearlyTax = null;
+        _result = null;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -44,32 +42,41 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
       return;
     }
 
-    // Local UI estimate only.
-    // Production: replace this with backend-driven OMC/Frappe tax slab API.
-    final yearlyIncome = monthlyIncome * 12;
-    final estimatedYearlyTax = _estimateDemoTax(yearlyIncome);
-    final estimatedMonthlyTax = estimatedYearlyTax / 12;
+    FocusScope.of(context).unfocus();
 
     setState(() {
-      _monthlyIncome = monthlyIncome;
-      _estimatedMonthlyTax = estimatedMonthlyTax;
-      _estimatedYearlyTax = estimatedYearlyTax;
+      _isCalculating = true;
     });
-  }
 
-  double _estimateDemoTax(double yearlyIncome) {
-    if (yearlyIncome <= 600000) return 0;
-    if (yearlyIncome <= 1200000) return (yearlyIncome - 600000) * 0.05;
-    if (yearlyIncome <= 2200000) {
-      return 30000 + ((yearlyIncome - 1200000) * 0.15);
+    try {
+      final repository = ref.read(taxCalculationRepositoryProvider);
+      final result = await repository.calculate(
+        TaxCalculationInput(
+          incomeType: _incomeType,
+          monthlyIncome: monthlyIncome,
+        ),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _result = result;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to calculate tax right now. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCalculating = false;
+        });
+      }
     }
-    if (yearlyIncome <= 3200000) {
-      return 180000 + ((yearlyIncome - 2200000) * 0.25);
-    }
-    if (yearlyIncome <= 4100000) {
-      return 430000 + ((yearlyIncome - 3200000) * 0.30);
-    }
-    return 700000 + ((yearlyIncome - 4100000) * 0.35);
   }
 
   String _money(double value) {
@@ -89,10 +96,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final monthlyIncome = _monthlyIncome;
-    final monthlyTax = _estimatedMonthlyTax;
-    final yearlyTax = _estimatedYearlyTax;
-    final yearlyIncome = monthlyIncome == null ? null : monthlyIncome * 12;
+    final result = _result;
 
     return SafeArea(
       child: ListView(
@@ -108,7 +112,7 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Estimate tax from monthly income. Final production calculation will use OMC backend slabs.',
+            'Calculate tax from monthly income using OMC backend slabs when available, with a safe local estimate fallback.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 14,
@@ -161,24 +165,27 @@ class _TaxCalculatorScreenState extends State<TaxCalculatorScreen> {
                 ),
                 const SizedBox(height: 18),
                 AppButton(
-                  label: 'Calculate Estimate',
+                  label: _isCalculating ? 'Calculating...' : 'Calculate Tax',
                   icon: Icons.calculate_rounded,
-                  onPressed: _calculate,
+                  isLoading: _isCalculating,
+                  onPressed: _isCalculating ? null : _calculate,
                 ),
               ],
             ),
           ),
           const SizedBox(height: 18),
-          if (monthlyIncome == null || monthlyTax == null || yearlyTax == null)
+          if (result == null)
             const _EmptyCalculatorState()
           else
             _TaxResultCard(
-              monthlyIncome: _money(monthlyIncome),
-              yearlyIncome: _money(yearlyIncome!),
-              monthlyTax: _money(monthlyTax),
-              yearlyTax: _money(yearlyTax),
-              monthlyAfterTax: _money(monthlyIncome - monthlyTax),
-              yearlyAfterTax: _money(yearlyIncome - yearlyTax),
+              monthlyIncome: _money(result.monthlyIncome),
+              yearlyIncome: _money(result.yearlyIncome),
+              monthlyTax: _money(result.monthlyTax),
+              yearlyTax: _money(result.yearlyTax),
+              monthlyAfterTax: _money(result.monthlyAfterTax),
+              yearlyAfterTax: _money(result.yearlyAfterTax),
+              isBackendResult: result.isBackendResult,
+              note: result.note,
             ),
         ],
       ),
@@ -233,6 +240,8 @@ class _TaxResultCard extends StatelessWidget {
     required this.yearlyTax,
     required this.monthlyAfterTax,
     required this.yearlyAfterTax,
+    required this.isBackendResult,
+    this.note,
   });
 
   final String monthlyIncome;
@@ -241,6 +250,8 @@ class _TaxResultCard extends StatelessWidget {
   final String yearlyTax;
   final String monthlyAfterTax;
   final String yearlyAfterTax;
+  final bool isBackendResult;
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
@@ -249,8 +260,8 @@ class _TaxResultCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Estimated Result',
+          Text(
+            isBackendResult ? 'Backend Tax Result' : 'Estimated Result',
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 18,
@@ -269,12 +280,17 @@ class _TaxResultCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.14),
+              color: isBackendResult
+                  ? AppTheme.primaryRed.withValues(alpha: 0.08)
+                  : Colors.amber.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Text(
-              'Development estimate only. Production calculation must use backend tax slabs.',
-              style: TextStyle(
+            child: Text(
+              note ??
+                  (isBackendResult
+                      ? 'Calculated from OMC backend tax data.'
+                      : 'Local estimate only. Backend tax slabs are not connected yet.'),
+              style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 12,
                 height: 1.35,

@@ -24,6 +24,8 @@ class ServiceRequestPayload {
     required this.remarks,
     required this.additionalDetails,
     required this.attachments,
+    this.customerId,
+    this.customerName,
   });
 
   final ServiceItem service;
@@ -34,6 +36,8 @@ class ServiceRequestPayload {
   final String remarks;
   final Map<String, String> additionalDetails;
   final List<DocumentAttachment> attachments;
+  final String? customerId;
+  final String? customerName;
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
@@ -48,6 +52,17 @@ class ServiceRequestPayload {
     final normalizedTaxId = taxId.trim();
     if (normalizedTaxId.isNotEmpty) {
       data['tax_id'] = normalizedTaxId;
+    }
+
+    final normalizedCustomerId = customerId?.trim();
+    if (normalizedCustomerId != null && normalizedCustomerId.isNotEmpty) {
+      data['customer_id'] = normalizedCustomerId;
+      data['customer'] = normalizedCustomerId;
+    }
+
+    final normalizedCustomerName = customerName?.trim();
+    if (normalizedCustomerName != null && normalizedCustomerName.isNotEmpty) {
+      data['customer_name'] = normalizedCustomerName;
     }
 
     final normalizedRemarks = remarks.trim();

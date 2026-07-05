@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -152,11 +153,8 @@ class _NotificationDetailBody extends StatelessWidget {
               const SizedBox(height: 12),
               _ActionButton(
                 icon: Icons.open_in_new_rounded,
-                label: 'Open related record',
-                onTap: () => _showBackendPendingSnack(
-                  context,
-                  'Related record deep link is not connected yet.',
-                ),
+                label: _relatedActionLabel(notification),
+                onTap: () => _openRelatedRecord(context, notification),
               ),
               const SizedBox(height: 10),
               _ActionButton(
@@ -174,6 +172,51 @@ class _NotificationDetailBody extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _relatedActionLabel(NotificationItem notification) {
+    if (notification.reference == null ||
+        notification.reference!.trim().isEmpty) {
+      return 'No related record';
+    }
+
+    switch (notification.type) {
+      case AppNotificationType.documentRequest:
+        return 'Open service documents';
+      case AppNotificationType.serviceUpdate:
+        return 'Open service case';
+      case AppNotificationType.paymentAlert:
+        return 'Open payment reference';
+      case AppNotificationType.general:
+        return 'Open related record';
+    }
+  }
+
+  void _openRelatedRecord(BuildContext context, NotificationItem notification) {
+    final reference = notification.reference?.trim();
+    if (reference == null || reference.isEmpty) {
+      _showBackendPendingSnack(
+        context,
+        'This notification does not include a related reference yet.',
+      );
+      return;
+    }
+
+    switch (notification.type) {
+      case AppNotificationType.documentRequest:
+      case AppNotificationType.serviceUpdate:
+        context.push('/my-services/${Uri.encodeComponent(reference)}');
+        return;
+      case AppNotificationType.paymentAlert:
+        context.push('/payments/${Uri.encodeComponent(reference)}');
+        return;
+      case AppNotificationType.general:
+        _showBackendPendingSnack(
+          context,
+          'This notification type does not have a specific app destination yet.',
+        );
+        return;
+    }
   }
 
   void _showBackendPendingSnack(BuildContext context, String message) {
