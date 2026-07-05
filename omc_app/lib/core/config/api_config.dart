@@ -67,6 +67,10 @@ class ApiConfig {
   static const String notificationsMethod =
       'omc_app.api.mobile.get_notifications';
 
+  // TODO(backend): Replace with confirmed OMC/Frappe notification detail API.
+  static const String notificationDetailMethod =
+      'omc_app.api.mobile.get_notification_detail';
+
   // TODO(backend): Replace with confirmed OMC/Frappe internal workspace API.
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';

@@ -21,6 +21,13 @@ final notificationsProvider = FutureProvider<List<NotificationItem>>((
   return repository.fetchNotifications();
 });
 
+final notificationDetailProvider =
+    FutureProvider.family<NotificationItem?, String>((ref, notificationId) {
+      final repository = ref.watch(notificationsRepositoryProvider);
+
+      return repository.fetchNotificationDetail(notificationId);
+    });
+
 class NotificationsRepository {
   const NotificationsRepository({required this._frappeClient});
 
@@ -36,6 +43,29 @@ class NotificationsRepository {
       return const [];
     } catch (_) {
       return const [];
+    }
+  }
+
+  Future<NotificationItem?> fetchNotificationDetail(
+    String notificationId,
+  ) async {
+    final cleanNotificationId = notificationId.trim();
+    if (cleanNotificationId.isEmpty) return null;
+
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.notificationDetailMethod,
+        queryParameters: {
+          'notification_id': cleanNotificationId,
+          'name': cleanNotificationId,
+        },
+      );
+
+      return _mapNotificationDetailResponse(response);
+    } on ApiError {
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -55,6 +85,22 @@ class NotificationsRepository {
         .whereType<Map<String, dynamic>>()
         .map(_mapNotification)
         .toList(growable: false);
+  }
+
+  NotificationItem? _mapNotificationDetailResponse(Map<String, dynamic>? data) {
+    if (data == null) return null;
+
+    final message = data['message'];
+    final rawNotification = message is Map<String, dynamic>
+        ? message['notification'] ??
+              message['data'] ??
+              message['item'] ??
+              message
+        : data['notification'] ?? data['data'] ?? data['item'];
+
+    if (rawNotification is! Map<String, dynamic>) return null;
+
+    return _mapNotification(rawNotification);
   }
 
   NotificationItem _mapNotification(Map<String, dynamic> json) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -97,76 +98,89 @@ class _NotificationCard extends StatelessWidget {
     final color = _typeColor(notification.type);
 
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => context.push(
+          '/notifications/${Uri.encodeComponent(notification.id)}',
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.09),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(_typeIcon(notification.type), color: color),
-              ),
-              if (!notification.isRead)
-                Positioned(
-                  top: -2,
-                  right: -2,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.primaryRed,
-                      shape: BoxShape.circle,
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(16),
                     ),
+                    child: Icon(_typeIcon(notification.type), color: color),
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notification.title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  notification.message,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  if (!notification.isRead)
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.primaryRed,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _InfoChip(label: notification.type.label),
-                    if (notification.reference != null)
-                      _InfoChip(label: notification.reference!),
-                    if (notification.createdAtLabel != null)
-                      _InfoChip(label: notification.createdAtLabel!),
+                    Text(
+                      notification.title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      notification.message,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _InfoChip(label: notification.type.label),
+                        if (notification.reference != null)
+                          _InfoChip(label: notification.reference!),
+                        if (notification.createdAtLabel != null)
+                          _InfoChip(label: notification.createdAtLabel!),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

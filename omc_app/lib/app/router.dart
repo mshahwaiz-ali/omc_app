@@ -14,6 +14,7 @@ import '../features/customers/presentation/customer_detail_screen.dart';
 import '../features/customers/presentation/customers_screen.dart';
 import '../features/leads/presentation/lead_detail_screen.dart';
 import '../features/leads/presentation/leads_screen.dart';
+import '../features/notifications/presentation/notification_detail_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/payments/presentation/payment_detail_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
@@ -195,6 +196,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         name: 'notifications',
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/notifications/:notificationId',
+        name: 'notification-detail',
+        builder: (context, state) {
+          final notificationId = Uri.decodeComponent(
+            state.pathParameters['notificationId'] ?? '',
+          );
+
+          return NotificationDetailScreen(notificationId: notificationId);
+        },
       ),
       GoRoute(
         path: '/profile',
