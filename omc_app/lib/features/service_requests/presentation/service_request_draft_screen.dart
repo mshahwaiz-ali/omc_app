@@ -128,6 +128,8 @@ class _ServiceRequestDraftScreenState
                 children: [
                   _SelectedServiceCard(service: service),
                   const SizedBox(height: 16),
+                  _WizardFoundationCard(service: service),
+                  const SizedBox(height: 16),
                   PremiumCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -405,8 +407,8 @@ class _ServiceRequestDraftScreenState
           final uploadLine = _attachments.isEmpty
               ? 'No attachments were selected.'
               : uploadWarning == null
-                  ? 'Uploaded $uploadedCount attachment(s).'
-                  : 'Document upload note: $uploadWarning';
+              ? 'Uploaded $uploadedCount attachment(s).'
+              : 'Document upload note: $uploadWarning';
 
           return AlertDialog(
             title: const Text('Request submitted'),
@@ -430,15 +432,17 @@ class _ServiceRequestDraftScreenState
     } on ApiError catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Unable to submit request right now. Please try again.'),
+          content: Text(
+            'Unable to submit request right now. Please try again.',
+          ),
         ),
       );
     } finally {
@@ -449,7 +453,6 @@ class _ServiceRequestDraftScreenState
       }
     }
   }
-
 }
 
 class _SelectedServiceCard extends StatelessWidget {
@@ -555,8 +558,8 @@ class _DocumentHintCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             service.requiredDocuments.isEmpty
-              ? 'Attach any helpful files for OMC review.'
-              : 'Attach at least one relevant file now. ERP upload starts after the request is created.',
+                ? 'Attach any helpful files for OMC review.'
+                : 'Attach at least one relevant file now. ERP upload starts after the request is created.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
@@ -613,7 +616,6 @@ class _DocumentHintCard extends StatelessWidget {
     );
   }
 }
-
 
 class _ReviewSummaryCard extends StatelessWidget {
   const _ReviewSummaryCard({
@@ -888,6 +890,205 @@ class _RequirementRow extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _WizardFoundationCard extends StatelessWidget {
+  const _WizardFoundationCard({required this.service});
+
+  final ServiceItem service;
+
+  @override
+  Widget build(BuildContext context) {
+    final blueprint = _WizardBlueprint.fromService(service);
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(blueprint.icon, color: AppTheme.primaryRed),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      blueprint.title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      blueprint.subtitle,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          for (final step in blueprint.steps) ...[
+            _WizardStepRow(label: step),
+            if (step != blueprint.steps.last) const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 14),
+          Text(
+            'This wizard uses the existing backend service request submission path. Service-specific fields will be expanded after the backend contract is confirmed.',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 12,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WizardStepRow extends StatelessWidget {
+  const _WizardStepRow({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(
+          Icons.check_circle_outline_rounded,
+          color: AppTheme.primaryRed,
+          size: 20,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WizardBlueprint {
+  const _WizardBlueprint({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.steps,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<String> steps;
+
+  factory _WizardBlueprint.fromService(ServiceItem service) {
+    final text = '${service.id} ${service.title} ${service.category}'
+        .toLowerCase();
+
+    if (text.contains('ntn')) {
+      return const _WizardBlueprint(
+        title: 'NTN registration wizard',
+        subtitle:
+            'Guided flow for personal details, CNIC/NTN data, documents and review.',
+        icon: Icons.badge_outlined,
+        steps: [
+          'Confirm personal and contact details',
+          'Add CNIC / NTN information',
+          'Attach required identity documents',
+          'Review and submit to OMC',
+        ],
+      );
+    }
+
+    if (text.contains('iris')) {
+      return const _WizardBlueprint(
+        title: 'IRIS profile wizard',
+        subtitle:
+            'Guided flow for profile update requests and income-source context.',
+        icon: Icons.account_tree_outlined,
+        steps: [
+          'Confirm personal and login/profile details',
+          'Select income-source update context',
+          'Attach supporting documents',
+          'Review and submit to OMC',
+        ],
+      );
+    }
+
+    if (text.contains('gst') || text.contains('sales tax')) {
+      return const _WizardBlueprint(
+        title: 'GST registration wizard',
+        subtitle:
+            'Guided flow for business information, tax details, documents and review.',
+        icon: Icons.storefront_outlined,
+        steps: [
+          'Confirm business and owner details',
+          'Add activity and address information',
+          'Attach utility, bank and business proof',
+          'Review and submit to OMC',
+        ],
+      );
+    }
+
+    if (text.contains('business') ||
+        text.contains('incorporation') ||
+        text.contains('company') ||
+        text.contains('aop') ||
+        text.contains('sole')) {
+      return const _WizardBlueprint(
+        title: 'Business service wizard',
+        subtitle:
+            'Guided flow for business setup, incorporation or NTN business changes.',
+        icon: Icons.business_center_outlined,
+        steps: [
+          'Select business service context',
+          'Confirm owner / partner information',
+          'Attach business supporting documents',
+          'Review and submit to OMC',
+        ],
+      );
+    }
+
+    return const _WizardBlueprint(
+      title: 'Service request wizard',
+      subtitle:
+          'Guided request flow with contact details, documents, review and backend submission.',
+      icon: Icons.assignment_outlined,
+      steps: [
+        'Confirm contact details',
+        'Attach required documents',
+        'Review request summary',
+        'Submit to OMC backend',
       ],
     );
   }
