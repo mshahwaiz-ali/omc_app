@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../data/home_dashboard_repository.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({
@@ -74,16 +75,15 @@ class HomeScreen extends ConsumerWidget {
     ),
   ];
 
-  static const List<_StatusItem> _statusItems = [
-    _StatusItem(label: 'Active Cases', value: '0'),
-    _StatusItem(label: 'Completed', value: '0'),
-    _StatusItem(label: 'Pending Docs', value: '0'),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
+    final dashboardSummary = ref.watch(homeDashboardSummaryProvider);
     final displayName = _displayNameFromUserId(authState.userId);
+    final statusItems = dashboardSummary.maybeWhen(
+      data: _statusItemsFromSummary,
+      orElse: () => _statusItemsFromSummary(const HomeDashboardSummary.empty()),
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -110,9 +110,9 @@ class HomeScreen extends ConsumerWidget {
               sliver: SliverToBoxAdapter(
                 child: Row(
                   children: [
-                    for (final item in _statusItems) ...[
+                    for (final item in statusItems) ...[
                       Expanded(child: _StatusCard(item: item)),
-                      if (item != _statusItems.last) const SizedBox(width: 10),
+                      if (item != statusItems.last) const SizedBox(width: 10),
                     ],
                   ],
                 ),
@@ -178,20 +178,33 @@ class HomeScreen extends ConsumerWidget {
                 child: _SectionHeader(
                   title: 'Recent Activity',
                   actionText: 'Track',
-                  onAction: onOpenServices,
+                  onAction: () => context.go('/my-services'),
                 ),
               ),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
               sliver: SliverToBoxAdapter(
-                child: _RecentActivityCard(onTrack: onOpenServices),
+                child: _RecentActivityCard(
+                  onTrack: () => context.go('/my-services'),
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<_StatusItem> _statusItemsFromSummary(HomeDashboardSummary summary) {
+    return [
+      _StatusItem(label: 'Active Cases', value: summary.activeCases.toString()),
+      _StatusItem(label: 'Completed', value: summary.completedCases.toString()),
+      _StatusItem(
+        label: 'Pending Docs',
+        value: summary.pendingDocuments.toString(),
+      ),
+    ];
   }
 
   void _handleAction(BuildContext context, _HomeActionTarget target) {
@@ -591,8 +604,7 @@ class _RecentActivityCard extends StatelessWidget {
   }
 }
 
-enum _HomeActionTarget {
-  myServices, services, calculator, support }
+enum _HomeActionTarget { myServices, services, calculator, support }
 
 class _HomeAction {
   const _HomeAction({

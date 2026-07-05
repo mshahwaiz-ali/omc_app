@@ -89,7 +89,7 @@ class _ServiceCatalogueScreenState
                 ),
               ),
               const _MyServicesShortcutCard(),
-              const SizedBox(height: 16),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
               if (filteredServices.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
@@ -126,8 +126,8 @@ class _ServiceCatalogueScreenState
                           onRequest: () => context.push(
                             '/services/${Uri.encodeComponent(service.id)}/request',
                           ),
-                          onWhatsApp: () => SupportLauncher.openWhatsApp(context),
-                          
+                          onWhatsApp: () =>
+                              SupportLauncher.openWhatsApp(context),
                         ),
                       );
                     },
@@ -302,10 +302,7 @@ class _MyServicesShortcutCard extends StatelessWidget {
             ),
           ),
           SizedBox(width: 10),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: AppTheme.textSecondary,
-          ),
+          Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
         ],
       ),
     );

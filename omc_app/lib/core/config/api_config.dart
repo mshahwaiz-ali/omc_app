@@ -40,6 +40,10 @@ class ApiConfig {
   static const String dashboardDataMethod =
       'lead_app.lead_app.apis.get_dashboard_data';
 
+  // TODO(backend): Replace with confirmed OMC/Frappe service catalogue API.
+  static const String serviceCatalogueMethod =
+      'omc_app.api.mobile.get_service_catalogue';
+
   // TODO(backend): Replace these with confirmed OMC/Frappe tracking APIs.
   // Keep centralized so My Services can be wired without hardcoded
   // placeholder method names inside feature repositories.

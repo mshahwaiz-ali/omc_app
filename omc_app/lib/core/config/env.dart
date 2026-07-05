@@ -29,6 +29,14 @@ class Env {
     defaultValue: false,
   );
 
+  /// Optional backend catalogue source for future Frappe service catalogue API.
+  ///
+  /// Keep disabled until the backend method and response contract are confirmed.
+  static const bool useBackendServiceCatalogue = bool.fromEnvironment(
+    'OMC_USE_BACKEND_SERVICE_CATALOGUE',
+    defaultValue: false,
+  );
+
   static bool get isStaging => current == AppEnvironment.staging;
   static bool get isProduction => current == AppEnvironment.production;
 }
