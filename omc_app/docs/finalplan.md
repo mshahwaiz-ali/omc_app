@@ -38,7 +38,8 @@ The final app must not depend on fake/local bypass flows as the main product pat
   - `omc_app.api.mobile.get_service_cases`
   - `omc_app.api.mobile.get_service_case`
 - `createServiceRequest()` still logs backend response with `debugPrint`; remove this after endpoint shape is confirmed.
-- Some screens are still placeholders: notifications, profile, settings, internal workspace modules.
+- Some screens still need deeper backend readiness: notifications mark-as-read, profile, settings, internal workspace modules.
+- Knowledge / News module foundation is now added with backend-first repository, list/detail screens, routes, and More menu entry.
 - `pubspec.yaml` still has default Flutter description text; polish metadata later.
 - Real backend response contracts must be confirmed before expanding more UI around assumptions.
 
@@ -191,6 +192,7 @@ Complete main customer-facing app areas.
    - Service updates
    - Document requests
    - Tax alerts
+   - Mark-as-read backend readiness
 4. Profile
    - Personal info
    - CNIC/NTN/status fields where relevant
@@ -202,6 +204,11 @@ Complete main customer-facing app areas.
 6. Tax Calculator
    - Keep current calculator screen polished
    - Validate formulas before calling production-ready
+7. Knowledge / News
+   - Backend-first article/news list
+   - Backend-first article detail
+   - Empty state when endpoint is unavailable
+   - More menu access
 
 ### Exit Criteria
 
@@ -281,7 +288,29 @@ Prepare app for stable release builds.
 - Backend base URL is configurable through build-time env.
 - No sensitive values are hardcoded except safe public host defaults.
 
+## Recent Progress
+
+- Phase 4 service request polish completed:
+  - missing-document upload from case detail
+  - CNIC/NTN validation
+  - internal customer picker readiness
+- Phase 5 wizard polish completed:
+  - IRIS/business dropdown validation
+  - improved wizard wording
+- Phase 7 tax calculator foundation completed:
+  - backend-first repository/data layer
+  - safe local fallback
+- Phase 8 support/notifications polish completed:
+  - support category WhatsApp quick actions
+  - notification deep links to service/payment records
+- Knowledge / News foundation added:
+  - backend-first repository/data layer
+  - safe empty fallback when endpoint is unavailable
+  - premium list/detail screens
+  - More menu and router integration
+
 ## Immediate Next Steps
+
 
 ### Step 1
 
@@ -289,12 +318,12 @@ Commit this plan and keep it updated after each milestone.
 
 ### Step 2
 
-Implement Phase 4 foundation:
+Continue customer-facing backend readiness:
 
-- convert My Services provider to async state
-- add loading/error/empty UI
-- keep sample data only for explicit dev/testing mode
-- do not break current UI preview
+- add Notifications mark-as-read method readiness
+- keep Knowledge / News endpoint names centralized in ApiConfig
+- keep safe empty states when backend endpoints are unavailable
+- avoid fake production data
 
 ### Step 3
 

@@ -66,6 +66,11 @@ class ApiConfig {
   // TODO(backend): Replace with confirmed OMC/Frappe profile API.
   static const String profileMethod = 'omc_app.api.mobile.get_profile';
 
+  // TODO(backend): Replace with confirmed OMC/Frappe knowledge/news API.
+  static const String knowledgeMethod = 'omc_app.api.mobile.get_knowledge';
+  static const String knowledgeDetailMethod =
+      'omc_app.api.mobile.get_knowledge_article';
+
   // TODO(backend): Replace with confirmed OMC/Frappe notifications API.
   static const String notificationsMethod =
       'omc_app.api.mobile.get_notifications';
@@ -73,6 +78,10 @@ class ApiConfig {
   // TODO(backend): Replace with confirmed OMC/Frappe notification detail API.
   static const String notificationDetailMethod =
       'omc_app.api.mobile.get_notification_detail';
+
+  // TODO(backend): Replace with confirmed OMC/Frappe notification mark-read API.
+  static const String markNotificationReadMethod =
+      'omc_app.api.mobile.mark_notification_read';
 
   // TODO(backend): Replace with confirmed OMC/Frappe internal workspace API.
   static const String internalWorkspaceSummaryMethod =

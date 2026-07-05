@@ -32,7 +32,10 @@ class NotificationDetailScreen extends ConsumerWidget {
             );
           }
 
-          return _NotificationDetailBody(notification: notification);
+          return _NotificationDetailBody(
+            notification: notification,
+            onMarkRead: () => _markNotificationAsRead(context, ref),
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => PremiumEmptyState(
@@ -44,12 +47,43 @@ class NotificationDetailScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _markNotificationAsRead(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final repository = ref.read(notificationsRepositoryProvider);
+    final didMarkRead = await repository.markNotificationAsRead(notificationId);
+
+    if (!context.mounted) return;
+
+    if (didMarkRead) {
+      ref
+        ..invalidate(notificationsProvider)
+        ..invalidate(notificationDetailProvider(notificationId));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notification marked as read.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not mark this notification as read yet.'),
+      ),
+    );
+  }
 }
 
 class _NotificationDetailBody extends StatelessWidget {
-  const _NotificationDetailBody({required this.notification});
+  const _NotificationDetailBody({
+    required this.notification,
+    required this.onMarkRead,
+  });
 
   final NotificationItem notification;
+  final Future<void> Function() onMarkRead;
 
   @override
   Widget build(BuildContext context) {
@@ -162,10 +196,7 @@ class _NotificationDetailBody extends StatelessWidget {
                 label: notification.isRead
                     ? 'Already marked read'
                     : 'Mark as read',
-                onTap: () => _showBackendPendingSnack(
-                  context,
-                  'Mark-as-read endpoint is not connected yet.',
-                ),
+                onTap: notification.isRead ? null : () => onMarkRead(),
               ),
             ],
           ),
@@ -335,7 +366,7 @@ class _ActionButton extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

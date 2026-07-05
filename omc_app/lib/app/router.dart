@@ -8,6 +8,8 @@ import '../features/auth/presentation/signup_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
+import '../features/knowledge/presentation/knowledge_detail_screen.dart';
+import '../features/knowledge/presentation/knowledge_screen.dart';
 import '../features/tasks/presentation/task_detail_screen.dart';
 import '../features/tasks/presentation/tasks_screen.dart';
 import '../features/customers/presentation/customer_detail_screen.dart';
@@ -190,6 +192,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
 
           return ServiceCaseDetailScreen(caseId: caseId);
+        },
+      ),
+      GoRoute(
+        path: '/knowledge',
+        name: 'knowledge',
+        builder: (context, state) => const KnowledgeScreen(),
+      ),
+      GoRoute(
+        path: '/knowledge/:articleId',
+        name: 'knowledge-detail',
+        builder: (context, state) {
+          final articleId = Uri.decodeComponent(
+            state.pathParameters['articleId'] ?? '',
+          );
+
+          return KnowledgeDetailScreen(articleId: articleId);
         },
       ),
       GoRoute(

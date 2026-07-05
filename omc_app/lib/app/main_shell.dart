@@ -50,6 +50,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenProfile: () => context.push('/profile'),
         onOpenSettings: () => context.push('/settings'),
         onOpenNotifications: () => context.push('/notifications'),
+        onOpenKnowledge: () => context.push('/knowledge'),
         onOpenInternalWorkspace: () => context.push('/internal-workspace'),
         onLogout: _logout,
       ),
@@ -101,6 +102,7 @@ class _MoreScreen extends StatelessWidget {
     required this.onOpenProfile,
     required this.onOpenSettings,
     required this.onOpenNotifications,
+    required this.onOpenKnowledge,
     required this.onOpenInternalWorkspace,
     required this.onLogout,
   });
@@ -108,6 +110,7 @@ class _MoreScreen extends StatelessWidget {
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenKnowledge;
   final VoidCallback onOpenInternalWorkspace;
   final VoidCallback onLogout;
 
@@ -152,6 +155,13 @@ class _MoreScreen extends StatelessWidget {
                   title: 'Notifications',
                   subtitle: 'Service updates and tax alerts',
                   onTap: onOpenNotifications,
+                ),
+                const _DividerIndent(),
+                _MoreTile(
+                  icon: Icons.menu_book_outlined,
+                  title: 'Knowledge & News',
+                  subtitle: 'Tax guides, FBR updates and OMC news',
+                  onTap: onOpenKnowledge,
                 ),
                 const _DividerIndent(),
                 _MoreTile(

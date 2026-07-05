@@ -46,6 +46,27 @@ class NotificationsRepository {
     }
   }
 
+  Future<bool> markNotificationAsRead(String notificationId) async {
+    final cleanNotificationId = notificationId.trim();
+    if (cleanNotificationId.isEmpty) return false;
+
+    try {
+      await _frappeClient.postMethod(
+        ApiConfig.markNotificationReadMethod,
+        data: {
+          'notification_id': cleanNotificationId,
+          'name': cleanNotificationId,
+        },
+      );
+
+      return true;
+    } on ApiError {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<NotificationItem?> fetchNotificationDetail(
     String notificationId,
   ) async {
