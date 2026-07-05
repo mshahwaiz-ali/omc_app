@@ -41,7 +41,37 @@ class _ServiceRequestDraftScreenState
   bool _isSubmitting = false;
 
   @override
+  void initState() {
+    super.initState();
+
+    for (final controller in [
+      _nameController,
+      _phoneController,
+      _emailController,
+      _taxIdController,
+      _remarksController,
+    ]) {
+      controller.addListener(_refreshReviewSummary);
+    }
+  }
+
+  void _refreshReviewSummary() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    for (final controller in [
+      _nameController,
+      _phoneController,
+      _emailController,
+      _taxIdController,
+      _remarksController,
+    ]) {
+      controller.removeListener(_refreshReviewSummary);
+    }
+
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -182,6 +212,19 @@ class _ServiceRequestDraftScreenState
                         .formatFileSize,
                   ),
                   const SizedBox(height: 18),
+                  _ReviewSummaryCard(
+                    service: service,
+                    fullNameController: _nameController,
+                    phoneController: _phoneController,
+                    emailController: _emailController,
+                    taxIdController: _taxIdController,
+                    remarksController: _remarksController,
+                    attachments: _attachments,
+                    formatFileSize: ref
+                        .read(documentAttachmentControllerProvider)
+                        .formatFileSize,
+                  ),
+                  const SizedBox(height: 18),
                   AppButton(
                     label: 'Submit request',
                     icon: Icons.send_rounded,
@@ -286,7 +329,7 @@ class _ServiceRequestDraftScreenState
       final formState = _formKey.currentState;
       if (formState == null || !formState.validate()) return;
 
-      if (service.requirements.isNotEmpty && _attachments.isEmpty) {
+      if (service.requiredDocuments.isNotEmpty && _attachments.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Attach at least one document before submitting.'),
@@ -336,16 +379,27 @@ class _ServiceRequestDraftScreenState
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              requestId == null
-                  ? 'Service request submitted successfully. Attachments will be uploaded after reference confirmation.'
-                  : 'Service request submitted successfully. Ref: $requestId. Uploaded $uploadedCount attachment(s).',
-            ),
-          ),
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) {
+            return AlertDialog(
+              title: const Text('Request submitted'),
+              content: Text(
+                requestId == null
+                    ? 'Your service request has been submitted successfully. OMC will confirm the reference and documents shortly.'
+                    : 'Your service request has been submitted successfully. Reference: $requestId. Uploaded $uploadedCount attachment(s).',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
         );
 
+        if (!mounted) return;
         Navigator.of(context).pop();
       } on ApiError catch (error) {
         if (!mounted) return;
@@ -455,16 +509,16 @@ class _DocumentHintCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleRequirements = service.requirements.take(4).toList();
+    final visibleDocuments = service.requiredDocuments.take(4).toList();
     final remainingCount =
-        service.requirements.length - visibleRequirements.length;
+        service.requiredDocuments.length - visibleDocuments.length;
 
     return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Documents to prepare',
+            'Required documents',
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 18,
@@ -473,9 +527,9 @@ class _DocumentHintCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            service.requirements.isEmpty
-                ? 'Attach any helpful files for OMC review.'
-                : 'Attach at least one relevant file now. ERP upload starts after the request schema is confirmed.',
+            service.requiredDocuments.isEmpty
+              ? 'Attach any helpful files for OMC review.'
+              : 'Attach at least one relevant file now. ERP upload starts after the request is created.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
@@ -484,7 +538,7 @@ class _DocumentHintCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          if (visibleRequirements.isEmpty)
+          if (visibleDocuments.isEmpty)
             const Text(
               'OMC will confirm documents after reviewing your draft.',
               style: TextStyle(
@@ -493,10 +547,10 @@ class _DocumentHintCard extends StatelessWidget {
               ),
             )
           else ...[
-            for (final requirement in visibleRequirements)
+            for (final document in visibleDocuments)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: _RequirementRow(label: requirement),
+                child: _RequirementRow(label: document),
               ),
             if (remainingCount > 0)
               Text(
@@ -527,6 +581,148 @@ class _DocumentHintCard extends StatelessWidget {
                 ),
               ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+
+class _ReviewSummaryCard extends StatelessWidget {
+  const _ReviewSummaryCard({
+    required this.service,
+    required this.fullNameController,
+    required this.phoneController,
+    required this.emailController,
+    required this.taxIdController,
+    required this.remarksController,
+    required this.attachments,
+    required this.formatFileSize,
+  });
+
+  final ServiceItem service;
+  final TextEditingController fullNameController;
+  final TextEditingController phoneController;
+  final TextEditingController emailController;
+  final TextEditingController taxIdController;
+  final TextEditingController remarksController;
+  final List<DocumentAttachment> attachments;
+  final String Function(int bytes) formatFileSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Review before submit',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Confirm these details before sending the request to OMC.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _ReviewRow(label: 'Service', value: service.title),
+          _ReviewRow(label: 'Category', value: service.category),
+          _ReviewRow(label: 'Name', value: fullNameController.text),
+          _ReviewRow(label: 'Phone', value: phoneController.text),
+          _ReviewRow(label: 'Email', value: emailController.text),
+          if (taxIdController.text.trim().isNotEmpty)
+            _ReviewRow(label: 'CNIC / NTN', value: taxIdController.text),
+          if (remarksController.text.trim().isNotEmpty)
+            _ReviewRow(label: 'Remarks', value: remarksController.text),
+          const Divider(height: 22),
+          Text(
+            attachments.isEmpty
+                ? 'No documents attached yet.'
+                : '${attachments.length} document(s) attached',
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (attachments.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final attachment in attachments.take(3))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${attachment.name} • ${formatFileSize(attachment.sizeInBytes)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            if (attachments.length > 3)
+              Text(
+                '+${attachments.length - 3} more',
+                style: const TextStyle(
+                  color: AppTheme.primaryRed,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewRow extends StatelessWidget {
+  const _ReviewRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final safeValue = value.trim().isEmpty ? 'Not added yet' : value.trim();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              safeValue,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+                height: 1.3,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
         ],
       ),
     );

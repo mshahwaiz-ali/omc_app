@@ -3,6 +3,7 @@
     "id": "income-tax-salaried",
     "title": "Annual Income Tax Filing - Salaried",
     "category": "Income Tax Return",
+    "shortDescription": "For salaried individuals who need annual income tax return filing with salary, bank and withholding details.",
     "feeLabel": "Starting from PKR 3,000",
     "governmentFeeLabel": "Government fee excluded where applicable",
     "completionTime": "2-4 working days",
@@ -11,12 +12,59 @@
       "Salary certificate",
       "Bank statement",
       "Tax deduction certificate"
-    ]
+    ],
+    "requiredDocuments": [
+      "CNIC front and back",
+      "Annual salary certificate",
+      "Bank statement for tax year",
+      "Tax deduction / withholding certificates",
+      "Other income details if any"
+    ],
+    "processSteps": [
+      "Submit basic contact and CNIC details",
+      "Upload salary and bank documents",
+      "OMC reviews income and withholding data",
+      "Tax return is prepared and shared for confirmation",
+      "Final filing is submitted after approval"
+    ],
+    "supportMessage": "I want help with salaried income tax return filing."
+  },
+  {
+    "id": "income-tax-business",
+    "title": "Annual Income Tax Filing - Business / Freelancer",
+    "category": "Income Tax Return",
+    "shortDescription": "For business owners, freelancers and self-employed individuals who need annual tax return filing.",
+    "feeLabel": "Starting from PKR 7,500",
+    "governmentFeeLabel": "Government fee excluded where applicable",
+    "completionTime": "3-7 working days",
+    "requirements": [
+      "CNIC copy",
+      "Business income details",
+      "Expense details",
+      "Bank statement"
+    ],
+    "requiredDocuments": [
+      "CNIC front and back",
+      "Bank statement for tax year",
+      "Sales / income summary",
+      "Expense summary",
+      "Withholding certificates if available",
+      "Previous tax return if available"
+    ],
+    "processSteps": [
+      "Submit business and contact details",
+      "Upload income, expense and bank records",
+      "OMC reviews taxable income and deductions",
+      "Draft return is prepared",
+      "Final filing is submitted after confirmation"
+    ],
+    "supportMessage": "I want help with business or freelancer income tax return filing."
   },
   {
     "id": "ntn-registration",
     "title": "NTN Registration",
     "category": "NTN Registration",
+    "shortDescription": "Register your NTN with FBR using CNIC, contact details and basic personal information.",
     "feeLabel": "Starting from PKR 2,500",
     "governmentFeeLabel": "No standard government fee",
     "completionTime": "1-3 working days",
@@ -25,12 +73,57 @@
       "Mobile number",
       "Email address",
       "Residential address"
-    ]
+    ],
+    "requiredDocuments": [
+      "CNIC front image",
+      "CNIC back image",
+      "Active mobile number",
+      "Active email address",
+      "Residential address"
+    ],
+    "processSteps": [
+      "Submit CNIC and contact details",
+      "OMC verifies information",
+      "FBR NTN profile is created or updated",
+      "NTN confirmation is shared"
+    ],
+    "supportMessage": "I want help with NTN registration."
+  },
+  {
+    "id": "iris-profile-update",
+    "title": "IRIS Profile Update",
+    "category": "IRIS Profile",
+    "shortDescription": "Update contact details, source of income, business information or profile data in IRIS.",
+    "feeLabel": "Starting from PKR 2,000",
+    "governmentFeeLabel": "No standard government fee",
+    "completionTime": "1-2 working days",
+    "requirements": [
+      "CNIC copy",
+      "Updated contact details",
+      "Source of income",
+      "Supporting document if required"
+    ],
+    "requiredDocuments": [
+      "CNIC front and back",
+      "Updated mobile number",
+      "Updated email address",
+      "Income source details",
+      "Business proof if business source is selected"
+    ],
+    "processSteps": [
+      "Select required profile update",
+      "Submit updated information",
+      "Upload supporting documents",
+      "OMC updates IRIS profile",
+      "Confirmation is shared"
+    ],
+    "supportMessage": "I want help with IRIS profile update."
   },
   {
     "id": "gst-registration",
     "title": "GST / Sales Tax Registration",
     "category": "GST / Sales Tax",
+    "shortDescription": "Register business for GST / Sales Tax with business proof, utility bill and bank information.",
     "feeLabel": "Starting from PKR 15,000",
     "governmentFeeLabel": "Government fee excluded",
     "completionTime": "7-15 working days",
@@ -40,26 +133,29 @@
       "Business proof",
       "Utility bill",
       "Bank account proof"
-    ]
-  },
-  {
-    "id": "iris-profile-update",
-    "title": "IRIS Profile Update",
-    "category": "IRIS Profile",
-    "feeLabel": "Starting from PKR 2,000",
-    "governmentFeeLabel": "No standard government fee",
-    "completionTime": "1-2 working days",
-    "requirements": [
-      "CNIC copy",
-      "Updated contact details",
-      "Source of income",
-      "Supporting document if required"
-    ]
+    ],
+    "requiredDocuments": [
+      "CNIC front and back",
+      "NTN certificate if available",
+      "Business address proof",
+      "Electricity or gas bill",
+      "Bank account proof",
+      "Business activity details"
+    ],
+    "processSteps": [
+      "Submit business registration request",
+      "Upload required business documents",
+      "OMC reviews GST eligibility and documentation",
+      "Application is prepared and submitted",
+      "Registration status is tracked and shared"
+    ],
+    "supportMessage": "I want help with GST / Sales Tax registration."
   },
   {
     "id": "business-incorporation",
     "title": "Business Incorporation",
     "category": "Business Incorporation",
+    "shortDescription": "Company, AOP, partnership, sole proprietor or business addition services.",
     "feeLabel": "Quote after review",
     "governmentFeeLabel": "SECP/FBR fee excluded",
     "completionTime": "5-20 working days",
@@ -68,6 +164,141 @@
       "Business name options",
       "Business address",
       "Nature of business"
-    ]
+    ],
+    "requiredDocuments": [
+      "CNIC copies of owners/directors",
+      "Proposed business names",
+      "Business address",
+      "Nature of business",
+      "Partner/director details",
+      "Authorization documents if required"
+    ],
+    "processSteps": [
+      "Select incorporation type",
+      "Submit owners/directors information",
+      "Upload required documents",
+      "OMC reviews structure and requirements",
+      "Application is prepared and processed"
+    ],
+    "supportMessage": "I want help with business incorporation."
+  },
+  {
+    "id": "pseb-freelancer",
+    "title": "PSEB / Freelancer Registration",
+    "category": "PSEB / Freelancer",
+    "shortDescription": "Registration support for freelancers and IT service providers.",
+    "feeLabel": "Starting from PKR 8,000",
+    "governmentFeeLabel": "Government/platform fee excluded",
+    "completionTime": "3-7 working days",
+    "requirements": [
+      "CNIC copy",
+      "Freelance profile or business details",
+      "Bank account information",
+      "Contact details"
+    ],
+    "requiredDocuments": [
+      "CNIC front and back",
+      "Email and mobile number",
+      "Freelance platform/profile details if available",
+      "Bank account proof",
+      "Business or service description"
+    ],
+    "processSteps": [
+      "Submit freelancer/business details",
+      "Upload identity and bank documents",
+      "OMC reviews registration requirements",
+      "Application is prepared",
+      "Registration confirmation is shared"
+    ],
+    "supportMessage": "I want help with PSEB or freelancer registration."
+  },
+  {
+    "id": "company-compliance",
+    "title": "Company Compliance Services",
+    "category": "Company Compliance",
+    "shortDescription": "Annual filing, statutory compliance and company documentation support.",
+    "feeLabel": "Quote after review",
+    "governmentFeeLabel": "SECP/FBR fee excluded",
+    "completionTime": "3-15 working days",
+    "requirements": [
+      "Company name",
+      "Company registration details",
+      "Director information",
+      "Compliance requirement details"
+    ],
+    "requiredDocuments": [
+      "Company incorporation certificate",
+      "NTN certificate",
+      "Director CNIC copies",
+      "Previous compliance documents if available",
+      "Relevant SECP/FBR notices if any"
+    ],
+    "processSteps": [
+      "Submit company and compliance details",
+      "Upload company documents",
+      "OMC reviews pending compliance work",
+      "Required filing/documents are prepared",
+      "Submission confirmation is shared"
+    ],
+    "supportMessage": "I want help with company compliance services."
+  },
+  {
+    "id": "intellectual-property",
+    "title": "Trademark / Intellectual Property",
+    "category": "Intellectual Property",
+    "shortDescription": "Support for trademark and intellectual property registration requests.",
+    "feeLabel": "Quote after review",
+    "governmentFeeLabel": "IPO/government fee excluded",
+    "completionTime": "10-30 working days",
+    "requirements": [
+      "Applicant CNIC/company details",
+      "Brand/trademark name",
+      "Logo if available",
+      "Business category"
+    ],
+    "requiredDocuments": [
+      "CNIC or company documents",
+      "Trademark/brand name",
+      "Logo or mark file if available",
+      "Business category/class details",
+      "Authorization letter if required"
+    ],
+    "processSteps": [
+      "Submit trademark details",
+      "Upload logo/brand documents",
+      "OMC reviews basic eligibility and category",
+      "Application is prepared",
+      "Submission status is tracked"
+    ],
+    "supportMessage": "I want help with trademark or intellectual property registration."
+  },
+  {
+    "id": "other-tax-service",
+    "title": "Other Tax / Business Service",
+    "category": "Other Services",
+    "shortDescription": "Use this option when your required tax or business service is not listed.",
+    "feeLabel": "Quote after review",
+    "governmentFeeLabel": "Government fee excluded where applicable",
+    "completionTime": "Depends on service",
+    "requirements": [
+      "Service details",
+      "CNIC or business information",
+      "Relevant documents",
+      "Contact details"
+    ],
+    "requiredDocuments": [
+      "CNIC or business documents",
+      "Relevant notice/document if any",
+      "Short description of required work",
+      "Contact details"
+    ],
+    "processSteps": [
+      "Submit your service requirement",
+      "Upload relevant documents",
+      "OMC reviews request",
+      "Fee and timeline are shared",
+      "Work starts after confirmation"
+    ],
+    "supportMessage": "I need help with another tax or business service."
   }
 ]

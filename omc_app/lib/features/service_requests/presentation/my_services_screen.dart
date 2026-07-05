@@ -1,92 +1,108 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../support/application/support_launcher.dart';
+import '../data/service_case.dart';
+import '../data/service_case_repository.dart';
 
-enum ServiceCaseStatus { inProgress, pendingDocuments, completed }
-
-class MyServicesScreen extends StatelessWidget {
+class MyServicesScreen extends ConsumerWidget {
   const MyServicesScreen({super.key});
 
-  static const List<ServiceCaseSummary> serviceCases = [
-    ServiceCaseSummary(
-      caseId: 'OMC-LOCAL-001',
-      serviceTitle: 'Income Tax Return Filing',
-      status: ServiceCaseStatus.inProgress,
-      submittedDate: 'Local draft',
-      amountLabel: 'PKR 0',
-      assignedTo: 'OMC Tax Team',
-      nextAction: 'Review requirements and upload documents.',
-    ),
-    ServiceCaseSummary(
-      caseId: 'OMC-LOCAL-002',
-      serviceTitle: 'NTN Registration',
-      status: ServiceCaseStatus.pendingDocuments,
-      submittedDate: 'Local draft',
-      amountLabel: 'PKR 0',
-      assignedTo: 'OMC Registration Desk',
-      nextAction: 'CNIC front/back and contact details required.',
-    ),
-  ];
-
-  static ServiceCaseSummary? findCaseById(String caseId) {
-    for (final serviceCase in serviceCases) {
-      if (serviceCase.caseId == caseId) return serviceCase;
+  static ServiceCase? findCaseById(List<ServiceCase> cases, String caseId) {
+    for (final serviceCase in cases) {
+      if (serviceCase.id == caseId || serviceCase.reference == caseId) {
+        return serviceCase;
+      }
     }
 
     return null;
   }
 
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cases = ref.watch(serviceCasesProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Services'),
+        actions: [
+          IconButton(
+            tooltip: 'Support',
+            onPressed: () => SupportLauncher.openWhatsApp(context),
+            icon: const Icon(Icons.support_agent_rounded),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: cases.isEmpty
+            ? const EmptyState(
+                title: 'No service requests yet',
+                message: 'Start a request from the service catalogue to track it here.',
+                icon: Icons.assignment_outlined,
+              )
+            : ListView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                children: [
+                  const _HeaderCard(),
+                  const SizedBox(height: 16),
+                  for (final serviceCase in cases)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _ServiceCaseCard(serviceCase: serviceCase),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard();
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _MyServicesHeader(
-                  onBack: () => Navigator.of(context).maybePop(),
-                ),
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.primaryRed, AppTheme.darkRed],
+          ),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.track_changes_rounded, color: Colors.white, size: 34),
+            SizedBox(height: 14),
+            Text(
+              'Track your OMC work',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                height: 1.12,
+                fontWeight: FontWeight.w900,
               ),
             ),
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 22, 20, 0),
-              sliver: SliverToBoxAdapter(child: _ServiceStatusOverview()),
-            ),
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
-              sliver: SliverToBoxAdapter(
-                child: Text(
-                  'Recent Cases',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-              sliver: SliverList.separated(
-                itemCount: serviceCases.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 14),
-                itemBuilder: (context, index) {
-                  final serviceCase = serviceCases[index];
-
-                  return ServiceCaseCard(
-                    serviceCase: serviceCase,
-                    onOpenDetails: () => context.push(
-                      '/my-services/${Uri.encodeComponent(serviceCase.caseId)}',
-                    ),
-                  );
-                },
+            SizedBox(height: 8),
+            Text(
+              'View active requests, document requirements and completion status.',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -96,256 +112,82 @@ class MyServicesScreen extends StatelessWidget {
   }
 }
 
-class ServiceCaseSummary {
-  const ServiceCaseSummary({
-    required this.caseId,
-    required this.serviceTitle,
-    required this.status,
-    required this.submittedDate,
-    required this.amountLabel,
-    required this.assignedTo,
-    required this.nextAction,
-  });
+class _ServiceCaseCard extends StatelessWidget {
+  const _ServiceCaseCard({required this.serviceCase});
 
-  final String caseId;
-  final String serviceTitle;
-  final ServiceCaseStatus status;
-  final String submittedDate;
-  final String amountLabel;
-  final String assignedTo;
-  final String nextAction;
-}
-
-class _MyServicesHeader extends StatelessWidget {
-  const _MyServicesHeader({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton.filled(
-          tooltip: 'Back',
-          onPressed: onBack,
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.primaryRed,
-          ),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'My Services',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Track requests, documents and case progress.',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ServiceStatusOverview extends StatelessWidget {
-  const _ServiceStatusOverview();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        Expanded(
-          child: _StatusMetricCard(
-            label: 'Active',
-            value: '1',
-            icon: Icons.timelapse_rounded,
-          ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: _StatusMetricCard(
-            label: 'Pending Docs',
-            value: '1',
-            icon: Icons.upload_file_rounded,
-          ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: _StatusMetricCard(
-            label: 'Completed',
-            value: '0',
-            icon: Icons.verified_rounded,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatusMetricCard extends StatelessWidget {
-  const _StatusMetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
+  final ServiceCase serviceCase;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
       child: Column(
-        children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 22),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ServiceCaseCard extends StatelessWidget {
-  const ServiceCaseCard({
-    super.key,
-    required this.serviceCase,
-    required this.onOpenDetails,
-  });
-
-  final ServiceCaseSummary serviceCase;
-  final VoidCallback onOpenDetails;
-
-  @override
-  Widget build(BuildContext context) {
-    final statusStyle = serviceCaseStatusStyle(serviceCase.status);
-
-    return PremiumCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.assignment_turned_in_outlined,
-                  color: AppTheme.primaryRed,
-                ),
-              ),
+              _StatusIcon(status: serviceCase.status),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      serviceCase.serviceTitle,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      serviceCase.caseId,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  serviceCase.title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    height: 1.25,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              ServiceCaseStatusBadge(
-                label: statusStyle.label,
-                color: statusStyle.color,
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          _CaseInfoRow(
-            icon: Icons.calendar_today_outlined,
-            label: 'Submitted',
-            value: serviceCase.submittedDate,
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _InfoPill(label: serviceCase.category),
+              _InfoPill(label: serviceCase.status),
+              if (serviceCase.reference != null)
+                _InfoPill(label: serviceCase.reference!),
+            ],
           ),
-          _CaseInfoRow(
-            icon: Icons.payments_outlined,
-            label: 'Amount',
-            value: serviceCase.amountLabel,
-          ),
-          _CaseInfoRow(
-            icon: Icons.support_agent_outlined,
-            label: 'Assigned',
-            value: serviceCase.assignedTo,
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.035),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              serviceCase.nextAction,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
-              ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: LinearProgressIndicator(
+              value: serviceCase.progress.clamp(0, 1),
+              minHeight: 8,
+              backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
             ),
           ),
           const SizedBox(height: 14),
-          AppButton(
-            label: 'View Case Details',
-            icon: Icons.arrow_forward_rounded,
-            onPressed: onOpenDetails,
+          if (serviceCase.nextStep != null &&
+              serviceCase.nextStep!.trim().isNotEmpty)
+            _DetailRow(
+              icon: Icons.flag_outlined,
+              label: 'Next step',
+              value: serviceCase.nextStep!,
+            ),
+          if (serviceCase.remarks != null &&
+              serviceCase.remarks!.trim().isNotEmpty)
+            _DetailRow(
+              icon: Icons.notes_outlined,
+              label: 'Remarks',
+              value: serviceCase.remarks!,
+            ),
+          _DetailRow(
+            icon: Icons.update_rounded,
+            label: 'Updated',
+            value: serviceCase.updatedAtLabel,
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => SupportLauncher.openWhatsApp(context),
+              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              label: const Text('Ask support'),
+            ),
           ),
         ],
       ),
@@ -353,95 +195,130 @@ class ServiceCaseCard extends StatelessWidget {
   }
 }
 
-class _CaseInfoRow extends StatelessWidget {
-  const _CaseInfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+class _StatusIcon extends StatelessWidget {
+  const _StatusIcon({required this.status});
 
-  final IconData icon;
-  final String label;
-  final String value;
+  final String status;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(
-        children: [
-          Icon(icon, size: 17, color: AppTheme.textSecondary),
-          const SizedBox(width: 8),
-          Text(
-            '$label:',
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
+    final normalized = status.toLowerCase();
+    final icon = normalized.contains('complete')
+        ? Icons.check_circle_rounded
+        : normalized.contains('document')
+            ? Icons.description_outlined
+            : Icons.pending_actions_rounded;
+
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
       ),
+      child: Icon(icon, color: AppTheme.primaryRed, size: 23),
     );
   }
 }
 
-class ServiceCaseStatusBadge extends StatelessWidget {
-  const ServiceCaseStatusBadge({
-    super.key,
-    required this.label,
-    required this.color,
-  });
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.label});
 
   final String label;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: AppTheme.background,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
+        style: const TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
   }
 }
 
-class ServiceCaseStatusStyle {
-  const ServiceCaseStatusStyle(this.label, this.color);
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
+  final IconData icon;
   final String label;
-  final Color color;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                      height: 1.35,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  TextSpan(
+                    text: value,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-ServiceCaseStatusStyle serviceCaseStatusStyle(ServiceCaseStatus status) {
-  switch (status) {
-    case ServiceCaseStatus.inProgress:
-      return const ServiceCaseStatusStyle('In Progress', Colors.blue);
-    case ServiceCaseStatus.pendingDocuments:
-      return const ServiceCaseStatusStyle('Pending Docs', Colors.orange);
-    case ServiceCaseStatus.completed:
-      return const ServiceCaseStatusStyle('Completed', Colors.green);
+
+class ServiceCaseStatusBadge extends StatelessWidget {
+  const ServiceCaseStatusBadge({super.key, required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoPill(label: status);
   }
+}
+
+ServiceCaseStatusStyle serviceCaseStatusStyle(String status) {
+  return ServiceCaseStatusStyle(
+    icon: status.toLowerCase().contains('complete')
+        ? Icons.check_circle_rounded
+        : status.toLowerCase().contains('document')
+            ? Icons.description_outlined
+            : Icons.pending_actions_rounded,
+    label: status,
+  );
 }

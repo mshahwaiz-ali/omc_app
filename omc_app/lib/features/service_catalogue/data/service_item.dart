@@ -8,6 +8,10 @@ class ServiceItem {
     required this.requirements,
     this.governmentFeeLabel,
     this.description,
+    this.shortDescription,
+    this.processSteps = const [],
+    this.requiredDocuments = const [],
+    this.supportMessage,
   });
 
   final String id;
@@ -18,10 +22,12 @@ class ServiceItem {
   final String completionTime;
   final List<String> requirements;
   final String? description;
+  final String? shortDescription;
+  final List<String> processSteps;
+  final List<String> requiredDocuments;
+  final String? supportMessage;
 
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
-    final requirements = json['requirements'];
-
     return ServiceItem(
       id: _readString(json, ['id', 'name', 'service_id']),
       title: _readString(json, ['title', 'service_name', 'serviceName']),
@@ -39,13 +45,46 @@ class ServiceItem {
         'duration',
       ]),
       description: _readNullableString(json, ['description', 'details']),
-      requirements: requirements is List
-          ? requirements
-                .map((value) => value.toString().trim())
-                .where((value) => value.isNotEmpty)
-                .toList(growable: false)
-          : const [],
+      shortDescription: _readNullableString(json, [
+        'shortDescription',
+        'short_description',
+        'summary',
+      ]),
+      supportMessage: _readNullableString(json, [
+        'supportMessage',
+        'support_message',
+        'whatsapp_message',
+      ]),
+      requirements: _readStringList(json, ['requirements']),
+      processSteps: _readStringList(json, [
+        'processSteps',
+        'process_steps',
+        'steps',
+      ]),
+      requiredDocuments: _readStringList(json, [
+        'requiredDocuments',
+        'required_documents',
+        'documents',
+      ]),
     );
+  }
+
+  static List<String> _readStringList(
+    Map<String, dynamic> json,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = json[key];
+
+      if (value is List) {
+        return value
+            .map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty)
+            .toList(growable: false);
+      }
+    }
+
+    return const [];
   }
 
   static String _readString(Map<String, dynamic> json, List<String> keys) {

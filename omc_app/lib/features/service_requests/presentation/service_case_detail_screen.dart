@@ -1,144 +1,123 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../support/application/support_launcher.dart';
-import 'my_services_screen.dart';
+import '../data/service_case.dart';
+import '../data/service_case_repository.dart';
 
-class ServiceCaseDetailScreen extends StatelessWidget {
+class ServiceCaseDetailScreen extends ConsumerWidget {
   const ServiceCaseDetailScreen({super.key, required this.caseId});
 
   final String caseId;
 
-  static const List<ServiceCaseTimelineEntry> _timelineEntries = [
-    ServiceCaseTimelineEntry(
-      title: 'Request created',
-      description: 'Your case has been recorded in local testing mode.',
-      timestampLabel: 'Today',
-      isCompleted: true,
-    ),
-    ServiceCaseTimelineEntry(
-      title: 'Documents review',
-      description: 'OMC team will verify uploaded files and requirements.',
-      timestampLabel: 'Next',
-      isCompleted: false,
-    ),
-    ServiceCaseTimelineEntry(
-      title: 'Processing',
-      description: 'Case will move to tax/compliance processing.',
-      timestampLabel: 'Pending',
-      isCompleted: false,
-    ),
-    ServiceCaseTimelineEntry(
-      title: 'Completed',
-      description: 'Final documents and confirmation will appear here.',
-      timestampLabel: 'Pending',
-      isCompleted: false,
-    ),
-  ];
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cases = ref.watch(serviceCasesProvider);
+    final serviceCase = _findCase(cases, caseId);
 
-  static const List<ServiceCaseDocumentRequirement> _documentRequirements = [
-    ServiceCaseDocumentRequirement(
-      title: 'CNIC Front',
-      statusLabel: 'Required',
-      icon: Icons.badge_outlined,
-    ),
-    ServiceCaseDocumentRequirement(
-      title: 'CNIC Back',
-      statusLabel: 'Required',
-      icon: Icons.badge_outlined,
-    ),
-    ServiceCaseDocumentRequirement(
-      title: 'Income Details',
-      statusLabel: 'Pending',
-      icon: Icons.receipt_long_outlined,
-    ),
-  ];
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Service Details'),
+        actions: [
+          IconButton(
+            tooltip: 'Support',
+            onPressed: () => SupportLauncher.openWhatsApp(context),
+            icon: const Icon(Icons.support_agent_rounded),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: serviceCase == null
+            ? const EmptyState(
+                title: 'Case not found',
+                message: 'This service case may no longer be available.',
+                icon: Icons.search_off_rounded,
+              )
+            : ListView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                children: [
+                  _CaseHero(serviceCase: serviceCase),
+                  const SizedBox(height: 16),
+                  _ProgressCard(serviceCase: serviceCase),
+                  const SizedBox(height: 16),
+                  _CaseInfoCard(serviceCase: serviceCase),
+                  const SizedBox(height: 16),
+                  _SupportCard(serviceCase: serviceCase),
+                ],
+              ),
+      ),
+    );
+  }
+
+  ServiceCase? _findCase(List<ServiceCase> cases, String id) {
+    for (final serviceCase in cases) {
+      if (serviceCase.id == id || serviceCase.reference == id) {
+        return serviceCase;
+      }
+    }
+
+    return null;
+  }
+}
+
+class _CaseHero extends StatelessWidget {
+  const _CaseHero({required this.serviceCase});
+
+  final ServiceCase serviceCase;
 
   @override
   Widget build(BuildContext context) {
-    final serviceCase = MyServicesScreen.findCaseById(caseId);
-
-    if (serviceCase == null) {
-      return Scaffold(
-        body: SafeArea(
-          child: EmptyState(
-            title: 'Case not found',
-            message: 'This service case is not available in local test data.',
-            icon: Icons.search_off_rounded,
-            actionLabel: 'Go back',
-            onAction: () => Navigator.of(context).maybePop(),
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.primaryRed, AppTheme.darkRed],
           ),
+          borderRadius: BorderRadius.circular(24),
         ),
-      );
-    }
-
-    final statusStyle = serviceCaseStatusStyle(serviceCase.status);
-
-    return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _CaseDetailHeader(
-                  serviceCase: serviceCase,
-                  statusStyle: statusStyle,
-                  onBack: () => Navigator.of(context).maybePop(),
-                ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.assignment_turned_in_outlined,
+                color: Colors.white, size: 34),
+            const SizedBox(height: 14),
+            Text(
+              serviceCase.category,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _CaseSummaryCard(serviceCase: serviceCase),
+            const SizedBox(height: 6),
+            Text(
+              serviceCase.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                height: 1.12,
+                fontWeight: FontWeight.w900,
               ),
             ),
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
-              sliver: SliverToBoxAdapter(
-                child: _SectionTitle(title: 'Timeline'),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-              sliver: SliverList.separated(
-                itemCount: _timelineEntries.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  return _TimelineEntryCard(entry: _timelineEntries[index]);
-                },
-              ),
-            ),
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
-              sliver: SliverToBoxAdapter(
-                child: _SectionTitle(title: 'Required Documents'),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-              sliver: SliverList.separated(
-                itemCount: _documentRequirements.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  return _DocumentRequirementTile(
-                    documentRequirement: _documentRequirements[index],
-                  );
-                },
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
-              sliver: SliverToBoxAdapter(
-                child: _CaseSupportCard(serviceCase: serviceCase),
-              ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _HeroPill(label: serviceCase.status),
+                if (serviceCase.reference != null)
+                  _HeroPill(label: serviceCase.reference!),
+              ],
             ),
           ],
         ),
@@ -147,165 +126,44 @@ class ServiceCaseDetailScreen extends StatelessWidget {
   }
 }
 
-class ServiceCaseTimelineEntry {
-  const ServiceCaseTimelineEntry({
-    required this.title,
-    required this.description,
-    required this.timestampLabel,
-    required this.isCompleted,
-  });
+class _ProgressCard extends StatelessWidget {
+  const _ProgressCard({required this.serviceCase});
 
-  final String title;
-  final String description;
-  final String timestampLabel;
-  final bool isCompleted;
-}
-
-class ServiceCaseDocumentRequirement {
-  const ServiceCaseDocumentRequirement({
-    required this.title,
-    required this.statusLabel,
-    required this.icon,
-  });
-
-  final String title;
-  final String statusLabel;
-  final IconData icon;
-}
-
-class _CaseDetailHeader extends StatelessWidget {
-  const _CaseDetailHeader({
-    required this.serviceCase,
-    required this.statusStyle,
-    required this.onBack,
-  });
-
-  final ServiceCaseSummary serviceCase;
-  final ServiceCaseStatusStyle statusStyle;
-  final VoidCallback onBack;
+  final ServiceCase serviceCase;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton.filled(
-          tooltip: 'Back',
-          onPressed: onBack,
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.primaryRed,
-          ),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Case Details',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                serviceCase.caseId,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-        ServiceCaseStatusBadge(
-          label: statusStyle.label,
-          color: statusStyle.color,
-        ),
-      ],
-    );
-  }
-}
+    final progressPercent =
+        (serviceCase.progress.clamp(0, 1) * 100).round().toString();
 
-class _CaseSummaryCard extends StatelessWidget {
-  const _CaseSummaryCard({required this.serviceCase});
-
-  final ServiceCaseSummary serviceCase;
-
-  @override
-  Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            serviceCase.serviceTitle,
-            style: const TextStyle(
+          const Text(
+            'Progress',
+            style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 12),
-          _SummaryRow(label: 'Submitted', value: serviceCase.submittedDate),
-          _SummaryRow(label: 'Amount', value: serviceCase.amountLabel),
-          _SummaryRow(label: 'Assigned', value: serviceCase.assignedTo),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              serviceCase.nextAction,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12,
-                height: 1.4,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(
-        children: [
+          const SizedBox(height: 8),
           Text(
-            '$label:',
+            '$progressPercent% complete',
             style: const TextStyle(
               color: AppTheme.textSecondary,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w900,
-              ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: LinearProgressIndicator(
+              value: serviceCase.progress.clamp(0, 1),
+              minHeight: 9,
+              backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
             ),
           ),
         ],
@@ -314,139 +172,49 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title});
+class _CaseInfoCard extends StatelessWidget {
+  const _CaseInfoCard({required this.serviceCase});
 
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: AppTheme.textPrimary,
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-  }
-}
-
-class _TimelineEntryCard extends StatelessWidget {
-  const _TimelineEntryCard({required this.entry});
-
-  final ServiceCaseTimelineEntry entry;
+  final ServiceCase serviceCase;
 
   @override
   Widget build(BuildContext context) {
-    final color = entry.isCompleted ? Colors.green : AppTheme.textSecondary;
-
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            entry.isCompleted
-                ? Icons.check_circle_rounded
-                : Icons.radio_button_unchecked_rounded,
-            color: color,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  entry.description,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          const Text(
+            'Case information',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(width: 10),
-          Text(
-            entry.timestampLabel,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          const SizedBox(height: 14),
+          _InfoRow(label: 'Status', value: serviceCase.status),
+          _InfoRow(label: 'Created', value: serviceCase.createdAtLabel),
+          _InfoRow(label: 'Updated', value: serviceCase.updatedAtLabel),
+          if (serviceCase.nextStep != null)
+            _InfoRow(label: 'Next step', value: serviceCase.nextStep!),
+          if (serviceCase.remarks != null)
+            _InfoRow(label: 'Remarks', value: serviceCase.remarks!),
         ],
       ),
     );
   }
 }
 
-class _DocumentRequirementTile extends StatelessWidget {
-  const _DocumentRequirementTile({required this.documentRequirement});
+class _SupportCard extends StatelessWidget {
+  const _SupportCard({required this.serviceCase});
 
-  final ServiceCaseDocumentRequirement documentRequirement;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(documentRequirement.icon, color: AppTheme.primaryRed),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              documentRequirement.title,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          Text(
-            documentRequirement.statusLabel,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CaseSupportCard extends StatelessWidget {
-  const _CaseSupportCard({required this.serviceCase});
-
-  final ServiceCaseSummary serviceCase;
+  final ServiceCase serviceCase;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Need help?',
@@ -456,20 +224,89 @@ class _CaseSupportCard extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           const Text(
-            'Contact OMC support for document requirements, payment updates or case progress.',
+            'Contact OMC support for updates or document help.',
             style: TextStyle(
               color: AppTheme.textSecondary,
-              height: 1.4,
+              fontSize: 13,
+              height: 1.35,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 14),
-          AppButton(
-            label: 'Contact Support',
-            icon: Icons.support_agent_rounded,
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
             onPressed: () => SupportLauncher.openWhatsApp(context),
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            label: const Text('Ask support'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroPill extends StatelessWidget {
+  const _HeroPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 86,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),

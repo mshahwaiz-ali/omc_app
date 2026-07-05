@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -93,6 +94,10 @@ class ServiceRequestRepository {
       ApiConfig.createServiceMethod,
       data: payload.toJson(),
     );
+
+    // Temporary debug for backend response mapping.
+    // Remove after confirming the exact OMC response shape.
+    debugPrint('OMC createService response: $response');
 
     return ServiceRequestResult(
       raw: response,
