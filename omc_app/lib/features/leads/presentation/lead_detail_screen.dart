@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../data/leads_repository.dart';
 import '../domain/lead_item.dart';
 
@@ -54,29 +55,29 @@ class _LeadDetailBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        _DetailHeaderCard(
+        CrmDetailHeaderCard(
           icon: Icons.trending_up_rounded,
           title: lead.title,
           subtitle: lead.customerName,
           statusLabel: statusLabel,
         ),
         const SizedBox(height: 16),
-        _DetailInfoCard(
+        CrmDetailInfoCard(
           title: 'Contact',
           rows: [
-            _InfoRow(label: 'Email', value: lead.email ?? '-'),
-            _InfoRow(label: 'Phone', value: lead.phone ?? '-'),
-            _InfoRow(label: 'Source', value: lead.source ?? '-'),
-            _InfoRow(label: 'Created', value: lead.createdAtLabel ?? '-'),
+            CrmInfoRow(label: 'Email', value: lead.email ?? '-'),
+            CrmInfoRow(label: 'Phone', value: lead.phone ?? '-'),
+            CrmInfoRow(label: 'Source', value: lead.source ?? '-'),
+            CrmInfoRow(label: 'Created', value: lead.createdAtLabel ?? '-'),
           ],
         ),
         const SizedBox(height: 16),
-        _DetailInfoCard(
+        const CrmDetailInfoCard(
           title: 'Next actions',
-          rows: const [
-            _InfoRow(label: 'Timeline', value: 'Backend-ready placeholder'),
-            _InfoRow(label: 'Notes', value: 'Backend-ready placeholder'),
-            _InfoRow(label: 'Conversion', value: 'Backend-ready placeholder'),
+          rows: [
+            CrmInfoRow(label: 'Timeline', value: 'Backend-ready placeholder'),
+            CrmInfoRow(label: 'Notes', value: 'Backend-ready placeholder'),
+            CrmInfoRow(label: 'Conversion', value: 'Backend-ready placeholder'),
           ],
         ),
         const SizedBox(height: 8),
@@ -105,117 +106,5 @@ class _LeadDetailBody extends StatelessWidget {
       case LeadStatus.unknown:
         return 'Unknown';
     }
-  }
-}
-
-class _DetailHeaderCard extends StatelessWidget {
-  const _DetailHeaderCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.statusLabel,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String statusLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 26,
-              child: Icon(icon),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Chip(label: Text(statusLabel)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailInfoCard extends StatelessWidget {
-  const _DetailInfoCard({required this.title, required this.rows});
-
-  final String title;
-  final List<_InfoRow> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 14),
-            ...rows.map(
-              (row) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: row,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 92,
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(value, style: theme.textTheme.bodyMedium),
-        ),
-      ],
-    );
   }
 }
