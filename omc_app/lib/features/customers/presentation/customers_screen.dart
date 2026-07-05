@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/premium_empty_state.dart';
@@ -70,6 +71,9 @@ class _CustomerCard extends StatelessWidget {
       title: customer.name,
       subtitle: customer.companyName,
       trailing: _StatusPill(label: _customerStatusLabel(customer.status)),
+      onTap: () {
+        context.push('/customers/${Uri.encodeComponent(customer.id)}');
+      },
       children: [
         if (customer.phone != null)
           PremiumInfoChip(icon: Icons.call_rounded, label: customer.phone!),

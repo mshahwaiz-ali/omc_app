@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/premium_empty_state.dart';
@@ -70,6 +71,9 @@ class _LeadCard extends StatelessWidget {
       title: lead.title,
       subtitle: lead.customerName,
       trailing: _StatusPill(label: _leadStatusLabel(lead.status)),
+      onTap: () {
+        context.push('/leads/${Uri.encodeComponent(lead.id)}');
+      },
       children: [
         if (lead.phone != null)
           PremiumInfoChip(icon: Icons.call_rounded, label: lead.phone!),

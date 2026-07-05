@@ -7,8 +7,11 @@ import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
+import '../features/tasks/presentation/task_detail_screen.dart';
 import '../features/tasks/presentation/tasks_screen.dart';
+import '../features/customers/presentation/customer_detail_screen.dart';
 import '../features/customers/presentation/customers_screen.dart';
+import '../features/leads/presentation/lead_detail_screen.dart';
 import '../features/leads/presentation/leads_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
@@ -118,6 +121,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/tasks',
         name: 'tasks',
         builder: (context, state) => const TasksScreen(),
+      ),
+
+      GoRoute(
+        path: '/leads/:leadId',
+        name: 'lead-detail',
+        builder: (context, state) {
+          final leadId = Uri.decodeComponent(
+            state.pathParameters['leadId'] ?? '',
+          );
+
+          return LeadDetailScreen(leadId: leadId);
+        },
+      ),
+      GoRoute(
+        path: '/customers/:customerId',
+        name: 'customer-detail',
+        builder: (context, state) {
+          final customerId = Uri.decodeComponent(
+            state.pathParameters['customerId'] ?? '',
+          );
+
+          return CustomerDetailScreen(customerId: customerId);
+        },
+      ),
+      GoRoute(
+        path: '/tasks/:taskId',
+        name: 'task-detail',
+        builder: (context, state) {
+          final taskId = Uri.decodeComponent(
+            state.pathParameters['taskId'] ?? '',
+          );
+
+          return TaskDetailScreen(taskId: taskId);
+        },
       ),
       GoRoute(
         path: '/my-services/:caseId',

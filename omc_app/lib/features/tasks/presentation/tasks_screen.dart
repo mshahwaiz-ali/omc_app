@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/premium_empty_state.dart';
@@ -66,6 +67,9 @@ class _TaskCard extends StatelessWidget {
       icon: Icons.task_alt_rounded,
       title: task.title,
       subtitle: task.id,
+      onTap: () {
+        context.push('/tasks/${Uri.encodeComponent(task.id)}');
+      },
       children: [
         PremiumInfoChip(
           icon: Icons.radio_button_checked_rounded,
