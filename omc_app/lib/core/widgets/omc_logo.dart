@@ -21,6 +21,15 @@ class OmcLogo extends StatelessWidget {
        size = null,
        borderRadius = null;
 
+  const OmcLogo.appIcon({
+    super.key,
+    this.size = 132,
+    this.borderRadius = 32,
+  }) : assetPath = AppAssets.faviconLogo,
+       width = size,
+       height = size,
+       fit = BoxFit.contain;
+
   final String assetPath;
   final double? size;
   final double? width;

@@ -62,19 +62,7 @@ class _SplashContent extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 190,
-          height: 190,
-          child: Center(
-            child: Transform.scale(
-              scale: 1.65,
-              child: const OmcLogo.symbol(
-                size: 150,
-                borderRadius: 0,
-              ),
-            ),
-          ),
-        ),
+        const OmcLogo.appIcon(size: 148, borderRadius: 36),
         const SizedBox(height: 30),
         const SizedBox(
           width: 34,

@@ -15,9 +15,9 @@ class ApiConfig {
 
     switch (Env.current) {
       case AppEnvironment.development:
-        return 'https://staging.omchouse.com';
+        return 'https://erp.omchouse.com';
       case AppEnvironment.staging:
-        return 'https://staging.omchouse.com';
+        return 'https://erp.omchouse.com';
       case AppEnvironment.production:
         return 'https://erp.omchouse.com';
     }
