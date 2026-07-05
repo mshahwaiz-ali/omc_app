@@ -41,10 +41,10 @@ class MyServicesScreen extends ConsumerWidget {
         top: false,
         child: casesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => EmptyState(
+          error: (error, stackTrace) => _LoadErrorState(
             title: 'Unable to load services',
             message: error.toString(),
-            icon: Icons.cloud_off_rounded,
+            onRetry: () => ref.invalidate(serviceCasesProvider),
           ),
           data: (cases) => cases.isEmpty
               ? const EmptyState(
@@ -66,6 +66,66 @@ class MyServicesScreen extends ConsumerWidget {
                       ),
                   ],
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadErrorState extends StatelessWidget {
+  const _LoadErrorState({
+    required this.title,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String title;
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: PremiumCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_rounded,
+                color: AppTheme.primaryRed,
+                size: 42,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       ),
     );

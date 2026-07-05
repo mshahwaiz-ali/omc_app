@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
+import '../../../core/config/env.dart';
 import '../../../core/network/frappe_client.dart';
 import 'service_case.dart';
 
@@ -15,9 +16,11 @@ final serviceCaseRepositoryProvider = Provider<ServiceCaseRepository>((ref) {
 final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
   final repository = ref.watch(serviceCaseRepositoryProvider);
 
-  // Temporary UI preview fallback until the final OMC/Frappe case tracking
-  // endpoint is confirmed. Production must switch this to fetchServiceCases().
-  return repository.sampleCasesForUiPreview();
+  if (Env.useServicePreview) {
+    return repository.sampleCasesForUiPreview();
+  }
+
+  return repository.fetchServiceCases();
 });
 
 class ServiceCaseRepository {
