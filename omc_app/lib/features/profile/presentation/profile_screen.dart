@@ -6,6 +6,7 @@ import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/profile_repository.dart';
 import '../data/profile_summary.dart';
+import 'widgets/profile_action_card.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -23,16 +24,18 @@ class ProfileScreen extends ConsumerWidget {
             await ref.read(profileSummaryProvider.future);
           },
           child: profileAsync.when(
-            data: (profile) => _ProfileContent(profile: profile),
+            data: (profile) => _ProfileContent(profile: profile, ref: ref),
             loading: () => _ProfileContent(
               profile: ProfileSummary.fromUserId(
                 ref.watch(authControllerProvider).userId,
               ),
+              ref: ref,
             ),
             error: (_, _) => _ProfileContent(
               profile: ProfileSummary.fromUserId(
                 ref.watch(authControllerProvider).userId,
               ),
+              ref: ref,
             ),
           ),
         ),
@@ -42,9 +45,10 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 class _ProfileContent extends StatelessWidget {
-  const _ProfileContent({required this.profile});
+  const _ProfileContent({required this.profile, required this.ref});
 
   final ProfileSummary profile;
+  final WidgetRef ref;
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +147,25 @@ class _ProfileContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
+        ProfileActionCard(
+          onEditProfile: () => _showBackendPendingSnack(
+            context,
+            'Profile edit endpoint is not connected yet.',
+          ),
+          onUpdateContact: () => _showBackendPendingSnack(
+            context,
+            'Contact update endpoint is not connected yet.',
+          ),
+          onContactSupport: () => _showBackendPendingSnack(
+            context,
+            'Support request endpoint is not connected yet.',
+          ),
+          onRefresh: () {
+            ref.invalidate(profileSummaryProvider);
+            _showBackendPendingSnack(context, 'Refreshing profile data...');
+          },
+        ),
+        const SizedBox(height: 18),
         PremiumCard(
           padding: const EdgeInsets.all(18),
           child: Row(
@@ -176,6 +199,12 @@ class _ProfileContent extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _showBackendPendingSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _initials(String name) {
