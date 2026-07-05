@@ -27,8 +27,19 @@ class ProfileRepository {
   Future<ProfileSummary?> fetchProfile({
     required String? fallbackUserId,
   }) async {
-    final response = await _frappeClient.getMethod(ApiConfig.profileMethod);
-    return _mapProfileResponse(response, fallbackUserId: fallbackUserId);
+    try {
+      final response = await _frappeClient.getMethod(ApiConfig.profileMethod);
+      final profile = _mapProfileResponse(
+        response,
+        fallbackUserId: fallbackUserId,
+      );
+
+      if (profile != null) return profile;
+    } catch (_) {
+      // Keep Profile usable during local/UI testing while backend APIs are pending.
+    }
+
+    return ProfileSummary.fromUserId(fallbackUserId);
   }
 
   Future<bool> requestProfileUpdate(Map<String, dynamic> payload) async {

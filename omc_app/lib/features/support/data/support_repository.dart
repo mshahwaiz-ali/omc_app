@@ -27,8 +27,10 @@ class SupportRepository {
       throw const ApiError(message: 'Please select a support topic.');
     }
 
-    if (cleanMessage.isEmpty) {
-      throw const ApiError(message: 'Please enter support message.');
+    if (cleanMessage.length < 10) {
+      throw const ApiError(
+        message: 'Please enter at least 10 characters for support message.',
+      );
     }
 
     return frappeClient.postMethod(

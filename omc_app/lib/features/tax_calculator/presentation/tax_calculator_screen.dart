@@ -112,7 +112,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Calculate tax from monthly income using OMC backend slabs when available.',
+            'Calculate monthly and yearly tax from income with backend slabs when available.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 14,
@@ -154,7 +154,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                 const SizedBox(height: 18),
                 TextField(
                   controller: _incomeController,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _calculate(),
                   decoration: const InputDecoration(
@@ -218,7 +220,7 @@ class _EmptyCalculatorState extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'This screen is prepared for backend-driven tax slabs in the next integration phase.',
+            'The calculator will use OMC backend slabs when available and show a safe estimate otherwise.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.textSecondary,
@@ -261,7 +263,7 @@ class _TaxResultCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            isBackendResult ? 'Backend Tax Result' : 'Estimated Result',
+            isBackendResult ? 'Verified Tax Result' : 'Estimated Tax Result',
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 18,

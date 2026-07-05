@@ -47,10 +47,12 @@ class _MainShellState extends ConsumerState<MainShell> {
       const TaxCalculatorScreen(),
       const SupportScreen(),
       _MoreScreen(
+        onOpenDashboard: () => context.push('/dashboard'),
         onOpenProfile: () => context.push('/profile'),
         onOpenSettings: () => context.push('/settings'),
         onOpenNotifications: () => context.push('/notifications'),
         onOpenKnowledge: () => context.push('/knowledge'),
+        onOpenExpenseTracker: () => context.push('/expense-tracker'),
         onOpenInternalWorkspace: () => context.push('/internal-workspace'),
         onLogout: _logout,
       ),
@@ -99,18 +101,22 @@ class _MainShellState extends ConsumerState<MainShell> {
 
 class _MoreScreen extends StatelessWidget {
   const _MoreScreen({
+    required this.onOpenDashboard,
     required this.onOpenProfile,
     required this.onOpenSettings,
     required this.onOpenNotifications,
     required this.onOpenKnowledge,
+    required this.onOpenExpenseTracker,
     required this.onOpenInternalWorkspace,
     required this.onLogout,
   });
 
+  final VoidCallback onOpenDashboard;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenKnowledge;
+  final VoidCallback onOpenExpenseTracker;
   final VoidCallback onOpenInternalWorkspace;
   final VoidCallback onLogout;
 
@@ -144,6 +150,13 @@ class _MoreScreen extends StatelessWidget {
             child: Column(
               children: [
                 _MoreTile(
+                  icon: Icons.analytics_outlined,
+                  title: 'Dashboard',
+                  subtitle: 'Cases, documents and service analytics',
+                  onTap: onOpenDashboard,
+                ),
+                const _DividerIndent(),
+                _MoreTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Profile',
                   subtitle: 'Personal info and account details',
@@ -162,6 +175,13 @@ class _MoreScreen extends StatelessWidget {
                   title: 'Knowledge & News',
                   subtitle: 'Tax guides, FBR updates and OMC news',
                   onTap: onOpenKnowledge,
+                ),
+                const _DividerIndent(),
+                _MoreTile(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Expense Tracker',
+                  subtitle: 'Track income, expenses and balance locally',
+                  onTap: onOpenExpenseTracker,
                 ),
                 const _DividerIndent(),
                 _MoreTile(

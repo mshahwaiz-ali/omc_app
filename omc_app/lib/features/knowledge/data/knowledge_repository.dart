@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import 'knowledge_article.dart';
 
@@ -31,20 +32,45 @@ class KnowledgeRepository {
   final FrappeClient frappeClient;
 
   Future<List<KnowledgeArticle>> fetchArticles() async {
-    final response = await frappeClient.getMethod(ApiConfig.knowledgeMethod);
-    return _mapArticlesResponse(response);
+    try {
+      final response = await frappeClient.getMethod(ApiConfig.knowledgeMethod);
+      final articles = _mapArticlesResponse(response);
+
+      if (articles.isNotEmpty) return articles;
+      return const [];
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message:
+            'OMC knowledge and news could not be loaded from the server right now.',
+        code: 'knowledge_unavailable',
+        details: error,
+      );
+    }
   }
 
   Future<KnowledgeArticle?> fetchArticleDetail(String articleId) async {
     final cleanArticleId = articleId.trim();
     if (cleanArticleId.isEmpty) return null;
 
-    final response = await frappeClient.getMethod(
-      ApiConfig.knowledgeDetailMethod,
-      queryParameters: {'article_id': cleanArticleId, 'name': cleanArticleId},
-    );
+    try {
+      final response = await frappeClient.getMethod(
+        ApiConfig.knowledgeDetailMethod,
+        queryParameters: {'article_id': cleanArticleId, 'name': cleanArticleId},
+      );
 
-    return _mapArticleDetailResponse(response);
+      return _mapArticleDetailResponse(response);
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message:
+            'This OMC knowledge article could not be loaded from the server right now.',
+        code: 'knowledge_detail_unavailable',
+        details: error,
+      );
+    }
   }
 
   List<KnowledgeArticle> _mapArticlesResponse(Map<String, dynamic>? data) {

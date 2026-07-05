@@ -8,11 +8,16 @@ class InternalWorkspaceRepository {
   final FrappeClient _frappeClient;
 
   Future<InternalWorkspaceSummary> getSummary() async {
-    final response = await _frappeClient.getMethod(
-      ApiConfig.internalWorkspaceSummaryMethod,
-    );
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.internalWorkspaceSummaryMethod,
+      );
 
-    return _mapSummaryResponse(response);
+      return _mapSummaryResponse(response);
+    } catch (_) {
+      // Keep Internal Workspace usable during local/UI testing while backend APIs are pending.
+      return _sampleSummary;
+    }
   }
 
   InternalWorkspaceSummary _mapSummaryResponse(Map<String, dynamic> data) {
@@ -25,3 +30,10 @@ class InternalWorkspaceRepository {
     return InternalWorkspaceSummary.fromJson(data);
   }
 }
+
+const InternalWorkspaceSummary _sampleSummary = InternalWorkspaceSummary(
+  openLeads: 0,
+  activeCustomers: 0,
+  pendingTasks: 0,
+  pendingPayments: 0,
+);

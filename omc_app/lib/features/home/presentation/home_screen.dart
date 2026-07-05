@@ -50,6 +50,12 @@ class HomeScreen extends ConsumerWidget {
 
   static const List<_WorkspaceAction> _workspaceActions = [
     _WorkspaceAction(
+      title: 'Dashboard',
+      subtitle: 'Service analytics',
+      icon: Icons.analytics_outlined,
+      target: _HomeActionTarget.dashboard,
+    ),
+    _WorkspaceAction(
       title: 'My Services',
       subtitle: 'Cases and request status',
       icon: Icons.assignment_outlined,
@@ -222,6 +228,9 @@ class HomeScreen extends ConsumerWidget {
 
   void _handleAction(BuildContext context, _HomeActionTarget target) {
     switch (target) {
+      case _HomeActionTarget.dashboard:
+        context.go('/dashboard');
+        return;
       case _HomeActionTarget.myServices:
         context.go('/my-services');
         return;
@@ -658,6 +667,7 @@ class _RecentActivityCard extends StatelessWidget {
 }
 
 enum _HomeActionTarget {
+  dashboard,
   myServices,
   services,
   documents,

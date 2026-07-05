@@ -80,18 +80,18 @@ class TaxCalculationRepository {
       return _localEstimate(
         input,
         backendMessage:
-            'Backend returned an incomplete tax response, so an estimated calculation is shown.',
+            'OMC tax service returned incomplete slab data, so an estimated calculation is shown.',
       );
     } on ApiError catch (error) {
       return _localEstimate(
         input,
-        backendMessage: '${error.message} An estimated calculation is shown.',
+        backendMessage: '${error.message} A safe estimated calculation is shown.',
       );
     } catch (_) {
       return _localEstimate(
         input,
         backendMessage:
-            'Estimated calculation shown. Final tax may vary after slab verification.',
+            'Safe estimated calculation shown. Final tax may vary after OMC slab verification.',
       );
     }
   }
@@ -157,7 +157,7 @@ class TaxCalculationRepository {
       isBackendResult: false,
       note:
           backendMessage ??
-          'Estimated calculation shown. Final tax may vary after backend slab verification.',
+          'Safe estimated calculation shown. Final tax may vary after OMC slab verification.',
     );
   }
 

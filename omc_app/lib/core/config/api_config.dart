@@ -9,10 +9,27 @@ class ApiConfig {
   );
 
   static String get baseUrl {
-    if (_definedBaseUrl.trim().isNotEmpty) {
-      return _withoutTrailingSlash(_definedBaseUrl);
+    final resolvedUrl = _definedBaseUrl.trim().isNotEmpty
+        ? _definedBaseUrl
+        : _defaultBaseUrlForEnvironment;
+
+    final cleanUrl = _withoutTrailingSlash(resolvedUrl);
+    final uri = Uri.tryParse(cleanUrl);
+
+    if (uri == null || !uri.hasScheme || uri.host.trim().isEmpty) {
+      throw StateError(
+        'Invalid OMC_API_BASE_URL. Provide a full URL such as https://erp.omchouse.com',
+      );
     }
 
+    if (Env.isProduction && uri.scheme != 'https') {
+      throw StateError('Production OMC_API_BASE_URL must use HTTPS.');
+    }
+
+    return cleanUrl;
+  }
+
+  static String get _defaultBaseUrlForEnvironment {
     switch (Env.current) {
       case AppEnvironment.development:
         return 'https://erp.omchouse.com';

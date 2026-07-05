@@ -89,7 +89,10 @@ class _ServiceCatalogueScreenState
                   ),
                 ),
               ),
-              const _MyServicesShortcutCard(),
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
+                sliver: SliverToBoxAdapter(child: _MyServicesShortcutCard()),
+              ),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
               if (filteredServices.isEmpty)
                 SliverFillRemaining(

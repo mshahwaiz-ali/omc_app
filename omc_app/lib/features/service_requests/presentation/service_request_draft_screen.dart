@@ -106,6 +106,13 @@ class _ServiceRequestDraftScreenState
     _phoneController.dispose();
     _emailController.dispose();
     _taxIdController.dispose();
+    _cnicController.dispose();
+    _occupationController.dispose();
+    _sourceOfIncomeController.dispose();
+    _gstBusinessTypeController.dispose();
+    _gstBusinessNatureController.dispose();
+    _consumerNumberController.dispose();
+    _businessContextController.dispose();
     _remarksController.dispose();
     super.dispose();
   }
@@ -180,6 +187,8 @@ class _ServiceRequestDraftScreenState
                     loading: () => const SizedBox.shrink(),
                     error: (_, _) => const SizedBox.shrink(),
                   ),
+                  _WizardProgressCard(service: service),
+                  const SizedBox(height: 16),
                   _WizardFoundationCard(service: service),
                   _WizardSpecificFieldsCard(
                     service: service,
@@ -617,6 +626,199 @@ class _ServiceRequestDraftScreenState
   }
 }
 
+class _WizardProgressCard extends StatelessWidget {
+  const _WizardProgressCard({required this.service});
+
+  final ServiceItem service;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_normalizedWizardType(service).isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final steps = _stepsFor(service);
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.route_rounded,
+                  color: AppTheme.primaryRed,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _titleFor(service),
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Complete each section, attach documents, review, then submit to OMC.',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          ...List.generate(steps.length, (index) {
+            final isLast = index == steps.length - 1;
+
+            return _WizardProgressStepRow(
+              number: index + 1,
+              title: steps[index],
+              isLast: isLast,
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  static String _titleFor(ServiceItem service) {
+    switch (_normalizedWizardType(service)) {
+      case 'ntn':
+        return 'NTN registration wizard';
+      case 'iris':
+        return 'IRIS profile wizard';
+      case 'gst':
+        return 'GST registration wizard';
+      case 'business':
+        return 'Business incorporation wizard';
+      default:
+        return 'Guided request wizard';
+    }
+  }
+
+  static List<String> _stepsFor(ServiceItem service) {
+    switch (_normalizedWizardType(service)) {
+      case 'ntn':
+        return const [
+          'CNIC and income details',
+          'Contact information',
+          'Required documents',
+          'Review and submit',
+        ];
+      case 'iris':
+        return const [
+          'Income source selection',
+          'Contact information',
+          'Required documents',
+          'Review and submit',
+        ];
+      case 'gst':
+        return const [
+          'Business information',
+          'Contact information',
+          'Required documents',
+          'Review and submit',
+        ];
+      case 'business':
+        return const [
+          'Business option',
+          'Contact information',
+          'Required documents',
+          'Review and submit',
+        ];
+      default:
+        return const [
+          'Service details',
+          'Contact information',
+          'Documents',
+          'Review and submit',
+        ];
+    }
+  }
+}
+
+class _WizardProgressStepRow extends StatelessWidget {
+  const _WizardProgressStepRow({
+    required this.number,
+    required this.title,
+    required this.isLast,
+  });
+
+  final int number;
+  final String title;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$number',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 22,
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                color: AppTheme.primaryRed.withValues(alpha: 0.16),
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(top: 4, bottom: isLast ? 0 : 14),
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SelectedServiceCard extends StatelessWidget {
   const _SelectedServiceCard({required this.service});
 
@@ -906,6 +1108,10 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                   helperText: 'Example: salaried, business owner, freelancer.',
                   prefixIcon: Icon(Icons.work_outline_rounded),
                 ),
+                validator: (value) => _requiredWizardField(
+                  value,
+                  'Occupation is required for NTN registration.',
+                ),
               ),
               const SizedBox(height: 14),
               TextFormField(
@@ -916,6 +1122,10 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                   helperText:
                       'Mention the primary income source for NTN setup.',
                   prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                ),
+                validator: (value) => _requiredWizardField(
+                  value,
+                  'Source of income is required for NTN registration.',
                 ),
               ),
             ],
@@ -955,6 +1165,10 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                   helperText: 'Example: retail, services, manufacturing.',
                   prefixIcon: Icon(Icons.storefront_outlined),
                 ),
+                validator: (value) => _requiredWizardField(
+                  value,
+                  'Business type is required for GST registration.',
+                ),
               ),
               const SizedBox(height: 14),
               TextFormField(
@@ -964,6 +1178,10 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                   labelText: 'Business nature',
                   helperText: 'Briefly describe what the business does.',
                   prefixIcon: Icon(Icons.category_outlined),
+                ),
+                validator: (value) => _requiredWizardField(
+                  value,
+                  'Business nature is required for GST registration.',
                 ),
               ),
               const SizedBox(height: 14),
@@ -1020,6 +1238,10 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                   alignLabelWithHint: true,
                   prefixIcon: Icon(Icons.notes_outlined),
                 ),
+                validator: (value) => _requiredWizardField(
+                  value,
+                  'Business context is required.',
+                ),
               ),
             ],
           ],
@@ -1027,6 +1249,11 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _requiredWizardField(String? value, String message) {
+  if (value == null || value.trim().isEmpty) return message;
+  return null;
 }
 
 String _serviceSearchText(ServiceItem service) {
@@ -1101,6 +1328,69 @@ String _detailLabel(String key) {
   }
 }
 
+List<String> _wizardDocumentsFor(ServiceItem service) {
+  final documents = <String>[
+    ...service.requiredDocuments,
+    ..._extraWizardDocumentsFor(service),
+  ];
+
+  final seen = <String>{};
+  return documents
+      .where((document) {
+        final normalized = document.trim();
+        if (normalized.isEmpty) return false;
+
+        final key = normalized.toLowerCase();
+        if (seen.contains(key)) return false;
+
+        seen.add(key);
+        return true;
+      })
+      .toList(growable: false);
+}
+
+List<String> _extraWizardDocumentsFor(ServiceItem service) {
+  if (_isNtnService(service)) {
+    return const [
+      'Clear CNIC front image',
+      'Clear CNIC back image',
+      'Residential address details',
+      'Occupation / income source details',
+    ];
+  }
+
+  if (_isIrisService(service)) {
+    return const [
+      'CNIC front and back',
+      'Current IRIS login details if available',
+      'Income source proof if available',
+      'Updated contact details',
+    ];
+  }
+
+  if (_isGstService(service)) {
+    return const [
+      'CNIC front and back',
+      'NTN certificate if available',
+      'Utility bill with consumer number',
+      'Business address proof',
+      'Bank account proof',
+    ];
+  }
+
+  if (_isBusinessService(service)) {
+    return const [
+      'Owner / partner / director CNIC copies',
+      'Proposed business names',
+      'Business address proof',
+      'Business nature details',
+      'Authorization documents if required',
+    ];
+  }
+
+  return const [];
+}
+
 class _DocumentHintCard extends StatelessWidget {
   const _DocumentHintCard({
     required this.service,
@@ -1120,9 +1410,9 @@ class _DocumentHintCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleDocuments = service.requiredDocuments.take(4).toList();
-    final remainingCount =
-        service.requiredDocuments.length - visibleDocuments.length;
+    final documents = _wizardDocumentsFor(service);
+    final visibleDocuments = documents.take(6).toList();
+    final remainingCount = documents.length - visibleDocuments.length;
 
     return PremiumCard(
       child: Column(
@@ -1138,7 +1428,7 @@ class _DocumentHintCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            service.requiredDocuments.isEmpty
+            documents.isEmpty
                 ? 'Attach any helpful files for OMC review.'
                 : 'Attach at least one relevant file now. ERP upload starts after the request is created.',
             style: TextStyle(

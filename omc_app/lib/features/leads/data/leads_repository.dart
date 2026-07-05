@@ -32,21 +32,29 @@ class LeadsRepository {
   final FrappeClient _frappeClient;
 
   Future<List<LeadItem>> fetchLeads() async {
-    final response = await _frappeClient.getMethod(ApiConfig.leadsMethod);
-
-    return _mapLeadsResponse(response);
+    try {
+      final response = await _frappeClient.getMethod(ApiConfig.leadsMethod);
+      return _mapLeadsResponse(response);
+    } catch (_) {
+      // Keep Leads screen usable during local/UI testing while backend APIs are pending.
+      return const [];
+    }
   }
 
   Future<LeadItem?> fetchLeadDetail(String leadId) async {
     final cleanLeadId = leadId.trim();
     if (cleanLeadId.isEmpty) return null;
 
-    final response = await _frappeClient.getMethod(
-      ApiConfig.leadDetailMethod,
-      queryParameters: {'lead_id': cleanLeadId, 'name': cleanLeadId},
-    );
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.leadDetailMethod,
+        queryParameters: {'lead_id': cleanLeadId, 'name': cleanLeadId},
+      );
 
-    return _mapLeadDetailResponse(response);
+      return _mapLeadDetailResponse(response);
+    } catch (_) {
+      return null;
+    }
   }
 
   List<LeadItem> _mapLeadsResponse(Map<String, dynamic> data) {

@@ -34,10 +34,21 @@ class NotificationsRepository {
   final FrappeClient _frappeClient;
 
   Future<List<NotificationItem>> fetchNotifications() async {
-    final response = await _frappeClient.getMethod(
-      ApiConfig.notificationsMethod,
-    );
-    return _mapNotificationsResponse(response);
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.notificationsMethod,
+      );
+      return _mapNotificationsResponse(response);
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message:
+            'OMC notifications could not be loaded from the server right now.',
+        code: 'notifications_unavailable',
+        details: error,
+      );
+    }
   }
 
   Future<void> markNotificationAsRead(String notificationId) async {
@@ -61,15 +72,26 @@ class NotificationsRepository {
     final cleanNotificationId = notificationId.trim();
     if (cleanNotificationId.isEmpty) return null;
 
-    final response = await _frappeClient.getMethod(
-      ApiConfig.notificationDetailMethod,
-      queryParameters: {
-        'notification_id': cleanNotificationId,
-        'name': cleanNotificationId,
-      },
-    );
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.notificationDetailMethod,
+        queryParameters: {
+          'notification_id': cleanNotificationId,
+          'name': cleanNotificationId,
+        },
+      );
 
-    return _mapNotificationDetailResponse(response);
+      return _mapNotificationDetailResponse(response);
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message:
+            'This OMC notification could not be loaded from the server right now.',
+        code: 'notification_detail_unavailable',
+        details: error,
+      );
+    }
   }
 
   List<NotificationItem> _mapNotificationsResponse(Map<String, dynamic>? data) {

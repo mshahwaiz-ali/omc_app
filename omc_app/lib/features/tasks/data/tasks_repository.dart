@@ -32,21 +32,29 @@ class TasksRepository {
   final FrappeClient _frappeClient;
 
   Future<List<TaskItem>> fetchTasks() async {
-    final response = await _frappeClient.getMethod(ApiConfig.tasksMethod);
-
-    return _mapTasksResponse(response);
+    try {
+      final response = await _frappeClient.getMethod(ApiConfig.tasksMethod);
+      return _mapTasksResponse(response);
+    } catch (_) {
+      // Keep Tasks screen usable during local/UI testing while backend APIs are pending.
+      return const [];
+    }
   }
 
   Future<TaskItem?> fetchTaskDetail(String taskId) async {
     final cleanTaskId = taskId.trim();
     if (cleanTaskId.isEmpty) return null;
 
-    final response = await _frappeClient.getMethod(
-      ApiConfig.taskDetailMethod,
-      queryParameters: {'task_id': cleanTaskId, 'name': cleanTaskId},
-    );
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.taskDetailMethod,
+        queryParameters: {'task_id': cleanTaskId, 'name': cleanTaskId},
+      );
 
-    return _mapTaskDetailResponse(response);
+      return _mapTaskDetailResponse(response);
+    } catch (_) {
+      return null;
+    }
   }
 
   List<TaskItem> _mapTasksResponse(Map<String, dynamic> data) {

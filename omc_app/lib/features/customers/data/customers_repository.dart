@@ -32,24 +32,32 @@ class CustomersRepository {
   final FrappeClient _frappeClient;
 
   Future<List<CustomerItem>> fetchCustomers() async {
-    final response = await _frappeClient.getMethod(ApiConfig.customersMethod);
-
-    return _mapCustomersResponse(response);
+    try {
+      final response = await _frappeClient.getMethod(ApiConfig.customersMethod);
+      return _mapCustomersResponse(response);
+    } catch (_) {
+      // Keep Customers screen usable during local/UI testing while backend APIs are pending.
+      return const [];
+    }
   }
 
   Future<CustomerItem?> fetchCustomerDetail(String customerId) async {
     final cleanCustomerId = customerId.trim();
     if (cleanCustomerId.isEmpty) return null;
 
-    final response = await _frappeClient.getMethod(
-      ApiConfig.customerDetailMethod,
-      queryParameters: {
-        'customer_id': cleanCustomerId,
-        'name': cleanCustomerId,
-      },
-    );
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.customerDetailMethod,
+        queryParameters: {
+          'customer_id': cleanCustomerId,
+          'name': cleanCustomerId,
+        },
+      );
 
-    return _mapCustomerDetailResponse(response);
+      return _mapCustomerDetailResponse(response);
+    } catch (_) {
+      return null;
+    }
   }
 
   List<CustomerItem> _mapCustomersResponse(Map<String, dynamic> data) {

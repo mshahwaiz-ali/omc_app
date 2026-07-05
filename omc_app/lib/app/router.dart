@@ -7,6 +7,7 @@ import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
+import '../features/expense_tracker/presentation/expense_tracker_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
 import '../features/knowledge/presentation/knowledge_detail_screen.dart';
 import '../features/knowledge/presentation/knowledge_screen.dart';
@@ -14,6 +15,7 @@ import '../features/tasks/presentation/task_detail_screen.dart';
 import '../features/tasks/presentation/tasks_screen.dart';
 import '../features/customers/presentation/customer_detail_screen.dart';
 import '../features/customers/presentation/customers_screen.dart';
+import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/leads/presentation/lead_detail_screen.dart';
 import '../features/leads/presentation/leads_screen.dart';
 import '../features/notifications/presentation/notification_detail_screen.dart';
@@ -101,6 +103,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/my-services',
         name: 'my-services',
         builder: (context, state) => const MyServicesScreen(),
+      ),
+      GoRoute(
+        path: '/dashboard',
+        name: 'dashboard',
+        builder: (context, state) => const DashboardScreen(),
       ),
       GoRoute(
         path: '/documents',
@@ -230,6 +237,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         name: 'profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/expense-tracker',
+        name: 'expense-tracker',
+        builder: (context, state) => const ExpenseTrackerScreen(),
       ),
       GoRoute(
         path: '/settings',

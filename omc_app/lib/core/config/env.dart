@@ -3,7 +3,25 @@ enum AppEnvironment { development, staging, production }
 class Env {
   const Env._();
 
-  static const AppEnvironment current = AppEnvironment.development;
+  static const String _definedEnvironment = String.fromEnvironment(
+    'OMC_ENV',
+    defaultValue: 'development',
+  );
+
+  static AppEnvironment get current {
+    switch (_definedEnvironment.trim().toLowerCase()) {
+      case 'prod':
+      case 'production':
+        return AppEnvironment.production;
+      case 'stage':
+      case 'staging':
+        return AppEnvironment.staging;
+      case 'dev':
+      case 'development':
+      default:
+        return AppEnvironment.development;
+    }
+  }
 
   static bool get isDevelopment => current == AppEnvironment.development;
 
