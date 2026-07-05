@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
@@ -695,8 +696,13 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 controller: cnicController,
                 keyboardType: TextInputType.number,
                 textInputAction: TextInputAction.next,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(13),
+                ],
                 decoration: const InputDecoration(
                   labelText: 'CNIC',
+                  helperText: 'Enter 13 digits without dashes.',
                   prefixIcon: Icon(Icons.badge_outlined),
                 ),
               ),
@@ -706,6 +712,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Occupation',
+                  helperText: 'Example: salaried, business owner, freelancer.',
                   prefixIcon: Icon(Icons.work_outline_rounded),
                 ),
               ),
@@ -715,6 +722,8 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Source of income',
+                  helperText:
+                      'Mention the primary income source for NTN setup.',
                   prefixIcon: Icon(Icons.account_balance_wallet_outlined),
                 ),
               ),
@@ -725,6 +734,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 initialValue: irisIncomeSource,
                 decoration: const InputDecoration(
                   labelText: 'Income source',
+                  helperText: 'Select the source to update in IRIS profile.',
                   prefixIcon: Icon(Icons.payments_outlined),
                 ),
                 items: const [
@@ -747,6 +757,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Business type',
+                  helperText: 'Example: retail, services, manufacturing.',
                   prefixIcon: Icon(Icons.storefront_outlined),
                 ),
               ),
@@ -756,6 +767,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Business nature',
+                  helperText: 'Briefly describe what the business does.',
                   prefixIcon: Icon(Icons.category_outlined),
                 ),
               ),
@@ -766,6 +778,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Consumer number',
+                  helperText: 'Utility bill consumer number if available.',
                   prefixIcon: Icon(Icons.receipt_long_outlined),
                 ),
               ),
@@ -776,6 +789,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 initialValue: businessOption,
                 decoration: const InputDecoration(
                   labelText: 'Business option',
+                  helperText: 'Choose the closest business structure.',
                   prefixIcon: Icon(Icons.business_center_outlined),
                 ),
                 items: const [
@@ -803,6 +817,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
                 textInputAction: TextInputAction.newline,
                 decoration: const InputDecoration(
                   labelText: 'Business context',
+                  helperText: 'Add any registration, change, or setup context.',
                   alignLabelWithHint: true,
                   prefixIcon: Icon(Icons.notes_outlined),
                 ),
@@ -1032,7 +1047,7 @@ class _ReviewSummaryCard extends StatelessWidget {
           _ReviewRow(label: 'Email', value: emailController.text),
           if (taxIdController.text.trim().isNotEmpty)
             _ReviewRow(label: 'CNIC / NTN', value: taxIdController.text),
-          for (final detail in additionalDetails.entries)
+          for (final detail in _orderedDetails(additionalDetails))
             _ReviewRow(label: _detailLabel(detail.key), value: detail.value),
           if (remarksController.text.trim().isNotEmpty)
             _ReviewRow(label: 'Remarks', value: remarksController.text),
@@ -1077,6 +1092,38 @@ class _ReviewSummaryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+List<MapEntry<String, String>> _orderedDetails(Map<String, String> details) {
+  const preferredOrder = [
+    'ntn_cnic',
+    'occupation',
+    'source_of_income',
+    'iris_income_source',
+    'gst_business_type',
+    'gst_business_nature',
+    'consumer_number',
+    'business_option',
+    'business_context',
+  ];
+
+  final ordered = <MapEntry<String, String>>[];
+
+  for (final key in preferredOrder) {
+    final value = details[key];
+    if (value != null && value.trim().isNotEmpty) {
+      ordered.add(MapEntry(key, value));
+    }
+  }
+
+  for (final detail in details.entries) {
+    final value = detail.value.trim();
+    if (preferredOrder.contains(detail.key) || value.isEmpty) continue;
+
+    ordered.add(MapEntry(detail.key, value));
+  }
+
+  return ordered;
 }
 
 class _ReviewRow extends StatelessWidget {
