@@ -43,7 +43,7 @@ String _backendErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  return 'Could not load data from the backend right now. Please try again.';
+  return 'Could not load leads right now. Please try again.';
 }
 
 class _BackendUnavailableState extends StatelessWidget {
@@ -89,7 +89,7 @@ class _LeadsContent extends StatelessWidget {
         icon: Icons.trending_up_rounded,
         title: 'No leads yet',
         message:
-            'New sales opportunities and follow-ups will appear here once the backend returns lead data.',
+            'New sales opportunities and follow-ups will appear here when lead data is available.',
       );
     }
 

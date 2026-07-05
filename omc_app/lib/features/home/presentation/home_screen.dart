@@ -79,6 +79,18 @@ class HomeScreen extends ConsumerWidget {
       icon: Icons.support_agent_rounded,
       target: _HomeActionTarget.support,
     ),
+    _WorkspaceAction(
+      title: 'Knowledge',
+      subtitle: 'Tax guides and updates',
+      icon: Icons.menu_book_outlined,
+      target: _HomeActionTarget.knowledge,
+    ),
+    _WorkspaceAction(
+      title: 'Expense Tracker',
+      subtitle: 'Track income and expenses',
+      icon: Icons.account_balance_wallet_outlined,
+      target: _HomeActionTarget.expenseTracker,
+    ),
   ];
 
   @override
@@ -89,8 +101,7 @@ class HomeScreen extends ConsumerWidget {
     final summary = dashboardSummary.maybeWhen(
       data: (summary) => summary,
       orElse: () => const HomeDashboardSummary.empty(
-        fallbackMessage:
-            'Dashboard summary is loading from the backend right now.',
+        fallbackMessage: 'Dashboard summary is loading right now.',
       ),
     );
     final statusItems = _statusItemsFromSummary(summary);
@@ -248,6 +259,12 @@ class HomeScreen extends ConsumerWidget {
         return;
       case _HomeActionTarget.support:
         onOpenSupport?.call();
+        return;
+      case _HomeActionTarget.knowledge:
+        context.go('/knowledge');
+        return;
+      case _HomeActionTarget.expenseTracker:
+        context.go('/expense-tracker');
         return;
     }
   }
@@ -674,6 +691,8 @@ enum _HomeActionTarget {
   payments,
   calculator,
   support,
+  knowledge,
+  expenseTracker,
 }
 
 class _HomeAction {

@@ -24,7 +24,7 @@ class TaskDetailScreen extends ConsumerWidget {
               icon: Icons.task_alt_rounded,
               title: 'Task detail unavailable',
               message:
-                  'Task $taskId is ready for the backend detail endpoint. Status updates, assignment, and activity timeline will appear once data is available.',
+                  'Status updates, assignment and activity timeline will appear here when task details are available.',
             );
           }
 
@@ -79,15 +79,15 @@ class _TaskDetailBody extends StatelessWidget {
         const CrmActivityTimelineCard(
           title: 'Task timeline',
           emptyMessage:
-              'No task activity yet. Checklist changes, comments, assignments, and status updates will appear here once the backend provides activity data.',
+              'No task activity yet. Checklist changes, comments, assignments and status updates will appear here when activity is available.',
         ),
         const SizedBox(height: 16),
         const CrmDetailInfoCard(
           title: 'Activity',
           rows: [
-            CrmInfoRow(label: 'Checklist', value: 'Backend-ready placeholder'),
-            CrmInfoRow(label: 'Comments', value: 'Backend-ready placeholder'),
-            CrmInfoRow(label: 'Updates', value: 'Backend-ready placeholder'),
+            CrmInfoRow(label: 'Checklist', value: 'No checklist items yet'),
+            CrmInfoRow(label: 'Comments', value: 'No comments yet'),
+            CrmInfoRow(label: 'Updates', value: 'No updates recorded yet'),
           ],
         ),
         const SizedBox(height: 8),

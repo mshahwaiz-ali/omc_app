@@ -45,11 +45,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: _SplashContent(),
-        ),
-      ),
+      body: SafeArea(child: Center(child: _SplashContent())),
     );
   }
 }

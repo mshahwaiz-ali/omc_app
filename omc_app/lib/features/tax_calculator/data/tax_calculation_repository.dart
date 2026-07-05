@@ -85,7 +85,8 @@ class TaxCalculationRepository {
     } on ApiError catch (error) {
       return _localEstimate(
         input,
-        backendMessage: '${error.message} A safe estimated calculation is shown.',
+        backendMessage:
+            '${error.message} A safe estimated calculation is shown.',
       );
     } catch (_) {
       return _localEstimate(

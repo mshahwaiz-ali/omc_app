@@ -43,7 +43,7 @@ String _backendErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  return 'Could not load data from the backend right now. Please try again.';
+  return 'Could not load customers right now. Please try again.';
 }
 
 class _BackendUnavailableState extends StatelessWidget {
@@ -89,7 +89,7 @@ class _CustomersContent extends StatelessWidget {
         icon: Icons.groups_2_rounded,
         title: 'No customers yet',
         message:
-            'Customer records and activity will appear here once the backend returns customer data.',
+            'Customer records and activity will appear here when customer data is available.',
       );
     }
 

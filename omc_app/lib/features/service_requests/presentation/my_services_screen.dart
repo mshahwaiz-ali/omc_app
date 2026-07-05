@@ -115,7 +115,7 @@ class _EmptyServicesState extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Start a guided request from the catalogue. Once the backend returns tracking data, active cases will appear here.',
+                'Start a guided request from the catalogue. Active cases will appear here when tracking data is available.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.textSecondary,

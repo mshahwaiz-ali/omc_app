@@ -47,10 +47,7 @@ class ServiceCaseTimelineStep {
 }
 
 class ServiceCaseStatusStyle {
-  const ServiceCaseStatusStyle({
-    required this.icon,
-    required this.label,
-  });
+  const ServiceCaseStatusStyle({required this.icon, required this.label});
 
   final IconData icon;
   final String label;

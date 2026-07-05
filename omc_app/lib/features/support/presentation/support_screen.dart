@@ -253,7 +253,7 @@ class _CreateSupportTicketCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Send a backend support request for tracking and team follow-up.',
+            'Send a support request for tracking and team follow-up.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,

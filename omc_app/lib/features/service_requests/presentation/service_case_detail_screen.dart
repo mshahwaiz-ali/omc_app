@@ -730,7 +730,7 @@ class _CaseActionsCard extends StatelessWidget {
               icon: Icons.cloud_upload_outlined,
               title: 'Missing documents required',
               message:
-                  'Upload the requested documents directly to this case. The files will be attached to the backend service request reference.',
+                  'Upload the requested documents directly to this case. Files will be attached to your service request reference.',
             ),
             const SizedBox(height: 12),
             FilledButton.icon(

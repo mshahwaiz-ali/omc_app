@@ -3,14 +3,11 @@ import 'package:flutter/material.dart';
 import '../constants/app_assets.dart';
 
 class OmcLogo extends StatelessWidget {
-  const OmcLogo.symbol({
-    super.key,
-    this.size = 58,
-    this.borderRadius = 20,
-  }) : assetPath = AppAssets.logoSymbol,
-       width = size,
-       height = size,
-       fit = BoxFit.contain;
+  const OmcLogo.symbol({super.key, this.size = 58, this.borderRadius = 20})
+    : assetPath = AppAssets.logoSymbol,
+      width = size,
+      height = size,
+      fit = BoxFit.contain;
 
   const OmcLogo.full({
     super.key,
@@ -21,14 +18,11 @@ class OmcLogo extends StatelessWidget {
        size = null,
        borderRadius = null;
 
-  const OmcLogo.appIcon({
-    super.key,
-    this.size = 132,
-    this.borderRadius = 32,
-  }) : assetPath = AppAssets.faviconLogo,
-       width = size,
-       height = size,
-       fit = BoxFit.contain;
+  const OmcLogo.appIcon({super.key, this.size = 132, this.borderRadius = 32})
+    : assetPath = AppAssets.faviconLogo,
+      width = size,
+      height = size,
+      fit = BoxFit.contain;
 
   final String assetPath;
   final double? size;

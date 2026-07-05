@@ -25,7 +25,7 @@ class CustomerDetailScreen extends ConsumerWidget {
               icon: Icons.groups_2_rounded,
               title: 'Customer detail unavailable',
               message:
-                  'Customer $customerId is ready for the backend detail endpoint. Service history, contacts, and documents will appear once data is available.',
+                  'Service history, contacts and documents will appear here when customer details are available.',
             );
           }
 
@@ -49,7 +49,7 @@ String _backendErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  return 'Could not load detail from the backend right now. Please try again.';
+  return 'Could not load customer details right now. Please try again.';
 }
 
 class _CustomerDetailBody extends StatelessWidget {
@@ -94,9 +94,9 @@ class _CustomerDetailBody extends StatelessWidget {
         const CrmDetailInfoCard(
           title: 'Relationship',
           rows: [
-            CrmInfoRow(label: 'Services', value: 'Backend-ready placeholder'),
-            CrmInfoRow(label: 'Documents', value: 'Backend-ready placeholder'),
-            CrmInfoRow(label: 'Payments', value: 'Backend-ready placeholder'),
+            CrmInfoRow(label: 'Services', value: 'No linked services yet'),
+            CrmInfoRow(label: 'Documents', value: 'No documents linked yet'),
+            CrmInfoRow(label: 'Payments', value: 'No payment summary yet'),
           ],
         ),
         const SizedBox(height: 8),

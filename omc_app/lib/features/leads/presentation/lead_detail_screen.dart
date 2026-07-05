@@ -25,7 +25,7 @@ class LeadDetailScreen extends ConsumerWidget {
               icon: Icons.trending_up_rounded,
               title: 'Lead detail unavailable',
               message:
-                  'Lead $leadId is ready for the backend detail endpoint. Timeline, notes, and conversion actions will appear once data is available.',
+                  'Timeline, notes and conversion actions will appear here when lead details are available.',
             );
           }
 
@@ -49,7 +49,7 @@ String _backendErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  return 'Could not load detail from the backend right now. Please try again.';
+  return 'Could not load lead details right now. Please try again.';
 }
 
 class _LeadDetailBody extends StatelessWidget {
@@ -85,15 +85,15 @@ class _LeadDetailBody extends StatelessWidget {
         const CrmActivityTimelineCard(
           title: 'Activity timeline',
           emptyMessage:
-              'No timeline activity yet. Calls, notes, follow-ups, and conversion events will appear here once the backend provides CRM activity data.',
+              'No timeline activity yet. Calls, notes, follow-ups and conversion events will appear here when activity is available.',
         ),
         const SizedBox(height: 16),
         const CrmDetailInfoCard(
           title: 'Next actions',
           rows: [
-            CrmInfoRow(label: 'Notes', value: 'Backend-ready placeholder'),
-            CrmInfoRow(label: 'Follow-up', value: 'Backend-ready placeholder'),
-            CrmInfoRow(label: 'Conversion', value: 'Backend-ready placeholder'),
+            CrmInfoRow(label: 'Notes', value: 'No notes recorded yet'),
+            CrmInfoRow(label: 'Follow-up', value: 'No follow-up scheduled'),
+            CrmInfoRow(label: 'Conversion', value: 'Not converted yet'),
           ],
         ),
         const SizedBox(height: 8),

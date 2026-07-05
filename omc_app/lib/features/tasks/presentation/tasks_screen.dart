@@ -25,7 +25,7 @@ class TasksScreen extends ConsumerWidget {
               icon: Icons.task_alt_rounded,
               title: 'No tasks yet',
               message:
-                  'Assigned work items will appear here once the backend returns tasks.',
+                  'Assigned work items will appear here when tasks are available.',
             );
           }
 
@@ -62,7 +62,7 @@ String _backendErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  return 'Could not load tasks from the backend right now. Please try again.';
+  return 'Could not load tasks right now. Please try again.';
 }
 
 class _TaskCard extends StatelessWidget {

@@ -1,5 +1,5 @@
 name: omc_app
-description: "A new Flutter project."
+description: "Premium ERP-connected OMC House mobile app."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -50,6 +50,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -103,3 +106,22 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/logo_symbol.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo_symbol.png"
+
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/images/logo_symbol.png
+  android: true
+  ios: false
+  web: false
+  android_12:
+    color: "#FFFFFF"
+    image: assets/images/logo_symbol.png

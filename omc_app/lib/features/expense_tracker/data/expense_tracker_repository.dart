@@ -22,17 +22,21 @@ class ExpenseTrackerRepository {
 
     if (raw == null || raw.trim().isEmpty) return const [];
 
-    final decoded = jsonDecode(raw);
-    if (decoded is! List) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
 
-    return decoded
-        .whereType<Map>()
-        .map(
-          (item) =>
-              ExpenseTransaction.fromJson(Map<String, dynamic>.from(item)),
-        )
-        .where((item) => item.id.isNotEmpty)
-        .toList(growable: false);
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) =>
+                ExpenseTransaction.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .where((item) => item.id.isNotEmpty && item.amount > 0)
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> saveTransactions(List<ExpenseTransaction> transactions) async {
@@ -42,5 +46,10 @@ class ExpenseTrackerRepository {
     );
 
     await preferences.setString(_storageKey, encoded);
+  }
+
+  Future<void> clearTransactions() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove(_storageKey);
   }
 }

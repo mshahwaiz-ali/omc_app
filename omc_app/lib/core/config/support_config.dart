@@ -8,9 +8,7 @@ class SupportConfig {
   static const String whatsappMessage =
       'Hello OMC, I need help with my service request.';
 
-  static const String officeAddress =
-      'OMC House, Pakistan';
+  static const String officeAddress = 'OMC House, Pakistan';
 
-  static const String businessHours =
-      'Monday to Saturday, 10:00 AM - 6:00 PM';
+  static const String businessHours = 'Monday to Saturday, 10:00 AM - 6:00 PM';
 }

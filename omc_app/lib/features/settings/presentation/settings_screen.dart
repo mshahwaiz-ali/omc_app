@@ -97,7 +97,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 18),
             _SettingsSection(
-              title: 'Backend',
+              title: 'Connection',
               children: [
                 _SettingsTile(
                   icon: Icons.cloud_outlined,
@@ -125,7 +125,7 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.grid_view_outlined,
                   title: 'Service Catalogue',
                   subtitle: Env.useBackendServiceCatalogue
-                      ? 'Backend catalogue enabled'
+                      ? 'Online catalogue enabled'
                       : 'Asset catalogue available from bundled data',
                   trailing: Env.useBackendServiceCatalogue ? 'API' : 'Local',
                   onTap: () => _showBackendPendingSnack(
@@ -163,13 +163,12 @@ class SettingsScreen extends ConsumerWidget {
                 const _DividerIndent(),
                 _SettingsTile(
                   icon: Icons.info_outline_rounded,
-                  title: 'Backend contract',
-                  subtitle:
-                      'Editable preferences are backend-ready placeholders',
-                  trailing: 'Pending',
+                  title: 'Account sync',
+                  subtitle: 'Preference sync and account controls',
+                  trailing: 'Ready',
                   onTap: () => _showBackendPendingSnack(
                     context,
-                    'Settings API contract is pending backend confirmation.',
+                    'Settings preferences will sync automatically when account controls are enabled.',
                   ),
                 ),
               ],
@@ -194,7 +193,7 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(width: 14),
                   const Expanded(
                     child: Text(
-                      'Settings actions are backend-ready. Editable preferences will activate after the OMC settings contract is confirmed.',
+                      'Settings actions are prepared for account sync. Local safe defaults are used until account preferences are available.',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12,
@@ -310,7 +309,7 @@ class _PreferencesSection extends StatelessWidget {
           subtitle: isBackendAvailable
               ? 'Notify me about service request progress'
               : errorMessage ??
-                    'Preferences unavailable; showing safe defaults',
+                    'Using safe defaults until preferences sync is available',
           value: activePreferences.serviceUpdatesEnabled,
           onChanged: isBackendAvailable
               ? (value) => onToggle(
@@ -385,7 +384,7 @@ class _PreferencesSection extends StatelessWidget {
           _SettingsTile(
             icon: Icons.refresh_rounded,
             title: 'Retry preferences',
-            subtitle: errorMessage ?? 'Load editable settings from backend',
+            subtitle: errorMessage ?? 'Load account preferences',
             trailing: 'Retry',
             onTap: onRetry,
           ),

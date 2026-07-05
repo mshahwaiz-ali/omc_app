@@ -74,26 +74,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
 
     try {
-      await ref.read(authRepositoryProvider).signUp(
-        data: {
-          'full_name': _fullNameController.text.trim(),
-          'first_name': _firstNameFromFullName(_fullNameController.text),
-          'last_name': _lastNameFromFullName(_fullNameController.text),
-          'email': _emailController.text.trim(),
-          'mobile_no': _toPakistanPhoneNumber(_mobileController.text),
-          'whatsapp_no': _toPakistanPhoneNumber(_whatsappController.text),
-          'cnic': _normalizeCnic(_cnicController.text),
-          'register_as': _selectedRole,
-          'address': _addressController.text.trim(),
-          'password': _passwordController.text,
-          'confirm_password': _confirmPasswordController.text,
-          if (_selectedRole == 'Tax Associate') ...{
-            'education': _educationController.text.trim(),
-            'experience': _experienceController.text.trim(),
-            'remarks': _remarksController.text.trim(),
-          },
-        },
-      );
+      await ref
+          .read(authRepositoryProvider)
+          .signUp(
+            data: {
+              'full_name': _fullNameController.text.trim(),
+              'first_name': _firstNameFromFullName(_fullNameController.text),
+              'last_name': _lastNameFromFullName(_fullNameController.text),
+              'email': _emailController.text.trim(),
+              'mobile_no': _toPakistanPhoneNumber(_mobileController.text),
+              'whatsapp_no': _toPakistanPhoneNumber(_whatsappController.text),
+              'cnic': _normalizeCnic(_cnicController.text),
+              'register_as': _selectedRole,
+              'address': _addressController.text.trim(),
+              'password': _passwordController.text,
+              'confirm_password': _confirmPasswordController.text,
+              if (_selectedRole == 'Tax Associate') ...{
+                'education': _educationController.text.trim(),
+                'experience': _experienceController.text.trim(),
+                'remarks': _remarksController.text.trim(),
+              },
+            },
+          );
 
       if (!mounted) return;
 
@@ -299,8 +301,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               prefixIcon: Icon(Icons.chat_outlined),
                               prefixText: '+92 ',
                             ),
-                            validator: (value) =>
-                                _pakistanPhoneValidator(value, 'WhatsApp number'),
+                            validator: (value) => _pakistanPhoneValidator(
+                              value,
+                              'WhatsApp number',
+                            ),
                           ),
                           const SizedBox(height: 14),
                           TextFormField(
@@ -308,7 +312,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             keyboardType: TextInputType.number,
                             textInputAction: TextInputAction.next,
                             inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'[0-9-]')),
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9-]'),
+                              ),
                               LengthLimitingTextInputFormatter(15),
                             ],
                             decoration: const InputDecoration(
@@ -504,7 +510,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           ),
                         ),
                         TextButton(
-                          onPressed: _isSubmitting ? null : () => context.go('/login'),
+                          onPressed: _isSubmitting
+                              ? null
+                              : () => context.go('/login'),
                           child: const Text('Login'),
                         ),
                       ],
@@ -519,7 +527,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 }
-
 
 class _SignupErrorBanner extends StatelessWidget {
   const _SignupErrorBanner({required this.message});

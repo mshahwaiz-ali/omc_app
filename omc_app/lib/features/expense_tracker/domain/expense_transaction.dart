@@ -7,6 +7,8 @@ class ExpenseTransaction {
     required this.amount,
     required this.category,
     required this.date,
+    this.account = 'Cash',
+    this.paymentMethod = 'Cash',
     this.note,
   });
 
@@ -15,7 +17,12 @@ class ExpenseTransaction {
   final double amount;
   final String category;
   final DateTime date;
+  final String account;
+  final String paymentMethod;
   final String? note;
+
+  bool get isIncome => type == ExpenseTransactionType.income;
+  bool get isExpense => type == ExpenseTransactionType.expense;
 
   Map<String, dynamic> toJson() {
     return {
@@ -24,6 +31,8 @@ class ExpenseTransaction {
       'amount': amount,
       'category': category,
       'date': date.toIso8601String(),
+      'account': account,
+      'paymentMethod': paymentMethod,
       'note': note,
     };
   }
@@ -35,9 +44,21 @@ class ExpenseTransaction {
           ? ExpenseTransactionType.income
           : ExpenseTransactionType.expense,
       amount: double.tryParse(json['amount']?.toString() ?? '') ?? 0,
-      category: json['category']?.toString() ?? 'Uncategorized',
+      category: _cleanText(json['category'], fallback: 'Uncategorized'),
       date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
-      note: json['note']?.toString(),
+      account: _cleanText(json['account'], fallback: 'Cash'),
+      paymentMethod: _cleanText(json['paymentMethod'], fallback: 'Cash'),
+      note: _optionalText(json['note']),
     );
+  }
+
+  static String _cleanText(dynamic value, {required String fallback}) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
+
+  static String? _optionalText(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? null : text;
   }
 }

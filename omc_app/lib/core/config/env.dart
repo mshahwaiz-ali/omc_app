@@ -24,28 +24,34 @@ class Env {
   }
 
   static bool get isDevelopment => current == AppEnvironment.development;
+  static bool get isStaging => current == AppEnvironment.staging;
+  static bool get isProduction => current == AppEnvironment.production;
 
   /// Local-only auth bypass for UI/module testing.
   ///
   /// Enable only with:
   /// flutter run --dart-define=OMC_USE_MOCK_AUTH=true
   ///
-  /// Do not enable this flag in production builds.
-  static const bool useMockAuth = bool.fromEnvironment(
+  /// Production builds always force this off.
+  static const bool _useMockAuthFlag = bool.fromEnvironment(
     'OMC_USE_MOCK_AUTH',
     defaultValue: false,
   );
+
+  static bool get useMockAuth => !isProduction && _useMockAuthFlag;
 
   /// Local-only service tracking sample data for UI/module testing.
   ///
   /// Enable only with:
   /// flutter run --dart-define=OMC_USE_SERVICE_PREVIEW=true
   ///
-  /// Normal development/staging/production should use backend data.
-  static const bool useServicePreview = bool.fromEnvironment(
+  /// Production builds always force this off.
+  static const bool _useServicePreviewFlag = bool.fromEnvironment(
     'OMC_USE_SERVICE_PREVIEW',
     defaultValue: false,
   );
+
+  static bool get useServicePreview => !isProduction && _useServicePreviewFlag;
 
   /// Optional backend catalogue source for future Frappe service catalogue API.
   ///
@@ -54,7 +60,4 @@ class Env {
     'OMC_USE_BACKEND_SERVICE_CATALOGUE',
     defaultValue: false,
   );
-
-  static bool get isStaging => current == AppEnvironment.staging;
-  static bool get isProduction => current == AppEnvironment.production;
 }

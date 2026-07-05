@@ -256,7 +256,7 @@ class _ProfileContent extends StatelessWidget {
           onUpdateContact: () => _submitContactUpdateRequest(context, ref),
           onContactSupport: () => _showBackendPendingSnack(
             context,
-            'For profile help, open Support and submit a backend ticket.',
+            'For profile help, open Support and submit a request.',
           ),
           onRefresh: () {
             ref.invalidate(profileSummaryProvider);
@@ -283,7 +283,7 @@ class _ProfileContent extends StatelessWidget {
               const SizedBox(width: 14),
               const Expanded(
                 child: Text(
-                  'Profile details are backend-ready. Full customer data will appear when the OMC profile endpoint is enabled.',
+                  'Profile details will appear here when your account data is available.',
                   style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12,
@@ -317,9 +317,7 @@ class _ProfileContent extends StatelessWidget {
 
     if (didSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile update request submitted to backend.'),
-        ),
+        const SnackBar(content: Text('Profile update request submitted.')),
       );
       return;
     }
@@ -346,9 +344,7 @@ class _ProfileContent extends StatelessWidget {
 
     if (didSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Contact update request submitted to backend.'),
-        ),
+        const SnackBar(content: Text('Contact update request submitted.')),
       );
       return;
     }

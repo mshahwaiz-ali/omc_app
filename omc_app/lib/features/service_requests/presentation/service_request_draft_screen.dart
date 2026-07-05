@@ -559,7 +559,7 @@ class _ServiceRequestDraftScreenState
         barrierDismissible: false,
         builder: (dialogContext) {
           final referenceLine = requestId == null || requestId.isEmpty
-              ? 'OMC will confirm your reference after backend processing.'
+              ? 'OMC will confirm your reference after submission.'
               : 'Reference: $requestId';
 
           final uploadLine = _attachments.isEmpty
@@ -1074,7 +1074,7 @@ class _WizardSpecificFieldsCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'These fields help OMC route the request correctly while keeping the same backend submission flow.',
+              'These fields help OMC route the request correctly.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 13,
@@ -1865,7 +1865,7 @@ class _WizardFoundationCard extends StatelessWidget {
           ],
           const SizedBox(height: 14),
           Text(
-            'This guided flow collects service-specific details, documents and review data while using the existing secure backend submission path.',
+            'This guided flow collects service-specific details, documents and review data for secure submission.',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
@@ -1993,13 +1993,13 @@ class _WizardBlueprint {
     return const _WizardBlueprint(
       title: 'Service request wizard',
       subtitle:
-          'Guided request flow with contact details, documents, review and backend submission.',
+          'Guided request flow with contact details, documents, review and secure submission.',
       icon: Icons.assignment_outlined,
       steps: [
         'Confirm contact details',
         'Attach required documents',
         'Review request summary',
-        'Submit to OMC backend',
+        'Submit to OMC',
       ],
     );
   }
