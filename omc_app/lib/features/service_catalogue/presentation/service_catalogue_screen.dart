@@ -88,6 +88,8 @@ class _ServiceCatalogueScreenState
                   ),
                 ),
               ),
+              const _MyServicesShortcutCard(),
+              const SizedBox(height: 16),
               if (filteredServices.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
@@ -247,6 +249,64 @@ class _CategoryFilter extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _MyServicesShortcutCard extends StatelessWidget {
+  const _MyServicesShortcutCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      onTap: () => context.go('/my-services'),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.assignment_outlined,
+              color: AppTheme.primaryRed,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Track My Services',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'View active cases, missing documents and progress.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 10),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
+          ),
+        ],
       ),
     );
   }

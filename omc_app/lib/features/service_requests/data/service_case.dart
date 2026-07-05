@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class ServiceCase {
   const ServiceCase({
     required this.id,
@@ -10,6 +12,10 @@ class ServiceCase {
     this.reference,
     this.nextStep,
     this.remarks,
+    this.requiredDocuments = const [],
+    this.submittedDocuments = const [],
+    this.missingDocuments = const [],
+    this.timeline = const [],
   });
 
   final String id;
@@ -22,10 +28,23 @@ class ServiceCase {
   final String? reference;
   final String? nextStep;
   final String? remarks;
+  final List<String> requiredDocuments;
+  final List<String> submittedDocuments;
+  final List<String> missingDocuments;
+  final List<ServiceCaseTimelineStep> timeline;
 }
 
+class ServiceCaseTimelineStep {
+  const ServiceCaseTimelineStep({
+    required this.title,
+    required this.subtitle,
+    required this.isDone,
+  });
 
-typedef ServiceCaseSummary = ServiceCase;
+  final String title;
+  final String subtitle;
+  final bool isDone;
+}
 
 class ServiceCaseStatusStyle {
   const ServiceCaseStatusStyle({
@@ -33,6 +52,6 @@ class ServiceCaseStatusStyle {
     required this.label,
   });
 
-  final dynamic icon;
+  final IconData icon;
   final String label;
 }

@@ -47,6 +47,10 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   _CaseInfoCard(serviceCase: serviceCase),
                   const SizedBox(height: 16),
+                  _RequiredDocumentsCard(serviceCase: serviceCase),
+                  const SizedBox(height: 16),
+                  _CaseActionsCard(serviceCase: serviceCase),
+                  const SizedBox(height: 16),
                   _SupportCard(serviceCase: serviceCase),
                 ],
               ),
@@ -133,41 +137,161 @@ class _ProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progressPercent =
-        (serviceCase.progress.clamp(0, 1) * 100).round().toString();
+    final progress = serviceCase.progress.clamp(0, 1).toDouble();
+    final progressPercent = (progress * 100).round().toString();
 
     return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Progress',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$progressPercent% complete',
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Progress timeline',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                '$progressPercent%',
+                style: const TextStyle(
+                  color: AppTheme.primaryRed,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: LinearProgressIndicator(
-              value: serviceCase.progress.clamp(0, 1),
+              value: progress,
               minHeight: 9,
               backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
             ),
           ),
+          const SizedBox(height: 18),
+          for (var index = 0; index < _timelineSteps(serviceCase).length; index++)
+            _TimelineStep(
+              title: _timelineSteps(serviceCase)[index].title,
+              subtitle: _timelineSteps(serviceCase)[index].subtitle,
+              isDone: _timelineSteps(serviceCase)[index].isDone,
+              isLast: index == _timelineSteps(serviceCase).length - 1,
+            ),
         ],
       ),
+    );
+  }
+
+  List<ServiceCaseTimelineStep> _timelineSteps(ServiceCase serviceCase) {
+    if (serviceCase.timeline.isNotEmpty) return serviceCase.timeline;
+
+    final progress = serviceCase.progress.clamp(0, 1).toDouble();
+
+    return [
+      ServiceCaseTimelineStep(
+        title: 'Request received',
+        subtitle: serviceCase.createdAtLabel,
+        isDone: progress >= 0.05,
+      ),
+      ServiceCaseTimelineStep(
+        title: 'Documents review',
+        subtitle: progress >= 0.35 ? 'In progress' : 'Pending',
+        isDone: progress >= 0.35,
+      ),
+      ServiceCaseTimelineStep(
+        title: 'OMC processing',
+        subtitle: progress >= 0.65 ? 'In progress' : 'Pending',
+        isDone: progress >= 0.65,
+      ),
+      ServiceCaseTimelineStep(
+        title: 'Completed',
+        subtitle: progress >= 1 ? serviceCase.updatedAtLabel : 'Pending',
+        isDone: progress >= 1,
+      ),
+    ];
+  }
+}
+
+class _TimelineStep extends StatelessWidget {
+  const _TimelineStep({
+    required this.title,
+    required this.subtitle,
+    required this.isDone,
+    this.isLast = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool isDone;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDone ? AppTheme.primaryRed : AppTheme.textSecondary;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: isDone
+                    ? AppTheme.primaryRed
+                    : AppTheme.primaryRed.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isDone ? Icons.check_rounded : Icons.circle_outlined,
+                size: 16,
+                color: isDone ? Colors.white : AppTheme.primaryRed,
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 28,
+                color: AppTheme.primaryRed.withValues(alpha: 0.12),
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -199,6 +323,165 @@ class _CaseInfoCard extends StatelessWidget {
             _InfoRow(label: 'Next step', value: serviceCase.nextStep!),
           if (serviceCase.remarks != null)
             _InfoRow(label: 'Remarks', value: serviceCase.remarks!),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequiredDocumentsCard extends StatelessWidget {
+  const _RequiredDocumentsCard({required this.serviceCase});
+
+  final ServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final documents = _documentsForCase(serviceCase);
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Required documents',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Document upload will connect with the backend once OMC API testing resumes.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (final document in documents)
+            _DocumentRequirementRow(
+              label: document,
+              isSubmitted: serviceCase.submittedDocuments.contains(document),
+              isMissing: serviceCase.missingDocuments.contains(document),
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<String> _documentsForCase(ServiceCase serviceCase) {
+    if (serviceCase.requiredDocuments.isNotEmpty) {
+      return serviceCase.requiredDocuments;
+    }
+
+    return const [
+      'CNIC front and back',
+      'Relevant business or service documents',
+      'Any supporting proof requested by OMC',
+    ];
+  }
+}
+
+class _DocumentRequirementRow extends StatelessWidget {
+  const _DocumentRequirementRow({
+    required this.label,
+    required this.isSubmitted,
+    required this.isMissing,
+  });
+
+  final String label;
+  final bool isSubmitted;
+  final bool isMissing;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusLabel = isSubmitted
+        ? 'Submitted'
+        : isMissing
+            ? 'Missing'
+            : 'Required';
+
+    final icon = isSubmitted
+        ? Icons.check_circle_rounded
+        : isMissing
+            ? Icons.error_outline_rounded
+            : Icons.description_outlined;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 19),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            statusLabel,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseActionsCard extends StatelessWidget {
+  const _CaseActionsCard({required this.serviceCase});
+
+  final ServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Actions',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Document upload will be enabled after backend integration.',
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.cloud_upload_outlined),
+            label: const Text('Upload documents'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => SupportLauncher.openWhatsApp(context),
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            label: const Text('Ask OMC support'),
+          ),
         ],
       ),
     );

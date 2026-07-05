@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -20,7 +21,6 @@ class MyServicesScreen extends ConsumerWidget {
 
     return null;
   }
-
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -119,7 +119,11 @@ class _ServiceCaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progressPercent =
+        (serviceCase.progress.clamp(0, 1) * 100).round().toString();
+
     return PremiumCard(
+      onTap: () => context.go('/my-services/${serviceCase.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -138,6 +142,10 @@ class _ServiceCaseCard extends StatelessWidget {
                   ),
                 ),
               ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary,
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -152,13 +160,29 @@ class _ServiceCaseCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: serviceCase.progress.clamp(0, 1),
-              minHeight: 8,
-              backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: LinearProgressIndicator(
+                    value: serviceCase.progress.clamp(0, 1),
+                    minHeight: 8,
+                    backgroundColor:
+                        AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '$progressPercent%',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           if (serviceCase.nextStep != null &&
@@ -168,26 +192,34 @@ class _ServiceCaseCard extends StatelessWidget {
               label: 'Next step',
               value: serviceCase.nextStep!,
             ),
-          if (serviceCase.remarks != null &&
-              serviceCase.remarks!.trim().isNotEmpty)
+          if (serviceCase.missingDocuments.isNotEmpty)
             _DetailRow(
-              icon: Icons.notes_outlined,
-              label: 'Remarks',
-              value: serviceCase.remarks!,
+              icon: Icons.warning_amber_rounded,
+              label: 'Missing docs',
+              value: '${serviceCase.missingDocuments.length} required',
             ),
           _DetailRow(
             icon: Icons.update_rounded,
             label: 'Updated',
             value: serviceCase.updatedAtLabel,
           ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => SupportLauncher.openWhatsApp(context),
-              icon: const Icon(Icons.chat_bubble_outline_rounded),
-              label: const Text('Ask support'),
-            ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.go('/my-services/${serviceCase.id}'),
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('View details'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton.filledTonal(
+                tooltip: 'Ask support',
+                onPressed: () => SupportLauncher.openWhatsApp(context),
+                icon: const Icon(Icons.chat_bubble_outline_rounded),
+              ),
+            ],
           ),
         ],
       ),

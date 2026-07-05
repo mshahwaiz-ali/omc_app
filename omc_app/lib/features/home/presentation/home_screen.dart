@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -51,7 +52,7 @@ class HomeScreen extends ConsumerWidget {
       title: 'My Services',
       subtitle: 'Cases and request status',
       icon: Icons.assignment_outlined,
-      target: _HomeActionTarget.services,
+      target: _HomeActionTarget.myServices,
     ),
     _WorkspaceAction(
       title: 'Documents',
@@ -141,7 +142,7 @@ class HomeScreen extends ConsumerWidget {
                   final action = _quickServices[index];
                   return _ServiceCard(
                     action: action,
-                    onTap: () => _handleAction(action.target),
+                    onTap: () => _handleAction(context, action.target),
                   );
                 },
               ),
@@ -166,7 +167,7 @@ class HomeScreen extends ConsumerWidget {
                   final action = _workspaceActions[index];
                   return _WorkspaceCard(
                     action: action,
-                    onTap: () => _handleAction(action.target),
+                    onTap: () => _handleAction(context, action.target),
                   );
                 },
               ),
@@ -193,8 +194,11 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _handleAction(_HomeActionTarget target) {
+  void _handleAction(BuildContext context, _HomeActionTarget target) {
     switch (target) {
+      case _HomeActionTarget.myServices:
+        context.go('/my-services');
+        return;
       case _HomeActionTarget.services:
         onOpenServices?.call();
         return;
@@ -587,7 +591,8 @@ class _RecentActivityCard extends StatelessWidget {
   }
 }
 
-enum _HomeActionTarget { services, calculator, support }
+enum _HomeActionTarget {
+  myServices, services, calculator, support }
 
 class _HomeAction {
   const _HomeAction({

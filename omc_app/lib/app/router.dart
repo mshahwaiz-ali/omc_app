@@ -10,6 +10,7 @@ import '../features/auth/presentation/signup_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/service_request_draft_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
+import '../features/service_requests/presentation/my_services_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'main_shell.dart';
 
@@ -80,6 +81,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
           return ServiceRequestDraftScreen(serviceId: serviceId);
         },
+      ),
+      GoRoute(
+        path: '/my-services',
+        name: 'my-services',
+        builder: (context, state) => const MyServicesScreen(),
       ),
       GoRoute(
         path: '/my-services/:caseId',
