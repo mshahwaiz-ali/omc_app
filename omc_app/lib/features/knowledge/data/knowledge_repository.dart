@@ -105,8 +105,21 @@ class KnowledgeRepository {
             json['created_at'],
       ),
       author: _nullableString(json['author'] ?? json['owner']),
-      externalUrl: _nullableString(json['external_url'] ?? json['url']),
-      isFeatured: json['is_featured'] == true || json['featured'] == true,
+      externalUrl: _nullableString(
+        json['external_url'] ??
+            json['article_url'] ??
+            json['source_url'] ??
+            json['website_url'] ??
+            json['file_url'] ??
+            json['link'] ??
+            json['route'] ??
+            json['url'],
+      ),
+      isFeatured:
+          json['is_featured'] == true ||
+          json['featured'] == true ||
+          json['is_pinned'] == true ||
+          json['pinned'] == true,
     );
   }
 

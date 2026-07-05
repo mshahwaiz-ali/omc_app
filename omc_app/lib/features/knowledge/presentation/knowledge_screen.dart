@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/knowledge_article.dart';
 import '../data/knowledge_repository.dart';
@@ -19,10 +20,9 @@ class KnowledgeScreen extends ConsumerWidget {
       body: SafeArea(
         child: articlesState.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => _KnowledgeEmptyState(
+          error: (error, _) => _KnowledgeEmptyState(
             title: 'Knowledge is unavailable',
-            message:
-                'We could not load OMC updates right now. Please try again.',
+            message: _knowledgeErrorMessage(error),
             onRetry: () => ref.invalidate(knowledgeArticlesProvider),
           ),
           data: (articles) {
@@ -92,6 +92,14 @@ class KnowledgeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _knowledgeErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  return 'We could not load OMC updates from the backend right now. Please try again.';
 }
 
 class _FeaturedArticleCard extends StatelessWidget {

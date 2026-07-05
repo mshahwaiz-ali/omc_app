@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/profile_repository.dart';
@@ -30,6 +31,8 @@ class ProfileScreen extends ConsumerWidget {
                   fallbackProfile: ProfileSummary.fromUserId(
                     ref.watch(authControllerProvider).userId,
                   ),
+                  message:
+                      'Signed in as ${ProfileSummary.fromUserId(ref.watch(authControllerProvider).userId).email}. Full customer profile will appear when the backend profile endpoint responds.',
                   onRetry: () => ref.invalidate(profileSummaryProvider),
                 );
               }
@@ -37,10 +40,11 @@ class ProfileScreen extends ConsumerWidget {
               return _ProfileContent(profile: profile, ref: ref);
             },
             loading: () => const _ProfileLoadingView(),
-            error: (_, _) => _ProfileUnavailableView(
+            error: (error, _) => _ProfileUnavailableView(
               fallbackProfile: ProfileSummary.fromUserId(
                 ref.watch(authControllerProvider).userId,
               ),
+              message: _profileErrorMessage(error),
               onRetry: () => ref.invalidate(profileSummaryProvider),
             ),
           ),
@@ -48,6 +52,14 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _profileErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  return 'Full customer profile could not be loaded from the backend right now.';
 }
 
 class _ProfileLoadingView extends StatelessWidget {
@@ -70,10 +82,12 @@ class _ProfileLoadingView extends StatelessWidget {
 class _ProfileUnavailableView extends StatelessWidget {
   const _ProfileUnavailableView({
     required this.fallbackProfile,
+    required this.message,
     required this.onRetry,
   });
 
   final ProfileSummary fallbackProfile;
+  final String message;
   final VoidCallback onRetry;
 
   @override
@@ -111,7 +125,7 @@ class _ProfileUnavailableView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Signed in as ${fallbackProfile.email}. Full customer profile will appear when the backend profile endpoint responds.',
+                message,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
@@ -238,17 +252,11 @@ class _ProfileContent extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         ProfileActionCard(
-          onEditProfile: () => _showBackendPendingSnack(
-            context,
-            'Profile edit endpoint is not connected yet.',
-          ),
-          onUpdateContact: () => _showBackendPendingSnack(
-            context,
-            'Contact update endpoint is not connected yet.',
-          ),
+          onEditProfile: () => _submitProfileUpdateRequest(context, ref),
+          onUpdateContact: () => _submitContactUpdateRequest(context, ref),
           onContactSupport: () => _showBackendPendingSnack(
             context,
-            'Support request endpoint is not connected yet.',
+            'For profile help, open Support and submit a backend ticket.',
           ),
           onRefresh: () {
             ref.invalidate(profileSummaryProvider);
@@ -288,6 +296,67 @@ class _ProfileContent extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _submitProfileUpdateRequest(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final repository = ref.read(profileRepositoryProvider);
+    final didSubmit = await repository.requestProfileUpdate({
+      'request_type': 'profile_update',
+      'display_name': profile.displayName,
+      'email': profile.email,
+      if (profile.phone != null) 'phone': profile.phone,
+      if (profile.cnic != null) 'cnic': profile.cnic,
+      if (profile.customerType != null) 'customer_type': profile.customerType,
+    });
+
+    if (!context.mounted) return;
+
+    if (didSubmit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile update request submitted to backend.'),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not submit profile update request yet.'),
+      ),
+    );
+  }
+
+  Future<void> _submitContactUpdateRequest(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final repository = ref.read(profileRepositoryProvider);
+    final didSubmit = await repository.requestContactUpdate({
+      'request_type': 'contact_update',
+      'email': profile.email,
+      if (profile.phone != null) 'phone': profile.phone,
+    });
+
+    if (!context.mounted) return;
+
+    if (didSubmit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Contact update request submitted to backend.'),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not submit contact update request yet.'),
+      ),
     );
   }
 

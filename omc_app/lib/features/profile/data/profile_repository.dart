@@ -28,14 +28,8 @@ class ProfileRepository {
   Future<ProfileSummary?> fetchProfile({
     required String? fallbackUserId,
   }) async {
-    try {
-      final response = await _frappeClient.getMethod(ApiConfig.profileMethod);
-      return _mapProfileResponse(response, fallbackUserId: fallbackUserId);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
-    }
+    final response = await _frappeClient.getMethod(ApiConfig.profileMethod);
+    return _mapProfileResponse(response, fallbackUserId: fallbackUserId);
   }
 
   Future<bool> requestProfileUpdate(Map<String, dynamic> payload) async {

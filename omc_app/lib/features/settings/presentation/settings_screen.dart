@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/settings_preferences.dart';
 import '../data/settings_repository.dart';
@@ -80,13 +81,15 @@ class SettingsScreen extends ConsumerWidget {
             preferencesAsync.when(
               data: (preferences) => _PreferencesSection(
                 preferences: preferences,
+                errorMessage: null,
                 onRetry: () => ref.invalidate(settingsPreferencesProvider),
                 onToggle: (updatedPreferences) =>
                     _savePreferences(context, ref, updatedPreferences),
               ),
               loading: () => const _PreferencesLoadingSection(),
-              error: (_, _) => _PreferencesSection(
+              error: (error, _) => _PreferencesSection(
                 preferences: null,
+                errorMessage: _settingsErrorMessage(error),
                 onRetry: () => ref.invalidate(settingsPreferencesProvider),
                 onToggle: (updatedPreferences) =>
                     _savePreferences(context, ref, updatedPreferences),
@@ -215,23 +218,31 @@ class SettingsScreen extends ConsumerWidget {
     SettingsPreferences preferences,
   ) async {
     final repository = ref.read(settingsRepositoryProvider);
-    final didSave = await repository.savePreferences(preferences);
 
-    if (!context.mounted) return;
+    try {
+      await repository.savePreferences(preferences);
 
-    if (didSave) {
+      if (!context.mounted) return;
+
       ref.invalidate(settingsPreferencesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Settings preferences updated.')),
       );
-      return;
-    }
+    } on ApiError catch (error) {
+      if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Could not update settings preferences yet.'),
-      ),
-    );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update settings preferences yet.'),
+        ),
+      );
+    }
   }
 
   static String get _environmentLabel {
@@ -257,6 +268,14 @@ class SettingsScreen extends ConsumerWidget {
     return enabled.join(', ');
   }
 
+  String _settingsErrorMessage(Object error) {
+    if (error is ApiError && error.message.trim().isNotEmpty) {
+      return error.message.trim();
+    }
+
+    return 'Settings preferences could not be loaded from the backend right now.';
+  }
+
   void _showBackendPendingSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,
@@ -267,11 +286,13 @@ class SettingsScreen extends ConsumerWidget {
 class _PreferencesSection extends StatelessWidget {
   const _PreferencesSection({
     required this.preferences,
+    required this.errorMessage,
     required this.onRetry,
     required this.onToggle,
   });
 
   final SettingsPreferences? preferences;
+  final String? errorMessage;
   final VoidCallback onRetry;
   final ValueChanged<SettingsPreferences> onToggle;
 
@@ -288,7 +309,8 @@ class _PreferencesSection extends StatelessWidget {
           title: 'Service updates',
           subtitle: isBackendAvailable
               ? 'Notify me about service request progress'
-              : 'Backend preferences unavailable; showing safe defaults',
+              : errorMessage ??
+                    'Backend preferences unavailable; showing safe defaults',
           value: activePreferences.serviceUpdatesEnabled,
           onChanged: isBackendAvailable
               ? (value) => onToggle(
@@ -363,7 +385,7 @@ class _PreferencesSection extends StatelessWidget {
           _SettingsTile(
             icon: Icons.refresh_rounded,
             title: 'Retry preferences',
-            subtitle: 'Load editable settings from backend',
+            subtitle: errorMessage ?? 'Load editable settings from backend',
             trailing: 'Retry',
             onTap: onRetry,
           ),

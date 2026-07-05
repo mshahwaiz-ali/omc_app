@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import 'settings_preferences.dart';
 
@@ -26,32 +25,18 @@ class SettingsRepository {
   final FrappeClient frappeClient;
 
   Future<SettingsPreferences?> fetchPreferences() async {
-    try {
-      final response = await frappeClient.getMethod(
-        ApiConfig.settingsPreferencesMethod,
-      );
+    final response = await frappeClient.getMethod(
+      ApiConfig.settingsPreferencesMethod,
+    );
 
-      return _mapPreferencesResponse(response);
-    } on ApiError {
-      return null;
-    } catch (_) {
-      return null;
-    }
+    return _mapPreferencesResponse(response);
   }
 
-  Future<bool> savePreferences(SettingsPreferences preferences) async {
-    try {
-      await frappeClient.postMethod(
-        ApiConfig.updateSettingsPreferencesMethod,
-        data: preferences.toJson(),
-      );
-
-      return true;
-    } on ApiError {
-      return false;
-    } catch (_) {
-      return false;
-    }
+  Future<void> savePreferences(SettingsPreferences preferences) async {
+    await frappeClient.postMethod(
+      ApiConfig.updateSettingsPreferencesMethod,
+      data: preferences.toJson(),
+    );
   }
 
   SettingsPreferences? _mapPreferencesResponse(Map<String, dynamic>? data) {

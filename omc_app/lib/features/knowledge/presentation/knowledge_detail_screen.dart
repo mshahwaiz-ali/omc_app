@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/knowledge_article.dart';
 import '../data/knowledge_repository.dart';
@@ -20,17 +23,22 @@ class KnowledgeDetailScreen extends ConsumerWidget {
       body: SafeArea(
         child: articleState.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => _KnowledgeDetailUnavailable(
+          error: (error, _) => _KnowledgeDetailUnavailable(
+            message: _knowledgeDetailErrorMessage(error),
             onRetry: () =>
                 ref.invalidate(knowledgeArticleDetailProvider(articleId)),
           ),
           data: (article) {
             if (article == null) {
               return _KnowledgeDetailUnavailable(
+                message:
+                    'This knowledge item could not be loaded from the backend.',
                 onRetry: () =>
                     ref.invalidate(knowledgeArticleDetailProvider(articleId)),
               );
             }
+
+            final externalUri = _resolvedArticleUri(article.externalUrl);
 
             return ListView(
               physics: const BouncingScrollPhysics(),
@@ -80,6 +88,14 @@ class KnowledgeDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (externalUri != null) ...[
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => _openExternalArticle(context, externalUri),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Open full article'),
+                  ),
+                ],
               ],
             );
           },
@@ -87,6 +103,38 @@ class KnowledgeDetailScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+Uri? _resolvedArticleUri(String? value) {
+  final cleanValue = value?.trim();
+  if (cleanValue == null || cleanValue.isEmpty) return null;
+
+  final parsedUri = Uri.tryParse(cleanValue);
+  if (parsedUri != null && parsedUri.hasScheme) return parsedUri;
+
+  if (cleanValue.startsWith('/')) {
+    return Uri.tryParse('${ApiConfig.baseUrl}$cleanValue');
+  }
+
+  return Uri.tryParse('${ApiConfig.baseUrl}/$cleanValue');
+}
+
+Future<void> _openExternalArticle(BuildContext context, Uri uri) async {
+  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not open this article link.')),
+    );
+  }
+}
+
+String _knowledgeDetailErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  return 'This knowledge item could not be loaded from the backend.';
 }
 
 class _ArticleMetaRow extends StatelessWidget {
@@ -152,8 +200,12 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _KnowledgeDetailUnavailable extends StatelessWidget {
-  const _KnowledgeDetailUnavailable({required this.onRetry});
+  const _KnowledgeDetailUnavailable({
+    required this.message,
+    required this.onRetry,
+  });
 
+  final String message;
   final VoidCallback onRetry;
 
   @override
@@ -192,10 +244,10 @@ class _KnowledgeDetailUnavailable extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'This knowledge item could not be loaded from the backend.',
+              Text(
+                message,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 13,
                   height: 1.4,
