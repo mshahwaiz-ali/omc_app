@@ -74,6 +74,7 @@ class ApiConfig {
 
   // TODO(backend): Replace with confirmed OMC/Frappe customers API.
   static const String customersMethod = 'omc_app.api.mobile.get_customers';
+  static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
 
   static const String uploadFileMethod = 'upload_file';
 

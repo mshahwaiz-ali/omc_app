@@ -1,14 +1,15 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/widgets/feature_placeholder_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
+import '../features/tasks/presentation/tasks_screen.dart';
+import '../features/customers/presentation/customers_screen.dart';
+import '../features/leads/presentation/leads_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
@@ -106,32 +107,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/leads',
         name: 'leads',
-        builder: (context, state) => const FeaturePlaceholderScreen(
-          title: 'Leads',
-          message:
-              'Lead pipeline, follow-ups, and opportunities will appear here.',
-          icon: Icons.trending_up_rounded,
-        ),
+        builder: (context, state) => const LeadsScreen(),
       ),
       GoRoute(
         path: '/customers',
         name: 'customers',
-        builder: (context, state) => const FeaturePlaceholderScreen(
-          title: 'Customers',
-          message:
-              'Customer records, activity, and service history will appear here.',
-          icon: Icons.groups_2_rounded,
-        ),
+        builder: (context, state) => const CustomersScreen(),
       ),
       GoRoute(
         path: '/tasks',
         name: 'tasks',
-        builder: (context, state) => const FeaturePlaceholderScreen(
-          title: 'Tasks',
-          message:
-              'Assigned work, reminders, and pending actions will appear here.',
-          icon: Icons.task_alt_rounded,
-        ),
+        builder: (context, state) => const TasksScreen(),
       ),
       GoRoute(
         path: '/my-services/:caseId',
