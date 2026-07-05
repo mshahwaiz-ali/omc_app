@@ -76,6 +76,12 @@ class _TaskDetailBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
+        const CrmActivityTimelineCard(
+          title: 'Task timeline',
+          emptyMessage:
+              'No task activity yet. Checklist changes, comments, assignments, and status updates will appear here once the backend provides activity data.',
+        ),
+        const SizedBox(height: 16),
         const CrmDetailInfoCard(
           title: 'Activity',
           rows: [

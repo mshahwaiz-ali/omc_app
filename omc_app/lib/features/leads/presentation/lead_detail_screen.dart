@@ -72,11 +72,17 @@ class _LeadDetailBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
+        const CrmActivityTimelineCard(
+          title: 'Activity timeline',
+          emptyMessage:
+              'No timeline activity yet. Calls, notes, follow-ups, and conversion events will appear here once the backend provides CRM activity data.',
+        ),
+        const SizedBox(height: 16),
         const CrmDetailInfoCard(
           title: 'Next actions',
           rows: [
-            CrmInfoRow(label: 'Timeline', value: 'Backend-ready placeholder'),
             CrmInfoRow(label: 'Notes', value: 'Backend-ready placeholder'),
+            CrmInfoRow(label: 'Follow-up', value: 'Backend-ready placeholder'),
             CrmInfoRow(label: 'Conversion', value: 'Backend-ready placeholder'),
           ],
         ),
