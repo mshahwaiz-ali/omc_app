@@ -5,6 +5,7 @@ import '../../../core/widgets/premium_empty_state.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
+import 'widgets/payment_action_card.dart';
 
 class PaymentDetailScreen extends ConsumerWidget {
   const PaymentDetailScreen({required this.paymentId, super.key});
@@ -81,13 +82,20 @@ class _PaymentDetailBody extends StatelessWidget {
               'No payment timeline yet. Invoice creation, due reminders, receipt uploads, and reconciliation events will appear here once backend activity data is available.',
         ),
         const SizedBox(height: 16),
-        const CrmDetailInfoCard(
-          title: 'Actions',
-          rows: [
-            CrmInfoRow(label: 'Invoice', value: 'Backend-ready placeholder'),
-            CrmInfoRow(label: 'Receipt', value: 'Backend-ready placeholder'),
-            CrmInfoRow(label: 'Pay now', value: 'Backend-ready placeholder'),
-          ],
+        PaymentActionCard(
+          payment: payment,
+          onInvoice: () => _showBackendPendingSnack(
+            context,
+            'Payment invoice endpoint is not connected yet.',
+          ),
+          onReceipt: () => _showBackendPendingSnack(
+            context,
+            'Payment receipt endpoint is not connected yet.',
+          ),
+          onPayNow: () => _showBackendPendingSnack(
+            context,
+            'Payment gateway endpoint is not connected yet.',
+          ),
         ),
         const SizedBox(height: 8),
         Text(
@@ -98,5 +106,11 @@ class _PaymentDetailBody extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _showBackendPendingSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
