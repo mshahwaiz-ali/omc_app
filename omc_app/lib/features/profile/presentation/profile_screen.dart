@@ -24,22 +24,112 @@ class ProfileScreen extends ConsumerWidget {
             await ref.read(profileSummaryProvider.future);
           },
           child: profileAsync.when(
-            data: (profile) => _ProfileContent(profile: profile, ref: ref),
-            loading: () => _ProfileContent(
-              profile: ProfileSummary.fromUserId(
+            data: (profile) {
+              if (profile == null) {
+                return _ProfileUnavailableView(
+                  fallbackProfile: ProfileSummary.fromUserId(
+                    ref.watch(authControllerProvider).userId,
+                  ),
+                  onRetry: () => ref.invalidate(profileSummaryProvider),
+                );
+              }
+
+              return _ProfileContent(profile: profile, ref: ref);
+            },
+            loading: () => const _ProfileLoadingView(),
+            error: (_, _) => _ProfileUnavailableView(
+              fallbackProfile: ProfileSummary.fromUserId(
                 ref.watch(authControllerProvider).userId,
               ),
-              ref: ref,
-            ),
-            error: (_, _) => _ProfileContent(
-              profile: ProfileSummary.fromUserId(
-                ref.watch(authControllerProvider).userId,
-              ),
-              ref: ref,
+              onRetry: () => ref.invalidate(profileSummaryProvider),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ProfileLoadingView extends StatelessWidget {
+  const _ProfileLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      children: const [
+        PremiumCard(padding: EdgeInsets.all(22), child: SizedBox(height: 176)),
+        SizedBox(height: 18),
+        PremiumCard(padding: EdgeInsets.all(18), child: SizedBox(height: 210)),
+      ],
+    );
+  }
+}
+
+class _ProfileUnavailableView extends StatelessWidget {
+  const _ProfileUnavailableView({
+    required this.fallbackProfile,
+    required this.onRetry,
+  });
+
+  final ProfileSummary fallbackProfile;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      children: [
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Profile unavailable',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Signed in as ${fallbackProfile.email}. Full customer profile will appear when the backend profile endpoint responds.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 18),
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -65,6 +65,9 @@ class ApiConfig {
 
   // TODO(backend): Replace with confirmed OMC/Frappe profile API.
   static const String profileMethod = 'omc_app.api.mobile.get_profile';
+  static const String updateProfileMethod = 'omc_app.api.mobile.update_profile';
+  static const String updateContactMethod =
+      'omc_app.api.mobile.update_contact_info';
 
   // TODO(backend): Replace with confirmed OMC/Frappe knowledge/news API.
   static const String knowledgeMethod = 'omc_app.api.mobile.get_knowledge';

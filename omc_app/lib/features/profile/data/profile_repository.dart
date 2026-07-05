@@ -13,7 +13,7 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   return ProfileRepository(frappeClient: frappeClient);
 });
 
-final profileSummaryProvider = FutureProvider<ProfileSummary>((ref) async {
+final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
   final repository = ref.watch(profileRepositoryProvider);
   final authState = ref.watch(authControllerProvider);
 
@@ -25,25 +25,68 @@ class ProfileRepository {
 
   final FrappeClient _frappeClient;
 
-  Future<ProfileSummary> fetchProfile({required String? fallbackUserId}) async {
+  Future<ProfileSummary?> fetchProfile({
+    required String? fallbackUserId,
+  }) async {
     try {
       final response = await _frappeClient.getMethod(ApiConfig.profileMethod);
       return _mapProfileResponse(response, fallbackUserId: fallbackUserId);
     } on ApiError {
-      return ProfileSummary.fromUserId(fallbackUserId);
+      return null;
     } catch (_) {
-      return ProfileSummary.fromUserId(fallbackUserId);
+      return null;
     }
   }
 
-  ProfileSummary _mapProfileResponse(
+  Future<bool> requestProfileUpdate(Map<String, dynamic> payload) async {
+    if (payload.isEmpty) return false;
+
+    try {
+      await _frappeClient.postMethod(
+        ApiConfig.updateProfileMethod,
+        data: payload,
+      );
+
+      return true;
+    } on ApiError {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> requestContactUpdate(Map<String, dynamic> payload) async {
+    if (payload.isEmpty) return false;
+
+    try {
+      await _frappeClient.postMethod(
+        ApiConfig.updateContactMethod,
+        data: payload,
+      );
+
+      return true;
+    } on ApiError {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  ProfileSummary? _mapProfileResponse(
     Map<String, dynamic>? data, {
     required String? fallbackUserId,
   }) {
-    if (data == null) return ProfileSummary.fromUserId(fallbackUserId);
+    if (data == null) return null;
 
     final message = data['message'];
-    final profile = message is Map<String, dynamic> ? message : data;
+    final profile = message is Map<String, dynamic>
+        ? message['profile'] ??
+              message['data'] ??
+              message['customer'] ??
+              message
+        : data['profile'] ?? data['data'] ?? data['customer'] ?? data;
+
+    if (profile is! Map<String, dynamic>) return null;
 
     final fallback = ProfileSummary.fromUserId(fallbackUserId);
     final email = _nullableString(
