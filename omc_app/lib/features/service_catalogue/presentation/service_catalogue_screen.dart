@@ -327,6 +327,7 @@ class _ServiceCatalogueCard extends StatelessWidget {
     final visibleRequirements = service.requirements.take(3).toList();
     final remainingRequirements =
         service.requirements.length - visibleRequirements.length;
+    final wizardLabel = _wizardBadgeLabel(service);
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
@@ -362,7 +363,11 @@ class _ServiceCatalogueCard extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    if (wizardLabel != null) ...[
+                      const SizedBox(height: 7),
+                      _WizardBadge(label: wizardLabel),
+                    ],
+                    const SizedBox(height: 7),
                     Text(
                       service.title,
                       style: const TextStyle(
@@ -432,8 +437,10 @@ class _ServiceCatalogueCard extends StatelessWidget {
             children: [
               Expanded(
                 child: AppButton(
-                  label: 'Request',
-                  icon: Icons.add_rounded,
+                  label: _requestButtonLabel(service),
+                  icon: wizardLabel == null
+                      ? Icons.add_rounded
+                      : Icons.auto_awesome_rounded,
                   onPressed: onRequest,
                   isExpanded: false,
                 ),
@@ -450,6 +457,66 @@ class _ServiceCatalogueCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WizardBadge extends StatelessWidget {
+  const _WizardBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.auto_awesome_rounded,
+            color: AppTheme.primaryRed,
+            size: 13,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.primaryRed,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String? _wizardBadgeLabel(ServiceItem service) {
+  switch (_normalizedWizardType(service)) {
+    case 'ntn':
+      return 'NTN Wizard';
+    case 'iris':
+      return 'IRIS Wizard';
+    case 'gst':
+      return 'GST Wizard';
+    case 'business':
+      return 'Business Wizard';
+    default:
+      return null;
+  }
+}
+
+String _requestButtonLabel(ServiceItem service) {
+  return _wizardBadgeLabel(service) == null ? 'Request' : 'Start wizard';
+}
+
+String _normalizedWizardType(ServiceItem service) {
+  return service.wizardType?.trim().toLowerCase() ?? '';
 }
 
 class _InfoPill extends StatelessWidget {
