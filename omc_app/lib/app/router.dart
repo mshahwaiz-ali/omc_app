@@ -8,6 +8,7 @@ import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
+import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
@@ -115,12 +116,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         name: 'notifications',
-        builder: (context, state) => const FeaturePlaceholderScreen(
-          title: 'Notifications',
-          message:
-              'Service updates, document requests and tax alerts appear here.',
-          icon: Icons.notifications_none_rounded,
-        ),
+        builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
         path: '/profile',
