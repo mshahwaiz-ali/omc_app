@@ -86,6 +86,12 @@ class ApiConfig {
   static const String markNotificationReadMethod =
       'omc_app.api.mobile.mark_notification_read';
 
+  // TODO(backend): Replace with confirmed OMC/Frappe settings preferences API.
+  static const String settingsPreferencesMethod =
+      'omc_app.api.mobile.get_settings_preferences';
+  static const String updateSettingsPreferencesMethod =
+      'omc_app.api.mobile.update_settings_preferences';
+
   // TODO(backend): Replace with confirmed OMC/Frappe internal workspace API.
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';

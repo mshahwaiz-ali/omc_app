@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../data/settings_preferences.dart';
+import '../data/settings_repository.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preferencesAsync = ref.watch(settingsPreferencesProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: SafeArea(
@@ -73,42 +77,20 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 18),
-            _SettingsSection(
-              title: 'Preferences',
-              children: [
-                _SettingsTile(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Notifications',
-                  subtitle: 'Service updates and document reminders',
-                  trailing: 'Default',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'Notification preferences endpoint is not connected yet.',
-                  ),
-                ),
-                const _DividerIndent(),
-                _SettingsTile(
-                  icon: Icons.palette_outlined,
-                  title: 'Appearance',
-                  subtitle: 'Premium OMC theme',
-                  trailing: 'System',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'Appearance settings are fixed to the premium OMC theme for now.',
-                  ),
-                ),
-                const _DividerIndent(),
-                _SettingsTile(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy & data',
-                  subtitle: 'Data export, consent and account privacy',
-                  trailing: 'Ready',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'Privacy and data endpoint is not connected yet.',
-                  ),
-                ),
-              ],
+            preferencesAsync.when(
+              data: (preferences) => _PreferencesSection(
+                preferences: preferences,
+                onRetry: () => ref.invalidate(settingsPreferencesProvider),
+                onToggle: (updatedPreferences) =>
+                    _savePreferences(context, ref, updatedPreferences),
+              ),
+              loading: () => const _PreferencesLoadingSection(),
+              error: (_, _) => _PreferencesSection(
+                preferences: null,
+                onRetry: () => ref.invalidate(settingsPreferencesProvider),
+                onToggle: (updatedPreferences) =>
+                    _savePreferences(context, ref, updatedPreferences),
+              ),
             ),
             const SizedBox(height: 18),
             _SettingsSection(
@@ -227,6 +209,31 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _savePreferences(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsPreferences preferences,
+  ) async {
+    final repository = ref.read(settingsRepositoryProvider);
+    final didSave = await repository.savePreferences(preferences);
+
+    if (!context.mounted) return;
+
+    if (didSave) {
+      ref.invalidate(settingsPreferencesProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Settings preferences updated.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not update settings preferences yet.'),
+      ),
+    );
+  }
+
   static String get _environmentLabel {
     switch (Env.current) {
       case AppEnvironment.development:
@@ -254,6 +261,188 @@ class SettingsScreen extends StatelessWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _PreferencesSection extends StatelessWidget {
+  const _PreferencesSection({
+    required this.preferences,
+    required this.onRetry,
+    required this.onToggle,
+  });
+
+  final SettingsPreferences? preferences;
+  final VoidCallback onRetry;
+  final ValueChanged<SettingsPreferences> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final activePreferences = preferences ?? const SettingsPreferences();
+    final isBackendAvailable = preferences != null;
+
+    return _SettingsSection(
+      title: 'Preferences',
+      children: [
+        _SettingsSwitchTile(
+          icon: Icons.notifications_none_rounded,
+          title: 'Service updates',
+          subtitle: isBackendAvailable
+              ? 'Notify me about service request progress'
+              : 'Backend preferences unavailable; showing safe defaults',
+          value: activePreferences.serviceUpdatesEnabled,
+          onChanged: isBackendAvailable
+              ? (value) => onToggle(
+                  activePreferences.copyWith(serviceUpdatesEnabled: value),
+                )
+              : null,
+        ),
+        const _DividerIndent(),
+        _SettingsSwitchTile(
+          icon: Icons.folder_copy_outlined,
+          title: 'Document reminders',
+          subtitle: 'Missing document and upload reminders',
+          value: activePreferences.documentRemindersEnabled,
+          onChanged: isBackendAvailable
+              ? (value) => onToggle(
+                  activePreferences.copyWith(documentRemindersEnabled: value),
+                )
+              : null,
+        ),
+        const _DividerIndent(),
+        _SettingsSwitchTile(
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Payment alerts',
+          subtitle: 'Invoices, receipts and payment status updates',
+          value: activePreferences.paymentAlertsEnabled,
+          onChanged: isBackendAvailable
+              ? (value) => onToggle(
+                  activePreferences.copyWith(paymentAlertsEnabled: value),
+                )
+              : null,
+        ),
+        const _DividerIndent(),
+        _SettingsSwitchTile(
+          icon: Icons.calculate_outlined,
+          title: 'Tax alerts',
+          subtitle: 'Tax reminders, filing alerts and compliance updates',
+          value: activePreferences.taxAlertsEnabled,
+          onChanged: isBackendAvailable
+              ? (value) => onToggle(
+                  activePreferences.copyWith(taxAlertsEnabled: value),
+                )
+              : null,
+        ),
+        const _DividerIndent(),
+        _SettingsSwitchTile(
+          icon: Icons.email_outlined,
+          title: 'Email notifications',
+          subtitle: 'Send important updates by email',
+          value: activePreferences.emailNotificationsEnabled,
+          onChanged: isBackendAvailable
+              ? (value) => onToggle(
+                  activePreferences.copyWith(emailNotificationsEnabled: value),
+                )
+              : null,
+        ),
+        const _DividerIndent(),
+        _SettingsSwitchTile(
+          icon: Icons.chat_bubble_outline_rounded,
+          title: 'WhatsApp notifications',
+          subtitle: 'Allow WhatsApp support and update messages',
+          value: activePreferences.whatsAppNotificationsEnabled,
+          onChanged: isBackendAvailable
+              ? (value) => onToggle(
+                  activePreferences.copyWith(
+                    whatsAppNotificationsEnabled: value,
+                  ),
+                )
+              : null,
+        ),
+        if (!isBackendAvailable) ...[
+          const _DividerIndent(),
+          _SettingsTile(
+            icon: Icons.refresh_rounded,
+            title: 'Retry preferences',
+            subtitle: 'Load editable settings from backend',
+            trailing: 'Retry',
+            onTap: onRetry,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PreferencesLoadingSection extends StatelessWidget {
+  const _PreferencesLoadingSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _SettingsSection(
+      title: 'Preferences',
+      children: [
+        Padding(padding: EdgeInsets.all(18), child: SizedBox(height: 136)),
+      ],
+    );
+  }
+}
+
+class _SettingsSwitchTile extends StatelessWidget {
+  const _SettingsSwitchTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = onChanged != null;
+
+    return SwitchListTile.adaptive(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      secondary: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryRed.withValues(alpha: isEnabled ? 0.08 : 0.04),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Icon(
+          icon,
+          color: isEnabled ? AppTheme.primaryRed : AppTheme.textSecondary,
+        ),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          subtitle,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+            height: 1.35,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      value: value,
+      onChanged: onChanged,
+    );
   }
 }
 
