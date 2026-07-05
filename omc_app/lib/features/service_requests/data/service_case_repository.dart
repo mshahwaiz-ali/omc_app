@@ -8,9 +8,7 @@ import 'service_case.dart';
 final serviceCaseRepositoryProvider = Provider<ServiceCaseRepository>((ref) {
   final frappeClient = ref.watch(frappeClientProvider);
 
-  return ServiceCaseRepository(
-    frappeClient: frappeClient,
-  );
+  return ServiceCaseRepository(frappeClient: frappeClient);
 });
 
 final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
@@ -23,10 +21,29 @@ final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
   return repository.fetchServiceCases();
 });
 
+final serviceCaseDetailProvider = FutureProvider.family<ServiceCase?, String>((
+  ref,
+  caseId,
+) async {
+  final repository = ref.watch(serviceCaseRepositoryProvider);
+
+  if (Env.useServicePreview) {
+    final cases = repository.sampleCasesForUiPreview();
+
+    for (final serviceCase in cases) {
+      if (serviceCase.id == caseId || serviceCase.reference == caseId) {
+        return serviceCase;
+      }
+    }
+
+    return null;
+  }
+
+  return repository.fetchServiceCaseDetail(caseId);
+});
+
 class ServiceCaseRepository {
-  const ServiceCaseRepository({
-    required this._frappeClient,
-  });
+  const ServiceCaseRepository({required this._frappeClient});
 
   final FrappeClient _frappeClient;
 
@@ -66,8 +83,8 @@ class ServiceCaseRepository {
     final rawCases = message is List
         ? message
         : message is Map<String, dynamic>
-            ? message['cases']
-            : data['cases'];
+        ? message['cases']
+        : data['cases'];
 
     if (rawCases is! List) return const [];
 
@@ -85,7 +102,9 @@ class ServiceCaseRepository {
       category: _stringValue(json['category'] ?? json['service_category']),
       status: _stringValue(json['status']),
       createdAtLabel: _stringValue(json['created_at_label'] ?? json['created']),
-      updatedAtLabel: _stringValue(json['updated_at_label'] ?? json['modified']),
+      updatedAtLabel: _stringValue(
+        json['updated_at_label'] ?? json['modified'],
+      ),
       progress: _doubleValue(json['progress']),
       nextStep: _nullableString(json['next_step']),
       remarks: _nullableString(json['remarks']),
@@ -213,9 +232,7 @@ class ServiceCaseRepository {
           'Mobile number linked with CNIC',
           'Email address',
         ],
-        missingDocuments: [
-          'CNIC back image',
-        ],
+        missingDocuments: ['CNIC back image'],
         timeline: [
           ServiceCaseTimelineStep(
             title: 'Request received',

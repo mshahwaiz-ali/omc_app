@@ -15,7 +15,7 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final casesAsync = ref.watch(serviceCasesProvider);
+    final caseAsync = ref.watch(serviceCaseDetailProvider(caseId));
 
     return Scaffold(
       appBar: AppBar(
@@ -30,16 +30,14 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
-        child: casesAsync.when(
+        child: caseAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _LoadErrorState(
             title: 'Unable to load service',
             message: error.toString(),
-            onRetry: () => ref.invalidate(serviceCasesProvider),
+            onRetry: () => ref.invalidate(serviceCaseDetailProvider(caseId)),
           ),
-          data: (cases) {
-            final serviceCase = _findCase(cases, caseId);
-
+          data: (serviceCase) {
             if (serviceCase == null) {
               return const EmptyState(
                 title: 'Case not found',
@@ -69,16 +67,6 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  ServiceCase? _findCase(List<ServiceCase> cases, String id) {
-    for (final serviceCase in cases) {
-      if (serviceCase.id == id || serviceCase.reference == id) {
-        return serviceCase;
-      }
-    }
-
-    return null;
   }
 }
 
@@ -165,8 +153,11 @@ class _CaseHero extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.assignment_turned_in_outlined,
-                color: Colors.white, size: 34),
+            const Icon(
+              Icons.assignment_turned_in_outlined,
+              color: Colors.white,
+              size: 34,
+            ),
             const SizedBox(height: 14),
             Text(
               serviceCase.category,
@@ -249,7 +240,11 @@ class _ProgressCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          for (var index = 0; index < _timelineSteps(serviceCase).length; index++)
+          for (
+            var index = 0;
+            index < _timelineSteps(serviceCase).length;
+            index++
+          )
             _TimelineStep(
               title: _timelineSteps(serviceCase)[index].title,
               subtitle: _timelineSteps(serviceCase)[index].subtitle,
@@ -474,14 +469,14 @@ class _DocumentRequirementRow extends StatelessWidget {
     final statusLabel = isSubmitted
         ? 'Submitted'
         : isMissing
-            ? 'Missing'
-            : 'Required';
+        ? 'Missing'
+        : 'Required';
 
     final icon = isSubmitted
         ? Icons.check_circle_rounded
         : isMissing
-            ? Icons.error_outline_rounded
-            : Icons.description_outlined;
+        ? Icons.error_outline_rounded
+        : Icons.description_outlined;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
