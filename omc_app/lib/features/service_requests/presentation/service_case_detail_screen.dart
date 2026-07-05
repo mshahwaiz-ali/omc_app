@@ -15,8 +15,7 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cases = ref.watch(serviceCasesProvider);
-    final serviceCase = _findCase(cases, caseId);
+    final casesAsync = ref.watch(serviceCasesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -31,29 +30,43 @@ class ServiceCaseDetailScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
-        child: serviceCase == null
-            ? const EmptyState(
+        child: casesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => EmptyState(
+            title: 'Unable to load service',
+            message: error.toString(),
+            icon: Icons.cloud_off_rounded,
+          ),
+          data: (cases) {
+            final serviceCase = _findCase(cases, caseId);
+
+            if (serviceCase == null) {
+              return const EmptyState(
                 title: 'Case not found',
                 message: 'This service case may no longer be available.',
                 icon: Icons.search_off_rounded,
-              )
-            : ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                children: [
-                  _CaseHero(serviceCase: serviceCase),
-                  const SizedBox(height: 16),
-                  _ProgressCard(serviceCase: serviceCase),
-                  const SizedBox(height: 16),
-                  _CaseInfoCard(serviceCase: serviceCase),
-                  const SizedBox(height: 16),
-                  _RequiredDocumentsCard(serviceCase: serviceCase),
-                  const SizedBox(height: 16),
-                  _CaseActionsCard(serviceCase: serviceCase),
-                  const SizedBox(height: 16),
-                  _SupportCard(serviceCase: serviceCase),
-                ],
-              ),
+              );
+            }
+
+            return ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              children: [
+                _CaseHero(serviceCase: serviceCase),
+                const SizedBox(height: 16),
+                _ProgressCard(serviceCase: serviceCase),
+                const SizedBox(height: 16),
+                _CaseInfoCard(serviceCase: serviceCase),
+                const SizedBox(height: 16),
+                _RequiredDocumentsCard(serviceCase: serviceCase),
+                const SizedBox(height: 16),
+                _CaseActionsCard(serviceCase: serviceCase),
+                const SizedBox(height: 16),
+                _SupportCard(serviceCase: serviceCase),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

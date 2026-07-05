@@ -24,7 +24,7 @@ class MyServicesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cases = ref.watch(serviceCasesProvider);
+    final casesAsync = ref.watch(serviceCasesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -39,25 +39,34 @@ class MyServicesScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
-        child: cases.isEmpty
-            ? const EmptyState(
-                title: 'No service requests yet',
-                message: 'Start a request from the service catalogue to track it here.',
-                icon: Icons.assignment_outlined,
-              )
-            : ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                children: [
-                  const _HeaderCard(),
-                  const SizedBox(height: 16),
-                  for (final serviceCase in cases)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: _ServiceCaseCard(serviceCase: serviceCase),
-                    ),
-                ],
-              ),
+        child: casesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => EmptyState(
+            title: 'Unable to load services',
+            message: error.toString(),
+            icon: Icons.cloud_off_rounded,
+          ),
+          data: (cases) => cases.isEmpty
+              ? const EmptyState(
+                  title: 'No service requests yet',
+                  message:
+                      'Start a request from the service catalogue to track it here.',
+                  icon: Icons.assignment_outlined,
+                )
+              : ListView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                  children: [
+                    const _HeaderCard(),
+                    const SizedBox(height: 16),
+                    for (final serviceCase in cases)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _ServiceCaseCard(serviceCase: serviceCase),
+                      ),
+                  ],
+                ),
+        ),
       ),
     );
   }

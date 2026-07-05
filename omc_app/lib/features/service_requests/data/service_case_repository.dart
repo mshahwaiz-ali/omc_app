@@ -12,12 +12,11 @@ final serviceCaseRepositoryProvider = Provider<ServiceCaseRepository>((ref) {
   );
 });
 
-final serviceCasesProvider = Provider<List<ServiceCase>>((ref) {
+final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
   final repository = ref.watch(serviceCaseRepositoryProvider);
 
-  // Temporary UI placeholder while OMC backend endpoints are unavailable.
-  // Production flow must use repository.fetchServiceCases() once backend
-  // mapping/testing resumes.
+  // Temporary UI preview fallback until the final OMC/Frappe case tracking
+  // endpoint is confirmed. Production must switch this to fetchServiceCases().
   return repository.sampleCasesForUiPreview();
 });
 
