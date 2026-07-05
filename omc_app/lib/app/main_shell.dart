@@ -7,6 +7,7 @@ import '../features/auth/application/auth_controller.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/support/presentation/support_screen.dart';
+import '../features/tax_calculator/presentation/tax_calculator_screen.dart';
 import 'theme.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -43,11 +44,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenNotifications: () => context.push('/notifications'),
       ),
       const ServiceCatalogueScreen(),
-      const _PlaceholderScreen(
-        title: 'Calculator',
-        subtitle: 'Salary and business tax estimates are next in the roadmap.',
-        icon: Icons.calculate_rounded,
-      ),
+      const TaxCalculatorScreen(),
       const SupportScreen(),
       _MoreScreen(
         onOpenProfile: () => context.push('/profile'),
@@ -245,48 +242,5 @@ class _DividerIndent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Divider(height: 1, indent: 78, endIndent: 18);
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 52),
-              const SizedBox(height: 18),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, height: 1.4),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
