@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_button.dart';
@@ -500,8 +501,9 @@ class _ServiceRequestDraftScreenState
 
       ref.invalidate(serviceCasesProvider);
 
-      await showDialog<void>(
+      final nextRoute = await showDialog<String>(
         context: context,
+        barrierDismissible: false,
         builder: (dialogContext) {
           final referenceLine = requestId == null || requestId.isEmpty
               ? 'OMC will confirm your reference after backend processing.'
@@ -523,8 +525,14 @@ class _ServiceRequestDraftScreenState
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Done'),
+                onPressed: () => Navigator.of(dialogContext).pop('/services'),
+                child: const Text('Back to services'),
+              ),
+              FilledButton.icon(
+                onPressed: () =>
+                    Navigator.of(dialogContext).pop('/my-services'),
+                icon: const Icon(Icons.track_changes_rounded),
+                label: const Text('Track request'),
               ),
             ],
           );
@@ -532,7 +540,13 @@ class _ServiceRequestDraftScreenState
       );
 
       if (!mounted) return;
-      Navigator.of(context).pop();
+
+      if (nextRoute == null || nextRoute.isEmpty) {
+        Navigator.of(context).pop();
+        return;
+      }
+
+      context.go(nextRoute);
     } on ApiError catch (error) {
       if (!mounted) return;
 
