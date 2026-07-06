@@ -105,6 +105,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
         children: [
           const Text(
             'Tax Calculator',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 28,
@@ -218,6 +220,9 @@ class _TaxCalculatorHero extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(21),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
             ),
             child: const Icon(
               Icons.calculate_rounded,
@@ -232,6 +237,8 @@ class _TaxCalculatorHero extends StatelessWidget {
               children: [
                 Text(
                   'Quick tax estimate',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 19,
@@ -273,6 +280,9 @@ class _CalculatorSectionHeader extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppTheme.primaryRed.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+            ),
           ),
           child: const Icon(
             Icons.tune_rounded,
@@ -287,6 +297,8 @@ class _CalculatorSectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 18,
@@ -296,6 +308,8 @@ class _CalculatorSectionHeader extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12,
@@ -541,7 +555,18 @@ class _ResultMetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 21),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              ),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 18),
+          ),
           const SizedBox(height: 10),
           Text(
             value,
@@ -556,6 +581,8 @@ class _ResultMetricCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 11,
@@ -587,12 +614,16 @@ class _ResultSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
             ],
@@ -626,11 +657,16 @@ class _ResultRow extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w900,
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],

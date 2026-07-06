@@ -31,65 +31,93 @@ class DocumentActionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Actions',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.15,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.task_alt_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Document actions',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.15,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Preview, upload or download the latest file.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Upload, preview, and download actions are available when file links are provided.',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 16),
+          _ActionTile(
+            icon: Icons.visibility_outlined,
+            title: 'Preview document',
+            subtitle: canPreview
+                ? 'Open the uploaded file preview.'
+                : 'Preview will be available after upload.',
+            enabled: canPreview,
+            onTap: onPreview,
           ),
-            const SizedBox(height: 16),
-            _ActionTile(
-              icon: Icons.visibility_outlined,
-              title: 'Preview document',
-              subtitle: canPreview
-                  ? 'Open the uploaded file preview.'
-                  : 'Preview will be available after upload.',
-              enabled: canPreview,
-              onTap: onPreview,
-            ),
-            const SizedBox(height: 10),
-            _ActionTile(
-              icon: isUploading
-                  ? Icons.hourglass_top_rounded
-                  : Icons.upload_file_rounded,
-              title: isUploading
-                  ? 'Uploading document'
-                  : document.requiresAction
-                  ? 'Upload document'
-                  : 'Replace document',
-              subtitle: isUploading
-                  ? 'Please wait while the file is uploaded.'
-                  : 'Attach a new file for upload.',
-              enabled: !isUploading,
-              onTap: onUpload,
-            ),
-            const SizedBox(height: 10),
-            _ActionTile(
-              icon: Icons.download_rounded,
-              title: 'Download document',
-              subtitle: canDownload
-                  ? 'Download the latest submitted file.'
-                  : 'Download will be available after upload.',
-              enabled: canDownload,
-              onTap: onDownload,
-            ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: isUploading
+                ? Icons.hourglass_top_rounded
+                : Icons.upload_file_rounded,
+            title: isUploading
+                ? 'Uploading document'
+                : document.requiresAction
+                ? 'Upload document'
+                : 'Replace document',
+            subtitle: isUploading
+                ? 'Please wait while the file is uploaded.'
+                : 'Attach a new file for upload.',
+            enabled: !isUploading,
+            onTap: onUpload,
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.download_rounded,
+            title: 'Download document',
+            subtitle: canDownload
+                ? 'Download the latest submitted file.'
+                : 'Download will be available after upload.',
+            enabled: canDownload,
+            onTap: onDownload,
+          ),
         ],
       ),
     );
@@ -183,9 +211,9 @@ class _ActionTile extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
+                color: enabled ? AppTheme.primaryRed : AppTheme.textSecondary,
                 size: 20,
               ),
             ),

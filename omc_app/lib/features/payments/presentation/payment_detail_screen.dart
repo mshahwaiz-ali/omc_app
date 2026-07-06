@@ -89,6 +89,7 @@ class _PaymentHeroCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(17),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
               ),
               child: const Icon(
                 Icons.account_balance_wallet_outlined,
@@ -98,6 +99,8 @@ class _PaymentHeroCard extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               payment.status.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 12,
@@ -107,16 +110,21 @@ class _PaymentHeroCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               payment.title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 25,
                 height: 1.12,
                 fontWeight: FontWeight.w900,
+                letterSpacing: -0.35,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               payment.amountLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 22,
@@ -185,7 +193,18 @@ class _PaymentStatTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 22),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.065),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              ),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 18),
+          ),
           const SizedBox(height: 10),
           Text(
             value.trim().isEmpty ? '-' : value.trim(),
@@ -225,6 +244,8 @@ class _PaymentInfoCard extends StatelessWidget {
         children: [
           const Text(
             'Payment information',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 18,
@@ -283,6 +304,8 @@ class _PaymentInfoRow extends StatelessWidget {
             width: 92,
             child: Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12,
@@ -293,6 +316,8 @@ class _PaymentInfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 13,
@@ -427,11 +452,18 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
                 'Payment gateway link is not available for this record.',
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Payment ID: ${payment.id}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Payment ID: ${payment.id}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.05,
+            ),
           ),
         ),
       ],

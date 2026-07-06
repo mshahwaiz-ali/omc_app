@@ -148,8 +148,19 @@ class _PaymentStatTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 18),
-          const SizedBox(height: 7),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              ),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 17),
+          ),
+          const SizedBox(height: 9),
           Text(
             value,
             style: const TextStyle(
@@ -208,6 +219,8 @@ class _PaymentCard extends StatelessWidget {
                 children: [
                   Text(
                     payment.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 14,
@@ -223,7 +236,7 @@ class _PaymentCard extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -248,6 +261,8 @@ class _PaymentCard extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       payment.remarks!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12,
@@ -257,6 +272,20 @@ class _PaymentCard extends StatelessWidget {
                     ),
                   ],
                 ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.primaryRed,
+                size: 20,
               ),
             ),
           ],

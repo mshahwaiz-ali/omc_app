@@ -53,6 +53,8 @@ class KnowledgeDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         article.title,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 26,
@@ -81,6 +83,8 @@ class KnowledgeDetailScreen extends ConsumerWidget {
                     children: [
                       const Text(
                         'Details',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 18,
@@ -103,7 +107,7 @@ class KnowledgeDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 if (externalUri != null) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -284,6 +288,7 @@ class _MetaChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.primaryRed.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
       ),
       child: Text(
         label,
@@ -324,6 +329,9 @@ class _KnowledgeDetailUnavailable extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryRed.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: const Icon(
                   Icons.article_outlined,

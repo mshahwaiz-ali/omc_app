@@ -508,6 +508,8 @@ class _HeroSummaryCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             _money(stats.balance),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 30,
@@ -554,6 +556,8 @@ class _MonthSummaryCard extends StatelessWidget {
         children: [
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 18,
@@ -602,11 +606,20 @@ class _MiniStat extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.primaryRed.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 18),
+          ),
           const SizedBox(height: 10),
           Text(
             label,
@@ -649,22 +662,37 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: AppTheme.primaryRed),
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryRed.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppTheme.primaryRed, size: 18),
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontWeight: FontWeight.w700,
             ),
           ),
         ),
-        Text(
-          valueLabel ?? _money(value ?? 0),
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.w900,
+        Flexible(
+          child: Text(
+            valueLabel ?? _money(value ?? 0),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],
@@ -693,6 +721,9 @@ class _TrackerSectionHeader extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppTheme.primaryRed.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+            ),
           ),
           child: Icon(icon, color: AppTheme.primaryRed, size: 20),
         ),
@@ -703,6 +734,8 @@ class _TrackerSectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 18,
@@ -712,6 +745,8 @@ class _TrackerSectionHeader extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12,
@@ -785,17 +820,24 @@ class _AccountSummaryCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       row.key,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  Text(
-                    _money(row.value),
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w900,
+                  Flexible(
+                    child: Text(
+                      _money(row.value),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ],
@@ -936,6 +978,8 @@ class _MonthlyReportRow extends StatelessWidget {
       children: [
         Text(
           row.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppTheme.textPrimary,
             fontWeight: FontWeight.w900,
@@ -988,6 +1032,8 @@ class _ReportBar extends StatelessWidget {
           width: 92,
           child: Text(
             _money(value),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.end,
             style: const TextStyle(
               color: AppTheme.textPrimary,
@@ -1081,17 +1127,24 @@ class _CategoryRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ),
-            Text(
-              '${_money(amount)} · $percentLabel',
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w900,
+            Flexible(
+              child: Text(
+                '${_money(amount)} · $percentLabel',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ],
@@ -1120,11 +1173,20 @@ class _TransactionTile extends StatelessWidget {
     return PremiumCard(
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
+            ),
             child: Icon(
               isIncome ? Icons.south_west_rounded : Icons.north_east_rounded,
               color: AppTheme.primaryRed,
+              size: 22,
             ),
           ),
           const SizedBox(width: 12),
@@ -1134,6 +1196,8 @@ class _TransactionTile extends StatelessWidget {
               children: [
                 Text(
                   transaction.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w900,
@@ -1142,6 +1206,8 @@ class _TransactionTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${transaction.account} · ${transaction.paymentMethod}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12,
@@ -1177,14 +1243,23 @@ class _TransactionTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '${isIncome ? '+' : '-'}${_money(transaction.amount)}',
-                style: TextStyle(
-                  color: isIncome ? Colors.green.shade700 : Colors.red.shade700,
-                  fontWeight: FontWeight.w900,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 118),
+                child: Text(
+                  '${isIncome ? '+' : '-'}${_money(transaction.amount)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: isIncome
+                        ? Colors.green.shade700
+                        : Colors.red.shade700,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               IconButton(
+                visualDensity: VisualDensity.compact,
                 tooltip: 'Delete',
                 onPressed: onDelete,
                 icon: const Icon(Icons.delete_outline_rounded),
@@ -1305,6 +1380,9 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                   decoration: BoxDecoration(
                     color: AppTheme.primaryRed.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    ),
                   ),
                   child: const Icon(
                     Icons.add_card_rounded,
@@ -1316,6 +1394,8 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                 const Expanded(
                   child: Text(
                     'Add transaction',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 22,
@@ -1451,6 +1531,7 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
               icon: Icons.check_rounded,
               onPressed: _save,
             ),
+            const SizedBox(height: 4),
           ],
         ),
       ),

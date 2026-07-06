@@ -210,7 +210,6 @@ class _KnowledgeHeroCard extends StatelessWidget {
   }
 }
 
-
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.subtitle});
 
@@ -480,7 +479,6 @@ IconData _iconForType(KnowledgeArticleType type) {
   }
 }
 
-
 String _labelForType(KnowledgeArticleType type) {
   switch (type) {
     case KnowledgeArticleType.news:
@@ -493,7 +491,6 @@ String _labelForType(KnowledgeArticleType type) {
       return 'ARTICLE';
   }
 }
-
 
 class _KnowledgeEmptyState extends StatelessWidget {
   const _KnowledgeEmptyState({

@@ -42,7 +42,9 @@ class PaymentActionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Payment Actions',
+                      'Payment actions',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 18,
@@ -52,6 +54,8 @@ class PaymentActionCard extends StatelessWidget {
                     SizedBox(height: 4),
                     Text(
                       'Invoice, receipt and payment gateway controls.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12,
@@ -125,8 +129,13 @@ class _ActionHeaderIcon extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.primaryRed.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
       ),
-      child: const Icon(Icons.bolt_rounded, color: AppTheme.primaryRed),
+      child: const Icon(
+        Icons.bolt_rounded,
+        color: AppTheme.primaryRed,
+        size: 22,
+      ),
     );
   }
 }
@@ -168,8 +177,11 @@ class _ActionTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: enabled ? 0.10 : 0.06),
                   borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: color.withValues(alpha: enabled ? 0.10 : 0.06),
+                  ),
                 ),
-                child: Icon(icon, color: color, size: 22),
+                child: Icon(icon, color: color, size: 21),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -178,6 +190,8 @@ class _ActionTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: enabled
                             ? AppTheme.textPrimary
@@ -189,6 +203,8 @@ class _ActionTile extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12,
@@ -200,9 +216,20 @@ class _ActionTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: enabled ? AppTheme.primaryRed : AppTheme.textSecondary,
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: enabled
+                      ? Colors.white.withValues(alpha: 0.72)
+                      : Colors.black.withValues(alpha: 0.025),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: enabled ? AppTheme.primaryRed : AppTheme.textSecondary,
+                  size: 20,
+                ),
               ),
             ],
           ),

@@ -298,7 +298,6 @@ class _NotificationCard extends StatelessWidget {
   }
 }
 
-
 class _EmptyNotificationsView extends StatelessWidget {
   const _EmptyNotificationsView();
 

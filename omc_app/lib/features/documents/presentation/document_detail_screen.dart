@@ -91,9 +91,7 @@ class _DocumentHeroCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(17),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.18),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
               ),
               child: const Icon(
                 Icons.description_rounded,
@@ -455,7 +453,7 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
         _DocumentInfoCard(document: document),
         const SizedBox(height: 16),
         const _DocumentTimelinePlaceholder(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         DocumentActionCard(
           document: document,
           onPreview: () => _openDocumentUrl(
@@ -473,14 +471,18 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
                 'Document download link is not available for this record.',
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Document ID: ${document.id}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Document ID: ${document.id}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.05,
+            ),
           ),
         ),
       ],
