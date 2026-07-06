@@ -50,19 +50,19 @@ class _DashboardBody extends StatelessWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
       children: [
         _DashboardHero(totalItems: totalItems),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         _MetricGrid(summary: summary),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         _StatusBreakdownCard(summary: summary),
         if (summary.recentActivity.isNotEmpty) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
           _RecentActivityBreakdownCard(activities: summary.recentActivity),
         ],
         if (summary.fallbackMessage != null) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
           _FallbackCard(message: summary.fallbackMessage!),
         ],
       ],
@@ -80,17 +80,17 @@ class _DashboardHero extends StatelessWidget {
     return PremiumCard(
       padding: EdgeInsets.zero,
       child: Container(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(23),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [AppTheme.primaryRed, AppTheme.darkRed],
           ),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryRed.withValues(alpha: 0.20),
-              blurRadius: 30,
-              offset: const Offset(0, 16),
+              color: AppTheme.primaryRed.withValues(alpha: 0.18),
+              blurRadius: 32,
+              offset: const Offset(0, 17),
             ),
           ],
         ),
@@ -268,28 +268,29 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(16),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 118),
+        constraints: const BoxConstraints(minHeight: 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(15),
+                color: AppTheme.primaryRed.withValues(alpha: 0.075),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(icon, color: AppTheme.primaryRed),
+              child: Icon(icon, color: AppTheme.primaryRed, size: 22),
             ),
             const Spacer(),
             Text(
               value,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 27,
+                fontSize: 28,
                 fontWeight: FontWeight.w900,
+                height: 1.02,
               ),
             ),
             const SizedBox(height: 4),
@@ -372,11 +373,11 @@ class _StatusBreakdownRow extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 38,
-          height: 38,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
+            color: AppTheme.primaryRed.withValues(alpha: 0.075),
+            borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(data.icon, color: AppTheme.primaryRed, size: 20),
         ),
@@ -412,8 +413,8 @@ class _StatusBreakdownRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
                 child: LinearProgressIndicator(
                   value: progress,
-                  minHeight: 6,
-                  backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.06),
+                  minHeight: 7,
+                  backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.065),
                   valueColor: const AlwaysStoppedAnimation<Color>(
                     AppTheme.primaryRed,
                   ),
@@ -455,7 +456,7 @@ class _RecentActivityBreakdownCard extends StatelessWidget {
         children: [
           for (final activity in visibleActivities) ...[
             _ActivityRow(activity: activity),
-            if (activity != visibleActivities.last) const SizedBox(height: 14),
+            if (activity != visibleActivities.last) const SizedBox(height: 15),
           ],
         ],
       ),
@@ -474,11 +475,11 @@ class _ActivityRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 38,
-          height: 38,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
+            color: AppTheme.primaryRed.withValues(alpha: 0.075),
+            borderRadius: BorderRadius.circular(15),
           ),
           child: const Icon(
             Icons.timeline_rounded,
@@ -486,7 +487,7 @@ class _ActivityRow extends StatelessWidget {
             size: 20,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 13),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,8 +496,9 @@ class _ActivityRow extends StatelessWidget {
                 activity.title,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
-                  fontSize: 13,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w900,
+                  height: 1.18,
                 ),
               ),
               if (activity.subtitle.isNotEmpty) ...[
@@ -544,7 +546,7 @@ class _DashboardSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(19),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -554,6 +556,7 @@ class _DashboardSection extends StatelessWidget {
               color: AppTheme.textPrimary,
               fontSize: 19,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
             ),
           ),
           if (subtitle != null) ...[
@@ -568,7 +571,7 @@ class _DashboardSection extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 17),
           child,
         ],
       ),
@@ -584,15 +587,15 @@ class _FallbackCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(19),
       child: Row(
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
+              color: AppTheme.primaryRed.withValues(alpha: 0.075),
+              borderRadius: BorderRadius.circular(17),
             ),
             child: const Icon(
               Icons.info_outline_rounded,
@@ -624,10 +627,10 @@ class _DashboardLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
       children: const [
         PremiumCard(
-          padding: EdgeInsets.all(22),
+          padding: EdgeInsets.all(23),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -649,7 +652,7 @@ class _DashboardLoadingView extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: 20),
+        SizedBox(height: 22),
         Row(
           children: [
             Expanded(child: _LoadingMetricCard()),
@@ -678,11 +681,11 @@ class _LoadingMetricCard extends StatelessWidget {
     return const PremiumCard(
       padding: EdgeInsets.all(16),
       child: SizedBox(
-        height: 94,
+        height: 96,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _LoadingBox(width: 42, height: 42, radius: 15),
+            _LoadingBox(width: 42, height: 42, radius: 16),
             Spacer(),
             _LoadingBar(widthFactor: 0.38, height: 18),
             SizedBox(height: 8),
@@ -711,7 +714,7 @@ class _LoadingBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        color: AppTheme.primaryRed.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -729,7 +732,7 @@ class _LoadingPill extends StatelessWidget {
       width: width,
       height: 30,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        color: AppTheme.primaryRed.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(999),
       ),
     );
@@ -749,7 +752,7 @@ class _LoadingBar extends StatelessWidget {
       child: Container(
         height: height,
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.05),
+          color: AppTheme.primaryRed.withValues(alpha: 0.045),
           borderRadius: BorderRadius.circular(999),
         ),
       ),

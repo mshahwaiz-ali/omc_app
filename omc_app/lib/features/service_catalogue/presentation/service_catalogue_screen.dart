@@ -277,20 +277,29 @@ class _CatalogueStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(11),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 18),
-          const SizedBox(height: 7),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 17),
+          ),
+          const SizedBox(height: 8),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 14,
+              fontSize: 14.5,
               fontWeight: FontWeight.w900,
+              height: 1.05,
             ),
           ),
           const SizedBox(height: 3),
@@ -322,11 +331,11 @@ class _CategoryFilter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 42,
+      height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        separatorBuilder: (context, index) => const SizedBox(width: 9),
         itemBuilder: (context, index) {
           final category = categories[index];
           final selected = category == selectedCategory;
@@ -347,7 +356,7 @@ class _CategoryFilter extends StatelessWidget {
                   : Colors.black.withValues(alpha: 0.06),
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(17),
             ),
           );
         },
@@ -370,14 +379,14 @@ class _MyServicesShortcutCard extends StatelessWidget {
             height: 46,
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(17),
             ),
             child: const Icon(
               Icons.assignment_outlined,
               color: AppTheme.primaryRed,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 15),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,7 +441,7 @@ class _ServiceCatalogueCard extends StatelessWidget {
     final wizardLabel = _wizardBadgeLabel(service);
 
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(19),
       onTap: onOpenDetails,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,14 +454,14 @@ class _ServiceCatalogueCard extends StatelessWidget {
                 height: 46,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(17),
                 ),
                 child: const Icon(
                   Icons.workspace_premium_outlined,
                   color: AppTheme.primaryRed,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,13 +478,13 @@ class _ServiceCatalogueCard extends StatelessWidget {
                       const SizedBox(height: 7),
                       _WizardBadge(label: wizardLabel),
                     ],
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 8),
                     Text(
                       service.title,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 18,
-                        height: 1.18,
+                        height: 1.16,
                         fontWeight: FontWeight.w900,
                       ),
                     ),

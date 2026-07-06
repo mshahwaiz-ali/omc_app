@@ -90,10 +90,18 @@ class _EmptyServicesState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.assignment_add,
-                color: AppTheme.primaryRed,
-                size: 44,
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(21),
+                ),
+                child: const Icon(
+                  Icons.assignment_add,
+                  color: AppTheme.primaryRed,
+                  size: 30,
+                ),
               ),
               const SizedBox(height: 14),
               const Text(
@@ -152,10 +160,18 @@ class _LoadErrorState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.cloud_off_rounded,
-                color: AppTheme.primaryRed,
-                size: 42,
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(21),
+                ),
+                child: const Icon(
+                  Icons.cloud_off_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 30,
+                ),
               ),
               const SizedBox(height: 14),
               Text(
@@ -272,11 +288,11 @@ class _HeaderStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(11),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.primaryRed.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.09)),
       ),
       child: Column(
         children: [
@@ -284,8 +300,9 @@ class _HeaderStat extends StatelessWidget {
             value,
             style: const TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 16,
+              fontSize: 16.5,
               fontWeight: FontWeight.w900,
+              height: 1.05,
             ),
           ),
           const SizedBox(height: 3),

@@ -317,17 +317,17 @@ class _HomeHeader extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 52,
-          height: 52,
+          width: 54,
+          height: 54,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(19),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 24,
+                offset: const Offset(0, 11),
               ),
             ],
           ),
@@ -338,7 +338,7 @@ class _HomeHeader extends StatelessWidget {
                 const Icon(Icons.business_rounded, color: AppTheme.primaryRed),
           ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 15),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,7 +348,7 @@ class _HomeHeader extends StatelessWidget {
                 style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 3),
@@ -360,6 +360,7 @@ class _HomeHeader extends StatelessWidget {
                   color: AppTheme.textPrimary,
                   fontSize: 21,
                   fontWeight: FontWeight.w900,
+                  height: 1.05,
                   letterSpacing: -0.4,
                 ),
               ),
@@ -386,20 +387,20 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(31),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryRed.withValues(alpha: 0.24),
-            blurRadius: 30,
-            offset: const Offset(0, 18),
+            color: AppTheme.primaryRed.withValues(alpha: 0.21),
+            blurRadius: 34,
+            offset: const Offset(0, 19),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(31),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(23),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -414,14 +415,14 @@ class _HeroCard extends StatelessWidget {
           child: Stack(
             children: [
               Positioned(
-                right: -34,
-                top: -44,
+                right: -36,
+                top: -46,
                 child: Opacity(
-                  opacity: 0.10,
+                  opacity: 0.09,
                   child: Image.asset(
                     'assets/images/logo_symbol_transparent.png',
-                    width: 150,
-                    height: 150,
+                    width: 154,
+                    height: 154,
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
@@ -431,7 +432,7 @@ class _HeroCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _HeroBadge(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 21),
                   const Text(
                     'Your tax and business services, organized.',
                     style: TextStyle(
@@ -452,7 +453,7 @@ class _HeroCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 23),
                   Row(
                     children: [
                       SizedBox(
@@ -463,13 +464,16 @@ class _HeroCard extends StatelessWidget {
                             backgroundColor: Colors.white,
                             foregroundColor: AppTheme.primaryRed,
                             minimumSize: const Size(0, 48),
-                            padding: const EdgeInsets.symmetric(horizontal: 18),
+                            padding: const EdgeInsets.symmetric(horizontal: 19),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(19),
                             ),
                           ),
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text('Start Request'),
+                          icon: const Icon(Icons.add_rounded, size: 20),
+                          label: const Text(
+                            'Start Request',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -530,8 +534,8 @@ class _HeroMiniStat extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 13),
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
@@ -585,27 +589,28 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 144,
-      padding: const EdgeInsets.all(13),
+      width: 146,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(21),
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.045)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: Colors.black.withValues(alpha: 0.032),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(13),
+              color: AppTheme.primaryRed.withValues(alpha: 0.075),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(item.icon, color: AppTheme.primaryRed, size: 19),
           ),
@@ -653,15 +658,23 @@ class _DashboardFallbackNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       child: Row(
         children: [
-          const Icon(
-            Icons.info_outline_rounded,
-            size: 18,
-            color: AppTheme.textSecondary,
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              size: 17,
+              color: AppTheme.primaryRed,
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
@@ -697,12 +710,23 @@ class _SectionHeader extends StatelessWidget {
               color: AppTheme.textPrimary,
               fontSize: 21,
               fontWeight: FontWeight.w900,
+              height: 1.05,
               letterSpacing: -0.45,
             ),
           ),
         ),
         if (actionText != null)
-          TextButton(onPressed: onAction, child: Text(actionText!)),
+          TextButton(
+            onPressed: onAction,
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryRed,
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            child: Text(actionText!),
+          ),
       ],
     );
   }
@@ -717,16 +741,16 @@ class _QuickActionLauncher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
+      padding: const EdgeInsets.fromLTRB(15, 17, 15, 13),
       child: GridView.builder(
         itemCount: actions.length,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 10,
-          childAspectRatio: 0.92,
+          mainAxisSpacing: 13,
+          crossAxisSpacing: 11,
+          childAspectRatio: 0.91,
         ),
         itemBuilder: (context, index) {
           final action = actions[index];
@@ -749,19 +773,19 @@ class _LogoActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppTheme.primaryRed.withValues(alpha: 0.045),
-      borderRadius: BorderRadius.circular(22),
+      color: AppTheme.primaryRed.withValues(alpha: 0.04),
+      borderRadius: BorderRadius.circular(23),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -771,18 +795,18 @@ class _LogoActionTile extends StatelessWidget {
                       AppTheme.darkRed,
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(19),
                   boxShadow: [
                     BoxShadow(
                       color: AppTheme.primaryRed.withValues(alpha: 0.18),
-                      blurRadius: 16,
+                      blurRadius: 17,
                       offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                child: Icon(action.icon, color: Colors.white, size: 23),
+                child: Icon(action.icon, color: Colors.white, size: 24),
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 10),
               Text(
                 action.title,
                 maxLines: 1,
@@ -841,7 +865,7 @@ class _AttentionCard extends StatelessWidget {
     final onTap = hasDocuments ? onOpenDocuments : onOpenPayments;
 
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(17),
       onTap: onTap,
       child: Row(
         children: [
@@ -849,8 +873,8 @@ class _AttentionCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(17),
+              color: AppTheme.primaryRed.withValues(alpha: 0.075),
+              borderRadius: BorderRadius.circular(18),
             ),
             child: Icon(icon, color: AppTheme.primaryRed, size: 24),
           ),
@@ -906,7 +930,7 @@ class _ProgressCard extends StatelessWidget {
     final hasActiveCase = summary.activeCases > 0;
 
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(19),
       onTap: hasActiveCase ? onTrack : onStartRequest,
       child: Row(
         children: [
@@ -917,7 +941,7 @@ class _ProgressCard extends StatelessWidget {
               color: hasActiveCase
                   ? AppTheme.primaryRed.withValues(alpha: 0.09)
                   : const Color(0xFFFBE8EA),
-              borderRadius: BorderRadius.circular(19),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
               hasActiveCase
@@ -1038,13 +1062,13 @@ class _WorkspaceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
       leading: Container(
         width: 42,
         height: 42,
         decoration: BoxDecoration(
           color: AppTheme.primaryRed.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Icon(action.icon, color: AppTheme.primaryRed, size: 22),
       ),
@@ -1081,23 +1105,24 @@ class _RecentActivityCard extends StatelessWidget {
     final latestActivity = activities.isNotEmpty ? activities.first : null;
 
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(19),
       onTap: onTrack,
       child: Row(
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
+              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(18),
             ),
             child: const Icon(
               Icons.history_rounded,
               color: AppTheme.primaryRed,
+              size: 23,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 15),
           Expanded(
             child: latestActivity == null
                 ? const Column(
@@ -1136,7 +1161,7 @@ class _RecentActivityCard extends StatelessWidget {
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 6),
                       Text(
                         latestActivity.subtitle.isNotEmpty
                             ? latestActivity.subtitle
@@ -1151,12 +1176,12 @@ class _RecentActivityCard extends StatelessWidget {
                         ),
                       ),
                       if (activities.length > 1) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           '+${activities.length - 1} more update(s)',
                           style: const TextStyle(
                             color: AppTheme.primaryRed,
-                            fontSize: 11,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -1192,24 +1217,24 @@ class _RoundIconButton extends StatelessWidget {
       message: tooltip,
       child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(19),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(18),
           child: Container(
-            width: 48,
-            height: 48,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(19),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withValues(alpha: 0.045),
+                  blurRadius: 20,
+                  offset: const Offset(0, 9),
                 ),
               ],
             ),
-            child: Icon(icon, color: AppTheme.primaryRed),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 23),
           ),
         ),
       ),
