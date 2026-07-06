@@ -9,6 +9,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../support/data/support_repository.dart';
 import '../data/settings_preferences.dart';
 import '../data/settings_repository.dart';
 
@@ -39,10 +40,7 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Profile preferences',
                   subtitle: 'Customer identity and account details',
                   trailing: 'Ready',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'Profile preferences will open when profile editing is enabled.',
-                  ),
+                  onTap: () => context.push('/profile'),
                 ),
                 const _DividerIndent(),
                 _SettingsTile(
@@ -50,9 +48,15 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Security',
                   subtitle: 'Password, device and account protection',
                   trailing: 'Secure',
-                  onTap: () => _showBackendPendingSnack(
+                  onTap: () => _showAccountRequestSheet(
                     context,
-                    'Security controls will open when account security is enabled.',
+                    ref,
+                    title: 'Security request',
+                    topic: 'Account security / password change',
+                    label: 'What do you need help with?',
+                    hint:
+                        'Example: I want to change my password or secure my account.',
+                    submitLabel: 'Submit security request',
                   ),
                 ),
                 const _DividerIndent(),
@@ -84,59 +88,61 @@ class SettingsScreen extends ConsumerWidget {
                     _savePreferences(context, ref, updatedPreferences),
               ),
             ),
-            const SizedBox(height: 20),
-            _SettingsSection(
-              title: 'Connection',
-              subtitle:
-                  'Backend environment and service source currently in use.',
-              children: [
-                _SettingsTile(
-                  icon: Icons.cloud_outlined,
-                  title: 'Environment',
-                  subtitle: _environmentLabel,
-                  trailing: Env.isProduction ? 'Live' : 'Dev',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'Environment is configured at build time.',
+            if (!Env.isProduction) ...[
+              const SizedBox(height: 20),
+              _SettingsSection(
+                title: 'Connection',
+                subtitle:
+                    'Backend environment and service source currently in use.',
+                children: [
+                  _SettingsTile(
+                    icon: Icons.cloud_outlined,
+                    title: 'Environment',
+                    subtitle: _environmentLabel,
+                    trailing: Env.isProduction ? 'Live' : 'Dev',
+                    onTap: () => _showBackendPendingSnack(
+                      context,
+                      'Environment is configured at build time.',
+                    ),
                   ),
-                ),
-                const _DividerIndent(),
-                _SettingsTile(
-                  icon: Icons.link_rounded,
-                  title: 'API server',
-                  subtitle: ApiConfig.baseUrl,
-                  trailing: 'Frappe',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'API server is configured through ApiConfig.',
+                  const _DividerIndent(),
+                  _SettingsTile(
+                    icon: Icons.link_rounded,
+                    title: 'API server',
+                    subtitle: ApiConfig.baseUrl,
+                    trailing: 'Frappe',
+                    onTap: () => _showBackendPendingSnack(
+                      context,
+                      'API server is configured through ApiConfig.',
+                    ),
                   ),
-                ),
-                const _DividerIndent(),
-                _SettingsTile(
-                  icon: Icons.grid_view_outlined,
-                  title: 'Service catalogue',
-                  subtitle: Env.useBackendServiceCatalogue
-                      ? 'Backend service catalogue is active'
-                      : 'Bundled catalogue fallback is active',
-                  trailing: Env.useBackendServiceCatalogue ? 'API' : 'Local',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'Catalogue source is configured through environment flags.',
+                  const _DividerIndent(),
+                  _SettingsTile(
+                    icon: Icons.grid_view_outlined,
+                    title: 'Service catalogue',
+                    subtitle: Env.useBackendServiceCatalogue
+                        ? 'Backend service catalogue is active'
+                        : 'Bundled catalogue fallback is active',
+                    trailing: Env.useBackendServiceCatalogue ? 'API' : 'Local',
+                    onTap: () => _showBackendPendingSnack(
+                      context,
+                      'Catalogue source is configured through environment flags.',
+                    ),
                   ),
-                ),
-                const _DividerIndent(),
-                _SettingsTile(
-                  icon: Icons.science_outlined,
-                  title: 'Testing flags',
-                  subtitle: _testingFlagsLabel,
-                  trailing: _hasTestingFlags ? 'On' : 'Off',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'Testing flags are configured at build time.',
+                  const _DividerIndent(),
+                  _SettingsTile(
+                    icon: Icons.science_outlined,
+                    title: 'Testing flags',
+                    subtitle: _testingFlagsLabel,
+                    trailing: _hasTestingFlags ? 'On' : 'Off',
+                    onTap: () => _showBackendPendingSnack(
+                      context,
+                      'Testing flags are configured at build time.',
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
             _SettingsSection(
               title: 'About',
@@ -203,6 +209,54 @@ class SettingsScreen extends ConsumerWidget {
           content: Text('Could not update settings preferences yet.'),
         ),
       );
+    }
+  }
+
+  Future<void> _showAccountRequestSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    required String topic,
+    required String label,
+    required String hint,
+    required String submitLabel,
+  }) async {
+    final controller = TextEditingController();
+
+    final message = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return _AccountRequestSheet(
+          title: title,
+          label: label,
+          hint: hint,
+          submitLabel: submitLabel,
+          controller: controller,
+        );
+      },
+    );
+
+    controller.dispose();
+
+    final cleanMessage = message?.trim();
+    if (cleanMessage == null || cleanMessage.isEmpty) return;
+
+    try {
+      await ref
+          .read(supportRepositoryProvider)
+          .createSupportTicket(topic: topic, message: cleanMessage);
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$title submitted to OMC support.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_settingsErrorMessage(error))));
     }
   }
 
@@ -422,6 +476,103 @@ class _SettingsHero extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AccountRequestSheet extends StatelessWidget {
+  const _AccountRequestSheet({
+    required this.title,
+    required this.label,
+    required this.hint,
+    required this.submitLabel,
+    required this.controller,
+  });
+
+  final String title;
+  final String label;
+  final String hint;
+  final String submitLabel;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(20),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.support_agent_rounded,
+                      color: AppTheme.primaryRed,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                minLines: 4,
+                maxLines: 7,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  labelText: label,
+                  hintText: hint,
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    final text = controller.text.trim();
+                    if (text.length < 10) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter at least 10 characters.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    Navigator.of(context).pop(text);
+                  },
+                  icon: const Icon(Icons.send_rounded),
+                  label: Text(submitLabel),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

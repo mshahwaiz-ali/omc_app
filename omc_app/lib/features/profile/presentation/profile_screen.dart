@@ -6,6 +6,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../support/data/support_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/profile_summary.dart';
 import 'widgets/profile_action_card.dart';
@@ -330,13 +331,21 @@ class _ProfileContent extends StatelessWidget {
         ProfileActionCard(
           onEditProfile: () => _submitProfileUpdateRequest(context, ref),
           onUpdateContact: () => _submitContactUpdateRequest(context, ref),
-          onContactSupport: () => _showBackendPendingSnack(
+          onContactSupport: () => _showProfileRequestSheet(
             context,
-            'Open Support to submit a profile or account help request.',
+            ref,
+            title: 'Contact OMC support',
+            topic: 'Profile / account support',
+            label: 'How can OMC help?',
+            hint: 'Example: I need help with my profile, login, or account.',
+            submitLabel: 'Submit support request',
           ),
-          onRefresh: () {
+          onRefresh: () async {
             ref.invalidate(profileSummaryProvider);
             _showBackendPendingSnack(context, 'Refreshing profile data...');
+            await ref.read(profileSummaryProvider.future);
+            if (!context.mounted) return;
+            _showBackendPendingSnack(context, 'Profile data refreshed.');
           },
         ),
         const SizedBox(height: 20),
@@ -349,28 +358,16 @@ class _ProfileContent extends StatelessWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final repository = ref.read(profileRepositoryProvider);
-    final didSubmit = await repository.requestProfileUpdate({
-      'full_name': profile.displayName,
-      if (profile.phone != null) 'phone': profile.phone,
-      if (profile.cnic != null) 'cnic': profile.cnic,
-      if (profile.ntn != null) 'ntn': profile.ntn,
-      if (profile.companyName != null) 'company_name': profile.companyName,
-    });
-
-    if (!context.mounted) return;
-
-    if (didSubmit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile update request submitted.')),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Could not submit profile update request yet.'),
-      ),
+    await _showProfileRequestSheet(
+      context,
+      ref,
+      title: 'Edit profile request',
+      topic: 'Profile update request',
+      label: 'What profile details should OMC update?',
+      hint:
+          'Example: Update my company name to ABC Pvt Ltd and NTN to 1234567-8.',
+      submitLabel: 'Submit profile request',
+      includeProfileSnapshot: true,
     );
   }
 
@@ -378,37 +375,187 @@ class _ProfileContent extends StatelessWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final repository = ref.read(profileRepositoryProvider);
-    final didSubmit = await repository.requestContactUpdate({
-      'email': profile.email,
-      'full_name': profile.displayName,
-      if (profile.phone != null) 'phone': profile.phone,
-      if (profile.phone != null) 'mobile': profile.phone,
-      if (profile.cnic != null) 'cnic': profile.cnic,
-      if (profile.ntn != null) 'ntn': profile.ntn,
-      if (profile.companyName != null) 'company_name': profile.companyName,
-    });
-
-    if (!context.mounted) return;
-
-    if (didSubmit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Contact update request submitted.')),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Could not submit contact update request yet.'),
-      ),
+    await _showProfileRequestSheet(
+      context,
+      ref,
+      title: 'Update contact info',
+      topic: 'Contact update request',
+      label: 'What contact details should OMC update?',
+      hint: 'Example: Change my phone number to 03XXXXXXXXX.',
+      submitLabel: 'Submit contact request',
+      includeProfileSnapshot: true,
     );
+  }
+
+  Future<void> _showProfileRequestSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    required String topic,
+    required String label,
+    required String hint,
+    required String submitLabel,
+    bool includeProfileSnapshot = false,
+  }) async {
+    final controller = TextEditingController();
+
+    final message = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return _ProfileRequestSheet(
+          title: title,
+          label: label,
+          hint: hint,
+          submitLabel: submitLabel,
+          controller: controller,
+        );
+      },
+    );
+
+    controller.dispose();
+
+    final cleanMessage = message?.trim();
+    if (cleanMessage == null || cleanMessage.isEmpty) return;
+
+    final profileSnapshot = includeProfileSnapshot
+        ? '''
+
+Current account:
+Name: ${profile.displayName}
+Email: ${profile.email}
+Phone: ${profile.phone ?? 'Not available'}
+CNIC / Tax ID: ${profile.cnic ?? 'Not available'}
+NTN: ${profile.ntn ?? 'Not available'}
+Company: ${profile.companyName ?? 'Not available'}'''
+        : '';
+
+    try {
+      await ref
+          .read(supportRepositoryProvider)
+          .createSupportTicket(
+            topic: topic,
+            message: '$cleanMessage$profileSnapshot',
+          );
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$title submitted to OMC support.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not submit request right now. Please try again.',
+          ),
+        ),
+      );
+    }
   }
 
   void _showBackendPendingSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _ProfileRequestSheet extends StatelessWidget {
+  const _ProfileRequestSheet({
+    required this.title,
+    required this.label,
+    required this.hint,
+    required this.submitLabel,
+    required this.controller,
+  });
+
+  final String title;
+  final String label;
+  final String hint;
+  final String submitLabel;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(20),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.edit_note_rounded,
+                      color: AppTheme.primaryRed,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                minLines: 4,
+                maxLines: 7,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  labelText: label,
+                  hintText: hint,
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    final text = controller.text.trim();
+                    if (text.length < 10) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter at least 10 characters.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    Navigator.of(context).pop(text);
+                  },
+                  icon: const Icon(Icons.send_rounded),
+                  label: Text(submitLabel),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

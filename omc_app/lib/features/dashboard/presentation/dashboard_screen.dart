@@ -269,8 +269,8 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PremiumCard(
       padding: const EdgeInsets.all(16),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 120),
+      child: SizedBox(
+        height: 120,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -283,7 +283,7 @@ class _MetricCard extends StatelessWidget {
               ),
               child: Icon(icon, color: AppTheme.primaryRed, size: 22),
             ),
-            const Spacer(),
+            const SizedBox(height: 22),
             Text(
               value,
               style: const TextStyle(
