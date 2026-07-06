@@ -91,45 +91,64 @@ class _TicketDetailLoadingView extends StatelessWidget {
         PremiumCard(
           padding: EdgeInsets.zero,
           child: Column(
-            children: List.generate(
-              4,
-              (index) => ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 8,
-                ),
-                leading: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(14),
+            children: List.generate(4, (index) => const _LoadingDetailTile()),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingDetailTile extends StatelessWidget {
+  const _LoadingDetailTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FractionallySizedBox(
+                  widthFactor: 0.38,
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
                   ),
                 ),
-                title: Container(
-                  height: 10,
-                  width: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                const SizedBox(height: 8),
+                FractionallySizedBox(
+                  widthFactor: 0.78,
+                  alignment: Alignment.centerLeft,
                   child: Container(
                     height: 12,
-                    width: double.infinity,
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -344,41 +363,60 @@ class _DetailTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    return InkWell(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: AppTheme.primaryRed),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      height: 1.3,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: 10),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary,
+              ),
+            ],
+          ],
         ),
-        child: Icon(icon, color: AppTheme.primaryRed),
       ),
-      title: Text(
-        label,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 14,
-            height: 1.3,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
     );
   }
 }

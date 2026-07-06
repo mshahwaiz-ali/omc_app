@@ -32,7 +32,11 @@ class CustomerDetailScreen extends ConsumerWidget {
 
           return _CustomerDetailBody(customer: customer);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const CrmDetailLoadingView(
+          icon: Icons.groups_2_rounded,
+          title: 'Loading customer',
+          message: 'Fetching contact, relationship and service context.',
+        ),
         error: (error, _) => PremiumEmptyState(
           icon: Icons.groups_2_rounded,
           title: 'Customer detail unavailable',
@@ -60,7 +64,6 @@ class _CustomerDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final statusLabel = _customerStatusLabel(customer.status);
 
     return ListView(
@@ -101,12 +104,7 @@ class _CustomerDetailBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          'Customer ID: ${customer.id}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+        CrmDetailMetaFooter(label: 'Customer ID', value: customer.id),
       ],
     );
   }

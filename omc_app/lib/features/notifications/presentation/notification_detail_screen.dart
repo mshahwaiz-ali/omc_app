@@ -345,57 +345,60 @@ class _NotificationHeroCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-          Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Icon(icon, color: color, size: 30),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _InfoPill(label: notification.type.label, color: color),
-                    _InfoPill(
-                      label: notification.isRead ? 'Read' : 'Unread',
-                      color: notification.isRead
-                          ? Colors.green.shade700
-                          : AppTheme.primaryRed,
+                  Row(
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Icon(icon, color: color, size: 30),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _InfoPill(
+                              label: notification.type.label,
+                              color: color,
+                            ),
+                            _InfoPill(
+                              label: notification.isRead ? 'Read' : 'Unread',
+                              color: notification.isRead
+                                  ? Colors.green.shade700
+                                  : AppTheme.primaryRed,
+                            ),
+                            if (notification.actionUrl != null)
+                              const _InfoPill(label: 'Action available'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    notification.title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w900,
+                      height: 1.15,
                     ),
-                    if (notification.actionUrl != null)
-                      const _InfoPill(label: 'Action available'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(
-            notification.title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 23,
-              fontWeight: FontWeight.w900,
-              height: 1.15,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            notification.message,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-            ),
-          ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    notification.message,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.45,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -476,11 +479,7 @@ class _ActionsCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.tune_rounded,
-                color: AppTheme.primaryRed,
-                size: 20,
-              ),
+              Icon(Icons.tune_rounded, color: AppTheme.primaryRed, size: 20),
               SizedBox(width: 8),
               Text(
                 'Actions',
@@ -569,38 +568,48 @@ class _DetailTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Icon(icon, color: AppTheme.primaryRed, size: 21),
-      ),
-      title: Text(
-        label,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 14,
-            height: 1.25,
-            fontWeight: FontWeight.w800,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 21),
           ),
-        ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
+                    height: 1.25,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

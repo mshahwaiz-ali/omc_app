@@ -32,7 +32,11 @@ class LeadDetailScreen extends ConsumerWidget {
 
           return _LeadDetailBody(lead: lead);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const CrmDetailLoadingView(
+          icon: Icons.trending_up_rounded,
+          title: 'Loading lead',
+          message: 'Fetching contact, timeline and conversion context.',
+        ),
         error: (error, _) => PremiumEmptyState(
           icon: Icons.trending_up_rounded,
           title: 'Lead detail unavailable',
@@ -60,7 +64,6 @@ class _LeadDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final statusLabel = _leadStatusLabel(lead.status);
 
     return ListView(
@@ -98,12 +101,7 @@ class _LeadDetailBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          'Lead ID: ${lead.id}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+        CrmDetailMetaFooter(label: 'Lead ID', value: lead.id),
       ],
     );
   }

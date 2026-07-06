@@ -369,3 +369,156 @@ class _TimelineItemTile extends StatelessWidget {
     );
   }
 }
+
+class CrmDetailLoadingView extends StatelessWidget {
+  const CrmDetailLoadingView({
+    required this.icon,
+    required this.title,
+    required this.message,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        PremiumCard(
+          padding: EdgeInsets.zero,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -30,
+                  top: -32,
+                  child: Icon(
+                    icon,
+                    size: 112,
+                    color: AppTheme.primaryRed.withValues(alpha: 0.04),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(19),
+                          border: Border.all(
+                            color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                          ),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 20,
+                                height: 1.16,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              message,
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 13,
+                                height: 1.35,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const CrmDetailInfoCard(
+          title: 'Preparing details',
+          rows: [
+            CrmInfoRow(label: 'Contact', value: 'Loading'),
+            CrmInfoRow(label: 'Activity', value: 'Loading'),
+            CrmInfoRow(label: 'Timeline', value: 'Loading'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class CrmDetailMetaFooter extends StatelessWidget {
+  const CrmDetailMetaFooter({
+    required this.label,
+    required this.value,
+    super.key,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final safeValue = value.trim().isEmpty ? '-' : value.trim();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              safeValue,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

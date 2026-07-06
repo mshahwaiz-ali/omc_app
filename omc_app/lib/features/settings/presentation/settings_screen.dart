@@ -424,7 +424,6 @@ class _SettingsHero extends StatelessWidget {
   }
 }
 
-
 class _PreferencesSection extends StatelessWidget {
   const _PreferencesSection({
     required this.preferences,
@@ -647,36 +646,48 @@ class _SettingsSwitchTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEnabled = onChanged != null;
 
-    return SwitchListTile.adaptive(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      secondary: _SettingsIcon(icon: icon, isEnabled: isEnabled),
-      title: Text(
-        title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: isEnabled ? AppTheme.textPrimary : AppTheme.textSecondary,
-          fontSize: 14,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.1,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          subtitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-            height: 1.35,
-            fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Row(
+        children: [
+          _SettingsIcon(icon: icon, isEnabled: isEnabled),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isEnabled
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 12),
+          Switch.adaptive(value: value, onChanged: onChanged),
+        ],
       ),
-      value: value,
-      onChanged: onChanged,
     );
   }
 }
@@ -755,56 +766,65 @@ class _SettingsTile extends StatelessWidget {
         ? Colors.red.shade700
         : AppTheme.primaryRed;
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+    return InkWell(
       onTap: onTap,
-      leading: _SettingsIcon(
-        icon: icon,
-        color: accentColor,
-        backgroundAlpha: isDestructive ? 0.08 : 0.08,
-      ),
-      title: Text(
-        title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 14,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.1,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          subtitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-            height: 1.35,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      trailing: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 4,
-        children: [
-          Text(
-            trailing,
-            style: TextStyle(
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          children: [
+            _SettingsIcon(
+              icon: icon,
               color: accentColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+              backgroundAlpha: isDestructive ? 0.08 : 0.08,
             ),
-          ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppTheme.textSecondary,
-          ),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              trailing,
+              style: TextStyle(
+                color: accentColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -834,9 +854,7 @@ class _SettingsIcon extends StatelessWidget {
       decoration: BoxDecoration(
         color: iconColor.withValues(alpha: backgroundAlpha),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: iconColor.withValues(alpha: backgroundAlpha),
-        ),
+        border: Border.all(color: iconColor.withValues(alpha: backgroundAlpha)),
       ),
       child: Icon(icon, color: iconColor, size: 21),
     );

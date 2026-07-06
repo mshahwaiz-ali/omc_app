@@ -43,7 +43,7 @@ class _ServiceCaseDetailScreenState
             child: SafeArea(
               top: false,
               child: caseAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const _CaseDetailLoadingView(),
                 error: (error, stackTrace) => _LoadErrorState(
                   title: 'Tracking detail unavailable',
                   message: _cleanErrorMessage(error),
@@ -177,6 +177,177 @@ class _ServiceCaseDetailScreenState
     }
 
     return null;
+  }
+}
+
+class _CaseDetailLoadingView extends StatelessWidget {
+  const _CaseDetailLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      children: const [
+        _ServiceLoadingView(
+          icon: Icons.fact_check_rounded,
+          title: 'Loading case',
+          message: 'Fetching request progress, documents and support actions.',
+        ),
+      ],
+    );
+  }
+}
+
+class _ServiceLoadingView extends StatelessWidget {
+  const _ServiceLoadingView({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        PremiumCard(
+          padding: EdgeInsets.zero,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -30,
+                  top: -34,
+                  child: Icon(
+                    icon,
+                    size: 118,
+                    color: AppTheme.primaryRed.withValues(alpha: 0.045),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(19),
+                          border: Border.all(
+                            color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                          ),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 20,
+                                height: 1.16,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              message,
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 13,
+                                height: 1.35,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const _CaseLoadingCard(),
+        const SizedBox(height: 14),
+        const _CaseLoadingCard(),
+        const SizedBox(height: 14),
+        const _CaseLoadingCard(),
+      ],
+    );
+  }
+}
+
+class _CaseLoadingCard extends StatelessWidget {
+  const _CaseLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(17),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _CaseLoadingBar(widthFactor: 0.72),
+                SizedBox(height: 10),
+                _CaseLoadingBar(widthFactor: 0.52),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseLoadingBar extends StatelessWidget {
+  const _CaseLoadingBar({required this.widthFactor});
+
+  final double widthFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: 11,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryRed.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
   }
 }
 

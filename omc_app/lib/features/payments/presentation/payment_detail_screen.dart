@@ -37,11 +37,142 @@ class PaymentDetailScreen extends ConsumerWidget {
 
           return _PaymentDetailBody(payment: payment);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _DetailLoadingView(
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Loading payment',
+          message: 'Fetching invoice, receipt and payment action details.',
+        ),
         error: (error, _) => PremiumEmptyState(
           icon: Icons.cloud_off_rounded,
           title: 'Payment unavailable',
           message: _cleanError(error),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailLoadingView extends StatelessWidget {
+  const _DetailLoadingView({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        PremiumCard(
+          padding: EdgeInsets.zero,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -30,
+                  top: -34,
+                  child: Icon(
+                    icon,
+                    size: 118,
+                    color: AppTheme.primaryRed.withValues(alpha: 0.045),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(19),
+                          border: Border.all(
+                            color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                          ),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 20,
+                                height: 1.16,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              message,
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 13,
+                                height: 1.35,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const PremiumCard(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _LoadingBar(widthFactor: 0.74),
+              SizedBox(height: 12),
+              _LoadingBar(widthFactor: 0.56),
+              SizedBox(height: 12),
+              _LoadingBar(widthFactor: 0.68),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingBar extends StatelessWidget {
+  const _LoadingBar({required this.widthFactor});
+
+  final double widthFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: 12,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryRed.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(999),
         ),
       ),
     );
