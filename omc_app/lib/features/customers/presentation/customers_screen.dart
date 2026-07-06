@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../../../core/widgets/premium_list_card.dart';
 import '../data/customers_repository.dart';
 import '../domain/customer_item.dart';
@@ -93,11 +94,21 @@ class _CustomersContent extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: customers.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      itemCount: customers.length + 1,
+      separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
       itemBuilder: (context, index) {
-        return _CustomerCard(customer: customers[index]);
+        if (index == 0) {
+          return PremiumListHeader(
+            icon: Icons.groups_2_rounded,
+            title: 'Customers',
+            subtitle: 'Browse customer records, activity and account context.',
+            metaLabel: '${customers.length} total',
+          );
+        }
+
+        return _CustomerCard(customer: customers[index - 1]);
       },
     );
   }
@@ -114,7 +125,7 @@ class _CustomerCard extends StatelessWidget {
       icon: Icons.groups_2_rounded,
       title: customer.name,
       subtitle: customer.companyName,
-      trailing: _StatusPill(label: _customerStatusLabel(customer.status)),
+      trailing: PremiumInfoChip(label: _customerStatusLabel(customer.status)),
       onTap: () {
         context.push('/customers/${Uri.encodeComponent(customer.id)}');
       },
@@ -153,33 +164,5 @@ class _CustomerCard extends StatelessWidget {
       case CustomerStatus.unknown:
         return 'Unknown';
     }
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSecondaryContainer,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../../../core/widgets/premium_list_card.dart';
 import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
@@ -34,12 +35,23 @@ class TasksScreen extends ConsumerWidget {
               await ref.read(tasksProvider.future);
             },
             child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               itemBuilder: (context, index) {
-                return _TaskCard(task: tasks[index]);
+                if (index == 0) {
+                  return PremiumListHeader(
+                    icon: Icons.task_alt_rounded,
+                    title: 'Tasks',
+                    subtitle: 'Track assigned work, due dates and priorities.',
+                    metaLabel: '${tasks.length} total',
+                  );
+                }
+
+                return _TaskCard(task: tasks[index - 1]);
               },
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemCount: tasks.length,
+              separatorBuilder: (_, index) =>
+                  SizedBox(height: index == 0 ? 18 : 12),
+              itemCount: tasks.length + 1,
             ),
           );
         },

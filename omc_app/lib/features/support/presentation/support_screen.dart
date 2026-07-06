@@ -8,6 +8,7 @@ import '../../../core/config/support_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
 
@@ -50,23 +51,12 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
-          const Text(
-            'Support',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Get help with services, documents, tax queries and request updates.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
+          const PremiumListHeader(
+            icon: Icons.support_agent_rounded,
+            title: 'Support',
+            subtitle:
+                'Get help with services, documents, tax queries and request updates.',
+            metaLabel: 'Help desk',
           ),
           const SizedBox(height: 20),
           const _SupportHeroCard(),

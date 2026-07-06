@@ -8,6 +8,8 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../application/service_catalogue_controller.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_item.dart';
@@ -191,23 +193,11 @@ class _CatalogueHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Services',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Tax, registration and compliance services from OMC.',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 14,
-            height: 1.4,
-            fontWeight: FontWeight.w600,
-          ),
+        PremiumListHeader(
+          icon: Icons.workspace_premium_outlined,
+          title: 'Services',
+          subtitle: 'Tax, registration and compliance services from OMC.',
+          metaLabel: '\$filteredCount showing',
         ),
         const SizedBox(height: 16),
         TextField(
@@ -287,12 +277,12 @@ class _CatalogueStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 21),
-          const SizedBox(height: 9),
+          Icon(icon, color: AppTheme.primaryRed, size: 18),
+          const SizedBox(height: 7),
           Text(
             value,
             maxLines: 1,
@@ -499,8 +489,11 @@ class _ServiceCatalogueCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _InfoPill(icon: Icons.payments_outlined, label: service.feeLabel),
-              _InfoPill(
+              PremiumInfoChip(
+                icon: Icons.payments_outlined,
+                label: service.feeLabel,
+              ),
+              PremiumInfoChip(
                 icon: Icons.schedule_rounded,
                 label: service.completionTime,
               ),
@@ -629,41 +622,6 @@ String _requestButtonLabel(ServiceItem service) {
 
 String _normalizedWizardType(ServiceItem service) {
   return service.wizardType?.trim().toLowerCase() ?? '';
-}
-
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppTheme.primaryRed),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _RequirementRow extends StatelessWidget {

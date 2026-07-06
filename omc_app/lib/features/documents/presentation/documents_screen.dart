@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
 
@@ -136,23 +138,12 @@ class _DocumentsHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Your document vault',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Track required, submitted and reviewed documents for OMC services.',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 14,
-            height: 1.4,
-            fontWeight: FontWeight.w600,
-          ),
+        PremiumListHeader(
+          icon: Icons.folder_copy_outlined,
+          title: 'Documents',
+          subtitle:
+              'Track required, submitted and reviewed documents for OMC services.',
+          metaLabel: '${documents.length} total',
         ),
         if (documents.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -212,17 +203,17 @@ class _DocumentStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 20),
-          const SizedBox(height: 9),
+          Icon(icon, color: AppTheme.primaryRed, size: 18),
+          const SizedBox(height: 7),
           Text(
             value,
             style: const TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -279,7 +270,7 @@ class _DocumentCard extends StatelessWidget {
                     document.title,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -300,14 +291,14 @@ class _DocumentCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _InfoChip(
+                      PremiumInfoChip(
                         label: document.status.label,
                         color: statusColor,
                       ),
                       if (document.serviceReference != null)
-                        _InfoChip(label: document.serviceReference!),
+                        PremiumInfoChip(label: document.serviceReference!),
                       if (document.updatedAtLabel != null)
-                        _InfoChip(label: document.updatedAtLabel!),
+                        PremiumInfoChip(label: document.updatedAtLabel!),
                     ],
                   ),
                   if (document.fileName != null ||
@@ -369,34 +360,6 @@ class _DocumentCard extends StatelessWidget {
       case DocumentStatus.uploaded:
         return Icons.description_rounded;
     }
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, this.color = AppTheme.primaryRed});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
   }
 }
 

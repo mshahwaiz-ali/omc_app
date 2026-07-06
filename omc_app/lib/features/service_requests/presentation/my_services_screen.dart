@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
@@ -221,88 +223,42 @@ class _HeaderCard extends StatelessWidget {
         .where((item) => item.missingDocuments.isNotEmpty)
         .length;
 
-    return PremiumCard(
-      padding: EdgeInsets.zero,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppTheme.primaryRed, AppTheme.darkRed],
-          ),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.track_changes_rounded,
-                  color: Colors.white,
-                  size: 34,
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Support',
-                  onPressed: () => SupportLauncher.openWhatsApp(context),
-                  icon: const Icon(
-                    Icons.support_agent_rounded,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Track your OMC work',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                height: 1.12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PremiumListHeader(
+          icon: Icons.track_changes_rounded,
+          title: 'Track',
+          subtitle:
               'View active requests, document requirements and completion status.',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
+          metaLabel: '${cases.length} total',
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _HeaderStat(
+                value: activeCount.toString(),
+                label: 'Active',
               ),
             ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _HeaderStat(
-                    value: activeCount.toString(),
-                    label: 'Active',
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _HeaderStat(
-                    value: missingDocsCount.toString(),
-                    label: 'Need docs',
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _HeaderStat(
-                    value: completedCount.toString(),
-                    label: 'Done',
-                  ),
-                ),
-              ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: _HeaderStat(
+                value: missingDocsCount.toString(),
+                label: 'Need docs',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _HeaderStat(
+                value: completedCount.toString(),
+                label: 'Done',
+              ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
@@ -316,19 +272,19 @@ class _HeaderStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
+        color: AppTheme.primaryRed.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
       ),
       child: Column(
         children: [
           Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
+              color: AppTheme.textPrimary,
+              fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -337,8 +293,8 @@ class _HeaderStat extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
+              color: AppTheme.textSecondary,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -390,10 +346,16 @@ class _ServiceCaseCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _InfoPill(label: serviceCase.category),
+              PremiumInfoChip(
+                icon: Icons.category_outlined,
+                label: serviceCase.category,
+              ),
               ServiceCaseStatusBadge(status: serviceCase.status),
               if (serviceCase.reference != null)
-                _InfoPill(label: serviceCase.reference!),
+                PremiumInfoChip(
+                  icon: Icons.confirmation_number_outlined,
+                  label: serviceCase.reference!,
+                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -491,49 +453,6 @@ class _StatusIcon extends StatelessWidget {
   }
 }
 
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.label, this.isStatus = false});
-
-  final String label;
-  final bool isStatus;
-
-  @override
-  Widget build(BuildContext context) {
-    final normalized = label.toLowerCase();
-    final isComplete = normalized.contains('complete');
-    final needsDocs =
-        normalized.contains('document') || normalized.contains('missing');
-
-    final Color foreground = isStatus
-        ? isComplete
-              ? const Color(0xFF18864B)
-              : needsDocs
-              ? const Color(0xFFB25E00)
-              : AppTheme.primaryRed
-        : AppTheme.textSecondary;
-
-    final Color background = isStatus
-        ? foreground.withValues(alpha: 0.10)
-        : AppTheme.background;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: foreground,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
 class _DetailRow extends StatelessWidget {
   const _DetailRow({
     required this.icon,
@@ -595,7 +514,13 @@ class ServiceCaseStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _InfoPill(label: status, isStatus: true);
+    final style = serviceCaseStatusStyle(status);
+
+    return PremiumInfoChip(
+      icon: style.icon,
+      label: style.label,
+      color: AppTheme.primaryRed,
+    );
   }
 }
 

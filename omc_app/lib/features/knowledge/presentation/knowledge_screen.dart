@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../data/knowledge_article.dart';
 import '../data/knowledge_repository.dart';
 
@@ -49,23 +50,12 @@ class KnowledgeScreen extends ConsumerWidget {
                 ),
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
                 children: [
-                  const Text(
-                    'Knowledge & News',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tax insights, compliance guides, FBR updates and OMC announcements.',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 14,
-                      height: 1.4,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  PremiumListHeader(
+                    icon: Icons.auto_stories_outlined,
+                    title: 'Knowledge & News',
+                    subtitle:
+                        'Tax insights, compliance guides, FBR updates and OMC announcements.',
+                    metaLabel: '${articles.length} items',
                   ),
                   const SizedBox(height: 18),
                   _KnowledgeHeroCard(

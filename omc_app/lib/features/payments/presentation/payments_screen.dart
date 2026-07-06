@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
 
@@ -77,23 +79,12 @@ class _PaymentsHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Payments',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Track invoices, dues, receipts and service payment status.',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 14,
-            height: 1.4,
-            fontWeight: FontWeight.w600,
-          ),
+        PremiumListHeader(
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Payments',
+          subtitle:
+              'Track invoices, dues, receipts and service payment status.',
+          metaLabel: '${payments.length} total',
         ),
         if (payments.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -153,17 +144,17 @@ class _PaymentStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 20),
-          const SizedBox(height: 9),
+          Icon(icon, color: AppTheme.primaryRed, size: 18),
+          const SizedBox(height: 7),
           Text(
             value,
             style: const TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -219,7 +210,7 @@ class _PaymentCard extends StatelessWidget {
                     payment.title,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -237,18 +228,20 @@ class _PaymentCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _InfoChip(
+                      PremiumInfoChip(
                         label: payment.status.label,
                         color: statusColor,
                       ),
                       if (payment.reference != null)
-                        _InfoChip(label: payment.reference!),
+                        PremiumInfoChip(label: payment.reference!),
                       if (payment.dueDateLabel != null)
-                        _InfoChip(label: 'Due ${payment.dueDateLabel!}'),
+                        PremiumInfoChip(label: 'Due ${payment.dueDateLabel!}'),
                       if (payment.paidDateLabel != null)
-                        _InfoChip(label: 'Paid ${payment.paidDateLabel!}'),
+                        PremiumInfoChip(
+                          label: 'Paid ${payment.paidDateLabel!}',
+                        ),
                       if (payment.serviceReference != null)
-                        _InfoChip(label: payment.serviceReference!),
+                        PremiumInfoChip(label: payment.serviceReference!),
                     ],
                   ),
                   if (payment.remarks != null) ...[
@@ -296,34 +289,6 @@ class _PaymentCard extends StatelessWidget {
       case PaymentStatus.pending:
         return Icons.account_balance_wallet_outlined;
     }
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, this.color = AppTheme.primaryRed});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
   }
 }
 

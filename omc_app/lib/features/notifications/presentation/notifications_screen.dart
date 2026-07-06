@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_info_chip.dart';
 import '../data/notification_item.dart';
 import '../data/notifications_repository.dart';
 
@@ -237,13 +238,22 @@ class _NotificationCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _InfoChip(label: notification.type.label, color: color),
+                        PremiumInfoChip(
+                          label: notification.type.label,
+                          color: color,
+                        ),
                         if (notification.reference != null)
-                          _InfoChip(label: notification.reference!),
+                          PremiumInfoChip(label: notification.reference!),
                         if (notification.actionUrl != null)
-                          const _InfoChip(label: 'Action available'),
+                          const PremiumInfoChip(
+                            label: 'Action available',
+                            icon: Icons.touch_app_outlined,
+                          ),
                         if (notification.createdAtLabel != null)
-                          _InfoChip(label: notification.createdAtLabel!),
+                          PremiumInfoChip(
+                            label: notification.createdAtLabel!,
+                            icon: Icons.schedule_rounded,
+                          ),
                       ],
                     ),
                   ],
@@ -317,36 +327,6 @@ class _SummaryPill extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, this.color});
-
-  final String label;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final chipColor = color ?? AppTheme.primaryRed;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: chipColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../../../core/widgets/premium_list_card.dart';
 import '../data/leads_repository.dart';
 import '../domain/lead_item.dart';
@@ -93,11 +94,21 @@ class _LeadsContent extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: leads.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      itemCount: leads.length + 1,
+      separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
       itemBuilder: (context, index) {
-        return _LeadCard(lead: leads[index]);
+        if (index == 0) {
+          return PremiumListHeader(
+            icon: Icons.trending_up_rounded,
+            title: 'Leads',
+            subtitle: 'Review opportunities, contacts and follow-up sources.',
+            metaLabel: '${leads.length} total',
+          );
+        }
+
+        return _LeadCard(lead: leads[index - 1]);
       },
     );
   }
@@ -114,7 +125,7 @@ class _LeadCard extends StatelessWidget {
       icon: Icons.trending_up_rounded,
       title: lead.title,
       subtitle: lead.customerName,
-      trailing: _StatusPill(label: _leadStatusLabel(lead.status)),
+      trailing: PremiumInfoChip(label: _leadStatusLabel(lead.status)),
       onTap: () {
         context.push('/leads/${Uri.encodeComponent(lead.id)}');
       },
@@ -149,33 +160,5 @@ class _LeadCard extends StatelessWidget {
       case LeadStatus.unknown:
         return 'Unknown';
     }
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSecondaryContainer,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
   }
 }
