@@ -4,8 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
+import '../../../app/theme.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
@@ -58,6 +59,319 @@ String _cleanError(Object error) {
   return message;
 }
 
+class _PaymentHeroCard extends StatelessWidget {
+  const _PaymentHeroCard({required this.payment});
+
+  final PaymentItem payment;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.primaryRed, AppTheme.darkRed],
+          ),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              payment.status.label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              payment.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 25,
+                height: 1.12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              payment.amountLabel,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentQuickStats extends StatelessWidget {
+  const _PaymentQuickStats({required this.payment});
+
+  final PaymentItem payment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _PaymentStatTile(
+            icon: _paymentStatusIcon(payment.status),
+            label: 'Status',
+            value: payment.status.label,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _PaymentStatTile(
+            icon: Icons.receipt_long_outlined,
+            label: 'Invoice',
+            value: payment.invoiceUrl == null ? 'No' : 'Yes',
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _PaymentStatTile(
+            icon: Icons.payment_rounded,
+            label: 'Pay link',
+            value: payment.paymentUrl == null ? 'No' : 'Yes',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentStatTile extends StatelessWidget {
+  const _PaymentStatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 22),
+          const SizedBox(height: 10),
+          Text(
+            value.trim().isEmpty ? '-' : value.trim(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentInfoCard extends StatelessWidget {
+  const _PaymentInfoCard({required this.payment});
+
+  final PaymentItem payment;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Payment information',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _PaymentInfoRow(label: 'Reference', value: payment.reference ?? '-'),
+          _PaymentInfoRow(
+            label: 'Invoice',
+            value: payment.invoiceUrl == null ? '-' : 'Available',
+          ),
+          _PaymentInfoRow(
+            label: 'Receipt',
+            value: payment.receiptUrl == null ? '-' : 'Available',
+          ),
+          _PaymentInfoRow(
+            label: 'Payment link',
+            value: payment.paymentUrl == null ? '-' : 'Available',
+          ),
+          _PaymentInfoRow(
+            label: 'Service',
+            value: payment.serviceReference ?? '-',
+          ),
+          _PaymentInfoRow(
+            label: 'Due date',
+            value: payment.dueDateLabel ?? '-',
+          ),
+          _PaymentInfoRow(
+            label: 'Paid date',
+            value: payment.paidDateLabel ?? '-',
+          ),
+          _PaymentInfoRow(label: 'Remarks', value: payment.remarks ?? '-'),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentInfoRow extends StatelessWidget {
+  const _PaymentInfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentTimelinePlaceholder extends StatelessWidget {
+  const _PaymentTimelinePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.timeline_rounded,
+              color: AppTheme.primaryRed,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Payment timeline',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Invoice creation, due reminders, receipt uploads and reconciliation events will appear here when activity data is available.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+IconData _paymentStatusIcon(PaymentStatus status) {
+  switch (status) {
+    case PaymentStatus.paid:
+      return Icons.verified_rounded;
+    case PaymentStatus.overdue:
+      return Icons.warning_amber_rounded;
+    case PaymentStatus.cancelled:
+      return Icons.cancel_outlined;
+    case PaymentStatus.pending:
+      return Icons.account_balance_wallet_outlined;
+  }
+}
+
 class _PaymentDetailBody extends ConsumerStatefulWidget {
   const _PaymentDetailBody({required this.payment});
 
@@ -79,44 +393,13 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        CrmDetailHeaderCard(
-          icon: Icons.account_balance_wallet_outlined,
-          title: payment.title,
-          subtitle: payment.amountLabel,
-          statusLabel: payment.status.label,
-        ),
+        _PaymentHeroCard(payment: payment),
         const SizedBox(height: 16),
-        CrmDetailInfoCard(
-          title: 'Payment',
-          rows: [
-            CrmInfoRow(label: 'Reference', value: payment.reference ?? '-'),
-            CrmInfoRow(
-              label: 'Invoice Link',
-              value: payment.invoiceUrl == null ? '-' : 'Available',
-            ),
-            CrmInfoRow(
-              label: 'Receipt Link',
-              value: payment.receiptUrl == null ? '-' : 'Available',
-            ),
-            CrmInfoRow(
-              label: 'Payment Link',
-              value: payment.paymentUrl == null ? '-' : 'Available',
-            ),
-            CrmInfoRow(
-              label: 'Service',
-              value: payment.serviceReference ?? '-',
-            ),
-            CrmInfoRow(label: 'Due date', value: payment.dueDateLabel ?? '-'),
-            CrmInfoRow(label: 'Paid date', value: payment.paidDateLabel ?? '-'),
-            CrmInfoRow(label: 'Remarks', value: payment.remarks ?? '-'),
-          ],
-        ),
+        _PaymentQuickStats(payment: payment),
         const SizedBox(height: 16),
-        const CrmActivityTimelineCard(
-          title: 'Payment timeline',
-          emptyMessage:
-              'No payment timeline yet. Invoice creation, due reminders, receipt uploads, and reconciliation events will appear here when activity data is available.',
-        ),
+        _PaymentInfoCard(payment: payment),
+        const SizedBox(height: 16),
+        const _PaymentTimelinePlaceholder(),
         const SizedBox(height: 16),
         PaymentActionCard(
           payment: payment,

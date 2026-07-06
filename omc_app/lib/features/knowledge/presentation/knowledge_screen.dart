@@ -19,7 +19,7 @@ class KnowledgeScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Knowledge & News')),
       body: SafeArea(
         child: articlesState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const _KnowledgeLoadingView(),
           error: (error, _) => _KnowledgeEmptyState(
             title: 'Knowledge is unavailable',
             message: _knowledgeErrorMessage(error),
@@ -69,15 +69,16 @@ class KnowledgeScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _FeaturedArticleCard(article: visibleFeatured),
+                  _KnowledgeHeroCard(
+                    article: visibleFeatured,
+                    totalArticles: articles.length,
+                    featuredCount: featuredArticles.length,
+                  ),
                   const SizedBox(height: 18),
-                  const Text(
-                    'Latest updates',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  const _SectionHeader(
+                    title: 'Latest updates',
+                    subtitle:
+                        'Fresh guides, tax updates and compliance notes from OMC.',
                   ),
                   const SizedBox(height: 12),
                   for (final article in articles) ...[
@@ -102,68 +103,319 @@ String _knowledgeErrorMessage(Object error) {
   return 'OMC updates could not be loaded right now. Please try again.';
 }
 
-class _FeaturedArticleCard extends StatelessWidget {
-  const _FeaturedArticleCard({required this.article});
+class _KnowledgeHeroCard extends StatelessWidget {
+  const _KnowledgeHeroCard({
+    required this.article,
+    required this.totalArticles,
+    required this.featuredCount,
+  });
 
   final KnowledgeArticle article;
+  final int totalArticles;
+  final int featuredCount;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(22),
+      padding: EdgeInsets.zero,
       child: InkWell(
         onTap: () =>
             context.push('/knowledge/${Uri.encodeComponent(article.id)}'),
-        borderRadius: BorderRadius.circular(22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ArticleTypeChip(type: article.type),
-            const SizedBox(height: 14),
-            Text(
-              article.title,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 23,
-                height: 1.15,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              article.summary,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-                height: 1.45,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                if (article.publishedAtLabel != null)
-                  Expanded(
-                    child: Text(
-                      article.publishedAtLabel!,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(19),
+                    ),
+                    child: Icon(
+                      _iconForType(article.type),
+                      color: AppTheme.primaryRed,
+                      size: 28,
                     ),
                   ),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: AppTheme.primaryRed,
+                  const Spacer(),
+                  _ArticleTypeChip(type: article.type),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Featured insight',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                article.title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 23,
+                  height: 1.15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                article.summary,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _KnowledgeStatPill(
+                          icon: Icons.library_books_outlined,
+                          label: '$totalArticles items',
+                        ),
+                        if (featuredCount > 0)
+                          _KnowledgeStatPill(
+                            icon: Icons.star_outline_rounded,
+                            label: '$featuredCount featured',
+                          ),
+                        if (article.publishedAtLabel != null)
+                          _KnowledgeStatPill(
+                            icon: Icons.schedule_rounded,
+                            label: article.publishedAtLabel!,
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: AppTheme.primaryRed,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _KnowledgeStatPill extends StatelessWidget {
+  const _KnowledgeStatPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppTheme.textSecondary, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryRed.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.auto_stories_outlined,
+            color: AppTheme.primaryRed,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _KnowledgeLoadingView extends StatelessWidget {
+  const _KnowledgeLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      children: [
+        Container(
+          height: 28,
+          width: 210,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          height: 14,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(height: 18),
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(19),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                height: 18,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                height: 12,
+                width: 240,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        ...List.generate(
+          4,
+          (index) => Padding(
+            padding: EdgeInsets.only(bottom: index == 3 ? 0 : 12),
+            child: PremiumCard(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 12,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 10,
+                          width: 170,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -177,67 +429,94 @@ class _KnowledgeArticleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return PremiumCard(
       padding: EdgeInsets.zero,
-      child: ListTile(
+      child: InkWell(
         onTap: () =>
             context.push('/knowledge/${Uri.encodeComponent(article.id)}'),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 12,
-        ),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  _iconForType(article.type),
+                  color: AppTheme.primaryRed,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      article.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 15,
+                        height: 1.25,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      article.summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (article.publishedAtLabel != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        article.publishedAtLabel!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.primaryRed,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary,
+              ),
+            ],
           ),
-          child: Icon(
-            _iconForType(article.type),
-            color: AppTheme.primaryRed,
-            size: 22,
-          ),
-        ),
-        title: Text(
-          article.title,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 5),
-          child: Text(
-            article.summary,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right_rounded,
-          color: Colors.grey.shade400,
         ),
       ),
     );
   }
+}
 
-  IconData _iconForType(KnowledgeArticleType type) {
-    switch (type) {
-      case KnowledgeArticleType.news:
-        return Icons.newspaper_rounded;
-      case KnowledgeArticleType.update:
-        return Icons.campaign_outlined;
-      case KnowledgeArticleType.guide:
-        return Icons.menu_book_outlined;
-      case KnowledgeArticleType.article:
-        return Icons.article_outlined;
-    }
+IconData _iconForType(KnowledgeArticleType type) {
+  switch (type) {
+    case KnowledgeArticleType.news:
+      return Icons.newspaper_rounded;
+    case KnowledgeArticleType.update:
+      return Icons.campaign_outlined;
+    case KnowledgeArticleType.guide:
+      return Icons.menu_book_outlined;
+    case KnowledgeArticleType.article:
+      return Icons.article_outlined;
   }
 }
 

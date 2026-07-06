@@ -69,47 +69,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          PremiumCard(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: const Icon(
-                    Icons.support_agent_rounded,
-                    color: AppTheme.primaryRed,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'How can we help?',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 22,
-                    height: 1.15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Choose a support channel below. OMC support will guide you through the next step.',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                    height: 1.45,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const _SupportHeroCard(),
           const SizedBox(height: 16),
           const _SupportCategoriesCard(),
           const SizedBox(height: 16),
@@ -131,23 +91,30 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
           const _SupportTicketsCard(),
           const SizedBox(height: 16),
           PremiumCard(
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.all(18),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const _SectionHeader(
+                  title: 'Contact channels',
+                  subtitle:
+                      'Use direct support options when you need faster help.',
+                ),
+                const SizedBox(height: 14),
                 _SupportTile(
                   icon: Icons.chat_bubble_outline_rounded,
                   title: 'WhatsApp support',
                   subtitle: 'Fastest option for service and document queries',
                   onTap: () => SupportLauncher.openWhatsApp(context),
                 ),
-                const _DividerIndent(),
+                const SizedBox(height: 10),
                 _SupportTile(
                   icon: Icons.call_outlined,
                   title: 'Call OMC',
                   subtitle: SupportConfig.phoneNumber,
                   onTap: () => SupportLauncher.callSupport(context),
                 ),
-                const _DividerIndent(),
+                const SizedBox(height: 10),
                 _SupportTile(
                   icon: Icons.email_outlined,
                   title: 'Email support',
@@ -223,6 +190,192 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   }
 }
 
+class _SupportHeroCard extends StatelessWidget {
+  const _SupportHeroCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.support_agent_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 30,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.14),
+                  ),
+                ),
+                child: const Text(
+                  'Active support',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'How can we help?',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 22,
+              height: 1.15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Create a tracked ticket or contact OMC directly for service, document, tax and payment support.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Row(
+            children: [
+              Expanded(
+                child: _SupportMetric(
+                  label: 'Tickets',
+                  value: 'Tracked',
+                  icon: Icons.confirmation_number_outlined,
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: _SupportMetric(
+                  label: 'Channels',
+                  value: '3 options',
+                  icon: Icons.forum_outlined,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SupportMetric extends StatelessWidget {
+  const _SupportMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 20),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _SupportTicketsCard extends ConsumerWidget {
   const _SupportTicketsCard();
@@ -239,31 +392,18 @@ class _SupportTicketsCard extends ConsumerWidget {
           Row(
             children: [
               const Expanded(
-                child: Text(
-                  'Your support tickets',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: _SectionHeader(
+                  title: 'Your support tickets',
+                  subtitle:
+                      'Track submitted support requests and open ticket details.',
                 ),
               ),
-              IconButton(
+              IconButton.filledTonal(
                 tooltip: 'Refresh',
                 onPressed: () => ref.invalidate(supportTicketsProvider),
                 icon: const Icon(Icons.refresh_rounded),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Track submitted support requests and open ticket details.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
           ),
           const SizedBox(height: 14),
           ticketsAsync.when(
@@ -276,7 +416,11 @@ class _SupportTicketsCard extends ConsumerWidget {
 
               return Column(
                 children: [
-                  for (var index = 0; index < visibleTickets.length; index++) ...[
+                  for (
+                    var index = 0;
+                    index < visibleTickets.length;
+                    index++
+                  ) ...[
                     _SupportTicketTile(ticket: visibleTickets[index]),
                     if (index != visibleTickets.length - 1)
                       const SizedBox(height: 10),
@@ -304,9 +448,8 @@ class _SupportTicketTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => context.push(
-        '/support-tickets/${Uri.encodeComponent(ticket.id)}',
-      ),
+      onTap: () =>
+          context.push('/support-tickets/${Uri.encodeComponent(ticket.id)}'),
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.all(13),
@@ -396,13 +539,22 @@ class _EmptySupportTicketsView extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
-      child: const Text(
-        'No support tickets yet.',
-        style: TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-        ),
+      child: const Row(
+        children: [
+          Icon(Icons.inbox_outlined, color: AppTheme.textSecondary, size: 22),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'No support tickets yet. Submit a request above when you need tracked follow-up.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -413,9 +565,56 @@ class _SupportTicketsLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 14),
-      child: Center(child: CircularProgressIndicator()),
+    return Column(
+      children: List.generate(
+        3,
+        (index) => Container(
+          margin: EdgeInsets.only(bottom: index == 2 ? 0 : 10),
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: AppTheme.background,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 12,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 10,
+                      width: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -483,7 +682,6 @@ String _cleanSupportError(Object error) {
   }
   return message;
 }
-
 
 class _CreateSupportTicketCard extends StatelessWidget {
   const _CreateSupportTicketCard({
@@ -741,35 +939,60 @@ class _SupportTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    return InkWell(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      leading: Container(
-        width: 42,
-        height: 42,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(15),
+          color: AppTheme.background,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
         ),
-        child: Icon(icon, color: AppTheme.primaryRed),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w900,
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, color: AppTheme.primaryRed, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
+          ],
         ),
       ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 12,
-          height: 1.35,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
     );
   }
 }
@@ -827,14 +1050,5 @@ class _InfoRow extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _DividerIndent extends StatelessWidget {
-  const _DividerIndent();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(height: 1, indent: 78, endIndent: 18);
   }
 }

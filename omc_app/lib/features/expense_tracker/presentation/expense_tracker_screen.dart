@@ -128,6 +128,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             },
             itemBuilder: (context) => const [
               PopupMenuItem(value: 'export', child: Text('Export backup JSON')),
+              PopupMenuItem(value: 'import', child: Text('Import backup JSON')),
               PopupMenuItem(value: 'clear', child: Text('Clear local data')),
             ],
           ),
@@ -346,7 +347,8 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
     final filteredStats = _TrackerStats.fromTransactions(filteredTransactions);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 90),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 128),
       children: [
         _HeroSummaryCard(stats: allStats),
         const SizedBox(height: 16),
@@ -363,13 +365,11 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
         const SizedBox(height: 16),
         _CategorySummaryCard(transactions: filteredTransactions),
         const SizedBox(height: 16),
-        const Text(
-          'Transactions',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
+        const _TrackerSectionHeader(
+          title: 'Transactions',
+          subtitle:
+              'Recent income and expense activity for the selected period.',
+          icon: Icons.receipt_long_outlined,
         ),
         const SizedBox(height: 12),
         if (widget.transactions.isEmpty)
@@ -670,6 +670,61 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
+class _TrackerSectionHeader extends StatelessWidget {
+  const _TrackerSectionHeader({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryRed.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: AppTheme.primaryRed, size: 20),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _AccountSummaryCard extends StatelessWidget {
   const _AccountSummaryCard({required this.transactions});
 
@@ -702,13 +757,10 @@ class _AccountSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Account balances',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          const _TrackerSectionHeader(
+            title: 'Account balances',
+            subtitle: 'Net balance grouped by account.',
+            icon: Icons.account_balance_wallet_outlined,
           ),
           const SizedBox(height: 12),
           for (final row in rows.take(6))
@@ -777,13 +829,10 @@ class _MonthlyReportCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Monthly report',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          const _TrackerSectionHeader(
+            title: 'Monthly report',
+            subtitle: 'Income versus expenses by month.',
+            icon: Icons.bar_chart_rounded,
           ),
           const SizedBox(height: 12),
           for (final row in rows.take(6))
@@ -986,13 +1035,10 @@ class _CategorySummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Top expense categories',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          const _TrackerSectionHeader(
+            title: 'Top expense categories',
+            subtitle: 'Highest spending categories in this period.',
+            icon: Icons.donut_large_rounded,
           ),
           const SizedBox(height: 12),
           for (final row in rows.take(5))
@@ -1249,13 +1295,33 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const Text(
-              'Add transaction',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.add_card_rounded,
+                    color: AppTheme.primaryRed,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Add transaction',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             SegmentedButton<ExpenseTransactionType>(

@@ -100,7 +100,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
         children: [
           const Text(
             'Tax Calculator',
@@ -121,11 +122,18 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
             ),
           ),
           const SizedBox(height: 20),
+          const _TaxCalculatorHero(),
+          const SizedBox(height: 16),
           PremiumCard(
             padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const _CalculatorSectionHeader(
+                  title: 'Income details',
+                  subtitle: 'Choose income type and enter monthly income.',
+                ),
+                const SizedBox(height: 14),
                 SegmentedButton<TaxIncomeType>(
                   segments: const [
                     ButtonSegment(
@@ -195,6 +203,114 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   }
 }
 
+class _TaxCalculatorHero extends StatelessWidget {
+  const _TaxCalculatorHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(22),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(21),
+            ),
+            child: const Icon(
+              Icons.calculate_rounded,
+              color: AppTheme.primaryRed,
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Quick tax estimate',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  'Uses backend slabs first, then a safe estimate if live data is unavailable.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalculatorSectionHeader extends StatelessWidget {
+  const _CalculatorSectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryRed.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.tune_rounded,
+            color: AppTheme.primaryRed,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _EmptyCalculatorState extends StatelessWidget {
   const _EmptyCalculatorState();
 
@@ -204,21 +320,29 @@ class _EmptyCalculatorState extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Icon(
-            Icons.calculate_outlined,
-            size: 42,
-            color: AppTheme.primaryRed.withValues(alpha: 0.8),
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              size: 30,
+              color: AppTheme.primaryRed,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           const Text(
             'Enter income to view estimate',
             style: TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 16,
+              fontSize: 17,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           const Text(
             'The calculator will use OMC tax slabs when available and show a safe estimate otherwise.',
             textAlign: TextAlign.center,
@@ -262,44 +386,219 @@ class _TaxResultCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            isBackendResult ? 'Verified Tax Result' : 'Estimated Tax Result',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  isBackendResult
+                      ? 'Verified Tax Result'
+                      : 'Estimated Tax Result',
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _ResultSourcePill(isBackendResult: isBackendResult),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _ResultMetricCard(
+                  label: 'Monthly tax',
+                  value: monthlyTax,
+                  icon: Icons.calendar_month_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ResultMetricCard(
+                  label: 'Yearly tax',
+                  value: yearlyTax,
+                  icon: Icons.event_note_outlined,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
-          _ResultRow(label: 'Monthly income', value: monthlyIncome),
-          _ResultRow(label: 'Monthly tax', value: monthlyTax),
-          _ResultRow(label: 'Monthly after tax', value: monthlyAfterTax),
-          const Divider(height: 28),
-          _ResultRow(label: 'Yearly income', value: yearlyIncome),
-          _ResultRow(label: 'Yearly tax', value: yearlyTax),
-          _ResultRow(label: 'Yearly after tax', value: yearlyAfterTax),
+          _ResultSection(
+            title: 'Monthly breakdown',
+            children: [
+              _ResultRow(label: 'Income', value: monthlyIncome),
+              _ResultRow(label: 'Tax', value: monthlyTax),
+              _ResultRow(label: 'After tax', value: monthlyAfterTax),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _ResultSection(
+            title: 'Yearly breakdown',
+            children: [
+              _ResultRow(label: 'Income', value: yearlyIncome),
+              _ResultRow(label: 'Tax', value: yearlyTax),
+              _ResultRow(label: 'After tax', value: yearlyAfterTax),
+            ],
+          ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
               color: isBackendResult
                   ? AppTheme.primaryRed.withValues(alpha: 0.08)
                   : Colors.amber.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              note ??
-                  (isBackendResult
-                      ? 'Calculated from OMC tax data.'
-                      : 'Estimated calculation shown. Final tax may vary after slab verification.'),
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isBackendResult
+                    ? AppTheme.primaryRed.withValues(alpha: 0.12)
+                    : Colors.amber.withValues(alpha: 0.24),
               ),
             ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  isBackendResult
+                      ? Icons.verified_outlined
+                      : Icons.info_outline_rounded,
+                  color: isBackendResult
+                      ? AppTheme.primaryRed
+                      : Colors.amber.shade900,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    note ??
+                        (isBackendResult
+                            ? 'Calculated from OMC tax data.'
+                            : 'Estimated calculation shown. Final tax may vary after slab verification.'),
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultSourcePill extends StatelessWidget {
+  const _ResultSourcePill({required this.isBackendResult});
+
+  final bool isBackendResult;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isBackendResult ? AppTheme.primaryRed : Colors.amber.shade900;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        isBackendResult ? 'LIVE' : 'ESTIMATE',
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultMetricCard extends StatelessWidget {
+  const _ResultMetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 21),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultSection extends StatelessWidget {
+  const _ResultSection({required this.title, required this.children});
+
+  final String title;
+  final List<_ResultRow> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...children,
         ],
       ),
     );

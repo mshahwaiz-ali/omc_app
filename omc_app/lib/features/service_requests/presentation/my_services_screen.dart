@@ -55,7 +55,7 @@ class MyServicesScreen extends ConsumerWidget {
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                   children: [
-                    const _HeaderCard(),
+                    _HeaderCard(cases: cases),
                     const SizedBox(height: 16),
                     for (final serviceCase in cases)
                       Padding(
@@ -215,10 +215,22 @@ class _LoadErrorState extends StatelessWidget {
 }
 
 class _HeaderCard extends StatelessWidget {
-  const _HeaderCard();
+  const _HeaderCard({required this.cases});
+
+  final List<ServiceCase> cases;
 
   @override
   Widget build(BuildContext context) {
+    final activeCount = cases
+        .where((item) => !item.status.toLowerCase().contains('complete'))
+        .length;
+    final completedCount = cases
+        .where((item) => item.status.toLowerCase().contains('complete'))
+        .length;
+    final missingDocsCount = cases
+        .where((item) => item.missingDocuments.isNotEmpty)
+        .length;
+
     return PremiumCard(
       padding: EdgeInsets.zero,
       child: Container(
@@ -232,12 +244,16 @@ class _HeaderCard extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(24),
         ),
-        child: const Column(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.track_changes_rounded, color: Colors.white, size: 34),
-            SizedBox(height: 14),
-            Text(
+            const Icon(
+              Icons.track_changes_rounded,
+              color: Colors.white,
+              size: 34,
+            ),
+            const SizedBox(height: 14),
+            const Text(
               'Track your OMC work',
               style: TextStyle(
                 color: Colors.white,
@@ -246,8 +262,8 @@ class _HeaderCard extends StatelessWidget {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            SizedBox(height: 8),
-            Text(
+            const SizedBox(height: 8),
+            const Text(
               'View active requests, document requirements and completion status.',
               style: TextStyle(
                 color: Colors.white70,
@@ -256,8 +272,74 @@ class _HeaderCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: _HeaderStat(
+                    value: activeCount.toString(),
+                    label: 'Active',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _HeaderStat(
+                    value: missingDocsCount.toString(),
+                    label: 'Need docs',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _HeaderStat(
+                    value: completedCount.toString(),
+                    label: 'Done',
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HeaderStat extends StatelessWidget {
+  const _HeaderStat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -306,7 +388,7 @@ class _ServiceCaseCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               _InfoPill(label: serviceCase.category),
-              _InfoPill(label: serviceCase.status),
+              ServiceCaseStatusBadge(status: serviceCase.status),
               if (serviceCase.reference != null)
                 _InfoPill(label: serviceCase.reference!),
             ],
@@ -407,22 +489,40 @@ class _StatusIcon extends StatelessWidget {
 }
 
 class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.label});
+  const _InfoPill({required this.label, this.isStatus = false});
 
   final String label;
+  final bool isStatus;
 
   @override
   Widget build(BuildContext context) {
+    final normalized = label.toLowerCase();
+    final isComplete = normalized.contains('complete');
+    final needsDocs =
+        normalized.contains('document') || normalized.contains('missing');
+
+    final Color foreground = isStatus
+        ? isComplete
+              ? const Color(0xFF18864B)
+              : needsDocs
+              ? const Color(0xFFB25E00)
+              : AppTheme.primaryRed
+        : AppTheme.textSecondary;
+
+    final Color background = isStatus
+        ? foreground.withValues(alpha: 0.10)
+        : AppTheme.background;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppTheme.background,
+        color: background,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
+        style: TextStyle(
+          color: foreground,
           fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
@@ -492,7 +592,7 @@ class ServiceCaseStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _InfoPill(label: status);
+    return _InfoPill(label: status, isStatus: true);
   }
 }
 

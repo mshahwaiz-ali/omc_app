@@ -71,6 +71,8 @@ class ServiceDetailScreen extends ConsumerWidget {
               children: [
                 _ServiceHero(service: service),
                 const SizedBox(height: 16),
+                _ServiceStatsGrid(service: service),
+                const SizedBox(height: 16),
                 _ServiceFacts(service: service),
                 const SizedBox(height: 16),
                 _OverviewCard(service: service),
@@ -196,6 +198,90 @@ class _ServiceHero extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ServiceStatsGrid extends StatelessWidget {
+  const _ServiceStatsGrid({required this.service});
+
+  final ServiceItem service;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ServiceStatTile(
+            icon: Icons.payments_outlined,
+            label: 'Fee',
+            value: service.feeLabel,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ServiceStatTile(
+            icon: Icons.schedule_rounded,
+            label: 'Time',
+            value: service.completionTime,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ServiceStatTile(
+            icon: Icons.description_outlined,
+            label: 'Docs',
+            value: service.requiredDocuments.length.toString(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ServiceStatTile extends StatelessWidget {
+  const _ServiceStatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final safeValue = value.trim().isEmpty ? 'TBC' : value.trim();
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 22),
+          const SizedBox(height: 10),
+          Text(
+            safeValue,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -570,23 +656,31 @@ class _ChecklistRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: AppTheme.primaryRed, size: 18),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              height: 1.3,
-              fontWeight: FontWeight.w700,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 18),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                height: 1.3,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

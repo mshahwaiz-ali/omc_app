@@ -165,6 +165,12 @@ class _ServiceRequestDraftScreenState
                 children: [
                   _SelectedServiceCard(service: service),
                   const SizedBox(height: 16),
+                  _DraftOverviewCard(
+                    service: service,
+                    attachments: _attachments,
+                    selectedCustomer: _selectedCustomer,
+                  ),
+                  const SizedBox(height: 16),
                   customersAsync.when(
                     data: (customers) {
                       if (customers.isEmpty) {
@@ -884,6 +890,110 @@ class _SelectedServiceCard extends StatelessWidget {
   }
 }
 
+class _DraftOverviewCard extends StatelessWidget {
+  const _DraftOverviewCard({
+    required this.service,
+    required this.attachments,
+    required this.selectedCustomer,
+  });
+
+  final ServiceItem service;
+  final List<DocumentAttachment> attachments;
+  final CustomerItem? selectedCustomer;
+
+  @override
+  Widget build(BuildContext context) {
+    final documents = _wizardDocumentsFor(service);
+    final wizardType = _normalizedWizardType(service);
+    final wizardLabel = wizardType.isEmpty
+        ? 'Standard'
+        : '${wizardType[0].toUpperCase()}${wizardType.substring(1)}';
+
+    return Row(
+      children: [
+        Expanded(
+          child: _DraftOverviewTile(
+            icon: Icons.route_rounded,
+            label: 'Flow',
+            value: wizardLabel,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _DraftOverviewTile(
+            icon: Icons.description_outlined,
+            label: 'Docs',
+            value: documents.length.toString(),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _DraftOverviewTile(
+            icon: Icons.attach_file_rounded,
+            label: 'Attached',
+            value: attachments.length.toString(),
+          ),
+        ),
+        if (selectedCustomer != null) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: _DraftOverviewTile(
+              icon: Icons.people_outline_rounded,
+              label: 'Customer',
+              value: 'Linked',
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DraftOverviewTile extends StatelessWidget {
+  const _DraftOverviewTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 22),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CustomerPickerCard extends StatelessWidget {
   const _CustomerPickerCard({
     required this.customers,
@@ -1450,7 +1560,7 @@ class _DocumentHintCard extends StatelessWidget {
           else ...[
             for (final document in visibleDocuments)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 9),
                 child: _RequirementRow(label: document),
               ),
             if (remainingCount > 0)

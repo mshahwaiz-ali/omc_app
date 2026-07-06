@@ -50,13 +50,15 @@ class _ServiceCatalogueScreenState
           onAction: () => ref.invalidate(serviceCatalogueProvider),
         ),
         data: (services) {
-          final categories = [
-            _allCategory,
-            ...services
-                .map((service) => service.category)
-                .where((category) => category.trim().isNotEmpty)
-                .toSet(),
-          ];
+          final categoryValues =
+              services
+                  .map((service) => service.category.trim())
+                  .where((category) => category.isNotEmpty)
+                  .toSet()
+                  .toList()
+                ..sort();
+
+          final categories = [_allCategory, ...categoryValues];
           final filteredServices = _filterServices(services);
 
           return CustomScrollView(
@@ -67,6 +69,9 @@ class _ServiceCatalogueScreenState
                 sliver: SliverToBoxAdapter(
                   child: _CatalogueHeader(
                     controller: _searchController,
+                    services: services,
+                    filteredCount: filteredServices.length,
+                    selectedCategory: _selectedCategory,
                     onChanged: (value) {
                       setState(() {
                         _query = value.trim().toLowerCase();
@@ -167,9 +172,18 @@ class _ServiceCatalogueScreenState
 }
 
 class _CatalogueHeader extends StatelessWidget {
-  const _CatalogueHeader({required this.controller, required this.onChanged});
+  const _CatalogueHeader({
+    required this.controller,
+    required this.services,
+    required this.filteredCount,
+    required this.selectedCategory,
+    required this.onChanged,
+  });
 
   final TextEditingController controller;
+  final List<ServiceItem> services;
+  final int filteredCount;
+  final String selectedCategory;
   final ValueChanged<String> onChanged;
 
   @override
@@ -205,7 +219,101 @@ class _CatalogueHeader extends StatelessWidget {
             prefixIcon: Icon(Icons.search_rounded),
           ),
         ),
+        const SizedBox(height: 14),
+        _CatalogueStatsRow(
+          totalServices: services.length,
+          filteredCount: filteredCount,
+          selectedCategory: selectedCategory,
+        ),
       ],
+    );
+  }
+}
+
+class _CatalogueStatsRow extends StatelessWidget {
+  const _CatalogueStatsRow({
+    required this.totalServices,
+    required this.filteredCount,
+    required this.selectedCategory,
+  });
+
+  final int totalServices;
+  final int filteredCount;
+  final String selectedCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _CatalogueStatTile(
+            icon: Icons.workspace_premium_outlined,
+            label: 'Services',
+            value: totalServices.toString(),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _CatalogueStatTile(
+            icon: Icons.filter_alt_outlined,
+            label: 'Showing',
+            value: filteredCount.toString(),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _CatalogueStatTile(
+            icon: Icons.category_outlined,
+            label: 'Category',
+            value: selectedCategory,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CatalogueStatTile extends StatelessWidget {
+  const _CatalogueStatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(13),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 21),
+          const SizedBox(height: 9),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

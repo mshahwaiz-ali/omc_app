@@ -63,6 +63,8 @@ class _ServiceCaseDetailScreenState
               children: [
                 _CaseHero(serviceCase: serviceCase),
                 const SizedBox(height: 16),
+                _QuickStatusGrid(serviceCase: serviceCase),
+                const SizedBox(height: 16),
                 _ProgressCard(serviceCase: serviceCase),
                 const SizedBox(height: 16),
                 _CaseInfoCard(serviceCase: serviceCase),
@@ -382,6 +384,91 @@ class _CaseHero extends StatelessWidget {
   }
 }
 
+class _QuickStatusGrid extends StatelessWidget {
+  const _QuickStatusGrid({required this.serviceCase});
+
+  final ServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = serviceCase.progress.clamp(0, 1).toDouble();
+    final progressPercent = (progress * 100).round();
+
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickStatusTile(
+            icon: Icons.stacked_line_chart_rounded,
+            label: 'Progress',
+            value: '$progressPercent%',
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickStatusTile(
+            icon: Icons.file_present_rounded,
+            label: 'Missing docs',
+            value: serviceCase.missingDocuments.length.toString(),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickStatusTile(
+            icon: Icons.update_rounded,
+            label: 'Updated',
+            value: serviceCase.updatedAtLabel,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickStatusTile extends StatelessWidget {
+  const _QuickStatusTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 22),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProgressCard extends StatelessWidget {
   const _ProgressCard({required this.serviceCase});
 
@@ -618,10 +705,13 @@ class _RequiredDocumentsCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           for (final document in documents)
-            _DocumentRequirementRow(
-              label: document,
-              isSubmitted: serviceCase.submittedDocuments.contains(document),
-              isMissing: serviceCase.missingDocuments.contains(document),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _DocumentRequirementRow(
+                label: document,
+                isSubmitted: serviceCase.submittedDocuments.contains(document),
+                isMissing: serviceCase.missingDocuments.contains(document),
+              ),
             ),
         ],
       ),
@@ -666,12 +756,23 @@ class _DocumentRequirementRow extends StatelessWidget {
         ? Icons.error_outline_rounded
         : Icons.description_outlined;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+    final statusColor = isSubmitted
+        ? const Color(0xFF18864B)
+        : isMissing
+        ? const Color(0xFFB25E00)
+        : AppTheme.textSecondary;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: statusColor.withValues(alpha: 0.14)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 19),
+          Icon(icon, color: statusColor, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -685,12 +786,19 @@ class _DocumentRequirementRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            statusLabel,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],

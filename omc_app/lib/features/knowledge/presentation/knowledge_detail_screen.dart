@@ -22,7 +22,7 @@ class KnowledgeDetailScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Knowledge')),
       body: SafeArea(
         child: articleState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const _KnowledgeDetailLoadingView(),
           error: (error, _) => _KnowledgeDetailUnavailable(
             message: _knowledgeDetailErrorMessage(error),
             onRetry: () =>
@@ -75,24 +75,42 @@ class KnowledgeDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 PremiumCard(
                   padding: const EdgeInsets.all(22),
-                  child: Text(
-                    article.body?.trim().isNotEmpty == true
-                        ? article.body!.trim()
-                        : article.summary,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      height: 1.6,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Details',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        article.body?.trim().isNotEmpty == true
+                            ? article.body!.trim()
+                            : article.summary,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 15,
+                          height: 1.6,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (externalUri != null) ...[
                   const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => _openExternalArticle(context, externalUri),
-                    icon: const Icon(Icons.open_in_new_rounded),
-                    label: const Text('Open full article'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () =>
+                          _openExternalArticle(context, externalUri),
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: const Text('Open full article'),
+                    ),
                   ),
                 ],
               ],
@@ -139,6 +157,81 @@ String _knowledgeDetailErrorMessage(Object error) {
   }
 
   return 'This knowledge item could not be loaded right now.';
+}
+
+class _KnowledgeDetailLoadingView extends StatelessWidget {
+  const _KnowledgeDetailLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      children: [
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                children: List.generate(
+                  3,
+                  (index) => Container(
+                    height: 28,
+                    width: 74,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                height: 22,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                height: 14,
+                width: 240,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(
+              7,
+              (index) => Container(
+                margin: EdgeInsets.only(bottom: index == 6 ? 0 : 12),
+                height: 12,
+                width: index == 6 ? 180 : double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _ArticleMetaRow extends StatelessWidget {

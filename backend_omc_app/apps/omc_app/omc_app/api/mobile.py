@@ -1868,9 +1868,132 @@ def get_task(task_id=None):
 
 @frappe.whitelist(allow_guest=True)
 def calculate_tax(**kwargs):
+    """Calculate a safe income-tax estimate for the mobile app.
+
+    This endpoint intentionally returns the response shape expected by the
+    Flutter app. It can later be replaced with configurable slab DocTypes
+    without changing the mobile contract.
+    """
+
+    income_type = (kwargs.get("income_type") or "salary").strip().lower()
+    monthly_income = _flt(kwargs.get("monthly_income"))
+    yearly_income = _flt(kwargs.get("yearly_income")) or monthly_income * 12
+
+    if monthly_income <= 0 and yearly_income > 0:
+        monthly_income = yearly_income / 12
+
+    if monthly_income <= 0 or yearly_income <= 0:
+        frappe.throw("monthly_income or yearly_income is required")
+
+    yearly_tax = _estimate_income_tax(yearly_income)
+    monthly_tax = yearly_tax / 12
+    monthly_after_tax = monthly_income - monthly_tax
+    yearly_after_tax = yearly_income - yearly_tax
+    effective_rate = (yearly_tax / yearly_income * 100) if yearly_income else 0
+
     return {
-        "taxable_income": 0,
-        "tax": 0,
-        "effective_rate": 0,
-        "breakdown": [],
+        "income_type": income_type,
+        "monthly_income": round(monthly_income, 2),
+        "yearly_income": round(yearly_income, 2),
+        "monthly_tax": round(monthly_tax, 2),
+        "yearly_tax": round(yearly_tax, 2),
+        "monthly_after_tax": round(monthly_after_tax, 2),
+        "yearly_after_tax": round(yearly_after_tax, 2),
+        "taxable_income": round(yearly_income, 2),
+        "tax": round(yearly_tax, 2),
+        "effective_rate": round(effective_rate, 2),
+        "breakdown": _income_tax_breakdown(yearly_income),
+        "note": "Calculated using OMC mobile tax slab estimate.",
     }
+
+
+def _estimate_income_tax(yearly_income):
+    yearly_income = _flt(yearly_income)
+
+    if yearly_income <= 600000:
+        return 0
+    if yearly_income <= 1200000:
+        return (yearly_income - 600000) * 0.05
+    if yearly_income <= 2200000:
+        return 30000 + ((yearly_income - 1200000) * 0.15)
+    if yearly_income <= 3200000:
+        return 180000 + ((yearly_income - 2200000) * 0.25)
+    if yearly_income <= 4100000:
+        return 430000 + ((yearly_income - 3200000) * 0.30)
+
+    return 700000 + ((yearly_income - 4100000) * 0.35)
+
+
+def _income_tax_breakdown(yearly_income):
+    yearly_income = _flt(yearly_income)
+
+    slabs = [
+        {
+            "from": 0,
+            "to": 600000,
+            "rate": 0,
+            "tax": 0,
+            "label": "Up to PKR 600,000",
+        },
+        {
+            "from": 600000,
+            "to": 1200000,
+            "rate": 5,
+            "tax": max(min(yearly_income, 1200000) - 600000, 0) * 0.05,
+            "label": "PKR 600,001 to PKR 1,200,000",
+        },
+        {
+            "from": 1200000,
+            "to": 2200000,
+            "rate": 15,
+            "tax": max(min(yearly_income, 2200000) - 1200000, 0) * 0.15,
+            "label": "PKR 1,200,001 to PKR 2,200,000",
+        },
+        {
+            "from": 2200000,
+            "to": 3200000,
+            "rate": 25,
+            "tax": max(min(yearly_income, 3200000) - 2200000, 0) * 0.25,
+            "label": "PKR 2,200,001 to PKR 3,200,000",
+        },
+        {
+            "from": 3200000,
+            "to": 4100000,
+            "rate": 30,
+            "tax": max(min(yearly_income, 4100000) - 3200000, 0) * 0.30,
+            "label": "PKR 3,200,001 to PKR 4,100,000",
+        },
+        {
+            "from": 4100000,
+            "to": None,
+            "rate": 35,
+            "tax": max(yearly_income - 4100000, 0) * 0.35,
+            "label": "Above PKR 4,100,000",
+        },
+    ]
+
+    visible_breakdown = []
+
+    for slab in slabs:
+        slab_to = slab["to"]
+        is_active_slab = slab_to is None or yearly_income <= slab_to
+
+        if slab["tax"] > 0 or is_active_slab:
+            visible_breakdown.append(
+                {
+                    **slab,
+                    "tax": round(slab["tax"], 2),
+                }
+            )
+
+        if is_active_slab:
+            break
+
+    return visible_breakdown
+
+
+def _flt(value):
+    try:
+        return float(str(value or 0).replace(",", "").strip())
+    except Exception:
+        return 0

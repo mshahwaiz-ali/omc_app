@@ -109,7 +109,7 @@ class _DocumentsList extends StatelessWidget {
       itemCount: documents.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        if (index == 0) return const _DocumentsHeader();
+        if (index == 0) return _DocumentsHeader(documents: documents);
 
         return _DocumentCard(document: documents[index - 1]);
       },
@@ -118,14 +118,26 @@ class _DocumentsList extends StatelessWidget {
 }
 
 class _DocumentsHeader extends StatelessWidget {
-  const _DocumentsHeader();
+  const _DocumentsHeader({required this.documents});
+
+  final List<DocumentItem> documents;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final missingCount = documents
+        .where((item) => item.status == DocumentStatus.missing)
+        .length;
+    final approvedCount = documents
+        .where((item) => item.status == DocumentStatus.approved)
+        .length;
+    final reviewCount = documents
+        .where((item) => item.status == DocumentStatus.pendingReview)
+        .length;
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Your document vault',
           style: TextStyle(
             color: AppTheme.textPrimary,
@@ -133,8 +145,8 @@ class _DocumentsHeader extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
-        SizedBox(height: 8),
-        Text(
+        const SizedBox(height: 8),
+        const Text(
           'Track required, submitted and reviewed documents for OMC services.',
           style: TextStyle(
             color: AppTheme.textSecondary,
@@ -143,8 +155,91 @@ class _DocumentsHeader extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        SizedBox(height: 10),
+        if (documents.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _DocumentStatTile(
+                  icon: Icons.folder_copy_outlined,
+                  label: 'Total',
+                  value: documents.length.toString(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DocumentStatTile(
+                  icon: Icons.upload_file_rounded,
+                  label: 'Missing',
+                  value: missingCount.toString(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DocumentStatTile(
+                  icon: Icons.hourglass_top_rounded,
+                  label: 'Review',
+                  value: reviewCount.toString(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DocumentStatTile(
+                  icon: Icons.verified_rounded,
+                  label: 'Approved',
+                  value: approvedCount.toString(),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 10),
       ],
+    );
+  }
+}
+
+class _DocumentStatTile extends StatelessWidget {
+  const _DocumentStatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 20),
+          const SizedBox(height: 9),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -206,7 +301,10 @@ class _DocumentCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _InfoChip(label: document.status.label),
+                      _InfoChip(
+                        label: document.status.label,
+                        color: statusColor,
+                      ),
                       if (document.serviceReference != null)
                         _InfoChip(label: document.serviceReference!),
                       if (document.updatedAtLabel != null)
@@ -276,23 +374,24 @@ class _DocumentCard extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label});
+  const _InfoChip({required this.label, this.color = AppTheme.primaryRed});
 
   final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.07),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Text(
           label,
-          style: const TextStyle(
-            color: AppTheme.primaryRed,
+          style: TextStyle(
+            color: color,
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
@@ -311,7 +410,7 @@ class _EmptyDocumentsView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
-        const _DocumentsHeader(),
+        const _DocumentsHeader(documents: []),
         const SizedBox(height: 24),
         PremiumCard(
           padding: const EdgeInsets.all(22),
@@ -368,7 +467,7 @@ class _DocumentsLoadingView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       itemBuilder: (context, index) {
-        if (index == 0) return const _DocumentsHeader();
+        if (index == 0) return const _DocumentsHeader(documents: []);
 
         return const PremiumCard(
           padding: EdgeInsets.all(18),

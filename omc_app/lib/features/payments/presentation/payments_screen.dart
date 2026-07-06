@@ -50,7 +50,7 @@ class _PaymentsList extends StatelessWidget {
       itemCount: payments.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        if (index == 0) return const _PaymentsHeader();
+        if (index == 0) return _PaymentsHeader(payments: payments);
 
         return _PaymentCard(payment: payments[index - 1]);
       },
@@ -59,14 +59,26 @@ class _PaymentsList extends StatelessWidget {
 }
 
 class _PaymentsHeader extends StatelessWidget {
-  const _PaymentsHeader();
+  const _PaymentsHeader({required this.payments});
+
+  final List<PaymentItem> payments;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final paidCount = payments
+        .where((item) => item.status == PaymentStatus.paid)
+        .length;
+    final pendingCount = payments
+        .where((item) => item.status == PaymentStatus.pending)
+        .length;
+    final overdueCount = payments
+        .where((item) => item.status == PaymentStatus.overdue)
+        .length;
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Payments',
           style: TextStyle(
             color: AppTheme.textPrimary,
@@ -74,8 +86,8 @@ class _PaymentsHeader extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
-        SizedBox(height: 8),
-        Text(
+        const SizedBox(height: 8),
+        const Text(
           'Track invoices, dues, receipts and service payment status.',
           style: TextStyle(
             color: AppTheme.textSecondary,
@@ -84,8 +96,91 @@ class _PaymentsHeader extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        SizedBox(height: 10),
+        if (payments.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _PaymentStatTile(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'Total',
+                  value: payments.length.toString(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PaymentStatTile(
+                  icon: Icons.hourglass_top_rounded,
+                  label: 'Pending',
+                  value: pendingCount.toString(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PaymentStatTile(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'Overdue',
+                  value: overdueCount.toString(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PaymentStatTile(
+                  icon: Icons.verified_rounded,
+                  label: 'Paid',
+                  value: paidCount.toString(),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 10),
       ],
+    );
+  }
+}
+
+class _PaymentStatTile extends StatelessWidget {
+  const _PaymentStatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 20),
+          const SizedBox(height: 9),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -143,7 +238,10 @@ class _PaymentCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _InfoChip(label: payment.status.label),
+                      _InfoChip(
+                        label: payment.status.label,
+                        color: statusColor,
+                      ),
                       if (payment.reference != null)
                         _InfoChip(label: payment.reference!),
                       if (payment.dueDateLabel != null)
@@ -203,23 +301,24 @@ class _PaymentCard extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label});
+  const _InfoChip({required this.label, this.color = AppTheme.primaryRed});
 
   final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.07),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Text(
           label,
-          style: const TextStyle(
-            color: AppTheme.primaryRed,
+          style: TextStyle(
+            color: color,
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
@@ -238,7 +337,7 @@ class _EmptyPaymentsView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
-        const _PaymentsHeader(),
+        const _PaymentsHeader(payments: []),
         const SizedBox(height: 24),
         PremiumCard(
           padding: const EdgeInsets.all(22),
@@ -309,7 +408,7 @@ class _PaymentsErrorView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
-        const _PaymentsHeader(),
+        const _PaymentsHeader(payments: []),
         const SizedBox(height: 24),
         PremiumCard(
           padding: const EdgeInsets.all(22),
@@ -366,7 +465,7 @@ class _PaymentsLoadingView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       itemBuilder: (context, index) {
-        if (index == 0) return const _PaymentsHeader();
+        if (index == 0) return const _PaymentsHeader(payments: []);
 
         return const PremiumCard(
           padding: EdgeInsets.all(18),
