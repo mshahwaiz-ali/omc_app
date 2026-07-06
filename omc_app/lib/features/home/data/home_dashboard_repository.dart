@@ -74,8 +74,15 @@ class HomeDashboardRepository {
       return _summaryFromResponse(response);
     } on ApiError catch (error) {
       // Dashboard is supportive UI. Do not block Home if backend dashboard
-      // mapping is not ready yet.
-      return HomeDashboardSummary.empty(fallbackMessage: error.message);
+      // mapping/auth is not ready yet. Avoid showing password/login errors
+      // on the Home screen after the user has already entered the app.
+      final statusCode = error.statusCode;
+      final isAuthError = statusCode == 401 || statusCode == 403;
+      final message = isAuthError
+          ? 'Dashboard summary is not available for this account yet.'
+          : error.message;
+
+      return HomeDashboardSummary.empty(fallbackMessage: message);
     } catch (_) {
       return const HomeDashboardSummary.empty(
         fallbackMessage:

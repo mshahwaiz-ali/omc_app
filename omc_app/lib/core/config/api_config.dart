@@ -31,11 +31,11 @@ class ApiConfig {
 
   static String get _defaultBaseUrlForEnvironment {
     switch (Env.current) {
-      case AppEnvironment.development:
+        case AppEnvironment.development:
+        return 'http://127.0.0.1:8000';
+        case AppEnvironment.staging:
         return 'https://erp.omchouse.com';
-      case AppEnvironment.staging:
-        return 'https://erp.omchouse.com';
-      case AppEnvironment.production:
+        case AppEnvironment.production:
         return 'https://erp.omchouse.com';
     }
   }

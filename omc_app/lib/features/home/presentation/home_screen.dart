@@ -23,20 +23,20 @@ class HomeScreen extends ConsumerWidget {
 
   static const List<_HomeAction> _quickActions = [
     _HomeAction(
-      title: 'File Tax',
-      subtitle: 'Return',
+      title: 'Tax Return',
+      subtitle: 'File now',
       icon: Icons.receipt_long_rounded,
       target: _HomeActionTarget.services,
     ),
     _HomeAction(
       title: 'NTN',
-      subtitle: 'Register',
+      subtitle: 'Registration',
       icon: Icons.badge_rounded,
       target: _HomeActionTarget.services,
     ),
     _HomeAction(
       title: 'GST',
-      subtitle: 'Setup',
+      subtitle: 'Registration',
       icon: Icons.storefront_rounded,
       target: _HomeActionTarget.services,
     ),
@@ -48,7 +48,7 @@ class HomeScreen extends ConsumerWidget {
     ),
     _HomeAction(
       title: 'Track',
-      subtitle: 'Requests',
+      subtitle: 'Request',
       icon: Icons.timeline_rounded,
       target: _HomeActionTarget.myServices,
     ),
@@ -176,6 +176,18 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            if (summary.pendingDocuments > 0 || summary.paymentsDue > 0)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                sliver: SliverToBoxAdapter(
+                  child: _AttentionCard(
+                    pendingDocuments: summary.pendingDocuments,
+                    paymentsDue: summary.paymentsDue,
+                    onOpenDocuments: () => context.go('/documents'),
+                    onOpenPayments: () => context.go('/payments'),
+                  ),
+                ),
+              ),
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
               sliver: SliverToBoxAdapter(
@@ -224,7 +236,7 @@ class HomeScreen extends ConsumerWidget {
         icon: Icons.assignment_turned_in_rounded,
       ),
       _StatusItem(
-        label: 'Docs Needed',
+        label: 'Documents',
         value: summary.pendingDocuments.toString(),
         icon: Icons.folder_copy_rounded,
       ),
@@ -798,6 +810,82 @@ class _LogoActionTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+class _AttentionCard extends StatelessWidget {
+  const _AttentionCard({
+    required this.pendingDocuments,
+    required this.paymentsDue,
+    required this.onOpenDocuments,
+    required this.onOpenPayments,
+  });
+
+  final int pendingDocuments;
+  final int paymentsDue;
+  final VoidCallback onOpenDocuments;
+  final VoidCallback onOpenPayments;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDocuments = pendingDocuments > 0;
+    final title = hasDocuments ? 'Documents needed' : 'Payment pending';
+    final subtitle = hasDocuments
+        ? '$pendingDocuments document(s) required for your active request.'
+        : '$paymentsDue payment item(s) need your review.';
+    final icon = hasDocuments
+        ? Icons.folder_copy_rounded
+        : Icons.account_balance_wallet_rounded;
+    final onTap = hasDocuments ? onOpenDocuments : onOpenPayments;
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(17),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 24),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
+          ),
+        ],
       ),
     );
   }
