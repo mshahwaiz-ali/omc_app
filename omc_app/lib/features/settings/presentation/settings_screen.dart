@@ -226,7 +226,10 @@ class SettingsScreen extends ConsumerWidget {
                   height: 58,
                   decoration: BoxDecoration(
                     color: AppTheme.primaryRed.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(21),
+                    border: Border.all(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                    ),
                   ),
                   child: const Icon(
                     Icons.logout_rounded,
@@ -242,11 +245,14 @@ class SettingsScreen extends ConsumerWidget {
                     color: AppTheme.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'Your secure session will be cleared on this device. You can login again anytime.',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppTheme.textSecondary,
@@ -365,10 +371,13 @@ class _SettingsHero extends StatelessWidget {
                   children: [
                     const Text(
                       'Settings',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
+                        letterSpacing: -0.35,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -376,6 +385,8 @@ class _SettingsHero extends StatelessWidget {
                       isProduction
                           ? 'Live account controls and preferences.'
                           : 'Backend-connected development setup.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
@@ -562,7 +573,10 @@ class _LoadingPreferenceTile extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.06),
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -583,6 +597,9 @@ class _LoadingPreferenceTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.06),
+              ),
             ),
           ),
         ],
@@ -635,16 +652,21 @@ class _SettingsSwitchTile extends StatelessWidget {
       secondary: _SettingsIcon(icon: icon, isEnabled: isEnabled),
       title: Text(
         title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: isEnabled ? AppTheme.textPrimary : AppTheme.textSecondary,
           fontSize: 14,
           fontWeight: FontWeight.w900,
+          letterSpacing: -0.1,
         ),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
           subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 12,
@@ -677,16 +699,21 @@ class _SettingsSection extends StatelessWidget {
       children: [
         Text(
           title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 19,
             fontWeight: FontWeight.w900,
+            letterSpacing: -0.15,
           ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 5),
           Text(
             subtitle!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12,
@@ -738,16 +765,21 @@ class _SettingsTile extends StatelessWidget {
       ),
       title: Text(
         title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: AppTheme.textPrimary,
           fontSize: 14,
           fontWeight: FontWeight.w900,
+          letterSpacing: -0.1,
         ),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
           subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 12,
@@ -801,9 +833,12 @@ class _SettingsIcon extends StatelessWidget {
       height: 42,
       decoration: BoxDecoration(
         color: iconColor.withValues(alpha: backgroundAlpha),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: iconColor.withValues(alpha: backgroundAlpha),
+        ),
       ),
-      child: Icon(icon, color: iconColor),
+      child: Icon(icon, color: iconColor, size: 21),
     );
   }
 }
@@ -823,6 +858,9 @@ class _SettingsFootnote extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
             ),
             child: const Icon(
               Icons.verified_user_outlined,
@@ -833,6 +871,8 @@ class _SettingsFootnote extends StatelessWidget {
           const Expanded(
             child: Text(
               'Settings are connected to backend account preferences where available. Safe defaults keep the app stable when sync is unavailable.',
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12,

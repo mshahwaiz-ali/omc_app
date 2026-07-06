@@ -282,15 +282,18 @@ class _CatalogueStatTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(11),
+              color: AppTheme.primaryRed.withValues(alpha: 0.065),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              ),
             ),
             child: Icon(icon, color: AppTheme.primaryRed, size: 17),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 9),
           Text(
             value,
             maxLines: 1,
@@ -300,15 +303,19 @@ class _CatalogueStatTile extends StatelessWidget {
               fontSize: 14.5,
               fontWeight: FontWeight.w900,
               height: 1.05,
+              letterSpacing: -0.1,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 11,
               fontWeight: FontWeight.w800,
+              height: 1.15,
             ),
           ),
         ],
@@ -346,7 +353,9 @@ class _CategoryFilter extends StatelessWidget {
             onSelected: (_) => onSelected(category),
             labelStyle: TextStyle(
               color: selected ? Colors.white : AppTheme.textPrimary,
-              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.1,
             ),
             selectedColor: AppTheme.primaryRed,
             backgroundColor: Colors.white,
@@ -358,6 +367,8 @@ class _CategoryFilter extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(17),
             ),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
           );
         },
       ),
@@ -413,7 +424,19 @@ class _MyServicesShortcutCard extends StatelessWidget {
             ),
           ),
           SizedBox(width: 10),
-          Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.035),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+              size: 20,
+            ),
+          ),
         ],
       ),
     );
@@ -454,11 +477,15 @@ class _ServiceCatalogueCard extends StatelessWidget {
                 height: 46,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(17),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: const Icon(
                   Icons.workspace_premium_outlined,
                   color: AppTheme.primaryRed,
+                  size: 23,
                 ),
               ),
               const SizedBox(width: 15),
@@ -468,10 +495,13 @@ class _ServiceCatalogueCard extends StatelessWidget {
                   children: [
                     Text(
                       service.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.primaryRed,
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
+                        letterSpacing: -0.05,
                       ),
                     ),
                     if (wizardLabel != null) ...[
@@ -481,11 +511,14 @@ class _ServiceCatalogueCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       service.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 18,
                         height: 1.16,
                         fontWeight: FontWeight.w900,
+                        letterSpacing: -0.2,
                       ),
                     ),
                   ],
@@ -511,12 +544,35 @@ class _ServiceCatalogueCard extends StatelessWidget {
           if (service.governmentFeeLabel != null &&
               service.governmentFeeLabel!.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
-            Text(
-              service.governmentFeeLabel!,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.035),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.account_balance_outlined,
+                    color: AppTheme.primaryRed,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      service.governmentFeeLabel!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -537,12 +593,20 @@ class _ServiceCatalogueCard extends StatelessWidget {
                 child: _RequirementRow(label: requirement),
               ),
             if (remainingRequirements > 0)
-              Text(
-                '+$remainingRequirements more',
-                style: const TextStyle(
-                  color: AppTheme.primaryRed,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '+$remainingRequirements more',
+                  style: const TextStyle(
+                    color: AppTheme.primaryRed,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
                 ),
               ),
           ],
@@ -596,12 +660,16 @@ class _WizardBadge extends StatelessWidget {
             size: 13,
           ),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.primaryRed,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.primaryRed,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -640,27 +708,44 @@ class _RequirementRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(
-          Icons.check_circle_rounded,
-          color: AppTheme.primaryRed,
-          size: 16,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.25,
-              fontWeight: FontWeight.w600,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              color: AppTheme.primaryRed,
+              size: 13,
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                height: 1.3,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

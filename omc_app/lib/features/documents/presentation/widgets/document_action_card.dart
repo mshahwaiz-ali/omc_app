@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme.dart';
+import '../../../../core/widgets/premium_card.dart';
 import '../../data/document_item.dart';
 
 class DocumentActionCard extends StatelessWidget {
@@ -20,25 +22,38 @@ class DocumentActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final canPreview = document.previewUrl != null || document.fileUrl != null;
     final canDownload =
         document.downloadUrl != null || document.fileUrl != null;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Actions', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text(
-              'Upload, preview, and download actions are available when file links are provided.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Actions',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.15,
             ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Upload, preview, and download actions are available when file links are provided.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
             const SizedBox(height: 16),
             _ActionTile(
               icon: Icons.visibility_outlined,
@@ -75,8 +90,7 @@ class DocumentActionCard extends StatelessWidget {
               enabled: canDownload,
               onTap: onDownload,
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -99,10 +113,7 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = enabled
-        ? theme.colorScheme.primary
-        : theme.colorScheme.onSurfaceVariant;
+    final color = enabled ? AppTheme.primaryRed : AppTheme.textSecondary;
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
@@ -110,35 +121,73 @@ class _ActionTile extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
+          color: enabled
+              ? AppTheme.primaryRed.withValues(alpha: 0.035)
+              : Colors.black.withValues(alpha: 0.025),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
+          border: Border.all(
+            color: enabled
+                ? AppTheme.primaryRed.withValues(alpha: 0.07)
+                : Colors.black.withValues(alpha: 0.05),
+          ),
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.10),
-              foregroundColor: color,
-              child: Icon(icon),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: color.withValues(alpha: 0.10)),
+              ),
+              child: Icon(icon, color: color, size: 21),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: theme.textTheme.titleSmall),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: enabled
+                          ? AppTheme.textPrimary
+                          : AppTheme.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: theme.colorScheme.onSurfaceVariant,
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary,
+                size: 20,
+              ),
             ),
           ],
         ),

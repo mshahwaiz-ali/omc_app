@@ -96,6 +96,9 @@ class _ProfileHeroSkeleton extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(26),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -200,7 +203,10 @@ class _ProfileUnavailableView extends StatelessWidget {
                 height: 58,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(21),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: const Icon(
                   Icons.person_search_outlined,
@@ -211,16 +217,21 @@ class _ProfileUnavailableView extends StatelessWidget {
               const SizedBox(height: 16),
               const Text(
                 'Profile details unavailable',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 19,
                   fontWeight: FontWeight.w900,
+                  letterSpacing: -0.15,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 message,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
@@ -451,16 +462,21 @@ class _ProfileHeroCard extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             displayName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 23,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.25,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             email,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppTheme.textSecondary,
@@ -503,16 +519,21 @@ class _ProfileSection extends StatelessWidget {
       children: [
         Text(
           title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 19,
             fontWeight: FontWeight.w900,
+            letterSpacing: -0.15,
           ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 5),
           Text(
             subtitle!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12,
@@ -552,12 +573,17 @@ class _ProfileTile extends StatelessWidget {
         height: 42,
         decoration: BoxDecoration(
           color: AppTheme.primaryRed.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.primaryRed.withValues(alpha: 0.08),
+          ),
         ),
-        child: Icon(icon, color: AppTheme.primaryRed),
+        child: Icon(icon, color: AppTheme.primaryRed, size: 21),
       ),
       title: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: AppTheme.textSecondary,
           fontSize: 12,
@@ -568,10 +594,14 @@ class _ProfileTile extends StatelessWidget {
         padding: const EdgeInsets.only(top: 4),
         child: Text(
           value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 14,
+            height: 1.25,
             fontWeight: FontWeight.w800,
+            letterSpacing: -0.05,
           ),
         ),
       ),
@@ -594,6 +624,9 @@ class _ProfileFootnote extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
             ),
             child: const Icon(
               Icons.info_outline_rounded,
@@ -604,6 +637,8 @@ class _ProfileFootnote extends StatelessWidget {
           const Expanded(
             child: Text(
               'Profile details are loaded from your backend account. Update requests are submitted for review when account services are available.',
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12,

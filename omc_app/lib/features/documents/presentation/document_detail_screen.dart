@@ -91,12 +91,21 @@ class _DocumentHeroCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(17),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.18),
+                ),
               ),
-              child: const Icon(Icons.description_rounded, color: Colors.white),
+              child: const Icon(
+                Icons.description_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
             const SizedBox(height: 18),
             Text(
               document.status.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: statusColor == AppTheme.primaryRed
                     ? Colors.white70
@@ -108,11 +117,14 @@ class _DocumentHeroCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               document.title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 25,
                 height: 1.12,
                 fontWeight: FontWeight.w900,
+                letterSpacing: -0.35,
               ),
             ),
             if ((document.subtitle ?? document.fileName)?.trim().isNotEmpty ??
@@ -120,6 +132,8 @@ class _DocumentHeroCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 document.subtitle ?? document.fileName!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
@@ -190,7 +204,18 @@ class _DocumentStatTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 22),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.065),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              ),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 18),
+          ),
           const SizedBox(height: 10),
           Text(
             value.trim().isEmpty ? '-' : value.trim(),
@@ -200,11 +225,14 @@ class _DocumentStatTile extends StatelessWidget {
               color: AppTheme.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.1,
             ),
           ),
           const SizedBox(height: 3),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 11,
@@ -230,10 +258,13 @@ class _DocumentInfoCard extends StatelessWidget {
         children: [
           const Text(
             'Document information',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.15,
             ),
           ),
           const SizedBox(height: 14),
@@ -276,6 +307,8 @@ class _DocumentInfoRow extends StatelessWidget {
             width: 86,
             child: Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12,
@@ -286,11 +319,14 @@ class _DocumentInfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 13,
                 height: 1.35,
                 fontWeight: FontWeight.w800,
+                letterSpacing: -0.05,
               ),
             ),
           ),
@@ -314,7 +350,10 @@ class _DocumentTimelinePlaceholder extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
             ),
             child: const Icon(
               Icons.timeline_rounded,
@@ -328,15 +367,20 @@ class _DocumentTimelinePlaceholder extends StatelessWidget {
               children: [
                 Text(
                   'Document timeline',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
                   ),
                 ),
                 SizedBox(height: 6),
                 Text(
                   'Uploads, review updates, approvals and rejection notes will appear here when activity data is available.',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 13,
@@ -432,8 +476,11 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
         const SizedBox(height: 8),
         Text(
           'Document ID: ${document.id}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],

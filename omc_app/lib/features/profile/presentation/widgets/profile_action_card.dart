@@ -26,15 +26,20 @@ class ProfileActionCard extends StatelessWidget {
         children: [
           const Text(
             'Account actions',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 19,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.15,
             ),
           ),
           const SizedBox(height: 5),
           const Text(
             'Request profile updates, refresh customer data, or contact OMC support.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12,
@@ -91,17 +96,15 @@ class _ProfileActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final outlineColor = Theme.of(context).colorScheme.outlineVariant;
-
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.primaryRed.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: outlineColor.withValues(alpha: 0.70)),
+          border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
         ),
         child: Row(
           children: [
@@ -110,9 +113,12 @@ class _ProfileActionTile extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                ),
               ),
-              child: Icon(icon, color: AppTheme.primaryRed),
+              child: Icon(icon, color: AppTheme.primaryRed, size: 21),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -121,15 +127,20 @@ class _ProfileActionTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
+                      letterSpacing: -0.1,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 12,
@@ -140,9 +151,18 @@ class _ProfileActionTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppTheme.textSecondary,
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary,
+                size: 20,
+              ),
             ),
           ],
         ),

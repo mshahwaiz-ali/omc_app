@@ -96,6 +96,9 @@ class _EmptyServicesState extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryRed.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(21),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: const Icon(
                   Icons.assignment_add,
@@ -111,6 +114,7 @@ class _EmptyServicesState extends StatelessWidget {
                   color: AppTheme.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
+                  letterSpacing: -0.15,
                 ),
               ),
               const SizedBox(height: 8),
@@ -166,6 +170,9 @@ class _LoadErrorState extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryRed.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(21),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: const Icon(
                   Icons.cloud_off_rounded,
@@ -181,6 +188,7 @@ class _LoadErrorState extends StatelessWidget {
                   color: AppTheme.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
+                  letterSpacing: -0.15,
                 ),
               ),
               const SizedBox(height: 8),
@@ -290,29 +298,35 @@ class _HeaderStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.06),
+        color: AppTheme.primaryRed.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.09)),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
       ),
       child: Column(
         children: [
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 16.5,
               fontWeight: FontWeight.w900,
               height: 1.05,
+              letterSpacing: -0.1,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w800,
+              height: 1.15,
             ),
           ),
         ],
@@ -344,21 +358,34 @@ class _ServiceCaseCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   serviceCase.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 16,
                     height: 1.25,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: -0.15,
                   ),
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
+              const SizedBox(width: 8),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.035),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondary,
+                  size: 20,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -375,31 +402,39 @@ class _ServiceCaseCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: LinearProgressIndicator(
-                    value: serviceCase.progress.clamp(0, 1),
-                    minHeight: 8,
-                    backgroundColor: AppTheme.primaryRed.withValues(
-                      alpha: 0.08,
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.035),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: LinearProgressIndicator(
+                      value: serviceCase.progress.clamp(0, 1),
+                      minHeight: 8,
+                      backgroundColor: AppTheme.primaryRed.withValues(
+                        alpha: 0.08,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '$progressPercent%',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
+                const SizedBox(width: 12),
+                Text(
+                  '$progressPercent%',
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           if (serviceCase.nextStep != null &&
@@ -459,11 +494,14 @@ class _StatusIcon extends StatelessWidget {
         : Icons.pending_actions_rounded;
 
     return Container(
-      width: 44,
-      height: 44,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
         color: AppTheme.primaryRed.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        ),
       ),
       child: Icon(icon, color: AppTheme.primaryRed, size: 23),
     );
@@ -485,12 +523,17 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     if (value.trim().isEmpty) return const SizedBox.shrink();
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 18),
+          Icon(icon, color: AppTheme.primaryRed, size: 17),
           const SizedBox(width: 8),
           Expanded(
             child: RichText(
