@@ -84,14 +84,14 @@ class _NotificationDetailBodyState
     final color = _typeColor(notification.type);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
       children: [
         _NotificationHeroCard(
           notification: notification,
           color: color,
           icon: _typeIcon(notification.type),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
         _DetailSection(
           title: 'Notification details',
           subtitle: 'Reference, time and backend metadata for this update.',
@@ -323,10 +323,28 @@ class _NotificationHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -42,
+              right: -34,
+              child: Container(
+                width: 132,
+                height: 132,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.08),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
           Row(
             children: [
               Container(
@@ -378,7 +396,11 @@ class _NotificationHeroCard extends StatelessWidget {
               height: 1.45,
             ),
           ),
-        ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -452,15 +474,25 @@ class _ActionsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Actions',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-            ),
+          const Row(
+            children: [
+              Icon(
+                Icons.tune_rounded,
+                color: AppTheme.primaryRed,
+                size: 20,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Actions',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 7),
           const Text(
             'Open the related record or update notification status.',
             style: TextStyle(
@@ -546,7 +578,7 @@ class _DetailTile extends StatelessWidget {
           color: AppTheme.primaryRed.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(15),
         ),
-        child: Icon(icon, color: AppTheme.primaryRed),
+        child: Icon(icon, color: AppTheme.primaryRed, size: 21),
       ),
       title: Text(
         label,
@@ -560,9 +592,12 @@ class _DetailTile extends StatelessWidget {
         padding: const EdgeInsets.only(top: 4),
         child: Text(
           value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 14,
+            height: 1.25,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -592,12 +627,14 @@ class _ActionButton extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isEnabled
+              ? Colors.white
+              : AppTheme.primaryRed.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: Theme.of(
               context,
-            ).colorScheme.outlineVariant.withValues(alpha: 0.70),
+            ).colorScheme.outlineVariant.withValues(alpha: 0.62),
           ),
         ),
         child: Row(

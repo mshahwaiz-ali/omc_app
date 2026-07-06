@@ -25,7 +25,7 @@ class LeadsScreen extends ConsumerWidget {
         },
         child: leadsAsync.when(
           data: (leads) => _LeadsContent(leads: leads),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const _LeadsLoadingView(),
           error: (error, _) => _BackendUnavailableState(
             icon: Icons.trending_up_rounded,
             title: 'Leads unavailable',
@@ -110,6 +110,41 @@ class _LeadsContent extends StatelessWidget {
 
         return _LeadCard(lead: leads[index - 1]);
       },
+    );
+  }
+}
+
+class _LeadsLoadingView extends StatelessWidget {
+  const _LeadsLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return const PremiumListHeader(
+            icon: Icons.trending_up_rounded,
+            title: 'Leads',
+            subtitle: 'Review opportunities, contacts and follow-up sources.',
+            metaLabel: 'Loading',
+          );
+        }
+
+        return const PremiumListCard(
+          icon: Icons.trending_up_rounded,
+          title: 'Loading lead',
+          subtitle: 'Fetching opportunity details',
+          children: [
+            PremiumInfoChip(icon: Icons.campaign_rounded, label: 'Source'),
+            PremiumInfoChip(icon: Icons.call_rounded, label: 'Phone'),
+            PremiumInfoChip(icon: Icons.schedule_rounded, label: 'Created'),
+          ],
+        );
+      },
+      separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
+      itemCount: 4,
     );
   }
 }

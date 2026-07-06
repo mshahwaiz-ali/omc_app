@@ -55,7 +55,7 @@ class TasksScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _TasksLoadingView(),
         error: (error, _) => PremiumEmptyState(
           icon: Icons.error_outline_rounded,
           title: 'Tasks unavailable',
@@ -74,6 +74,45 @@ String _backendErrorMessage(Object error) {
   }
 
   return 'Could not load tasks right now. Please try again.';
+}
+
+
+class _TasksLoadingView extends StatelessWidget {
+  const _TasksLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return const PremiumListHeader(
+            icon: Icons.task_alt_rounded,
+            title: 'Tasks',
+            subtitle: 'Track assigned work, due dates and priorities.',
+            metaLabel: 'Loading',
+          );
+        }
+
+        return const PremiumListCard(
+          icon: Icons.task_alt_rounded,
+          title: 'Loading task',
+          subtitle: 'Fetching latest assignment details',
+          children: [
+            PremiumInfoChip(
+              icon: Icons.radio_button_checked_rounded,
+              label: 'Status',
+            ),
+            PremiumInfoChip(icon: Icons.flag_rounded, label: 'Priority'),
+            PremiumInfoChip(icon: Icons.event_rounded, label: 'Due date'),
+          ],
+        );
+      },
+      separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
+      itemCount: 4,
+    );
+  }
 }
 
 class _TaskCard extends StatelessWidget {

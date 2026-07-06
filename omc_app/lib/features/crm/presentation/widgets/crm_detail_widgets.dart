@@ -20,49 +20,75 @@ class CrmDetailHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(18),
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -28,
+              top: -30,
+              child: Icon(
+                icon,
+                size: 108,
+                color: AppTheme.primaryRed.withValues(alpha: 0.045),
+              ),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 20,
-                    height: 1.16,
-                    fontWeight: FontWeight.w900,
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(19),
+                      border: Border.all(
+                        color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                      ),
+                    ),
+                    child: Icon(icon, color: AppTheme.primaryRed, size: 26),
                   ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 20,
+                            height: 1.16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                            height: 1.35,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  _CrmStatusPill(label: statusLabel),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          _CrmStatusPill(label: statusLabel),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -81,15 +107,30 @@ class CrmDetailInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 7,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           ...rows.map(
             (row) =>
                 Padding(padding: const EdgeInsets.only(bottom: 12), child: row),
@@ -114,7 +155,7 @@ class CrmInfoRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 96,
+          width: 104,
           child: Text(
             label,
             style: const TextStyle(
@@ -128,11 +169,12 @@ class CrmInfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             safeValue,
+            textAlign: TextAlign.right,
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 13,
               height: 1.35,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
@@ -160,15 +202,30 @@ class CrmActivityTimelineCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 7,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           if (items.isEmpty)
             _TimelineEmptyMessage(message: emptyMessage)
           else
@@ -208,7 +265,9 @@ class _CrmStatusPill extends StatelessWidget {
         border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.14)),
       ),
       child: Text(
-        label,
+        label.trim().isEmpty ? 'Open' : label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: AppTheme.primaryRed,
           fontSize: 11,
@@ -228,7 +287,7 @@ class _TimelineEmptyMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: AppTheme.background,
         borderRadius: BorderRadius.circular(18),

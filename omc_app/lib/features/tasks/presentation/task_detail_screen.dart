@@ -31,7 +31,7 @@ class TaskDetailScreen extends ConsumerWidget {
 
           return _TaskDetailBody(task: task);
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _TaskDetailLoadingView(),
         error: (_, _) => PremiumEmptyState(
           icon: Icons.task_alt_rounded,
           title: 'Task detail unavailable',
@@ -50,10 +50,8 @@ class _TaskDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
       children: [
         CrmDetailHeaderCard(
           icon: Icons.task_alt_rounded,
@@ -63,16 +61,17 @@ class _TaskDetailBody extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         CrmDetailInfoCard(
-          title: 'Task',
+          title: 'Overview',
           rows: [
-            CrmInfoRow(label: 'Priority', value: task.priority),
+            CrmInfoRow(label: 'Status', value: _valueOrDash(task.status)),
+            CrmInfoRow(label: 'Priority', value: _valueOrDash(task.priority)),
             CrmInfoRow(
               label: 'Due date',
-              value: task.dueDateLabel.isEmpty ? '-' : task.dueDateLabel,
+              value: _valueOrDash(task.dueDateLabel),
             ),
             CrmInfoRow(
               label: 'Assigned',
-              value: task.assignedTo.isEmpty ? '-' : task.assignedTo,
+              value: _valueOrDash(task.assignedTo),
             ),
           ],
         ),
@@ -91,12 +90,52 @@ class _TaskDetailBody extends StatelessWidget {
             CrmInfoRow(label: 'Updates', value: 'No updates recorded yet'),
           ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Task ID: ${task.id}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+        const SizedBox(height: 16),
+        CrmDetailInfoCard(
+          title: 'Reference',
+          rows: [
+            CrmInfoRow(label: 'Task ID', value: task.id),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+String _valueOrDash(String value) {
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? '-' : trimmed;
+}
+
+class _TaskDetailLoadingView extends StatelessWidget {
+  const _TaskDetailLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+      children: const [
+        CrmDetailHeaderCard(
+          icon: Icons.task_alt_rounded,
+          title: 'Loading task',
+          subtitle: 'Fetching assignment details',
+          statusLabel: 'Loading',
+        ),
+        SizedBox(height: 16),
+        CrmDetailInfoCard(
+          title: 'Overview',
+          rows: [
+            CrmInfoRow(label: 'Status', value: 'Loading'),
+            CrmInfoRow(label: 'Priority', value: 'Loading'),
+            CrmInfoRow(label: 'Due date', value: 'Loading'),
+            CrmInfoRow(label: 'Assigned', value: 'Loading'),
+          ],
+        ),
+        SizedBox(height: 16),
+        CrmActivityTimelineCard(
+          title: 'Task timeline',
+          emptyMessage:
+              'Loading task activity, comments and status updates.',
         ),
       ],
     );

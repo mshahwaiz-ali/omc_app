@@ -25,7 +25,7 @@ class CustomersScreen extends ConsumerWidget {
         },
         child: customersAsync.when(
           data: (customers) => _CustomersContent(customers: customers),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const _CustomersLoadingView(),
           error: (error, _) => _BackendUnavailableState(
             icon: Icons.groups_2_rounded,
             title: 'Customers unavailable',
@@ -110,6 +110,41 @@ class _CustomersContent extends StatelessWidget {
 
         return _CustomerCard(customer: customers[index - 1]);
       },
+    );
+  }
+}
+
+class _CustomersLoadingView extends StatelessWidget {
+  const _CustomersLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return const PremiumListHeader(
+            icon: Icons.groups_2_rounded,
+            title: 'Customers',
+            subtitle: 'Browse customer records, activity and account context.',
+            metaLabel: 'Loading',
+          );
+        }
+
+        return const PremiumListCard(
+          icon: Icons.groups_2_rounded,
+          title: 'Loading customer',
+          subtitle: 'Fetching account details',
+          children: [
+            PremiumInfoChip(icon: Icons.call_rounded, label: 'Phone'),
+            PremiumInfoChip(icon: Icons.location_city_rounded, label: 'City'),
+            PremiumInfoChip(icon: Icons.history_rounded, label: 'Activity'),
+          ],
+        );
+      },
+      separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
+      itemCount: 4,
     );
   }
 }

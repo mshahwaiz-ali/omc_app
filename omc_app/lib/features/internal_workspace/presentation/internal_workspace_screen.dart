@@ -81,9 +81,15 @@ class _InternalWorkspaceContent extends StatelessWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
       children: [
         _WorkspaceHero(totalFocusItems: totalFocusItems),
+        const SizedBox(height: 16),
+        _FocusStrip(
+          leads: summary.openLeads,
+          tasks: summary.pendingTasks,
+          payments: summary.pendingPayments,
+        ),
         const SizedBox(height: 18),
         GridView.count(
           crossAxisCount: 2,
@@ -169,6 +175,71 @@ class _InternalWorkspaceContent extends StatelessWidget {
   }
 }
 
+class _FocusStrip extends StatelessWidget {
+  const _FocusStrip({
+    required this.leads,
+    required this.tasks,
+    required this.payments,
+  });
+
+  final int leads;
+  final int tasks;
+  final int payments;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = leads + tasks + payments;
+
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    total == 0 ? 'Workspace clear' : '$total items need focus',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Leads $leads • Tasks $tasks • Payments $payments',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _WorkspaceHero extends StatelessWidget {
   const _WorkspaceHero({required this.totalFocusItems});
 
@@ -198,52 +269,69 @@ class _WorkspaceHero extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.onPrimary.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(999),
+          Positioned(
+            right: -28,
+            top: -32,
+            child: Icon(
+              Icons.dashboard_customize_rounded,
+              size: 118,
+              color: theme.colorScheme.onPrimary.withValues(alpha: 0.08),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.bolt_rounded,
-                    size: 17,
-                    color: theme.colorScheme.onPrimary,
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$totalFocusItems focus items',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.onPrimary,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.bolt_rounded,
+                        size: 17,
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$totalFocusItems focus items',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onPrimary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Team Command Center',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: theme.colorScheme.onPrimary,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Track sales, customers, payments, and daily execution from one clean workspace.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onPrimary.withValues(alpha: 0.84),
-              height: 1.4,
-            ),
+              const SizedBox(height: 18),
+              Text(
+                'Team Command Center',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: theme.colorScheme.onPrimary,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Track sales, customers, payments, and daily execution from one clean workspace.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.84),
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -272,9 +360,9 @@ class _SummaryCard extends StatelessWidget {
       elevation: 0,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {},
+        onTap: null,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(15),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -298,6 +386,7 @@ class _SummaryCard extends StatelessWidget {
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.8,
+                  height: 1,
                 ),
               ),
               const SizedBox(height: 2),
@@ -347,6 +436,7 @@ class _ShortcutTile extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -489,6 +579,7 @@ class _LoadingTile extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Container(
         height: 74,
         padding: const EdgeInsets.all(16),
