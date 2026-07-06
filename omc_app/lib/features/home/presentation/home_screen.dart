@@ -216,6 +216,7 @@ class HomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
               sliver: SliverToBoxAdapter(
                 child: _RecentActivityCard(
+                  activities: summary.recentActivity,
                   onTrack: () => context.go('/my-services'),
                 ),
               ),
@@ -228,11 +229,21 @@ class HomeScreen extends ConsumerWidget {
 
   List<_StatusItem> _statusItemsFromSummary(HomeDashboardSummary summary) {
     return [
-      _StatusItem(label: 'Active Cases', value: summary.activeCases.toString()),
-      _StatusItem(label: 'Completed', value: summary.completedCases.toString()),
       _StatusItem(
-        label: 'Pending Docs',
+        label: 'Open Services',
+        value: summary.activeCases.toString(),
+      ),
+      _StatusItem(
+        label: 'Documents',
         value: summary.pendingDocuments.toString(),
+      ),
+      _StatusItem(
+        label: 'Payments Due',
+        value: summary.paymentsDue.toString(),
+      ),
+      _StatusItem(
+        label: 'Notifications',
+        value: summary.unreadNotifications.toString(),
       ),
     ];
   }
@@ -623,12 +634,18 @@ class _WorkspaceCard extends StatelessWidget {
 }
 
 class _RecentActivityCard extends StatelessWidget {
-  const _RecentActivityCard({required this.onTrack});
+  const _RecentActivityCard({
+    required this.activities,
+    required this.onTrack,
+  });
 
+  final List<HomeDashboardActivity> activities;
   final VoidCallback? onTrack;
 
   @override
   Widget build(BuildContext context) {
+    final latestActivity = activities.isNotEmpty ? activities.first : null;
+
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       onTap: onTrack,
@@ -647,30 +664,71 @@ class _RecentActivityCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'No live case activity yet',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+          Expanded(
+            child: latestActivity == null
+                ? const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'No live case activity yet',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        'Submitted requests and status updates stay here.',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        latestActivity.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        latestActivity.subtitle.isNotEmpty
+                            ? latestActivity.subtitle
+                            : latestActivity.createdAtLabel ?? 'Latest update',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (activities.length > 1) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          '+${activities.length - 1} more update(s)',
+                          style: const TextStyle(
+                            color: AppTheme.primaryRed,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  'Submitted requests and status updates stay here.',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(width: 10),
           const Icon(

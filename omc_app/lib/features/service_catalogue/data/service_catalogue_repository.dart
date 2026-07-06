@@ -93,20 +93,70 @@ class ServiceCatalogueRepository {
     }
   }
 
+  Iterable<Map<String, dynamic>> _expandServiceRecord(
+    Map<String, dynamic> record,
+  ) sync* {
+    final nestedServices =
+        record['services'] ??
+        record['items'] ??
+        record['children'] ??
+        record['service_items'];
+
+    if (nestedServices is List) {
+      for (final item in nestedServices.whereType<Map<String, dynamic>>()) {
+        yield {
+          ...record,
+          ...item,
+          'category':
+              item['category'] ??
+              item['service_category'] ??
+              record['category'] ??
+              record['service_category'] ??
+              record['title'] ??
+              record['name'],
+        };
+      }
+      return;
+    }
+
+    yield record;
+  }
+
+
   List<ServiceItem> _servicesFromResponse(Map<String, dynamic> response) {
     final message = response['message'];
     final rawServices = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['services']
-        : response['services'];
+        ? message['services'] ??
+              message['data'] ??
+              message['items'] ??
+              message['rows'] ??
+              message['catalogue'] ??
+              message['service_catalogue']
+        : response['services'] ??
+              response['data'] ??
+              response['items'] ??
+              response['rows'] ??
+              response['catalogue'] ??
+              response['service_catalogue'];
 
-    if (rawServices is! List) return const [];
+    if (rawServices is List) {
+      return rawServices
+          .whereType<Map<String, dynamic>>()
+          .expand(_expandServiceRecord)
+          .map(ServiceItem.fromJson)
+          .where((service) => service.id.isNotEmpty)
+          .toList(growable: false);
+    }
 
-    return rawServices
-        .whereType<Map<String, dynamic>>()
-        .map(ServiceItem.fromJson)
-        .where((service) => service.id.isNotEmpty)
-        .toList(growable: false);
+    if (rawServices is Map<String, dynamic>) {
+      return _expandServiceRecord(rawServices)
+          .map(ServiceItem.fromJson)
+          .where((service) => service.id.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    return const [];
   }
 }

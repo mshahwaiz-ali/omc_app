@@ -76,11 +76,28 @@ class PaymentsRepository {
         continue;
       }
 
-      final response = await _frappeClient.uploadFile(
+      final uploadResponse = await _frappeClient.uploadFile(
         filePath: filePath,
         fileName: attachment.name,
         doctype: ApiConfig.paymentUploadDoctype,
         docname: cleanPaymentId,
+      );
+
+      final uploadedFileUrl = _extractFileUrl(uploadResponse);
+      if (uploadedFileUrl == null) {
+        throw const ApiError(
+          message: 'Receipt uploaded but the server did not return a file URL.',
+        );
+      }
+
+      final response = await _frappeClient.postMethod(
+        ApiConfig.uploadPaymentReceiptMethod,
+        data: {
+          'payment_id': cleanPaymentId,
+          'receipt_attachment': uploadedFileUrl,
+          'receipt_url': uploadedFileUrl,
+          'file_url': uploadedFileUrl,
+        },
       );
 
       uploadedFiles.add(response);
@@ -88,6 +105,22 @@ class PaymentsRepository {
 
     return uploadedFiles;
   }
+
+  String? _extractFileUrl(Map<String, dynamic> response) {
+    final message = response['message'];
+    final data = message is Map<String, dynamic> ? message : response;
+
+    final fileUrl =
+        data['file_url'] ??
+        data['url'] ??
+        data['file'];
+
+    final text = fileUrl?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+
+    return text;
+  }
+
 
   List<PaymentItem> _mapPaymentsResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];
@@ -127,9 +160,14 @@ class PaymentsRepository {
         json['title'] ?? json['service_title'] ?? json['name'],
       ),
       amountLabel: _amountLabel(
-        json['amount_label'] ?? json['amount'] ?? json['grand_total'],
+        json['amount_label'] ??
+            json['amount'] ??
+            json['grand_total'],
+        currency: json['currency'],
       ),
-      reference: _nullableString(json['reference'] ?? json['invoice_number']),
+      reference: _nullableString(
+        json['reference'] ?? json['payment_reference'] ?? json['invoice_number'],
+      ),
       invoiceUrl: _nullableString(
         json['invoice_url'] ?? json['invoice_file'] ?? json['invoice_link'],
       ),
@@ -141,10 +179,10 @@ class PaymentsRepository {
       ),
       dueDateLabel: _nullableString(json['due_date_label'] ?? json['due_date']),
       paidDateLabel: _nullableString(
-        json['paid_date_label'] ?? json['paid_date'],
+        json['paid_date_label'] ?? json['paid_date'] ?? json['paid_on'],
       ),
       serviceReference: _nullableString(
-        json['service_reference'] ?? json['case_reference'],
+        json['service_reference'] ?? json['case_reference'] ?? json['case_id'],
       ),
       remarks: _nullableString(json['remarks'] ?? json['notes']),
       status: _statusFromValue(json['status']),
@@ -165,15 +203,23 @@ class PaymentsRepository {
     return PaymentStatus.pending;
   }
 
-  String _amountLabel(dynamic value) {
-    if (value is num) return 'PKR ${value.toStringAsFixed(0)}';
+  String _amountLabel(dynamic value, {dynamic currency}) {
+    final currencyLabel = currency?.toString().trim();
+    final resolvedCurrency =
+        currencyLabel == null || currencyLabel.isEmpty ? 'PKR' : currencyLabel;
 
-    final text = value?.toString().trim() ?? '';
-    if (text.isEmpty) return 'PKR 0';
-    if (text.toLowerCase().contains('pkr') || text.contains('Rs')) return text;
+    if (value == null) return '$resolvedCurrency 0';
 
-    return 'PKR $text';
+    if (value is num) {
+      return '$resolvedCurrency ${value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2)}';
+    }
+
+    final text = value.toString().trim();
+    if (text.isEmpty) return '$resolvedCurrency 0';
+
+    return text.contains(RegExp(r'[A-Za-z]')) ? text : '$resolvedCurrency $text';
   }
+
 
   String _stringValue(dynamic value) {
     final text = value?.toString().trim() ?? '';

@@ -47,40 +47,40 @@ class ApiConfig {
   static const String apiMethodPath = '/api/method';
   static const String apiResourcePath = '/api/resource';
 
-  static const String loginMethod = 'lead_app.lead_app.apis.login';
+  static const String loginMethod = 'login';
   static const String googleLoginMethod =
-      'lead_app.lead_app.apis.google_mobile_login';
-  static const String signUpMethod = 'lead_app.lead_app.apis.sign_up';
+      'omc_app.api.mobile.google_mobile_login';
+  static const String signUpMethod = 'omc_app.api.mobile.sign_up';
+  static const String getSessionUserMethod =
+      'omc_app.api.mobile.get_session_user';
   static const String createServiceMethod =
-      'lead_app.lead_app.apis.create_service';
-  static const String createLeadMethod = 'lead_app.lead_app.apis.create_lead';
+      'omc_app.api.mobile.create_service';
+  static const String createLeadMethod = 'omc_app.api.mobile.create_lead';
   static const String dashboardDataMethod =
-      'lead_app.lead_app.apis.get_dashboard_data';
+      'omc_app.api.mobile.get_dashboard_data';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe tax calculator API.
   static const String taxCalculatorMethod = 'omc_app.api.mobile.calculate_tax';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe service catalogue API.
   static const String serviceCatalogueMethod =
       'omc_app.api.mobile.get_service_catalogue';
 
-  // TODO(backend): Replace these with confirmed OMC/Frappe tracking APIs.
-  // Keep centralized so My Services can be wired without hardcoded
-  // placeholder method names inside feature repositories.
   static const String serviceCasesMethod =
       'omc_app.api.mobile.get_service_cases';
   static const String serviceCaseDetailMethod =
       'omc_app.api.mobile.get_service_case';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe documents API.
   static const String documentsMethod = 'omc_app.api.mobile.get_documents';
   static const String documentDetailMethod = 'omc_app.api.mobile.get_document';
+  static const String uploadServiceDocumentMethod =
+      'omc_app.api.mobile.upload_service_document';
+  static const String updateServiceDocumentStatusMethod =
+      'omc_app.api.mobile.update_service_document_status';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe payments API.
   static const String paymentsMethod = 'omc_app.api.mobile.get_payments';
   static const String paymentDetailMethod = 'omc_app.api.mobile.get_payment';
+  static const String uploadPaymentReceiptMethod =
+      'omc_app.api.mobile.upload_payment_receipt';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe profile API.
   static const String profileMethod = 'omc_app.api.mobile.get_profile';
   static const String updateProfileMethod = 'omc_app.api.mobile.update_profile';
   static const String updateContactMethod =
@@ -91,33 +91,26 @@ class ApiConfig {
   static const String knowledgeDetailMethod =
       'omc_app.api.mobile.get_knowledge_article';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe notifications API.
   static const String notificationsMethod =
       'omc_app.api.mobile.get_notifications';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe notification detail API.
   static const String notificationDetailMethod =
       'omc_app.api.mobile.get_notification_detail';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe notification mark-read API.
   static const String markNotificationReadMethod =
       'omc_app.api.mobile.mark_notification_read';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe settings preferences API.
   static const String settingsPreferencesMethod =
       'omc_app.api.mobile.get_settings_preferences';
   static const String updateSettingsPreferencesMethod =
       'omc_app.api.mobile.update_settings_preferences';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe support ticket API.
   static const String createSupportTicketMethod =
       'omc_app.api.mobile.create_support_ticket';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe internal workspace API.
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe CRM APIs.
   static const String leadsMethod = 'omc_app.api.mobile.get_leads';
   static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
 
@@ -127,13 +120,11 @@ class ApiConfig {
   static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
   static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
 
-  static const String serviceRequestUploadDoctype = 'Service Request';
+  static const String serviceRequestUploadDoctype = 'OMC Service Request';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe document doctype.
-  static const String documentUploadDoctype = 'OMC Document';
+  static const String documentUploadDoctype = 'OMC Service Document';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe payment doctype.
-  static const String paymentUploadDoctype = 'Sales Invoice';
+  static const String paymentUploadDoctype = 'OMC Service Payment';
 
   static const String uploadFileMethod = 'upload_file';
 

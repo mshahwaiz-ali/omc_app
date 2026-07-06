@@ -38,18 +38,22 @@ class _DashboardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalCases = summary.activeCases + summary.completedCases;
+    final totalItems =
+        summary.activeCases +
+        summary.pendingDocuments +
+        summary.paymentsDue +
+        summary.unreadNotifications;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
       children: [
-        _DashboardHero(totalCases: totalCases),
+        _DashboardHero(totalItems: totalItems),
         const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
               child: _MetricCard(
-                title: 'Active',
+                title: 'Open Services',
                 value: summary.activeCases.toString(),
                 icon: Icons.pending_actions_rounded,
               ),
@@ -57,21 +61,39 @@ class _DashboardBody extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _MetricCard(
-                title: 'Completed',
-                value: summary.completedCases.toString(),
-                icon: Icons.verified_rounded,
+                title: 'Documents',
+                value: summary.pendingDocuments.toString(),
+                icon: Icons.folder_copy_outlined,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        _MetricCard(
-          title: 'Pending Documents',
-          value: summary.pendingDocuments.toString(),
-          icon: Icons.folder_copy_outlined,
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Payments Due',
+                value: summary.paymentsDue.toString(),
+                icon: Icons.account_balance_wallet_outlined,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MetricCard(
+                title: 'Notifications',
+                value: summary.unreadNotifications.toString(),
+                icon: Icons.notifications_none_rounded,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         _StatusBreakdownCard(summary: summary),
+        if (summary.recentActivity.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _RecentActivityBreakdownCard(activities: summary.recentActivity),
+        ],
         if (summary.fallbackMessage != null) ...[
           const SizedBox(height: 16),
           _FallbackCard(message: summary.fallbackMessage!),
@@ -82,9 +104,9 @@ class _DashboardBody extends StatelessWidget {
 }
 
 class _DashboardHero extends StatelessWidget {
-  const _DashboardHero({required this.totalCases});
+  const _DashboardHero({required this.totalItems});
 
-  final int totalCases;
+  final int totalItems;
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +135,7 @@ class _DashboardHero extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '$totalCases total tracked case(s)',
+              '$totalItems live item(s) across your OMC workspace',
               style: const TextStyle(
                 color: Colors.white70,
                 fontWeight: FontWeight.w700,
@@ -175,9 +197,10 @@ class _StatusBreakdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = [
-      ('Active cases', summary.activeCases),
-      ('Completed cases', summary.completedCases),
-      ('Pending documents', summary.pendingDocuments),
+      ('Open services', summary.activeCases),
+      ('Documents', summary.pendingDocuments),
+      ('Payments due', summary.paymentsDue),
+      ('Notifications', summary.unreadNotifications),
     ];
 
     return PremiumCard(
@@ -222,6 +245,88 @@ class _StatusBreakdownCard extends StatelessWidget {
     );
   }
 }
+
+
+class _RecentActivityBreakdownCard extends StatelessWidget {
+  const _RecentActivityBreakdownCard({required this.activities});
+
+  final List<HomeDashboardActivity> activities;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleActivities = activities.take(4).toList(growable: false);
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Recent activity',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final activity in visibleActivities)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.timeline_rounded,
+                    color: AppTheme.primaryRed,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activity.title,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (activity.subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            activity.subtitle,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                        if (activity.createdAtLabel != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            activity.createdAtLabel!,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class _FallbackCard extends StatelessWidget {
   const _FallbackCard({required this.message});

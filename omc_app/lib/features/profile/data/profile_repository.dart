@@ -100,7 +100,12 @@ class ProfileRepository {
         profile['customer_type'] ?? profile['user_type'],
       ),
       cnic: _nullableString(profile['cnic'] ?? profile['tax_id']),
-      status: _nullableString(profile['status']) ?? fallback.status,
+      ntn: _nullableString(profile['ntn']),
+      companyName: _nullableString(profile['company_name'] ?? profile['company']),
+      approvalStatus: _nullableString(profile['approval_status']),
+      status:
+          _nullableString(profile['customer_status'] ?? profile['status']) ??
+          fallback.status,
     );
   }
 

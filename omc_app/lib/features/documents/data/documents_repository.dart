@@ -79,11 +79,30 @@ class DocumentsRepository {
         continue;
       }
 
-      final response = await _frappeClient.uploadFile(
+      final uploadResponse = await _frappeClient.uploadFile(
         filePath: filePath,
         fileName: attachment.name,
         doctype: ApiConfig.documentUploadDoctype,
         docname: cleanDocumentId,
+      );
+
+      final uploadedFileUrl = _extractFileUrl(uploadResponse);
+      if (uploadedFileUrl == null) {
+        throw const ApiError(
+          message: 'Document uploaded but the server did not return a file URL.',
+        );
+      }
+
+      final response = await _frappeClient.postMethod(
+        ApiConfig.uploadServiceDocumentMethod,
+        data: {
+          'case_id': cleanDocumentId,
+          'document_title': attachment.name,
+          'document_type': attachment.extension,
+          'file_url': uploadedFileUrl,
+          'attachment': uploadedFileUrl,
+          'status': 'Uploaded',
+        },
       );
 
       uploadedFiles.add(response);
@@ -91,6 +110,23 @@ class DocumentsRepository {
 
     return uploadedFiles;
   }
+
+  String? _extractFileUrl(Map<String, dynamic> response) {
+    final message = response['message'];
+    final data = message is Map<String, dynamic> ? message : response;
+
+    final fileUrl =
+        data['file_url'] ??
+        data['file_url'.replaceAll('_', '')] ??
+        data['url'] ??
+        data['file'];
+
+    final text = fileUrl?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+
+    return text;
+  }
+
 
   List<DocumentItem> _mapDocumentsResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];
@@ -129,7 +165,9 @@ class DocumentsRepository {
       title: _stringValue(
         json['title'] ?? json['document_name'] ?? json['name'],
       ),
-      subtitle: _nullableString(json['subtitle'] ?? json['description']),
+      subtitle: _nullableString(
+        json['subtitle'] ?? json['description'] ?? json['type'],
+      ),
       fileName: _nullableString(json['file_name'] ?? json['filename']),
       fileUrl: _nullableString(json['file_url'] ?? json['file'] ?? json['url']),
       previewUrl: _nullableString(
@@ -139,10 +177,14 @@ class DocumentsRepository {
         json['download_url'] ?? json['file_url'] ?? json['file'] ?? json['url'],
       ),
       updatedAtLabel: _nullableString(
-        json['updated_at_label'] ?? json['modified'] ?? json['updated_at'],
+        json['updated_at_label'] ??
+            json['modified'] ??
+            json['updated_at'] ??
+            json['created_at'] ??
+            json['uploaded_on'],
       ),
       serviceReference: _nullableString(
-        json['service_reference'] ?? json['case_reference'],
+        json['service_reference'] ?? json['case_reference'] ?? json['case_id'],
       ),
       remarks: _nullableString(json['remarks'] ?? json['notes']),
       status: _statusFromValue(json['status']),

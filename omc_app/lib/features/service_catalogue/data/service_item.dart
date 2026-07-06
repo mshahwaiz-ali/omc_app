@@ -32,9 +32,9 @@ class ServiceItem {
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
     return ServiceItem(
       id: _readString(json, ['id', 'name', 'service_id']),
-      title: _readString(json, ['title', 'service_name', 'serviceName']),
-      category: _readString(json, ['category', 'service_category']),
-      feeLabel: _readString(json, ['feeLabel', 'fee_label', 'fee']),
+      title: _readString(json, ['title', 'service_title', 'service_name', 'serviceName', 'label']),
+      category: _readString(json, ['category', 'service_category', 'service_group', 'group']),
+      feeLabel: _readString(json, ['feeLabel', 'fee_label', 'fee', 'price_label', 'amount_label', 'service_fee']),
       governmentFeeLabel: _readNullableString(json, [
         'governmentFeeLabel',
         'government_fee_label',
@@ -45,12 +45,15 @@ class ServiceItem {
         'completion_time',
         'timeline',
         'duration',
+        'estimated_time',
+        'turnaround_time',
       ]),
-      description: _readNullableString(json, ['description', 'details']),
+      description: _readNullableString(json, ['description', 'details', 'long_description']),
       shortDescription: _readNullableString(json, [
         'shortDescription',
         'short_description',
         'summary',
+        'intro',
       ]),
       supportMessage: _readNullableString(json, [
         'supportMessage',
@@ -62,7 +65,11 @@ class ServiceItem {
         'wizard_type',
         'request_wizard_type',
       ]),
-      requirements: _readStringList(json, ['requirements']),
+      requirements: _readStringList(json, [
+        'requirements',
+        'required_information',
+        'required_info',
+      ]),
       processSteps: _readStringList(json, [
         'processSteps',
         'process_steps',
@@ -72,6 +79,8 @@ class ServiceItem {
         'requiredDocuments',
         'required_documents',
         'documents',
+        'required_docs',
+        'attachments_required',
       ]),
     );
   }

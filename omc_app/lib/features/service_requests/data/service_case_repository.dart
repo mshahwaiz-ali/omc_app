@@ -50,13 +50,6 @@ class ServiceCaseRepository {
   final FrappeClient _frappeClient;
 
   Future<List<ServiceCase>> fetchServiceCases() async {
-    // Backend-first hook.
-    // TODO(backend): replace endpoint/mapping with confirmed OMC Frappe API.
-    //
-    // Expected responsibility:
-    // - call authenticated Frappe endpoint
-    // - map backend case/request records into ServiceCase
-    // - never create fake production cases locally
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.serviceCasesMethod,
@@ -71,12 +64,14 @@ class ServiceCaseRepository {
   }
 
   Future<ServiceCase?> fetchServiceCaseDetail(String caseId) async {
-    // Backend-first hook.
-    // TODO(backend): replace endpoint/mapping with confirmed OMC Frappe API.
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.serviceCaseDetailMethod,
-        queryParameters: {'case_id': caseId},
+        queryParameters: {
+          'case_id': caseId,
+          'name': caseId,
+          'service_request': caseId,
+        },
       );
 
       final cases = _mapServiceCasesResponse(response);
@@ -106,35 +101,78 @@ class ServiceCaseRepository {
     final rawCases = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['cases']
-        : data['cases'];
+        ? message['cases'] ??
+              message['service_cases'] ??
+              message['requests'] ??
+              message['data'] ??
+              message['items'] ??
+              message['rows']
+        : data['cases'] ??
+              data['service_cases'] ??
+              data['requests'] ??
+              data['data'] ??
+              data['items'] ??
+              data['rows'];
 
-    if (rawCases is! List) return const [];
+    if (rawCases is List) {
+      return rawCases
+          .whereType<Map<String, dynamic>>()
+          .map(_mapServiceCase)
+          .toList(growable: false);
+    }
 
-    return rawCases
-        .whereType<Map<String, dynamic>>()
-        .map(_mapServiceCase)
-        .toList(growable: false);
+    final rawCase = message is Map<String, dynamic>
+        ? message['case'] ??
+              message['service_case'] ??
+              message['request'] ??
+              message['service_request'] ??
+              message
+        : data['case'] ??
+              data['service_case'] ??
+              data['request'] ??
+              data['service_request'];
+
+    if (rawCase is Map<String, dynamic>) {
+      return [_mapServiceCase(rawCase)];
+    }
+
+    return const [];
   }
 
   ServiceCase _mapServiceCase(Map<String, dynamic> json) {
     return ServiceCase(
       id: _stringValue(json['id'] ?? json['name'] ?? json['case_id']),
-      reference: _nullableString(json['reference'] ?? json['case_reference']),
-      title: _stringValue(json['title'] ?? json['service_title']),
-      category: _stringValue(json['category'] ?? json['service_category']),
+      reference: _nullableString(
+        json['reference'] ??
+            json['case_reference'] ??
+            json['service_request'] ??
+            json['request_id'],
+      ),
+      title: _stringValue(
+        json['title'] ??
+            json['service_title'] ??
+            json['subject'] ??
+            json['service_name'],
+      ),
+      category: _stringValue(
+        json['category'] ?? json['service_category'] ?? json['service_group'],
+      ),
       status: _stringValue(json['status']),
-      createdAtLabel: _stringValue(json['created_at_label'] ?? json['created']),
+      createdAtLabel: _stringValue(
+        json['created_at_label'] ?? json['created'] ?? json['creation'],
+      ),
       updatedAtLabel: _stringValue(
         json['updated_at_label'] ?? json['modified'],
       ),
-      progress: _doubleValue(json['progress']),
-      nextStep: _nullableString(json['next_step']),
+      progress: _doubleValue(json['progress'] ?? json['progress_percent']),
+      nextStep: _nullableString(json['next_step'] ?? json['next_action']),
       remarks: _nullableString(json['remarks']),
       requiredDocuments: _stringList(json['required_documents']),
       submittedDocuments: _stringList(json['submitted_documents']),
       missingDocuments: _stringList(json['missing_documents']),
-      timeline: _timeline(json['timeline']),
+      timeline: _timeline(
+        json['timeline'] ?? json['activity'] ?? json['recent_activity'],
+      ),
     );
   }
 
@@ -145,9 +183,19 @@ class ServiceCaseRepository {
         .whereType<Map<String, dynamic>>()
         .map(
           (item) => ServiceCaseTimelineStep(
-            title: _stringValue(item['title']),
-            subtitle: _stringValue(item['subtitle']),
-            isDone: item['is_done'] == true || item['isDone'] == true,
+            title: _stringValue(
+              item['title'] ?? item['status'] ?? item['activity_type'],
+            ),
+            subtitle: _stringValue(
+              item['subtitle'] ??
+                  item['description'] ??
+                  item['remarks'] ??
+                  item['creation'],
+            ),
+            isDone:
+                item['is_done'] == true ||
+                item['isDone'] == true ||
+                item['status'] == 'Completed',
           ),
         )
         .toList(growable: false);

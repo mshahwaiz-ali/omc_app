@@ -48,7 +48,41 @@ class AuthRepository {
       return null;
     }
 
-    return AuthSession(userId: userId);
+    if (Env.useMockAuth) {
+      return AuthSession(userId: userId);
+    }
+
+    final serverUserId = await getSessionUser();
+    if (serverUserId == null || serverUserId.isEmpty) {
+      await clearSession();
+      return null;
+    }
+
+    return AuthSession(userId: serverUserId);
+  }
+
+  Future<String?> getSessionUser() async {
+    final response = await _frappeClient.getMethod(
+      ApiConfig.getSessionUserMethod,
+    );
+
+    final message = response['message'];
+    final data = message is Map<String, dynamic> ? message : response;
+    final profile = data['profile'];
+
+    final user =
+        data['user'] ??
+        data['user_id'] ??
+        data['email'] ??
+        data['name'] ??
+        (profile is Map<String, dynamic> ? profile['email'] : null) ??
+        (profile is Map<String, dynamic> ? profile['user_id'] : null);
+
+    final text = user?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+
+    await _secureStorageService.saveUserId(text);
+    return text;
   }
 
   Future<AuthSession> loginWithPassword({

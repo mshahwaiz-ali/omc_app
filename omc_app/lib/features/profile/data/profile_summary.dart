@@ -5,6 +5,9 @@ class ProfileSummary {
     this.phone,
     this.customerType,
     this.cnic,
+    this.ntn,
+    this.companyName,
+    this.approvalStatus,
     this.status,
   });
 
@@ -13,6 +16,9 @@ class ProfileSummary {
   final String? phone;
   final String? customerType;
   final String? cnic;
+  final String? ntn;
+  final String? companyName;
+  final String? approvalStatus;
   final String? status;
 
   factory ProfileSummary.fromUserId(String? userId) {

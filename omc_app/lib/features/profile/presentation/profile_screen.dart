@@ -247,6 +247,26 @@ class _ProfileContent extends StatelessWidget {
                 label: 'Customer Type',
                 value: profile.customerType ?? 'OMC Customer',
               ),
+              const _DividerIndent(),
+              _ProfileTile(
+                icon: Icons.business_outlined,
+                label: 'Company',
+                value: profile.companyName ?? 'Not available',
+              ),
+              const _DividerIndent(),
+              _ProfileTile(
+                icon: Icons.confirmation_number_outlined,
+                label: 'NTN',
+                value: profile.ntn ?? 'Not available',
+              ),
+              if (profile.approvalStatus != null) ...[
+                const _DividerIndent(),
+                _ProfileTile(
+                  icon: Icons.verified_user_outlined,
+                  label: 'Approval',
+                  value: profile.approvalStatus!,
+                ),
+              ],
             ],
           ),
         ),
@@ -305,12 +325,11 @@ class _ProfileContent extends StatelessWidget {
   ) async {
     final repository = ref.read(profileRepositoryProvider);
     final didSubmit = await repository.requestProfileUpdate({
-      'request_type': 'profile_update',
-      'display_name': profile.displayName,
-      'email': profile.email,
+      'full_name': profile.displayName,
       if (profile.phone != null) 'phone': profile.phone,
       if (profile.cnic != null) 'cnic': profile.cnic,
-      if (profile.customerType != null) 'customer_type': profile.customerType,
+      if (profile.ntn != null) 'ntn': profile.ntn,
+      if (profile.companyName != null) 'company_name': profile.companyName,
     });
 
     if (!context.mounted) return;
@@ -335,9 +354,13 @@ class _ProfileContent extends StatelessWidget {
   ) async {
     final repository = ref.read(profileRepositoryProvider);
     final didSubmit = await repository.requestContactUpdate({
-      'request_type': 'contact_update',
       'email': profile.email,
+      'full_name': profile.displayName,
       if (profile.phone != null) 'phone': profile.phone,
+      if (profile.phone != null) 'mobile': profile.phone,
+      if (profile.cnic != null) 'cnic': profile.cnic,
+      if (profile.ntn != null) 'ntn': profile.ntn,
+      if (profile.companyName != null) 'company_name': profile.companyName,
     });
 
     if (!context.mounted) return;
