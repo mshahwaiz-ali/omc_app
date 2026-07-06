@@ -183,7 +183,6 @@ class HomeDashboardRepository {
     return null;
   }
 
-
   int _readInt(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];

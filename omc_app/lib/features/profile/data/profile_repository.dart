@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../../auth/application/auth_controller.dart';
 import 'profile_summary.dart';
@@ -29,17 +30,18 @@ class ProfileRepository {
   }) async {
     try {
       final response = await _frappeClient.getMethod(ApiConfig.profileMethod);
-      final profile = _mapProfileResponse(
-        response,
-        fallbackUserId: fallbackUserId,
+      return _mapProfileResponse(response, fallbackUserId: fallbackUserId) ??
+          ProfileSummary.fromUserId(fallbackUserId);
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message:
+            'Full customer profile could not be loaded from the server right now.',
+        code: 'profile_unavailable',
+        details: error,
       );
-
-      if (profile != null) return profile;
-    } catch (_) {
-      // Keep Profile usable during local/UI testing while backend APIs are pending.
     }
-
-    return ProfileSummary.fromUserId(fallbackUserId);
   }
 
   Future<bool> requestProfileUpdate(Map<String, dynamic> payload) async {
@@ -101,7 +103,9 @@ class ProfileRepository {
       ),
       cnic: _nullableString(profile['cnic'] ?? profile['tax_id']),
       ntn: _nullableString(profile['ntn']),
-      companyName: _nullableString(profile['company_name'] ?? profile['company']),
+      companyName: _nullableString(
+        profile['company_name'] ?? profile['company'],
+      ),
       approvalStatus: _nullableString(profile['approval_status']),
       status:
           _nullableString(profile['customer_status'] ?? profile['status']) ??

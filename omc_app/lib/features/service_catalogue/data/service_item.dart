@@ -32,9 +32,27 @@ class ServiceItem {
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
     return ServiceItem(
       id: _readString(json, ['id', 'name', 'service_id']),
-      title: _readString(json, ['title', 'service_title', 'service_name', 'serviceName', 'label']),
-      category: _readString(json, ['category', 'service_category', 'service_group', 'group']),
-      feeLabel: _readString(json, ['feeLabel', 'fee_label', 'fee', 'price_label', 'amount_label', 'service_fee']),
+      title: _readString(json, [
+        'title',
+        'service_title',
+        'service_name',
+        'serviceName',
+        'label',
+      ]),
+      category: _readString(json, [
+        'category',
+        'service_category',
+        'service_group',
+        'group',
+      ]),
+      feeLabel: _readString(json, [
+        'feeLabel',
+        'fee_label',
+        'fee',
+        'price_label',
+        'amount_label',
+        'service_fee',
+      ]),
       governmentFeeLabel: _readNullableString(json, [
         'governmentFeeLabel',
         'government_fee_label',
@@ -48,7 +66,11 @@ class ServiceItem {
         'estimated_time',
         'turnaround_time',
       ]),
-      description: _readNullableString(json, ['description', 'details', 'long_description']),
+      description: _readNullableString(json, [
+        'description',
+        'details',
+        'long_description',
+      ]),
       shortDescription: _readNullableString(json, [
         'shortDescription',
         'short_description',

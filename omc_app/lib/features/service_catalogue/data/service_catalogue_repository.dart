@@ -122,7 +122,6 @@ class ServiceCatalogueRepository {
     yield record;
   }
 
-
   List<ServiceItem> _servicesFromResponse(Map<String, dynamic> response) {
     final message = response['message'];
     final rawServices = message is List

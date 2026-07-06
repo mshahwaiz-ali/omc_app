@@ -65,7 +65,8 @@ class CustomersRepository {
       rethrow;
     } catch (error) {
       throw ApiError(
-        message: 'Customer details could not be loaded from the server right now.',
+        message:
+            'Customer details could not be loaded from the server right now.',
         code: 'customer_detail_unavailable',
         details: error,
       );

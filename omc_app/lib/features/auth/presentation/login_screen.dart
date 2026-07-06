@@ -245,7 +245,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-
 class _AuthHeader extends StatelessWidget {
   const _AuthHeader({required this.title, required this.subtitle});
 
@@ -273,10 +272,7 @@ class _AuthHeader extends StatelessWidget {
               ],
             ),
             padding: const EdgeInsets.all(10),
-            child: const OmcLogo.symbol(
-              size: 148,
-              borderRadius: 0,
-            ),
+            child: const OmcLogo.symbol(size: 148, borderRadius: 0),
           ),
         ),
         const SizedBox(height: 38),

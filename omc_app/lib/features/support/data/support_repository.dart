@@ -38,7 +38,8 @@ class SupportRepository {
       rethrow;
     } catch (error) {
       throw ApiError(
-        message: 'Support tickets could not be loaded from the server right now.',
+        message:
+            'Support tickets could not be loaded from the server right now.',
         code: 'support_tickets_unavailable',
         details: error,
       );
@@ -52,17 +53,15 @@ class SupportRepository {
     try {
       final response = await frappeClient.getMethod(
         ApiConfig.supportTicketDetailMethod,
-        queryParameters: {
-          'ticket_id': cleanTicketId,
-          'name': cleanTicketId,
-        },
+        queryParameters: {'ticket_id': cleanTicketId, 'name': cleanTicketId},
       );
       return _mapTicketDetailResponse(response);
     } on ApiError {
       rethrow;
     } catch (error) {
       throw ApiError(
-        message: 'This support ticket could not be loaded from the server right now.',
+        message:
+            'This support ticket could not be loaded from the server right now.',
         code: 'support_ticket_detail_unavailable',
         details: error,
       );

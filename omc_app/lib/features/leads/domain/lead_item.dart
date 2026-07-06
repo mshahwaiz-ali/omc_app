@@ -19,7 +19,10 @@ class LeadItem {
         json['title'] ?? json['lead_name'] ?? json['company_name'],
       ),
       customerName: _stringValue(
-        json['customer_name'] ?? json['person_name'] ?? json['lead_name'] ?? json['company_name'],
+        json['customer_name'] ??
+            json['person_name'] ??
+            json['lead_name'] ??
+            json['company_name'],
       ),
       status: _statusFromValue(json['status']),
       email: _nullableString(json['email'] ?? json['email_id']),

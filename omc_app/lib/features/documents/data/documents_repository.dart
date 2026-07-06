@@ -89,7 +89,8 @@ class DocumentsRepository {
       final uploadedFileUrl = _extractFileUrl(uploadResponse);
       if (uploadedFileUrl == null) {
         throw const ApiError(
-          message: 'Document uploaded but the server did not return a file URL.',
+          message:
+              'Document uploaded but the server did not return a file URL.',
         );
       }
 
@@ -126,7 +127,6 @@ class DocumentsRepository {
 
     return text;
   }
-
 
   List<DocumentItem> _mapDocumentsResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];

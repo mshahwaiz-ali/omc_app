@@ -815,7 +815,6 @@ class _LogoActionTile extends StatelessWidget {
   }
 }
 
-
 class _AttentionCard extends StatelessWidget {
   const _AttentionCard({
     required this.pendingDocuments,

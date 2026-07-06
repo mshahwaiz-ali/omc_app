@@ -18,9 +18,7 @@ class InternalWorkspaceSummary {
   factory InternalWorkspaceSummary.fromJson(Map<String, dynamic> json) {
     return InternalWorkspaceSummary(
       openLeads: _readInt(json['open_leads'] ?? json['leads']),
-      activeCustomers: _readInt(
-        json['active_customers'] ?? json['customers'],
-      ),
+      activeCustomers: _readInt(json['active_customers'] ?? json['customers']),
       pendingTasks: _readInt(json['pending_tasks'] ?? json['tasks']),
       pendingPayments: _readInt(
         json['pending_payments'] ?? json['payments_due'],

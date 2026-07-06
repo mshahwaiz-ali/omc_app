@@ -31,11 +31,11 @@ class ApiConfig {
 
   static String get _defaultBaseUrlForEnvironment {
     switch (Env.current) {
-        case AppEnvironment.development:
+      case AppEnvironment.development:
         return 'http://127.0.0.1:8000';
-        case AppEnvironment.staging:
+      case AppEnvironment.staging:
         return 'https://erp.omchouse.com';
-        case AppEnvironment.production:
+      case AppEnvironment.production:
         return 'https://erp.omchouse.com';
     }
   }
@@ -53,8 +53,7 @@ class ApiConfig {
   static const String signUpMethod = 'omc_app.api.mobile.sign_up';
   static const String getSessionUserMethod =
       'omc_app.api.mobile.get_session_user';
-  static const String createServiceMethod =
-      'omc_app.api.mobile.create_service';
+  static const String createServiceMethod = 'omc_app.api.mobile.create_service';
   static const String createLeadMethod = 'omc_app.api.mobile.create_lead';
   static const String dashboardDataMethod =
       'omc_app.api.mobile.get_dashboard_data';

@@ -110,17 +110,13 @@ class PaymentsRepository {
     final message = response['message'];
     final data = message is Map<String, dynamic> ? message : response;
 
-    final fileUrl =
-        data['file_url'] ??
-        data['url'] ??
-        data['file'];
+    final fileUrl = data['file_url'] ?? data['url'] ?? data['file'];
 
     final text = fileUrl?.toString().trim();
     if (text == null || text.isEmpty) return null;
 
     return text;
   }
-
 
   List<PaymentItem> _mapPaymentsResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];
@@ -160,13 +156,13 @@ class PaymentsRepository {
         json['title'] ?? json['service_title'] ?? json['name'],
       ),
       amountLabel: _amountLabel(
-        json['amount_label'] ??
-            json['amount'] ??
-            json['grand_total'],
+        json['amount_label'] ?? json['amount'] ?? json['grand_total'],
         currency: json['currency'],
       ),
       reference: _nullableString(
-        json['reference'] ?? json['payment_reference'] ?? json['invoice_number'],
+        json['reference'] ??
+            json['payment_reference'] ??
+            json['invoice_number'],
       ),
       invoiceUrl: _nullableString(
         json['invoice_url'] ?? json['invoice_file'] ?? json['invoice_link'],
@@ -205,8 +201,9 @@ class PaymentsRepository {
 
   String _amountLabel(dynamic value, {dynamic currency}) {
     final currencyLabel = currency?.toString().trim();
-    final resolvedCurrency =
-        currencyLabel == null || currencyLabel.isEmpty ? 'PKR' : currencyLabel;
+    final resolvedCurrency = currencyLabel == null || currencyLabel.isEmpty
+        ? 'PKR'
+        : currencyLabel;
 
     if (value == null) return '$resolvedCurrency 0';
 
@@ -217,9 +214,10 @@ class PaymentsRepository {
     final text = value.toString().trim();
     if (text.isEmpty) return '$resolvedCurrency 0';
 
-    return text.contains(RegExp(r'[A-Za-z]')) ? text : '$resolvedCurrency $text';
+    return text.contains(RegExp(r'[A-Za-z]'))
+        ? text
+        : '$resolvedCurrency $text';
   }
-
 
   String _stringValue(dynamic value) {
     final text = value?.toString().trim() ?? '';
