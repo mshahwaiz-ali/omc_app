@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,11 +34,14 @@ import '../features/splash/presentation/splash_screen.dart';
 import 'main_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authControllerProvider);
+  final routerRefreshNotifier = _RouterRefreshNotifier(ref);
+  ref.onDispose(routerRefreshNotifier.dispose);
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: routerRefreshNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authControllerProvider);
       final location = state.matchedLocation;
 
       final isSplash = location == '/';
@@ -268,3 +272,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _RouterRefreshNotifier extends ChangeNotifier {
+  _RouterRefreshNotifier(this._ref) {
+    _subscription = _ref.listen<AuthState>(
+      authControllerProvider,
+      (_, _) => notifyListeners(),
+    );
+  }
+
+  final Ref _ref;
+  late final ProviderSubscription<AuthState> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.close();
+    super.dispose();
+  }
+}

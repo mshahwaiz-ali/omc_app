@@ -106,6 +106,8 @@ class FrappeClient {
       );
 
       final data = _readResponseMap(response.data);
+      _throwIfRejectedLogin(data);
+
       final sessionCookie = _extractCookieHeader(
         response.headers['set-cookie'],
       );
@@ -159,6 +161,47 @@ class FrappeClient {
     }
 
     return data;
+  }
+
+  void _throwIfRejectedLogin(Map<String, dynamic> data) {
+    final rawMessage = data['message'];
+    final message = rawMessage is String
+        ? rawMessage
+        : rawMessage is Map<String, dynamic>
+        ? rawMessage.values.join(' ')
+        : '';
+
+    final combined = [
+      data['exc_type'],
+      data['_server_messages'],
+      data['exception'],
+      message,
+      data.toString(),
+    ].whereType<Object>().join(' ').toLowerCase();
+
+    final hasAcceptedLoginSignal =
+        data['home_page'] != null ||
+        data['full_name'] != null ||
+        data['user_id'] != null ||
+        data['sid'] != null ||
+        _extractCookieFromBody(data) != null;
+
+    final looksRejected =
+        combined.contains('invalid login') ||
+        combined.contains('incorrect') ||
+        combined.contains('invalid password') ||
+        combined.contains('wrong password') ||
+        combined.contains('authentication') ||
+        combined.contains('login failed') ||
+        combined.contains('user disabled') ||
+        combined.contains('not permitted');
+
+    if (looksRejected && !hasAcceptedLoginSignal) {
+      throw ApiError(
+        message: 'Invalid username or password. Please check your credentials.',
+        details: data,
+      );
+    }
   }
 
   String? _extractCookieHeader(List<String>? setCookieHeaders) {
