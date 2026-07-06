@@ -255,11 +255,10 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  static bool get _hasTestingFlags => Env.useMockAuth || Env.useServicePreview;
+  static bool get _hasTestingFlags => Env.useServicePreview;
 
   static String get _testingFlagsLabel {
     final enabled = <String>[
-      if (Env.useMockAuth) 'Mock auth',
       if (Env.useServicePreview) 'Service preview',
     ];
 

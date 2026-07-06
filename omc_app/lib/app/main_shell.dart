@@ -20,6 +20,34 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0;
 
+  static const List<_ShellNavItem> _navItems = [
+    _ShellNavItem(
+      label: 'Home',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+    ),
+    _ShellNavItem(
+      label: 'Services',
+      icon: Icons.grid_view_outlined,
+      activeIcon: Icons.grid_view_rounded,
+    ),
+    _ShellNavItem(
+      label: 'Calc',
+      icon: Icons.calculate_outlined,
+      activeIcon: Icons.calculate_rounded,
+    ),
+    _ShellNavItem(
+      label: 'Support',
+      icon: Icons.support_agent_outlined,
+      activeIcon: Icons.support_agent_rounded,
+    ),
+    _ShellNavItem(
+      label: 'More',
+      icon: Icons.more_horiz_outlined,
+      activeIcon: Icons.more_horiz_rounded,
+    ),
+  ];
+
   void _selectTab(int index) {
     setState(() {
       _currentIndex = index;
@@ -59,41 +87,143 @@ class _MainShellState extends ConsumerState<MainShell> {
     ];
 
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _FloatingShellNav(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
+        items: _navItems,
+        onSelected: _selectTab,
+      ),
+    );
+  }
+}
+
+class _FloatingShellNav extends StatelessWidget {
+  const _FloatingShellNav({
+    required this.selectedIndex,
+    required this.items,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final List<_ShellNavItem> items;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(14, 0, 14, bottomPadding > 0 ? 8 : 12),
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+              BoxShadow(
+                color: AppTheme.primaryRed.withValues(alpha: 0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'Services',
+          child: Row(
+            children: [
+              for (int index = 0; index < items.length; index++)
+                Expanded(
+                  child: _FloatingShellNavItem(
+                    item: items[index],
+                    isSelected: selectedIndex == index,
+                    onTap: () => onSelected(index),
+                  ),
+                ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.calculate_outlined),
-            selectedIcon: Icon(Icons.calculate_rounded),
-            label: 'Calculator',
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingShellNavItem extends StatelessWidget {
+  const _FloatingShellNavItem({
+    required this.item,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final _ShellNavItem item;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isSelected ? Colors.white : AppTheme.textSecondary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          height: 56,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            gradient: isSelected
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppTheme.primaryRed, AppTheme.darkRed],
+                  )
+                : null,
+            color: isSelected ? null : Colors.transparent,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.20),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.support_agent_outlined),
-            selectedIcon: Icon(Icons.support_agent_rounded),
-            label: 'Support',
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isSelected ? item.activeIcon : item.icon,
+                color: color,
+                size: 22,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: isSelected ? 10.5 : 10,
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.more_horiz_outlined),
-            selectedIcon: Icon(Icons.more_horiz_rounded),
-            label: 'More',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -124,7 +254,7 @@ class _MoreScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
         children: [
           const Text(
             'More',
@@ -132,6 +262,7 @@ class _MoreScreen extends StatelessWidget {
               color: AppTheme.textPrimary,
               fontSize: 28,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.6,
             ),
           ),
           const SizedBox(height: 8),
@@ -273,4 +404,16 @@ class _DividerIndent extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Divider(height: 1, indent: 78, endIndent: 18);
   }
+}
+
+class _ShellNavItem {
+  const _ShellNavItem({
+    required this.label,
+    required this.icon,
+    required this.activeIcon,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData activeIcon;
 }
