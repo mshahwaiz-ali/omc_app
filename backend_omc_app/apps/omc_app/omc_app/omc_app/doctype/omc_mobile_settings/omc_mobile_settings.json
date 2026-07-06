@@ -1,0 +1,228 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-07-06 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "status_section",
+  "is_mobile_backend_active",
+  "integration_mode",
+  "erpnext_integration_enabled",
+  "signup_enabled",
+  "require_customer_approval",
+  "mapping_section",
+  "customer_doctype",
+  "customer_name_field",
+  "customer_email_field",
+  "customer_mobile_field",
+  "invoice_section",
+  "invoice_doctype",
+  "invoice_customer_field",
+  "invoice_total_field",
+  "invoice_outstanding_field",
+  "invoice_status_field",
+  "invoice_due_date_field",
+  "payment_section",
+  "payment_doctype",
+  "payment_party_field",
+  "payment_amount_field",
+  "payment_date_field",
+  "validation_section",
+  "last_validation_status",
+  "last_validation_report"
+ ],
+ "fields": [
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_mobile_backend_active",
+   "fieldtype": "Check",
+   "label": "Mobile Backend Active",
+   "read_only": 0
+  },
+  {
+   "default": "Standalone",
+   "fieldname": "integration_mode",
+   "fieldtype": "Select",
+   "label": "Integration Mode",
+   "options": "Standalone\nERPNext Hybrid",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "erpnext_integration_enabled",
+   "fieldtype": "Check",
+   "label": "ERPNext Integration Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "signup_enabled",
+   "fieldtype": "Check",
+   "label": "Signup Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "require_customer_approval",
+   "fieldtype": "Check",
+   "label": "Require Customer Approval"
+  },
+  {
+   "fieldname": "mapping_section",
+   "fieldtype": "Section Break",
+   "label": "Optional ERPNext Customer Mapping"
+  },
+  {
+   "default": "Customer",
+   "fieldname": "customer_doctype",
+   "fieldtype": "Data",
+   "label": "Customer DocType",
+   "reqd": 1
+  },
+  {
+   "default": "customer_name",
+   "fieldname": "customer_name_field",
+   "fieldtype": "Data",
+   "label": "Customer Name Field",
+   "reqd": 1
+  },
+  {
+   "default": "email_id",
+   "fieldname": "customer_email_field",
+   "fieldtype": "Data",
+   "label": "Customer Email Field"
+  },
+  {
+   "default": "mobile_no",
+   "fieldname": "customer_mobile_field",
+   "fieldtype": "Data",
+   "label": "Customer Mobile Field"
+  },
+  {
+   "fieldname": "invoice_section",
+   "fieldtype": "Section Break",
+   "label": "Optional ERPNext Invoice Mapping"
+  },
+  {
+   "default": "Sales Invoice",
+   "fieldname": "invoice_doctype",
+   "fieldtype": "Data",
+   "label": "Invoice DocType",
+   "reqd": 1
+  },
+  {
+   "default": "customer",
+   "fieldname": "invoice_customer_field",
+   "fieldtype": "Data",
+   "label": "Invoice Customer Field",
+   "reqd": 1
+  },
+  {
+   "default": "grand_total",
+   "fieldname": "invoice_total_field",
+   "fieldtype": "Data",
+   "label": "Invoice Total Field",
+   "reqd": 1
+  },
+  {
+   "default": "outstanding_amount",
+   "fieldname": "invoice_outstanding_field",
+   "fieldtype": "Data",
+   "label": "Invoice Outstanding Field"
+  },
+  {
+   "default": "status",
+   "fieldname": "invoice_status_field",
+   "fieldtype": "Data",
+   "label": "Invoice Status Field"
+  },
+  {
+   "default": "due_date",
+   "fieldname": "invoice_due_date_field",
+   "fieldtype": "Data",
+   "label": "Invoice Due Date Field"
+  },
+  {
+   "fieldname": "payment_section",
+   "fieldtype": "Section Break",
+   "label": "Optional ERPNext Payment Mapping"
+  },
+  {
+   "default": "Payment Entry",
+   "fieldname": "payment_doctype",
+   "fieldtype": "Data",
+   "label": "Payment DocType",
+   "reqd": 1
+  },
+  {
+   "default": "party",
+   "fieldname": "payment_party_field",
+   "fieldtype": "Data",
+   "label": "Payment Party Field",
+   "reqd": 1
+  },
+  {
+   "default": "paid_amount",
+   "fieldname": "payment_amount_field",
+   "fieldtype": "Data",
+   "label": "Payment Amount Field",
+   "reqd": 1
+  },
+  {
+   "default": "posting_date",
+   "fieldname": "payment_date_field",
+   "fieldtype": "Data",
+   "label": "Payment Date Field"
+  },
+  {
+   "fieldname": "validation_section",
+   "fieldtype": "Section Break",
+   "label": "Validation"
+  },
+  {
+   "fieldname": "last_validation_status",
+   "fieldtype": "Select",
+   "label": "Last Validation Status",
+   "options": "\nNot Validated\nValid\nInvalid",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_validation_report",
+   "fieldtype": "Long Text",
+   "label": "Last Validation Report",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Mobile Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 0,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
