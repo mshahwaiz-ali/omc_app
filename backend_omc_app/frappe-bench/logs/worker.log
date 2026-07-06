@@ -1,0 +1,22 @@
+2026-07-06 10:12:04,825 Worker rq:worker:9178c7a65b4240279bcce091c33c162f started with PID 22621, version 1.15.1
+2026-07-06 10:12:04,825 Subscribing to channel rq:pubsub:9178c7a65b4240279bcce091c33c162f
+2026-07-06 10:12:04,826 *** Listening on home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:short, home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:default, home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:long...
+2026-07-06 10:12:04,826 Cleaning registries for queue: home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:short
+2026-07-06 10:12:04,827 Cleaning registries for queue: home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:default
+2026-07-06 10:12:04,827 Cleaning registries for queue: home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:long
+2026-07-06 10:12:08,587 home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:long: frappe.utils.background_jobs.execute_job(event=None, is_async=True, job_name='frappe.search.website_search.build_index_for_all_routes', kwargs={}, method=<function build_index_for_all_routes at 0x74a698397740>, site='omc.local', user='Administrator') (omc.local::d7d2d5eb-4080-41d7-b6ea-a882a61f4fb8)
+Retrieving Routes                   : [=                                       ] 3%
+2026-07-06 10:12:13,396 home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:long: Job OK (omc.local::d7d2d5eb-4080-41d7-b6ea-a882a61f4fb8)
+2026-07-06 10:12:13,396 Result is kept for 600 seconds
+2026-07-06 10:34:02,306 home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:long: frappe.utils.background_jobs.execute_job(event=None, is_async=True, job_name='frappe.search.website_search.build_index_for_all_routes', kwargs={}, method=<function build_index_for_all_routes at 0x72d584f8b690>, site='omc.local', user='Administrator') (omc.local::b432fc0b-aa8b-442d-9b4b-abad28256de1)
+Retrieving Routes                   : [=                                       ] 3%
+2026-07-06 10:34:06,283 home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:long: Job OK (omc.local::b432fc0b-aa8b-442d-9b4b-abad28256de1)
+2026-07-06 10:34:06,284 Result is kept for 600 seconds
+2026-07-06 10:35:41,022 Worker 9178c7a65b4240279bcce091c33c162f [PID 22621]: warm shut down requested
+2026-07-06 10:35:41,023 Unsubscribing from channel rq:pubsub:9178c7a65b4240279bcce091c33c162f
+2026-07-06 10:35:53,644 Worker rq:worker:60545d7c9c314e16a1b8f8c9fc891454 started with PID 36183, version 1.15.1
+2026-07-06 10:35:53,645 Subscribing to channel rq:pubsub:60545d7c9c314e16a1b8f8c9fc891454
+2026-07-06 10:35:53,645 *** Listening on home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:short, home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:default, home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:long...
+2026-07-06 10:35:53,646 Cleaning registries for queue: home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:short
+2026-07-06 10:35:53,646 Cleaning registries for queue: home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:default
+2026-07-06 10:35:53,647 Cleaning registries for queue: home-muhammad-shahwaiz-ali-data_drive-app_omc-backend_omc_app-frappe-bench:long

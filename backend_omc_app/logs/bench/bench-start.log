@@ -1,0 +1,74 @@
+10:12:04 system        | redis_cache.1 started (pid=22591)
+10:12:04 system        | redis_queue.1 started (pid=22592)
+10:12:04 system        | web.1 started (pid=22597)
+10:12:04 system        | socketio.1 started (pid=22600)
+10:12:04 redis_cache.1 | 22594:C 06 Jul 2026 10:12:04.458 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. Being disabled, it can also cause failures without low memory condition, see https://github.com/jemalloc/jemalloc/issues/1328. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+10:12:04 redis_cache.1 | 22594:C 06 Jul 2026 10:12:04.458 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+10:12:04 redis_cache.1 | 22594:C 06 Jul 2026 10:12:04.458 * Redis version=8.0.5, bits=64, commit=00000000, modified=0, pid=22594, just started
+10:12:04 redis_cache.1 | 22594:C 06 Jul 2026 10:12:04.458 * Configuration loaded
+10:12:04 system        | schedule.1 started (pid=22601)
+10:12:04 system        | watch.1 started (pid=22603)
+10:12:04 redis_cache.1 | 22594:M 06 Jul 2026 10:12:04.459 * monotonic clock: POSIX clock_gettime
+10:12:04 redis_cache.1 | 22594:M 06 Jul 2026 10:12:04.460 * Running mode=standalone, port=13000.
+10:12:04 redis_cache.1 | 22594:M 06 Jul 2026 10:12:04.460 * Server initialized
+10:12:04 redis_cache.1 | 22594:M 06 Jul 2026 10:12:04.460 * Ready to accept connections tcp
+10:12:04 redis_queue.1 | 22596:C 06 Jul 2026 10:12:04.459 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. Being disabled, it can also cause failures without low memory condition, see https://github.com/jemalloc/jemalloc/issues/1328. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+10:12:04 redis_queue.1 | 22596:C 06 Jul 2026 10:12:04.459 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+10:12:04 redis_queue.1 | 22596:C 06 Jul 2026 10:12:04.459 * Redis version=8.0.5, bits=64, commit=00000000, modified=0, pid=22596, just started
+10:12:04 redis_queue.1 | 22596:C 06 Jul 2026 10:12:04.459 * Configuration loaded
+10:12:04 redis_queue.1 | 22596:M 06 Jul 2026 10:12:04.459 * monotonic clock: POSIX clock_gettime
+10:12:04 redis_queue.1 | 22596:M 06 Jul 2026 10:12:04.460 * Running mode=standalone, port=11000.
+10:12:04 redis_queue.1 | 22596:M 06 Jul 2026 10:12:04.461 * Server initialized
+10:12:04 redis_queue.1 | 22596:M 06 Jul 2026 10:12:04.461 * Ready to accept connections tcp
+10:12:04 system        | worker.1 started (pid=22619)
+10:12:04 socketio.1    | Realtime service listening on: ws://0.0.0.0:9000
+10:12:04 watch.1       | 
+10:12:04 watch.1       | yarn run v1.22.22
+10:12:04 watch.1       | (node:22658) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+10:12:04 watch.1       | (Use `node --trace-deprecation ...` to show where the warning was created)
+10:12:05 watch.1       | $ node esbuild --watch --live-reload
+10:12:05 web.1         | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+10:12:05 web.1         |  * Running on all addresses (0.0.0.0)
+10:12:05 web.1         |  * Running on http://127.0.0.1:8000
+10:12:05 web.1         |  * Running on http://192.168.18.31:8000
+10:12:05 web.1         | [33mPress CTRL+C to quit[0m
+10:12:05 web.1         |  * Restarting with stat
+10:12:05 watch.1       | Browserslist: caniuse-lite is outdated. Please run:
+10:12:05 watch.1       |   npx update-browserslist-db@latest
+10:12:05 watch.1       |   Why you should do it regularly: https://github.com/browserslist/update-db#readme
+10:12:05 web.1         |  * Debugger is active!
+10:12:06 web.1         |  * Debugger PIN: 856-518-564
+10:12:14 watch.1       | Watching for changes...
+10:34:02 redis_queue.1 | 22596:M 06 Jul 2026 10:34:02.375 * 100 changes in 300 seconds. Saving...
+10:34:02 redis_queue.1 | 22596:M 06 Jul 2026 10:34:02.376 * Background saving started by pid 32992
+10:34:02 redis_queue.1 | 32992:C 06 Jul 2026 10:34:02.380 * DB saved on disk
+10:34:02 redis_queue.1 | 32992:C 06 Jul 2026 10:34:02.381 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+10:34:02 redis_queue.1 | 22596:M 06 Jul 2026 10:34:02.477 * Background saving terminated with success
+10:35:41 system        | SIGTERM received
+10:35:41 system        | sending SIGTERM to redis_cache.1 (pid 22591)
+10:35:41 system        | sending SIGTERM to redis_queue.1 (pid 22592)
+10:35:41 system        | sending SIGTERM to web.1 (pid 22597)
+10:35:41 system        | sending SIGTERM to socketio.1 (pid 22600)
+10:35:41 system        | sending SIGTERM to watch.1 (pid 22603)
+10:35:41 system        | sending SIGTERM to schedule.1 (pid 22601)
+10:35:41 system        | sending SIGTERM to worker.1 (pid 22619)
+10:35:41 redis_cache.1 | 22594:signal-handler (1783316141) Received SIGTERM scheduling shutdown...
+10:35:41 redis_queue.1 | 22596:signal-handler (1783316141) Received SIGTERM scheduling shutdown...
+10:35:41 system        | worker.1 stopped (rc=-15)
+10:35:41 system        | schedule.1 stopped (rc=-15)
+10:35:41 system        | socketio.1 stopped (rc=-15)
+10:35:41 web.1         | /usr/lib/python3.14/multiprocessing/resource_tracker.py:396: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-jpfqw3hl'}
+10:35:41 web.1         |   warnings.warn(
+10:35:41 system        | watch.1 stopped (rc=-15)
+10:35:41 redis_cache.1 | 22594:signal-handler (1783316141) Received SIGTERM scheduling shutdown...
+10:35:41 system        | web.1 stopped (rc=-15)
+10:35:41 redis_queue.1 | 22596:M 06 Jul 2026 10:35:41.075 * User requested shutdown...
+10:35:41 redis_queue.1 | 22596:M 06 Jul 2026 10:35:41.075 * Saving the final RDB snapshot before exiting.
+10:35:41 redis_queue.1 | 22596:M 06 Jul 2026 10:35:41.079 * DB saved on disk
+10:35:41 redis_queue.1 | 22596:M 06 Jul 2026 10:35:41.079 * Removing the pid file.
+10:35:41 redis_queue.1 | 22596:M 06 Jul 2026 10:35:41.079 # Redis is now ready to exit, bye bye...
+10:35:41 system        | redis_queue.1 stopped (rc=-15)
+10:35:41 redis_cache.1 | 22594:M 06 Jul 2026 10:35:41.094 * User requested shutdown...
+10:35:41 redis_cache.1 | 22594:M 06 Jul 2026 10:35:41.094 * Removing the pid file.
+10:35:41 redis_cache.1 | 22594:M 06 Jul 2026 10:35:41.094 # Redis is now ready to exit, bye bye...
+10:35:41 system        | redis_cache.1 stopped (rc=-15)

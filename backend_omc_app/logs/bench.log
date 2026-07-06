@@ -1,0 +1,18 @@
+2026-07-06 10:07:46,255 INFO /home/muhammad-shahwaiz-ali/.local/bin/bench --version
+2026-07-06 10:07:49,077 INFO /home/muhammad-shahwaiz-ali/.local/bin/bench --version
+2026-07-06 10:08:21,795 INFO /home/muhammad-shahwaiz-ali/.local/bin/bench --version
+2026-07-06 10:08:24,070 INFO /home/muhammad-shahwaiz-ali/.local/bin/bench init --frappe-branch version-15 /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
+2026-07-06 10:08:24,071 DEBUG cd /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench && uv venv env --seed --python python3
+2026-07-06 10:08:25,838 LOG Getting frappe
+2026-07-06 10:08:25,839 DEBUG cd /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/apps && git clone https://github.com/frappe/frappe.git --branch version-15 --depth 1 --origin upstream
+2026-07-06 10:08:37,598 LOG Installing frappe
+2026-07-06 10:08:37,599 DEBUG cd /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench && uv pip install --quiet -e /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/apps/frappe  --python /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/env/bin/python
+2026-07-06 10:08:40,548 DEBUG cd /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/apps/frappe && yarn install --check-files
+2026-07-06 10:08:43,856 DEBUG cd /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench && sudo supervisorctl restart frappe:
+2026-07-06 10:08:43,946 WARNING cd /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench && sudo supervisorctl restart frappe: executed with exit code 2
+2026-07-06 10:08:43,946 WARNING restarting supervisor group `frappe:` failed. Use `bench restart` to retry.
+2026-07-06 10:08:43,946 DEBUG cd /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench && bench build
+2026-07-06 10:08:55,091 LOG setting up backups
+2026-07-06 10:08:55,099 LOG backups were set up
+2026-07-06 10:08:55,099 INFO Bench /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench initialized
+2026-07-06 10:08:56,248 INFO /home/muhammad-shahwaiz-ali/.local/bin/bench --version
