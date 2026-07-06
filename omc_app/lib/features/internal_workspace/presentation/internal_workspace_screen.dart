@@ -15,7 +15,6 @@ class InternalWorkspaceScreen extends ConsumerWidget {
     final summaryAsync = ref.watch(internalWorkspaceSummaryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Internal Workspace')),
       body: RefreshIndicator(
         onRefresh: () {
           ref.invalidate(internalWorkspaceSummaryProvider);

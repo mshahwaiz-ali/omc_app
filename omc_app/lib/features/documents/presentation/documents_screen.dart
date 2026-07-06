@@ -16,7 +16,6 @@ class DocumentsScreen extends ConsumerWidget {
     final documentsAsync = ref.watch(documentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Documents')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {

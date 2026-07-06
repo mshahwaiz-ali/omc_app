@@ -17,7 +17,6 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(profileSummaryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {

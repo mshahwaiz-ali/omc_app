@@ -17,9 +17,8 @@ class FeaturePlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
       body: SafeArea(
-        top: false,
+        top: true,
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(28),

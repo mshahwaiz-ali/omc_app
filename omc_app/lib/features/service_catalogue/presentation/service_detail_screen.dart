@@ -29,7 +29,7 @@ class ServiceDetailScreen extends ConsumerWidget {
         ),
       ),
       error: (error, stackTrace) => Scaffold(
-        appBar: AppBar(),
+        appBar: const AppBackHeader(title: 'Service Details'),
         body: EmptyState(
           title: 'Service unavailable',
           message: _serviceCatalogueErrorMessage(error),
@@ -42,7 +42,7 @@ class ServiceDetailScreen extends ConsumerWidget {
         final service = _findService(services);
         if (service == null) {
           return Scaffold(
-            appBar: AppBar(),
+            appBar: const AppBackHeader(title: 'Service Details'),
             body: EmptyState(
               title: 'Service not found',
               message: 'This service may have been removed from the catalogue.',

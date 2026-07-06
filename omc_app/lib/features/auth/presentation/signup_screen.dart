@@ -222,6 +222,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
           tooltip: 'Back to login',
           onPressed: _isSubmitting ? null : () => context.go('/login'),

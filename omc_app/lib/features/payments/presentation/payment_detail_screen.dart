@@ -6,6 +6,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../data/payment_item.dart';
@@ -22,7 +23,7 @@ class PaymentDetailScreen extends ConsumerWidget {
     final paymentAsync = ref.watch(paymentDetailProvider(paymentId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment Details')),
+      appBar: const AppBackHeader(title: 'Payment Details'),
       body: paymentAsync.when(
         data: (payment) {
           if (payment == null) {

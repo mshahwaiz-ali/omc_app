@@ -13,7 +13,6 @@ class DashboardScreen extends ConsumerWidget {
     final summaryAsync = ref.watch(homeDashboardSummaryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
       body: SafeArea(
         top: false,
         child: RefreshIndicator(

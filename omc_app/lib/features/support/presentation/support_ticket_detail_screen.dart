@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
@@ -19,7 +20,7 @@ class SupportTicketDetailScreen extends ConsumerWidget {
     final ticketAsync = ref.watch(supportTicketDetailProvider(ticketId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Support Ticket')),
+      appBar: const AppBackHeader(title: 'Support Ticket'),
       body: ticketAsync.when(
         data: (ticket) {
           if (ticket == null) {

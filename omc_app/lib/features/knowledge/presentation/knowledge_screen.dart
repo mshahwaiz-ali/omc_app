@@ -16,7 +16,6 @@ class KnowledgeScreen extends ConsumerWidget {
     final articlesState = ref.watch(knowledgeArticlesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Knowledge & News')),
       body: SafeArea(
         child: articlesState.when(
           loading: () => const _KnowledgeLoadingView(),

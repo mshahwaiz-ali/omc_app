@@ -6,6 +6,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../application/document_attachment_controller.dart';
 import '../data/document_item.dart';
@@ -22,7 +23,7 @@ class DocumentDetailScreen extends ConsumerWidget {
     final documentAsync = ref.watch(documentDetailProvider(documentId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Document Details')),
+      appBar: const AppBackHeader(title: 'Document Details'),
       body: documentAsync.when(
         data: (document) {
           if (document == null) {

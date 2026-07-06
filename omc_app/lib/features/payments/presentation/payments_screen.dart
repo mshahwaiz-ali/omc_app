@@ -16,7 +16,6 @@ class PaymentsScreen extends ConsumerWidget {
     final paymentsAsync = ref.watch(paymentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Payments')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {

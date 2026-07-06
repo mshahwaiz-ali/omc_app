@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../data/leads_repository.dart';
 import '../domain/lead_item.dart';
@@ -17,7 +18,7 @@ class LeadDetailScreen extends ConsumerWidget {
     final leadAsync = ref.watch(leadDetailProvider(leadId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lead Details')),
+      appBar: const AppBackHeader(title: 'Lead Details'),
       body: leadAsync.when(
         data: (lead) {
           if (lead == null) {

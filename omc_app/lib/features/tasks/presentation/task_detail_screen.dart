@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
@@ -16,7 +17,7 @@ class TaskDetailScreen extends ConsumerWidget {
     final taskAsync = ref.watch(taskDetailProvider(taskId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Task Details')),
+      appBar: const AppBackHeader(title: 'Task Details'),
       body: taskAsync.when(
         data: (task) {
           if (task == null) {

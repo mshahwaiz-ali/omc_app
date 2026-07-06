@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../data/customers_repository.dart';
 import '../domain/customer_item.dart';
@@ -17,7 +18,7 @@ class CustomerDetailScreen extends ConsumerWidget {
     final customerAsync = ref.watch(customerDetailProvider(customerId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Customer Details')),
+      appBar: const AppBackHeader(title: 'Customer Details'),
       body: customerAsync.when(
         data: (customer) {
           if (customer == null) {

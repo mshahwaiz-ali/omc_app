@@ -16,7 +16,6 @@ class NotificationsScreen extends ConsumerWidget {
     final notificationsAsync = ref.watch(notificationsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {

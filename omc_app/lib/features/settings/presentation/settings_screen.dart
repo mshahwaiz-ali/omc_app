@@ -19,7 +19,6 @@ class SettingsScreen extends ConsumerWidget {
     final preferencesAsync = ref.watch(settingsPreferencesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),

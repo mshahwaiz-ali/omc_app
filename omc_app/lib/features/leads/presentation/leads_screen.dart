@@ -17,7 +17,6 @@ class LeadsScreen extends ConsumerWidget {
     final leadsAsync = ref.watch(leadsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Leads')),
       body: RefreshIndicator(
         onRefresh: () {
           ref.invalidate(leadsProvider);

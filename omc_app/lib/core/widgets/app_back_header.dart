@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
 
-class AppBackHeader extends StatelessWidget {
+class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
   const AppBackHeader({
     required this.title,
     super.key,
@@ -18,6 +18,10 @@ class AppBackHeader extends StatelessWidget {
   final IconData? actionIcon;
   final String? actionTooltip;
   final VoidCallback? onAction;
+
+
+  @override
+  Size get preferredSize => Size.fromHeight(subtitle == null ? 64 : 76);
 
   @override
   Widget build(BuildContext context) {

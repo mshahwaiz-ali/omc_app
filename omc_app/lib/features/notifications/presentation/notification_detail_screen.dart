@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../data/notification_item.dart';
 import '../data/notifications_repository.dart';
@@ -23,7 +24,7 @@ class NotificationDetailScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notification Details')),
+      appBar: const AppBackHeader(title: 'Notification Details'),
       body: SafeArea(
         child: notificationAsync.when(
           data: (notification) {

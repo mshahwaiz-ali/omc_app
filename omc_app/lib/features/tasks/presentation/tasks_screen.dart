@@ -17,7 +17,6 @@ class TasksScreen extends ConsumerWidget {
     final tasksAsync = ref.watch(tasksProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tasks')),
       body: tasksAsync.when(
         data: (tasks) {
           if (tasks.isEmpty) {

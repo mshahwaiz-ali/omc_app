@@ -17,7 +17,6 @@ class CustomersScreen extends ConsumerWidget {
     final customersAsync = ref.watch(customersProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Customers')),
       body: RefreshIndicator(
         onRefresh: () {
           ref.invalidate(customersProvider);

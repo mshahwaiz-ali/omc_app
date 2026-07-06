@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../data/knowledge_article.dart';
 import '../data/knowledge_repository.dart';
 
@@ -19,7 +20,7 @@ class KnowledgeDetailScreen extends ConsumerWidget {
     final articleState = ref.watch(knowledgeArticleDetailProvider(articleId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Knowledge')),
+      appBar: const AppBackHeader(title: 'Knowledge'),
       body: SafeArea(
         child: articleState.when(
           loading: () => const _KnowledgeDetailLoadingView(),

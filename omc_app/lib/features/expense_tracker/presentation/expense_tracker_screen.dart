@@ -105,6 +105,8 @@ class ExpenseTrackerScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expense Tracker'),
+        centerTitle: false,
+        elevation: 0,
         actions: [
           IconButton(
             tooltip: 'Refresh',

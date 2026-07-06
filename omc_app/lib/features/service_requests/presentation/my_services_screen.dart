@@ -27,18 +27,8 @@ class MyServicesScreen extends ConsumerWidget {
     final casesAsync = ref.watch(serviceCasesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Services'),
-        actions: [
-          IconButton(
-            tooltip: 'Support',
-            onPressed: () => SupportLauncher.openWhatsApp(context),
-            icon: const Icon(Icons.support_agent_rounded),
-          ),
-        ],
-      ),
       body: SafeArea(
-        top: false,
+        top: true,
         child: casesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _LoadErrorState(
@@ -247,10 +237,23 @@ class _HeaderCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.track_changes_rounded,
-              color: Colors.white,
-              size: 34,
+            Row(
+              children: [
+                const Icon(
+                  Icons.track_changes_rounded,
+                  color: Colors.white,
+                  size: 34,
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Support',
+                  onPressed: () => SupportLauncher.openWhatsApp(context),
+                  icon: const Icon(
+                    Icons.support_agent_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             const Text(

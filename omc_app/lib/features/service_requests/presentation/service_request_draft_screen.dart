@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -131,7 +132,7 @@ class _ServiceRequestDraftScreenState
         ),
       ),
       error: (error, stackTrace) => Scaffold(
-        appBar: AppBar(),
+        appBar: const AppBackHeader(title: 'Start Request'),
         body: EmptyState(
           title: 'Request form unavailable',
           message: _serviceRequestDraftErrorMessage(error),
@@ -144,7 +145,7 @@ class _ServiceRequestDraftScreenState
         final service = _findService(services);
         if (service == null) {
           return Scaffold(
-            appBar: AppBar(),
+            appBar: const AppBackHeader(title: 'Start Request'),
             body: const EmptyState(
               title: 'Service not found',
               message: 'Select the service again from the catalogue.',
@@ -154,7 +155,7 @@ class _ServiceRequestDraftScreenState
         }
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Start Request')),
+          appBar: const AppBackHeader(title: 'Start Request'),
           body: SafeArea(
             top: false,
             child: Form(
