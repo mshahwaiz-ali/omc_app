@@ -18,9 +18,104 @@ def _current_user():
 
 @frappe.whitelist(allow_guest=True)
 def sign_up(**kwargs):
-    return _message(
-        "Signup endpoint is ready. Full customer registration will be enabled after backend setup."
-    )
+    email = (kwargs.get("email") or kwargs.get("user") or "").strip().lower()
+    password = kwargs.get("password") or kwargs.get("new_password")
+    full_name = (kwargs.get("full_name") or kwargs.get("name") or "").strip()
+    phone = (kwargs.get("phone") or kwargs.get("mobile") or "").strip()
+    company_name = (kwargs.get("company_name") or kwargs.get("company") or "").strip()
+    cnic = (kwargs.get("cnic") or "").strip()
+    ntn = (kwargs.get("ntn") or "").strip()
+
+    if not email:
+        frappe.throw("email is required")
+
+    if "@" not in email:
+        frappe.throw("A valid email address is required")
+
+    if not full_name:
+        full_name = email
+
+    user_created = False
+    profile_created = False
+
+    if not frappe.db.exists("User", email):
+        user = frappe.new_doc("User")
+        user.email = email
+        user.first_name = full_name
+        user.full_name = full_name
+        user.enabled = 1
+        user.send_welcome_email = 0
+        user.user_type = "Website User"
+        user.insert(ignore_permissions=True)
+
+        if password:
+            user.new_password = password
+            user.save(ignore_permissions=True)
+
+        user_created = True
+    else:
+        user = frappe.get_doc("User", email)
+
+    profile_name = frappe.db.get_value("OMC Customer Profile", {"user": email}, "name")
+    if not profile_name:
+        profile_name = frappe.db.get_value("OMC Customer Profile", {"email": email}, "name")
+
+    if profile_name:
+        profile = frappe.get_doc("OMC Customer Profile", profile_name)
+    else:
+        profile = frappe.new_doc("OMC Customer Profile")
+        profile.user = email
+        profile.email = email
+        profile.full_name = full_name
+        profile.customer_status = "Pending"
+        profile.approval_status = "Pending Review"
+        profile.is_active = 1
+        profile_created = True
+
+    profile.full_name = full_name or profile.full_name
+    profile.email = email
+    profile.user = email
+    if phone:
+        profile.phone = phone
+    if company_name:
+        profile.company_name = company_name
+    if cnic:
+        profile.cnic = cnic
+    if ntn:
+        profile.ntn = ntn
+
+    if profile.is_new():
+        profile.insert(ignore_permissions=True)
+    else:
+        profile.save(ignore_permissions=True)
+
+    preferences = _get_customer_preferences(profile)
+
+    frappe.db.commit()
+
+    return {
+        "message": "Signup completed.",
+        "created": user_created or profile_created,
+        "user_created": user_created,
+        "profile_created": profile_created,
+        "user": {
+            "email": user.email or email,
+            "full_name": user.full_name or full_name,
+            "enabled": int(user.enabled or 0),
+        },
+        "profile": {
+            "customer_id": profile.name,
+            "full_name": profile.full_name or "",
+            "email": profile.email or "",
+            "phone": profile.phone or "",
+            "company_name": profile.company_name or "",
+            "cnic": profile.cnic or "",
+            "ntn": profile.ntn or "",
+            "customer_status": profile.customer_status or "",
+            "approval_status": profile.approval_status or "",
+        },
+        "preferences": _settings_preferences_to_dict(preferences),
+    }
 
 
 @frappe.whitelist()
@@ -115,17 +210,134 @@ def update_profile(**kwargs):
 
 @frappe.whitelist()
 def update_contact_info(**kwargs):
-    return _message("Contact update endpoint is ready.", updated=False)
+    profile = _get_customer_profile_for_user()
+
+    field_map = {
+        "full_name": "full_name",
+        "name": "full_name",
+        "phone": "phone",
+        "mobile": "phone",
+        "email": "email",
+        "cnic": "cnic",
+        "ntn": "ntn",
+        "company_name": "company_name",
+        "company": "company_name",
+    }
+
+    updated_fields = []
+
+    for incoming_field, profile_field in field_map.items():
+        if incoming_field not in kwargs:
+            continue
+
+        value = kwargs.get(incoming_field)
+        if value is None:
+            continue
+
+        value = str(value).strip()
+        if profile.get(profile_field) != value:
+            profile.set(profile_field, value)
+            if profile_field not in updated_fields:
+                updated_fields.append(profile_field)
+
+    if updated_fields:
+        profile.save(ignore_permissions=True)
+        frappe.db.commit()
+
+    return {
+        "message": "Contact information updated." if updated_fields else "No contact information changed.",
+        "updated": bool(updated_fields),
+        "updated_fields": updated_fields,
+        "profile": {
+            "customer_id": profile.name,
+            "full_name": profile.full_name or "",
+            "email": profile.email or "",
+            "phone": profile.phone or "",
+            "company_name": profile.company_name or "",
+            "cnic": profile.cnic or "",
+            "ntn": profile.ntn or "",
+        },
+    }
 
 
 @frappe.whitelist()
 def get_dashboard_data():
+    user = _current_user()
+    profile = None
+
+    if user != "Guest":
+        profile = _get_customer_profile_for_user(user)
+
+    service_filters = {}
+    document_filters = {"visible_to_customer": 1}
+    payment_filters = {"visible_to_customer": 1}
+    notification_filters = {"visible_to_customer": 1, "is_read": 0}
+    timeline_filters = {"visible_to_customer": 1}
+
+    if profile:
+        service_filters["customer_profile"] = profile.name
+        notification_filters["customer_profile"] = profile.name
+
+        service_names = frappe.get_all(
+            "OMC Service Request",
+            filters={"customer_profile": profile.name},
+            pluck="name",
+        )
+
+        if service_names:
+            document_filters["service_request"] = ["in", service_names]
+            payment_filters["service_request"] = ["in", service_names]
+            timeline_filters["service_request"] = ["in", service_names]
+        else:
+            document_filters["service_request"] = "__no_service_requests__"
+            payment_filters["service_request"] = "__no_service_requests__"
+            timeline_filters["service_request"] = "__no_service_requests__"
+
+    open_service_filters = dict(service_filters)
+    open_service_filters["status"] = ["not in", ["Completed", "Cancelled"]]
+
+    open_services = frappe.db.count("OMC Service Request", open_service_filters)
+    documents = frappe.db.count("OMC Service Document", document_filters)
+
+    pending_payment_filters = dict(payment_filters)
+    pending_payment_filters["status"] = "Pending"
+    payments_due = frappe.db.count("OMC Service Payment", pending_payment_filters)
+
+    notifications = frappe.db.count("OMC Notification", notification_filters)
+
+    recent_rows = frappe.get_all(
+        "OMC Service Timeline",
+        filters=timeline_filters,
+        fields=[
+            "name",
+            "service_request",
+            "event_type",
+            "title",
+            "description",
+            "event_time",
+            "created_by",
+        ],
+        order_by="event_time desc, creation desc",
+        limit_page_length=10,
+    )
+
     return {
-        "open_services": 0,
-        "documents": 0,
-        "payments_due": 0,
-        "notifications": 0,
-        "recent_activity": [],
+        "open_services": open_services,
+        "documents": documents,
+        "payments_due": payments_due,
+        "notifications": notifications,
+        "recent_activity": [
+            {
+                "id": row.name,
+                "service_request": row.service_request,
+                "event_type": row.event_type,
+                "title": row.title or row.event_type or "Update",
+                "description": row.description or "",
+                "event_time": row.event_time,
+                "created_by": row.created_by or "",
+            }
+            for row in recent_rows
+        ],
     }
 
 
@@ -976,111 +1188,532 @@ def get_notification_detail(notification_id=None):
 
 
 @frappe.whitelist()
-def mark_notification_read(notification_id=None):
-    if not notification_id:
-        frappe.throw("notification_id is required")
+def create_support_ticket(**kwargs):
+    subject = (kwargs.get("subject") or kwargs.get("title") or "").strip()
+    message = (kwargs.get("message") or kwargs.get("description") or "").strip()
 
-    if not frappe.db.exists("OMC Notification", notification_id):
-        frappe.throw("Notification not found", frappe.DoesNotExistError)
+    if not subject:
+        frappe.throw("subject is required")
 
-    notification = frappe.get_doc("OMC Notification", notification_id)
-
-    if not notification.visible_to_customer:
-        frappe.throw("Notification not found", frappe.DoesNotExistError)
+    if not message:
+        frappe.throw("message is required")
 
     user = _current_user()
     profile = _get_customer_profile_for_user()
 
-    if profile and notification.customer_profile and notification.customer_profile != profile.name:
-        frappe.throw("You do not have permission to update this notification", frappe.PermissionError)
+    reference_service_request = (
+        kwargs.get("reference_service_request")
+        or kwargs.get("service_request")
+        or kwargs.get("case_id")
+    )
 
-    if not profile and notification.recipient_user and notification.recipient_user != user:
-        frappe.throw("You do not have permission to update this notification", frappe.PermissionError)
+    if reference_service_request:
+        if not frappe.db.exists("OMC Service Request", reference_service_request):
+            frappe.throw("Reference service request not found", frappe.DoesNotExistError)
 
-    notification.is_read = 1
-    notification.save(ignore_permissions=True)
+        if profile:
+            request_customer = frappe.db.get_value(
+                "OMC Service Request",
+                reference_service_request,
+                "customer_profile",
+            )
+            if request_customer and request_customer != profile.name:
+                frappe.throw(
+                    "You do not have permission to reference this service request",
+                    frappe.PermissionError,
+                )
+
+    ticket = frappe.new_doc("OMC Support Ticket")
+    ticket.subject = subject
+    ticket.message = message
+    ticket.status = "Open"
+    ticket.priority = kwargs.get("priority") or "Medium"
+    ticket.customer_profile = profile.name if profile else None
+    ticket.raised_by = user if user != "Guest" else None
+    ticket.contact_email = kwargs.get("contact_email") or (profile.email if profile else "")
+    ticket.contact_phone = kwargs.get("contact_phone") or (profile.phone if profile else "")
+    ticket.reference_service_request = reference_service_request or None
+    ticket.insert(ignore_permissions=True)
     frappe.db.commit()
 
     return {
-        "name": notification.name,
-        "marked": True,
-        "is_read": int(notification.is_read or 0),
-        "message": "Notification marked as read.",
+        "message": "Support ticket created.",
+        "created": True,
+        "ticket": {
+            "name": ticket.name,
+            "subject": ticket.subject or "",
+            "status": ticket.status or "",
+            "priority": ticket.priority or "",
+            "reference_service_request": ticket.reference_service_request or "",
+            "raised_on": str(ticket.raised_on) if ticket.raised_on else "",
+        },
     }
 
 
-@frappe.whitelist(allow_guest=True)
-def get_knowledge():
-    return _items_response("articles")
 
-
-@frappe.whitelist(allow_guest=True)
-def get_knowledge_article(article_id=None):
+def _support_ticket_to_dict(ticket):
     return {
-        "name": article_id or "",
-        "title": "",
-        "content": "",
-        "created_at": "",
+        "name": ticket.name,
+        "subject": ticket.subject or "",
+        "message": ticket.message or "",
+        "status": ticket.status or "",
+        "priority": ticket.priority or "",
+        "customer_profile": ticket.customer_profile or "",
+        "raised_by": ticket.raised_by or "",
+        "contact_email": ticket.contact_email or "",
+        "contact_phone": ticket.contact_phone or "",
+        "reference_service_request": ticket.reference_service_request or "",
+        "raised_on": str(ticket.raised_on) if ticket.raised_on else "",
+        "closed_on": str(ticket.closed_on) if ticket.closed_on else "",
+        "created_at": str(ticket.creation) if ticket.creation else "",
+        "updated_at": str(ticket.modified) if ticket.modified else "",
     }
 
 
-@frappe.whitelist(allow_guest=True)
-def create_support_ticket(**kwargs):
-    return _message("Support ticket endpoint is ready.", created=False)
+@frappe.whitelist()
+def get_support_tickets():
+    user = _current_user()
+    profile = _get_customer_profile_for_user()
+
+    filters = {}
+
+    if profile:
+        filters["customer_profile"] = profile.name
+    elif user != "Guest":
+        filters["raised_by"] = user
+    else:
+        return {"tickets": []}
+
+    tickets = frappe.get_all(
+        "OMC Support Ticket",
+        filters=filters,
+        fields=[
+            "name",
+            "subject",
+            "message",
+            "status",
+            "priority",
+            "customer_profile",
+            "raised_by",
+            "contact_email",
+            "contact_phone",
+            "reference_service_request",
+            "raised_on",
+            "closed_on",
+            "creation",
+            "modified",
+        ],
+        order_by="modified desc",
+        limit_page_length=50,
+    )
+
+    return {
+        "tickets": [
+            {
+                "name": row.name,
+                "subject": row.subject or "",
+                "message": row.message or "",
+                "status": row.status or "",
+                "priority": row.priority or "",
+                "customer_profile": row.customer_profile or "",
+                "raised_by": row.raised_by or "",
+                "contact_email": row.contact_email or "",
+                "contact_phone": row.contact_phone or "",
+                "reference_service_request": row.reference_service_request or "",
+                "raised_on": str(row.raised_on) if row.raised_on else "",
+                "closed_on": str(row.closed_on) if row.closed_on else "",
+                "created_at": str(row.creation) if row.creation else "",
+                "updated_at": str(row.modified) if row.modified else "",
+            }
+            for row in tickets
+        ]
+    }
+
+
+@frappe.whitelist()
+def get_support_ticket(ticket_id=None):
+    if not ticket_id:
+        frappe.throw("ticket_id is required")
+
+    if not frappe.db.exists("OMC Support Ticket", ticket_id):
+        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
+
+    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
+
+    user = _current_user()
+    profile = _get_customer_profile_for_user()
+
+    if profile and ticket.customer_profile and ticket.customer_profile != profile.name:
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    if not profile and user != "Guest" and ticket.raised_by and ticket.raised_by != user:
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    if user == "Guest":
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    return {"ticket": _support_ticket_to_dict(ticket)}
+
+
+def _get_customer_preferences(profile=None):
+    profile = profile or _get_customer_profile_for_user()
+
+    preference_name = frappe.db.get_value(
+        "OMC Customer Preference",
+        {"customer_profile": profile.name},
+        "name",
+    )
+
+    if preference_name:
+        return frappe.get_doc("OMC Customer Preference", preference_name)
+
+    preferences = frappe.new_doc("OMC Customer Preference")
+    preferences.customer_profile = profile.name
+    preferences.notifications_enabled = 1
+    preferences.email_updates_enabled = 1
+    preferences.payment_reminders_enabled = 1
+    preferences.service_updates_enabled = 1
+    preferences.theme = "system"
+    preferences.language = "en"
+    preferences.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    return preferences
+
+
+def _settings_preferences_to_dict(preferences):
+    return {
+        "notifications_enabled": bool(preferences.notifications_enabled),
+        "email_updates_enabled": bool(preferences.email_updates_enabled),
+        "payment_reminders_enabled": bool(preferences.payment_reminders_enabled),
+        "service_updates_enabled": bool(preferences.service_updates_enabled),
+        "theme": preferences.theme or "system",
+        "language": preferences.language or "en",
+    }
 
 
 @frappe.whitelist()
 def get_settings_preferences():
-    return {
-        "notifications_enabled": True,
-        "email_updates_enabled": True,
-        "theme": "system",
-    }
+    profile = _get_customer_profile_for_user()
+    preferences = _get_customer_preferences(profile)
+
+    return _settings_preferences_to_dict(preferences)
 
 
 @frappe.whitelist()
 def update_settings_preferences(**kwargs):
-    return _message("Settings preferences endpoint is ready.", updated=False)
+    profile = _get_customer_profile_for_user()
+    preferences = _get_customer_preferences(profile)
+
+    allowed_check_fields = [
+        "notifications_enabled",
+        "email_updates_enabled",
+        "payment_reminders_enabled",
+        "service_updates_enabled",
+    ]
+    allowed_text_fields = ["language"]
+    updated_fields = []
+
+    for fieldname in allowed_check_fields:
+        if fieldname not in kwargs:
+            continue
+
+        value = kwargs.get(fieldname)
+        if isinstance(value, str):
+            value = value.strip().lower() in ["1", "true", "yes", "on", "enabled"]
+
+        value = 1 if value else 0
+
+        if int(preferences.get(fieldname) or 0) != value:
+            preferences.set(fieldname, value)
+            updated_fields.append(fieldname)
+
+    if "theme" in kwargs:
+        theme = (kwargs.get("theme") or "system").strip().lower()
+        if theme not in ["system", "light", "dark"]:
+            frappe.throw("theme must be one of: system, light, dark")
+
+        if preferences.theme != theme:
+            preferences.theme = theme
+            updated_fields.append("theme")
+
+    for fieldname in allowed_text_fields:
+        if fieldname not in kwargs:
+            continue
+
+        value = (kwargs.get(fieldname) or "").strip()
+        if value and preferences.get(fieldname) != value:
+            preferences.set(fieldname, value)
+            updated_fields.append(fieldname)
+
+    if updated_fields:
+        preferences.save(ignore_permissions=True)
+        frappe.db.commit()
+
+    return {
+        "message": "Settings preferences updated." if updated_fields else "No settings preferences changed.",
+        "updated": bool(updated_fields),
+        "updated_fields": updated_fields,
+        "preferences": _settings_preferences_to_dict(preferences),
+    }
 
 
 @frappe.whitelist()
 def get_internal_workspace_summary():
     return {
-        "leads": 0,
-        "customers": 0,
-        "tasks": 0,
-        "open_services": 0,
+        "leads": frappe.db.count("OMC Lead"),
+        "customers": frappe.db.count("OMC Customer Profile"),
+        "tasks": frappe.db.count(
+            "OMC Task",
+            {"status": ["not in", ["Completed", "Cancelled"]]},
+        ),
+        "open_services": frappe.db.count(
+            "OMC Service Request",
+            {"status": ["not in", ["Completed", "Cancelled"]]},
+        ),
+        "support_tickets": frappe.db.count(
+            "OMC Support Ticket",
+            {"status": ["not in", ["Resolved", "Closed", "Cancelled"]]},
+        ),
+        "documents": frappe.db.count("OMC Service Document"),
+        "payments_due": frappe.db.count("OMC Service Payment", {"status": "Pending"}),
+        "unread_notifications": frappe.db.count("OMC Notification", {"is_read": 0}),
+    }
+
+
+def _lead_to_dict(lead):
+    return {
+        "name": lead.name,
+        "title": lead.title or "",
+        "lead_name": lead.lead_name or "",
+        "company_name": lead.company_name or "",
+        "email": lead.email or "",
+        "phone": lead.phone or "",
+        "status": lead.status or "",
+        "source": lead.source or "",
+        "service_interest": lead.service_interest or "",
+        "notes": lead.notes or "",
+        "assigned_to": lead.assigned_to or "",
+        "customer_profile": lead.customer_profile or "",
+        "converted_customer_profile": lead.converted_customer_profile or "",
+        "created_at": str(lead.creation) if lead.creation else "",
+        "updated_at": str(lead.modified) if lead.modified else "",
     }
 
 
 @frappe.whitelist()
 def get_leads():
-    return _items_response("leads")
+    leads = frappe.get_all(
+        "OMC Lead",
+        fields=[
+            "name",
+            "title",
+            "lead_name",
+            "company_name",
+            "email",
+            "phone",
+            "status",
+            "source",
+            "service_interest",
+            "notes",
+            "assigned_to",
+            "customer_profile",
+            "converted_customer_profile",
+            "creation",
+            "modified",
+        ],
+        order_by="modified desc",
+        limit_page_length=100,
+    )
+
+    return {
+        "leads": [
+            {
+                "name": row.name,
+                "title": row.title or "",
+                "lead_name": row.lead_name or "",
+                "company_name": row.company_name or "",
+                "email": row.email or "",
+                "phone": row.phone or "",
+                "status": row.status or "",
+                "source": row.source or "",
+                "service_interest": row.service_interest or "",
+                "notes": row.notes or "",
+                "assigned_to": row.assigned_to or "",
+                "customer_profile": row.customer_profile or "",
+                "converted_customer_profile": row.converted_customer_profile or "",
+                "created_at": str(row.creation) if row.creation else "",
+                "updated_at": str(row.modified) if row.modified else "",
+            }
+            for row in leads
+        ]
+    }
 
 
 @frappe.whitelist()
 def get_lead(lead_id=None):
-    return {"name": lead_id or "", "title": "", "status": ""}
+    if not lead_id:
+        frappe.throw("lead_id is required")
+
+    if not frappe.db.exists("OMC Lead", lead_id):
+        frappe.throw("Lead not found", frappe.DoesNotExistError)
+
+    lead = frappe.get_doc("OMC Lead", lead_id)
+    return {"lead": _lead_to_dict(lead)}
+
+
+def _customer_profile_to_dict(profile):
+    return {
+        "name": profile.name,
+        "customer_id": profile.name,
+        "customer_name": profile.full_name or "",
+        "full_name": profile.full_name or "",
+        "email": profile.email or "",
+        "phone": profile.phone or "",
+        "company_name": profile.company_name or "",
+        "cnic": profile.cnic or "",
+        "ntn": profile.ntn or "",
+        "customer_status": profile.customer_status or "",
+        "approval_status": profile.approval_status or "",
+        "is_active": int(profile.is_active or 0),
+        "linked_erpnext_customer": profile.linked_erpnext_customer or "",
+        "created_at": str(profile.creation) if profile.creation else "",
+        "updated_at": str(profile.modified) if profile.modified else "",
+    }
 
 
 @frappe.whitelist()
 def get_customers():
-    return _items_response("customers")
+    customers = frappe.get_all(
+        "OMC Customer Profile",
+        fields=[
+            "name",
+            "full_name",
+            "email",
+            "phone",
+            "company_name",
+            "cnic",
+            "ntn",
+            "customer_status",
+            "approval_status",
+            "is_active",
+            "linked_erpnext_customer",
+            "creation",
+            "modified",
+        ],
+        order_by="modified desc",
+        limit_page_length=100,
+    )
+
+    return {
+        "customers": [
+            {
+                "name": row.name,
+                "customer_id": row.name,
+                "customer_name": row.full_name or "",
+                "full_name": row.full_name or "",
+                "email": row.email or "",
+                "phone": row.phone or "",
+                "company_name": row.company_name or "",
+                "cnic": row.cnic or "",
+                "ntn": row.ntn or "",
+                "customer_status": row.customer_status or "",
+                "approval_status": row.approval_status or "",
+                "is_active": int(row.is_active or 0),
+                "linked_erpnext_customer": row.linked_erpnext_customer or "",
+                "created_at": str(row.creation) if row.creation else "",
+                "updated_at": str(row.modified) if row.modified else "",
+            }
+            for row in customers
+        ]
+    }
 
 
 @frappe.whitelist()
 def get_customer(customer_id=None):
-    return {"name": customer_id or "", "customer_name": "", "email": "", "phone": ""}
+    if not customer_id:
+        frappe.throw("customer_id is required")
+
+    if not frappe.db.exists("OMC Customer Profile", customer_id):
+        frappe.throw("Customer not found", frappe.DoesNotExistError)
+
+    profile = frappe.get_doc("OMC Customer Profile", customer_id)
+    return {"customer": _customer_profile_to_dict(profile)}
+
+
+def _task_to_dict(task):
+    return {
+        "name": task.name,
+        "title": task.title or "",
+        "description": task.description or "",
+        "status": task.status or "",
+        "priority": task.priority or "",
+        "due_date": str(task.due_date) if task.due_date else "",
+        "assigned_to": task.assigned_to or "",
+        "customer_profile": task.customer_profile or "",
+        "service_request": task.service_request or "",
+        "support_ticket": task.support_ticket or "",
+        "completed_on": str(task.completed_on) if task.completed_on else "",
+        "created_at": str(task.creation) if task.creation else "",
+        "updated_at": str(task.modified) if task.modified else "",
+    }
 
 
 @frappe.whitelist()
 def get_tasks():
-    return _items_response("tasks")
+    tasks = frappe.get_all(
+        "OMC Task",
+        fields=[
+            "name",
+            "title",
+            "description",
+            "status",
+            "priority",
+            "due_date",
+            "assigned_to",
+            "customer_profile",
+            "service_request",
+            "support_ticket",
+            "completed_on",
+            "creation",
+            "modified",
+        ],
+        order_by="modified desc",
+        limit_page_length=100,
+    )
+
+    return {
+        "tasks": [
+            {
+                "name": row.name,
+                "title": row.title or "",
+                "description": row.description or "",
+                "status": row.status or "",
+                "priority": row.priority or "",
+                "due_date": str(row.due_date) if row.due_date else "",
+                "assigned_to": row.assigned_to or "",
+                "customer_profile": row.customer_profile or "",
+                "service_request": row.service_request or "",
+                "support_ticket": row.support_ticket or "",
+                "completed_on": str(row.completed_on) if row.completed_on else "",
+                "created_at": str(row.creation) if row.creation else "",
+                "updated_at": str(row.modified) if row.modified else "",
+            }
+            for row in tasks
+        ]
+    }
 
 
 @frappe.whitelist()
 def get_task(task_id=None):
-    return {"name": task_id or "", "title": "", "status": "", "due_date": ""}
+    if not task_id:
+        frappe.throw("task_id is required")
+
+    if not frappe.db.exists("OMC Task", task_id):
+        frappe.throw("Task not found", frappe.DoesNotExistError)
+
+    task = frappe.get_doc("OMC Task", task_id)
+    return {"task": _task_to_dict(task)}
 
 
 @frappe.whitelist(allow_guest=True)

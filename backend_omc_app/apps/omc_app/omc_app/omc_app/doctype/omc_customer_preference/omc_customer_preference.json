@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:customer_profile",
+ "creation": "2026-07-06 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "customer_profile",
+  "notification_section",
+  "notifications_enabled",
+  "email_updates_enabled",
+  "payment_reminders_enabled",
+  "service_updates_enabled",
+  "appearance_section",
+  "theme",
+  "language"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_profile",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer Profile",
+   "options": "OMC Customer Profile",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "notification_section",
+   "fieldtype": "Section Break",
+   "label": "Notifications"
+  },
+  {
+   "default": "1",
+   "fieldname": "notifications_enabled",
+   "fieldtype": "Check",
+   "label": "Notifications Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "email_updates_enabled",
+   "fieldtype": "Check",
+   "label": "Email Updates Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "payment_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Payment Reminders Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "service_updates_enabled",
+   "fieldtype": "Check",
+   "label": "Service Updates Enabled"
+  },
+  {
+   "fieldname": "appearance_section",
+   "fieldtype": "Section Break",
+   "label": "Appearance"
+  },
+  {
+   "default": "system",
+   "fieldname": "theme",
+   "fieldtype": "Select",
+   "label": "Theme",
+   "options": "system\nlight\ndark"
+  },
+  {
+   "default": "en",
+   "fieldname": "language",
+   "fieldtype": "Data",
+   "label": "Language"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Customer Preference",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
