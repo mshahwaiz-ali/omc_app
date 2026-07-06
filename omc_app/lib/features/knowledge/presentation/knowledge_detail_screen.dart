@@ -188,7 +188,7 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
                     height: 28,
                     width: 74,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.04),
+                      color: AppTheme.primaryRed.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -199,7 +199,7 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
                 height: 22,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: AppTheme.primaryRed.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -208,7 +208,7 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
                 height: 14,
                 width: 240,
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: AppTheme.primaryRed.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -227,7 +227,7 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
                 height: 12,
                 width: index == 6 ? 180 : double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: AppTheme.primaryRed.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),

@@ -1132,6 +1132,9 @@ class _RecentActivityCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
             ),
             child: const Icon(
               Icons.history_rounded,

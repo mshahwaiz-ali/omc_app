@@ -95,6 +95,9 @@ class _NotificationsHero extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryRed.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                  ),
                 ),
                 child: const Icon(
                   Icons.notifications_active_outlined,
@@ -383,6 +386,7 @@ class _NotificationsStateCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: color.withValues(alpha: 0.08)),
             ),
             child: Icon(icon, color: color, size: 32),
           ),

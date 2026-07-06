@@ -112,32 +112,10 @@ class _TaskDetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-      children: const [
-        CrmDetailHeaderCard(
-          icon: Icons.task_alt_rounded,
-          title: 'Loading task',
-          subtitle: 'Fetching assignment details',
-          statusLabel: 'Loading',
-        ),
-        SizedBox(height: 16),
-        CrmDetailInfoCard(
-          title: 'Overview',
-          rows: [
-            CrmInfoRow(label: 'Status', value: 'Loading'),
-            CrmInfoRow(label: 'Priority', value: 'Loading'),
-            CrmInfoRow(label: 'Due date', value: 'Loading'),
-            CrmInfoRow(label: 'Assigned', value: 'Loading'),
-          ],
-        ),
-        SizedBox(height: 16),
-        CrmActivityTimelineCard(
-          title: 'Task timeline',
-          emptyMessage:
-              'Loading task activity, comments and status updates.',
-        ),
-      ],
+    return const CrmDetailLoadingView(
+      icon: Icons.task_alt_rounded,
+      title: 'Loading task',
+      message: 'Fetching assignment, priority and activity context.',
     );
   }
 }

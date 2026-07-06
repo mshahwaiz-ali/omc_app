@@ -125,6 +125,9 @@ class _KnowledgeHeroCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppTheme.primaryRed.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(19),
+                      border: Border.all(
+                        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                      ),
                     ),
                     child: Icon(
                       _iconForType(article.type),

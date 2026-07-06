@@ -379,10 +379,21 @@ class _CaseNotFoundState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.search_off_rounded,
-                color: AppTheme.primaryRed,
-                size: 42,
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(21),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.search_off_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 30,
+                ),
               ),
               const SizedBox(height: 14),
               const Text(
@@ -441,10 +452,21 @@ class _LoadErrorState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.cloud_off_rounded,
-                color: AppTheme.primaryRed,
-                size: 42,
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(21),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.cloud_off_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 30,
+                ),
               ),
               const SizedBox(height: 14),
               Text(
@@ -1022,7 +1044,10 @@ class _CaseActionsCard extends StatelessWidget {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.upload_file_rounded),
               label: Text(isUploading ? 'Uploading...' : 'Upload documents'),

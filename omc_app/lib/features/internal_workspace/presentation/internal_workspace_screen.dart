@@ -500,26 +500,46 @@ class _InternalWorkspaceLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
       children: [
         Container(
           height: 172,
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-            color: theme.colorScheme.surfaceContainerHighest,
-          ),
-          child: Align(
-            alignment: Alignment.bottomLeft,
-            child: SizedBox(
-              width: 180,
-              child: LinearProgressIndicator(
-                borderRadius: BorderRadius.circular(999),
-              ),
+            color: theme.colorScheme.primary.withValues(alpha: 0.08),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.08),
             ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -28,
+                top: -34,
+                child: Icon(
+                  Icons.dashboard_customize_rounded,
+                  size: 118,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.06),
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomLeft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _WorkspaceLoadingBar(width: 92, height: 26),
+                    const SizedBox(height: 16),
+                    _WorkspaceLoadingBar(width: 210, height: 18),
+                    const SizedBox(height: 10),
+                    _WorkspaceLoadingBar(width: 260, height: 12),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 18),
@@ -552,19 +572,31 @@ class _LoadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final skeletonColor = theme.colorScheme.primary.withValues(alpha: 0.07);
 
     return PremiumCard(
       padding: const EdgeInsets.all(16),
-      child: Align(
-        alignment: Alignment.bottomLeft,
-        child: Container(
-          width: 92,
-          height: 14,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(999),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: skeletonColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.06),
+              ),
+            ),
           ),
-        ),
+          const Spacer(),
+          const _WorkspaceLoadingBar(width: 54, height: 22),
+          const SizedBox(height: 8),
+          const _WorkspaceLoadingBar(width: 96, height: 11),
+          const SizedBox(height: 7),
+          const _WorkspaceLoadingBar(width: 76, height: 10),
+        ],
       ),
     );
   }
@@ -576,24 +608,62 @@ class _LoadingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final skeletonColor = theme.colorScheme.primary.withValues(alpha: 0.07);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: PremiumCard(
-        padding: EdgeInsets.zero,
-        child: Container(
-          height: 74,
-          padding: const EdgeInsets.all(16),
-          alignment: Alignment.centerLeft,
-          child: Container(
-            width: 180,
-            height: 14,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(999),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: skeletonColor,
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.06),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _WorkspaceLoadingBar(width: 150, height: 12),
+                  SizedBox(height: 9),
+                  _WorkspaceLoadingBar(width: 220, height: 10),
+                ],
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceLoadingBar extends StatelessWidget {
+  const _WorkspaceLoadingBar({
+    required this.width,
+    required this.height,
+  });
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(999),
       ),
     );
   }

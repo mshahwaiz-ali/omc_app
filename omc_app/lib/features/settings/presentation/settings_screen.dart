@@ -357,6 +357,9 @@ class _SettingsHero extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryRed.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                  ),
                 ),
                 child: const Icon(
                   Icons.tune_rounded,
@@ -586,13 +589,15 @@ class _LoadingPreferenceTile extends StatelessWidget {
                 _LoadingBar(widthFactor: 0.44),
                 const SizedBox(height: 9),
                 _LoadingBar(widthFactor: 0.76),
+                const SizedBox(height: 8),
+                _LoadingBar(widthFactor: 0.58),
               ],
             ),
           ),
           const SizedBox(width: 14),
           Container(
-            width: 38,
-            height: 22,
+            width: 44,
+            height: 24,
             decoration: BoxDecoration(
               color: AppTheme.primaryRed.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(999),
