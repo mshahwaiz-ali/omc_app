@@ -70,3 +70,6 @@ yarn-error.log*
 app.*.symbols
 app.*.map.json
 current
+
+# Local mock/runtime flags
+Env.useMockAuth
