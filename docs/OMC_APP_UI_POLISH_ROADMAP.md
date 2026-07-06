@@ -1,449 +1,804 @@
-# OMC App UI Polish Roadmap
+# OMC App UI Redesign Roadmap
 
-## Goal
+## Vision
 
-Redesign the OMC Flutter app into a premium, modern, useful, mobile-first business services app.
+OMC app should feel like a polished native mobile workspace, not a responsive website inside a phone.
 
-The app should feel like a high-quality fintech/business productivity app, not a basic form-based Flutter app. UI polish must improve usability, trust, clarity, and perceived product quality while preserving backend-connected architecture.
+The design should be:
+- Clean
+- Fast to scan
+- Mobile-first
+- Premium but not over-decorated
+- Practical for tax/business service workflows
+- Friendly for normal customers
+- Structured enough for power users and internal workspace users
+
+The target feel is closer to a modern productivity app:
+- Compact launcher actions
+- Floating bottom navigation
+- Soft surfaces
+- Meaningful color badges
+- Minimal nested cards
+- Clear content hierarchy
+- Smooth user journey from service discovery to request tracking
+
+Reference direction:
+- Rounded but not repetitive
+- Colorful badges where meaning matters
+- Floating navigation like modern mobile OS/productivity apps
+- Less red-heavy UI
+- More breathing room
+- Better icon rhythm
+- More native app feel
 
 ---
 
-## Core Design Direction
+## Current UI Problems
 
-### Visual Identity
+### 1. App feels like a mobile website
 
-Use the OMC brand color as the main identity.
+Many screens currently use:
+- Large white rounded cards
+- Repeated icon boxes
+- Plain page titles
+- Heavy vertical sections
+- Web-style AppBars
 
-Recommended palette:
+This makes the app feel like a website opened on mobile instead of a real mobile app.
 
-- Primary Red: `#8B1020`
-- Dark Red: `#650B17`
-- Accent Red: `#B5162C`
-- Soft Blush: `#FBE8EA`
-- Warm Background: `#F8F3F0`
-- Card Surface: `#FFFFFF`
-- Text Primary: `#161316`
-- Text Secondary: `#746B6B`
+### 2. Bottom navigation is missing on important pages
 
-### Style
+Bottom nav is not visible on several main workspace pages such as:
+- Documents
+- My Services
+- Payments
+- Knowledge
+- Tax Calculator
 
-The app should use:
+This breaks navigation continuity.
 
-- Premium rounded surfaces
-- Soft warm background
-- OMC red gradients
-- Compact cards and action tiles
-- Logo/icon-driven shortcuts
-- Clean typography
-- Strong visual hierarchy
-- Minimal but useful animations
-- Floating pill bottom navigation
-- Consistent back navigation on inner screens
+### 3. Too many cards
+
+Almost every section is inside a big rounded card. This creates visual fatigue.
 
 Avoid:
+- Card inside card
+- Same radius everywhere
+- Same red icon box everywhere
+- Large cards for simple rows
+- Repeating the same layout on every screen
 
-- Huge empty cards
-- Flat default Flutter UI
-- Too much wasted space
-- Overloaded grids
-- Cheap-looking shadows
-- Hardcoded visual elements where logo assets should be used
-- Fake/local data flows in production paths
+### 4. Red is overused
+
+OMC red should remain the brand anchor, but not every badge, icon, chip, and card should be red.
+
+Use red only for:
+- Brand moments
+- Primary CTA
+- Important tax/FBR emphasis
+- Error or urgent states
+
+Other states should use meaningful colors.
+
+### 5. Headers need redesign
+
+Plain top titles like:
+- Documents
+- My Services
+- Service Details
+
+feel weak and web-like.
+
+Need:
+- Clean mobile headers
+- Back button on every non-home/deep page
+- No unnecessary AppBar title on main tab pages
+- Better page introduction where useful
+
+### 6. Quick Actions are too bulky
+
+Current Quick Actions look like big inner cards inside a big outer card.
+
+Need:
+- Compact app launcher style
+- Icon + label
+- 3 columns
+- Scalable for more actions
+- No heavy inner cards
+
+### 7. Service catalogue feels congested
+
+Current Services page has:
+- Header
+- Search
+- Stats
+- Category chips
+- Shortcut card
+- Service cards
+
+Too much vertical clutter before user reaches actual services.
+
+### 8. Service detail pages are too repetitive
+
+Service detail pages repeat:
+- Hero card
+- Stat cards
+- Facts card
+- Overview card
+- Requirements card
+- Documents card
+- Process card
+
+This is heavy and not very mobile-friendly.
+
+### 9. Empty states and missing document states need logic polish
+
+Example:
+- “No missing documents” appears where it does not make sense.
+- Upload/document requirements need clearer business logic.
 
 ---
 
-## Design System Structure
-
-Create a shared UI polish layer before redesigning individual screens.
-
-Recommended structure:
-
-```txt
-lib/core/ui/
-  app_colors.dart
-  app_spacing.dart
-  app_radius.dart
-  app_shadows.dart
-  app_gradients.dart
-  app_motion.dart
-
-lib/core/ui/widgets/
-  omc_app_bar.dart
-  omc_back_button.dart
-  omc_glass_card.dart
-  omc_action_tile.dart
-  omc_logo_action.dart
-  omc_stat_chip.dart
-  omc_section_header.dart
-  omc_bottom_nav.dart
-  omc_settings_tile.dart
-
-Existing shared widgets such as PremiumCard can either be upgraded or gradually replaced with the new UI widgets.
-
-Navigation Direction
-Bottom Navigation
-
-Use a custom floating pill navigation instead of the default Material NavigationBar.
-
-Recommended style:
-
-Floating rounded container
-Soft blush/red selected state
-Compact icons
-Clear labels
-Slight top shadow
-Rounded active tab capsule
-Bottom safe-area aware spacing
-
-Tabs:
-
-Home
-Services
-Calculator
-Support
-More
-
-The nav should feel like a premium mobile app control, not a standard web-style bottom bar.
-
-Home Page Redesign
-Purpose
-
-Home should act as the main OMC command center.
-
-It should quickly show:
-
-User identity
-Important status
-Quick service actions
-Current work/progress
-Documents/payment alerts
-Easy path to support
-Home Page Layout
-1. Premium Header
-
-Content:
-
-OMC logo asset, not hardcoded OMC text
-Welcome message
-User name
-Notification button
-Optional small status indicator
-
-Example:
-
-[OMC Logo] Welcome back
-           Administrator
-
-[Notification]
-
-Use transparent logo assets from:
-
-assets/images/logo_symbol_transparent.png
-assets/images/full_logo_transparent.png
-assets/images/favicon-app-label-logo_transparent.png
-2. Hero Card
-
-Use a premium red gradient hero.
-
-Content:
-
-Main headline
-Short useful subtitle
-Primary CTA: Start Request
-Secondary mini status: Active cases / backend status / support available
-Optional subtle watermark using OMC logo symbol
-
-Example copy:
-
-Your tax and business services, organized.
-Submit requests, upload documents and track every update from one place.
-
-CTA:
-
-Start a Request
-
-Hero should feel premium but not too tall.
-
-3. Smart Status Row
-
-Replace squeezed plain cards with compact premium stat chips/cards.
-
-Recommended items:
-
-Active Services
-Pending Documents
-Payments Due
-Alerts
-
-Design:
-
-Compact horizontal scroll or 2x2 responsive layout
-Icon + value + label
-Small color accent
-No huge empty spacing
-
-Example:
-
-[Icon] 0
-Active Services
-
-[Icon] 0
-Documents Needed
-
-[Icon] 0
-Payments Due
-
-[Icon] 0
-Alerts
-4. Quick Actions
-
-Do not use huge blank cards.
-
-Use premium logo/icon-based action shortcuts.
-
-Recommended style:
-
-Compact rounded action tiles
-OMC red/blush icon capsules
-Service icon/logo prominent
-Short label
-Optional one-line helper text only when needed
-
-Recommended actions:
-
-File Tax Return
-NTN Registration
-GST Registration
-Tax Calculator
-Upload Documents
-Track Request
-
-Possible layout:
-
-Quick Actions
-
-[Icon] File Tax      [Icon] NTN
-[Icon] GST           [Icon] Calculator
-[Icon] Upload Docs   [Icon] Track
-
-Or premium horizontal launcher:
-
-[Tax] [NTN] [GST] [Docs] [Track] [Calc]
-
-Preferred approach:
-
-Use compact logo/icon launcher tiles instead of large cards.
-
-The tile should feel like a premium app shortcut, not a web card.
-
-5. Current Progress / Active Service
-
-Add a useful “current work” section.
-
-If user has an active case:
-
-Current Service
-Tax Return Filing
-In progress · Documents review
-[Progress bar]
-View Details
-
-If no active case:
-
-No active service yet
-Start a request and track progress here.
-
-This makes the home screen more useful than only showing static shortcuts.
-
-6. Documents / Payments Alerts
-
-Add a compact attention section only when needed.
+## Design Principles
+
+## 1. Mobile app first
+
+Every screen should be designed as a native mobile screen first.
+
+Use:
+- Compact rows
+- Floating nav
+- Bottom sheets
+- Sticky CTAs
+- Segmented filters
+- Horizontal chips
+- Timeline/progress views
+- Swipe-friendly lists
+
+Avoid:
+- Desktop/web page layouts
+- Long static pages full of cards
+- Too much text before action
+
+---
+
+## 2. Fewer cards, better hierarchy
+
+Use cards only for grouped information.
+
+Good card use:
+- Hero summary
+- Case progress summary
+- Payment summary
+- Important alert
+- Service request action area
+
+Avoid card use for:
+- Every row
+- Every icon
+- Every badge
+- Every tiny stat
+
+---
+
+## 3. Semantic color system
+
+Use color based on meaning.
+
+| Purpose | Color Direction |
+|---|---|
+| Brand / Primary action | OMC Red |
+| Approved / Complete / Paid | Green |
+| Pending / Review / In Progress | Amber / Yellow |
+| Missing / Failed / Overdue | Red |
+| Open / Draft / Neutral | Blue / Gray |
+| Knowledge / Guide / Info | Indigo / Blue |
+| Payment / Invoice | Purple / Teal |
+| Documents | Green / Blue |
+| Support | Cyan / Blue |
+
+Required shared components:
+- `StatusBadge`
+- `CategoryBadge`
+- `PriorityBadge`
+- `AmountBadge`
+- `DocumentStatusBadge`
+
+---
+
+## 4. Modern navigation model
+
+### Main bottom tabs
+
+Use 5 main tabs:
+
+1. Home
+2. Services
+3. Track
+4. Documents
+5. More
+
+### More page includes
+
+- Payments
+- Tax Calculator
+- Knowledge
+- Support
+- Profile
+- Settings
+- Internal Workspace
+
+### Detail pages
+
+Detail pages should:
+- Show back button
+- Hide bottom nav when deep/action-focused
+- Keep a clean top bar
+- Use sticky primary CTA where needed
 
 Examples:
+- Service Detail
+- Service Request Draft
+- Document Detail
+- Payment Detail
+- Knowledge Detail
+- Support Ticket Detail
+- Service Case Detail
 
-Documents needed
-2 files required for your active request
+---
 
-Payment pending
-Invoice available for review
+## 5. UI should follow backend content
 
-If there is no issue, avoid showing unnecessary empty warnings.
+Do not design generic screens first.
 
-7. Recent Activity
+For each module:
+1. Check backend response/data model
+2. Identify the user’s actual job
+3. Design the simplest mobile flow around that data
+4. Keep API/controller behavior unchanged
+5. Improve presentation only unless backend change is required
 
-Keep recent activity but make it cleaner.
-
-Show:
-
-Latest update
-Time/status
-Related service
-Tap to open tracking
-
-Avoid long empty activity blocks.
-
-More / Settings Screen Direction
-
-Use the polished settings style inspired by premium mobile apps.
-
-Recommended structure:
-
-Profile Header
-Name
-Email
-Account status
-
-Account
+Backend-connected modules already available:
+- Auth/session
+- Dashboard summary
+- Service catalogue
+- Service cases
+- Documents
+- Document upload/status
+- Payments
+- Payment receipt upload
 - Profile
+- Knowledge
 - Notifications
+- Settings preferences
+- Support tickets
+- Internal workspace
+- Leads
+- Customers
+- Tasks
+
+---
+
+# Target UI Direction
+
+## Home
+
+### Goal
+
+Home should feel like a dashboard/workspace, not a landing page.
+
+### Redesign
+
+- Rename `OMC Premium Workspace` to `OMC Workspace`
+- Keep hero card but make it cleaner and less oversized
+- Add compact action launcher
+- Use colorful icon categories
+- Show active work summary
+- Show recent activity in compact timeline/list format
+- Reduce large repeated cards
+
+### Quick Actions style
+
+Use compact launcher grid:
+
+- Icon button
+- Label below
+- Optional tiny subtitle only if needed
+- No large inner cards
+- No heavy red background everywhere
+
+Suggested actions:
+- Tax Return
+- NTN
+- GST
+- Documents
+- Track
+- Calculator
+
+---
+
+## Services
+
+### Goal
+
+Make service discovery simple and fast.
+
+### Redesign structure
+
+1. Clean header
+2. Search bar
+3. Horizontal category chips
+4. Popular/featured services if backend supports it later
+5. Service list
+
+### Remove or reduce
+
+- Big stats row at top
+- Heavy shortcut card
+- Repetitive service cards
+- Too many visible requirements on catalogue list
+
+### Service cards should show
+
+- Service title
+- Category badge
+- Fee label
+- Completion time
+- Document count only if useful
+- One clear CTA or chevron
+
+Use compact native list/card hybrid.
+
+---
+
+## Service Detail
+
+### Goal
+
+Help user understand the service and start request quickly.
+
+### Redesign structure
+
+1. Compact hero/header
+2. Key facts as chips
+3. Overview
+4. Requirements checklist
+5. Required documents
+6. Process timeline
+7. Sticky CTA: Start request
+8. Secondary CTA: Ask support
+
+### Avoid
+
+- Too many separate cards
+- Duplicate fee/time sections
+- Empty sections with confusing copy
+- Large icon boxes everywhere
+
+### Requirements/Documents logic
+
+- If requirements exist, show checklist.
+- If required documents exist, show upload-ready list.
+- If missing documents do not exist yet, do not show “No missing documents” on service detail.
+- Missing document logic belongs mainly to active service case tracking.
+
+---
+
+## My Services / Track
+
+### Goal
+
+This should feel like a work tracker.
+
+### Redesign structure
+
+1. Compact tracking summary
+2. Segmented filters:
+   - Active
+   - Need Docs
+   - Done
+3. Service case list
+4. Each case row shows:
+   - Service title
+   - Reference
+   - Status badge
+   - Progress
+   - Last updated
+   - Missing docs count if any
+
+### Case card style
+
+Use less bulky cards:
+- Compact row
+- Progress bar
+- Status badge
+- CTA row only when needed
+
+### Service Case Detail
+
+Use timeline style:
+- Request submitted
+- Under review
+- Documents required
+- Payment pending
+- In progress
+- Completed
+
+Also show:
 - Documents
 - Payments
+- Support/chat
+- Notes/updates if backend provides them
 
-Services
-- My Requests
-- Knowledge & News
-- Support
+---
 
-General
-- Settings
-- Privacy Policy
-- Terms & Conditions
+## Documents
 
-Logout
+### Goal
 
-Tile style:
+Documents should feel like a vault and upload workflow.
 
-White rounded group card
-Soft icon capsule
-Title
-Optional subtitle
-Chevron
-Clean dividers
-Logout separated and visually destructive
-Inner Screens Navigation
+### Redesign structure
 
-Every inner screen should have a clear back option.
+1. Header: Documents
+2. Compact stats row or segmented status tabs
+3. Filters:
+   - All
+   - Missing
+   - Review
+   - Approved
+4. Document list rows
 
-Rules:
+### Document row
 
-Main tab screens do not need back button.
-Pushed/detail screens must show back button.
-Forms must show back/cancel clearly.
-Long flows should show title + progress/context.
+Show:
+- Document name
+- Related service/case
+- Status badge
+- Upload/review/approved state
+- Action if missing or rejected
 
-Examples:
+### Better states
 
-Request Details
-Service Form
-Upload Documents
-Payment Detail
-Profile
-Settings
-Notifications
-Knowledge Article
+- Missing: red/orange, show upload CTA
+- Review: amber, show “Under review”
+- Approved: green, show verified
+- Rejected: red, show re-upload CTA
 
-Use a shared OmcBackButton or OmcAppBar.
+---
 
-Page-by-Page Polish Workflow
+## Payments
 
-Polish should happen one page at a time.
+### Goal
 
-For each page:
+Payments should feel like invoice/payment tracking.
 
-Inspect existing UI and backend flow
-Redesign UI using shared design system
-Keep existing backend-connected logic intact
-Run flutter analyze
-Test page with backend
-Fix UI/backend issues before moving to next page
+### Redesign
 
-Recommended order:
+Use:
+- Payment summary at top
+- Filters:
+  - All
+  - Due
+  - Paid
+  - Review
+- Payment rows with:
+  - Amount
+  - Status badge
+  - Due date/service
+  - Receipt upload status
 
-Design system base
-Main shell + floating bottom nav
-Home page
-More / Settings page
-Services catalogue
-Service request details/forms
-Documents
-Payments
-Support
-Calculator
-Notifications
-Profile
-Internal workspace pages
-Backend Rule
+Colors:
+- Paid = green
+- Due = amber/red depending urgency
+- Review = purple/blue
+- Draft/open = gray/blue
 
-UI polish must not break backend integration.
+---
 
-Production mode must remain backend-connected through Frappe APIs.
+## Knowledge
 
-Mock/local data is allowed only when clearly isolated for testing and never as the main production path.
+### Goal
 
-Animation Rule
+Knowledge should feel like a clean guide/news reader.
 
-Use light animations only.
+### Redesign
 
-Allowed:
+Use:
+- Search
+- Category chips
+- Article cards with type badge:
+  - Guide
+  - Tax
+  - News
+  - Alert
+- Compact reading detail page
+- Avoid red everywhere
 
-Fade in
-Small slide up
-Press scale
-Smooth tab switching
-Subtle progress animation
+Colors:
+- Guide = blue/indigo
+- Tax = OMC red
+- News = teal
+- Alert = amber/red
 
-Avoid:
+---
 
-Heavy Lottie usage everywhere
-Slow transitions
-Excessive animated backgrounds
-Animations that delay work
+## Tax Calculator
 
-Performance must stay smooth on normal Android devices and Flutter Web.
+### Goal
 
-Home Page Final Recommendation
+Calculator should feel like a focused tool.
 
-The Home page should be redesigned as:
+### Redesign
 
-SafeArea
-  CustomScrollView
-    PremiumHeader
-    RedGradientHero
-    SmartStatusScroller
-    QuickActionLogoLauncher
-    CurrentServiceProgressCard
-    DocumentsPaymentsAlertCard
-    RecentActivityCard
+Use:
+- Clean header with back button if opened from More
+- Input section
+- Calculation result card
+- Clear CTA:
+  - Calculate
+  - Reset
+- Sticky result after calculation
+- Avoid huge cards for every input
 
-The current huge Quick Services grid should be replaced with compact logo/icon action tiles.
+Fields should look native and compact.
 
-The default bottom navigation should be replaced with a custom floating pill nav.
+---
 
-Implementation Notes
+## More
 
-Do not redesign the whole app in one large risky patch.
+### Goal
+
+More page should be clean settings/workspace launcher.
+
+### Redesign
+
+Sections:
+- Account
+  - Profile
+  - Notifications
+  - Settings
+- Tools
+  - Tax Calculator
+  - Knowledge
+  - Payments
+  - Support
+- Workspace
+  - Internal Workspace
+  - Leads
+  - Customers
+  - Tasks
+
+Use list rows, not bulky cards.
+
+---
+
+## Internal Workspace
+
+### Goal
+
+Internal workspace should feel like an admin/business dashboard.
+
+### Redesign
+
+Use:
+- Summary metrics
+- Compact module launcher
+- Color-coded modules:
+  - Leads
+  - Customers
+  - Tasks
+  - Payments
+- Native list/detail layouts
+
+Do not mix customer-facing and internal UI too heavily.
+
+---
+
+# Shared Components To Build
+
+## App Shell
+
+Files:
+- `lib/app/router.dart`
+- `lib/app/main_shell.dart`
+
+Tasks:
+- Move main pages into shared shell
+- Keep bottom nav on main tabs
+- Keep detail pages separate with back button
+
+---
+
+## Shared UI Components
+
+Create in:
+- `lib/core/widgets/`
+
+Components:
+- `app_page.dart`
+- `app_page_header.dart`
+- `app_back_button.dart`
+- `app_bottom_nav.dart`
+- `status_badge.dart`
+- `compact_action_grid.dart`
+- `app_list_row.dart`
+- `metric_chip.dart`
+- `progress_timeline.dart`
+- `empty_state_v2.dart`
+
+---
+
+## Theme Updates
+
+File:
+- `lib/app/theme.dart`
+
+Add:
+- Semantic colors
+- Badge colors
+- Softer background colors
+- Consistent radius scale
+- Spacing scale
+- Shadow rules
+
+Suggested radius scale:
+- Small: 10
+- Medium: 14
+- Large: 20
+- Hero: 26
+- Pill: 999
+
+Suggested spacing:
+- Page horizontal: 20
+- Section gap: 20
+- Row gap: 12
+- Compact gap: 8
+
+---
+
+# Implementation Phases
+
+## Phase 1 — Navigation foundation
+
+Fix bottom navigation first.
+
+Tasks:
+- Refactor router/app shell
+- Main tabs:
+  - Home
+  - Services
+  - Track
+  - Documents
+  - More
+- Ensure bottom nav appears on main pages
+- Ensure back button appears on all detail/action pages
+
+Acceptance:
+- Documents shows bottom nav
+- My Services shows bottom nav
+- Services shows bottom nav
+- Home has no back button
+- Detail pages have back button
+
+---
+
+## Phase 2 — Shared design system
+
+Tasks:
+- Add shared headers
+- Add semantic badges
+- Add compact action grid
+- Add reusable row/card patterns
+- Update theme semantic colors
+
+Acceptance:
+- No more hardcoded red badges everywhere
+- New screens use reusable components
+- UI becomes consistent
+
+---
+
+## Phase 3 — Home redesign
+
+Tasks:
+- Rename `OMC Premium Workspace` to `OMC Workspace`
+- Replace bulky Quick Actions
+- Improve hero
+- Improve current progress/recent activity layout
+
+Acceptance:
+- Home feels like a native dashboard
+- Quick Actions are compact and clean
+- Less card nesting
+
+---
+
+## Phase 4 — Track/My Services redesign
+
+Tasks:
+- Redesign tracking header
+- Add filters
+- Redesign case rows
+- Improve detail timeline
+
+Acceptance:
+- User can quickly understand active work
+- Missing docs and progress are obvious
+
+---
+
+## Phase 5 — Documents redesign
+
+Tasks:
+- Add filters
+- Redesign stats/status header
+- Redesign document rows
+- Improve upload/review/approved states
+
+Acceptance:
+- Document vault feels clean
+- Upload path is obvious
+- Status colors are meaningful
+
+---
+
+## Phase 6 — Services redesign
+
+Tasks:
+- Simplify catalogue
+- Improve category chips
+- Redesign service list
+- Redesign service detail page
+- Fix confusing empty sections
+
+Acceptance:
+- Services page feels less congested
+- Detail pages are easier to act on
+
+---
+
+## Phase 7 — Payments, Knowledge, Calculator polish
+
+Tasks:
+- Apply new shell/header/badge/list patterns
+- Redesign module layouts
+- Fix back button behavior
+- Reduce card-heavy sections
+
+Acceptance:
+- All modules feel part of one native app
+
+---
+
+## Phase 8 — Final polish pass
+
+Tasks:
+- Check all screens on mobile width
+- Check scroll behavior
+- Check bottom nav spacing
+- Check empty/loading/error states
+- Run `flutter analyze`
+- Manual browser/mobile test
+
+Acceptance:
+- No analyzer issues
+- No missing nav on main pages
+- No ugly default AppBars
+- App feels modern, mobile-first, and polished
+
+---
+
+# First Work Batch
 
 Start with:
 
-Create shared UI polish files
-Replace bottom nav
-Redesign Home page only
-Analyze and test
-Then continue page-by-page
+1. Router/MainShell restructure
+2. Bottom nav on main pages
+3. Back button pattern
+4. Home Quick Actions redesign
+5. Semantic badge component
 
-Each step should be small, reviewable, and easy to revert.
+Do not redesign every screen at once.
 
-
-## Meri final recommendation
-
-Haan, **cards ke bajaye premium logo/action launcher** better hai. Cards sirf wahan rakho jahan real content ho: active service, recent activity, payment alert, document alert.
-
-Home ka top portion killer ban sakta hai:
-
-```txt
-Header
-Hero
-Stats
-Quick logo actions
-Current service progress
-Recent activity
+Small stable batches only.
