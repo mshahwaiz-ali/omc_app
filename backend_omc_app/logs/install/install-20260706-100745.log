@@ -1,471 +1,0 @@
-
-==================================================
- Preflight Summary
-==================================================
-Repo path:          /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app
-Bench path:         /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-Frappe branch:      version-15
-Environment:        native
-Architecture:       x86_64
-Kernel:             7.0.0-27-generic
-Memory:             14Gi
-
-git                git version 2.53.0
-curl               curl 8.18.0 (x86_64-pc-linux-gnu) libcurl/8.18.0 OpenSSL/3.5.5 zlib/1.3.1 brotli/1.2.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.2 libssh2/1.11.1 nghttp2/1.68.0 librtmp/2.3 mit-krb5/1.22.1 OpenLDAP/2.6.10
-python3            Python 3.14.4
-node               v24.18.0
-npm                11.16.0
-yarn               1.22.22
-mariadb            mariadb from 11.8.6-MariaDB, client 15.2 for debian-linux-gnu (x86_64) using  EditLine wrapper
-redis-server       Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=9729964261b8fc0f
-bench              5.31.0
-uv                 uv 0.11.26 (x86_64-unknown-linux-gnu)
-
-
-=================================
- ERP Prod Installer
-=================================
-1) Local / Development Install
-2) Production / Server Install
-3) Exit
-Choose: 
-==================================================
- Local / Development Installer
-==================================================
-
-==================================================
- Preflight Summary
-==================================================
-Repo path:          /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app
-Bench path:         /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-Frappe branch:      version-15
-Environment:        native
-Architecture:       x86_64
-Kernel:             7.0.0-27-generic
-Memory:             14Gi
-
-git                git version 2.53.0
-curl               curl 8.18.0 (x86_64-pc-linux-gnu) libcurl/8.18.0 OpenSSL/3.5.5 zlib/1.3.1 brotli/1.2.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.2 libssh2/1.11.1 nghttp2/1.68.0 librtmp/2.3 mit-krb5/1.22.1 OpenLDAP/2.6.10
-python3            Python 3.14.4
-node               v24.18.0
-npm                11.16.0
-yarn               1.22.22
-mariadb            mariadb from 11.8.6-MariaDB, client 15.2 for debian-linux-gnu (x86_64) using  EditLine wrapper
-redis-server       Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=9729964261b8fc0f
-bench              5.31.0
-uv                 uv 0.11.26 (x86_64-unknown-linux-gnu)
-
-
-==================================================
- Environment Mode
-==================================================
-[OK] Native Linux mode selected
-
-==================================================
- Node.js Version
-==================================================
-Detected Node:      v24.18.0
-Recommended Node:   22
-
-1) Use installed Node v24.18.0 [recommended]
-2) Install/use Node 22 LTS
-3) Install/use Node 24
-4) Manual Node major
-Choose [1]: [OK] selected Node major: 24
-
-==================================================
- Yarn Setup
-==================================================
-1) Corepack/Yarn setup [recommended]
-2) npm global yarn fallback
-3) Use existing yarn if available
-Choose [1]: 
-[WARN] Installer will skip compatible installed packages and reuse existing bench unless you choose otherwise.
-Continue local install? [y/N]: 
-==================================================
- System Dependencies
-==================================================
-[INFO] [RUN] sudo apt-get update
-Hit:1 http://pk.archive.ubuntu.com/ubuntu resolute InRelease
-Hit:2 https://dl.google.com/linux/chrome-stable/deb stable InRelease
-Hit:3 http://security.ubuntu.com/ubuntu resolute-security InRelease
-Hit:4 http://pk.archive.ubuntu.com/ubuntu resolute-updates InRelease
-Hit:5 http://pk.archive.ubuntu.com/ubuntu resolute-backports InRelease
-Reading package lists...
-[INFO] [RUN] sudo apt-get --fix-broken install -y
-Reading package lists...
-Building dependency tree...
-Reading state information...
-Solving dependencies...
-0 upgraded, 0 newly installed, 0 to remove and 1 not upgraded.
-[INFO] skip installed package: git
-[INFO] skip installed package: curl
-[INFO] skip installed package: ca-certificates
-[INFO] skip installed package: gnupg
-[INFO] skip installed package: build-essential
-[INFO] skip installed package: pkg-config
-[INFO] skip installed package: python3
-[INFO] skip installed package: python3-dev
-[INFO] skip installed package: python3-pip
-[INFO] skip installed package: python3-venv
-[INFO] skip installed package: python3-setuptools
-[INFO] skip installed package: pipx
-[INFO] skip installed package: redis-server
-[INFO] skip installed package: mariadb-server
-[INFO] skip installed package: mariadb-client
-[INFO] skip installed package: libffi-dev
-[INFO] skip installed package: libssl-dev
-[INFO] skip installed package: libmysqlclient-dev
-[INFO] skip installed package: libjpeg-dev
-[INFO] skip installed package: zlib1g-dev
-[INFO] skip installed package: liblcms2-dev
-[INFO] skip installed package: libwebp-dev
-[INFO] skip installed package: libxrender1
-[INFO] skip installed package: libxext6
-[INFO] skip installed package: fontconfig
-[INFO] skip installed package: xfonts-75dpi
-[INFO] skip installed package: xfonts-base
-[INFO] skip installed package: cron
-[INFO] skip installed package: libtiff-dev/libtiff5-dev
-[WARN] wkhtmltopdf has no apt candidate; PDF generation may need manual setup
-[INFO] service already running: mariadb
-[INFO] service already running: redis-server
-
-==================================================
- Bench
-==================================================
-
-==================================================
- Bench CLI
-==================================================
-[OK] 5.31.0
-
-==================================================
- uv
-==================================================
-[OK] uv 0.11.26 (x86_64-unknown-linux-gnu)
-
-==================================================
- Node
-==================================================
-[OK] using installed node v24.18.0
-[OK] npm 11.16.0
-
-==================================================
- Yarn
-==================================================
-[INFO] [RUN] corepack enable
-[INFO] [RUN] corepack prepare yarn@1.22.22 --activate
-Preparing yarn@1.22.22 for immediate activation...
-[OK] yarn 1.22.22
-[INFO] initializing Frappe bench: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-[INFO] [RUN] bench init --frappe-branch version-15 /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-Setting Up Environment
-$ uv venv env --seed --python python3
-Using CPython 3.14.4 interpreter at: /usr/bin/python3
-Creating virtual environment with seed packages at: env
- + pip==26.1.2
-Activate with: source env/bin/activate
-Getting frappe
-$ git clone https://github.com/frappe/frappe.git --branch version-15 --depth 1 --origin upstream
-Cloning into 'frappe'...
-Installing frappe
-$ uv pip install --quiet -e /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/apps/frappe  --python /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/env/bin/python
-$ yarn install --check-files
-yarn install v1.22.22
-(node:17916) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-[1/5] Validating package.json...
-[2/5] Resolving packages...
-[3/5] Fetching packages...
-[4/5] Linking dependencies...
-warning " > @frappe/esbuild-plugin-postcss2@0.1.3" has unmet peer dependency "less@^4.x".
-warning " > @frappe/esbuild-plugin-postcss2@0.1.3" has unmet peer dependency "stylus@^0.x".
-warning " > @vue/component-compiler@4.2.4" has unmet peer dependency "vue-template-compiler@*".
-[5/5] Building fresh packages...
-Done in 2.98s.
-Found existing apps updating states...
-$ sudo supervisorctl restart frappe:
-frappe: ERROR (no such group)
-frappe: ERROR (no such group)
-WARN: restarting supervisor group `frappe:` failed. Use `bench restart` to retry.
-$ bench build
-Assets for Release v15.113.4 don't exist
-Linking /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/apps/frappe/frappe/public to ./assets/frappe                                                                                Linking /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/apps/frappe/node_modules to ./assets/frappe/node_modules                                                                                ✔ Application Assets Linked                                            
-
-
-yarn run v1.22.22
-(node:18071) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-$ node esbuild --production --run-build-command
-Browserslist: caniuse-lite is outdated. Please run:
-  npx update-browserslist-db@latest
-  Why you should do it regularly: https://github.com/browserslist/update-db#readme
-File                                                        Size
-
-frappe/dist/js/
-├─ billing.bundle.QQE2RPCA.js                               4.44 Kb
-├─ bootstrap-4-web.bundle.FOZOVELL.js                       1.73 Kb
-├─ controls.bundle.QKDLBAEH.js                              881.81 Kb
-├─ data_import_tools.bundle.V7TBRG7A.js                     132.20 Kb
-├─ desk.bundle.R646Q6HB.js                                  1363.93 Kb
-├─ dialog.bundle.J76YJGI3.js                                58.34 Kb
-├─ form.bundle.AVW7EZHK.js                                  173.78 Kb
-├─ frappe-web.bundle.YEFNLNZD.js                            831.44 Kb
-├─ libs.bundle.TIV7ZGVY.js                                  556.25 Kb
-├─ list.bundle.7SAQPRSG.js                                  201.60 Kb
-├─ logtypes.bundle.EKN7LWKW.js                              0.73 Kb
-├─ onboarding_tours.bundle.RAUR6X4Z.js                      7.60 Kb
-├─ report.bundle.PIZVLYSM.js                                209.06 Kb
-├─ sentry.bundle.AX44GVWW.js                                74.42 Kb
-├─ telemetry.bundle.3ICFTNWB.js                             5.32 Kb
-├─ user_profile_controller.bundle.TPZWXYWN.js               11.97 Kb
-├─ video_player.bundle.DUYYLSFO.js                          120.67 Kb
-├─ web_form.bundle.DBJ3AAGE.js                              1075.61 Kb
-├─ form_builder.bundle.TARMPPXA.js                          798.73 Kb
-├─ form_builder.bundle.B6DRTYGQ.css                         23.39 Kb
-├─ print_format_builder.bundle.LNFRAS7B.js                  685.26 Kb
-├─ print_format_builder.bundle.ZYT2ZATD.css                 5.54 Kb
-├─ workflow_builder.bundle.XHGVA26Y.js                      351.85 Kb
-├─ workflow_builder.bundle.ZVD6UA6N.css                     11.02 Kb
-├─ build_events.bundle.H66N3YDN.js                          105.71 Kb
-├─ build_events.bundle.FTVXJEIL.css                         1.29 Kb
-├─ file_uploader.bundle.56RHS5NN.js                         204.72 Kb
-├─ file_uploader.bundle.RASFH6JT.css                        6.58 Kb
-└─ kanban_board.bundle.FBBHCLAN.js                          578.16 Kb
-
-frappe/dist/css/
-├─ desk.bundle.WQEGVMCR.css                                 596.74 Kb
-├─ email.bundle.XA43RFJK.css                                6.29 Kb
-├─ login.bundle.HFFDOPF7.css                                32.35 Kb
-├─ print.bundle.6YKNMSOW.css                                206.84 Kb
-├─ print_format.bundle.ZQK5746E.css                         186.16 Kb
-├─ report.bundle.RMHAFJAI.css                               5.91 Kb
-├─ web_form.bundle.L3AFTS6A.css                             15.26 Kb
-└─ website.bundle.M7X4YHFW.css                              447.63 Kb
-
-frappe/dist/css-rtl/
-├─ desk.bundle.AG5HN7A2.css                                 597.24 Kb
-├─ email.bundle.FH7YDZUK.css                                6.29 Kb
-├─ login.bundle.VFHMHYHY.css                                32.35 Kb
-├─ print.bundle.2NV3AJW6.css                                206.99 Kb
-├─ print_format.bundle.UVVDDMV2.css                         186.28 Kb
-├─ report.bundle.7Y4MZP3W.css                               5.91 Kb
-├─ web_form.bundle.M7N7TR34.css                             15.26 Kb
-└─ website.bundle.VEHJIHMP.css                              447.78 Kb
-
- DONE  Total Build Time: 7.749s
-
- WARN  Cannot connect to redis_cache to update assets_json
- WARN  Cannot connect to redis_cache to update assets_json
- WARN  Cannot connect to redis_cache to update assets_json
-Done in 8.25s.
-Compiling translations for frappe
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/sv/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/pl/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/fa/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/ko/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/ar/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/bg/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/nl/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/hu/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/vi/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/hi/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/bs/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/pt/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/eo/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/sl/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/sr_CS/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/pt_BR/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/it/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/th/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/da/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/ru/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/nb/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/tr/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/sr/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/fr/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/cs/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/de/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/es/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/my/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/zh/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/hr/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/uz/LC_MESSAGES/frappe.mo
-MO file created at /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench/sites/assets/locale/id/LC_MESSAGES/frappe.mo
-SUCCESS: Bench /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench initialized
-[OK] bench initialized: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-
-==================================================
- Final Summary
-==================================================
-
-==================================================
- Environment Summary
-==================================================
-[INFO] node: v24.18.0
-[INFO] npm: 11.16.0
-[INFO] yarn: 1.22.22
-[INFO] uv: uv 0.11.26 (x86_64-unknown-linux-gnu)
-[INFO] bench: 5.31.0
-[INFO] python3: Python 3.14.4
-[INFO] mariadb: mariadb from 11.8.6-MariaDB, client 15.2 for debian-linux-gnu (x86_64) using  EditLine wrapper
-[INFO] redis-server: Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=9729964261b8fc0f
-[OK] Bench validation passed: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-[OK] Local installer completed.
-[INFO] Log file: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/logs/install/install-20260706-100745.log
-[INFO] Action log: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/logs/install/install-20260706-100745.actions
-
-Next step:
-1) Run site setup now
-2) Exit
-Choose [2]: [INFO] [RUN] /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/site_setup.sh
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-
-====================
- Site Setup Manager
-====================
-Bench: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-Log:   /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/logs/site_setup/site-setup-20260706-101003.log
-
-1) New Site
-2) Delete Site
-3) List Sites and Apps
-4) Sync apps
-5) Rename Site to Lowercase
-6) Repair Secrets
-7) Exit
-Choose: 
-==================================================
- Sites and Apps
-==================================================
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-[WARN] no valid sites found
-
-====================
- Site Setup Manager
-====================
-Bench: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-Log:   /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/logs/site_setup/site-setup-20260706-101003.log
-
-1) New Site
-2) Delete Site
-3) List Sites and Apps
-4) Sync apps
-5) Rename Site to Lowercase
-6) Repair Secrets
-7) Exit
-Choose: 
-==================================================
- New Site
-==================================================
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-[WARN] apps source folder missing: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/apps
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-[OK] apps sync complete
-Site name (example ledgix.local): Administrator password (press Enter to auto-generate): 
-Confirm Administrator password: 
-[WARN] no importable custom apps available; site will use only Frappe
-Site DB password (press Enter to auto-generate): 
-Confirm Site DB password: 
-[INFO] creating MariaDB database/user via sudo socket auth
-[OK] database prepared: _8991a4bd8761b81c
-[INFO] creating site: omc.local
-[INFO] [RUN] bench new-site omc.local --admin-password *** --db-name _8991a4bd8761b81c --db-password *** --no-setup-db
-Warning: MariaDB version ['11.8', '6'] is more than 10.8 which is not yet tested with Frappe Framework.
-
-Installing frappe...
-Updating DocTypes for frappe        : [                                        ] 0%Updating DocTypes for frappe        : [                                        ] 0%Updating DocTypes for frappe        : [                                        ] 0%Updating DocTypes for frappe        : [                                        ] 1%Updating DocTypes for frappe        : [                                        ] 1%Updating DocTypes for frappe        : [                                        ] 1%Updating DocTypes for frappe        : [                                        ] 2%Updating DocTypes for frappe        : [                                        ] 2%Updating DocTypes for frappe        : [=                                       ] 2%Updating DocTypes for frappe        : [=                                       ] 2%Updating DocTypes for frappe        : [=                                       ] 3%Updating DocTypes for frappe        : [=                                       ] 3%Updating DocTypes for frappe        : [=                                       ] 3%Updating DocTypes for frappe        : [=                                       ] 4%Updating DocTypes for frappe        : [=                                       ] 4%Updating DocTypes for frappe        : [=                                       ] 4%Updating DocTypes for frappe        : [=                                       ] 4%Updating DocTypes for frappe        : [==                                      ] 5%Updating DocTypes for frappe        : [==                                      ] 5%Updating DocTypes for frappe        : [==                                      ] 5%Updating DocTypes for frappe        : [==                                      ] 6%Updating DocTypes for frappe        : [==                                      ] 6%Updating DocTypes for frappe        : [==                                      ] 6%Updating DocTypes for frappe        : [==                                      ] 6%Updating DocTypes for frappe        : [==                                      ] 7%Updating DocTypes for frappe        : [===                                     ] 7%Updating DocTypes for frappe        : [===                                     ] 7%Updating DocTypes for frappe        : [===                                     ] 8%Updating DocTypes for frappe        : [===                                     ] 8%Updating DocTypes for frappe        : [===                                     ] 8%Updating DocTypes for frappe        : [===                                     ] 9%Updating DocTypes for frappe        : [===                                     ] 9%Updating DocTypes for frappe        : [===                                     ] 9%Updating DocTypes for frappe        : [===                                     ] 9%Updating DocTypes for frappe        : [====                                    ] 10%Updating DocTypes for frappe        : [====                                    ] 10%Updating DocTypes for frappe        : [====                                    ] 10%Updating DocTypes for frappe        : [====                                    ] 11%Updating DocTypes for frappe        : [====                                    ] 11%Updating DocTypes for frappe        : [====                                    ] 11%Updating DocTypes for frappe        : [====                                    ] 11%Updating DocTypes for frappe        : [====                                    ] 12%Updating DocTypes for frappe        : [=====                                   ] 12%Updating DocTypes for frappe        : [=====                                   ] 12%Updating DocTypes for frappe        : [=====                                   ] 13%Updating DocTypes for frappe        : [=====                                   ] 13%Updating DocTypes for frappe        : [=====                                   ] 13%Updating DocTypes for frappe        : [=====                                   ] 13%Updating DocTypes for frappe        : [=====                                   ] 14%Updating DocTypes for frappe        : [=====                                   ] 14%Updating DocTypes for frappe        : [=====                                   ] 14%Updating DocTypes for frappe        : [======                                  ] 15%Updating DocTypes for frappe        : [======                                  ] 15%Updating DocTypes for frappe        : [======                                  ] 15%Updating DocTypes for frappe        : [======                                  ] 16%Updating DocTypes for frappe        : [======                                  ] 16%Updating DocTypes for frappe        : [======                                  ] 16%Updating DocTypes for frappe        : [======                                  ] 16%Updating DocTypes for frappe        : [======                                  ] 17%Updating DocTypes for frappe        : [======                                  ] 17%Updating DocTypes for frappe        : [=======                                 ] 17%Updating DocTypes for frappe        : [=======                                 ] 18%Updating DocTypes for frappe        : [=======                                 ] 18%Updating DocTypes for frappe        : [=======                                 ] 18%Updating DocTypes for frappe        : [=======                                 ] 18%Updating DocTypes for frappe        : [=======                                 ] 19%Updating DocTypes for frappe        : [=======                                 ] 19%Updating DocTypes for frappe        : [=======                                 ] 19%Updating DocTypes for frappe        : [========                                ] 20%Updating DocTypes for frappe        : [========                                ] 20%Updating DocTypes for frappe        : [========                                ] 20%Updating DocTypes for frappe        : [========                                ] 20%Updating DocTypes for frappe        : [========                                ] 21%Updating DocTypes for frappe        : [========                                ] 21%Updating DocTypes for frappe        : [========                                ] 21%Updating DocTypes for frappe        : [========                                ] 22%Updating DocTypes for frappe        : [========                                ] 22%Updating DocTypes for frappe        : [=========                               ] 22%Updating DocTypes for frappe        : [=========                               ] 23%Updating DocTypes for frappe        : [=========                               ] 23%Updating DocTypes for frappe        : [=========                               ] 23%Updating DocTypes for frappe        : [=========                               ] 23%Updating DocTypes for frappe        : [=========                               ] 24%Updating DocTypes for frappe        : [=========                               ] 24%Updating DocTypes for frappe        : [=========                               ] 24%Updating DocTypes for frappe        : [==========                              ] 25%Updating DocTypes for frappe        : [==========                              ] 25%Updating DocTypes for frappe        : [==========                              ] 25%Updating DocTypes for frappe        : [==========                              ] 25%Updating DocTypes for frappe        : [==========                              ] 26%Updating DocTypes for frappe        : [==========                              ] 26%Updating DocTypes for frappe        : [==========                              ] 26%Updating DocTypes for frappe        : [==========                              ] 27%Updating DocTypes for frappe        : [==========                              ] 27%Updating DocTypes for frappe        : [===========                             ] 27%Updating DocTypes for frappe        : [===========                             ] 27%Updating DocTypes for frappe        : [===========                             ] 28%Updating DocTypes for frappe        : [===========                             ] 28%Updating DocTypes for frappe        : [===========                             ] 28%Updating DocTypes for frappe        : [===========                             ] 29%Updating DocTypes for frappe        : [===========                             ] 29%Updating DocTypes for frappe        : [===========                             ] 29%Updating DocTypes for frappe        : [============                            ] 30%Updating DocTypes for frappe        : [============                            ] 30%Updating DocTypes for frappe        : [============                            ] 30%Updating DocTypes for frappe        : [============                            ] 30%Updating DocTypes for frappe        : [============                            ] 31%Updating DocTypes for frappe        : [============                            ] 31%Updating DocTypes for frappe        : [============                            ] 31%Updating DocTypes for frappe        : [============                            ] 32%Updating DocTypes for frappe        : [============                            ] 32%Updating DocTypes for frappe        : [=============                           ] 32%Updating DocTypes for frappe        : [=============                           ] 32%Updating DocTypes for frappe        : [=============                           ] 33%Updating DocTypes for frappe        : [=============                           ] 33%Updating DocTypes for frappe        : [=============                           ] 33%Updating DocTypes for frappe        : [=============                           ] 34%Updating DocTypes for frappe        : [=============                           ] 34%Updating DocTypes for frappe        : [=============                           ] 34%Updating DocTypes for frappe        : [=============                           ] 34%Updating DocTypes for frappe        : [==============                          ] 35%Updating DocTypes for frappe        : [==============                          ] 35%Updating DocTypes for frappe        : [==============                          ] 35%Updating DocTypes for frappe        : [==============                          ] 36%Updating DocTypes for frappe        : [==============                          ] 36%Updating DocTypes for frappe        : [==============                          ] 36%Updating DocTypes for frappe        : [==============                          ] 37%Updating DocTypes for frappe        : [==============                          ] 37%Updating DocTypes for frappe        : [===============                         ] 37%Updating DocTypes for frappe        : [===============                         ] 37%Updating DocTypes for frappe        : [===============                         ] 38%Updating DocTypes for frappe        : [===============                         ] 38%Updating DocTypes for frappe        : [===============                         ] 38%Updating DocTypes for frappe        : [===============                         ] 39%Updating DocTypes for frappe        : [===============                         ] 39%Updating DocTypes for frappe        : [===============                         ] 39%Updating DocTypes for frappe        : [===============                         ] 39%Updating DocTypes for frappe        : [================                        ] 40%Updating DocTypes for frappe        : [================                        ] 40%Updating DocTypes for frappe        : [================                        ] 40%Updating DocTypes for frappe        : [================                        ] 41%Updating DocTypes for frappe        : [================                        ] 41%Updating DocTypes for frappe        : [================                        ] 41%Updating DocTypes for frappe        : [================                        ] 41%Updating DocTypes for frappe        : [================                        ] 42%Updating DocTypes for frappe        : [=================                       ] 42%Updating DocTypes for frappe        : [=================                       ] 42%Updating DocTypes for frappe        : [=================                       ] 43%Updating DocTypes for frappe        : [=================                       ] 43%Updating DocTypes for frappe        : [=================                       ] 43%Updating DocTypes for frappe        : [=================                       ] 44%Updating DocTypes for frappe        : [=================                       ] 44%Updating DocTypes for frappe        : [=================                       ] 44%Updating DocTypes for frappe        : [=================                       ] 44%Updating DocTypes for frappe        : [==================                      ] 45%Updating DocTypes for frappe        : [==================                      ] 45%Updating DocTypes for frappe        : [==================                      ] 45%Updating DocTypes for frappe        : [==================                      ] 46%Updating DocTypes for frappe        : [==================                      ] 46%Updating DocTypes for frappe        : [==================                      ] 46%Updating DocTypes for frappe        : [==================                      ] 46%Updating DocTypes for frappe        : [==================                      ] 47%Updating DocTypes for frappe        : [===================                     ] 47%Updating DocTypes for frappe        : [===================                     ] 47%Updating DocTypes for frappe        : [===================                     ] 48%Updating DocTypes for frappe        : [===================                     ] 48%Updating DocTypes for frappe        : [===================                     ] 48%Updating DocTypes for frappe        : [===================                     ] 48%Updating DocTypes for frappe        : [===================                     ] 49%Updating DocTypes for frappe        : [===================                     ] 49%Updating DocTypes for frappe        : [===================                     ] 49%Updating DocTypes for frappe        : [====================                    ] 50%Updating DocTypes for frappe        : [====================                    ] 50%Updating DocTypes for frappe        : [====================                    ] 50%Updating DocTypes for frappe        : [====================                    ] 51%Updating DocTypes for frappe        : [====================                    ] 51%Updating DocTypes for frappe        : [====================                    ] 51%Updating DocTypes for frappe        : [====================                    ] 51%Updating DocTypes for frappe        : [====================                    ] 52%Updating DocTypes for frappe        : [====================                    ] 52%Updating DocTypes for frappe        : [=====================                   ] 52%Updating DocTypes for frappe        : [=====================                   ] 53%Updating DocTypes for frappe        : [=====================                   ] 53%Updating DocTypes for frappe        : [=====================                   ] 53%Updating DocTypes for frappe        : [=====================                   ] 53%Updating DocTypes for frappe        : [=====================                   ] 54%Updating DocTypes for frappe        : [=====================                   ] 54%Updating DocTypes for frappe        : [=====================                   ] 54%Updating DocTypes for frappe        : [======================                  ] 55%Updating DocTypes for frappe        : [======================                  ] 55%Updating DocTypes for frappe        : [======================                  ] 55%Updating DocTypes for frappe        : [======================                  ] 55%Updating DocTypes for frappe        : [======================                  ] 56%Updating DocTypes for frappe        : [======================                  ] 56%Updating DocTypes for frappe        : [======================                  ] 56%Updating DocTypes for frappe        : [======================                  ] 57%Updating DocTypes for frappe        : [======================                  ] 57%Updating DocTypes for frappe        : [=======================                 ] 57%Updating DocTypes for frappe        : [=======================                 ] 58%Updating DocTypes for frappe        : [=======================                 ] 58%Updating DocTypes for frappe        : [=======================                 ] 58%Updating DocTypes for frappe        : [=======================                 ] 58%Updating DocTypes for frappe        : [=======================                 ] 59%Updating DocTypes for frappe        : [=======================                 ] 59%Updating DocTypes for frappe        : [=======================                 ] 59%Updating DocTypes for frappe        : [========================                ] 60%Updating DocTypes for frappe        : [========================                ] 60%Updating DocTypes for frappe        : [========================                ] 60%Updating DocTypes for frappe        : [========================                ] 60%Updating DocTypes for frappe        : [========================                ] 61%Updating DocTypes for frappe        : [========================                ] 61%Updating DocTypes for frappe        : [========================                ] 61%Updating DocTypes for frappe        : [========================                ] 62%Updating DocTypes for frappe        : [========================                ] 62%Updating DocTypes for frappe        : [=========================               ] 62%Updating DocTypes for frappe        : [=========================               ] 62%Updating DocTypes for frappe        : [=========================               ] 63%Updating DocTypes for frappe        : [=========================               ] 63%Updating DocTypes for frappe        : [=========================               ] 63%Updating DocTypes for frappe        : [=========================               ] 64%Updating DocTypes for frappe        : [=========================               ] 64%Updating DocTypes for frappe        : [=========================               ] 64%Updating DocTypes for frappe        : [==========================              ] 65%Updating DocTypes for frappe        : [==========================              ] 65%Updating DocTypes for frappe        : [==========================              ] 65%Updating DocTypes for frappe        : [==========================              ] 65%Updating DocTypes for frappe        : [==========================              ] 66%Updating DocTypes for frappe        : [==========================              ] 66%Updating DocTypes for frappe        : [==========================              ] 66%Updating DocTypes for frappe        : [==========================              ] 67%Updating DocTypes for frappe        : [==========================              ] 67%Updating DocTypes for frappe        : [===========================             ] 67%Updating DocTypes for frappe        : [===========================             ] 67%Updating DocTypes for frappe        : [===========================             ] 68%Updating DocTypes for frappe        : [===========================             ] 68%Updating DocTypes for frappe        : [===========================             ] 68%Updating DocTypes for frappe        : [===========================             ] 69%Updating DocTypes for frappe        : [===========================             ] 69%Updating DocTypes for frappe        : [===========================             ] 69%Updating DocTypes for frappe        : [===========================             ] 69%Updating DocTypes for frappe        : [============================            ] 70%Updating DocTypes for frappe        : [============================            ] 70%Updating DocTypes for frappe        : [============================            ] 70%Updating DocTypes for frappe        : [============================            ] 71%Updating DocTypes for frappe        : [============================            ] 71%Updating DocTypes for frappe        : [============================            ] 71%Updating DocTypes for frappe        : [============================            ] 72%Updating DocTypes for frappe        : [============================            ] 72%Updating DocTypes for frappe        : [=============================           ] 72%Updating DocTypes for frappe        : [=============================           ] 72%Updating DocTypes for frappe        : [=============================           ] 73%Updating DocTypes for frappe        : [=============================           ] 73%Updating DocTypes for frappe        : [=============================           ] 73%Updating DocTypes for frappe        : [=============================           ] 74%Updating DocTypes for frappe        : [=============================           ] 74%Updating DocTypes for frappe        : [=============================           ] 74%Updating DocTypes for frappe        : [=============================           ] 74%Updating DocTypes for frappe        : [==============================          ] 75%Updating DocTypes for frappe        : [==============================          ] 75%Updating DocTypes for frappe        : [==============================          ] 75%Updating DocTypes for frappe        : [==============================          ] 76%Updating DocTypes for frappe        : [==============================          ] 76%Updating DocTypes for frappe        : [==============================          ] 76%Updating DocTypes for frappe        : [==============================          ] 76%Updating DocTypes for frappe        : [==============================          ] 77%Updating DocTypes for frappe        : [===============================         ] 77%Updating DocTypes for frappe        : [===============================         ] 77%Updating DocTypes for frappe        : [===============================         ] 78%Updating DocTypes for frappe        : [===============================         ] 78%Updating DocTypes for frappe        : [===============================         ] 78%Updating DocTypes for frappe        : [===============================         ] 79%Updating DocTypes for frappe        : [===============================         ] 79%Updating DocTypes for frappe        : [===============================         ] 79%Updating DocTypes for frappe        : [===============================         ] 79%Updating DocTypes for frappe        : [================================        ] 80%Updating DocTypes for frappe        : [================================        ] 80%Updating DocTypes for frappe        : [================================        ] 80%Updating DocTypes for frappe        : [================================        ] 81%Updating DocTypes for frappe        : [================================        ] 81%Updating DocTypes for frappe        : [================================        ] 81%Updating DocTypes for frappe        : [================================        ] 81%Updating DocTypes for frappe        : [================================        ] 82%Updating DocTypes for frappe        : [=================================       ] 82%Updating DocTypes for frappe        : [=================================       ] 82%Updating DocTypes for frappe        : [=================================       ] 83%Updating DocTypes for frappe        : [=================================       ] 83%Updating DocTypes for frappe        : [=================================       ] 83%Updating DocTypes for frappe        : [=================================       ] 83%Updating DocTypes for frappe        : [=================================       ] 84%Updating DocTypes for frappe        : [=================================       ] 84%Updating DocTypes for frappe        : [=================================       ] 84%Updating DocTypes for frappe        : [==================================      ] 85%Updating DocTypes for frappe        : [==================================      ] 85%Updating DocTypes for frappe        : [==================================      ] 85%Updating DocTypes for frappe        : [==================================      ] 86%Updating DocTypes for frappe        : [==================================      ] 86%Updating DocTypes for frappe        : [==================================      ] 86%Updating DocTypes for frappe        : [==================================      ] 86%Updating DocTypes for frappe        : [==================================      ] 87%Updating DocTypes for frappe        : [==================================      ] 87%Updating DocTypes for frappe        : [===================================     ] 87%Updating DocTypes for frappe        : [===================================     ] 88%Updating DocTypes for frappe        : [===================================     ] 88%Updating DocTypes for frappe        : [===================================     ] 88%Updating DocTypes for frappe        : [===================================     ] 88%Updating DocTypes for frappe        : [===================================     ] 89%Updating DocTypes for frappe        : [===================================     ] 89%Updating DocTypes for frappe        : [===================================     ] 89%Updating DocTypes for frappe        : [====================================    ] 90%Updating DocTypes for frappe        : [====================================    ] 90%Updating DocTypes for frappe        : [====================================    ] 90%Updating DocTypes for frappe        : [====================================    ] 90%Updating DocTypes for frappe        : [====================================    ] 91%Updating DocTypes for frappe        : [====================================    ] 91%Updating DocTypes for frappe        : [====================================    ] 91%Updating DocTypes for frappe        : [====================================    ] 92%Updating DocTypes for frappe        : [====================================    ] 92%Updating DocTypes for frappe        : [=====================================   ] 92%Updating DocTypes for frappe        : [=====================================   ] 93%Updating DocTypes for frappe        : [=====================================   ] 93%Updating DocTypes for frappe        : [=====================================   ] 93%Updating DocTypes for frappe        : [=====================================   ] 93%Updating DocTypes for frappe        : [=====================================   ] 94%Updating DocTypes for frappe        : [=====================================   ] 94%Updating DocTypes for frappe        : [=====================================   ] 94%Updating DocTypes for frappe        : [======================================  ] 95%Updating DocTypes for frappe        : [======================================  ] 95%Updating DocTypes for frappe        : [======================================  ] 95%Updating DocTypes for frappe        : [======================================  ] 95%Updating DocTypes for frappe        : [======================================  ] 96%Updating DocTypes for frappe        : [======================================  ] 96%Updating DocTypes for frappe        : [======================================  ] 96%Updating DocTypes for frappe        : [======================================  ] 97%Updating DocTypes for frappe        : [======================================  ] 97%Updating DocTypes for frappe        : [======================================= ] 97%Updating DocTypes for frappe        : [======================================= ] 97%Updating DocTypes for frappe        : [======================================= ] 98%Updating DocTypes for frappe        : [======================================= ] 98%Updating DocTypes for frappe        : [======================================= ] 98%Updating DocTypes for frappe        : [======================================= ] 99%Updating DocTypes for frappe        : [======================================= ] 99%Updating DocTypes for frappe        : [======================================= ] 99%Updating DocTypes for frappe        : [========================================] 100%
-Updating Dashboard for frappe
-*** Scheduler is disabled ***
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-[INFO] starting bench services in background for app install/migrate
-[INFO] bench background log: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/logs/bench/bench-start.log
-[OK] bench Redis cache service is running
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-[INFO] bench Redis cache service already reachable
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-[INFO] [RUN] bench --site omc.local migrate
-Migrating omc.local
-Updating DocTypes for frappe        : [                                        ] 0%Updating DocTypes for frappe        : [                                        ] 0%Updating DocTypes for frappe        : [                                        ] 0%Updating DocTypes for frappe        : [                                        ] 1%Updating DocTypes for frappe        : [                                        ] 1%Updating DocTypes for frappe        : [                                        ] 1%Updating DocTypes for frappe        : [                                        ] 2%Updating DocTypes for frappe        : [                                        ] 2%Updating DocTypes for frappe        : [=                                       ] 2%Updating DocTypes for frappe        : [=                                       ] 2%Updating DocTypes for frappe        : [=                                       ] 3%Updating DocTypes for frappe        : [=                                       ] 3%Updating DocTypes for frappe        : [=                                       ] 3%Updating DocTypes for frappe        : [=                                       ] 4%Updating DocTypes for frappe        : [=                                       ] 4%Updating DocTypes for frappe        : [=                                       ] 4%Updating DocTypes for frappe        : [=                                       ] 4%Updating DocTypes for frappe        : [==                                      ] 5%Updating DocTypes for frappe        : [==                                      ] 5%Updating DocTypes for frappe        : [==                                      ] 5%Updating DocTypes for frappe        : [==                                      ] 6%Updating DocTypes for frappe        : [==                                      ] 6%Updating DocTypes for frappe        : [==                                      ] 6%Updating DocTypes for frappe        : [==                                      ] 6%Updating DocTypes for frappe        : [==                                      ] 7%Updating DocTypes for frappe        : [===                                     ] 7%Updating DocTypes for frappe        : [===                                     ] 7%Updating DocTypes for frappe        : [===                                     ] 8%Updating DocTypes for frappe        : [===                                     ] 8%Updating DocTypes for frappe        : [===                                     ] 8%Updating DocTypes for frappe        : [===                                     ] 9%Updating DocTypes for frappe        : [===                                     ] 9%Updating DocTypes for frappe        : [===                                     ] 9%Updating DocTypes for frappe        : [===                                     ] 9%Updating DocTypes for frappe        : [====                                    ] 10%Updating DocTypes for frappe        : [====                                    ] 10%Updating DocTypes for frappe        : [====                                    ] 10%Updating DocTypes for frappe        : [====                                    ] 11%Updating DocTypes for frappe        : [====                                    ] 11%Updating DocTypes for frappe        : [====                                    ] 11%Updating DocTypes for frappe        : [====                                    ] 11%Updating DocTypes for frappe        : [====                                    ] 12%Updating DocTypes for frappe        : [=====                                   ] 12%Updating DocTypes for frappe        : [=====                                   ] 12%Updating DocTypes for frappe        : [=====                                   ] 13%Updating DocTypes for frappe        : [=====                                   ] 13%Updating DocTypes for frappe        : [=====                                   ] 13%Updating DocTypes for frappe        : [=====                                   ] 13%Updating DocTypes for frappe        : [=====                                   ] 14%Updating DocTypes for frappe        : [=====                                   ] 14%Updating DocTypes for frappe        : [=====                                   ] 14%Updating DocTypes for frappe        : [======                                  ] 15%Updating DocTypes for frappe        : [======                                  ] 15%Updating DocTypes for frappe        : [======                                  ] 15%Updating DocTypes for frappe        : [======                                  ] 16%Updating DocTypes for frappe        : [======                                  ] 16%Updating DocTypes for frappe        : [======                                  ] 16%Updating DocTypes for frappe        : [======                                  ] 16%Updating DocTypes for frappe        : [======                                  ] 17%Updating DocTypes for frappe        : [======                                  ] 17%Updating DocTypes for frappe        : [=======                                 ] 17%Updating DocTypes for frappe        : [=======                                 ] 18%Updating DocTypes for frappe        : [=======                                 ] 18%Updating DocTypes for frappe        : [=======                                 ] 18%Updating DocTypes for frappe        : [=======                                 ] 18%Updating DocTypes for frappe        : [=======                                 ] 19%Updating DocTypes for frappe        : [=======                                 ] 19%Updating DocTypes for frappe        : [=======                                 ] 19%Updating DocTypes for frappe        : [========                                ] 20%Updating DocTypes for frappe        : [========                                ] 20%Updating DocTypes for frappe        : [========                                ] 20%Updating DocTypes for frappe        : [========                                ] 20%Updating DocTypes for frappe        : [========                                ] 21%Updating DocTypes for frappe        : [========                                ] 21%Updating DocTypes for frappe        : [========                                ] 21%Updating DocTypes for frappe        : [========                                ] 22%Updating DocTypes for frappe        : [========                                ] 22%Updating DocTypes for frappe        : [=========                               ] 22%Updating DocTypes for frappe        : [=========                               ] 23%Updating DocTypes for frappe        : [=========                               ] 23%Updating DocTypes for frappe        : [=========                               ] 23%Updating DocTypes for frappe        : [=========                               ] 23%Updating DocTypes for frappe        : [=========                               ] 24%Updating DocTypes for frappe        : [=========                               ] 24%Updating DocTypes for frappe        : [=========                               ] 24%Updating DocTypes for frappe        : [==========                              ] 25%Updating DocTypes for frappe        : [==========                              ] 25%Updating DocTypes for frappe        : [==========                              ] 25%Updating DocTypes for frappe        : [==========                              ] 25%Updating DocTypes for frappe        : [==========                              ] 26%Updating DocTypes for frappe        : [==========                              ] 26%Updating DocTypes for frappe        : [==========                              ] 26%Updating DocTypes for frappe        : [==========                              ] 27%Updating DocTypes for frappe        : [==========                              ] 27%Updating DocTypes for frappe        : [===========                             ] 27%Updating DocTypes for frappe        : [===========                             ] 27%Updating DocTypes for frappe        : [===========                             ] 28%Updating DocTypes for frappe        : [===========                             ] 28%Updating DocTypes for frappe        : [===========                             ] 28%Updating DocTypes for frappe        : [===========                             ] 29%Updating DocTypes for frappe        : [===========                             ] 29%Updating DocTypes for frappe        : [===========                             ] 29%Updating DocTypes for frappe        : [============                            ] 30%Updating DocTypes for frappe        : [============                            ] 30%Updating DocTypes for frappe        : [============                            ] 30%Updating DocTypes for frappe        : [============                            ] 30%Updating DocTypes for frappe        : [============                            ] 31%Updating DocTypes for frappe        : [============                            ] 31%Updating DocTypes for frappe        : [============                            ] 31%Updating DocTypes for frappe        : [============                            ] 32%Updating DocTypes for frappe        : [============                            ] 32%Updating DocTypes for frappe        : [=============                           ] 32%Updating DocTypes for frappe        : [=============                           ] 32%Updating DocTypes for frappe        : [=============                           ] 33%Updating DocTypes for frappe        : [=============                           ] 33%Updating DocTypes for frappe        : [=============                           ] 33%Updating DocTypes for frappe        : [=============                           ] 34%Updating DocTypes for frappe        : [=============                           ] 34%Updating DocTypes for frappe        : [=============                           ] 34%Updating DocTypes for frappe        : [=============                           ] 34%Updating DocTypes for frappe        : [==============                          ] 35%Updating DocTypes for frappe        : [==============                          ] 35%Updating DocTypes for frappe        : [==============                          ] 35%Updating DocTypes for frappe        : [==============                          ] 36%Updating DocTypes for frappe        : [==============                          ] 36%Updating DocTypes for frappe        : [==============                          ] 36%Updating DocTypes for frappe        : [==============                          ] 37%Updating DocTypes for frappe        : [==============                          ] 37%Updating DocTypes for frappe        : [===============                         ] 37%Updating DocTypes for frappe        : [===============                         ] 37%Updating DocTypes for frappe        : [===============                         ] 38%Updating DocTypes for frappe        : [===============                         ] 38%Updating DocTypes for frappe        : [===============                         ] 38%Updating DocTypes for frappe        : [===============                         ] 39%Updating DocTypes for frappe        : [===============                         ] 39%Updating DocTypes for frappe        : [===============                         ] 39%Updating DocTypes for frappe        : [===============                         ] 39%Updating DocTypes for frappe        : [================                        ] 40%Updating DocTypes for frappe        : [================                        ] 40%Updating DocTypes for frappe        : [================                        ] 40%Updating DocTypes for frappe        : [================                        ] 41%Updating DocTypes for frappe        : [================                        ] 41%Updating DocTypes for frappe        : [================                        ] 41%Updating DocTypes for frappe        : [================                        ] 41%Updating DocTypes for frappe        : [================                        ] 42%Updating DocTypes for frappe        : [=================                       ] 42%Updating DocTypes for frappe        : [=================                       ] 42%Updating DocTypes for frappe        : [=================                       ] 43%Updating DocTypes for frappe        : [=================                       ] 43%Updating DocTypes for frappe        : [=================                       ] 43%Updating DocTypes for frappe        : [=================                       ] 44%Updating DocTypes for frappe        : [=================                       ] 44%Updating DocTypes for frappe        : [=================                       ] 44%Updating DocTypes for frappe        : [=================                       ] 44%Updating DocTypes for frappe        : [==================                      ] 45%Updating DocTypes for frappe        : [==================                      ] 45%Updating DocTypes for frappe        : [==================                      ] 45%Updating DocTypes for frappe        : [==================                      ] 46%Updating DocTypes for frappe        : [==================                      ] 46%Updating DocTypes for frappe        : [==================                      ] 46%Updating DocTypes for frappe        : [==================                      ] 46%Updating DocTypes for frappe        : [==================                      ] 47%Updating DocTypes for frappe        : [===================                     ] 47%Updating DocTypes for frappe        : [===================                     ] 47%Updating DocTypes for frappe        : [===================                     ] 48%Updating DocTypes for frappe        : [===================                     ] 48%Updating DocTypes for frappe        : [===================                     ] 48%Updating DocTypes for frappe        : [===================                     ] 48%Updating DocTypes for frappe        : [===================                     ] 49%Updating DocTypes for frappe        : [===================                     ] 49%Updating DocTypes for frappe        : [===================                     ] 49%Updating DocTypes for frappe        : [====================                    ] 50%Updating DocTypes for frappe        : [====================                    ] 50%Updating DocTypes for frappe        : [====================                    ] 50%Updating DocTypes for frappe        : [====================                    ] 51%Updating DocTypes for frappe        : [====================                    ] 51%Updating DocTypes for frappe        : [====================                    ] 51%Updating DocTypes for frappe        : [====================                    ] 51%Updating DocTypes for frappe        : [====================                    ] 52%Updating DocTypes for frappe        : [====================                    ] 52%Updating DocTypes for frappe        : [=====================                   ] 52%Updating DocTypes for frappe        : [=====================                   ] 53%Updating DocTypes for frappe        : [=====================                   ] 53%Updating DocTypes for frappe        : [=====================                   ] 53%Updating DocTypes for frappe        : [=====================                   ] 53%Updating DocTypes for frappe        : [=====================                   ] 54%Updating DocTypes for frappe        : [=====================                   ] 54%Updating DocTypes for frappe        : [=====================                   ] 54%Updating DocTypes for frappe        : [======================                  ] 55%Updating DocTypes for frappe        : [======================                  ] 55%Updating DocTypes for frappe        : [======================                  ] 55%Updating DocTypes for frappe        : [======================                  ] 55%Updating DocTypes for frappe        : [======================                  ] 56%Updating DocTypes for frappe        : [======================                  ] 56%Updating DocTypes for frappe        : [======================                  ] 56%Updating DocTypes for frappe        : [======================                  ] 57%Updating DocTypes for frappe        : [======================                  ] 57%Updating DocTypes for frappe        : [=======================                 ] 57%Updating DocTypes for frappe        : [=======================                 ] 58%Updating DocTypes for frappe        : [=======================                 ] 58%Updating DocTypes for frappe        : [=======================                 ] 58%Updating DocTypes for frappe        : [=======================                 ] 58%Updating DocTypes for frappe        : [=======================                 ] 59%Updating DocTypes for frappe        : [=======================                 ] 59%Updating DocTypes for frappe        : [=======================                 ] 59%Updating DocTypes for frappe        : [========================                ] 60%Updating DocTypes for frappe        : [========================                ] 60%Updating DocTypes for frappe        : [========================                ] 60%Updating DocTypes for frappe        : [========================                ] 60%Updating DocTypes for frappe        : [========================                ] 61%Updating DocTypes for frappe        : [========================                ] 61%Updating DocTypes for frappe        : [========================                ] 61%Updating DocTypes for frappe        : [========================                ] 62%Updating DocTypes for frappe        : [========================                ] 62%Updating DocTypes for frappe        : [=========================               ] 62%Updating DocTypes for frappe        : [=========================               ] 62%Updating DocTypes for frappe        : [=========================               ] 63%Updating DocTypes for frappe        : [=========================               ] 63%Updating DocTypes for frappe        : [=========================               ] 63%Updating DocTypes for frappe        : [=========================               ] 64%Updating DocTypes for frappe        : [=========================               ] 64%Updating DocTypes for frappe        : [=========================               ] 64%Updating DocTypes for frappe        : [==========================              ] 65%Updating DocTypes for frappe        : [==========================              ] 65%Updating DocTypes for frappe        : [==========================              ] 65%Updating DocTypes for frappe        : [==========================              ] 65%Updating DocTypes for frappe        : [==========================              ] 66%Updating DocTypes for frappe        : [==========================              ] 66%Updating DocTypes for frappe        : [==========================              ] 66%Updating DocTypes for frappe        : [==========================              ] 67%Updating DocTypes for frappe        : [==========================              ] 67%Updating DocTypes for frappe        : [===========================             ] 67%Updating DocTypes for frappe        : [===========================             ] 67%Updating DocTypes for frappe        : [===========================             ] 68%Updating DocTypes for frappe        : [===========================             ] 68%Updating DocTypes for frappe        : [===========================             ] 68%Updating DocTypes for frappe        : [===========================             ] 69%Updating DocTypes for frappe        : [===========================             ] 69%Updating DocTypes for frappe        : [===========================             ] 69%Updating DocTypes for frappe        : [===========================             ] 69%Updating DocTypes for frappe        : [============================            ] 70%Updating DocTypes for frappe        : [============================            ] 70%Updating DocTypes for frappe        : [============================            ] 70%Updating DocTypes for frappe        : [============================            ] 71%Updating DocTypes for frappe        : [============================            ] 71%Updating DocTypes for frappe        : [============================            ] 71%Updating DocTypes for frappe        : [============================            ] 72%Updating DocTypes for frappe        : [============================            ] 72%Updating DocTypes for frappe        : [=============================           ] 72%Updating DocTypes for frappe        : [=============================           ] 72%Updating DocTypes for frappe        : [=============================           ] 73%Updating DocTypes for frappe        : [=============================           ] 73%Updating DocTypes for frappe        : [=============================           ] 73%Updating DocTypes for frappe        : [=============================           ] 74%Updating DocTypes for frappe        : [=============================           ] 74%Updating DocTypes for frappe        : [=============================           ] 74%Updating DocTypes for frappe        : [=============================           ] 74%Updating DocTypes for frappe        : [==============================          ] 75%Updating DocTypes for frappe        : [==============================          ] 75%Updating DocTypes for frappe        : [==============================          ] 75%Updating DocTypes for frappe        : [==============================          ] 76%Updating DocTypes for frappe        : [==============================          ] 76%Updating DocTypes for frappe        : [==============================          ] 76%Updating DocTypes for frappe        : [==============================          ] 76%Updating DocTypes for frappe        : [==============================          ] 77%Updating DocTypes for frappe        : [===============================         ] 77%Updating DocTypes for frappe        : [===============================         ] 77%Updating DocTypes for frappe        : [===============================         ] 78%Updating DocTypes for frappe        : [===============================         ] 78%Updating DocTypes for frappe        : [===============================         ] 78%Updating DocTypes for frappe        : [===============================         ] 79%Updating DocTypes for frappe        : [===============================         ] 79%Updating DocTypes for frappe        : [===============================         ] 79%Updating DocTypes for frappe        : [===============================         ] 79%Updating DocTypes for frappe        : [================================        ] 80%Updating DocTypes for frappe        : [================================        ] 80%Updating DocTypes for frappe        : [================================        ] 80%Updating DocTypes for frappe        : [================================        ] 81%Updating DocTypes for frappe        : [================================        ] 81%Updating DocTypes for frappe        : [================================        ] 81%Updating DocTypes for frappe        : [================================        ] 81%Updating DocTypes for frappe        : [================================        ] 82%Updating DocTypes for frappe        : [=================================       ] 82%Updating DocTypes for frappe        : [=================================       ] 82%Updating DocTypes for frappe        : [=================================       ] 83%Updating DocTypes for frappe        : [=================================       ] 83%Updating DocTypes for frappe        : [=================================       ] 83%Updating DocTypes for frappe        : [=================================       ] 83%Updating DocTypes for frappe        : [=================================       ] 84%Updating DocTypes for frappe        : [=================================       ] 84%Updating DocTypes for frappe        : [=================================       ] 84%Updating DocTypes for frappe        : [==================================      ] 85%Updating DocTypes for frappe        : [==================================      ] 85%Updating DocTypes for frappe        : [==================================      ] 85%Updating DocTypes for frappe        : [==================================      ] 86%Updating DocTypes for frappe        : [==================================      ] 86%Updating DocTypes for frappe        : [==================================      ] 86%Updating DocTypes for frappe        : [==================================      ] 86%Updating DocTypes for frappe        : [==================================      ] 87%Updating DocTypes for frappe        : [==================================      ] 87%Updating DocTypes for frappe        : [===================================     ] 87%Updating DocTypes for frappe        : [===================================     ] 88%Updating DocTypes for frappe        : [===================================     ] 88%Updating DocTypes for frappe        : [===================================     ] 88%Updating DocTypes for frappe        : [===================================     ] 88%Updating DocTypes for frappe        : [===================================     ] 89%Updating DocTypes for frappe        : [===================================     ] 89%Updating DocTypes for frappe        : [===================================     ] 89%Updating DocTypes for frappe        : [====================================    ] 90%Updating DocTypes for frappe        : [====================================    ] 90%Updating DocTypes for frappe        : [====================================    ] 90%Updating DocTypes for frappe        : [====================================    ] 90%Updating DocTypes for frappe        : [====================================    ] 91%Updating DocTypes for frappe        : [====================================    ] 91%Updating DocTypes for frappe        : [====================================    ] 91%Updating DocTypes for frappe        : [====================================    ] 92%Updating DocTypes for frappe        : [====================================    ] 92%Updating DocTypes for frappe        : [=====================================   ] 92%Updating DocTypes for frappe        : [=====================================   ] 93%Updating DocTypes for frappe        : [=====================================   ] 93%Updating DocTypes for frappe        : [=====================================   ] 93%Updating DocTypes for frappe        : [=====================================   ] 93%Updating DocTypes for frappe        : [=====================================   ] 94%Updating DocTypes for frappe        : [=====================================   ] 94%Updating DocTypes for frappe        : [=====================================   ] 94%Updating DocTypes for frappe        : [======================================  ] 95%Updating DocTypes for frappe        : [======================================  ] 95%Updating DocTypes for frappe        : [======================================  ] 95%Updating DocTypes for frappe        : [======================================  ] 95%Updating DocTypes for frappe        : [======================================  ] 96%Updating DocTypes for frappe        : [======================================  ] 96%Updating DocTypes for frappe        : [======================================  ] 96%Updating DocTypes for frappe        : [======================================  ] 97%Updating DocTypes for frappe        : [======================================  ] 97%Updating DocTypes for frappe        : [======================================= ] 97%Updating DocTypes for frappe        : [======================================= ] 97%Updating DocTypes for frappe        : [======================================= ] 98%Updating DocTypes for frappe        : [======================================= ] 98%Updating DocTypes for frappe        : [======================================= ] 98%Updating DocTypes for frappe        : [======================================= ] 99%Updating DocTypes for frappe        : [======================================= ] 99%Updating DocTypes for frappe        : [======================================= ] 99%Updating DocTypes for frappe        : [========================================] 100%
-Updating Dashboard for frappe
-Executing `after_migrate` hooks...
-
-Queued rebuilding of search index for omc.local
-
-[WARN] missing Linux /etc/hosts entry for omc.local
-[WARN] command: echo '127.0.0.1 omc.local # managed-by-frappe-custom-installer' | sudo tee -a /etc/hosts
-Add Linux /etc/hosts entry now? y/N: awk: cmd. line:1: $1 == "SITE_NAME" {gsub(/^
-awk: cmd. line:1:                          ^ unterminated regexp
-[OK] site credentials saved: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/.secrets/sites/omc.local.env
-
-==================================================
- Site Summary
-==================================================
-Site URL: http://omc.local:8000
-Admin user: Administrator
-Admin password: entered manually (saved to .secrets/sites/)
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-[INFO] [RUN] bench --site omc.local list-apps
-
-frappe 15.113.4 version-15
-
-[OK] Run ./start.sh to start all sites.
-Create another site? y/N: 
-====================
- Site Setup Manager
-====================
-Bench: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-Log:   /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/logs/site_setup/site-setup-20260706-101003.log
-
-1) New Site
-2) Delete Site
-3) List Sites and Apps
-4) Sync apps
-5) Rename Site to Lowercase
-6) Repair Secrets
-7) Exit
-Choose: 
-==================================================
- Repair Secrets
-==================================================
-[INFO] runtime node: v24.18.0
-[INFO] runtime yarn: 1.22.22
-awk: cmd. line:1: $1 == "SITE_NAME" {gsub(/^
-awk: cmd. line:1:                          ^ unterminated regexp
-awk: cmd. line:1: $1 == "SITE_NAME" {gsub(/^
-awk: cmd. line:1:                          ^ unterminated regexp
-[OK] secrets repair complete. Removed stale: 0. Missing secrets: 0
-
-====================
- Site Setup Manager
-====================
-Bench: /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/frappe-bench
-Log:   /home/muhammad-shahwaiz-ali/data_drive/app_omc/backend_omc_app/logs/site_setup/site-setup-20260706-101003.log
-
-1) New Site
-2) Delete Site
-3) List Sites and Apps
-4) Sync apps
-5) Rename Site to Lowercase
-6) Repair Secrets
-7) Exit
-Choose: [INFO] bye
-
-=================================
- ERP Prod Installer
-=================================
-1) Local / Development Install
-2) Production / Server Install
-3) Exit
-Choose: [INFO] bye
