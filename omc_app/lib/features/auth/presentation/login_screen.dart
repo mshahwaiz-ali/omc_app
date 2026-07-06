@@ -23,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   bool _obscurePassword = true;
   bool _submitted = false;
+  String? _loginError;
 
   @override
   void dispose() {
@@ -39,6 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() {
       _submitted = true;
+      _loginError = null;
     });
 
     await ref
@@ -56,9 +58,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    final message = _normalizeLoginError(authState.message);
+
     setState(() {
       _submitted = false;
+      _loginError = message;
     });
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Text(message),
+        ),
+      );
+  }
+
+  String _normalizeLoginError(String? message) {
+    final value = message?.trim() ?? '';
+    final lower = value.toLowerCase();
+
+    if (value.isEmpty ||
+        lower.contains('authentication') ||
+        lower.contains('unauthorized') ||
+        lower.contains('incorrect') ||
+        lower.contains('invalid') ||
+        lower.contains('not permitted') ||
+        lower.contains('login failed')) {
+      return 'Invalid username or password. Please check your credentials.';
+    }
+
+    return value;
   }
 
   void _showForgotPasswordPlaceholder() {
@@ -74,14 +109,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authControllerProvider);
     final isLoading =
         _submitted && authState.status == AuthStatus.authenticating;
+    final loginErrorMessage = _loginError ?? authState.message;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFBF8F6),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
+              constraints: const BoxConstraints(maxWidth: 470),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -90,13 +127,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     subtitle:
                         'Access your OMC services, requests and tax dashboard.',
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 30),
                   if (Env.useMockAuth) ...[
                     const _LocalTestingBanner(),
                     const SizedBox(height: 14),
                   ],
                   PremiumCard(
-                    padding: const EdgeInsets.all(22),
+                    padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -165,10 +202,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               child: const Text('Forgot password?'),
                             ),
                           ),
-                          if (authState.message != null &&
-                              authState.message!.trim().isNotEmpty) ...[
+                          if (loginErrorMessage != null &&
+                              loginErrorMessage.trim().isNotEmpty) ...[
                             const SizedBox(height: 4),
-                            _ErrorBanner(message: authState.message!),
+                            _ErrorBanner(
+                              message: _normalizeLoginError(loginErrorMessage),
+                            ),
                             const SizedBox(height: 14),
                           ],
                           AppButton(
@@ -254,31 +293,38 @@ class _AuthHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 58,
-          height: 58,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryRed,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          alignment: Alignment.center,
-          child: const Text(
-            'OMC',
-            style: TextStyle(
+        Center(
+          child: Container(
+            width: 138,
+            height: 138,
+            decoration: BoxDecoration(
               color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
+              borderRadius: BorderRadius.circular(38),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                  blurRadius: 34,
+                  offset: const Offset(0, 18),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(18),
+            child: Image.asset(
+              'assets/images/logo_symbol.png',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
             ),
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 34),
         Text(
           title,
           style: const TextStyle(
             color: AppTheme.textPrimary,
-            fontSize: 32,
-            height: 1.08,
+            fontSize: 34,
+            height: 1.06,
             fontWeight: FontWeight.w900,
+            letterSpacing: -0.8,
           ),
         ),
         const SizedBox(height: 10),
@@ -286,7 +332,7 @@ class _AuthHeader extends StatelessWidget {
           subtitle,
           style: const TextStyle(
             color: AppTheme.textSecondary,
-            fontSize: 15,
+            fontSize: 15.5,
             height: 1.45,
             fontWeight: FontWeight.w600,
           ),
