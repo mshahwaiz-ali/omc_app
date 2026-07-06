@@ -268,15 +268,15 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 126),
+        constraints: const BoxConstraints(minHeight: 118),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: AppTheme.primaryRed.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(15),
@@ -288,7 +288,7 @@ class _MetricCard extends StatelessWidget {
               value,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 29,
+                fontSize: 27,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -351,7 +351,7 @@ class _StatusBreakdownCard extends StatelessWidget {
         children: [
           for (final row in rows) ...[
             _StatusBreakdownRow(data: row, maxValue: maxValue),
-            if (row != rows.last) const SizedBox(height: 14),
+            if (row != rows.last) const SizedBox(height: 12),
           ],
         ],
       ),
@@ -412,8 +412,8 @@ class _StatusBreakdownRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
                 child: LinearProgressIndicator(
                   value: progress,
-                  minHeight: 7,
-                  backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.07),
+                  minHeight: 6,
+                  backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.06),
                   valueColor: const AlwaysStoppedAnimation<Color>(
                     AppTheme.primaryRed,
                   ),

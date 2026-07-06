@@ -7,6 +7,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/settings_preferences.dart';
 import '../data/settings_repository.dart';
@@ -392,15 +393,15 @@ class _SettingsHero extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _StatusPill(
+              PremiumInfoChip(
                 icon: Icons.cloud_done_outlined,
                 label: environmentLabel,
               ),
-              const _StatusPill(
+              const PremiumInfoChip(
                 icon: Icons.verified_user_outlined,
                 label: 'Secure session',
               ),
-              _StatusPill(
+              PremiumInfoChip(
                 icon: Icons.dns_outlined,
                 label: apiBaseUrl.replaceFirst(RegExp(r'^https?://'), ''),
               ),
@@ -412,38 +413,6 @@ class _SettingsHero extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: AppTheme.primaryRed),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _PreferencesSection extends StatelessWidget {
   const _PreferencesSection({

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/profile_repository.dart';
 import '../data/profile_summary.dart';
@@ -473,9 +474,9 @@ class _ProfileHeroCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              if (status != null) _StatusPill(label: status!),
-              _StatusPill(label: customerType),
-              _StatusPill(label: approvalStatus),
+              if (status != null) PremiumInfoChip(label: status!),
+              PremiumInfoChip(label: customerType),
+              PremiumInfoChip(label: approvalStatus),
             ],
           ),
         ],
@@ -530,32 +531,6 @@ class _ProfileSection extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.primaryRed,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _ProfileTile extends StatelessWidget {
   const _ProfileTile({

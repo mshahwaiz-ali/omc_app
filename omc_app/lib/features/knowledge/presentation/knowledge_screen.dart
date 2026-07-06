@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
+import '../../../core/widgets/premium_info_chip.dart';
 import '../data/knowledge_article.dart';
 import '../data/knowledge_repository.dart';
 
@@ -132,7 +133,10 @@ class _KnowledgeHeroCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  _ArticleTypeChip(type: article.type),
+                  PremiumInfoChip(
+                    label: _labelForType(article.type),
+                    color: AppTheme.primaryRed,
+                  ),
                 ],
               ),
               const SizedBox(height: 18),
@@ -174,17 +178,17 @@ class _KnowledgeHeroCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _KnowledgeStatPill(
+                        PremiumInfoChip(
                           icon: Icons.library_books_outlined,
                           label: '$totalArticles items',
                         ),
                         if (featuredCount > 0)
-                          _KnowledgeStatPill(
+                          PremiumInfoChip(
                             icon: Icons.star_outline_rounded,
                             label: '$featuredCount featured',
                           ),
                         if (article.publishedAtLabel != null)
-                          _KnowledgeStatPill(
+                          PremiumInfoChip(
                             icon: Icons.schedule_rounded,
                             label: article.publishedAtLabel!,
                           ),
@@ -206,39 +210,6 @@ class _KnowledgeHeroCard extends StatelessWidget {
   }
 }
 
-class _KnowledgeStatPill extends StatelessWidget {
-  const _KnowledgeStatPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppTheme.textSecondary, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.subtitle});
@@ -509,43 +480,20 @@ IconData _iconForType(KnowledgeArticleType type) {
   }
 }
 
-class _ArticleTypeChip extends StatelessWidget {
-  const _ArticleTypeChip({required this.type});
 
-  final KnowledgeArticleType type;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        _labelForType(type),
-        style: const TextStyle(
-          color: AppTheme.primaryRed,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  String _labelForType(KnowledgeArticleType type) {
-    switch (type) {
-      case KnowledgeArticleType.news:
-        return 'NEWS';
-      case KnowledgeArticleType.update:
-        return 'UPDATE';
-      case KnowledgeArticleType.guide:
-        return 'GUIDE';
-      case KnowledgeArticleType.article:
-        return 'ARTICLE';
-    }
+String _labelForType(KnowledgeArticleType type) {
+  switch (type) {
+    case KnowledgeArticleType.news:
+      return 'NEWS';
+    case KnowledgeArticleType.update:
+      return 'UPDATE';
+    case KnowledgeArticleType.guide:
+      return 'GUIDE';
+    case KnowledgeArticleType.article:
+      return 'ARTICLE';
   }
 }
+
 
 class _KnowledgeEmptyState extends StatelessWidget {
   const _KnowledgeEmptyState({

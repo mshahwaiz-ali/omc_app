@@ -135,17 +135,17 @@ class _NotificationsHero extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _SummaryPill(
+              PremiumInfoChip(
                 icon: Icons.inbox_outlined,
                 label: '$totalCount total',
               ),
-              _SummaryPill(
+              PremiumInfoChip(
                 icon: unreadCount == 0
                     ? Icons.mark_email_read_outlined
                     : Icons.mark_email_unread_outlined,
                 label: unreadCount == 0 ? 'All read' : '$unreadCount unread',
               ),
-              _SummaryPill(
+              PremiumInfoChip(
                 icon: Icons.touch_app_outlined,
                 label: actionCount == 0 ? 'No actions' : '$actionCount actions',
               ),
@@ -298,40 +298,6 @@ class _NotificationCard extends StatelessWidget {
   }
 }
 
-class _SummaryPill extends StatelessWidget {
-  const _SummaryPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 15, color: AppTheme.primaryRed),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _EmptyNotificationsView extends StatelessWidget {
   const _EmptyNotificationsView();
