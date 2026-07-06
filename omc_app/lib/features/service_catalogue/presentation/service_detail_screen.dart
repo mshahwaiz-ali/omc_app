@@ -6,9 +6,8 @@ import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_empty_state.dart';
 import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
@@ -24,16 +23,15 @@ class ServiceDetailScreen extends ConsumerWidget {
 
     return servicesAsync.when(
       loading: () => const Scaffold(
-        body: SafeArea(
-          child: LoadingView(message: 'Loading service details...'),
-        ),
+        appBar: AppBackHeader(title: 'Service Details'),
+        body: _ServiceDetailLoadingView(),
       ),
       error: (error, stackTrace) => Scaffold(
         appBar: const AppBackHeader(title: 'Service Details'),
-        body: EmptyState(
+        body: PremiumEmptyState(
+          icon: Icons.cloud_off_outlined,
           title: 'Service unavailable',
           message: _serviceCatalogueErrorMessage(error),
-          icon: Icons.cloud_off_outlined,
           actionLabel: 'Retry',
           onAction: () => ref.invalidate(serviceCatalogueProvider),
         ),
@@ -43,10 +41,10 @@ class ServiceDetailScreen extends ConsumerWidget {
         if (service == null) {
           return Scaffold(
             appBar: const AppBackHeader(title: 'Service Details'),
-            body: EmptyState(
+            body: PremiumEmptyState(
+              icon: Icons.search_off_rounded,
               title: 'Service not found',
               message: 'This service may have been removed from the catalogue.',
-              icon: Icons.search_off_rounded,
               actionLabel: 'Back to services',
               onAction: () => context.pop(),
             ),
@@ -133,6 +131,148 @@ class ServiceDetailScreen extends ConsumerWidget {
     }
 
     return null;
+  }
+}
+
+
+class _ServiceDetailLoadingView extends StatelessWidget {
+  const _ServiceDetailLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        child: Column(
+          children: [
+            PremiumCard(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _LoadingBlock(
+                    width: 56,
+                    height: 56,
+                    borderRadius: 18,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  const SizedBox(height: 18),
+                  _LoadingBlock(
+                    width: 120,
+                    height: 12,
+                    borderRadius: 999,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  const SizedBox(height: 10),
+                  _LoadingBlock(
+                    width: double.infinity,
+                    height: 24,
+                    borderRadius: 999,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  const SizedBox(height: 10),
+                  _LoadingBlock(
+                    width: 220,
+                    height: 14,
+                    borderRadius: 999,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: const [
+                Expanded(child: _LoadingStatCard()),
+                SizedBox(width: 10),
+                Expanded(child: _LoadingStatCard()),
+                SizedBox(width: 10),
+                Expanded(child: _LoadingStatCard()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Expanded(
+              child: PremiumCard(
+                padding: EdgeInsets.all(22),
+                child: Center(
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CircularProgressIndicator(strokeWidth: 2.6),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingStatCard extends StatelessWidget {
+  const _LoadingStatCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _LoadingBlock(
+            width: 28,
+            height: 28,
+            borderRadius: 12,
+            color: color,
+          ),
+          const SizedBox(height: 12),
+          _LoadingBlock(
+            width: 42,
+            height: 10,
+            borderRadius: 999,
+            color: color,
+          ),
+          const SizedBox(height: 8),
+          _LoadingBlock(
+            width: 58,
+            height: 12,
+            borderRadius: 999,
+            color: color,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock({
+    required this.width,
+    required this.height,
+    required this.borderRadius,
+    required this.color,
+  });
+
+  final double width;
+  final double height;
+  final double borderRadius;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+    );
   }
 }
 

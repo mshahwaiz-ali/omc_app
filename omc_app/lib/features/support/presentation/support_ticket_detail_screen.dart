@@ -50,6 +50,8 @@ class _TicketDetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
@@ -58,31 +60,25 @@ class _TicketDetailLoadingView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
+              _TicketLoadingBlock(
                 width: 52,
                 height: 52,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                radius: 18,
+                color: color,
               ),
               const SizedBox(height: 18),
-              Container(
-                height: 16,
+              _TicketLoadingBlock(
                 width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(99),
-                ),
+                height: 16,
+                radius: 999,
+                color: color,
               ),
               const SizedBox(height: 10),
-              Container(
-                height: 12,
+              _TicketLoadingBlock(
                 width: 220,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(99),
-                ),
+                height: 12,
+                radius: 999,
+                color: color,
               ),
             ],
           ),
@@ -91,7 +87,10 @@ class _TicketDetailLoadingView extends StatelessWidget {
         PremiumCard(
           padding: EdgeInsets.zero,
           child: Column(
-            children: List.generate(4, (index) => const _LoadingDetailTile()),
+            children: List.generate(
+              4,
+              (index) => _LoadingDetailTile(color: color),
+            ),
           ),
         ),
       ],
@@ -100,7 +99,9 @@ class _TicketDetailLoadingView extends StatelessWidget {
 }
 
 class _LoadingDetailTile extends StatelessWidget {
-  const _LoadingDetailTile();
+  const _LoadingDetailTile({required this.color});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -108,13 +109,11 @@ class _LoadingDetailTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       child: Row(
         children: [
-          Container(
+          _TicketLoadingBlock(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(14),
-            ),
+            radius: 14,
+            color: color,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -124,24 +123,22 @@ class _LoadingDetailTile extends StatelessWidget {
                 FractionallySizedBox(
                   widthFactor: 0.38,
                   alignment: Alignment.centerLeft,
-                  child: Container(
+                  child: _TicketLoadingBlock(
+                    width: double.infinity,
                     height: 10,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
+                    radius: 999,
+                    color: color,
                   ),
                 ),
                 const SizedBox(height: 8),
                 FractionallySizedBox(
                   widthFactor: 0.78,
                   alignment: Alignment.centerLeft,
-                  child: Container(
+                  child: _TicketLoadingBlock(
+                    width: double.infinity,
                     height: 12,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
+                    radius: 999,
+                    color: color,
                   ),
                 ),
               ],
@@ -416,6 +413,33 @@ class _DetailTile extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _TicketLoadingBlock extends StatelessWidget {
+  const _TicketLoadingBlock({
+    required this.width,
+    required this.height,
+    required this.radius,
+    required this.color,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }

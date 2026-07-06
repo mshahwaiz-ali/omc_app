@@ -5,9 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
 import '../application/service_catalogue_controller.dart';
@@ -43,11 +42,11 @@ class _ServiceCatalogueScreenState
 
     return SafeArea(
       child: servicesAsync.when(
-        loading: () => const LoadingView(message: 'Loading services...'),
-        error: (error, stackTrace) => EmptyState(
+        loading: () => const _CatalogueLoadingView(),
+        error: (error, stackTrace) => PremiumEmptyState(
+          icon: Icons.cloud_off_outlined,
           title: 'Services unavailable',
           message: _serviceCatalogueErrorMessage(error),
-          icon: Icons.cloud_off_outlined,
           actionLabel: 'Retry',
           onAction: () => ref.invalidate(serviceCatalogueProvider),
         ),
@@ -104,10 +103,10 @@ class _ServiceCatalogueScreenState
               if (filteredServices.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: EmptyState(
+                  child: PremiumEmptyState(
+                    icon: Icons.search_off_rounded,
                     title: 'No matching services',
                     message: 'Try another search term or category.',
-                    icon: Icons.search_off_rounded,
                     actionLabel: 'Clear filters',
                     onAction: () {
                       _searchController.clear();
@@ -170,6 +169,143 @@ class _ServiceCatalogueScreenState
           return matchesCategory && matchesQuery;
         })
         .toList(growable: false);
+  }
+}
+
+
+class _CatalogueLoadingView extends StatelessWidget {
+  const _CatalogueLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      children: [
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _CatalogueLoadingBlock(
+                width: 150,
+                height: 26,
+                radius: 999,
+                color: color,
+              ),
+              const SizedBox(height: 12),
+              _CatalogueLoadingBlock(
+                width: double.infinity,
+                height: 48,
+                radius: 18,
+                color: color,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: const [
+            Expanded(child: _CatalogueLoadingChip()),
+            SizedBox(width: 10),
+            Expanded(child: _CatalogueLoadingChip()),
+            SizedBox(width: 10),
+            Expanded(child: _CatalogueLoadingChip()),
+          ],
+        ),
+        const SizedBox(height: 18),
+        for (var index = 0; index < 4; index++) ...[
+          _CatalogueLoadingCard(color: color),
+          if (index != 3) const SizedBox(height: 14),
+        ],
+      ],
+    );
+  }
+}
+
+class _CatalogueLoadingChip extends StatelessWidget {
+  const _CatalogueLoadingChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return _CatalogueLoadingBlock(
+      width: double.infinity,
+      height: 40,
+      radius: 999,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    );
+  }
+}
+
+class _CatalogueLoadingCard extends StatelessWidget {
+  const _CatalogueLoadingCard({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          _CatalogueLoadingBlock(
+            width: 52,
+            height: 52,
+            radius: 18,
+            color: color,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _CatalogueLoadingBlock(
+                  width: double.infinity,
+                  height: 16,
+                  radius: 999,
+                  color: color,
+                ),
+                const SizedBox(height: 10),
+                _CatalogueLoadingBlock(
+                  width: 180,
+                  height: 12,
+                  radius: 999,
+                  color: color,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CatalogueLoadingBlock extends StatelessWidget {
+  const _CatalogueLoadingBlock({
+    required this.width,
+    required this.height,
+    required this.radius,
+    required this.color,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
   }
 }
 

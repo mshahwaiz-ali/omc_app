@@ -477,6 +477,74 @@ class _EmptyDocumentsView extends StatelessWidget {
   }
 }
 
+
+class _DocumentsLoadingRow extends StatelessWidget {
+  const _DocumentsLoadingRow({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _DocumentsLoadingBlock(
+          width: 48,
+          height: 48,
+          radius: 16,
+          color: color,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DocumentsLoadingBlock(
+                width: double.infinity,
+                height: 14,
+                radius: 999,
+                color: color,
+              ),
+              const SizedBox(height: 10),
+              _DocumentsLoadingBlock(
+                width: 170,
+                height: 11,
+                radius: 999,
+                color: color,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DocumentsLoadingBlock extends StatelessWidget {
+  const _DocumentsLoadingBlock({
+    required this.width,
+    required this.height,
+    required this.radius,
+    required this.color,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
 class _DocumentsLoadingView extends StatelessWidget {
   const _DocumentsLoadingView();
 
@@ -488,9 +556,11 @@ class _DocumentsLoadingView extends StatelessWidget {
       itemBuilder: (context, index) {
         if (index == 0) return const _DocumentsHeader(documents: []);
 
-        return const PremiumCard(
-          padding: EdgeInsets.all(18),
-          child: SizedBox(height: 72),
+        return PremiumCard(
+          padding: const EdgeInsets.all(18),
+          child: _DocumentsLoadingRow(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
         );
       },
       separatorBuilder: (_, _) => const SizedBox(height: 12),

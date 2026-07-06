@@ -6,8 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/loading_view.dart';
+import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/expense_tracker_repository.dart';
 import '../domain/expense_transaction.dart';
@@ -144,11 +143,11 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       body: SafeArea(
         top: false,
         child: transactionsAsync.when(
-          loading: () => const LoadingView(message: 'Loading tracker...'),
-          error: (_, _) => EmptyState(
+          loading: () => const _ExpenseTrackerLoadingView(),
+          error: (_, _) => PremiumEmptyState(
+            icon: Icons.account_balance_wallet_outlined,
             title: 'Tracker unavailable',
             message: 'Local expense data could not be loaded.',
-            icon: Icons.account_balance_wallet_outlined,
             actionLabel: 'Retry',
             onAction: () =>
                 ref.read(expenseTransactionsProvider.notifier).reload(),
@@ -326,6 +325,130 @@ class ExpenseTrackerScreen extends ConsumerWidget {
   }
 }
 
+
+class _ExpenseTrackerLoadingView extends StatelessWidget {
+  const _ExpenseTrackerLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 128),
+      children: [
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _TrackerLoadingBlock(
+                width: 130,
+                height: 14,
+                radius: 999,
+                color: color,
+              ),
+              const SizedBox(height: 12),
+              _TrackerLoadingBlock(
+                width: 210,
+                height: 30,
+                radius: 999,
+                color: color,
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: _TrackerLoadingBlock(
+                      width: double.infinity,
+                      height: 58,
+                      radius: 20,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _TrackerLoadingBlock(
+                      width: double.infinity,
+                      height: 58,
+                      radius: 20,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        for (var index = 0; index < 5; index++) ...[
+          PremiumCard(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                _TrackerLoadingBlock(
+                  width: 46,
+                  height: 46,
+                  radius: 16,
+                  color: color,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _TrackerLoadingBlock(
+                        width: double.infinity,
+                        height: 14,
+                        radius: 999,
+                        color: color,
+                      ),
+                      const SizedBox(height: 10),
+                      _TrackerLoadingBlock(
+                        width: 150,
+                        height: 11,
+                        radius: 999,
+                        color: color,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (index != 4) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+class _TrackerLoadingBlock extends StatelessWidget {
+  const _TrackerLoadingBlock({
+    required this.width,
+    required this.height,
+    required this.radius,
+    required this.color,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
 class _ExpenseTrackerBody extends StatefulWidget {
   const _ExpenseTrackerBody({
     required this.transactions,
@@ -375,17 +498,17 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
         ),
         const SizedBox(height: 12),
         if (widget.transactions.isEmpty)
-          const EmptyState(
+          const PremiumEmptyState(
+            icon: Icons.receipt_long_outlined,
             title: 'No transactions yet',
             message:
                 'Add income or expenses to start tracking your monthly cashflow.',
-            icon: Icons.receipt_long_outlined,
           )
         else if (filteredTransactions.isEmpty)
-          EmptyState(
+          PremiumEmptyState(
+            icon: Icons.filter_alt_off_outlined,
             title: 'No ${_filter.label.toLowerCase()} transactions',
             message: 'Try another period or add a transaction for this range.',
-            icon: Icons.filter_alt_off_outlined,
           )
         else
           for (final transaction in filteredTransactions.take(25))
