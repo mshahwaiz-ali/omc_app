@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../auth/application/auth_controller.dart';
 import '../data/settings_preferences.dart';
 import '../data/settings_repository.dart';
 
@@ -15,69 +17,56 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final preferencesAsync = ref.watch(settingsPreferencesProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
-            const Text(
-              'Settings',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-              ),
+            _SettingsHero(
+              environmentLabel: _environmentLabel,
+              apiBaseUrl: ApiConfig.baseUrl,
+              isProduction: Env.isProduction,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Account controls, preferences, environment details and security information.',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             _SettingsSection(
               title: 'Account',
+              subtitle: 'Manage your profile, security and active app session.',
               children: [
                 _SettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Profile preferences',
-                  subtitle: 'Manage customer profile settings',
+                  subtitle: 'Customer identity and account details',
                   trailing: 'Ready',
                   onTap: () => _showBackendPendingSnack(
                     context,
-                    'Profile settings will be available when account preferences are enabled.',
+                    'Profile preferences will open when profile editing is enabled.',
                   ),
                 ),
                 const _DividerIndent(),
                 _SettingsTile(
                   icon: Icons.lock_outline_rounded,
                   title: 'Security',
-                  subtitle: 'Password, session and device security',
+                  subtitle: 'Password, device and account protection',
                   trailing: 'Secure',
                   onTap: () => _showBackendPendingSnack(
                     context,
-                    'Security settings will be available when account security preferences are enabled.',
+                    'Security controls will open when account security is enabled.',
                   ),
                 ),
                 const _DividerIndent(),
                 _SettingsTile(
                   icon: Icons.logout_rounded,
-                  title: 'Session',
-                  subtitle: 'Logout and active session controls',
-                  trailing: 'Active',
-                  onTap: () => _showBackendPendingSnack(
-                    context,
-                    'Session management action is not connected here yet.',
-                  ),
+                  title: 'Logout',
+                  subtitle: 'Clear secure session and return to login',
+                  trailing: 'Exit',
+                  isDestructive: true,
+                  onTap: () => _confirmLogout(context, ref),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             preferencesAsync.when(
               data: (preferences) => _PreferencesSection(
                 preferences: preferences,
@@ -95,9 +84,11 @@ class SettingsScreen extends ConsumerWidget {
                     _savePreferences(context, ref, updatedPreferences),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             _SettingsSection(
               title: 'Connection',
+              subtitle:
+                  'Backend environment and service source currently in use.',
               children: [
                 _SettingsTile(
                   icon: Icons.cloud_outlined,
@@ -112,7 +103,7 @@ class SettingsScreen extends ConsumerWidget {
                 const _DividerIndent(),
                 _SettingsTile(
                   icon: Icons.link_rounded,
-                  title: 'API Server',
+                  title: 'API server',
                   subtitle: ApiConfig.baseUrl,
                   trailing: 'Frappe',
                   onTap: () => _showBackendPendingSnack(
@@ -123,10 +114,10 @@ class SettingsScreen extends ConsumerWidget {
                 const _DividerIndent(),
                 _SettingsTile(
                   icon: Icons.grid_view_outlined,
-                  title: 'Service Catalogue',
+                  title: 'Service catalogue',
                   subtitle: Env.useBackendServiceCatalogue
-                      ? 'Online catalogue enabled'
-                      : 'Asset catalogue available from bundled data',
+                      ? 'Backend service catalogue is active'
+                      : 'Bundled catalogue fallback is active',
                   trailing: Env.useBackendServiceCatalogue ? 'API' : 'Local',
                   onTap: () => _showBackendPendingSnack(
                     context,
@@ -136,7 +127,7 @@ class SettingsScreen extends ConsumerWidget {
                 const _DividerIndent(),
                 _SettingsTile(
                   icon: Icons.science_outlined,
-                  title: 'Testing Flags',
+                  title: 'Testing flags',
                   subtitle: _testingFlagsLabel,
                   trailing: _hasTestingFlags ? 'On' : 'Off',
                   onTap: () => _showBackendPendingSnack(
@@ -146,9 +137,10 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             _SettingsSection(
               title: 'About',
+              subtitle: 'App readiness, sync behaviour and product details.',
               children: [
                 _SettingsTile(
                   icon: Icons.phone_iphone_rounded,
@@ -162,49 +154,19 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const _DividerIndent(),
                 _SettingsTile(
-                  icon: Icons.info_outline_rounded,
+                  icon: Icons.sync_rounded,
                   title: 'Account sync',
-                  subtitle: 'Preference sync and account controls',
+                  subtitle: 'Preferences sync with backend account controls',
                   trailing: 'Ready',
                   onTap: () => _showBackendPendingSnack(
                     context,
-                    'Settings preferences will sync automatically when account controls are enabled.',
+                    'Preferences sync automatically when account controls are available.',
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            PremiumCard(
-              padding: const EdgeInsets.all(18),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(
-                      Icons.verified_user_outlined,
-                      color: AppTheme.primaryRed,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Text(
-                      'Settings actions are prepared for account sync. Local safe defaults are used until account preferences are available.',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.4,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 20),
+            const _SettingsFootnote(),
           ],
         ),
       ),
@@ -244,6 +206,90 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final shouldLogout = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 6, 22, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    color: AppTheme.primaryRed,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Logout from OMC?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Your secure session will be cleared on this device. You can login again anytime.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(sheetContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.of(sheetContext).pop(true),
+                        icon: const Icon(Icons.logout_rounded, size: 18),
+                        label: const Text('Logout'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldLogout != true || !context.mounted) return;
+
+    await ref.read(authControllerProvider.notifier).logout();
+
+    if (!context.mounted) return;
+
+    context.go('/login');
+  }
+
   static String get _environmentLabel {
     switch (Env.current) {
       case AppEnvironment.development:
@@ -258,9 +304,7 @@ class SettingsScreen extends ConsumerWidget {
   static bool get _hasTestingFlags => Env.useServicePreview;
 
   static String get _testingFlagsLabel {
-    final enabled = <String>[
-      if (Env.useServicePreview) 'Service preview',
-    ];
+    final enabled = <String>[if (Env.useServicePreview) 'Service preview'];
 
     if (enabled.isEmpty) return 'No local testing flags enabled';
     return enabled.join(', ');
@@ -278,6 +322,127 @@ class SettingsScreen extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _SettingsHero extends StatelessWidget {
+  const _SettingsHero({
+    required this.environmentLabel,
+    required this.apiBaseUrl,
+    required this.isProduction,
+  });
+
+  final String environmentLabel;
+  final String apiBaseUrl;
+  final bool isProduction;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Settings',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      isProduction
+                          ? 'Live account controls and preferences.'
+                          : 'Backend-connected development setup.',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _StatusPill(
+                icon: Icons.cloud_done_outlined,
+                label: environmentLabel,
+              ),
+              const _StatusPill(
+                icon: Icons.verified_user_outlined,
+                label: 'Secure session',
+              ),
+              _StatusPill(
+                icon: Icons.dns_outlined,
+                label: apiBaseUrl.replaceFirst(RegExp(r'^https?://'), ''),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppTheme.primaryRed),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -301,6 +466,9 @@ class _PreferencesSection extends StatelessWidget {
 
     return _SettingsSection(
       title: 'Preferences',
+      subtitle: isBackendAvailable
+          ? 'Control service, document, payment and support notifications.'
+          : 'Using safe defaults until backend preferences are available.',
       children: [
         _SettingsSwitchTile(
           icon: Icons.notifications_none_rounded,
@@ -400,9 +568,77 @@ class _PreferencesLoadingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return const _SettingsSection(
       title: 'Preferences',
+      subtitle: 'Loading account notification controls.',
       children: [
-        Padding(padding: EdgeInsets.all(18), child: SizedBox(height: 136)),
+        _LoadingPreferenceTile(),
+        _DividerIndent(),
+        _LoadingPreferenceTile(),
+        _DividerIndent(),
+        _LoadingPreferenceTile(),
       ],
+    );
+  }
+}
+
+class _LoadingPreferenceTile extends StatelessWidget {
+  const _LoadingPreferenceTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _LoadingBar(widthFactor: 0.44),
+                const SizedBox(height: 9),
+                _LoadingBar(widthFactor: 0.76),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Container(
+            width: 38,
+            height: 22,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingBar extends StatelessWidget {
+  const _LoadingBar({required this.widthFactor});
+
+  final double widthFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: 9,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryRed.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
     );
   }
 }
@@ -428,22 +664,11 @@ class _SettingsSwitchTile extends StatelessWidget {
 
     return SwitchListTile.adaptive(
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      secondary: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: isEnabled ? 0.08 : 0.04),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Icon(
-          icon,
-          color: isEnabled ? AppTheme.primaryRed : AppTheme.textSecondary,
-        ),
-      ),
+      secondary: _SettingsIcon(icon: icon, isEnabled: isEnabled),
       title: Text(
         title,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
+        style: TextStyle(
+          color: isEnabled ? AppTheme.textPrimary : AppTheme.textSecondary,
           fontSize: 14,
           fontWeight: FontWeight.w900,
         ),
@@ -467,9 +692,14 @@ class _SettingsSwitchTile extends StatelessWidget {
 }
 
 class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.children});
+  const _SettingsSection({
+    required this.title,
+    required this.children,
+    this.subtitle,
+  });
 
   final String title;
+  final String? subtitle;
   final List<Widget> children;
 
   @override
@@ -481,10 +711,22 @@ class _SettingsSection extends StatelessWidget {
           title,
           style: const TextStyle(
             color: AppTheme.textPrimary,
-            fontSize: 20,
+            fontSize: 19,
             fontWeight: FontWeight.w900,
           ),
         ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 5),
+          Text(
+            subtitle!,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         PremiumCard(
           padding: EdgeInsets.zero,
@@ -502,6 +744,7 @@ class _SettingsTile extends StatelessWidget {
     required this.subtitle,
     required this.trailing,
     required this.onTap,
+    this.isDestructive = false,
   });
 
   final IconData icon;
@@ -509,20 +752,21 @@ class _SettingsTile extends StatelessWidget {
   final String subtitle;
   final String trailing;
   final VoidCallback onTap;
+  final bool isDestructive;
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = isDestructive
+        ? Colors.red.shade700
+        : AppTheme.primaryRed;
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
       onTap: onTap,
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Icon(icon, color: AppTheme.primaryRed),
+      leading: _SettingsIcon(
+        icon: icon,
+        color: accentColor,
+        backgroundAlpha: isDestructive ? 0.08 : 0.08,
       ),
       title: Text(
         title,
@@ -550,8 +794,8 @@ class _SettingsTile extends StatelessWidget {
         children: [
           Text(
             trailing,
-            style: const TextStyle(
-              color: AppTheme.primaryRed,
+            style: TextStyle(
+              color: accentColor,
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
@@ -559,6 +803,75 @@ class _SettingsTile extends StatelessWidget {
           const Icon(
             Icons.chevron_right_rounded,
             color: AppTheme.textSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsIcon extends StatelessWidget {
+  const _SettingsIcon({
+    required this.icon,
+    this.isEnabled = true,
+    this.color,
+    this.backgroundAlpha = 0.08,
+  });
+
+  final IconData icon;
+  final bool isEnabled;
+  final Color? color;
+  final double backgroundAlpha;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor =
+        color ?? (isEnabled ? AppTheme.primaryRed : AppTheme.textSecondary);
+
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: iconColor.withValues(alpha: backgroundAlpha),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Icon(icon, color: iconColor),
+    );
+  }
+}
+
+class _SettingsFootnote extends StatelessWidget {
+  const _SettingsFootnote();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.verified_user_outlined,
+              color: AppTheme.primaryRed,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              'Settings are connected to backend account preferences where available. Safe defaults keep the app stable when sync is unavailable.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),

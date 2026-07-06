@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../data/notification_item.dart';
@@ -24,24 +24,26 @@ class NotificationDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Notification Details')),
-      body: notificationAsync.when(
-        data: (notification) {
-          if (notification == null) {
-            return PremiumEmptyState(
-              icon: Icons.notifications_none_rounded,
-              title: 'Notification details unavailable',
-              message:
-                  'Notification $notificationId could not be loaded right now. Full message, reference, and actions will appear when data is available.',
-            );
-          }
+      body: SafeArea(
+        child: notificationAsync.when(
+          data: (notification) {
+            if (notification == null) {
+              return PremiumEmptyState(
+                icon: Icons.notifications_none_rounded,
+                title: 'Notification details unavailable',
+                message:
+                    'Notification $notificationId could not be loaded right now. Full message, reference, and actions will appear when data is available.',
+              );
+            }
 
-          return _NotificationDetailBody(notification: notification);
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => PremiumEmptyState(
-          icon: Icons.cloud_off_rounded,
-          title: 'Notification unavailable',
-          message: _cleanError(error),
+            return _NotificationDetailBody(notification: notification);
+          },
+          loading: () => const _NotificationDetailLoadingView(),
+          error: (error, _) => PremiumEmptyState(
+            icon: Icons.cloud_off_rounded,
+            title: 'Notification unavailable',
+            message: _cleanError(error),
+          ),
         ),
       ),
     );
@@ -81,130 +83,54 @@ class _NotificationDetailBodyState
     final color = _typeColor(notification.type);
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
-        PremiumCard(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Icon(_typeIcon(notification.type), color: color),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      notification.type.label,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  _ReadPill(isRead: notification.isRead),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Text(
-                notification.title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  height: 1.15,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                notification.message,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
+        _NotificationHeroCard(
+          notification: notification,
+          color: color,
+          icon: _typeIcon(notification.type),
         ),
-        const SizedBox(height: 16),
-        PremiumCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              _DetailTile(
-                icon: Icons.tag_rounded,
-                label: 'Reference',
-                value: notification.reference ?? 'Not available',
-              ),
-              const Divider(height: 1, indent: 76),
-              _DetailTile(
-                icon: Icons.schedule_rounded,
-                label: 'Created',
-                value: notification.createdAtLabel ?? 'Not available',
-              ),
-              const Divider(height: 1, indent: 76),
-              _DetailTile(
-                icon: Icons.link_rounded,
-                label: 'Action Link',
-                value: notification.actionUrl == null
-                    ? 'Not available'
-                    : 'Available',
-              ),
-              const Divider(height: 1, indent: 76),
-              _DetailTile(
-                icon: Icons.fingerprint_rounded,
-                label: 'Notification ID',
-                value: notification.id,
-              ),
-            ],
-          ),
+        const SizedBox(height: 20),
+        _DetailSection(
+          title: 'Notification details',
+          subtitle: 'Reference, time and backend metadata for this update.',
+          children: [
+            _DetailTile(
+              icon: Icons.tag_rounded,
+              label: 'Reference',
+              value: notification.reference ?? 'Not available',
+            ),
+            const _DividerIndent(),
+            _DetailTile(
+              icon: Icons.schedule_rounded,
+              label: 'Created',
+              value: notification.createdAtLabel ?? 'Not available',
+            ),
+            const _DividerIndent(),
+            _DetailTile(
+              icon: Icons.link_rounded,
+              label: 'Action link',
+              value: notification.actionUrl == null
+                  ? 'Not available'
+                  : 'Available',
+            ),
+            const _DividerIndent(),
+            _DetailTile(
+              icon: Icons.fingerprint_rounded,
+              label: 'Notification ID',
+              value: notification.id,
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        PremiumCard(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Actions',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _ActionButton(
-                icon: Icons.open_in_new_rounded,
-                label: _relatedActionLabel(notification),
-                onTap: () => _openRelatedRecord(context, notification),
-              ),
-              const SizedBox(height: 10),
-              _ActionButton(
-                icon: _isMarkingRead
-                    ? Icons.hourglass_top_rounded
-                    : Icons.done_all_rounded,
-                label: notification.isRead
-                    ? 'Already marked read'
-                    : _isMarkingRead
-                    ? 'Marking as read...'
-                    : 'Mark as read',
-                onTap: notification.isRead || _isMarkingRead
-                    ? null
-                    : _markNotificationAsRead,
-              ),
-            ],
-          ),
+        const SizedBox(height: 20),
+        _ActionsCard(
+          relatedActionLabel: _relatedActionLabel(notification),
+          isRead: notification.isRead,
+          isMarkingRead: _isMarkingRead,
+          onOpenRelated: () => _openRelatedRecord(context, notification),
+          onMarkRead: notification.isRead || _isMarkingRead
+              ? null
+              : _markNotificationAsRead,
         ),
       ],
     );
@@ -234,6 +160,7 @@ class _NotificationDetailBodyState
       final message = error is ApiError && error.message.trim().isNotEmpty
           ? error.message.trim()
           : error.toString().replaceFirst('ApiError:', '').trim();
+
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -251,8 +178,14 @@ class _NotificationDetailBodyState
   }
 
   String _relatedActionLabel(NotificationItem notification) {
-    if (notification.reference == null ||
-        notification.reference!.trim().isEmpty) {
+    final reference = notification.reference?.trim();
+    final actionUrl = notification.actionUrl?.trim();
+
+    if (actionUrl != null && actionUrl.isNotEmpty) {
+      return 'Open notification action';
+    }
+
+    if (reference == null || reference.isEmpty) {
       return 'No related record';
     }
 
@@ -375,24 +308,212 @@ class _NotificationDetailBodyState
   }
 }
 
-class _ReadPill extends StatelessWidget {
-  const _ReadPill({required this.isRead});
+class _NotificationHeroCard extends StatelessWidget {
+  const _NotificationHeroCard({
+    required this.notification,
+    required this.color,
+    required this.icon,
+  });
 
-  final bool isRead;
+  final NotificationItem notification;
+  final Color color;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Icon(icon, color: color, size: 30),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _InfoPill(label: notification.type.label, color: color),
+                    _InfoPill(
+                      label: notification.isRead ? 'Read' : 'Unread',
+                      color: notification.isRead
+                          ? Colors.green.shade700
+                          : AppTheme.primaryRed,
+                    ),
+                    if (notification.actionUrl != null)
+                      const _InfoPill(label: 'Action available'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            notification.title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 23,
+              fontWeight: FontWeight.w900,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            notification.message,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailSection extends StatelessWidget {
+  const _DetailSection({
+    required this.title,
+    required this.children,
+    this.subtitle,
+  });
+
+  final String title;
+  final String? subtitle;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 19,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 5),
+          Text(
+            subtitle!,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        PremiumCard(
+          padding: EdgeInsets.zero,
+          child: Column(children: children),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionsCard extends StatelessWidget {
+  const _ActionsCard({
+    required this.relatedActionLabel,
+    required this.isRead,
+    required this.isMarkingRead,
+    required this.onOpenRelated,
+    required this.onMarkRead,
+  });
+
+  final String relatedActionLabel;
+  final bool isRead;
+  final bool isMarkingRead;
+  final VoidCallback onOpenRelated;
+  final VoidCallback? onMarkRead;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Actions',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'Open the related record or update notification status.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _ActionButton(
+            icon: Icons.open_in_new_rounded,
+            label: relatedActionLabel,
+            onTap: onOpenRelated,
+          ),
+          const SizedBox(height: 10),
+          _ActionButton(
+            icon: isMarkingRead
+                ? Icons.hourglass_top_rounded
+                : Icons.done_all_rounded,
+            label: isRead
+                ? 'Already marked read'
+                : isMarkingRead
+                ? 'Marking as read...'
+                : 'Mark as read',
+            onTap: onMarkRead,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.label, this.color});
+
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final pillColor = color ?? AppTheme.primaryRed;
+
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        color: pillColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
         child: Text(
-          isRead ? 'Read' : 'Unread',
-          style: const TextStyle(
-            color: AppTheme.primaryRed,
+          label,
+          style: TextStyle(
+            color: pillColor,
             fontSize: 11,
             fontWeight: FontWeight.w900,
           ),
@@ -462,26 +583,46 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEnabled = onTap != null;
+
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
+            color: Theme.of(
+              context,
+            ).colorScheme.outlineVariant.withValues(alpha: 0.70),
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppTheme.primaryRed),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(
+                  alpha: isEnabled ? 0.08 : 0.04,
+                ),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(
+                icon,
+                color: isEnabled ? AppTheme.primaryRed : AppTheme.textSecondary,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
+                style: TextStyle(
+                  color: isEnabled
+                      ? AppTheme.textPrimary
+                      : AppTheme.textSecondary,
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
@@ -495,5 +636,160 @@ class _ActionButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _NotificationDetailLoadingView extends StatelessWidget {
+  const _NotificationDetailLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      children: const [
+        PremiumCard(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _LoadingBox(width: 58, height: 58, radius: 22),
+                  SizedBox(width: 14),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _LoadingPill(width: 96),
+                        _LoadingPill(width: 74),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 18),
+              _LoadingBar(widthFactor: 0.82, height: 17),
+              SizedBox(height: 10),
+              _LoadingBar(widthFactor: 0.95),
+              SizedBox(height: 8),
+              _LoadingBar(widthFactor: 0.68),
+            ],
+          ),
+        ),
+        SizedBox(height: 20),
+        PremiumCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              _LoadingDetailTile(),
+              _DividerIndent(),
+              _LoadingDetailTile(),
+              _DividerIndent(),
+              _LoadingDetailTile(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingDetailTile extends StatelessWidget {
+  const _LoadingDetailTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        children: [
+          _LoadingBox(width: 42, height: 42, radius: 15),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _LoadingBar(widthFactor: 0.35),
+                SizedBox(height: 9),
+                _LoadingBar(widthFactor: 0.72),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingBox extends StatelessWidget {
+  const _LoadingBox({
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
+class _LoadingPill extends StatelessWidget {
+  const _LoadingPill({required this.width});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 28,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(999),
+      ),
+    );
+  }
+}
+
+class _LoadingBar extends StatelessWidget {
+  const _LoadingBar({required this.widthFactor, this.height = 9});
+
+  final double widthFactor;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryRed.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
+  }
+}
+
+class _DividerIndent extends StatelessWidget {
+  const _DividerIndent();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Divider(height: 1, indent: 76);
   }
 }

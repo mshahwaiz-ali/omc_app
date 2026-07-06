@@ -44,13 +44,24 @@ class _NotificationsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = notifications.where((item) => !item.isRead).length;
+    final actionCount = notifications
+        .where((item) => item.actionUrl != null && item.actionUrl!.isNotEmpty)
+        .length;
+
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       itemCount: notifications.length + 1,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
       itemBuilder: (context, index) {
-        if (index == 0) return const _NotificationsHeader();
+        if (index == 0) {
+          return _NotificationsHero(
+            totalCount: notifications.length,
+            unreadCount: unreadCount,
+            actionCount: actionCount,
+          );
+        }
 
         return _NotificationCard(notification: notifications[index - 1]);
       },
@@ -58,34 +69,90 @@ class _NotificationsList extends StatelessWidget {
   }
 }
 
-class _NotificationsHeader extends StatelessWidget {
-  const _NotificationsHeader();
+class _NotificationsHero extends StatelessWidget {
+  const _NotificationsHero({
+    required this.totalCount,
+    required this.unreadCount,
+    required this.actionCount,
+  });
+
+  final int totalCount;
+  final int unreadCount;
+  final int actionCount;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Notifications',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
+    return PremiumCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Icon(
+                  Icons.notifications_active_outlined,
+                  color: AppTheme.primaryRed,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Notifications',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Service updates, documents, payments and account alerts.',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          'Service updates, document requests and payment alerts appear here.',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 14,
-            height: 1.4,
-            fontWeight: FontWeight.w600,
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _SummaryPill(
+                icon: Icons.inbox_outlined,
+                label: '$totalCount total',
+              ),
+              _SummaryPill(
+                icon: unreadCount == 0
+                    ? Icons.mark_email_read_outlined
+                    : Icons.mark_email_unread_outlined,
+                label: unreadCount == 0 ? 'All read' : '$unreadCount unread',
+              ),
+              _SummaryPill(
+                icon: Icons.touch_app_outlined,
+                label: actionCount == 0 ? 'No actions' : '$actionCount actions',
+              ),
+            ],
           ),
-        ),
-        SizedBox(height: 10),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -115,11 +182,11 @@ class _NotificationCard extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    width: 46,
-                    height: 46,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.09),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(17),
                     ),
                     child: Icon(_typeIcon(notification.type), color: color),
                   ),
@@ -128,11 +195,12 @@ class _NotificationCard extends StatelessWidget {
                       top: -2,
                       right: -2,
                       child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
+                        width: 11,
+                        height: 11,
+                        decoration: BoxDecoration(
                           color: AppTheme.primaryRed,
                           shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
                       ),
                     ),
@@ -145,15 +213,19 @@ class _NotificationCard extends StatelessWidget {
                   children: [
                     Text(
                       notification.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 15,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: notification.isRead
+                            ? FontWeight.w800
+                            : FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       notification.message,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 12,
@@ -166,7 +238,7 @@ class _NotificationCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _InfoChip(label: notification.type.label),
+                        _InfoChip(label: notification.type.label, color: color),
                         if (notification.reference != null)
                           _InfoChip(label: notification.reference!),
                         if (notification.actionUrl != null)
@@ -178,6 +250,7 @@ class _NotificationCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               const Icon(
                 Icons.chevron_right_rounded,
                 color: AppTheme.textSecondary,
@@ -216,9 +289,10 @@ class _NotificationCard extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label});
+class _SummaryPill extends StatelessWidget {
+  const _SummaryPill({required this.icon, required this.label});
 
+  final IconData icon;
   final String label;
 
   @override
@@ -229,11 +303,48 @@ class _InfoChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: AppTheme.primaryRed),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({required this.label, this.color});
+
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final chipColor = color ?? AppTheme.primaryRed;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: chipColor.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Text(
           label,
-          style: const TextStyle(
-            color: AppTheme.primaryRed,
+          style: TextStyle(
+            color: chipColor,
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
@@ -251,49 +362,14 @@ class _EmptyNotificationsView extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-      children: [
-        const _NotificationsHeader(),
-        const SizedBox(height: 24),
-        PremiumCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: [
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: AppTheme.primaryRed,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'No notifications yet',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Updates will appear here when notifications are available.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+      children: const [
+        _NotificationsHero(totalCount: 0, unreadCount: 0, actionCount: 0),
+        SizedBox(height: 18),
+        _NotificationsStateCard(
+          icon: Icons.notifications_none_rounded,
+          title: 'No notifications yet',
+          message:
+              'Service updates, document requests and payment alerts will appear here when available.',
         ),
       ],
     );
@@ -323,50 +399,72 @@ class _NotificationsErrorView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
-        const _NotificationsHeader(),
-        const SizedBox(height: 24),
-        PremiumCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: [
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.cloud_off_rounded,
-                  color: Colors.red,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Notifications unavailable',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+        const _NotificationsHero(totalCount: 0, unreadCount: 0, actionCount: 0),
+        const SizedBox(height: 18),
+        _NotificationsStateCard(
+          icon: Icons.cloud_off_rounded,
+          title: 'Notifications unavailable',
+          message: message,
+          isError: true,
         ),
       ],
+    );
+  }
+}
+
+class _NotificationsStateCard extends StatelessWidget {
+  const _NotificationsStateCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.isError = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isError ? Colors.red.shade700 : AppTheme.primaryRed;
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Icon(icon, color: color, size: 32),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -380,15 +478,148 @@ class _NotificationsLoadingView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       itemBuilder: (context, index) {
-        if (index == 0) return const _NotificationsHeader();
+        if (index == 0) {
+          return const _NotificationsLoadingHero();
+        }
 
-        return const PremiumCard(
-          padding: EdgeInsets.all(18),
-          child: SizedBox(height: 72),
-        );
+        return const _NotificationLoadingCard();
       },
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
       itemCount: 4,
+    );
+  }
+}
+
+class _NotificationsLoadingHero extends StatelessWidget {
+  const _NotificationsLoadingHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const _LoadingBox(width: 58, height: 58, radius: 22),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    _LoadingBar(widthFactor: 0.55, height: 16),
+                    SizedBox(height: 10),
+                    _LoadingBar(widthFactor: 0.86),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _LoadingPill(width: 86),
+              _LoadingPill(width: 96),
+              _LoadingPill(width: 106),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationLoadingCard extends StatelessWidget {
+  const _NotificationLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const PremiumCard(
+      padding: EdgeInsets.all(16),
+      child: Row(
+        children: [
+          _LoadingBox(width: 48, height: 48, radius: 17),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _LoadingBar(widthFactor: 0.62, height: 13),
+                SizedBox(height: 10),
+                _LoadingBar(widthFactor: 0.92),
+                SizedBox(height: 8),
+                _LoadingBar(widthFactor: 0.48),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingBox extends StatelessWidget {
+  const _LoadingBox({
+    required this.width,
+    required this.height,
+    required this.radius,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
+class _LoadingPill extends StatelessWidget {
+  const _LoadingPill({required this.width});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 30,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(999),
+      ),
+    );
+  }
+}
+
+class _LoadingBar extends StatelessWidget {
+  const _LoadingBar({required this.widthFactor, this.height = 9});
+
+  final double widthFactor;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryRed.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
     );
   }
 }
