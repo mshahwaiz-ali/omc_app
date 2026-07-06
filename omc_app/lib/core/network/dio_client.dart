@@ -1,4 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
+import 'dio_web_credentials_stub.dart'
+    if (dart.library.html) 'dio_web_credentials_web.dart';
 
 import '../config/api_config.dart';
 import '../storage/secure_storage_service.dart';
@@ -24,6 +28,7 @@ class DioClient {
       );
 
   DioClient._(this._secureStorageService, this._dio) {
+    configureWebCredentials(_dio);
     _setupInterceptors();
   }
 
@@ -40,7 +45,7 @@ class DioClient {
           final apiKey = await _secureStorageService.readApiKey();
           final apiSecret = await _secureStorageService.readApiSecret();
 
-          if (sessionCookie != null && sessionCookie.isNotEmpty) {
+          if (!kIsWeb && sessionCookie != null && sessionCookie.isNotEmpty) {
             options.headers['Cookie'] = sessionCookie;
           }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -110,10 +111,20 @@ class AuthRepository {
     final sessionCookie = result.sessionCookie;
 
     if (sessionCookie == null || sessionCookie.isEmpty) {
-      throw ApiError(
-        message: 'Login succeeded but the server did not return a session.',
-        details: result.data,
-      );
+      if (!kIsWeb) {
+        throw ApiError(
+          message: 'Login succeeded but the server did not return a session.',
+          details: result.data,
+        );
+      }
+
+      // On Flutter Web, browsers do not expose Set-Cookie to Dart.
+      // The browser stores/sends the Frappe session cookie itself when
+      // Dio's web adapter is configured with credentials enabled.
+      await _secureStorageService.saveSessionCookie('browser-managed-session');
+      await _secureStorageService.saveUserId(email);
+
+      return AuthSession(userId: email);
     }
 
     await _secureStorageService.saveSessionCookie(sessionCookie);
