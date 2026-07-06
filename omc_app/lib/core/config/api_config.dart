@@ -86,7 +86,6 @@ class ApiConfig {
   static const String updateContactMethod =
       'omc_app.api.mobile.update_contact_info';
 
-  // TODO(backend): Replace with confirmed OMC/Frappe knowledge/news API.
   static const String knowledgeMethod = 'omc_app.api.mobile.get_knowledge';
   static const String knowledgeDetailMethod =
       'omc_app.api.mobile.get_knowledge_article';
@@ -107,6 +106,10 @@ class ApiConfig {
 
   static const String createSupportTicketMethod =
       'omc_app.api.mobile.create_support_ticket';
+  static const String supportTicketsMethod =
+      'omc_app.api.mobile.get_support_tickets';
+  static const String supportTicketDetailMethod =
+      'omc_app.api.mobile.get_support_ticket';
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';

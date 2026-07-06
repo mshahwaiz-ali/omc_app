@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../domain/lead_item.dart';
 
@@ -35,9 +36,14 @@ class LeadsRepository {
     try {
       final response = await _frappeClient.getMethod(ApiConfig.leadsMethod);
       return _mapLeadsResponse(response);
-    } catch (_) {
-      // Keep Leads screen usable during local/UI testing while backend APIs are pending.
-      return const [];
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Leads could not be loaded from the server right now.',
+        code: 'leads_unavailable',
+        details: error,
+      );
     }
   }
 
@@ -52,8 +58,14 @@ class LeadsRepository {
       );
 
       return _mapLeadDetailResponse(response);
-    } catch (_) {
-      return null;
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Lead details could not be loaded from the server right now.',
+        code: 'lead_detail_unavailable',
+        details: error,
+      );
     }
   }
 

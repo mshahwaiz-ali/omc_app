@@ -118,6 +118,20 @@ def sign_up(**kwargs):
     }
 
 
+@frappe.whitelist(allow_guest=True)
+def google_mobile_login(id_token=None, **kwargs):
+    id_token = (id_token or kwargs.get("token") or "").strip()
+
+    if not id_token:
+        frappe.throw("id_token is required")
+
+    frappe.throw(
+        "Google mobile login is not configured on this OMC backend yet. "
+        "Use email/password login until verified Google token validation is enabled.",
+        frappe.AuthenticationError,
+    )
+
+
 @frappe.whitelist()
 def get_session_user():
     user = _current_user()
@@ -1101,6 +1115,70 @@ def upload_payment_receipt(**kwargs):
     }
 
 
+def _knowledge_article_from_service(service):
+    title = service.title or service.name
+    description = service.description or ""
+
+    return {
+        "name": service.name,
+        "article_id": service.name,
+        "title": title or "",
+        "summary": description,
+        "body": description,
+        "type": "Guide",
+        "article_type": "Guide",
+        "category": service.category or "",
+        "published_on": str(service.modified) if service.modified else "",
+        "created_at": str(service.creation) if service.creation else "",
+        "author": "OMC House",
+        "external_url": "",
+        "is_featured": int(service.is_featured or 0),
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+def get_knowledge():
+    services = frappe.get_all(
+        "OMC Service",
+        filters={"is_active": 1},
+        fields=[
+            "name",
+            "title",
+            "description",
+            "category",
+            "is_featured",
+            "creation",
+            "modified",
+        ],
+        order_by="is_featured desc, modified desc",
+        limit_page_length=100,
+    )
+
+    return {
+        "articles": [
+            _knowledge_article_from_service(service)
+            for service in services
+        ]
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+def get_knowledge_article(article_id=None, name=None):
+    article_id = article_id or name
+    if not article_id:
+        frappe.throw("article_id is required")
+
+    if not frappe.db.exists("OMC Service", article_id):
+        frappe.throw("Knowledge article not found", frappe.DoesNotExistError)
+
+    service = frappe.get_doc("OMC Service", article_id)
+
+    if not service.is_active:
+        frappe.throw("Knowledge article not found", frappe.DoesNotExistError)
+
+    return {"article": _knowledge_article_from_service(service)}
+
+
 @frappe.whitelist()
 def get_notifications():
     user = _current_user()
@@ -1149,6 +1227,43 @@ def get_notifications():
             }
             for notification in notifications
         ]
+    }
+
+
+@frappe.whitelist()
+def mark_notification_read(notification_id=None, name=None):
+    notification_id = notification_id or name
+    if not notification_id:
+        frappe.throw("notification_id is required")
+
+    if not frappe.db.exists("OMC Notification", notification_id):
+        frappe.throw("Notification not found", frappe.DoesNotExistError)
+
+    notification = frappe.get_doc("OMC Notification", notification_id)
+
+    if not notification.visible_to_customer:
+        frappe.throw("Notification not found", frappe.DoesNotExistError)
+
+    user = _current_user()
+    profile = _get_customer_profile_for_user()
+
+    if profile and notification.customer_profile and notification.customer_profile != profile.name:
+        frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
+
+    if not profile and notification.recipient_user and notification.recipient_user != user:
+        frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
+
+    notification.is_read = 1
+    notification.read_on = frappe.utils.now_datetime()
+    notification.save(ignore_permissions=True)
+
+    frappe.db.commit()
+
+    return {
+        "name": notification.name,
+        "is_read": int(notification.is_read or 0),
+        "read_on": str(notification.read_on) if notification.read_on else "",
+        "message": "Notification marked as read.",
     }
 
 
@@ -1478,6 +1593,41 @@ def get_internal_workspace_summary():
         "documents": frappe.db.count("OMC Service Document"),
         "payments_due": frappe.db.count("OMC Service Payment", {"status": "Pending"}),
         "unread_notifications": frappe.db.count("OMC Notification", {"is_read": 0}),
+    }
+
+
+@frappe.whitelist()
+def create_lead(**kwargs):
+    title = (kwargs.get("title") or kwargs.get("subject") or "").strip()
+    lead_name = (kwargs.get("lead_name") or kwargs.get("name") or kwargs.get("full_name") or "").strip()
+    company_name = (kwargs.get("company_name") or kwargs.get("company") or "").strip()
+    email = (kwargs.get("email") or kwargs.get("email_id") or "").strip()
+    phone = (kwargs.get("phone") or kwargs.get("mobile_no") or kwargs.get("mobile") or "").strip()
+    source = (kwargs.get("source") or "Mobile App").strip()
+    service_interest = (kwargs.get("service_interest") or kwargs.get("service") or "").strip()
+    notes = (kwargs.get("notes") or kwargs.get("message") or kwargs.get("description") or "").strip()
+
+    if not lead_name and not company_name and not title:
+        frappe.throw("lead_name, company_name, or title is required")
+
+    lead = frappe.new_doc("OMC Lead")
+    lead.title = title or company_name or lead_name
+    lead.lead_name = lead_name or title or company_name
+    lead.company_name = company_name
+    lead.email = email
+    lead.phone = phone
+    lead.status = kwargs.get("status") or "New"
+    lead.source = source
+    lead.service_interest = service_interest
+    lead.notes = notes
+    lead.insert(ignore_permissions=True)
+
+    frappe.db.commit()
+
+    return {
+        "message": "Lead created.",
+        "created": True,
+        "lead": _lead_to_dict(lead),
     }
 
 

@@ -137,12 +137,25 @@ class NotificationsRepository {
       createdAtLabel: _nullableString(
         json['created_at_label'] ?? json['creation'] ?? json['created_at'],
       ),
-      reference: _nullableString(json['reference'] ?? json['case_reference']),
+      reference: _nullableString(
+        json['reference'] ??
+            json['case_reference'] ??
+            json['reference_name'] ??
+            json['reference_id'],
+      ),
       actionUrl: _nullableString(
         json['action_url'] ?? json['link'] ?? json['route'] ?? json['url'],
       ),
-      isRead: json['is_read'] == true || json['read'] == true,
+      isRead: _boolValue(json['is_read'] ?? json['read'] ?? json['seen']),
     );
+  }
+
+  bool _boolValue(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+
+    final text = value?.toString().trim().toLowerCase() ?? '';
+    return text == '1' || text == 'true' || text == 'yes' || text == 'read';
   }
 
   AppNotificationType _typeFromValue(dynamic value) {

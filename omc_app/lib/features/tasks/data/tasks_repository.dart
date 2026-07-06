@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import 'task_item.dart';
 
@@ -35,9 +36,14 @@ class TasksRepository {
     try {
       final response = await _frappeClient.getMethod(ApiConfig.tasksMethod);
       return _mapTasksResponse(response);
-    } catch (_) {
-      // Keep Tasks screen usable during local/UI testing while backend APIs are pending.
-      return const [];
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Tasks could not be loaded from the server right now.',
+        code: 'tasks_unavailable',
+        details: error,
+      );
     }
   }
 
@@ -52,8 +58,14 @@ class TasksRepository {
       );
 
       return _mapTaskDetailResponse(response);
-    } catch (_) {
-      return null;
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Task details could not be loaded from the server right now.',
+        code: 'task_detail_unavailable',
+        details: error,
+      );
     }
   }
 

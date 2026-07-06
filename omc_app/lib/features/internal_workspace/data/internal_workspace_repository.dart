@@ -1,4 +1,5 @@
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../domain/internal_workspace_summary.dart';
 
@@ -14,9 +15,15 @@ class InternalWorkspaceRepository {
       );
 
       return _mapSummaryResponse(response);
-    } catch (_) {
-      // Keep Internal Workspace usable during local/UI testing while backend APIs are pending.
-      return _sampleSummary;
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message:
+            'Internal workspace summary could not be loaded from the server right now.',
+        code: 'internal_workspace_unavailable',
+        details: error,
+      );
     }
   }
 
@@ -30,10 +37,3 @@ class InternalWorkspaceRepository {
     return InternalWorkspaceSummary.fromJson(data);
   }
 }
-
-const InternalWorkspaceSummary _sampleSummary = InternalWorkspaceSummary(
-  openLeads: 0,
-  activeCustomers: 0,
-  pendingTasks: 0,
-  pendingPayments: 0,
-);

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../domain/customer_item.dart';
 
@@ -35,9 +36,14 @@ class CustomersRepository {
     try {
       final response = await _frappeClient.getMethod(ApiConfig.customersMethod);
       return _mapCustomersResponse(response);
-    } catch (_) {
-      // Keep Customers screen usable during local/UI testing while backend APIs are pending.
-      return const [];
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Customers could not be loaded from the server right now.',
+        code: 'customers_unavailable',
+        details: error,
+      );
     }
   }
 
@@ -55,8 +61,14 @@ class CustomersRepository {
       );
 
       return _mapCustomerDetailResponse(response);
-    } catch (_) {
-      return null;
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Customer details could not be loaded from the server right now.',
+        code: 'customer_detail_unavailable',
+        details: error,
+      );
     }
   }
 

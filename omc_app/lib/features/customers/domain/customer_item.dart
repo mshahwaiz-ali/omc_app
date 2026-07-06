@@ -19,13 +19,14 @@ class CustomerItem {
         json['customer_name'] ?? json['full_name'] ?? json['name'],
       ),
       companyName: _nullableString(json['company_name'] ?? json['company']),
-      status: _statusFromValue(json['status'] ?? json['customer_status']),
+      status: _statusFromValue(json['status'] ?? json['customer_status'] ?? json['approval_status']),
       email: _nullableString(json['email'] ?? json['email_id']),
       phone: _nullableString(json['phone'] ?? json['mobile_no']),
       city: _nullableString(json['city'] ?? json['territory']),
       lastActivityLabel: _nullableString(
         json['last_activity_label'] ??
             json['last_activity'] ??
+            json['updated_at'] ??
             json['modified'],
       ),
     );

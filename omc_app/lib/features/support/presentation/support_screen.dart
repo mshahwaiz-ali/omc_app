@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../application/support_launcher.dart';
 
 import '../../../app/theme.dart';
@@ -8,6 +9,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/support_repository.dart';
+import '../data/support_ticket.dart';
 
 class SupportScreen extends ConsumerStatefulWidget {
   const SupportScreen({super.key});
@@ -126,6 +128,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             onSubmit: _submitSupportTicket,
           ),
           const SizedBox(height: 16),
+          const _SupportTicketsCard(),
+          const SizedBox(height: 16),
           PremiumCard(
             padding: EdgeInsets.zero,
             child: Column(
@@ -194,6 +198,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       setState(() {
         _messageController.clear();
       });
+      ref.invalidate(supportTicketsProvider);
+
       messenger.showSnackBar(
         const SnackBar(content: Text('Support ticket submitted.')),
       );
@@ -216,6 +222,268 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     }
   }
 }
+
+
+class _SupportTicketsCard extends ConsumerWidget {
+  const _SupportTicketsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ticketsAsync = ref.watch(supportTicketsProvider);
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Your support tickets',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Refresh',
+                onPressed: () => ref.invalidate(supportTicketsProvider),
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Track submitted support requests and open ticket details.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ticketsAsync.when(
+            data: (tickets) {
+              if (tickets.isEmpty) {
+                return const _EmptySupportTicketsView();
+              }
+
+              final visibleTickets = tickets.take(5).toList(growable: false);
+
+              return Column(
+                children: [
+                  for (var index = 0; index < visibleTickets.length; index++) ...[
+                    _SupportTicketTile(ticket: visibleTickets[index]),
+                    if (index != visibleTickets.length - 1)
+                      const SizedBox(height: 10),
+                  ],
+                ],
+              );
+            },
+            loading: () => const _SupportTicketsLoadingView(),
+            error: (error, _) => _SupportTicketsErrorView(
+              message: _cleanSupportError(error),
+              onRetry: () => ref.invalidate(supportTicketsProvider),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SupportTicketTile extends StatelessWidget {
+  const _SupportTicketTile({required this.ticket});
+
+  final SupportTicket ticket;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => context.push(
+        '/support-tickets/${Uri.encodeComponent(ticket.id)}',
+      ),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: AppTheme.background,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Icon(
+                Icons.support_agent_rounded,
+                color: AppTheme.primaryRed,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ticket.subject,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${ticket.status} • ${ticket.priority}',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (ticket.updatedAtLabel != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      ticket.updatedAtLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                        height: 1.25,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptySupportTicketsView extends StatelessWidget {
+  const _EmptySupportTicketsView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+      ),
+      child: const Text(
+        'No support tickets yet.',
+        style: TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _SupportTicketsLoadingView extends StatelessWidget {
+  const _SupportTicketsLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 14),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _SupportTicketsErrorView extends StatelessWidget {
+  const _SupportTicketsErrorView({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tickets unavailable',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _cleanSupportError(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  if (message.isEmpty) {
+    return 'Support tickets could not be loaded right now.';
+  }
+  return message;
+}
+
 
 class _CreateSupportTicketCard extends StatelessWidget {
   const _CreateSupportTicketCard({

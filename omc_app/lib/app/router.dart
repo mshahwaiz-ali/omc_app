@@ -28,6 +28,7 @@ import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/service_request_draft_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
 import '../features/service_requests/presentation/my_services_screen.dart';
+import '../features/support/presentation/support_ticket_detail_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'main_shell.dart';
 
@@ -242,6 +243,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/expense-tracker',
         name: 'expense-tracker',
         builder: (context, state) => const ExpenseTrackerScreen(),
+      ),
+      GoRoute(
+        path: '/support-tickets/:ticketId',
+        name: 'support-ticket-detail',
+        builder: (context, state) {
+          final ticketId = Uri.decodeComponent(
+            state.pathParameters['ticketId'] ?? '',
+          );
+
+          return SupportTicketDetailScreen(ticketId: ticketId);
+        },
       ),
       GoRoute(
         path: '/settings',
