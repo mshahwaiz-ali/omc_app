@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_view.dart';
@@ -53,68 +54,73 @@ class ServiceDetailScreen extends ConsumerWidget {
         }
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Service Details'),
-            actions: [
-              IconButton(
-                tooltip: 'WhatsApp support',
-                onPressed: () => SupportLauncher.openWhatsApp(context),
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
+          body: Column(
+            children: [
+              AppBackHeader(
+                title: 'Service Details',
+                subtitle: 'Review requirements and start request',
+                actionIcon: Icons.chat_bubble_outline_rounded,
+                actionTooltip: 'WhatsApp support',
+                onAction: () => SupportLauncher.openWhatsApp(context),
               ),
-            ],
-          ),
-          body: SafeArea(
-            top: false,
-            child: ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-              children: [
-                _ServiceHero(service: service),
-                const SizedBox(height: 16),
-                _ServiceStatsGrid(service: service),
-                const SizedBox(height: 16),
-                _ServiceFacts(service: service),
-                const SizedBox(height: 16),
-                _OverviewCard(service: service),
-                _GuidedWizardCard(service: service),
-                const SizedBox(height: 16),
-                _ChecklistCard(
-                  title: 'Requirements',
-                  subtitle: 'Basic information OMC needs for this service.',
-                  emptyMessage:
-                      'OMC will confirm requirements after reviewing your case.',
-                  items: service.requirements,
-                  icon: Icons.check_circle_rounded,
-                ),
-                const SizedBox(height: 16),
-                _ChecklistCard(
-                  title: 'Required documents',
-                  subtitle: 'Keep these documents ready before submitting.',
-                  emptyMessage:
-                      'OMC will confirm required documents after reviewing your case.',
-                  items: service.requiredDocuments,
-                  icon: Icons.description_outlined,
-                ),
-                const SizedBox(height: 16),
-                _ProcessCard(steps: service.processSteps),
-                const SizedBox(height: 18),
-                AppButton(
-                  label: _startRequestLabel(service),
-                  icon: _hasGuidedWizard(service)
-                      ? Icons.auto_awesome_rounded
-                      : Icons.add_rounded,
-                  onPressed: () => context.push(
-                    '/services/${Uri.encodeComponent(service.id)}/request',
+              Expanded(
+                child: SafeArea(
+                  top: false,
+                  child: ListView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                    children: [
+                      _ServiceHero(service: service),
+                      const SizedBox(height: 16),
+                      _ServiceStatsGrid(service: service),
+                      const SizedBox(height: 16),
+                      _ServiceFacts(service: service),
+                      const SizedBox(height: 16),
+                      _OverviewCard(service: service),
+                      _GuidedWizardCard(service: service),
+                      const SizedBox(height: 16),
+                      _ChecklistCard(
+                        title: 'Requirements',
+                        subtitle:
+                            'Basic information OMC needs for this service.',
+                        emptyMessage:
+                            'OMC will confirm requirements after reviewing your case.',
+                        items: service.requirements,
+                        icon: Icons.check_circle_rounded,
+                      ),
+                      const SizedBox(height: 16),
+                      _ChecklistCard(
+                        title: 'Required documents',
+                        subtitle:
+                            'Keep these documents ready before submitting.',
+                        emptyMessage:
+                            'OMC will confirm required documents after reviewing your case.',
+                        items: service.requiredDocuments,
+                        icon: Icons.description_outlined,
+                      ),
+                      const SizedBox(height: 16),
+                      _ProcessCard(steps: service.processSteps),
+                      const SizedBox(height: 18),
+                      AppButton(
+                        label: _startRequestLabel(service),
+                        icon: _hasGuidedWizard(service)
+                            ? Icons.auto_awesome_rounded
+                            : Icons.add_rounded,
+                        onPressed: () => context.push(
+                          '/services/${Uri.encodeComponent(service.id)}/request',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => SupportLauncher.openWhatsApp(context),
+                        icon: const Icon(Icons.support_agent_rounded),
+                        label: const Text('Ask OMC support'),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: () => SupportLauncher.openWhatsApp(context),
-                  icon: const Icon(Icons.support_agent_rounded),
-                  label: const Text('Ask OMC support'),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

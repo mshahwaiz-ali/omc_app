@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../support/application/support_launcher.dart';
@@ -29,60 +30,63 @@ class _ServiceCaseDetailScreenState
     final caseAsync = ref.watch(serviceCaseDetailProvider(widget.caseId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Service Details'),
-        actions: [
-          IconButton(
-            tooltip: 'Support',
-            onPressed: () => SupportLauncher.openWhatsApp(context),
-            icon: const Icon(Icons.support_agent_rounded),
+      body: Column(
+        children: [
+          AppBackHeader(
+            title: 'Service Details',
+            subtitle: 'Track request progress and documents',
+            actionIcon: Icons.support_agent_rounded,
+            actionTooltip: 'Support',
+            onAction: () => SupportLauncher.openWhatsApp(context),
+          ),
+          Expanded(
+            child: SafeArea(
+              top: false,
+              child: caseAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stackTrace) => _LoadErrorState(
+                  title: 'Tracking detail unavailable',
+                  message: _cleanErrorMessage(error),
+                  onRetry: () =>
+                      ref.invalidate(serviceCaseDetailProvider(widget.caseId)),
+                  onSupport: () => SupportLauncher.openWhatsApp(context),
+                ),
+                data: (serviceCase) {
+                  if (serviceCase == null) {
+                    return _CaseNotFoundState(
+                      onSupport: () => SupportLauncher.openWhatsApp(context),
+                    );
+                  }
+
+                  return ListView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                    children: [
+                      _CaseHero(serviceCase: serviceCase),
+                      const SizedBox(height: 16),
+                      _QuickStatusGrid(serviceCase: serviceCase),
+                      const SizedBox(height: 16),
+                      _ProgressCard(serviceCase: serviceCase),
+                      const SizedBox(height: 16),
+                      _CaseInfoCard(serviceCase: serviceCase),
+                      const SizedBox(height: 16),
+                      _RequiredDocumentsCard(serviceCase: serviceCase),
+                      const SizedBox(height: 16),
+                      _CaseActionsCard(
+                        serviceCase: serviceCase,
+                        isUploading: _isUploadingDocument,
+                        onUploadMissingDocument: () =>
+                            _uploadMissingDocument(serviceCase),
+                      ),
+                      const SizedBox(height: 16),
+                      _SupportCard(serviceCase: serviceCase),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: caseAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _LoadErrorState(
-            title: 'Tracking detail unavailable',
-            message: _cleanErrorMessage(error),
-            onRetry: () =>
-                ref.invalidate(serviceCaseDetailProvider(widget.caseId)),
-            onSupport: () => SupportLauncher.openWhatsApp(context),
-          ),
-          data: (serviceCase) {
-            if (serviceCase == null) {
-              return _CaseNotFoundState(
-                onSupport: () => SupportLauncher.openWhatsApp(context),
-              );
-            }
-
-            return ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-              children: [
-                _CaseHero(serviceCase: serviceCase),
-                const SizedBox(height: 16),
-                _QuickStatusGrid(serviceCase: serviceCase),
-                const SizedBox(height: 16),
-                _ProgressCard(serviceCase: serviceCase),
-                const SizedBox(height: 16),
-                _CaseInfoCard(serviceCase: serviceCase),
-                const SizedBox(height: 16),
-                _RequiredDocumentsCard(serviceCase: serviceCase),
-                const SizedBox(height: 16),
-                _CaseActionsCard(
-                  serviceCase: serviceCase,
-                  isUploading: _isUploadingDocument,
-                  onUploadMissingDocument: () =>
-                      _uploadMissingDocument(serviceCase),
-                ),
-                const SizedBox(height: 16),
-                _SupportCard(serviceCase: serviceCase),
-              ],
-            );
-          },
-        ),
       ),
     );
   }

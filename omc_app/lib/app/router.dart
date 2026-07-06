@@ -7,7 +7,6 @@ import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
-import '../features/documents/presentation/documents_screen.dart';
 import '../features/expense_tracker/presentation/expense_tracker_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
 import '../features/knowledge/presentation/knowledge_detail_screen.dart';
@@ -28,7 +27,6 @@ import '../features/settings/presentation/settings_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/service_request_draft_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
-import '../features/service_requests/presentation/my_services_screen.dart';
 import '../features/support/presentation/support_ticket_detail_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'main_shell.dart';
@@ -83,6 +81,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MainShell(),
       ),
       GoRoute(
+        path: '/services',
+        name: 'services',
+        builder: (context, state) => const MainShell(initialIndex: 1),
+      ),
+      GoRoute(
+        path: '/track',
+        name: 'track',
+        builder: (context, state) => const MainShell(initialIndex: 2),
+      ),
+      GoRoute(
         path: '/services/:serviceId',
         name: 'service-detail',
         builder: (context, state) {
@@ -107,7 +115,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/my-services',
         name: 'my-services',
-        builder: (context, state) => const MyServicesScreen(),
+        builder: (context, state) => const MainShell(initialIndex: 2),
       ),
       GoRoute(
         path: '/dashboard',
@@ -117,7 +125,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/documents',
         name: 'documents',
-        builder: (context, state) => const DocumentsScreen(),
+        builder: (context, state) => const MainShell(initialIndex: 3),
       ),
       GoRoute(
         path: '/documents/:documentId',

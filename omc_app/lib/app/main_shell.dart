@@ -4,21 +4,29 @@ import 'package:go_router/go_router.dart';
 
 import '../core/widgets/premium_card.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../features/documents/presentation/documents_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
-import '../features/support/presentation/support_screen.dart';
-import '../features/tax_calculator/presentation/tax_calculator_screen.dart';
+import '../features/service_requests/presentation/my_services_screen.dart';
 import 'theme.dart';
 
 class MainShell extends ConsumerStatefulWidget {
-  const MainShell({super.key});
+  const MainShell({this.initialIndex = 0, super.key});
+
+  final int initialIndex;
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   static const List<_ShellNavItem> _navItems = [
     _ShellNavItem(
@@ -32,14 +40,14 @@ class _MainShellState extends ConsumerState<MainShell> {
       activeIcon: Icons.grid_view_rounded,
     ),
     _ShellNavItem(
-      label: 'Calc',
-      icon: Icons.calculate_outlined,
-      activeIcon: Icons.calculate_rounded,
+      label: 'Track',
+      icon: Icons.timeline_outlined,
+      activeIcon: Icons.timeline_rounded,
     ),
     _ShellNavItem(
-      label: 'Support',
-      icon: Icons.support_agent_outlined,
-      activeIcon: Icons.support_agent_rounded,
+      label: 'Docs',
+      icon: Icons.folder_copy_outlined,
+      activeIcon: Icons.folder_copy_rounded,
     ),
     _ShellNavItem(
       label: 'More',
@@ -67,15 +75,18 @@ class _MainShellState extends ConsumerState<MainShell> {
     final screens = [
       HomeScreen(
         onOpenServices: () => _selectTab(1),
-        onOpenCalculator: () => _selectTab(2),
-        onOpenSupport: () => _selectTab(3),
+        onOpenCalculator: () => context.push('/tax-calculator'),
+        onOpenSupport: () => context.push('/support'),
         onOpenNotifications: () => context.push('/notifications'),
       ),
       const ServiceCatalogueScreen(),
-      const TaxCalculatorScreen(),
-      const SupportScreen(),
+      const MyServicesScreen(),
+      const DocumentsScreen(),
       _MoreScreen(
         onOpenDashboard: () => context.push('/dashboard'),
+        onOpenPayments: () => context.push('/payments'),
+        onOpenTaxCalculator: () => context.push('/tax-calculator'),
+        onOpenSupport: () => context.push('/support'),
         onOpenProfile: () => context.push('/profile'),
         onOpenSettings: () => context.push('/settings'),
         onOpenNotifications: () => context.push('/notifications'),
@@ -277,6 +288,9 @@ class _FloatingShellNavItem extends StatelessWidget {
 class _MoreScreen extends StatelessWidget {
   const _MoreScreen({
     required this.onOpenDashboard,
+    required this.onOpenPayments,
+    required this.onOpenTaxCalculator,
+    required this.onOpenSupport,
     required this.onOpenProfile,
     required this.onOpenSettings,
     required this.onOpenNotifications,
@@ -287,6 +301,9 @@ class _MoreScreen extends StatelessWidget {
   });
 
   final VoidCallback onOpenDashboard;
+  final VoidCallback onOpenPayments;
+  final VoidCallback onOpenTaxCalculator;
+  final VoidCallback onOpenSupport;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenNotifications;
@@ -336,6 +353,24 @@ class _MoreScreen extends StatelessWidget {
                 title: 'Dashboard',
                 subtitle: 'Cases, documents and service analytics',
                 onTap: onOpenDashboard,
+              ),
+              _MoreTile(
+                icon: Icons.receipt_long_outlined,
+                title: 'Payments',
+                subtitle: 'Invoices, dues and receipt uploads',
+                onTap: onOpenPayments,
+              ),
+              _MoreTile(
+                icon: Icons.calculate_outlined,
+                title: 'Tax Calculator',
+                subtitle: 'Estimate salary tax quickly',
+                onTap: onOpenTaxCalculator,
+              ),
+              _MoreTile(
+                icon: Icons.support_agent_outlined,
+                title: 'Support',
+                subtitle: 'Tickets, WhatsApp and help center',
+                onTap: onOpenSupport,
               ),
               _MoreTile(
                 icon: Icons.menu_book_outlined,
