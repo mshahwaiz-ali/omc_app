@@ -58,11 +58,11 @@ class _SplashContent extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const OmcLogo.appIcon(size: 148, borderRadius: 36),
-        const SizedBox(height: 30),
+        const OmcLogo.appIcon(size: 202, borderRadius: 48),
+        const SizedBox(height: 36),
         const SizedBox(
-          width: 34,
-          height: 34,
+          width: 32,
+          height: 32,
           child: CircularProgressIndicator(
             strokeWidth: 3,
             color: AppTheme.primaryRed,

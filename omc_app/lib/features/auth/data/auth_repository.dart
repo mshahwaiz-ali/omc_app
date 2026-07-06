@@ -103,6 +103,8 @@ class AuthRepository {
       return AuthSession(userId: normalizedEmail);
     }
 
+    await clearSession();
+
     final result = await _frappeClient.loginWithPassword(
       email: email,
       password: password,
@@ -119,8 +121,8 @@ class AuthRepository {
       }
 
       // On Flutter Web, browsers do not expose Set-Cookie to Dart.
-      // The browser stores/sends the Frappe session cookie itself when
-      // Dio's web adapter is configured with credentials enabled.
+      // If the Frappe login call reached this point without throwing, login was
+      // accepted and the browser owns the session cookie.
       await _secureStorageService.saveSessionCookie('browser-managed-session');
       await _secureStorageService.saveUserId(email);
 

@@ -69,6 +69,14 @@ class DioClient {
     final response = error.response;
     final data = response?.data;
 
+    if (response?.statusCode == 401 || response?.statusCode == 403) {
+      return ApiError(
+        message: 'Invalid username or password. Please check your credentials.',
+        statusCode: response?.statusCode,
+        details: data,
+      );
+    }
+
     String message = _fallbackMessage(error);
 
     if (data is Map<String, dynamic>) {

@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/config/env.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/omc_logo.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_state.dart';
 
@@ -295,28 +296,27 @@ class _AuthHeader extends StatelessWidget {
       children: [
         Center(
           child: Container(
-            width: 138,
-            height: 138,
+            width: 172,
+            height: 172,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(38),
+              borderRadius: BorderRadius.circular(44),
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.primaryRed.withValues(alpha: 0.10),
-                  blurRadius: 34,
-                  offset: const Offset(0, 18),
+                  blurRadius: 44,
+                  offset: const Offset(0, 22),
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(18),
-            child: Image.asset(
-              'assets/images/logo_symbol.png',
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
+            padding: const EdgeInsets.all(10),
+            child: const OmcLogo.symbol(
+              size: 148,
+              borderRadius: 0,
             ),
           ),
         ),
-        const SizedBox(height: 34),
+        const SizedBox(height: 38),
         Text(
           title,
           style: const TextStyle(
