@@ -137,6 +137,25 @@ class ServiceItem {
           .toList(growable: false);
     }
 
+    if (value is Map<String, dynamic>) {
+      final wrapped = value['items'] ??
+          value['list'] ??
+          value['values'] ??
+          value['rows'] ??
+          value['documents'] ??
+          value['steps'] ??
+          value['requirements'];
+      final wrappedItems = _stringListFromValue(wrapped);
+      if (wrappedItems.isNotEmpty) return wrappedItems;
+      final singleItem = _stringFromListItem(value);
+      return singleItem.isEmpty ? const [] : [singleItem];
+    }
+
+    if (value is Map) {
+      final normalized = value.map((key, value) => MapEntry(key.toString(), value));
+      return _stringListFromValue(normalized);
+    }
+
     if (value is String && value.trim().isNotEmpty) {
       final decoded = _tryDecodeJsonList(value);
       if (decoded.isNotEmpty) return decoded;
@@ -205,14 +224,10 @@ class ServiceItem {
   static List<String> _tryDecodeJsonList(String value) {
     try {
       final decoded = jsonDecode(value);
-      if (decoded is List) {
-        return _stringListFromValue(decoded);
-      }
+      return _stringListFromValue(decoded);
     } catch (_) {
       return const [];
     }
-
-    return const [];
   }
 
   static Map<String, dynamic>? _tryDecodeJsonMap(String value) {
