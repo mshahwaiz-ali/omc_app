@@ -13,7 +13,6 @@ final supportRepositoryProvider = Provider<SupportRepository>((ref) {
   return SupportRepository(frappeClient: frappeClient);
 });
 
-
 final supportConfigProvider = FutureProvider<SupportConfigData>((ref) async {
   final repository = ref.watch(supportRepositoryProvider);
   return repository.fetchSupportConfig();
@@ -34,7 +33,6 @@ class SupportRepository {
   const SupportRepository({required this.frappeClient});
 
   final FrappeClient frappeClient;
-
 
   Future<SupportConfigData> fetchSupportConfig() async {
     try {
@@ -184,8 +182,20 @@ class SupportRepository {
     final rawTickets = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['tickets']
-        : data['tickets'];
+        ? message['tickets'] ??
+              message['support_tickets'] ??
+              message['data'] ??
+              message['items'] ??
+              message['rows'] ??
+              message['results'] ??
+              message['records']
+        : data['tickets'] ??
+              data['support_tickets'] ??
+              data['data'] ??
+              data['items'] ??
+              data['rows'] ??
+              data['results'] ??
+              data['records'];
 
     if (rawTickets is! List) return const [];
 
@@ -200,8 +210,17 @@ class SupportRepository {
 
     final message = data['message'];
     final rawTicket = message is Map<String, dynamic>
-        ? message['ticket'] ?? message['data'] ?? message['item'] ?? message
-        : data['ticket'] ?? data['data'] ?? data['item'];
+        ? message['ticket'] ??
+              message['support_ticket'] ??
+              message['data'] ??
+              message['item'] ??
+              message['record'] ??
+              message
+        : data['ticket'] ??
+              data['support_ticket'] ??
+              data['data'] ??
+              data['item'] ??
+              data['record'];
 
     if (rawTicket is! Map<String, dynamic>) return null;
 
@@ -226,7 +245,29 @@ class SupportRepository {
       closedOnLabel: _nullableString(json['closed_on']),
       createdAtLabel: _nullableString(json['created_at'] ?? json['creation']),
       updatedAtLabel: _nullableString(json['updated_at'] ?? json['modified']),
+      messages: _mapTicketMessages(
+        json['messages'] ?? json['replies'] ?? json['conversation'] ?? json['timeline'],
+      ),
     );
+  }
+
+  List<SupportTicketMessage> _mapTicketMessages(dynamic value) {
+    if (value is! List) return const [];
+
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (item) => SupportTicketMessage(
+            author: _stringValue(item['author'] ?? item['user'] ?? item['owner']),
+            message: _stringValue(item['message'] ?? item['body'] ?? item['text']),
+            createdAtLabel: _stringValue(
+              item['created_at'] ?? item['creation'] ?? item['timestamp'],
+            ),
+            type: _stringValue(item['type'] ?? item['message_type']),
+          ),
+        )
+        .where((item) => item.message.trim().isNotEmpty && item.message != '-')
+        .toList(growable: false);
   }
 
   String _stringValue(dynamic value) {
