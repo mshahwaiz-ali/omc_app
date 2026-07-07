@@ -122,6 +122,7 @@ class TaxCalculationRepository {
         _doubleOrNull(raw['monthly_income']) ?? yearlyIncome / 12;
     final resolvedYearlyTax = yearlyTax ?? monthlyTax! * 12;
     final resolvedMonthlyTax = monthlyTax ?? resolvedYearlyTax / 12;
+    final isVerifiedBackendResult = _isVerifiedBackendResult(raw);
 
     return TaxCalculationResult(
       monthlyIncome: monthlyIncome,
@@ -134,8 +135,12 @@ class TaxCalculationRepository {
       yearlyAfterTax:
           _doubleOrNull(raw['yearly_after_tax']) ??
           yearlyIncome - resolvedYearlyTax,
-      isBackendResult: true,
-      note: _stringOrNull(raw['note'] ?? raw['remarks']),
+      isBackendResult: isVerifiedBackendResult,
+      note:
+          _stringOrNull(raw['note'] ?? raw['remarks']) ??
+          (isVerifiedBackendResult
+              ? null
+              : 'Unofficial backend estimate only. Do not use this result for filing until OMC verifies the applicable tax slabs.'),
     );
   }
 
@@ -176,6 +181,48 @@ class TaxCalculationRepository {
     }
 
     return 700000 + ((yearlyIncome - 4100000) * 0.35);
+  }
+
+  bool _isVerifiedBackendResult(Map<String, dynamic> raw) {
+    final explicitVerified =
+        raw['is_verified'] ?? raw['verified'] ?? raw['is_backend_verified'];
+    if (explicitVerified != null) return _boolOrFalse(explicitVerified);
+
+    final source = _stringOrNull(
+      raw['source'] ?? raw['result_source'] ?? raw['calculation_source'],
+    )?.toLowerCase();
+    if (source != null) {
+      if (source.contains('estimate') ||
+          source.contains('fallback') ||
+          source.contains('unofficial')) {
+        return false;
+      }
+      if (source.contains('verified') || source.contains('official')) {
+        return true;
+      }
+    }
+
+    final note = _stringOrNull(raw['note'] ?? raw['remarks'])?.toLowerCase();
+    if (note != null &&
+        (note.contains('estimate') ||
+            note.contains('unofficial') ||
+            note.contains('not for filing'))) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _boolOrFalse(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+
+    final normalized = value.toString().trim().toLowerCase();
+    return normalized == '1' ||
+        normalized == 'true' ||
+        normalized == 'yes' ||
+        normalized == 'verified' ||
+        normalized == 'official';
   }
 
   double? _doubleOrNull(dynamic value) {
