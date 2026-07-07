@@ -26,16 +26,30 @@ This checklist tracks what has been implemented against `docs/final_modi.md`. It
   - Login marks an existing guest session as converted when possible.
 - Expanded the service template backend API:
   - `omc_app.api.service_templates.get_service_template` now returns `form_schema`, `stages`, and `required_documents`.
-  - Shared helper `get_template_for_service(service_name)` is available for safe future reuse from service detail/catalogue endpoints.
+  - Shared helper `get_template_for_service(service_name)` is available for safe future reuse.
 - Added Flutter service template foundation:
   - `ServiceTemplate`, `ServiceTemplateField`, and `ServiceStageTemplate` models.
   - `ServiceTemplateRepository` calling `ApiConfig.serviceTemplateMethod`.
   - `serviceTemplateProvider` Riverpod family provider.
   - `ServiceItem` now parses backend `form_schema`, `stages`, and detailed required document payloads when present.
+- Connected backend templates into the service catalogue load path:
+  - Catalogue services are enriched from `ApiConfig.serviceTemplateMethod`.
+  - Template failures are per-service non-blocking, so the catalogue still loads.
+- Added backend content frontend repository:
+  - `appBannersProvider` calls `ApiConfig.appBannersMethod`.
+  - `appFaqsProvider` calls `ApiConfig.faqsMethod`.
+  - Added typed models for app banners and FAQs.
 - Confirmed notifications repository already supports:
   - `mobile_route` / `action_url` parsing.
   - Mark-one-read API.
   - Mark-all-read API.
+- Confirmed Settings screen exists and already includes major customer-safe items:
+  - Profile shortcut.
+  - Backend-backed notification preferences.
+  - App version/build using `package_info_plus`.
+  - Security/account-support request sheet.
+  - Logout confirmation.
+  - No customer-visible API URL/debug flags found in inspected settings file.
 - Confirmed expense tracker already has a local-first base:
   - Local transaction repository/controller.
   - Local-only storage banner.
@@ -44,24 +58,20 @@ This checklist tracks what has been implemented against `docs/final_modi.md`. It
   - Local export/import JSON.
   - No automatic cloud upload path found in the inspected screen.
 
-## Partially completed / needs careful follow-up
+## Remaining before calling `final_modi.md` fully complete
 
-- `backend_omc_app/apps/omc_app/omc_app/api/mobile.py`
-  - Current `get_service_detail` already returns backend required documents through `required_documents` and `required_document_details`.
-  - It still needs direct merge of `form_schema` and `stages` from `service_templates.get_template_for_service` into the service detail response.
-  - This file is large; patch locally or with full-file-safe tooling to avoid breaking existing catalogue/request APIs.
 - `omc_app/lib/features/service_requests/presentation/service_request_draft_screen.dart`
-  - Current screen has static wizard fields and an informational backend-configured card.
-  - Dynamic rendering from `form_schema` still needs to be wired into the form safely.
+  - Dynamic rendering from `service.formSchema` still needs to be wired into the actual request form.
   - Submitted dynamic values should go under `additionalDetails` / `form_data` without removing the existing static payload.
-- Home/content integration:
-  - API constants exist for banners/FAQs/knowledge.
-  - Full Home/Support/Knowledge UI integration still needs file-level implementation after inspecting the current screens.
+  - The catalogue now supplies template fields, but the draft UI still needs the final renderer.
+- Home/content UI:
+  - App banners and FAQs now have frontend providers.
+  - Home and Support screens still need UI cards wired to those providers.
 - Settings polish:
-  - Settings screen was not found through repository search yet.
-  - If the screen exists under a non-obvious path, inspect it locally and ensure it has app version, privacy, terms, delete-account request placeholder, notification preferences, and no customer-visible backend/debug flags.
+  - Add Privacy policy, Terms, and Delete account request tiles if they are required for the first release.
+  - Current settings screen already has version, preferences, profile, account/security request and logout.
 - Expense sync consent:
-  - Current tracker appears local-only and safe.
+  - Current tracker is local-only and safe.
   - Optional cloud sync CTA/confirmation still needs implementation only if/when backend sync is intentionally enabled.
 
 ## Validation to run after pulling main
