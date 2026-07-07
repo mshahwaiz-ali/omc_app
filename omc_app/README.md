@@ -83,7 +83,7 @@ The app is designed to connect with a Frappe backend.
 Backend base URL is configured through:
 
 ```bash
---dart-define=OMC_API_BASE_URL=https://your-frappe-site.com
+--dart-define=OMC_API_BASE_URL=https://erp.omchouse.com
 ```
 
 Default backend URL is currently configured in `ApiConfig`.
@@ -210,7 +210,7 @@ flutter run
 Run with backend URL:
 
 ```bash
-flutter run --dart-define=OMC_API_BASE_URL=https://your-frappe-site.com
+flutter run --dart-define=OMC_API_BASE_URL=https://erp.omchouse.com
 ```
 
 Run local mock/testing mode:
@@ -234,7 +234,7 @@ Release APK:
 ```bash
 flutter build apk --release \
   --dart-define=OMC_ENV=production \
-  --dart-define=OMC_API_BASE_URL=https://your-frappe-site.com
+  --dart-define=OMC_API_BASE_URL=https://erp.omchouse.com
 ```
 
 APK output path:
@@ -331,7 +331,9 @@ Production Android release requires:
 ```bash
 flutter build appbundle --release \
   --dart-define=OMC_ENV=production \
-  --dart-define=OMC_API_BASE_URL=https://your-frappe-site.com
+  --dart-define=OMC_API_BASE_URL=https://erp.omchouse.com
+```
+
 ### iOS
 
 The same Flutter codebase supports iOS, but iOS release requires a Mac with Xcode.
@@ -344,3 +346,50 @@ Signing team / provisioning profile
 App icons and launch assets
 
 Current iOS Runner project naming is standard Flutter structure and can remain until the Mac/Xcode release phase.
+
+## Production Smoke Checklist
+
+Before production release, verify the following against the production backend URL:
+
+```bash
+flutter run --release \
+  --dart-define=OMC_ENV=production \
+  --dart-define=OMC_API_BASE_URL=https://erp.omchouse.com
+
+Checklist:
+
+Login succeeds with a valid backend user.
+Invalid login shows a clear wrong email/password message.
+Service catalogue loads from backend.
+Service request creation works.
+Created service request appears in My Services.
+Service request document upload works using the linked service request id.
+Payment receipt upload works against the selected payment/request record.
+Forgot password/support contact opens without requiring login.
+Notifications screen does not crash when backend notifications are empty.
+Production backend URL uses HTTPS.
+Android release build uses configured android/key.properties.
+Release Hardening Backlog
+Kotlin / Gradle
+
+Android currently keeps the explicit Kotlin Gradle Plugin configuration because removing it breaks the debug build while Flutter plugins such as file_picker still apply KGP.
+
+Do not migrate to built-in Kotlin until all Android Flutter plugins in the dependency tree support it cleanly.
+
+Current expected state:
+
+android.builtInKotlin=false
+android.newDsl=false
+org.jetbrains.kotlin.android remains configured
+Debug APK build must stay green
+iOS
+
+iOS identity has been cleaned in project files for planning, but final TestFlight/App Store setup must be completed on macOS with Xcode.
+
+Before iOS release:
+
+Confirm bundle identifier in Xcode.
+Configure signing team.
+Configure app icons and launch assets.
+Run iOS archive from Xcode.
+Validate TestFlight upload.
