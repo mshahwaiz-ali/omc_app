@@ -24,20 +24,9 @@ backend_omc_app/apps/omc_app -> backend_omc_app/frappe-bench/apps/omc_app
 
 ---
 
-## Main Goals
+## Current Repo Status
 
-- Make customer-facing screens cleaner, premium, and non-technical.
-- Keep customer UI backend-driven wherever production behaviour depends on real business data.
-- Keep preview/mock data only behind explicit development flags.
-- Keep internal/admin tools hidden unless the backend says the logged-in user can access them.
-- Continue improving service tracking, documents, payments, support, notifications, and internal workspace behaviour.
-- Add backend DocTypes/APIs only where they create clear product value.
-
----
-
-## Current Repo Findings
-
-### Completed foundation
+### Completed foundations
 
 - Flutter app is feature-first and includes auth, home, service catalogue, tracking, documents, payments, tax calculator, expense tracker, knowledge, notifications, profile, settings, support, leads, customers, tasks, and internal workspace.
 - Backend method names are centralized in `ApiConfig`.
@@ -47,35 +36,31 @@ backend_omc_app/apps/omc_app -> backend_omc_app/frappe-bench/apps/omc_app
 - Settings preferences are backend-connected through `get_settings_preferences` and `update_settings_preferences`.
 - Notification APIs include list, detail, mark single read, mark all read, and push-token register/unregister.
 - Support APIs include ticket create/list/detail/reply/status update.
+- Support configuration is backend-driven through `get_support_config`.
+- Mobile app configuration is backend-driven through `get_mobile_app_config`.
+- Profile summary is backend-driven through `get_profile` and synced into auth state.
 
-### Recently completed from this modification plan
+### Recently completed
 
 - `/support` and `/tax-calculator` routes are registered.
 - Settings page has been cleaned into customer-safe account/preference/about sections.
-- More page now receives `canAccessInternalWorkspace` from auth state and hides Internal Workspace unless allowed.
-- Auth state now carries `canAccessInternalWorkspace`.
+- More page receives `canAccessInternalWorkspace` from auth/profile state and hides Internal Workspace unless allowed.
 - Backend `get_session_user` returns roles and `can_access_internal_workspace`.
-- Service-case detail/status/document-review Flutter methods route through `omc_app.api.secured_mobile` wrappers.
+- Service-case detail/status/document-review Flutter methods route through secured wrappers.
 - `omc_app.api.mobile.get_service_cases` routes through the secured service-case list API.
-- Service-case list response is normalized for Flutter tracking cards.
-- Service-case list capability flags are role-aware.
-- Secured service-case detail accepts request aliases: `case_id`, `name`, `service_request`, `request_id`.
-- Secured service-case status update accepts request aliases: `case_id`, `name`, `service_request`, `request_id`.
-- Secured document review accepts document aliases: `document_id`, `document`, `name`.
-- Service catalogue parser accepts additional backend response keys.
-- Service tracking parser accepts additional backend response shapes.
+- Service-case list/detail response parsing accepts aliases and backend capability flags.
 - Service catalogue loading is backend-first by default.
-- Service catalogue local JSON fallback is now development-only and requires explicit `OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=true`.
-- Staging/production service catalogue loading no longer silently falls back to local JSON.
+- Service catalogue local JSON fallback is development-only and requires explicit `OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=true`.
+- Tax calculator clearly labels backend-verified results versus unofficial fallback estimates.
+- Expense tracker backend sync foundation has been added while local-only mode remains the safe default.
 
 ### Remaining main gaps
 
-- Copied backend files in the running Frappe bench still need local verification and Frappe reload.
-- Service case detail still needs final customer/internal UI verification after secured API routing.
-- Tax calculator should avoid presenting local fallback estimates as official.
-- Expense tracker is still local-only through `SharedPreferences`.
-- Tracking timeline should prefer real backend timeline/stages and only use static fallback for dev/demo empty states.
-- Profile/auth state should become a shared provider used consistently by Home, More, Profile, and Settings.
+- Copied backend files in the running Frappe bench still need local verification, migrate, and Frappe reload.
+- Flutter analyze and role-based manual verification still need to be run locally.
+- Expense tracker UI still needs the visible local/sync toggle wired into the large tracker screen.
+- Service tracking timeline should continue to prefer real backend timeline/stages and only use static fallback for dev/demo empty states.
+- Payment UX, dynamic service request forms, document checklist polish, offline caching, app version display, and push notifications remain future polish items.
 
 ---
 
@@ -94,7 +79,7 @@ backend_omc_app/apps/omc_app -> backend_omc_app/frappe-bench/apps/omc_app
 
 Status: Done.
 
-Verified expected routes:
+Expected routes:
 
 ```text
 /support
@@ -136,7 +121,7 @@ Status: Done.
 Current direction:
 
 - Backend returns capability flag.
-- Auth state stores capability flag.
+- Auth/profile state stores capability flag.
 - More page renders Workspace group only when capability is true.
 
 Required test:
@@ -149,36 +134,7 @@ Required test:
 
 ## 4. Separate customer tracking from admin controls
 
-Status: Backend patched - pending local bench reload and UI verification.
-
-### Problem
-
-`ServiceCaseDetailScreen` should not expose admin-style controls to normal customers.
-
-Controls to verify/hide for normal customers:
-
-- Status update actions.
-- Document approve/reject actions.
-- Internal notes/actions.
-- Staff-only case controls.
-
-### Desired customer view
-
-- Case status.
-- Progress timeline.
-- Required/missing documents.
-- Upload document action.
-- Support/contact action.
-- Expected completion / next step.
-
-### Desired internal view
-
-- Status update controls.
-- Document review controls.
-- Internal notes.
-- Expected completion update.
-
-### Backend route state
+Status: Repo patched - pending local bench reload and UI verification.
 
 Expected mobile routes:
 
@@ -197,7 +153,7 @@ case status: case_id, name, service_request, request_id
 document review: document_id, document, name
 ```
 
-Expected list fields:
+Expected list/detail fields include:
 
 ```text
 id
@@ -223,40 +179,27 @@ Security expectation:
 - Normal customers should not receive internal remarks in case detail response.
 - Flutter should render controls from backend capability flags, not role-name checks.
 
-### Required local verification
-
-First verify copied backend files in the running bench target:
-
-```bash
-cd ~/data_drive/app_omc/backend_omc_app
-
-grep -n "def get_service_cases\|omc_app.api.mobile.get_service_cases\|results\|records" \
-  frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py \
-  frappe-bench/apps/omc_app/omc_app/hooks.py
-```
-
-If the expected secured routing/list normalization code is present, reload Frappe:
+Required local verification:
 
 ```bash
 cd ~/data_drive/app_omc/backend_omc_app/frappe-bench
-
+bench --site all migrate
 bench --site all clear-cache
 bench restart
 ```
 
-If behaviour is still old after restart:
+Then run:
 
 ```bash
-bench --site all migrate
-bench restart
+cd ~/data_drive/app_omc/omc_app
+flutter analyze
 ```
 
-### Flutter test
+Manual test:
 
-- Run `flutter analyze`.
 - Login as customer and open My Services detail.
 - Customer can upload/request support but cannot approve/reject/update status.
-- Login as internal user and confirm internal controls appear only when backend allows them.
+- Login as internal user and confirm internal controls appear only when backend allows.
 
 ---
 
@@ -266,55 +209,14 @@ bench restart
 
 Status: Done - pending local Flutter analyze/test.
 
-### Current state
+Current state:
 
-Flutter supports backend service catalogue, and backend returns service metadata including required documents.
-
-Recent parser improvement:
-
+- Flutter supports backend service catalogue.
+- Backend returns service metadata including required documents.
 - Flutter catalogue parser accepts additional backend list keys and response wrappers.
+- Production/staging do not silently fall back to local JSON.
 
-Recent fallback guard:
-
-- `Env.useServicePreview` remains an explicit development-only local preview mode.
-- `Env.allowServiceCatalogueFallback` adds a separate development-only backend outage fallback.
-- `OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=true` is required before local JSON can be used after backend API failure.
-- Staging and production always force this fallback off.
-- Empty backend catalogues still render an empty state instead of fake data.
-
-### Desired state
-
-- Production/staging: backend catalogue first and no silent local fallback.
-- Development: backend first with optional explicit local fallback.
-- Explicit preview flag: local catalogue only.
-
-### Backend requirements
-
-Populate and maintain:
-
-- `OMC Service`
-- `OMC Service Category`
-- `OMC Service Required Document`
-
-API response should include:
-
-```text
-id
-name
-title
-category
-short_description
-description
-fee_label
-government_fee_label
-completion_time
-wizard_type
-wizard_config
-required_documents
-required_document_details
-```
-
-### Test
+Required test:
 
 - Run `flutter analyze`.
 - Service catalogue loads real backend services in development with `OMC_API_BASE_URL`.
@@ -326,19 +228,9 @@ required_document_details
 
 ## 6. Improve service progress model
 
-Status: Partially patched - list response normalized; detail/timeline verification remains.
+Status: Partially patched - list/detail response normalized; final timeline verification remains.
 
-### Current state
-
-Flutter uses backend progress/timeline when available, but static fallback steps can still appear when timeline is empty.
-
-Recent parser improvement:
-
-- Flutter service tracking parser accepts additional response shapes such as `results`, `records`, wrapped lists, and normalized tracking fields.
-
-### Backend improvement
-
-Enhance `get_service_case` with:
+Backend response should include:
 
 ```text
 progress_percent
@@ -352,17 +244,10 @@ missing_documents_count
 timeline
 ```
 
-### Optional DocType
-
-Add `OMC Service Stage Template`:
+Optional future DocType:
 
 ```text
-service
-stage_title
-stage_order
-progress_percent
-visible_to_customer
-expected_duration_label
+OMC Service Stage Template
 ```
 
 Flutter should prefer backend timeline/stages and only use fallback for empty demo/dev states.
@@ -373,34 +258,7 @@ Flutter should prefer backend timeline/stages and only use fallback for empty de
 
 Status: Done.
 
-### Current state
-
-Support screen now loads backend support channels/topics through `get_support_config` and keeps local values as safe fallback.
-
-### Backend additions
-
-Add `OMC Support Channel`:
-
-```text
-channel_type
-label
-value
-is_active
-sort_order
-```
-
-Add `OMC Support Topic`:
-
-```text
-title
-subtitle
-default_message
-icon_key
-is_active
-sort_order
-```
-
-Add API:
+API:
 
 ```text
 omc_app.api.mobile.get_support_config
@@ -435,60 +293,31 @@ Completed polish:
 
 ## 9. Add backend mobile app config
 
-### Backend API
+Status: Done.
 
-Add:
+API:
 
 ```text
 omc_app.api.mobile.get_mobile_app_config
 ```
 
-Response shape:
-
-```json
-{
-  "support": {
-    "phone": "+92...",
-    "email": "support@...",
-    "whatsapp": "92...",
-    "business_hours": "...",
-    "office_address": "..."
-  },
-  "features": {
-    "expense_tracker_enabled": true,
-    "knowledge_enabled": true,
-    "payments_enabled": true,
-    "internal_workspace_enabled": false
-  },
-  "branding": {
-    "company_name": "OMC House",
-    "tagline": "..."
-  }
-}
-```
-
-Flutter should use these flags/details after login or app bootstrap.
+Flutter consumes support details, feature flags, branding, and meta source/fallback values.
 
 ---
 
 ## 10. Improve profile/auth state
 
-### Current state
+Status: Done.
 
-Auth state contains user id and internal workspace capability.
+Current state:
 
-### Improvement
+- `get_profile` is the source for display name, phone, company, customer status, approval status, and internal access capability.
+- Shared profile provider syncs summary fields into auth state.
+- Home and More consume profile/auth state.
 
-Use `get_profile` as source for:
+Future polish:
 
-- Display name.
-- Phone.
-- Company.
-- Customer status.
-- Approval status.
-- Internal access capability if added to profile response.
-
-Flutter should create a shared profile provider and use it in Home, More, Profile, and Settings.
+- Continue checking Profile and Settings screens for duplicate fallback wording.
 
 ---
 
@@ -496,89 +325,78 @@ Flutter should create a shared profile provider and use it in Home, More, Profil
 
 ## 11. Optional backend sync for Expense Tracker
 
-### Current state
+Status: Backend and repository foundation added - visible UI toggle pending.
 
-Expense tracker stores data locally in `SharedPreferences`.
+Current safe default:
 
-### Keep local mode
+- Local mode remains default.
+- Existing entries remain stored in `SharedPreferences` unless the user explicitly chooses account sync later.
 
-Local mode is useful and can remain.
-
-### Add optional sync mode
-
-Backend DocTypes:
+Backend DocTypes added:
 
 ```text
 OMC Expense Category
 OMC Expense Entry
 ```
 
-APIs:
+Backend APIs added:
 
 ```text
-omc_app.api.mobile.get_expense_entries
-omc_app.api.mobile.create_expense_entry
-omc_app.api.mobile.update_expense_entry
-omc_app.api.mobile.delete_expense_entry
-omc_app.api.mobile.get_expense_summary
+omc_app.api.expense.get_expense_categories
+omc_app.api.expense.get_expense_entries
+omc_app.api.expense.create_expense_entry
+omc_app.api.expense.update_expense_entry
+omc_app.api.expense.delete_expense_entry
+omc_app.api.expense.get_expense_summary
 ```
 
-Flutter UX:
+Flutter foundation added:
 
-- `Store only on this device`.
-- `Sync with my OMC account`.
+- `ApiConfig` constants for expense sync APIs.
+- Sync-ready repository methods.
+- Persisted storage-mode controller.
+
+Next UI step:
+
+- Wire `ExpenseTrackerScreen` banner/toggle to `expenseTrackerStorageModeProvider`.
+- When mode is `localOnly`, keep current local read/save/delete behaviour.
+- When mode is `syncWithAccount`, load from backend and call create/update/delete APIs.
+- Provide explicit wording before upload/sync to avoid unexpected data movement.
 
 ---
 
 ## 12. Backend configurable tax slabs
 
-### Current state
+Status: Flutter result labeling done; backend tax-year/slab DocTypes still future.
 
-Tax calculator calls backend first and then falls back to local slabs.
+Current state:
 
-### Backend additions
+- Tax calculator calls backend first.
+- Fallback estimates are clearly labeled unofficial and not for filing.
 
-DocTypes:
+Future backend additions:
 
 ```text
 OMC Tax Year
 OMC Tax Slab
-```
-
-APIs:
-
-```text
 omc_app.api.mobile.get_tax_years
 omc_app.api.mobile.calculate_tax
 ```
 
-Flutter improvements:
+Flutter future improvement:
 
 - Tax year selector.
-- Label result source clearly.
-- Avoid presenting fallback estimate as official.
 
 ---
 
 ## 13. Dynamic service request forms
 
-### Current state
+Status: Future.
 
-Service catalogue supports `wizard_type` and `wizard_config`.
-
-### Backend addition
-
-Add `OMC Service Form Field`:
+Future DocType:
 
 ```text
-service
-field_key
-label
-field_type
-required
-options
-sort_order
-help_text
+OMC Service Form Field
 ```
 
 Flutter should render service-specific form fields from backend config and submit structured `service_details`.
@@ -586,6 +404,8 @@ Flutter should render service-specific form fields from backend config and submi
 ---
 
 ## 14. Better document checklist
+
+Status: Future polish.
 
 Backend should return detailed checklist items:
 
@@ -601,16 +421,13 @@ reviewer_remarks
 file_url
 ```
 
-Flutter should show:
-
-- Missing documents first.
-- Rejected documents with reason.
-- Uploaded documents with preview/download.
-- Upload action per missing document.
+Flutter should show missing documents first, rejected documents with reason, uploaded documents with preview/download, and upload action per missing document.
 
 ---
 
 ## 15. Better payment UX
+
+Status: Future polish.
 
 Backend should add/return:
 
@@ -625,12 +442,7 @@ payment_deadline
 receipt_review_remarks
 ```
 
-Flutter should show:
-
-- Pay now when gateway URL exists.
-- Upload receipt for manual payment.
-- Receipt review timeline.
-- Rejected receipt reason.
+Flutter should show pay-now when gateway URL exists, receipt upload, receipt review timeline, and rejected receipt reason.
 
 ---
 
@@ -640,11 +452,9 @@ Flutter should show:
 
 Add `package_info_plus` and show app version/build number in Settings or More.
 
-Technical details should remain hidden from normal users.
-
 ## 17. Safe offline caching
 
-Cache low-risk data:
+Cache low-risk data only:
 
 - service catalogue.
 - profile summary.
@@ -680,42 +490,4 @@ Backend should return capability flags. Flutter should render UI using flags.
 
 # Immediate Next Step
 
-Verify copied backend files in the Frappe bench, then reload Frappe.
-
-Run locally:
-
-```bash
-cd ~/data_drive/app_omc/backend_omc_app
-
-grep -n "def get_service_cases\|omc_app.api.mobile.get_service_cases\|results\|records" \
-  frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py \
-  frappe-bench/apps/omc_app/omc_app/hooks.py
-```
-
-Expected result:
-
-- `secured_mobile.py` contains `def get_service_cases` and list response normalization for `results` / `records`.
-- `hooks.py` contains the route override for `omc_app.api.mobile.get_service_cases`.
-
-Then run:
-
-```bash
-cd ~/data_drive/app_omc/backend_omc_app/frappe-bench
-
-bench --site all clear-cache
-bench restart
-```
-
-If behaviour is still old:
-
-```bash
-bench --site all migrate
-bench restart
-```
-
-After backend reload passes, continue with:
-
-1. `flutter analyze`.
-2. Customer service-case detail verification.
-3. Internal user service-case detail verification.
-4. P1 item 6: improve service progress model.
+Wire the visible Expense Tracker storage-mode toggle in `ExpenseTrackerScreen`, then run local backend migration/restart and `flutter analyze`.
