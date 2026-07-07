@@ -67,9 +67,9 @@ class ApiConfig {
   static const String serviceCasesMethod =
       'omc_app.api.mobile.get_service_cases';
   static const String serviceCaseDetailMethod =
-      'omc_app.api.mobile.get_service_case';
+      'omc_app.api.secured_mobile.get_service_case';
   static const String updateServiceCaseStatusMethod =
-      'omc_app.api.mobile.update_service_case_status';
+      'omc_app.api.secured_mobile.update_service_case_status';
 
 
   static const String documentsMethod = 'omc_app.api.mobile.get_documents';
@@ -77,7 +77,7 @@ class ApiConfig {
   static const String uploadServiceDocumentMethod =
       'omc_app.api.mobile.upload_service_document';
   static const String updateServiceDocumentStatusMethod =
-      'omc_app.api.mobile.update_service_document_status';
+      'omc_app.api.secured_mobile.update_service_document_status';
 
   static const String paymentsMethod = 'omc_app.api.mobile.get_payments';
   static const String paymentDetailMethod = 'omc_app.api.mobile.get_payment';

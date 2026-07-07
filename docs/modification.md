@@ -40,10 +40,11 @@ Last reviewed: 2026-07-07.
 - More page now receives `canAccessInternalWorkspace` from auth state and hides Internal Workspace unless allowed.
 - Auth state now carries `canAccessInternalWorkspace`.
 - Backend `get_session_user` returns roles and `can_access_internal_workspace`.
+- Service-case detail/status/document-review Flutter methods now route through `omc_app.api.secured_mobile` wrappers.
 
 ### Remaining main gaps
 
-- Service case detail still needs stronger separation between customer tracking and admin controls.
+- Service case detail still needs final customer/internal UI verification after secured API routing.
 - Service catalogue should be backend-first by default for staging/production.
 - Tax calculator should avoid presenting local fallback estimates as official.
 - Expense tracker is still local-only through `SharedPreferences`.
@@ -123,7 +124,7 @@ Required test:
 
 ## 4. Separate customer tracking from admin controls
 
-Status: Next active P0.
+Status: In progress - secured API routing patched.
 
 ### Problem
 
@@ -166,8 +167,15 @@ Return capability flags with case detail:
 
 Flutter should render controls from backend capability flags, not role-name checks.
 
+Current patch:
+
+- `serviceCaseDetailMethod` now points to `omc_app.api.secured_mobile.get_service_case`.
+- `updateServiceCaseStatusMethod` now points to `omc_app.api.secured_mobile.update_service_case_status`.
+- `updateServiceDocumentStatusMethod` now points to `omc_app.api.secured_mobile.update_service_document_status`.
+
 ### Test
 
+- Run `flutter analyze`.
 - Login as customer and open My Services detail.
 - Customer can upload/request support but cannot approve/reject/update status.
 - Login as internal user and confirm internal controls appear only when backend allows them.
@@ -571,7 +579,7 @@ Backend should return capability flags. Flutter should render UI using flags.
 
 # Immediate Next Step
 
-Start from P0 item 4:
+Verify P0 item 4 after secured API routing:
 
 ```text
 ServiceCaseDetailScreen capability gating
@@ -579,9 +587,8 @@ ServiceCaseDetailScreen capability gating
 
 Work order:
 
-1. Inspect `service_case_detail_screen.dart`.
-2. Find all status/document/admin controls.
-3. Add model fields for backend capability flags with safe defaults `false`.
-4. Hide admin controls unless backend allows them.
-5. Add/adjust backend response flags in `get_service_case` if missing.
-6. Run `flutter analyze` after the patch.
+1. Run `flutter analyze`.
+2. Login as a customer and open My Services detail.
+3. Confirm customer can upload/request support but cannot approve/reject/update status.
+4. Login as an internal user and confirm internal controls appear only when backend allows them.
+5. If verification passes, continue with P1 item 5: backend-first service catalogue behavior.
