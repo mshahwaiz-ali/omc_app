@@ -11,10 +11,30 @@ final expenseTrackerRepositoryProvider = Provider<ExpenseTrackerRepository>((
   return const ExpenseTrackerRepository();
 });
 
+enum ExpenseTrackerStorageMode { localOnly }
+
+extension ExpenseTrackerStorageModeLabel on ExpenseTrackerStorageMode {
+  String get label {
+    switch (this) {
+      case ExpenseTrackerStorageMode.localOnly:
+        return 'Stored only on this device';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case ExpenseTrackerStorageMode.localOnly:
+        return 'Expense tracker entries are saved in local app storage and are not synced to the OMC backend.';
+    }
+  }
+}
+
 class ExpenseTrackerRepository {
   const ExpenseTrackerRepository();
 
   static const _storageKey = 'omc_expense_tracker_transactions';
+
+  ExpenseTrackerStorageMode get storageMode => ExpenseTrackerStorageMode.localOnly;
 
   Future<List<ExpenseTransaction>> readTransactions() async {
     final preferences = await SharedPreferences.getInstance();
