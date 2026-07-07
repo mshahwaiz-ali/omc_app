@@ -115,22 +115,7 @@ class ServiceCatalogueRepository {
   }
 
   List<ServiceItem> _servicesFromResponse(Map<String, dynamic> response) {
-    final message = response['message'];
-    final rawServices = message is List
-        ? message
-        : message is Map<String, dynamic>
-        ? message['services'] ??
-              message['data'] ??
-              message['items'] ??
-              message['rows'] ??
-              message['catalogue'] ??
-              message['service_catalogue']
-        : response['services'] ??
-              response['data'] ??
-              response['items'] ??
-              response['rows'] ??
-              response['catalogue'] ??
-              response['service_catalogue'];
+    final rawServices = _rawServicesFromResponse(response);
 
     if (rawServices is List) {
       return rawServices
@@ -148,6 +133,35 @@ class ServiceCatalogueRepository {
           .toList(growable: false);
     }
 
-    return const [];
+    throw const ApiError(
+      message: 'Service catalogue response was not in the expected format.',
+      code: 'service_catalogue_invalid_response',
+    );
+  }
+
+  Object? _rawServicesFromResponse(Map<String, dynamic> response) {
+    final message = response['message'];
+
+    if (message is List) return message;
+
+    if (message is Map<String, dynamic>) {
+      return message['services'] ??
+          message['data'] ??
+          message['items'] ??
+          message['rows'] ??
+          message['catalogue'] ??
+          message['service_catalogue'];
+    }
+
+    if (response.containsKey('services')) return response['services'];
+    if (response.containsKey('data')) return response['data'];
+    if (response.containsKey('items')) return response['items'];
+    if (response.containsKey('rows')) return response['rows'];
+    if (response.containsKey('catalogue')) return response['catalogue'];
+    if (response.containsKey('service_catalogue')) {
+      return response['service_catalogue'];
+    }
+
+    return null;
   }
 }
