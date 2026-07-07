@@ -75,8 +75,20 @@ class LeadsRepository {
     final rawLeads = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['leads'] ?? message['data'] ?? message['items']
-        : data['leads'] ?? data['data'] ?? data['items'];
+        ? message['leads'] ??
+              message['lead_list'] ??
+              message['data'] ??
+              message['items'] ??
+              message['rows'] ??
+              message['results'] ??
+              message['records']
+        : data['leads'] ??
+              data['lead_list'] ??
+              data['data'] ??
+              data['items'] ??
+              data['rows'] ??
+              data['results'] ??
+              data['records'];
 
     if (rawLeads is! List) return const [];
 
@@ -90,8 +102,17 @@ class LeadsRepository {
     final message = data['message'];
 
     final rawLead = message is Map<String, dynamic>
-        ? message['lead'] ?? message['data'] ?? message['item'] ?? message
-        : data['lead'] ?? data['data'] ?? data['item'];
+        ? message['lead'] ??
+              message['lead_detail'] ??
+              message['data'] ??
+              message['item'] ??
+              message['record'] ??
+              message
+        : data['lead'] ??
+              data['lead_detail'] ??
+              data['data'] ??
+              data['item'] ??
+              data['record'];
 
     if (rawLead is! Map<String, dynamic>) return null;
 
