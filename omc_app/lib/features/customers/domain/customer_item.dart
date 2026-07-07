@@ -10,6 +10,13 @@ class CustomerItem {
     this.phone,
     this.city,
     this.lastActivityLabel,
+    this.cnic,
+    this.ntn,
+    this.approvalStatus,
+    this.isActive,
+    this.linkedErpnextCustomer,
+    this.createdAtLabel,
+    this.updatedAtLabel,
   });
 
   factory CustomerItem.fromJson(Map<String, dynamic> json) {
@@ -31,6 +38,13 @@ class CustomerItem {
             json['updated_at'] ??
             json['modified'],
       ),
+      cnic: _nullableString(json['cnic']),
+      ntn: _nullableString(json['ntn']),
+      approvalStatus: _nullableString(json['approval_status']),
+      isActive: _boolOrNull(json['is_active']),
+      linkedErpnextCustomer: _nullableString(json['linked_erpnext_customer']),
+      createdAtLabel: _nullableString(json['created_at'] ?? json['creation']),
+      updatedAtLabel: _nullableString(json['updated_at'] ?? json['modified']),
     );
   }
 
@@ -42,6 +56,13 @@ class CustomerItem {
   final String? phone;
   final String? city;
   final String? lastActivityLabel;
+  final String? cnic;
+  final String? ntn;
+  final String? approvalStatus;
+  final bool? isActive;
+  final String? linkedErpnextCustomer;
+  final String? createdAtLabel;
+  final String? updatedAtLabel;
 
   static String _stringValue(dynamic value) {
     final text = value?.toString().trim() ?? '';
@@ -54,15 +75,32 @@ class CustomerItem {
     return text;
   }
 
+  static bool? _boolOrNull(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+
+    final text = value.toString().trim().toLowerCase();
+    if (text.isEmpty) return null;
+    if (text == '1' || text == 'true' || text == 'yes' || text == 'active') {
+      return true;
+    }
+    if (text == '0' || text == 'false' || text == 'no' || text == 'inactive') {
+      return false;
+    }
+
+    return null;
+  }
+
   static CustomerStatus _statusFromValue(dynamic value) {
     final status = value?.toString().trim().toLowerCase() ?? '';
 
-    if (status.contains('active')) return CustomerStatus.active;
     if (status.contains('inactive')) return CustomerStatus.inactive;
-    if (status.contains('prospect')) return CustomerStatus.prospect;
     if (status.contains('block') || status.contains('disabled')) {
       return CustomerStatus.blocked;
     }
+    if (status.contains('prospect')) return CustomerStatus.prospect;
+    if (status.contains('active')) return CustomerStatus.active;
 
     return CustomerStatus.unknown;
   }
