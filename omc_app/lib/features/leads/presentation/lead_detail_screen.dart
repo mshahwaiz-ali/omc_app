@@ -65,6 +65,31 @@ class _LeadDetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusLabel = _leadStatusLabel(lead.status);
+    final backendRows = <CrmInfoRow>[
+      CrmInfoRow(label: 'Lead ID', value: lead.id),
+    ];
+
+    if (lead.serviceInterest != null) {
+      backendRows.add(
+        CrmInfoRow(label: 'Service interest', value: lead.serviceInterest!),
+      );
+    }
+    if (lead.assignedTo != null) {
+      backendRows.add(CrmInfoRow(label: 'Assigned to', value: lead.assignedTo!));
+    }
+    if (lead.customerProfile != null) {
+      backendRows.add(
+        CrmInfoRow(label: 'Customer profile', value: lead.customerProfile!),
+      );
+    }
+    if (lead.convertedCustomerProfile != null) {
+      backendRows.add(
+        CrmInfoRow(
+          label: 'Converted customer',
+          value: lead.convertedCustomerProfile!,
+        ),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -83,8 +108,11 @@ class _LeadDetailBody extends StatelessWidget {
             CrmInfoRow(label: 'Phone', value: lead.phone ?? '-'),
             CrmInfoRow(label: 'Source', value: lead.source ?? '-'),
             CrmInfoRow(label: 'Created', value: lead.createdAtLabel ?? '-'),
+            CrmInfoRow(label: 'Updated', value: lead.updatedAtLabel ?? '-'),
           ],
         ),
+        const SizedBox(height: 16),
+        CrmDetailInfoCard(title: 'Backend lead', rows: backendRows),
         const SizedBox(height: 16),
         const CrmActivityTimelineCard(
           title: 'Activity timeline',
@@ -92,12 +120,19 @@ class _LeadDetailBody extends StatelessWidget {
               'No timeline activity yet. Calls, notes, follow-ups and conversion events will appear here when activity is available.',
         ),
         const SizedBox(height: 16),
-        const CrmDetailInfoCard(
+        CrmDetailInfoCard(
           title: 'Next actions',
           rows: [
-            CrmInfoRow(label: 'Notes', value: 'No notes recorded yet'),
-            CrmInfoRow(label: 'Follow-up', value: 'No follow-up scheduled'),
-            CrmInfoRow(label: 'Conversion', value: 'Not converted yet'),
+            CrmInfoRow(
+              label: 'Follow-up',
+              value: lead.assignedTo == null
+                  ? 'No owner assigned yet'
+                  : 'Assigned to ${lead.assignedTo}',
+            ),
+            CrmInfoRow(
+              label: 'Conversion',
+              value: lead.convertedCustomerProfile ?? 'Not converted yet',
+            ),
           ],
         ),
         const SizedBox(height: 8),
