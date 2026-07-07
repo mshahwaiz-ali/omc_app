@@ -134,6 +134,19 @@ class ApiConfig {
   static const String mobileAppConfigMethod =
       'omc_app.api.mobile.get_mobile_app_config';
 
+  static const String expenseCategoriesMethod =
+      'omc_app.api.expense.get_expense_categories';
+  static const String expenseEntriesMethod =
+      'omc_app.api.expense.get_expense_entries';
+  static const String createExpenseEntryMethod =
+      'omc_app.api.expense.create_expense_entry';
+  static const String updateExpenseEntryMethod =
+      'omc_app.api.expense.update_expense_entry';
+  static const String deleteExpenseEntryMethod =
+      'omc_app.api.expense.delete_expense_entry';
+  static const String expenseSummaryMethod =
+      'omc_app.api.expense.get_expense_summary';
+
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
