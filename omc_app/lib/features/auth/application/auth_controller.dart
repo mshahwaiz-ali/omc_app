@@ -27,6 +27,7 @@ class AuthController extends Notifier<AuthState> {
       state = AuthState.authenticated(
         userId: session.userId,
         canAccessInternalWorkspace: session.canAccessInternalWorkspace,
+        capabilities: session.capabilities,
       );
     } catch (_) {
       await _authRepository.clearSession();
@@ -46,6 +47,7 @@ class AuthController extends Notifier<AuthState> {
       state = AuthState.authenticated(
         userId: session.userId,
         canAccessInternalWorkspace: session.canAccessInternalWorkspace,
+        capabilities: session.capabilities,
       );
     } on ApiError catch (error) {
       await _authRepository.clearSession();
@@ -62,6 +64,7 @@ class AuthController extends Notifier<AuthState> {
     required String displayName,
     required String email,
     required bool canAccessInternalWorkspace,
+    AuthCapabilities? capabilities,
     String? phone,
     String? companyName,
     String? customerStatus,
@@ -71,24 +74,34 @@ class AuthController extends Notifier<AuthState> {
 
     final nextState = state.copyWith(
       userId: email,
-      canAccessInternalWorkspace: canAccessInternalWorkspace,
+      canAccessInternalWorkspace:
+          capabilities?.canAccessInternalWorkspace ??
+          canAccessInternalWorkspace,
       displayName: displayName,
       phone: phone,
       companyName: companyName,
       customerStatus: customerStatus,
       approvalStatus: approvalStatus,
+      capabilities: capabilities,
     );
 
     final didChange =
         nextState.userId != state.userId ||
-        nextState.canAccessInternalWorkspace != state.canAccessInternalWorkspace ||
+        nextState.canAccessInternalWorkspace !=
+            state.canAccessInternalWorkspace ||
         nextState.displayName != state.displayName ||
         nextState.phone != state.phone ||
         nextState.companyName != state.companyName ||
         nextState.customerStatus != state.customerStatus ||
-        nextState.approvalStatus != state.approvalStatus;
+        nextState.approvalStatus != state.approvalStatus ||
+        nextState.capabilities != state.capabilities;
 
     if (didChange) state = nextState;
+  }
+
+  Future<void> continueAsGuest() async {
+    await _authRepository.clearSession();
+    state = const AuthState.guest();
   }
 
   Future<void> logout() async {

@@ -148,7 +148,11 @@ class NotificationsRepository {
             json['reference_id'],
       ),
       actionUrl: _nullableString(
-        json['action_url'] ?? json['link'] ?? json['route'] ?? json['url'],
+        json['mobile_route'] ??
+            json['action_url'] ??
+            json['link'] ??
+            json['route'] ??
+            json['url'],
       ),
       isRead: _boolValue(json['is_read'] ?? json['read'] ?? json['seen']),
     );

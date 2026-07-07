@@ -245,10 +245,23 @@ class SupportRepository {
       closedOnLabel: _nullableString(json['closed_on']),
       createdAtLabel: _nullableString(json['created_at'] ?? json['creation']),
       updatedAtLabel: _nullableString(json['updated_at'] ?? json['modified']),
+      canUpdateStatus: _boolValue(json['can_update_status']),
+      canReply: _boolValue(json['can_reply']),
       messages: _mapTicketMessages(
-        json['messages'] ?? json['replies'] ?? json['conversation'] ?? json['timeline'],
+        json['messages'] ??
+            json['replies'] ??
+            json['conversation'] ??
+            json['timeline'],
       ),
     );
+  }
+
+  bool _boolValue(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+
+    final text = value?.toString().trim().toLowerCase() ?? '';
+    return text == 'true' || text == '1' || text == 'yes' || text == 'on';
   }
 
   List<SupportTicketMessage> _mapTicketMessages(dynamic value) {
@@ -258,8 +271,12 @@ class SupportRepository {
         .whereType<Map<String, dynamic>>()
         .map(
           (item) => SupportTicketMessage(
-            author: _stringValue(item['author'] ?? item['user'] ?? item['owner']),
-            message: _stringValue(item['message'] ?? item['body'] ?? item['text']),
+            author: _stringValue(
+              item['author'] ?? item['user'] ?? item['owner'],
+            ),
+            message: _stringValue(
+              item['message'] ?? item['body'] ?? item['text'],
+            ),
             createdAtLabel: _stringValue(
               item['created_at'] ?? item['creation'] ?? item['timestamp'],
             ),

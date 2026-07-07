@@ -1,3 +1,5 @@
+import '../../auth/application/auth_state.dart';
+
 class ProfileSummary {
   const ProfileSummary({
     required this.displayName,
@@ -10,6 +12,7 @@ class ProfileSummary {
     this.approvalStatus,
     this.status,
     this.canAccessInternalWorkspace = false,
+    this.capabilities = AuthCapabilities.guest,
   });
 
   final String displayName;
@@ -22,6 +25,7 @@ class ProfileSummary {
   final String? approvalStatus;
   final String? status;
   final bool canAccessInternalWorkspace;
+  final AuthCapabilities capabilities;
 
   factory ProfileSummary.fromUserId(String? userId) {
     final email = userId?.trim() ?? '';

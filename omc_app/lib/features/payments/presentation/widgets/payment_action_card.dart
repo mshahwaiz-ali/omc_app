@@ -53,7 +53,7 @@ class PaymentActionCard extends StatelessWidget {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Invoice, receipt and payment gateway controls.',
+                      'Invoice, receipt and proof upload actions.',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -107,8 +107,8 @@ class PaymentActionCard extends StatelessWidget {
             subtitle: payment.status == PaymentStatus.paid
                 ? 'No payment action is required.'
                 : payment.paymentUrl == null
-                ? 'Payment gateway link is not available for this record.'
-                : 'Continue to payment gateway.',
+                ? 'Online payment is not enabled for this record.'
+                : 'Open the secure payment link.',
             enabled: canPay,
             onTap: onPayNow,
           ),

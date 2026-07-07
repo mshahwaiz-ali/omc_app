@@ -19,7 +19,9 @@ final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
   if (authState.status != AuthStatus.authenticated) return null;
 
   final repository = ref.watch(profileRepositoryProvider);
-  final profile = await repository.fetchProfile(fallbackUserId: authState.userId);
+  final profile = await repository.fetchProfile(
+    fallbackUserId: authState.userId,
+  );
   if (profile != null) {
     ref
         .read(authControllerProvider.notifier)
@@ -31,6 +33,7 @@ final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
           customerStatus: profile.status,
           approvalStatus: profile.approvalStatus,
           canAccessInternalWorkspace: profile.canAccessInternalWorkspace,
+          capabilities: profile.capabilities,
         );
   }
 
@@ -90,6 +93,7 @@ class ProfileRepository {
     if (data == null) return null;
 
     final message = data['message'];
+    final envelope = message is Map<String, dynamic> ? message : data;
     final profile = message is Map<String, dynamic>
         ? message['profile'] ??
               message['data'] ??
@@ -102,6 +106,10 @@ class ProfileRepository {
     final fallback = ProfileSummary.fromUserId(fallbackUserId);
     final email = _nullableString(
       profile['email'] ?? profile['user_id'] ?? profile['user'],
+    );
+    final capabilities = _capabilitiesFromResponse(
+      envelope: envelope,
+      profile: profile,
     );
 
     return ProfileSummary(
@@ -127,11 +135,33 @@ class ProfileRepository {
       status:
           _nullableString(profile['customer_status'] ?? profile['status']) ??
           fallback.status,
-      canAccessInternalWorkspace: _boolValue(
-        profile['can_access_internal_workspace'] ??
-            profile['canAccessInternalWorkspace'],
-      ),
+      canAccessInternalWorkspace:
+          capabilities.canAccessInternalWorkspace ||
+          _boolValue(
+            profile['can_access_internal_workspace'] ??
+                profile['canAccessInternalWorkspace'] ??
+                envelope['can_access_internal_workspace'] ??
+                envelope['canAccessInternalWorkspace'],
+          ),
+      capabilities: capabilities,
     );
+  }
+
+  AuthCapabilities _capabilitiesFromResponse({
+    required Map<String, dynamic> envelope,
+    required Map<String, dynamic> profile,
+  }) {
+    final profileCapabilities = profile['capabilities'];
+    if (profileCapabilities is Map<String, dynamic>) {
+      return AuthCapabilities.fromJson(profileCapabilities);
+    }
+
+    final envelopeCapabilities = envelope['capabilities'];
+    if (envelopeCapabilities is Map<String, dynamic>) {
+      return AuthCapabilities.fromJson(envelopeCapabilities);
+    }
+
+    return AuthCapabilities.fromJson({...envelope, ...profile});
   }
 
   bool _boolValue(dynamic value) {

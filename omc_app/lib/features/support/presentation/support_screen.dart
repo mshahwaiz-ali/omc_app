@@ -8,6 +8,8 @@ import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../data/support_config_data.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
@@ -47,7 +49,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   @override
   Widget build(BuildContext context) {
     final supportConfigAsync = ref.watch(supportConfigProvider);
-    final supportConfig = supportConfigAsync.value ?? SupportConfigData.fallback;
+    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final supportConfig =
+        supportConfigAsync.value ?? SupportConfigData.fallback;
     final supportTopics = supportConfig.topics.isNotEmpty
         ? supportConfig.topics
         : SupportConfigData.fallback.topics;
@@ -80,8 +84,12 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             selectedTopic: _selectedTopic,
             messageController: _messageController,
             isSubmitting: _isSubmitting,
-            canSubmit: _canSubmit,
-            topics: supportTopics.map((topic) => topic.title).toList(growable: false),
+            canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
+            canCreateTicket: capabilities.canCreateSupportTicket,
+            lockedMessage: _lockedAccessMessage(capabilities),
+            topics: supportTopics
+                .map((topic) => topic.title)
+                .toList(growable: false),
             onTopicChanged: (value) {
               if (value == null) return;
               final topic = supportTopics.firstWhere(
@@ -105,7 +113,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             onSubmit: _submitSupportTicket,
           ),
           const SizedBox(height: 16),
-          const _SupportTicketsCard(),
+          _SupportTicketsCard(capabilities: capabilities),
           const SizedBox(height: 16),
           _SupportContactChannelsCard(config: supportConfig),
           const SizedBox(height: 16),
@@ -133,6 +141,19 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   }
 
   Future<void> _submitSupportTicket() async {
+    final capabilities = ref.read(authControllerProvider).capabilities;
+    if (!capabilities.canCreateSupportTicket) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(_lockedAccessMessage(capabilities)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+
     final repository = ref.read(supportRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -171,6 +192,19 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  String _lockedAccessMessage(AuthCapabilities capabilities) {
+    if (capabilities.isGuest) {
+      return 'Please sign in or create an account to open tracked support tickets.';
+    }
+    if (capabilities.isPending) {
+      return 'Your account is under review. Ticket creation will unlock after approval.';
+    }
+    if (capabilities.isRejected) {
+      return 'This account is not approved for tracked support. Please use direct contact channels.';
+    }
+    return 'This account does not have access to tracked support tickets.';
   }
 }
 
@@ -372,10 +406,22 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _SupportTicketsCard extends ConsumerWidget {
-  const _SupportTicketsCard();
+  const _SupportTicketsCard({required this.capabilities});
+
+  final AuthCapabilities capabilities;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!capabilities.canViewSupportTickets &&
+        !capabilities.canAccessInternalWorkspace) {
+      return PremiumCard(
+        padding: const EdgeInsets.all(18),
+        child: _LockedSupportTicketsView(
+          message: _lockedTicketsMessage(capabilities),
+        ),
+      );
+    }
+
     final ticketsAsync = ref.watch(supportTicketsProvider);
 
     return PremiumCard(
@@ -430,6 +476,70 @@ class _SupportTicketsCard extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  String _lockedTicketsMessage(AuthCapabilities capabilities) {
+    if (capabilities.isGuest) {
+      return 'Sign in or create an account to see tracked support tickets.';
+    }
+    if (capabilities.isPending) {
+      return 'Support tickets will appear after OMC approves your account.';
+    }
+    return 'Tracked support tickets are not available for this account.';
+  }
+}
+
+class _LockedSupportTicketsView extends StatelessWidget {
+  const _LockedSupportTicketsView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryRed.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.lock_outline_rounded,
+            color: AppTheme.primaryRed,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Tracked tickets',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                message,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -728,6 +838,8 @@ class _CreateSupportTicketCard extends StatelessWidget {
     required this.messageController,
     required this.isSubmitting,
     required this.canSubmit,
+    required this.canCreateTicket,
+    required this.lockedMessage,
     required this.topics,
     required this.onTopicChanged,
     required this.onSubmit,
@@ -737,6 +849,8 @@ class _CreateSupportTicketCard extends StatelessWidget {
   final TextEditingController messageController;
   final bool isSubmitting;
   final bool canSubmit;
+  final bool canCreateTicket;
+  final String lockedMessage;
   final List<String> topics;
   final ValueChanged<String?> onTopicChanged;
   final VoidCallback onSubmit;
@@ -772,6 +886,10 @@ class _CreateSupportTicketCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          if (!canCreateTicket) ...[
+            _SupportLockedNote(message: lockedMessage),
+            const SizedBox(height: 12),
+          ],
           DropdownButtonFormField<String>(
             initialValue: selectedTopic,
             items: topics
@@ -782,7 +900,7 @@ class _CreateSupportTicketCard extends StatelessWidget {
                   ),
                 )
                 .toList(growable: false),
-            onChanged: isSubmitting ? null : onTopicChanged,
+            onChanged: isSubmitting || !canCreateTicket ? null : onTopicChanged,
             decoration: const InputDecoration(
               labelText: 'Topic',
               prefixIcon: Icon(Icons.category_outlined),
@@ -791,7 +909,7 @@ class _CreateSupportTicketCard extends StatelessWidget {
           const SizedBox(height: 12),
           TextField(
             controller: messageController,
-            enabled: !isSubmitting,
+            enabled: !isSubmitting && canCreateTicket,
             minLines: 3,
             maxLines: 5,
             decoration: const InputDecoration(
@@ -804,9 +922,54 @@ class _CreateSupportTicketCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           AppButton(
-            label: isSubmitting ? 'Submitting...' : 'Submit ticket',
+            label: !canCreateTicket
+                ? 'Approval required'
+                : isSubmitting
+                ? 'Submitting...'
+                : 'Submit ticket',
             icon: Icons.send_rounded,
             onPressed: canSubmit ? onSubmit : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SupportLockedNote extends StatelessWidget {
+  const _SupportLockedNote({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.lock_outline_rounded,
+            color: AppTheme.primaryRed,
+            size: 18,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -890,7 +1053,11 @@ class _SupportCategoryTile extends StatelessWidget {
                   color: AppTheme.primaryRed.withValues(alpha: 0.08),
                 ),
               ),
-              child: Icon(_supportTopicIcon(topic.iconKey), color: AppTheme.primaryRed, size: 21),
+              child: Icon(
+                _supportTopicIcon(topic.iconKey),
+                color: AppTheme.primaryRed,
+                size: 21,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(

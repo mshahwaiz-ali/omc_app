@@ -11,13 +11,16 @@ import '../domain/expense_transaction.dart';
 final expenseTrackerRepositoryProvider = Provider<ExpenseTrackerRepository>((
   ref,
 ) {
-  return ExpenseTrackerRepository(frappeClient: ref.watch(frappeClientProvider));
+  return ExpenseTrackerRepository(
+    frappeClient: ref.watch(frappeClientProvider),
+  );
 });
 
 final expenseTrackerStorageModeProvider =
-    AsyncNotifierProvider<ExpenseTrackerStorageModeController, ExpenseTrackerStorageMode>(
-  ExpenseTrackerStorageModeController.new,
-);
+    AsyncNotifierProvider<
+      ExpenseTrackerStorageModeController,
+      ExpenseTrackerStorageMode
+    >(ExpenseTrackerStorageModeController.new);
 
 class ExpenseTrackerStorageModeController
     extends AsyncNotifier<ExpenseTrackerStorageMode> {
@@ -59,7 +62,9 @@ extension ExpenseTrackerStorageModeLabel on ExpenseTrackerStorageMode {
 
 class ExpenseTrackerRepository {
   const ExpenseTrackerRepository({required FrappeClient frappeClient})
-    : _frappeClient = frappeClient;
+    : this._(frappeClient);
+
+  const ExpenseTrackerRepository._(this._frappeClient);
 
   static const _storageKey = 'omc_expense_tracker_transactions';
   static const _storageModeKey = 'omc_expense_tracker_storage_mode';
@@ -150,10 +155,7 @@ class ExpenseTrackerRepository {
   ) async {
     final response = await _frappeClient.postMethod(
       ApiConfig.updateExpenseEntryMethod,
-      data: {
-        'entry_id': transaction.id,
-        ..._toBackendPayload(transaction),
-      },
+      data: {'entry_id': transaction.id, ..._toBackendPayload(transaction)},
     );
 
     return _extractTransaction(response);

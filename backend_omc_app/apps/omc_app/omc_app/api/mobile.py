@@ -22,6 +22,13 @@ def _has_doctype(doctype):
         return False
 
 
+def _doctype_has_field(doctype, fieldname):
+    try:
+        return _has_doctype(doctype) and frappe.get_meta(doctype).has_field(fieldname)
+    except Exception:
+        return False
+
+
 def _service_fee_label(service):
     fee_label = (getattr(service, "fee_label", None) or "").strip()
     bad_fee_labels = {"Contact OMCfor pricing", "Contact OMC for pricing"}
@@ -131,7 +138,20 @@ def _service_to_catalogue_dict(service, include_required_documents=False):
     }
 
 
-INTERNAL_WORKSPACE_ROLES = {"System Manager"}
+SYSTEM_OVERRIDE_ROLES = {"System Manager"}
+OMC_ADMIN_ROLES = {"OMC Admin", "OMC Manager"}
+OMC_SUPPORT_ROLES = {"OMC Support Agent"}
+OMC_DOCUMENT_ROLES = {"OMC Document Reviewer"}
+OMC_FINANCE_ROLES = {"OMC Finance Reviewer"}
+OMC_FIELD_ROLES = {"OMC Consultant", "OMC Business Partner", "OMC Tax Associate"}
+INTERNAL_WORKSPACE_ROLES = (
+    SYSTEM_OVERRIDE_ROLES
+    | OMC_ADMIN_ROLES
+    | OMC_SUPPORT_ROLES
+    | OMC_DOCUMENT_ROLES
+    | OMC_FINANCE_ROLES
+    | OMC_FIELD_ROLES
+)
 
 
 def _current_user_roles(user=None):
@@ -144,6 +164,146 @@ def _current_user_roles(user=None):
 
 def _can_access_internal_workspace(user=None):
     return bool(_current_user_roles(user).intersection(INTERNAL_WORKSPACE_ROLES))
+
+
+def _has_any_role(user=None, roles=None):
+    return bool(_current_user_roles(user).intersection(set(roles or [])))
+
+
+def _profile_status(profile):
+    if not profile:
+        return "", ""
+
+    customer_status = (profile.customer_status or "").strip()
+    approval_status = (profile.approval_status or "").strip()
+    return customer_status, approval_status
+
+
+def _is_approved_customer(profile):
+    customer_status, approval_status = _profile_status(profile)
+    return customer_status.lower() == "active" and approval_status.lower() == "approved"
+
+
+def _is_pending_customer(profile):
+    customer_status, approval_status = _profile_status(profile)
+    pending_statuses = {"pending", "pending review", "under review", ""}
+    return customer_status.lower() in pending_statuses or approval_status.lower() in pending_statuses
+
+
+def _customer_access_state(user=None, profile=None):
+    user = user or _current_user()
+
+    if not user or user == "Guest":
+        return "guest"
+
+    if _can_access_internal_workspace(user):
+        return "internal"
+
+    if not profile:
+        profile = _get_customer_profile_for_user(user)
+
+    if _is_approved_customer(profile):
+        return "approved"
+
+    customer_status, approval_status = _profile_status(profile)
+    if customer_status.lower() == "rejected" or approval_status.lower() == "rejected":
+        return "rejected"
+
+    return "pending"
+
+
+def _get_mobile_capabilities(user=None, profile=None):
+    user = user or _current_user()
+    roles = _current_user_roles(user)
+    is_guest = not user or user == "Guest"
+    is_internal = bool(roles.intersection(INTERNAL_WORKSPACE_ROLES))
+    is_admin = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES))
+    is_support = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_SUPPORT_ROLES))
+    is_document_reviewer = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_DOCUMENT_ROLES))
+    is_finance_reviewer = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_FINANCE_ROLES))
+
+    if not is_guest and profile is None and not is_internal:
+        profile = _get_customer_profile_for_user(user)
+
+    is_approved = _is_approved_customer(profile)
+    access_state = _customer_access_state(user=user, profile=profile)
+
+    return {
+        "access_state": access_state,
+        "is_guest": is_guest,
+        "is_pending": access_state == "pending",
+        "is_approved_customer": is_approved,
+        "can_view_public_catalogue": True,
+        "can_view_public_content": True,
+        "can_use_tax_calculator": True,
+        "can_create_service_request": is_approved,
+        "can_upload_documents": is_approved,
+        "can_view_documents": is_approved,
+        "can_view_payments": is_approved,
+        "can_upload_payment_receipt": is_approved,
+        "can_create_support_ticket": is_approved,
+        "can_view_support_tickets": is_approved,
+        "can_view_customer_dashboard": is_approved,
+        "can_view_customer_notifications": is_approved,
+        "can_access_internal_workspace": is_internal,
+        "can_update_service_status": is_admin,
+        "can_review_documents": is_document_reviewer,
+        "can_review_payments": is_finance_reviewer,
+        "can_update_support_ticket_status": is_support,
+        "can_manage_customers": is_admin,
+        "can_manage_leads": is_admin or is_support,
+        "can_manage_tasks": is_internal,
+        "can_view_internal_notes": is_internal,
+    }
+
+
+def _approved_customer_required_message(profile=None):
+    if profile and _is_pending_customer(profile):
+        return "Your account is under review. OMC team will verify your profile before enabling service access."
+
+    return "Please create an approved OMC customer account to access this feature."
+
+
+def _assert_approved_customer():
+    user = _current_user()
+
+    if user == "Guest":
+        frappe.throw("Please create an account or subscribe to access this feature.", frappe.PermissionError)
+
+    profile = _get_customer_profile_for_user(user)
+    if not _is_approved_customer(profile):
+        frappe.throw(_approved_customer_required_message(profile), frappe.PermissionError)
+
+    return profile
+
+
+def _set_if_has_field(doc, fieldname, value):
+    if value is None:
+        return
+
+    if not doc.meta.has_field(fieldname):
+        return
+
+    if isinstance(value, str):
+        value = value.strip()
+
+    if value != "":
+        doc.set(fieldname, value)
+
+
+def _assign_role_if_exists(user_doc, role_name):
+    if not user_doc or not role_name:
+        return
+
+    if not frappe.db.exists("Role", role_name):
+        return
+
+    existing_roles = {row.role for row in (user_doc.roles or [])}
+    if role_name in existing_roles:
+        return
+
+    user_doc.append("roles", {"role": role_name})
+    user_doc.save(ignore_permissions=True)
 
 
 def _assert_internal_workspace_access():
@@ -165,9 +325,16 @@ def sign_up(**kwargs):
     password = kwargs.get("password") or kwargs.get("new_password")
     full_name = (kwargs.get("full_name") or kwargs.get("name") or "").strip()
     phone = (kwargs.get("phone") or kwargs.get("mobile") or "").strip()
+    whatsapp_no = (kwargs.get("whatsapp_no") or kwargs.get("whatsapp") or "").strip()
     company_name = (kwargs.get("company_name") or kwargs.get("company") or "").strip()
     cnic = (kwargs.get("cnic") or "").strip()
     ntn = (kwargs.get("ntn") or "").strip()
+    register_as = (kwargs.get("register_as") or kwargs.get("customer_type") or "Customer").strip()
+    customer_type = (kwargs.get("customer_type") or register_as or "Customer").strip()
+    address = (kwargs.get("address") or "").strip()
+    education = (kwargs.get("education") or "").strip()
+    experience = (kwargs.get("experience") or "").strip()
+    remarks = (kwargs.get("remarks") or kwargs.get("notes") or "").strip()
 
     if not email:
         frappe.throw("email is required")
@@ -199,6 +366,8 @@ def sign_up(**kwargs):
     else:
         user = frappe.get_doc("User", email)
 
+    _assign_role_if_exists(user, "OMC Customer Applicant")
+
     profile_name = frappe.db.get_value("OMC Customer Profile", {"user": email}, "name")
     if not profile_name:
         profile_name = frappe.db.get_value("OMC Customer Profile", {"email": email}, "name")
@@ -226,6 +395,13 @@ def sign_up(**kwargs):
         profile.cnic = cnic
     if ntn:
         profile.ntn = ntn
+    _set_if_has_field(profile, "whatsapp_no", whatsapp_no)
+    _set_if_has_field(profile, "register_as", register_as)
+    _set_if_has_field(profile, "customer_type", customer_type)
+    _set_if_has_field(profile, "address", address)
+    _set_if_has_field(profile, "education", education)
+    _set_if_has_field(profile, "experience", experience)
+    _set_if_has_field(profile, "remarks", remarks)
 
     if profile.is_new():
         profile.insert(ignore_permissions=True)
@@ -251,12 +427,21 @@ def sign_up(**kwargs):
             "full_name": profile.full_name or "",
             "email": profile.email or "",
             "phone": profile.phone or "",
+            "whatsapp_no": profile.get("whatsapp_no") or "",
             "company_name": profile.company_name or "",
             "cnic": profile.cnic or "",
             "ntn": profile.ntn or "",
+            "register_as": profile.get("register_as") or "",
+            "customer_type": profile.get("customer_type") or "",
+            "address": profile.get("address") or "",
+            "education": profile.get("education") or "",
+            "experience": profile.get("experience") or "",
+            "remarks": profile.get("remarks") or "",
             "customer_status": profile.customer_status or "",
             "approval_status": profile.approval_status or "",
         },
+        "access_state": _customer_access_state(user=email, profile=profile),
+        "capabilities": _get_mobile_capabilities(user=email, profile=profile),
         "preferences": _settings_preferences_to_dict(preferences),
     }
 
@@ -279,12 +464,18 @@ def google_mobile_login(id_token=None, **kwargs):
 def get_session_user():
     user = _current_user()
     roles = sorted(_current_user_roles(user))
+    profile = None
+    if user and user != "Guest" and not _can_access_internal_workspace(user):
+        profile = _get_customer_profile_for_user(user)
+    capabilities = _get_mobile_capabilities(user=user, profile=profile)
 
     return {
         "user": user,
         "is_guest": user == "Guest",
         "roles": roles,
-        "can_access_internal_workspace": _can_access_internal_workspace(user),
+        "access_state": capabilities["access_state"],
+        "capabilities": capabilities,
+        **capabilities,
     }
 
 
@@ -320,6 +511,7 @@ def get_profile():
     user = _current_user()
 
     if user == "Guest":
+        capabilities = _get_mobile_capabilities(user=user)
         return {
             "full_name": "",
             "email": "",
@@ -328,15 +520,19 @@ def get_profile():
             "customer_id": "",
             "customer_status": "Guest",
             "approval_status": "",
-            "can_access_internal_workspace": False,
+            "access_state": "guest",
+            "capabilities": capabilities,
+            **capabilities,
         }
 
     profile = _get_customer_profile_for_user(user)
+    capabilities = _get_mobile_capabilities(user=user, profile=profile)
 
     return {
         "full_name": profile.full_name or "",
         "email": profile.email or user,
         "phone": profile.phone or "",
+        "whatsapp_no": profile.get("whatsapp_no") or "",
         "avatar_url": "",
         "customer_id": profile.name,
         "customer_status": profile.customer_status or "",
@@ -344,7 +540,15 @@ def get_profile():
         "company_name": profile.company_name or "",
         "cnic": profile.cnic or "",
         "ntn": profile.ntn or "",
-        "can_access_internal_workspace": _can_access_internal_workspace(user),
+        "register_as": profile.get("register_as") or "",
+        "customer_type": profile.get("customer_type") or "",
+        "address": profile.get("address") or "",
+        "education": profile.get("education") or "",
+        "experience": profile.get("experience") or "",
+        "remarks": profile.get("remarks") or "",
+        "access_state": capabilities["access_state"],
+        "capabilities": capabilities,
+        **capabilities,
     }
 
 
@@ -428,8 +632,10 @@ def get_dashboard_data():
     user = _current_user()
     profile = None
 
-    if user != "Guest":
-        profile = _get_customer_profile_for_user(user)
+    if _can_access_internal_workspace(user):
+        profile = None
+    else:
+        profile = _assert_approved_customer()
 
     service_filters = {}
     document_filters = {"visible_to_customer": 1}
@@ -612,7 +818,7 @@ def _get_service_timeline(service_request):
 
 @frappe.whitelist()
 def create_service(**kwargs):
-    profile = _get_customer_profile_for_user()
+    profile = _assert_approved_customer()
 
     service_id = kwargs.get("service_id") or kwargs.get("service")
     service_name = ""
@@ -764,7 +970,10 @@ def _split_service_documents(documents, required_document_templates=None):
 
 @frappe.whitelist()
 def get_service_cases():
-    profile = _get_customer_profile_for_user()
+    if _can_access_internal_workspace():
+        profile = None
+    else:
+        profile = _assert_approved_customer()
 
     filters = {}
     if profile:
@@ -810,6 +1019,8 @@ def get_service_cases():
 
 @frappe.whitelist()
 def update_service_case_status(case_id=None, status=None, note=None, expected_completion_date=None):
+    _assert_internal_workspace_access()
+
     if not case_id:
         frappe.throw("case_id is required")
 
@@ -884,7 +1095,7 @@ def get_service_case(case_id=None):
 
     service_case = frappe.get_doc("OMC Service Request", case_id)
     can_access_internal_workspace = _can_access_internal_workspace()
-    profile = None if can_access_internal_workspace else _get_customer_profile_for_user()
+    profile = None if can_access_internal_workspace else _assert_approved_customer()
 
     if not can_access_internal_workspace:
         if not profile:
@@ -951,7 +1162,7 @@ def add_service_case_comment(case_id=None, message=None):
     if not frappe.db.exists("OMC Service Request", case_id):
         frappe.throw("Service case not found", frappe.DoesNotExistError)
 
-    profile = _get_customer_profile_for_user()
+    profile = _assert_approved_customer()
     doc = frappe.get_doc("OMC Service Request", case_id)
 
     if profile and doc.customer_profile and doc.customer_profile != profile.name:
@@ -1130,7 +1341,7 @@ def upload_service_document(**kwargs):
         frappe.throw("Service request not found", frappe.DoesNotExistError)
 
     service_case = frappe.get_doc("OMC Service Request", case_id)
-    profile = _get_customer_profile_for_user()
+    profile = _assert_approved_customer()
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
         frappe.throw("You do not have permission to upload documents for this service request", frappe.PermissionError)
@@ -1180,6 +1391,8 @@ def upload_service_document(**kwargs):
 
 @frappe.whitelist()
 def update_service_document_status(document_id=None, status=None, remarks=None):
+    _assert_internal_workspace_access()
+
     if not document_id:
         frappe.throw("document_id is required")
 
@@ -1238,7 +1451,8 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
 
 @frappe.whitelist()
 def get_documents():
-    profile = _get_customer_profile_for_user()
+    profile = None if _can_access_internal_workspace() else _assert_approved_customer()
+    capabilities = _get_mobile_capabilities(profile=profile)
 
     service_filters = {}
     if profile:
@@ -1288,6 +1502,7 @@ def get_documents():
                 "created_at": str(doc.uploaded_on) if doc.uploaded_on else "",
                 "uploaded_by": doc.uploaded_by or "",
                 "remarks": doc.remarks or "",
+                "can_review_documents": capabilities["can_review_documents"],
             }
             for doc in docs
         ]
@@ -1307,7 +1522,8 @@ def get_document(document_id=None):
     if not doc.visible_to_customer:
         frappe.throw("Document not found", frappe.DoesNotExistError)
 
-    profile = _get_customer_profile_for_user()
+    profile = None if _can_access_internal_workspace() else _assert_approved_customer()
+    capabilities = _get_mobile_capabilities(profile=profile)
     service_case = frappe.get_doc("OMC Service Request", doc.service_request)
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
@@ -1323,12 +1539,14 @@ def get_document(document_id=None):
         "created_at": str(doc.uploaded_on) if doc.uploaded_on else "",
         "uploaded_by": doc.uploaded_by or "",
         "remarks": doc.remarks or "",
+        "can_review_documents": capabilities["can_review_documents"],
     }
 
 
 @frappe.whitelist()
 def get_payments():
-    profile = _get_customer_profile_for_user()
+    profile = None if _can_access_internal_workspace() else _assert_approved_customer()
+    capabilities = _get_mobile_capabilities(profile=profile)
 
     service_filters = {}
     if profile:
@@ -1382,6 +1600,7 @@ def get_payments():
                 "payment_reference": payment.payment_reference or "",
                 "receipt_url": payment.receipt_attachment or "",
                 "remarks": payment.remarks or "",
+                "can_review_payments": capabilities["can_review_payments"],
             }
             for payment in payments
         ]
@@ -1401,7 +1620,8 @@ def get_payment(payment_id=None):
     if not payment.visible_to_customer:
         frappe.throw("Payment not found", frappe.DoesNotExistError)
 
-    profile = _get_customer_profile_for_user()
+    profile = None if _can_access_internal_workspace() else _assert_approved_customer()
+    capabilities = _get_mobile_capabilities(profile=profile)
     service_case = frappe.get_doc("OMC Service Request", payment.service_request)
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
@@ -1419,6 +1639,7 @@ def get_payment(payment_id=None):
         "payment_reference": payment.payment_reference or "",
         "receipt_url": payment.receipt_attachment or "",
         "remarks": payment.remarks or "",
+        "can_review_payments": capabilities["can_review_payments"],
     }
 
 
@@ -1440,7 +1661,7 @@ def upload_payment_receipt(**kwargs):
 
     payment = frappe.get_doc("OMC Service Payment", payment_id)
 
-    profile = _get_customer_profile_for_user()
+    profile = _assert_approved_customer()
     service_case = frappe.get_doc("OMC Service Request", payment.service_request)
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
@@ -1626,10 +1847,35 @@ def get_knowledge_article(article_id=None, name=None):
     return {"article": _knowledge_article_from_service(service)}
 
 
+def _notification_mobile_route(notification):
+    saved_route = getattr(notification, "mobile_route", None) or ""
+    if saved_route:
+        return saved_route
+
+    reference_doctype = (notification.reference_doctype or "").strip()
+    reference_name = (notification.reference_name or "").strip()
+    if not reference_doctype or not reference_name:
+        return ""
+
+    if reference_doctype == "OMC Service Request":
+        return f"/my-services/{reference_name}"
+    if reference_doctype == "OMC Service Document":
+        return f"/documents/{reference_name}"
+    if reference_doctype == "OMC Service Payment":
+        return f"/payments/{reference_name}"
+    if reference_doctype == "OMC Support Ticket":
+        return f"/support-tickets/{reference_name}"
+
+    return ""
+
+
 @frappe.whitelist()
 def get_notifications():
     user = _current_user()
-    profile = _get_customer_profile_for_user()
+    if user == "Guest":
+        return {"notifications": []}
+
+    profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
 
     filters = {
         "visible_to_customer": 1,
@@ -1642,20 +1888,24 @@ def get_notifications():
     else:
         return {"notifications": []}
 
+    notification_fields = [
+        "name",
+        "title",
+        "message",
+        "notification_type",
+        "reference_doctype",
+        "reference_name",
+        "is_read",
+        "creation",
+        "read_on",
+    ]
+    if _doctype_has_field("OMC Notification", "mobile_route"):
+        notification_fields.append("mobile_route")
+
     notifications = frappe.get_all(
         "OMC Notification",
         filters=filters,
-        fields=[
-            "name",
-            "title",
-            "message",
-            "notification_type",
-            "reference_doctype",
-            "reference_name",
-            "is_read",
-            "creation",
-            "read_on",
-        ],
+        fields=notification_fields,
         order_by="creation desc",
     )
 
@@ -1668,6 +1918,8 @@ def get_notifications():
                 "type": notification.notification_type or "",
                 "reference_doctype": notification.reference_doctype or "",
                 "reference_name": notification.reference_name or "",
+                "mobile_route": _notification_mobile_route(notification),
+                "action_url": _notification_mobile_route(notification),
                 "is_read": int(notification.is_read or 0),
                 "created_at": str(notification.creation) if notification.creation else "",
                 "read_on": str(notification.read_on) if notification.read_on else "",
@@ -1692,7 +1944,10 @@ def mark_notification_read(notification_id=None, name=None):
         frappe.throw("Notification not found", frappe.DoesNotExistError)
 
     user = _current_user()
-    profile = _get_customer_profile_for_user()
+    if user == "Guest":
+        frappe.throw("Login is required", frappe.PermissionError)
+
+    profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
 
     if profile and notification.customer_profile and notification.customer_profile != profile.name:
         frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
@@ -1818,7 +2073,7 @@ def mark_all_notifications_read():
     if user == "Guest":
         frappe.throw("Login is required", frappe.PermissionError)
 
-    profile = _get_customer_profile_for_user()
+    profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
 
     filters = {
         "visible_to_customer": 1,
@@ -1868,7 +2123,10 @@ def get_notification_detail(notification_id=None):
         frappe.throw("Notification not found", frappe.DoesNotExistError)
 
     user = _current_user()
-    profile = _get_customer_profile_for_user()
+    if user == "Guest":
+        frappe.throw("Login is required", frappe.PermissionError)
+
+    profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
 
     if profile and notification.customer_profile and notification.customer_profile != profile.name:
         frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
@@ -1889,6 +2147,8 @@ def get_notification_detail(notification_id=None):
         "type": notification.notification_type or "",
         "reference_doctype": notification.reference_doctype or "",
         "reference_name": notification.reference_name or "",
+        "mobile_route": _notification_mobile_route(notification),
+        "action_url": _notification_mobile_route(notification),
         "is_read": int(notification.is_read or 0),
         "created_at": str(notification.creation) if notification.creation else "",
         "read_on": str(notification.read_on) if notification.read_on else "",
@@ -1916,6 +2176,8 @@ def _create_customer_notification(
     notification.notification_type = notification_type or "General"
     notification.reference_doctype = reference_doctype or None
     notification.reference_name = reference_name or None
+    if notification.meta.has_field("mobile_route"):
+        notification.mobile_route = _notification_mobile_route(notification)
     notification.is_read = 0
     notification.visible_to_customer = 1
     notification.insert(ignore_permissions=True)
@@ -2022,6 +2284,39 @@ def _support_topic_to_dict(row):
     }
 
 
+def _get_single_settings(doctype):
+    if not _has_doctype(doctype):
+        return None
+
+    try:
+        return frappe.get_single(doctype)
+    except Exception:
+        return None
+
+
+def _settings_bool(doc, fieldname, default=False):
+    if not doc or not doc.meta.has_field(fieldname):
+        return default
+
+    value = doc.get(fieldname)
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on", "enabled"}
+
+    if value is None:
+        return default
+
+    return bool(value)
+
+
+def _settings_text(doc, fieldname, default=""):
+    if not doc or not doc.meta.has_field(fieldname):
+        return default
+
+    value = doc.get(fieldname)
+    text = str(value).strip() if value is not None else ""
+    return text or default
+
+
 
 
 @frappe.whitelist(allow_guest=True)
@@ -2033,6 +2328,12 @@ def get_mobile_app_config():
     """
 
     support_config = get_support_config()
+    mobile_settings = _get_single_settings("OMC Mobile Settings")
+    branding_settings = _get_single_settings("OMC Branding Settings")
+    branding_enabled = _settings_bool(branding_settings, "enabled", True)
+
+    payments_enabled = _settings_bool(mobile_settings, "payments_enabled", True)
+    support_enabled = _settings_bool(mobile_settings, "support_enabled", True)
 
     return {
         "support": {
@@ -2044,20 +2345,29 @@ def get_mobile_app_config():
             "fallback": bool(support_config.get("fallback")),
         },
         "features": {
-            "expense_tracker_enabled": True,
-            "knowledge_enabled": True,
-            "payments_enabled": True,
-            "tax_calculator_enabled": True,
-            "support_enabled": True,
-            "internal_workspace_enabled": False,
+            "expense_tracker_enabled": _settings_bool(mobile_settings, "expense_tracker_enabled", True),
+            "knowledge_enabled": _settings_bool(mobile_settings, "knowledge_enabled", True),
+            "payments_enabled": payments_enabled,
+            "tax_calculator_enabled": _settings_bool(mobile_settings, "tax_calculator_enabled", True),
+            "support_enabled": support_enabled,
+            "guest_mode_enabled": _settings_bool(mobile_settings, "guest_mode_enabled", True),
+            "subscriptions_enabled": _settings_bool(mobile_settings, "subscriptions_enabled", False),
+            "internal_workspace_enabled": _settings_bool(mobile_settings, "internal_workspace_enabled", False),
+            "payment_gateway_enabled": _settings_bool(mobile_settings, "payment_gateway_enabled", False),
         },
         "branding": {
-            "company_name": "OMC House",
-            "tagline": "Business, tax and compliance support",
+            "company_name": _settings_text(branding_settings, "brand_name", "OMC House") if branding_enabled else "OMC House",
+            "tagline": _settings_text(branding_settings, "tagline", "Business, tax and compliance support") if branding_enabled else "Business, tax and compliance support",
+            "full_logo": _settings_text(branding_settings, "full_logo"),
+            "logo_symbol": _settings_text(branding_settings, "logo_symbol"),
+            "login_logo": _settings_text(branding_settings, "login_logo"),
         },
         "meta": {
             "source": "backend",
             "fallback": bool(support_config.get("fallback")),
+            "minimum_app_version": _settings_text(mobile_settings, "minimum_app_version"),
+            "force_update": _settings_bool(mobile_settings, "force_update", False),
+            "maintenance_mode": _settings_bool(mobile_settings, "maintenance_mode", False),
         },
     }
 
@@ -2135,7 +2445,7 @@ def create_support_ticket(**kwargs):
         frappe.throw("message is required")
 
     user = _current_user()
-    profile = _get_customer_profile_for_user()
+    profile = _assert_approved_customer()
 
     reference_service_request = (
         kwargs.get("reference_service_request")
@@ -2238,6 +2548,7 @@ def _support_ticket_to_dict(ticket):
     raw_message = re.sub(r"--- Reply from\s*", "--- Reply from ", raw_message)
     raw_message = re.sub(r"\s+at\s*(\d{4}-\d{2}-\d{2})", r" at \1", raw_message)
     messages = _support_ticket_messages(ticket)
+    capabilities = _get_mobile_capabilities()
 
     return {
         "name": ticket.name,
@@ -2255,21 +2566,27 @@ def _support_ticket_to_dict(ticket):
         "closed_on": str(ticket.closed_on) if ticket.closed_on else "",
         "created_at": str(ticket.creation) if ticket.creation else "",
         "updated_at": str(ticket.modified) if ticket.modified else "",
+        "can_update_status": capabilities["can_update_support_ticket_status"],
+        "can_reply": ticket.status not in ["Closed", "Cancelled"],
     }
 
 
 
 def _assert_support_ticket_access(ticket):
     user = _current_user()
-    profile = _get_customer_profile_for_user()
+
+    if user == "Guest":
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    if _can_access_internal_workspace(user):
+        return user, None
+
+    profile = _assert_approved_customer()
 
     if profile and ticket.customer_profile and ticket.customer_profile != profile.name:
         frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
 
     if not profile and user != "Guest" and ticket.raised_by and ticket.raised_by != user:
-        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
-
-    if user == "Guest":
         frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
 
     return user, profile
@@ -2278,12 +2595,17 @@ def _assert_support_ticket_access(ticket):
 @frappe.whitelist()
 def get_support_tickets():
     user = _current_user()
-    profile = _get_customer_profile_for_user()
+    if user == "Guest":
+        return {"tickets": []}
+
+    profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
 
     filters = {}
 
     if profile:
         filters["customer_profile"] = profile.name
+    elif _can_access_internal_workspace(user):
+        filters = {}
     elif user != "Guest":
         filters["raised_by"] = user
     else:
@@ -2329,6 +2651,8 @@ def get_support_tickets():
                 "closed_on": str(row.closed_on) if row.closed_on else "",
                 "created_at": str(row.creation) if row.creation else "",
                 "updated_at": str(row.modified) if row.modified else "",
+                "can_update_status": _get_mobile_capabilities()["can_update_support_ticket_status"],
+                "can_reply": row.status not in ["Closed", "Cancelled"],
             }
             for row in tickets
         ]
@@ -2345,18 +2669,7 @@ def get_support_ticket(ticket_id=None):
         frappe.throw("Support ticket not found", frappe.DoesNotExistError)
 
     ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
-
-    user = _current_user()
-    profile = _get_customer_profile_for_user()
-
-    if profile and ticket.customer_profile and ticket.customer_profile != profile.name:
-        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
-
-    if not profile and user != "Guest" and ticket.raised_by and ticket.raised_by != user:
-        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
-
-    if user == "Guest":
-        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+    _assert_support_ticket_access(ticket)
 
     return {"ticket": _support_ticket_to_dict(ticket)}
 

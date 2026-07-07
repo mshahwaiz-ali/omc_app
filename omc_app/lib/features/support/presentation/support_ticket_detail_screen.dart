@@ -278,14 +278,16 @@ class _SupportTicketDetailBodyState
         ),
         const SizedBox(height: 16),
         _TicketConversationCard(ticket: ticket),
-        const SizedBox(height: 16),
-        _SupportAdminStatusCard(
-          ticket: ticket,
-          isUpdating: _isUpdatingStatus,
-          onStatusSelected: _isUpdatingStatus
-              ? null
-              : (status) => _updateTicketStatus(context, status),
-        ),
+        if (ticket.canUpdateStatus) ...[
+          const SizedBox(height: 16),
+          _SupportAdminStatusCard(
+            ticket: ticket,
+            isUpdating: _isUpdatingStatus,
+            onStatusSelected: _isUpdatingStatus
+                ? null
+                : (status) => _updateTicketStatus(context, status),
+          ),
+        ],
       ],
     );
   }
@@ -406,7 +408,9 @@ class _ConversationMessageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isReply = message.isReply;
-    final title = message.author == '-' ? (isReply ? 'OMC Team' : 'Customer') : message.author;
+    final title = message.author == '-'
+        ? (isReply ? 'OMC Team' : 'Customer')
+        : message.author;
 
     return Container(
       padding: const EdgeInsets.all(12),

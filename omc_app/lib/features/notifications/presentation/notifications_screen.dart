@@ -26,7 +26,12 @@ class NotificationsScreen extends ConsumerWidget {
           child: notificationsAsync.when(
             data: (notifications) => notifications.isEmpty
                 ? const _EmptyNotificationsView()
-                : _NotificationsList(notifications: notifications),
+                : _NotificationsList(
+                    notifications: notifications,
+                    onMarkAllRead: notifications.any((item) => !item.isRead)
+                        ? () => _markAllRead(context, ref)
+                        : null,
+                  ),
             loading: () => const _NotificationsLoadingView(),
             error: (error, _) =>
                 _NotificationsErrorView(message: _cleanError(error)),
@@ -35,12 +40,39 @@ class NotificationsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _markAllRead(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await ref
+          .read(notificationsRepositoryProvider)
+          .markAllNotificationsAsRead();
+      ref.invalidate(notificationsProvider);
+
+      messenger.showSnackBar(
+        const SnackBar(content: Text('All notifications marked as read.')),
+      );
+    } on ApiError catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Notifications could not be updated right now.'),
+        ),
+      );
+    }
+  }
 }
 
 class _NotificationsList extends StatelessWidget {
-  const _NotificationsList({required this.notifications});
+  const _NotificationsList({
+    required this.notifications,
+    required this.onMarkAllRead,
+  });
 
   final List<NotificationItem> notifications;
+  final VoidCallback? onMarkAllRead;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +92,7 @@ class _NotificationsList extends StatelessWidget {
             totalCount: notifications.length,
             unreadCount: unreadCount,
             actionCount: actionCount,
+            onMarkAllRead: onMarkAllRead,
           );
         }
 
@@ -74,11 +107,13 @@ class _NotificationsHero extends StatelessWidget {
     required this.totalCount,
     required this.unreadCount,
     required this.actionCount,
+    required this.onMarkAllRead,
   });
 
   final int totalCount;
   final int unreadCount;
   final int actionCount;
+  final VoidCallback? onMarkAllRead;
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +166,14 @@ class _NotificationsHero extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onMarkAllRead != null) ...[
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  tooltip: 'Mark all read',
+                  onPressed: onMarkAllRead,
+                  icon: const Icon(Icons.done_all_rounded),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 18),
@@ -310,7 +353,12 @@ class _EmptyNotificationsView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: const [
-        _NotificationsHero(totalCount: 0, unreadCount: 0, actionCount: 0),
+        _NotificationsHero(
+          totalCount: 0,
+          unreadCount: 0,
+          actionCount: 0,
+          onMarkAllRead: null,
+        ),
         SizedBox(height: 18),
         _NotificationsStateCard(
           icon: Icons.notifications_none_rounded,
@@ -346,7 +394,12 @@ class _NotificationsErrorView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
-        const _NotificationsHero(totalCount: 0, unreadCount: 0, actionCount: 0),
+        const _NotificationsHero(
+          totalCount: 0,
+          unreadCount: 0,
+          actionCount: 0,
+          onMarkAllRead: null,
+        ),
         const SizedBox(height: 18),
         _NotificationsStateCard(
           icon: Icons.cloud_off_rounded,

@@ -8,6 +8,7 @@ import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
@@ -647,6 +648,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final capabilities = ref.watch(authControllerProvider).capabilities;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -674,7 +676,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
             fallbackMessage:
                 'Payment receipt link is not available for this record.',
           ),
-          onUploadReceipt: _isUploadingReceipt
+          onUploadReceipt:
+              _isUploadingReceipt || !capabilities.canUploadPaymentReceipt
               ? null
               : () => _pickAndUploadReceipt(context),
           onPayNow: () => _openPaymentUrl(
@@ -684,7 +687,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
                 'Payment gateway link is not available for this record.',
           ),
         ),
-        if (_canReviewReceipt(payment)) ...[
+        if (_canReviewReceipt(payment, capabilities.canReviewPayments)) ...[
           const SizedBox(height: 16),
           _PaymentAdminReviewCard(
             payment: payment,
@@ -712,9 +715,10 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     );
   }
 
-  bool _canReviewReceipt(PaymentItem payment) {
-    return payment.status == PaymentStatus.receiptSubmitted ||
-        payment.status == PaymentStatus.underReview;
+  bool _canReviewReceipt(PaymentItem payment, bool sessionCanReview) {
+    return (payment.canReviewPayments || sessionCanReview) &&
+        (payment.status == PaymentStatus.receiptSubmitted ||
+            payment.status == PaymentStatus.underReview);
   }
 
   Future<void> _reviewPaymentReceipt(
@@ -758,6 +762,17 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   }
 
   Future<void> _pickAndUploadReceipt(BuildContext context) async {
+    final capabilities = ref.read(authControllerProvider).capabilities;
+    if (!capabilities.canUploadPaymentReceipt) {
+      _showSnack(
+        context,
+        capabilities.isPending
+            ? 'Receipt upload will unlock after OMC approves your account.'
+            : 'This account cannot upload payment receipts.',
+      );
+      return;
+    }
+
     final controller = ref.read(documentAttachmentControllerProvider);
     final result = await controller.pickDocuments();
 

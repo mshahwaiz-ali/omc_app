@@ -13,6 +13,7 @@
   "notification_type",
   "reference_doctype",
   "reference_name",
+  "mobile_route",
   "is_read",
   "read_on",
   "visible_to_customer"
@@ -63,6 +64,11 @@
    "fieldtype": "Dynamic Link",
    "label": "Reference Name",
    "options": "reference_doctype"
+  },
+  {
+   "fieldname": "mobile_route",
+   "fieldtype": "Data",
+   "label": "Mobile Route"
   },
   {
    "default": "0",

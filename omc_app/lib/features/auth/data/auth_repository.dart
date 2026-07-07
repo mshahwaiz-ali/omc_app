@@ -6,6 +6,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../application/auth_state.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
@@ -18,10 +19,12 @@ class AuthSession {
   const AuthSession({
     required this.userId,
     this.canAccessInternalWorkspace = false,
+    this.capabilities = AuthCapabilities.guest,
   });
 
   final String userId;
   final bool canAccessInternalWorkspace;
+  final AuthCapabilities capabilities;
 }
 
 class AuthRepository {
@@ -86,7 +89,9 @@ class AuthRepository {
         ? rolesValue.map((role) => role.toString().trim()).toSet()
         : <String>{};
 
+    final capabilities = _capabilitiesFromResponse(data);
     final canAccessInternalWorkspace =
+        capabilities.canAccessInternalWorkspace ||
         data['can_access_internal_workspace'] == true ||
         data['canAccessInternalWorkspace'] == true ||
         roles.contains('System Manager');
@@ -95,6 +100,7 @@ class AuthRepository {
     return AuthSession(
       userId: text,
       canAccessInternalWorkspace: canAccessInternalWorkspace,
+      capabilities: capabilities,
     );
   }
 
@@ -142,6 +148,15 @@ class AuthRepository {
 
     await _secureStorageService.saveUserId(email);
     return AuthSession(userId: email);
+  }
+
+  AuthCapabilities _capabilitiesFromResponse(Map<String, dynamic> data) {
+    final capabilities = data['capabilities'];
+    if (capabilities is Map<String, dynamic>) {
+      return AuthCapabilities.fromJson(capabilities);
+    }
+
+    return AuthCapabilities.fromJson(data);
   }
 
   Future<Map<String, dynamic>> loginWithGoogleToken({required String idToken}) {

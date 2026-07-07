@@ -55,8 +55,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isAuthRoute || isSplash ? null : '/login';
       }
 
+      if (authState.status == AuthStatus.guest) {
+        if (isAuthRoute || isSplash) return '/home';
+        return _isGuestAllowedRoute(location) ? null : '/home';
+      }
+
       if (authState.status == AuthStatus.authenticated) {
-        return isAuthRoute || isSplash ? '/home' : null;
+        if (isAuthRoute || isSplash) return '/home';
+        return _canAccessRoute(location, authState.capabilities)
+            ? null
+            : '/home';
       }
 
       return null;
@@ -309,4 +317,86 @@ class _RouterRefreshNotifier extends ChangeNotifier {
     _subscription.close();
     super.dispose();
   }
+}
+
+bool _isGuestAllowedRoute(String location) {
+  if (location == '/home' ||
+      location == '/services' ||
+      location == '/knowledge' ||
+      location == '/tax-calculator' ||
+      location == '/support') {
+    return true;
+  }
+
+  if (location.startsWith('/knowledge/')) return true;
+
+  return location.startsWith('/services/') && !location.endsWith('/request');
+}
+
+bool _canAccessRoute(String location, AuthCapabilities capabilities) {
+  if (_isGuestAllowedRoute(location)) return true;
+
+  if (_isServiceRequestRoute(location)) {
+    return capabilities.canCreateServiceRequest;
+  }
+
+  if (location == '/dashboard') {
+    return capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessInternalWorkspace;
+  }
+
+  if (location == '/track' ||
+      location == '/my-services' ||
+      location.startsWith('/my-services/')) {
+    return capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessInternalWorkspace;
+  }
+
+  if (location == '/documents' || location.startsWith('/documents/')) {
+    return capabilities.canViewDocuments || capabilities.canReviewDocuments;
+  }
+
+  if (location == '/payments' || location.startsWith('/payments/')) {
+    return capabilities.canViewPayments || capabilities.canReviewPayments;
+  }
+
+  if (location == '/notifications' || location.startsWith('/notifications/')) {
+    return capabilities.canViewCustomerNotifications ||
+        capabilities.canAccessInternalWorkspace;
+  }
+
+  if (location.startsWith('/support-tickets/')) {
+    return capabilities.canViewSupportTickets ||
+        capabilities.canAccessInternalWorkspace;
+  }
+
+  if (location == '/expense-tracker') {
+    return capabilities.isApproved || capabilities.isInternal;
+  }
+
+  if (location == '/internal-workspace') {
+    return capabilities.canAccessInternalWorkspace;
+  }
+
+  if (location == '/leads' || location.startsWith('/leads/')) {
+    return capabilities.canManageLeads ||
+        capabilities.canAccessInternalWorkspace;
+  }
+
+  if (location == '/customers' || location.startsWith('/customers/')) {
+    return capabilities.canManageCustomers ||
+        capabilities.canAccessInternalWorkspace;
+  }
+
+  if (location == '/tasks' || location.startsWith('/tasks/')) {
+    return capabilities.canManageTasks ||
+        capabilities.canAccessInternalWorkspace;
+  }
+
+  return true;
+}
+
+bool _isServiceRequestRoute(String location) {
+  final parts = location.split('/').where((part) => part.isNotEmpty).toList();
+  return parts.length == 3 && parts[0] == 'services' && parts[2] == 'request';
 }

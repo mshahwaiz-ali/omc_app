@@ -6,6 +6,7 @@ import '../core/widgets/premium_card.dart';
 import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../features/auth/application/auth_state.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/home/presentation/home_screen.dart';
@@ -60,9 +61,75 @@ class _MainShellState extends ConsumerState<MainShell> {
   ];
 
   void _selectTab(int index) {
+    final capabilities = _currentCapabilities();
+    if (index == 2 && !_canOpenTrack(capabilities)) {
+      _showLockedSnack(capabilities);
+      return;
+    }
+    if (index == 3 && !_canOpenDocuments(capabilities)) {
+      _showLockedSnack(capabilities);
+      return;
+    }
+
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  AuthCapabilities _currentCapabilities() {
+    final profile = ref
+        .read(profileSummaryProvider)
+        .maybeWhen(data: (profile) => profile, orElse: () => null);
+    return profile?.capabilities ??
+        ref.read(authControllerProvider).capabilities;
+  }
+
+  bool _canOpenTrack(AuthCapabilities capabilities) {
+    return capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessInternalWorkspace;
+  }
+
+  bool _canOpenDocuments(AuthCapabilities capabilities) {
+    return capabilities.canViewDocuments || capabilities.canReviewDocuments;
+  }
+
+  void _openWhenAllowed({
+    required bool allowed,
+    required String path,
+    required AuthCapabilities capabilities,
+  }) {
+    if (!allowed) {
+      _showLockedSnack(capabilities);
+      return;
+    }
+
+    context.push(path);
+  }
+
+  void _showLockedSnack(AuthCapabilities capabilities) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(_lockedAccessMessage(capabilities)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  String _lockedAccessMessage(AuthCapabilities capabilities) {
+    if (capabilities.isGuest) {
+      return 'Please sign in or create an account to use this service.';
+    }
+    if (capabilities.isPending) {
+      return 'Your account is under review. OMC will enable this after approval.';
+    }
+    if (capabilities.isRejected) {
+      return 'This account is not approved for this action. Please contact OMC support.';
+    }
+    return 'This account does not have access to that area.';
   }
 
   Future<void> _logout() async {
@@ -84,6 +151,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       data: (profile) => profile,
       orElse: () => null,
     );
+    final capabilities = profile?.capabilities ?? authState.capabilities;
 
     final screens = [
       HomeScreen(
@@ -96,25 +164,57 @@ class _MainShellState extends ConsumerState<MainShell> {
       const MyServicesScreen(),
       const DocumentsScreen(),
       _MoreScreen(
-        onOpenDashboard: () => context.push('/dashboard'),
-        onOpenPayments: () => context.push('/payments'),
+        onOpenDashboard: () => _openWhenAllowed(
+          allowed:
+              capabilities.canViewCustomerDashboard ||
+              capabilities.canAccessInternalWorkspace,
+          path: '/dashboard',
+          capabilities: capabilities,
+        ),
+        onOpenPayments: () => _openWhenAllowed(
+          allowed:
+              capabilities.canViewPayments || capabilities.canReviewPayments,
+          path: '/payments',
+          capabilities: capabilities,
+        ),
         onOpenTaxCalculator: () => context.push('/tax-calculator'),
         onOpenSupport: () => context.push('/support'),
-        onOpenProfile: () => context.push('/profile'),
-        onOpenSettings: () => context.push('/settings'),
-        onOpenNotifications: () => context.push('/notifications'),
+        onOpenProfile: () => _openWhenAllowed(
+          allowed: !capabilities.isGuest,
+          path: '/profile',
+          capabilities: capabilities,
+        ),
+        onOpenSettings: () => _openWhenAllowed(
+          allowed: !capabilities.isGuest,
+          path: '/settings',
+          capabilities: capabilities,
+        ),
+        onOpenNotifications: () => _openWhenAllowed(
+          allowed:
+              capabilities.canViewCustomerNotifications ||
+              capabilities.canAccessInternalWorkspace,
+          path: '/notifications',
+          capabilities: capabilities,
+        ),
         onOpenKnowledge: () => context.push('/knowledge'),
-        onOpenExpenseTracker: () => context.push('/expense-tracker'),
+        onOpenExpenseTracker: () => _openWhenAllowed(
+          allowed: capabilities.isApproved || capabilities.isInternal,
+          path: '/expense-tracker',
+          capabilities: capabilities,
+        ),
         features: mobileConfig.features,
         displayName: profile?.displayName ?? authState.displayName,
         companyName: profile?.companyName ?? authState.companyName,
         customerStatus: profile?.status ?? authState.customerStatus,
+        capabilities: capabilities,
+        isGuest: authState.status == AuthStatus.guest,
         canAccessInternalWorkspace:
-            (profile?.canAccessInternalWorkspace ??
-                authState.canAccessInternalWorkspace) &&
+            capabilities.canAccessInternalWorkspace &&
             mobileConfig.features.internalWorkspaceEnabled,
         onOpenInternalWorkspace: () => context.push('/internal-workspace'),
-        onLogout: _logout,
+        onLogout: authState.status == AuthStatus.guest
+            ? () => context.go('/login')
+            : _logout,
       ),
     ];
 
@@ -321,6 +421,8 @@ class _MoreScreen extends StatelessWidget {
     this.displayName,
     this.companyName,
     this.customerStatus,
+    required this.capabilities,
+    required this.isGuest,
     required this.canAccessInternalWorkspace,
     required this.onOpenInternalWorkspace,
     required this.onLogout,
@@ -339,6 +441,8 @@ class _MoreScreen extends StatelessWidget {
   final String? displayName;
   final String? companyName;
   final String? customerStatus;
+  final AuthCapabilities capabilities;
+  final bool isGuest;
   final bool canAccessInternalWorkspace;
   final VoidCallback onOpenInternalWorkspace;
   final VoidCallback onLogout;
@@ -355,6 +459,12 @@ class _MoreScreen extends StatelessWidget {
             companyName: companyName,
             customerStatus: customerStatus,
           ),
+          if (capabilities.isGuest ||
+              capabilities.isPending ||
+              capabilities.isRejected) ...[
+            const SizedBox(height: 12),
+            _AccessStatusNote(capabilities: capabilities),
+          ],
           const SizedBox(height: 18),
           _MoreGroup(
             title: 'Account',
@@ -451,10 +561,12 @@ class _MoreScreen extends StatelessWidget {
           PremiumCard(
             padding: EdgeInsets.zero,
             child: _MoreTile(
-              icon: Icons.logout_rounded,
-              title: 'Logout',
-              subtitle: 'Clear secure session and return to login',
-              isDestructive: true,
+              icon: isGuest ? Icons.login_rounded : Icons.logout_rounded,
+              title: isGuest ? 'Login' : 'Logout',
+              subtitle: isGuest
+                  ? 'Sign in to access your protected OMC workspace'
+                  : 'Clear secure session and return to login',
+              isDestructive: !isGuest,
               showChevron: false,
               onTap: onLogout,
             ),
@@ -466,11 +578,7 @@ class _MoreScreen extends StatelessWidget {
 }
 
 class _MoreHeader extends StatelessWidget {
-  const _MoreHeader({
-    this.displayName,
-    this.companyName,
-    this.customerStatus,
-  });
+  const _MoreHeader({this.displayName, this.companyName, this.customerStatus});
 
   final String? displayName;
   final String? companyName;
@@ -548,6 +656,81 @@ class _MoreHeader extends StatelessWidget {
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccessStatusNote extends StatelessWidget {
+  const _AccessStatusNote({required this.capabilities});
+
+  final AuthCapabilities capabilities;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, title, message) = switch (capabilities.accessState) {
+      AccountAccessState.guest => (
+        Icons.explore_outlined,
+        'Guest mode',
+        'Public services, knowledge, support contacts and tax tools are available.',
+      ),
+      AccountAccessState.pending => (
+        Icons.hourglass_top_rounded,
+        'Account under review',
+        'OMC will enable requests, documents, payments and tickets after approval.',
+      ),
+      AccountAccessState.rejected => (
+        Icons.block_rounded,
+        'Approval required',
+        'Protected services are unavailable for this account. Contact OMC support.',
+      ),
+      _ => (
+        Icons.verified_user_outlined,
+        'Approved access',
+        'Protected services are enabled for this account.',
+      ),
+    };
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),

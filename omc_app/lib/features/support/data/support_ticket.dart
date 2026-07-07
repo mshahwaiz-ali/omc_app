@@ -12,6 +12,8 @@ class SupportTicket {
     this.closedOnLabel,
     this.createdAtLabel,
     this.updatedAtLabel,
+    this.canUpdateStatus = false,
+    this.canReply = false,
     this.messages = const [],
   });
 
@@ -27,6 +29,8 @@ class SupportTicket {
   final String? closedOnLabel;
   final String? createdAtLabel;
   final String? updatedAtLabel;
+  final bool canUpdateStatus;
+  final bool canReply;
   final List<SupportTicketMessage> messages;
 
   bool get isClosed {

@@ -24,6 +24,7 @@ class PaymentItem {
     this.paidDateLabel,
     this.serviceReference,
     this.remarks,
+    this.canReviewPayments = false,
   });
 
   final String id;
@@ -40,6 +41,7 @@ class PaymentItem {
   final String? serviceReference;
   final String? remarks;
   final PaymentStatus status;
+  final bool canReviewPayments;
 
   bool get requiresAction =>
       status == PaymentStatus.pending ||

@@ -58,28 +58,37 @@ class MobileAppConfig {
 
 class MobileFeatureConfig {
   const MobileFeatureConfig({
+    this.guestModeEnabled = true,
     this.expenseTrackerEnabled = true,
     this.knowledgeEnabled = true,
     this.paymentsEnabled = true,
+    this.paymentGatewayEnabled = false,
     this.taxCalculatorEnabled = true,
     this.supportEnabled = true,
+    this.subscriptionsEnabled = false,
     this.internalWorkspaceEnabled = false,
   });
 
+  final bool guestModeEnabled;
   final bool expenseTrackerEnabled;
   final bool knowledgeEnabled;
   final bool paymentsEnabled;
+  final bool paymentGatewayEnabled;
   final bool taxCalculatorEnabled;
   final bool supportEnabled;
+  final bool subscriptionsEnabled;
   final bool internalWorkspaceEnabled;
 
   factory MobileFeatureConfig.fromJson(Map<String, dynamic> json) {
     return MobileFeatureConfig(
+      guestModeEnabled: _boolValue(json['guest_mode_enabled'], true),
       expenseTrackerEnabled: _boolValue(json['expense_tracker_enabled'], true),
       knowledgeEnabled: _boolValue(json['knowledge_enabled'], true),
       paymentsEnabled: _boolValue(json['payments_enabled'], true),
+      paymentGatewayEnabled: _boolValue(json['payment_gateway_enabled'], false),
       taxCalculatorEnabled: _boolValue(json['tax_calculator_enabled'], true),
       supportEnabled: _boolValue(json['support_enabled'], true),
+      subscriptionsEnabled: _boolValue(json['subscriptions_enabled'], false),
       internalWorkspaceEnabled: _boolValue(
         json['internal_workspace_enabled'],
         false,

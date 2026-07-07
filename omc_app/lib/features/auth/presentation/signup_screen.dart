@@ -38,6 +38,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   bool _isSubmitting = false;
   String? _submitError;
+  bool _acceptedTerms = false;
 
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -65,6 +66,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _submit() async {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
+
+    if (!_acceptedTerms) {
+      setState(() {
+        _submitError =
+            'Please accept the terms and review process before creating an account.';
+      });
+      return;
+    }
 
     FocusScope.of(context).unfocus();
 
@@ -103,7 +112,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Account created successfully. Please login.'),
+          content: Text(
+            'Account created. OMC will review and approve access before protected services are enabled.',
+          ),
         ),
       );
 
@@ -474,6 +485,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                               return null;
                             },
+                          ),
+                          const SizedBox(height: 14),
+                          CheckboxListTile(
+                            value: _acceptedTerms,
+                            onChanged: _isSubmitting
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _acceptedTerms = value ?? false;
+                                    });
+                                  },
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: const Text(
+                              'I confirm my details are correct and understand my account will be reviewed before protected services are enabled.',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12.5,
+                                height: 1.35,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                           if (_submitError != null &&
                               _submitError!.trim().isNotEmpty) ...[

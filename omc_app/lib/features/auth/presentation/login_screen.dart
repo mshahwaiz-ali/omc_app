@@ -153,6 +153,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  Future<void> _continueAsGuest() async {
+    await ref.read(authControllerProvider.notifier).continueAsGuest();
+    if (!mounted) return;
+    context.go('/home');
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
@@ -260,6 +266,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             icon: Icons.login_rounded,
                             isLoading: isLoading,
                             onPressed: isLoading ? null : _submit,
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: isLoading ? null : _continueAsGuest,
+                            icon: const Icon(Icons.explore_outlined),
+                            label: const Text('Continue as Guest'),
                           ),
                         ],
                       ),

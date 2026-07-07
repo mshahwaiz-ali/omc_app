@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
 
@@ -85,12 +86,23 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
+    final capabilities = authState.capabilities;
     final profileSummary = ref.watch(profileSummaryProvider);
-    final dashboardSummary = ref.watch(homeDashboardSummaryProvider);
-    final displayName = profileSummary.maybeWhen(
-      data: (profile) => profile?.displayName,
-      orElse: () => null,
-    ) ??
+    final canLoadDashboard =
+        capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessInternalWorkspace;
+    final dashboardSummary = canLoadDashboard
+        ? ref.watch(homeDashboardSummaryProvider)
+        : AsyncValue<HomeDashboardSummary>.data(
+            HomeDashboardSummary.empty(
+              fallbackMessage: _lockedAccessMessage(capabilities),
+            ),
+          );
+    final displayName =
+        profileSummary.maybeWhen(
+          data: (profile) => profile?.displayName,
+          orElse: () => null,
+        ) ??
         authState.displayName ??
         _displayNameFromUserId(authState.userId);
     final summary = dashboardSummary.maybeWhen(
@@ -112,10 +124,27 @@ class HomeScreen extends ConsumerWidget {
               sliver: SliverToBoxAdapter(
                 child: _HomeHeader(
                   displayName: displayName,
-                  onOpenNotifications: onOpenNotifications,
+                  unreadNotifications: summary.unreadNotifications,
+                  onOpenNotifications: () {
+                    if (capabilities.canViewCustomerNotifications ||
+                        capabilities.canAccessInternalWorkspace) {
+                      onOpenNotifications?.call();
+                      return;
+                    }
+                    _showLockedSnack(context, capabilities);
+                  },
                 ),
               ),
             ),
+            if (capabilities.isGuest ||
+                capabilities.isPending ||
+                capabilities.isRejected)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _HomeAccessBanner(capabilities: capabilities),
+                ),
+              ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
               sliver: SliverToBoxAdapter(
@@ -155,7 +184,8 @@ class HomeScreen extends ConsumerWidget {
               sliver: SliverToBoxAdapter(
                 child: _QuickActionLauncher(
                   actions: _quickActions,
-                  onTap: (target) => _handleAction(context, target),
+                  onTap: (target) =>
+                      _handleAction(context, target, capabilities),
                 ),
               ),
             ),
@@ -168,7 +198,11 @@ class HomeScreen extends ConsumerWidget {
                       : 'Start with OMC',
                   actionText: summary.activeCases > 0 ? 'Track' : null,
                   onAction: summary.activeCases > 0
-                      ? () => context.go('/my-services')
+                      ? () => _handleAction(
+                          context,
+                          _HomeActionTarget.myServices,
+                          capabilities,
+                        )
                       : null,
                 ),
               ),
@@ -179,7 +213,11 @@ class HomeScreen extends ConsumerWidget {
                 child: _ProgressCard(
                   summary: summary,
                   onStartRequest: onOpenServices,
-                  onTrack: () => context.go('/my-services'),
+                  onTrack: () => _handleAction(
+                    context,
+                    _HomeActionTarget.myServices,
+                    capabilities,
+                  ),
                 ),
               ),
             ),
@@ -190,8 +228,16 @@ class HomeScreen extends ConsumerWidget {
                   child: _AttentionCard(
                     pendingDocuments: summary.pendingDocuments,
                     paymentsDue: summary.paymentsDue,
-                    onOpenDocuments: () => context.go('/documents'),
-                    onOpenPayments: () => context.go('/payments'),
+                    onOpenDocuments: () => _handleAction(
+                      context,
+                      _HomeActionTarget.documents,
+                      capabilities,
+                    ),
+                    onOpenPayments: () => _handleAction(
+                      context,
+                      _HomeActionTarget.payments,
+                      capabilities,
+                    ),
                   ),
                 ),
               ),
@@ -206,7 +252,8 @@ class HomeScreen extends ConsumerWidget {
               sliver: SliverToBoxAdapter(
                 child: _WorkspaceList(
                   actions: _workspaceActions,
-                  onTap: (target) => _handleAction(context, target),
+                  onTap: (target) =>
+                      _handleAction(context, target, capabilities),
                 ),
               ),
             ),
@@ -216,7 +263,11 @@ class HomeScreen extends ConsumerWidget {
                 child: _SectionHeader(
                   title: 'Recent Activity',
                   actionText: 'Track',
-                  onAction: () => context.go('/my-services'),
+                  onAction: () => _handleAction(
+                    context,
+                    _HomeActionTarget.myServices,
+                    capabilities,
+                  ),
                 ),
               ),
             ),
@@ -225,7 +276,11 @@ class HomeScreen extends ConsumerWidget {
               sliver: SliverToBoxAdapter(
                 child: _RecentActivityCard(
                   activities: summary.recentActivity,
-                  onTrack: () => context.go('/my-services'),
+                  onTrack: () => _handleAction(
+                    context,
+                    _HomeActionTarget.myServices,
+                    capabilities,
+                  ),
                 ),
               ),
             ),
@@ -260,21 +315,44 @@ class HomeScreen extends ConsumerWidget {
     ];
   }
 
-  void _handleAction(BuildContext context, _HomeActionTarget target) {
+  void _handleAction(
+    BuildContext context,
+    _HomeActionTarget target,
+    AuthCapabilities capabilities,
+  ) {
     switch (target) {
       case _HomeActionTarget.dashboard:
+        if (!capabilities.canViewCustomerDashboard &&
+            !capabilities.canAccessInternalWorkspace) {
+          _showLockedSnack(context, capabilities);
+          return;
+        }
         context.go('/dashboard');
         return;
       case _HomeActionTarget.myServices:
+        if (!capabilities.canViewCustomerDashboard &&
+            !capabilities.canAccessInternalWorkspace) {
+          _showLockedSnack(context, capabilities);
+          return;
+        }
         context.go('/my-services');
         return;
       case _HomeActionTarget.services:
         onOpenServices?.call();
         return;
       case _HomeActionTarget.documents:
+        if (!capabilities.canViewDocuments &&
+            !capabilities.canReviewDocuments) {
+          _showLockedSnack(context, capabilities);
+          return;
+        }
         context.go('/documents');
         return;
       case _HomeActionTarget.payments:
+        if (!capabilities.canViewPayments && !capabilities.canReviewPayments) {
+          _showLockedSnack(context, capabilities);
+          return;
+        }
         context.go('/payments');
         return;
       case _HomeActionTarget.calculator:
@@ -287,9 +365,37 @@ class HomeScreen extends ConsumerWidget {
         context.go('/knowledge');
         return;
       case _HomeActionTarget.expenseTracker:
+        if (!capabilities.isApproved && !capabilities.isInternal) {
+          _showLockedSnack(context, capabilities);
+          return;
+        }
         context.go('/expense-tracker');
         return;
     }
+  }
+
+  void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(_lockedAccessMessage(capabilities)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  String _lockedAccessMessage(AuthCapabilities capabilities) {
+    if (capabilities.isGuest) {
+      return 'Please sign in or create an account to use this service.';
+    }
+    if (capabilities.isPending) {
+      return 'Your account is under review. OMC will enable this after approval.';
+    }
+    if (capabilities.isRejected) {
+      return 'This account is not approved for this action. Please contact OMC support.';
+    }
+    return 'This account does not have access to that area.';
   }
 
   String _displayNameFromUserId(String? userId) {
@@ -314,10 +420,12 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.displayName,
     required this.onOpenNotifications,
+    required this.unreadNotifications,
   });
 
   final String displayName;
   final VoidCallback? onOpenNotifications;
+  final int unreadNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -377,9 +485,85 @@ class _HomeHeader extends StatelessWidget {
         _RoundIconButton(
           icon: Icons.notifications_none_rounded,
           tooltip: 'Notifications',
+          badgeCount: unreadNotifications,
           onTap: onOpenNotifications,
         ),
       ],
+    );
+  }
+}
+
+class _HomeAccessBanner extends StatelessWidget {
+  const _HomeAccessBanner({required this.capabilities});
+
+  final AuthCapabilities capabilities;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, title, message) = switch (capabilities.accessState) {
+      AccountAccessState.guest => (
+        Icons.explore_outlined,
+        'Guest mode',
+        'Browse services and tax resources. Sign in to request services and upload documents.',
+      ),
+      AccountAccessState.pending => (
+        Icons.hourglass_top_rounded,
+        'Account under review',
+        'Protected actions will unlock after OMC approves your profile.',
+      ),
+      AccountAccessState.rejected => (
+        Icons.block_rounded,
+        'Approval required',
+        'This account cannot access protected services yet.',
+      ),
+      _ => (
+        Icons.verified_user_outlined,
+        'Approved access',
+        'Protected services are enabled.',
+      ),
+    };
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 21),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1232,11 +1416,13 @@ class _RoundIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -1261,7 +1447,27 @@ class _RoundIconButton extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 23),
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, color: AppTheme.primaryRed, size: 23),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: 9,
+                    right: 9,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryRed,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

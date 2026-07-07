@@ -12,6 +12,20 @@
   "erpnext_integration_enabled",
   "signup_enabled",
   "require_customer_approval",
+  "feature_section",
+  "guest_mode_enabled",
+  "payments_enabled",
+  "payment_gateway_enabled",
+  "support_enabled",
+  "knowledge_enabled",
+  "tax_calculator_enabled",
+  "expense_tracker_enabled",
+  "subscriptions_enabled",
+  "internal_workspace_enabled",
+  "app_control_section",
+  "minimum_app_version",
+  "force_update",
+  "maintenance_mode",
   "mapping_section",
   "customer_doctype",
   "customer_name_field",
@@ -71,6 +85,87 @@
    "fieldname": "require_customer_approval",
    "fieldtype": "Check",
    "label": "Require Customer Approval"
+  },
+  {
+   "fieldname": "feature_section",
+   "fieldtype": "Section Break",
+   "label": "Mobile Feature Flags"
+  },
+  {
+   "default": "1",
+   "fieldname": "guest_mode_enabled",
+   "fieldtype": "Check",
+   "label": "Guest Mode Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "payments_enabled",
+   "fieldtype": "Check",
+   "label": "Payments Enabled"
+  },
+  {
+   "default": "0",
+   "fieldname": "payment_gateway_enabled",
+   "fieldtype": "Check",
+   "label": "Payment Gateway Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "support_enabled",
+   "fieldtype": "Check",
+   "label": "Support Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "knowledge_enabled",
+   "fieldtype": "Check",
+   "label": "Knowledge Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "tax_calculator_enabled",
+   "fieldtype": "Check",
+   "label": "Tax Calculator Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "expense_tracker_enabled",
+   "fieldtype": "Check",
+   "label": "Expense Tracker Enabled"
+  },
+  {
+   "default": "0",
+   "fieldname": "subscriptions_enabled",
+   "fieldtype": "Check",
+   "label": "Subscriptions Enabled"
+  },
+  {
+   "default": "0",
+   "fieldname": "internal_workspace_enabled",
+   "fieldtype": "Check",
+   "label": "Internal Workspace Enabled"
+  },
+  {
+   "fieldname": "app_control_section",
+   "fieldtype": "Section Break",
+   "label": "App Controls"
+  },
+  {
+   "fieldname": "minimum_app_version",
+   "fieldtype": "Data",
+   "label": "Minimum App Version"
+  },
+  {
+   "default": "0",
+   "fieldname": "force_update",
+   "fieldtype": "Check",
+   "label": "Force Update"
+  },
+  {
+   "default": "0",
+   "fieldname": "maintenance_mode",
+   "fieldtype": "Check",
+   "label": "Maintenance Mode"
   },
   {
    "fieldname": "mapping_section",

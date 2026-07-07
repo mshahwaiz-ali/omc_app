@@ -236,6 +236,11 @@ class _NotificationDetailBodyState
   }
 
   Future<void> _openActionUrl(BuildContext context, String url) async {
+    if (url.startsWith('/')) {
+      context.push(url);
+      return;
+    }
+
     final uri = _notificationUri(url);
     if (uri == null) {
       _showBackendPendingSnack(

@@ -8,6 +8,8 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
@@ -20,6 +22,7 @@ class ServiceDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final servicesAsync = ref.watch(serviceCatalogueProvider);
+    final capabilities = ref.watch(authControllerProvider).capabilities;
 
     return servicesAsync.when(
       loading: () => const Scaffold(
@@ -104,9 +107,16 @@ class ServiceDetailScreen extends ConsumerWidget {
                         icon: _hasGuidedWizard(service)
                             ? Icons.auto_awesome_rounded
                             : Icons.add_rounded,
-                        onPressed: () => context.push(
-                          '/services/${Uri.encodeComponent(service.id)}/request',
-                        ),
+                        onPressed: () {
+                          if (capabilities.canCreateServiceRequest) {
+                            context.push(
+                              '/services/${Uri.encodeComponent(service.id)}/request',
+                            );
+                            return;
+                          }
+
+                          _showLockedSnack(context, capabilities);
+                        },
                       ),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
@@ -123,6 +133,30 @@ class ServiceDetailScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(_lockedAccessMessage(capabilities)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  String _lockedAccessMessage(AuthCapabilities capabilities) {
+    if (capabilities.isGuest) {
+      return 'Please sign in or create an account to request this service.';
+    }
+    if (capabilities.isPending) {
+      return 'Your account is under review. OMC will enable service requests after approval.';
+    }
+    if (capabilities.isRejected) {
+      return 'This account is not approved for service requests. Please contact OMC support.';
+    }
+    return 'This account does not have access to service requests.';
   }
 
   ServiceItem? _findService(List<ServiceItem> services) {

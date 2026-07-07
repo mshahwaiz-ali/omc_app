@@ -12,6 +12,7 @@
   "full_name",
   "email",
   "phone",
+  "whatsapp_no",
   "status_section",
   "customer_status",
   "approval_status",
@@ -20,6 +21,13 @@
   "cnic",
   "ntn",
   "company_name",
+  "register_as",
+  "customer_type",
+  "address",
+  "review_section",
+  "education",
+  "experience",
+  "remarks",
   "integration_section",
   "linked_erpnext_customer"
  ],
@@ -52,6 +60,11 @@
    "fieldname": "phone",
    "fieldtype": "Data",
    "label": "Phone"
+  },
+  {
+   "fieldname": "whatsapp_no",
+   "fieldtype": "Data",
+   "label": "WhatsApp No"
   },
   {
    "fieldname": "status_section",
@@ -97,6 +110,45 @@
    "fieldname": "company_name",
    "fieldtype": "Data",
    "label": "Company Name"
+  },
+  {
+   "default": "Customer",
+   "fieldname": "register_as",
+   "fieldtype": "Select",
+   "label": "Register As",
+   "options": "Customer\nConsultant\nBusiness Partner\nTax Associate"
+  },
+  {
+   "default": "Customer",
+   "fieldname": "customer_type",
+   "fieldtype": "Select",
+   "label": "Customer Type",
+   "options": "Customer\nConsultant\nBusiness Partner\nTax Associate"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "review_section",
+   "fieldtype": "Section Break",
+   "label": "Review Details"
+  },
+  {
+   "fieldname": "education",
+   "fieldtype": "Data",
+   "label": "Education"
+  },
+  {
+   "fieldname": "experience",
+   "fieldtype": "Small Text",
+   "label": "Experience"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
   },
   {
    "fieldname": "integration_section",

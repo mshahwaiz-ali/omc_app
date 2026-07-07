@@ -9,6 +9,8 @@ import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../application/service_catalogue_controller.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_item.dart';
@@ -39,6 +41,7 @@ class _ServiceCatalogueScreenState
   @override
   Widget build(BuildContext context) {
     final servicesAsync = ref.watch(serviceCatalogueProvider);
+    final capabilities = ref.watch(authControllerProvider).capabilities;
 
     return SafeArea(
       child: servicesAsync.when(
@@ -95,9 +98,20 @@ class _ServiceCatalogueScreenState
                   ),
                 ),
               ),
-              const SliverPadding(
+              SliverPadding(
                 padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
-                sliver: SliverToBoxAdapter(child: _MyServicesShortcutCard()),
+                sliver: SliverToBoxAdapter(
+                  child: _MyServicesShortcutCard(
+                    onTap: () {
+                      if (capabilities.canViewCustomerDashboard ||
+                          capabilities.canAccessInternalWorkspace) {
+                        context.go('/my-services');
+                        return;
+                      }
+                      _showLockedSnack(context, capabilities);
+                    },
+                  ),
+                ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
               if (services.isEmpty)
@@ -145,9 +159,15 @@ class _ServiceCatalogueScreenState
                           onOpenDetails: () => context.push(
                             '/services/${Uri.encodeComponent(service.id)}',
                           ),
-                          onRequest: () => context.push(
-                            '/services/${Uri.encodeComponent(service.id)}/request',
-                          ),
+                          onRequest: () {
+                            if (capabilities.canCreateServiceRequest) {
+                              context.push(
+                                '/services/${Uri.encodeComponent(service.id)}/request',
+                              );
+                              return;
+                            }
+                            _showLockedSnack(context, capabilities);
+                          },
                           onWhatsApp: () =>
                               SupportLauncher.openWhatsApp(context),
                         ),
@@ -160,6 +180,30 @@ class _ServiceCatalogueScreenState
         },
       ),
     );
+  }
+
+  void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(_lockedAccessMessage(capabilities)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  String _lockedAccessMessage(AuthCapabilities capabilities) {
+    if (capabilities.isGuest) {
+      return 'Please sign in or create an account to request this service.';
+    }
+    if (capabilities.isPending) {
+      return 'Your account is under review. OMC will enable service requests after approval.';
+    }
+    if (capabilities.isRejected) {
+      return 'This account is not approved for service requests. Please contact OMC support.';
+    }
+    return 'This account does not have access to service requests.';
   }
 
   List<ServiceItem> _filterServices(List<ServiceItem> services) {
@@ -524,12 +568,14 @@ class _CategoryFilter extends StatelessWidget {
 }
 
 class _MyServicesShortcutCard extends StatelessWidget {
-  const _MyServicesShortcutCard();
+  const _MyServicesShortcutCard({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      onTap: () => context.go('/my-services'),
+      onTap: onTap,
       child: Row(
         children: [
           Container(

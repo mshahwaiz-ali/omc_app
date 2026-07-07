@@ -9,6 +9,7 @@
   "branding_section",
   "enabled",
   "brand_name",
+  "tagline",
   "full_logo",
   "logo_symbol",
   "login_logo",
@@ -37,6 +38,12 @@
    "fieldtype": "Data",
    "label": "Brand Name",
    "reqd": 1
+  },
+  {
+   "default": "Business, tax and compliance support",
+   "fieldname": "tagline",
+   "fieldtype": "Data",
+   "label": "Tagline"
   },
   {
    "default": "/assets/omc_app/images/full_logo_transparent.png",

@@ -1,4 +1,195 @@
-enum AuthStatus { checking, authenticating, authenticated, unauthenticated }
+enum AuthStatus {
+  checking,
+  authenticating,
+  authenticated,
+  guest,
+  unauthenticated,
+}
+
+enum AccountAccessState { guest, pending, approved, internal, rejected }
+
+class AuthCapabilities {
+  const AuthCapabilities({
+    required this.accessState,
+    this.canViewPublicCatalogue = true,
+    this.canViewPublicContent = true,
+    this.canUseTaxCalculator = true,
+    this.canCreateServiceRequest = false,
+    this.canUploadDocuments = false,
+    this.canViewDocuments = false,
+    this.canViewPayments = false,
+    this.canUploadPaymentReceipt = false,
+    this.canCreateSupportTicket = false,
+    this.canViewSupportTickets = false,
+    this.canViewCustomerDashboard = false,
+    this.canViewCustomerNotifications = false,
+    this.canAccessInternalWorkspace = false,
+    this.canUpdateServiceStatus = false,
+    this.canReviewDocuments = false,
+    this.canReviewPayments = false,
+    this.canUpdateSupportTicketStatus = false,
+    this.canManageCustomers = false,
+    this.canManageLeads = false,
+    this.canManageTasks = false,
+    this.canViewInternalNotes = false,
+  });
+
+  final AccountAccessState accessState;
+  final bool canViewPublicCatalogue;
+  final bool canViewPublicContent;
+  final bool canUseTaxCalculator;
+  final bool canCreateServiceRequest;
+  final bool canUploadDocuments;
+  final bool canViewDocuments;
+  final bool canViewPayments;
+  final bool canUploadPaymentReceipt;
+  final bool canCreateSupportTicket;
+  final bool canViewSupportTickets;
+  final bool canViewCustomerDashboard;
+  final bool canViewCustomerNotifications;
+  final bool canAccessInternalWorkspace;
+  final bool canUpdateServiceStatus;
+  final bool canReviewDocuments;
+  final bool canReviewPayments;
+  final bool canUpdateSupportTicketStatus;
+  final bool canManageCustomers;
+  final bool canManageLeads;
+  final bool canManageTasks;
+  final bool canViewInternalNotes;
+
+  static const guest = AuthCapabilities(accessState: AccountAccessState.guest);
+
+  bool get isGuest => accessState == AccountAccessState.guest;
+  bool get isPending => accessState == AccountAccessState.pending;
+  bool get isApproved => accessState == AccountAccessState.approved;
+  bool get isInternal => accessState == AccountAccessState.internal;
+  bool get isRejected => accessState == AccountAccessState.rejected;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is AuthCapabilities &&
+            runtimeType == other.runtimeType &&
+            accessState == other.accessState &&
+            canViewPublicCatalogue == other.canViewPublicCatalogue &&
+            canViewPublicContent == other.canViewPublicContent &&
+            canUseTaxCalculator == other.canUseTaxCalculator &&
+            canCreateServiceRequest == other.canCreateServiceRequest &&
+            canUploadDocuments == other.canUploadDocuments &&
+            canViewDocuments == other.canViewDocuments &&
+            canViewPayments == other.canViewPayments &&
+            canUploadPaymentReceipt == other.canUploadPaymentReceipt &&
+            canCreateSupportTicket == other.canCreateSupportTicket &&
+            canViewSupportTickets == other.canViewSupportTickets &&
+            canViewCustomerDashboard == other.canViewCustomerDashboard &&
+            canViewCustomerNotifications ==
+                other.canViewCustomerNotifications &&
+            canAccessInternalWorkspace == other.canAccessInternalWorkspace &&
+            canUpdateServiceStatus == other.canUpdateServiceStatus &&
+            canReviewDocuments == other.canReviewDocuments &&
+            canReviewPayments == other.canReviewPayments &&
+            canUpdateSupportTicketStatus ==
+                other.canUpdateSupportTicketStatus &&
+            canManageCustomers == other.canManageCustomers &&
+            canManageLeads == other.canManageLeads &&
+            canManageTasks == other.canManageTasks &&
+            canViewInternalNotes == other.canViewInternalNotes;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    accessState,
+    canViewPublicCatalogue,
+    canViewPublicContent,
+    canUseTaxCalculator,
+    canCreateServiceRequest,
+    canUploadDocuments,
+    canViewDocuments,
+    canViewPayments,
+    canUploadPaymentReceipt,
+    canCreateSupportTicket,
+    canViewSupportTickets,
+    canViewCustomerDashboard,
+    canViewCustomerNotifications,
+    canAccessInternalWorkspace,
+    canUpdateServiceStatus,
+    canReviewDocuments,
+    canReviewPayments,
+    canUpdateSupportTicketStatus,
+    canManageCustomers,
+    canManageLeads,
+    canManageTasks,
+    canViewInternalNotes,
+  ]);
+
+  factory AuthCapabilities.fromJson(Map<String, dynamic>? json) {
+    if (json == null || json.isEmpty) return guest;
+
+    return AuthCapabilities(
+      accessState: _accessStateFromValue(json['access_state']),
+      canViewPublicCatalogue: _boolValue(
+        json['can_view_public_catalogue'],
+        true,
+      ),
+      canViewPublicContent: _boolValue(json['can_view_public_content'], true),
+      canUseTaxCalculator: _boolValue(json['can_use_tax_calculator'], true),
+      canCreateServiceRequest: _boolValue(json['can_create_service_request']),
+      canUploadDocuments: _boolValue(json['can_upload_documents']),
+      canViewDocuments: _boolValue(json['can_view_documents']),
+      canViewPayments: _boolValue(json['can_view_payments']),
+      canUploadPaymentReceipt: _boolValue(json['can_upload_payment_receipt']),
+      canCreateSupportTicket: _boolValue(json['can_create_support_ticket']),
+      canViewSupportTickets: _boolValue(json['can_view_support_tickets']),
+      canViewCustomerDashboard: _boolValue(json['can_view_customer_dashboard']),
+      canViewCustomerNotifications: _boolValue(
+        json['can_view_customer_notifications'],
+      ),
+      canAccessInternalWorkspace: _boolValue(
+        json['can_access_internal_workspace'],
+      ),
+      canUpdateServiceStatus: _boolValue(json['can_update_service_status']),
+      canReviewDocuments: _boolValue(json['can_review_documents']),
+      canReviewPayments: _boolValue(json['can_review_payments']),
+      canUpdateSupportTicketStatus: _boolValue(
+        json['can_update_support_ticket_status'],
+      ),
+      canManageCustomers: _boolValue(json['can_manage_customers']),
+      canManageLeads: _boolValue(json['can_manage_leads']),
+      canManageTasks: _boolValue(json['can_manage_tasks']),
+      canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
+    );
+  }
+
+  static AccountAccessState _accessStateFromValue(dynamic value) {
+    final text = value?.toString().trim().toLowerCase() ?? '';
+    if (text == 'internal') return AccountAccessState.internal;
+    if (text == 'approved' || text == 'active') {
+      return AccountAccessState.approved;
+    }
+    if (text == 'rejected') return AccountAccessState.rejected;
+    if (text == 'pending' || text == 'pending_review') {
+      return AccountAccessState.pending;
+    }
+    return AccountAccessState.guest;
+  }
+
+  static bool _boolValue(dynamic value, [bool fallback = false]) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+
+    final text = value?.toString().trim().toLowerCase();
+    if (text == null || text.isEmpty) return fallback;
+
+    if (text == 'true' || text == '1' || text == 'yes' || text == 'on') {
+      return true;
+    }
+    if (text == 'false' || text == '0' || text == 'no' || text == 'off') {
+      return false;
+    }
+
+    return fallback;
+  }
+}
 
 class AuthState {
   const AuthState({
@@ -11,6 +202,7 @@ class AuthState {
     this.companyName,
     this.customerStatus,
     this.approvalStatus,
+    this.capabilities = AuthCapabilities.guest,
   });
 
   final AuthStatus status;
@@ -22,6 +214,7 @@ class AuthState {
   final String? companyName;
   final String? customerStatus;
   final String? approvalStatus;
+  final AuthCapabilities capabilities;
 
   const AuthState.checking()
     : status = AuthStatus.checking,
@@ -32,7 +225,8 @@ class AuthState {
       phone = null,
       companyName = null,
       customerStatus = null,
-      approvalStatus = null;
+      approvalStatus = null,
+      capabilities = AuthCapabilities.guest;
 
   const AuthState.authenticating()
     : status = AuthStatus.authenticating,
@@ -43,7 +237,8 @@ class AuthState {
       phone = null,
       companyName = null,
       customerStatus = null,
-      approvalStatus = null;
+      approvalStatus = null,
+      capabilities = AuthCapabilities.guest;
 
   const AuthState.authenticated({
     required String this.userId,
@@ -53,8 +248,21 @@ class AuthState {
     this.companyName,
     this.customerStatus,
     this.approvalStatus,
+    this.capabilities = AuthCapabilities.guest,
   }) : status = AuthStatus.authenticated,
        message = null;
+
+  const AuthState.guest()
+    : status = AuthStatus.guest,
+      userId = null,
+      message = null,
+      canAccessInternalWorkspace = false,
+      displayName = null,
+      phone = null,
+      companyName = null,
+      customerStatus = 'Guest',
+      approvalStatus = null,
+      capabilities = AuthCapabilities.guest;
 
   const AuthState.unauthenticated({this.message})
     : status = AuthStatus.unauthenticated,
@@ -64,7 +272,8 @@ class AuthState {
       phone = null,
       companyName = null,
       customerStatus = null,
-      approvalStatus = null;
+      approvalStatus = null,
+      capabilities = AuthCapabilities.guest;
 
   AuthState copyWith({
     AuthStatus? status,
@@ -76,6 +285,7 @@ class AuthState {
     String? companyName,
     String? customerStatus,
     String? approvalStatus,
+    AuthCapabilities? capabilities,
   }) {
     return AuthState(
       status: status ?? this.status,
@@ -88,6 +298,7 @@ class AuthState {
       companyName: companyName ?? this.companyName,
       customerStatus: customerStatus ?? this.customerStatus,
       approvalStatus: approvalStatus ?? this.approvalStatus,
+      capabilities: capabilities ?? this.capabilities,
     );
   }
 }
