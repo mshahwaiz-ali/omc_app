@@ -102,6 +102,7 @@ class AuthController extends Notifier<AuthState> {
   Future<void> continueAsGuest() async {
     await _authRepository.clearSession();
     state = const AuthState.guest();
+    await _authRepository.createGuestSession();
   }
 
   Future<void> logout() async {
