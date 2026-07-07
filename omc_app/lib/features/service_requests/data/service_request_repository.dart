@@ -87,6 +87,14 @@ class ServiceRequestPayload {
       data['service_details'] = normalizedDetails;
     }
 
+    if (service.wizardConfig.isNotEmpty) {
+      data['wizard_config'] = service.wizardConfig;
+      data['service_metadata'] = {
+        'wizard_type': normalizedWizardType ?? '',
+        'wizard_config': service.wizardConfig,
+      };
+    }
+
     if (attachments.isNotEmpty) {
       data['attachments'] = attachments
           .map(
