@@ -1480,7 +1480,7 @@ def review_payment_receipt(payment_id=None, status=None, remarks=None, payment_r
 
     _create_service_timeline_entry(
         service_request=payment.service_request,
-        event_type="Payment",
+        event_type="Payment Updated",
         title=timeline_title,
         description=timeline_description,
         visible_to_customer=1,
@@ -1837,6 +1837,12 @@ def get_notification_detail(notification_id=None):
     if not profile and notification.recipient_user and notification.recipient_user != user:
         frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
 
+    if not notification.is_read:
+        notification.is_read = 1
+        notification.read_on = frappe.utils.now_datetime()
+        notification.save(ignore_permissions=True)
+        frappe.db.commit()
+
     return {
         "name": notification.name,
         "title": notification.title or "",
@@ -1986,12 +1992,17 @@ def _support_ticket_messages(ticket):
 
 
 def _support_ticket_to_dict(ticket):
+    import re
+
+    raw_message = ticket.message or ""
+    raw_message = re.sub(r"--- Reply from\s*", "--- Reply from ", raw_message)
+    raw_message = re.sub(r"\s+at\s*(\d{4}-\d{2}-\d{2})", r" at \1", raw_message)
     messages = _support_ticket_messages(ticket)
 
     return {
         "name": ticket.name,
         "subject": ticket.subject or "",
-        "message": ticket.message or "",
+        "message": raw_message,
         "messages": messages,
         "status": ticket.status or "",
         "priority": ticket.priority or "",
