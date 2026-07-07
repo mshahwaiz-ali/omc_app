@@ -40,14 +40,27 @@ class ServiceRequestPayload {
   final String? customerName;
 
   Map<String, dynamic> toJson() {
+    final normalizedDetails = _normalizedAdditionalDetails();
+    final normalizedEmail = email.trim();
+    final normalizedPhone = phone.trim();
+
     final data = <String, dynamic>{
       'service_id': service.id.trim(),
       'service_title': service.title.trim(),
       'service_category': service.category.trim(),
+      'title': service.title.trim(),
       'full_name': fullName.trim(),
-      'phone': phone.trim(),
-      'email': email.trim(),
+      'phone': normalizedPhone,
+      'contact_phone': normalizedPhone,
+      'email': normalizedEmail,
+      'contact_email': normalizedEmail,
+      'description': _buildRequestDescription(normalizedDetails),
     };
+
+    final normalizedWizardType = service.wizardType?.trim();
+    if (normalizedWizardType != null && normalizedWizardType.isNotEmpty) {
+      data['wizard_type'] = normalizedWizardType;
+    }
 
     final normalizedTaxId = taxId.trim();
     if (normalizedTaxId.isNotEmpty) {
@@ -70,16 +83,6 @@ class ServiceRequestPayload {
       data['remarks'] = normalizedRemarks;
     }
 
-    final normalizedDetails = <String, String>{};
-    for (final entry in additionalDetails.entries) {
-      final key = entry.key.trim();
-      final value = entry.value.trim();
-
-      if (key.isNotEmpty && value.isNotEmpty) {
-        normalizedDetails[key] = value;
-      }
-    }
-
     if (normalizedDetails.isNotEmpty) {
       data['service_details'] = normalizedDetails;
     }
@@ -97,6 +100,44 @@ class ServiceRequestPayload {
     }
 
     return data;
+  }
+
+  Map<String, String> _normalizedAdditionalDetails() {
+    final normalizedDetails = <String, String>{};
+    for (final entry in additionalDetails.entries) {
+      final key = entry.key.trim();
+      final value = entry.value.trim();
+
+      if (key.isNotEmpty && value.isNotEmpty) {
+        normalizedDetails[key] = value;
+      }
+    }
+
+    return normalizedDetails;
+  }
+
+  String _buildRequestDescription(Map<String, String> normalizedDetails) {
+    final lines = <String>[];
+    final normalizedRemarks = remarks.trim();
+
+    if (normalizedRemarks.isNotEmpty) {
+      lines.add(normalizedRemarks);
+    }
+
+    if (normalizedDetails.isNotEmpty) {
+      if (lines.isNotEmpty) lines.add('');
+      lines.add('Service details:');
+      for (final entry in normalizedDetails.entries) {
+        lines.add('- ${entry.key}: ${entry.value}');
+      }
+    }
+
+    if (service.wizardConfig.isNotEmpty) {
+      if (lines.isNotEmpty) lines.add('');
+      lines.add('Request form used backend wizard configuration.');
+    }
+
+    return lines.join('\n').trim();
   }
 }
 
