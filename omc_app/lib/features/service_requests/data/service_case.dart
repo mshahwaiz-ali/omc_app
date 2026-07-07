@@ -52,6 +52,14 @@ class ServiceCase {
   final bool canUpdateStatus;
   final bool canReviewDocuments;
   final bool canViewInternalNotes;
+
+  bool get isClosed {
+    final normalized = status.trim().toLowerCase();
+    return normalized.contains('complete') ||
+        normalized.contains('cancel') ||
+        normalized.contains('closed') ||
+        normalized.contains('reject');
+  }
 }
 
 class ServiceCaseDocument {
@@ -79,14 +87,18 @@ class ServiceCaseDocument {
         normalized.contains('submitted') ||
         normalized.contains('uploaded') ||
         normalized.contains('approved') ||
+        normalized.contains('received') ||
+        normalized.contains('verified') ||
         normalized.contains('under review');
   }
 
   bool get isMissing {
     final normalized = status.trim().toLowerCase();
-    return normalized.contains('missing') ||
-        normalized.contains('required') ||
-        normalized.contains('rejected');
+    return fileUrl == null &&
+        (normalized.contains('missing') ||
+            normalized.contains('required') ||
+            normalized.contains('pending') ||
+            normalized.contains('rejected'));
   }
 }
 
