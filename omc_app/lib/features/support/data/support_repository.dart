@@ -94,6 +94,40 @@ class SupportRepository {
     );
   }
 
+  Future<SupportTicket?> updateSupportTicketStatus({
+    required String ticketId,
+    required String status,
+    String? remarks,
+  }) async {
+    final cleanTicketId = ticketId.trim();
+    final cleanStatus = status.trim();
+    final cleanRemarks = remarks?.trim();
+
+    if (cleanTicketId.isEmpty) {
+      throw const ApiError(message: 'Missing support ticket reference.');
+    }
+
+    if (cleanStatus.isEmpty) {
+      throw const ApiError(message: 'Select a valid ticket status.');
+    }
+
+    final data = <String, dynamic>{
+      'ticket_id': cleanTicketId,
+      'status': cleanStatus,
+    };
+
+    if (cleanRemarks != null && cleanRemarks.isNotEmpty) {
+      data['remarks'] = cleanRemarks;
+    }
+
+    final response = await frappeClient.postMethod(
+      ApiConfig.updateSupportTicketStatusMethod,
+      data: data,
+    );
+
+    return _mapTicketDetailResponse(response);
+  }
+
   Future<Map<String, dynamic>> createSupportTicket({
     required String topic,
     required String message,

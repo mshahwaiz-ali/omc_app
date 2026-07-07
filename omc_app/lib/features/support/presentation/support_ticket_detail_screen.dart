@@ -145,10 +145,21 @@ class _LoadingDetailTile extends StatelessWidget {
   }
 }
 
-class _SupportTicketDetailBody extends StatelessWidget {
+class _SupportTicketDetailBody extends ConsumerStatefulWidget {
   const _SupportTicketDetailBody({required this.ticket});
 
   final SupportTicket ticket;
+
+  @override
+  ConsumerState<_SupportTicketDetailBody> createState() =>
+      _SupportTicketDetailBodyState();
+}
+
+class _SupportTicketDetailBodyState
+    extends ConsumerState<_SupportTicketDetailBody> {
+  bool _isUpdatingStatus = false;
+
+  SupportTicket get ticket => widget.ticket;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +276,177 @@ class _SupportTicketDetailBody extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        _SupportAdminStatusCard(
+          ticket: ticket,
+          isUpdating: _isUpdatingStatus,
+          onStatusSelected: _isUpdatingStatus
+              ? null
+              : (status) => _updateTicketStatus(context, status),
+        ),
       ],
+    );
+  }
+
+  Future<void> _updateTicketStatus(BuildContext context, String status) async {
+    final repository = ref.read(supportRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _isUpdatingStatus = true);
+
+    try {
+      await repository.updateSupportTicketStatus(
+        ticketId: ticket.id,
+        status: status,
+      );
+
+      if (!context.mounted) return;
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('Support ticket marked as $status.')),
+      );
+
+      ref.invalidate(supportTicketDetailProvider(ticket.id));
+      ref.invalidate(supportTicketsProvider);
+    } on ApiError catch (error) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Support ticket status could not be updated right now.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingStatus = false);
+      }
+    }
+  }
+}
+
+class _SupportAdminStatusCard extends StatelessWidget {
+  const _SupportAdminStatusCard({
+    required this.ticket,
+    required this.isUpdating,
+    required this.onStatusSelected,
+  });
+
+  final SupportTicket ticket;
+  final bool isUpdating;
+  final ValueChanged<String>? onStatusSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final status = ticket.status.trim().toLowerCase();
+    final isClosed = status == 'closed' || status == 'cancelled';
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Admin ticket controls',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            isClosed
+                ? 'This ticket is closed. Reopen it before more support action.'
+                : 'Update the backend ticket status after reviewing the customer request.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _StatusActionButton(
+                label: 'Waiting',
+                status: 'Waiting for Customer',
+                icon: Icons.hourglass_bottom_rounded,
+                enabled: !isUpdating && !isClosed && onStatusSelected != null,
+                onStatusSelected: onStatusSelected,
+              ),
+              _StatusActionButton(
+                label: 'Resolved',
+                status: 'Resolved',
+                icon: Icons.verified_rounded,
+                enabled: !isUpdating && !isClosed && onStatusSelected != null,
+                onStatusSelected: onStatusSelected,
+              ),
+              _StatusActionButton(
+                label: 'Close',
+                status: 'Closed',
+                icon: Icons.lock_rounded,
+                enabled: !isUpdating && !isClosed && onStatusSelected != null,
+                onStatusSelected: onStatusSelected,
+              ),
+              _StatusActionButton(
+                label: 'Reopen',
+                status: 'Open',
+                icon: Icons.refresh_rounded,
+                enabled: !isUpdating && onStatusSelected != null,
+                onStatusSelected: onStatusSelected,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusActionButton extends StatelessWidget {
+  const _StatusActionButton({
+    required this.label,
+    required this.status,
+    required this.icon,
+    required this.enabled,
+    required this.onStatusSelected,
+  });
+
+  final String label;
+  final String status;
+  final IconData icon;
+  final bool enabled;
+  final ValueChanged<String>? onStatusSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: enabled ? () => onStatusSelected?.call(status) : null,
+      icon: Icon(icon),
+      label: Text(label),
     );
   }
 }

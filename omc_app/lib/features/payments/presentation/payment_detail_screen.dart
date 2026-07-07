@@ -535,6 +535,93 @@ IconData _paymentStatusIcon(PaymentStatus status) {
   }
 }
 
+class _PaymentAdminReviewCard extends StatelessWidget {
+  const _PaymentAdminReviewCard({
+    required this.payment,
+    required this.isReviewing,
+    required this.onReview,
+  });
+
+  final PaymentItem payment;
+  final bool isReviewing;
+  final ValueChanged<String>? onReview;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Admin receipt review',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Review the submitted customer receipt and update the backend payment status.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isReviewing || onReview == null
+                      ? null
+                      : () => onReview?.call('Rejected'),
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Reject'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: isReviewing || onReview == null
+                      ? null
+                      : () => onReview?.call('Paid'),
+                  icon: Icon(
+                    isReviewing
+                        ? Icons.hourglass_top_rounded
+                        : Icons.verified_rounded,
+                  ),
+                  label: Text(isReviewing ? 'Reviewing' : 'Mark Paid'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PaymentDetailBody extends ConsumerStatefulWidget {
   const _PaymentDetailBody({required this.payment});
 
@@ -546,6 +633,7 @@ class _PaymentDetailBody extends ConsumerStatefulWidget {
 
 class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   bool _isUploadingReceipt = false;
+  bool _isReviewingReceipt = false;
 
   PaymentItem get payment => widget.payment;
 
@@ -589,6 +677,16 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
                 'Payment gateway link is not available for this record.',
           ),
         ),
+        if (_canReviewReceipt(payment)) ...[
+          const SizedBox(height: 16),
+          _PaymentAdminReviewCard(
+            payment: payment,
+            isReviewing: _isReviewingReceipt,
+            onReview: _isReviewingReceipt
+                ? null
+                : (status) => _reviewPaymentReceipt(context, status),
+          ),
+        ],
         const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -605,6 +703,51 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
         ),
       ],
     );
+  }
+
+  bool _canReviewReceipt(PaymentItem payment) {
+    return payment.status == PaymentStatus.receiptSubmitted ||
+        payment.status == PaymentStatus.underReview;
+  }
+
+  Future<void> _reviewPaymentReceipt(
+    BuildContext context,
+    String status,
+  ) async {
+    final repository = ref.read(paymentsRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _isReviewingReceipt = true);
+
+    try {
+      await repository.reviewPaymentReceipt(
+        paymentId: payment.id,
+        status: status,
+      );
+
+      if (!context.mounted) return;
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('Payment marked as $status.')),
+      );
+
+      ref.invalidate(paymentDetailProvider(payment.id));
+      ref.invalidate(paymentsProvider);
+    } on ApiError catch (error) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Payment review could not be completed right now.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isReviewingReceipt = false);
+      }
+    }
   }
 
   Future<void> _pickAndUploadReceipt(BuildContext context) async {

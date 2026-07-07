@@ -49,6 +49,44 @@ class PaymentsRepository {
     return _mapPaymentDetailResponse(response);
   }
 
+  Future<PaymentItem?> reviewPaymentReceipt({
+    required String paymentId,
+    required String status,
+    String? remarks,
+    String? paymentReference,
+  }) async {
+    final cleanPaymentId = paymentId.trim();
+    final cleanStatus = status.trim();
+
+    if (cleanPaymentId.isEmpty) {
+      throw const ApiError(message: 'Missing payment reference for review.');
+    }
+
+    if (cleanStatus.isEmpty) {
+      throw const ApiError(message: 'Select a valid payment review status.');
+    }
+
+    final data = <String, dynamic>{
+      'payment_id': cleanPaymentId,
+      'status': cleanStatus,
+    };
+
+    if (remarks != null) {
+      data['remarks'] = remarks;
+    }
+
+    if (paymentReference != null) {
+      data['payment_reference'] = paymentReference;
+    }
+
+    final response = await _frappeClient.postMethod(
+      ApiConfig.reviewPaymentReceiptMethod,
+      data: data,
+    );
+
+    return _mapPaymentDetailResponse(response);
+  }
+
   Future<List<Map<String, dynamic>>> uploadPaymentReceipts({
     required String paymentId,
     required List<DocumentAttachment> attachments,

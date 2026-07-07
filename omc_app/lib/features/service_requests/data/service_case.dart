@@ -15,6 +15,7 @@ class ServiceCase {
     this.requiredDocuments = const [],
     this.submittedDocuments = const [],
     this.missingDocuments = const [],
+    this.documentDetails = const [],
     this.timeline = const [],
   });
 
@@ -31,7 +32,44 @@ class ServiceCase {
   final List<String> requiredDocuments;
   final List<String> submittedDocuments;
   final List<String> missingDocuments;
+  final List<ServiceCaseDocument> documentDetails;
   final List<ServiceCaseTimelineStep> timeline;
+}
+
+class ServiceCaseDocument {
+  const ServiceCaseDocument({
+    required this.id,
+    required this.title,
+    required this.type,
+    required this.status,
+    this.fileUrl,
+    this.remarks,
+  });
+
+  final String id;
+  final String title;
+  final String type;
+  final String status;
+  final String? fileUrl;
+  final String? remarks;
+
+  bool get hasRealId => id.trim().isNotEmpty && id.trim() != '-';
+
+  bool get isSubmitted {
+    final normalized = status.trim().toLowerCase();
+    return fileUrl != null ||
+        normalized.contains('submitted') ||
+        normalized.contains('uploaded') ||
+        normalized.contains('approved') ||
+        normalized.contains('under review');
+  }
+
+  bool get isMissing {
+    final normalized = status.trim().toLowerCase();
+    return normalized.contains('missing') ||
+        normalized.contains('required') ||
+        normalized.contains('rejected');
+  }
 }
 
 class ServiceCaseTimelineStep {

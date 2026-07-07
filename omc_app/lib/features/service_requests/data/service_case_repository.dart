@@ -85,6 +85,84 @@ class ServiceCaseRepository {
     }
   }
 
+  Future<Map<String, dynamic>> updateServiceDocumentStatus({
+    required String documentId,
+    required String status,
+    String? remarks,
+  }) async {
+    final cleanDocumentId = documentId.trim();
+    final cleanStatus = status.trim();
+    final cleanRemarks = remarks?.trim();
+
+    if (cleanDocumentId.isEmpty) {
+      throw const ApiError(message: 'Missing document reference.');
+    }
+
+    if (cleanStatus.isEmpty) {
+      throw const ApiError(message: 'Select a valid document status.');
+    }
+
+    final data = <String, dynamic>{
+      'document_id': cleanDocumentId,
+      'status': cleanStatus,
+    };
+
+    if (cleanRemarks != null && cleanRemarks.isNotEmpty) {
+      data['remarks'] = cleanRemarks;
+    }
+
+    return _frappeClient.postMethod(
+      ApiConfig.updateServiceDocumentStatusMethod,
+      data: data,
+    );
+  }
+
+  Future<ServiceCase?> updateServiceCaseStatus({
+    required String caseId,
+    required String status,
+    String? note,
+    String? expectedCompletionDate,
+  }) async {
+    final cleanCaseId = caseId.trim();
+    final cleanStatus = status.trim();
+    final cleanNote = note?.trim();
+    final cleanExpectedCompletionDate = expectedCompletionDate?.trim();
+
+    if (cleanCaseId.isEmpty) {
+      throw const ApiError(message: 'Missing service case reference.');
+    }
+
+    if (cleanStatus.isEmpty) {
+      throw const ApiError(message: 'Select a valid service case status.');
+    }
+
+    final data = <String, dynamic>{
+      'case_id': cleanCaseId,
+      'status': cleanStatus,
+    };
+
+    if (cleanNote != null && cleanNote.isNotEmpty) {
+      data['note'] = cleanNote;
+    }
+
+    if (cleanExpectedCompletionDate != null &&
+        cleanExpectedCompletionDate.isNotEmpty) {
+      data['expected_completion_date'] = cleanExpectedCompletionDate;
+    }
+
+    final response = await _frappeClient.postMethod(
+      ApiConfig.updateServiceCaseStatusMethod,
+      data: data,
+    );
+
+    final updatedCases = _mapServiceCasesResponse(response);
+    if (updatedCases.isNotEmpty) {
+      return updatedCases.first;
+    }
+
+    return fetchServiceCaseDetail(cleanCaseId);
+  }
+
   ApiError _trackingApiUnavailable(Object details) {
     return ApiError(
       message:
@@ -170,10 +248,37 @@ class ServiceCaseRepository {
       requiredDocuments: _stringList(json['required_documents']),
       submittedDocuments: _stringList(json['submitted_documents']),
       missingDocuments: _stringList(json['missing_documents']),
+      documentDetails: _documentDetails(
+        json['submitted_documents'] ??
+            json['required_documents'] ??
+            json['missing_documents'],
+      ),
       timeline: _timeline(
         json['timeline'] ?? json['activity'] ?? json['recent_activity'],
       ),
     );
+  }
+
+  List<ServiceCaseDocument> _documentDetails(dynamic value) {
+    if (value is! List) return const [];
+
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map((item) {
+          return ServiceCaseDocument(
+            id: _stringValue(item['id'] ?? item['name'] ?? item['document_id']),
+            title: _stringValue(
+              item['title'] ?? item['document_title'] ?? item['label'],
+            ),
+            type: _stringValue(item['type'] ?? item['document_type']),
+            status: _stringValue(item['status']),
+            fileUrl: _nullableString(
+              item['file_url'] ?? item['attachment'] ?? item['url'],
+            ),
+            remarks: _nullableString(item['remarks'] ?? item['notes']),
+          );
+        })
+        .toList(growable: false);
   }
 
   List<ServiceCaseTimelineStep> _timeline(dynamic value) {

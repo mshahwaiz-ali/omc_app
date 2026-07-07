@@ -24,6 +24,8 @@ class ServiceCaseDetailScreen extends ConsumerStatefulWidget {
 class _ServiceCaseDetailScreenState
     extends ConsumerState<ServiceCaseDetailScreen> {
   bool _isUploadingDocument = false;
+  bool _isUpdatingStatus = false;
+  bool _isUpdatingDocumentStatus = false;
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +72,27 @@ class _ServiceCaseDetailScreenState
                       const SizedBox(height: 16),
                       _CaseInfoCard(serviceCase: serviceCase),
                       const SizedBox(height: 16),
-                      _RequiredDocumentsCard(serviceCase: serviceCase),
+                      _CaseAdminStatusCard(
+                        serviceCase: serviceCase,
+                        isUpdating: _isUpdatingStatus,
+                        onStatusSelected: _isUpdatingStatus
+                            ? null
+                            : (status) =>
+                                  _updateServiceCaseStatus(serviceCase, status),
+                      ),
+                      const SizedBox(height: 16),
+                      _RequiredDocumentsCard(
+                        serviceCase: serviceCase,
+                        isUpdatingDocumentStatus: _isUpdatingDocumentStatus,
+                        onUpdateDocumentStatus: _isUpdatingDocumentStatus
+                            ? null
+                            : (document, status) =>
+                                  _updateServiceDocumentStatus(
+                                    serviceCase,
+                                    document,
+                                    status,
+                                  ),
+                      ),
                       const SizedBox(height: 16),
                       _CaseActionsCard(
                         serviceCase: serviceCase,
@@ -89,6 +111,125 @@ class _ServiceCaseDetailScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _updateServiceCaseStatus(
+    ServiceCase serviceCase,
+    String status,
+  ) async {
+    if (_isUpdatingStatus) return;
+
+    final caseId = _uploadDocnameFor(serviceCase);
+    if (caseId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Status update cannot continue because this case is missing its service reference.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isUpdatingStatus = true;
+    });
+
+    try {
+      final repository = ref.read(serviceCaseRepositoryProvider);
+
+      await repository.updateServiceCaseStatus(caseId: caseId, status: status);
+
+      if (!mounted) return;
+
+      ref.invalidate(serviceCaseDetailProvider(widget.caseId));
+      ref.invalidate(serviceCasesProvider);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Service case marked as $status.')),
+      );
+    } on ApiError catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Service case status could not be updated right now.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingStatus = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _updateServiceDocumentStatus(
+    ServiceCase serviceCase,
+    ServiceCaseDocument document,
+    String status,
+  ) async {
+    if (_isUpdatingDocumentStatus) return;
+
+    if (!document.hasRealId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Document status cannot be updated without document ID.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isUpdatingDocumentStatus = true;
+    });
+
+    try {
+      final repository = ref.read(serviceCaseRepositoryProvider);
+
+      await repository.updateServiceDocumentStatus(
+        documentId: document.id,
+        status: status,
+      );
+
+      if (!mounted) return;
+
+      ref.invalidate(serviceCaseDetailProvider(widget.caseId));
+      ref.invalidate(serviceCasesProvider);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${document.title} marked as $status.')),
+      );
+    } on ApiError catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Document status could not be updated right now.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingDocumentStatus = false;
+        });
+      }
+    }
   }
 
   Future<void> _uploadMissingDocument(ServiceCase serviceCase) async {
@@ -869,13 +1010,143 @@ class _CaseInfoCard extends StatelessWidget {
   }
 }
 
-class _RequiredDocumentsCard extends StatelessWidget {
-  const _RequiredDocumentsCard({required this.serviceCase});
+class _CaseAdminStatusCard extends StatelessWidget {
+  const _CaseAdminStatusCard({
+    required this.serviceCase,
+    required this.isUpdating,
+    required this.onStatusSelected,
+  });
 
   final ServiceCase serviceCase;
+  final bool isUpdating;
+  final ValueChanged<String>? onStatusSelected;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final status = serviceCase.status.trim().toLowerCase();
+    final isClosed = status == 'completed' || status == 'cancelled';
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Admin case controls',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            isClosed
+                ? 'This case is closed. Reopen it before continuing work.'
+                : 'Update backend service progress after reviewing case activity.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _CaseStatusActionButton(
+                label: 'Waiting',
+                status: 'Waiting for Customer',
+                icon: Icons.hourglass_bottom_rounded,
+                enabled: !isUpdating && !isClosed && onStatusSelected != null,
+                onStatusSelected: onStatusSelected,
+              ),
+              _CaseStatusActionButton(
+                label: 'In Progress',
+                status: 'In Progress',
+                icon: Icons.timelapse_rounded,
+                enabled: !isUpdating && !isClosed && onStatusSelected != null,
+                onStatusSelected: onStatusSelected,
+              ),
+              _CaseStatusActionButton(
+                label: 'Complete',
+                status: 'Completed',
+                icon: Icons.verified_rounded,
+                enabled: !isUpdating && !isClosed && onStatusSelected != null,
+                onStatusSelected: onStatusSelected,
+              ),
+              _CaseStatusActionButton(
+                label: 'Reopen',
+                status: 'Open',
+                icon: Icons.refresh_rounded,
+                enabled: !isUpdating && onStatusSelected != null,
+                onStatusSelected: onStatusSelected,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseStatusActionButton extends StatelessWidget {
+  const _CaseStatusActionButton({
+    required this.label,
+    required this.status,
+    required this.icon,
+    required this.enabled,
+    required this.onStatusSelected,
+  });
+
+  final String label;
+  final String status;
+  final IconData icon;
+  final bool enabled;
+  final ValueChanged<String>? onStatusSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: enabled ? () => onStatusSelected?.call(status) : null,
+      icon: Icon(icon),
+      label: Text(label),
+    );
+  }
+}
+
+class _RequiredDocumentsCard extends StatelessWidget {
+  const _RequiredDocumentsCard({
+    required this.serviceCase,
+    required this.isUpdatingDocumentStatus,
+    required this.onUpdateDocumentStatus,
+  });
+
+  final ServiceCase serviceCase;
+  final bool isUpdatingDocumentStatus;
+  final void Function(ServiceCaseDocument document, String status)?
+  onUpdateDocumentStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final documentDetails = serviceCase.documentDetails;
     final documents = _documentsForCase(serviceCase);
 
     return PremiumCard(
@@ -901,15 +1172,36 @@ class _RequiredDocumentsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          for (final document in documents)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _DocumentRequirementRow(
-                label: document,
-                isSubmitted: serviceCase.submittedDocuments.contains(document),
-                isMissing: serviceCase.missingDocuments.contains(document),
+          if (documentDetails.isNotEmpty)
+            for (final document in documentDetails)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _DocumentRequirementRow(
+                  label: document.title,
+                  isSubmitted: document.isSubmitted,
+                  isMissing: document.isMissing,
+                  status: document.status,
+                  canReview:
+                      document.hasRealId && onUpdateDocumentStatus != null,
+                  isUpdating: isUpdatingDocumentStatus,
+                  onApprove: () =>
+                      onUpdateDocumentStatus?.call(document, 'Approved'),
+                  onReject: () =>
+                      onUpdateDocumentStatus?.call(document, 'Rejected'),
+                ),
+              )
+          else
+            for (final document in documents)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _DocumentRequirementRow(
+                  label: document,
+                  isSubmitted: serviceCase.submittedDocuments.contains(
+                    document,
+                  ),
+                  isMissing: serviceCase.missingDocuments.contains(document),
+                ),
               ),
-            ),
         ],
       ),
     );
@@ -933,11 +1225,21 @@ class _DocumentRequirementRow extends StatelessWidget {
     required this.label,
     required this.isSubmitted,
     required this.isMissing,
+    this.status,
+    this.canReview = false,
+    this.isUpdating = false,
+    this.onApprove,
+    this.onReject,
   });
 
   final String label;
   final bool isSubmitted;
   final bool isMissing;
+  final String? status;
+  final bool canReview;
+  final bool isUpdating;
+  final VoidCallback? onApprove;
+  final VoidCallback? onReject;
 
   @override
   Widget build(BuildContext context) {

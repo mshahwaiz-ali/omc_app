@@ -68,6 +68,9 @@ class ApiConfig {
       'omc_app.api.mobile.get_service_cases';
   static const String serviceCaseDetailMethod =
       'omc_app.api.mobile.get_service_case';
+  static const String updateServiceCaseStatusMethod =
+      'omc_app.api.mobile.update_service_case_status';
+
 
   static const String documentsMethod = 'omc_app.api.mobile.get_documents';
   static const String documentDetailMethod = 'omc_app.api.mobile.get_document';
@@ -80,6 +83,9 @@ class ApiConfig {
   static const String paymentDetailMethod = 'omc_app.api.mobile.get_payment';
   static const String uploadPaymentReceiptMethod =
       'omc_app.api.mobile.upload_payment_receipt';
+  static const String reviewPaymentReceiptMethod =
+      'omc_app.api.mobile.review_payment_receipt';
+
 
   static const String profileMethod = 'omc_app.api.mobile.get_profile';
   static const String updateProfileMethod = 'omc_app.api.mobile.update_profile';
@@ -121,6 +127,9 @@ class ApiConfig {
       'omc_app.api.mobile.get_support_ticket';
   static const String addSupportTicketReplyMethod =
       'omc_app.api.mobile.add_support_ticket_reply';
+  static const String updateSupportTicketStatusMethod =
+      'omc_app.api.mobile.update_support_ticket_status';
+
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
