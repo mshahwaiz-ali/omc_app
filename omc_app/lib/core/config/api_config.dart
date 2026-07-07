@@ -102,6 +102,12 @@ class ApiConfig {
   static const String markAllNotificationsReadMethod =
       'omc_app.api.mobile.mark_all_notifications_read';
 
+  static const String registerPushTokenMethod =
+      'omc_app.api.mobile.register_push_token';
+
+  static const String unregisterPushTokenMethod =
+      'omc_app.api.mobile.unregister_push_token';
+
   static const String settingsPreferencesMethod =
       'omc_app.api.mobile.get_settings_preferences';
   static const String updateSettingsPreferencesMethod =

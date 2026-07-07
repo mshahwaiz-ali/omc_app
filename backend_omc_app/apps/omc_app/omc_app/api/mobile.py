@@ -24,7 +24,9 @@ def _has_doctype(doctype):
 
 def _service_fee_label(service):
     fee_label = (getattr(service, "fee_label", None) or "").strip()
-    if fee_label:
+    bad_fee_labels = {"Contact OMCfor pricing", "Contact OMC for pricing"}
+
+    if fee_label and fee_label not in bad_fee_labels:
         return fee_label
 
     amount = getattr(service, "base_price", None) or 0
@@ -1674,6 +1676,100 @@ def mark_notification_read(notification_id=None, name=None):
 
 
 
+
+
+
+@frappe.whitelist()
+def register_push_token(**kwargs):
+    user = _current_user()
+
+    if user == "Guest":
+        frappe.throw("Login is required", frappe.PermissionError)
+
+    token = (kwargs.get("token") or kwargs.get("push_token") or kwargs.get("fcm_token") or "").strip()
+    if not token:
+        frappe.throw("token is required")
+
+    platform = (kwargs.get("platform") or "unknown").strip().lower()
+    if platform not in {"android", "ios", "web", "unknown"}:
+        platform = "unknown"
+
+    device_id = (kwargs.get("device_id") or "").strip()
+    device_name = (kwargs.get("device_name") or "").strip()
+    app_version = (kwargs.get("app_version") or "").strip()
+
+    profile = _get_customer_profile_for_user(user)
+    now = frappe.utils.now_datetime()
+
+    existing_name = frappe.db.get_value("OMC Push Token", {"token": token}, "name")
+    if existing_name:
+        doc = frappe.get_doc("OMC Push Token", existing_name)
+    else:
+        doc = frappe.new_doc("OMC Push Token")
+        doc.token = token
+
+    doc.user = user
+    doc.customer_profile = profile.name if profile else None
+    doc.platform = platform
+    doc.device_id = device_id
+    doc.device_name = device_name
+    doc.app_version = app_version
+    doc.is_active = 1
+    doc.last_registered_on = now
+    doc.last_unregistered_on = None
+
+    if doc.is_new():
+        doc.insert(ignore_permissions=True)
+    else:
+        doc.save(ignore_permissions=True)
+
+    frappe.db.commit()
+
+    return {
+        "registered": True,
+        "name": doc.name,
+        "platform": doc.platform or "unknown",
+        "is_active": int(doc.is_active or 0),
+        "message": "Push token registered.",
+    }
+
+
+@frappe.whitelist()
+def unregister_push_token(**kwargs):
+    user = _current_user()
+
+    if user == "Guest":
+        frappe.throw("Login is required", frappe.PermissionError)
+
+    token = (kwargs.get("token") or kwargs.get("push_token") or kwargs.get("fcm_token") or "").strip()
+    device_id = (kwargs.get("device_id") or "").strip()
+
+    if not token and not device_id:
+        frappe.throw("token or device_id is required")
+
+    filters = {"user": user}
+    if token:
+        filters["token"] = token
+    elif device_id:
+        filters["device_id"] = device_id
+
+    token_names = frappe.get_all("OMC Push Token", filters=filters, pluck="name")
+    now = frappe.utils.now_datetime()
+
+    for token_name in token_names:
+        doc = frappe.get_doc("OMC Push Token", token_name)
+        doc.is_active = 0
+        doc.last_unregistered_on = now
+        doc.save(ignore_permissions=True)
+
+    if token_names:
+        frappe.db.commit()
+
+    return {
+        "unregistered": bool(token_names),
+        "count": len(token_names),
+        "message": "Push token unregistered." if token_names else "No matching push token found.",
+    }
 
 
 @frappe.whitelist()

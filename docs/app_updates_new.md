@@ -31,13 +31,15 @@ Mock data and preview flows are allowed only behind local development flags and 
 
 Audit every Flutter repository/model against the backend response.
 
+Status: ApiConfig mobile method scan passed with zero missing backend methods. Backend now exposes service catalogue required-document metadata and push-token registration endpoints.
+
 Required checks:
 
-* `ApiConfig` method names match actual backend methods.
-* Backend returns the same field names Flutter parses.
-* Flutter does not depend on invented fields.
-* Backend does not silently ignore frontend fields.
-* Every list/detail endpoint has tested empty, success, permission, and error states.
+* `ApiConfig` method names match actual backend methods. ✅
+* Backend returns the same field names Flutter parses. ✅
+* Flutter does not depend on invented fields. ✅
+* Backend does not silently ignore frontend fields. ✅
+* Every list/detail endpoint has tested empty, success, permission, and error states. In progress.
 
 Modules to verify:
 
@@ -161,9 +163,9 @@ Required production behaviour:
 * Detail screen loads from backend.
 * Opening a notification marks it as read.
 * Unread count refreshes after read.
-* Add “Mark all as read”.
-* Add backend endpoint for `mark_all_notifications_read`.
-* Add mobile push token registration if push notifications are planned.
+* Add “Mark all as read”. ✅
+* Add backend endpoint for `mark_all_notifications_read`. ✅
+* Add mobile push token registration endpoints. ✅
 
 Recommended new backend methods:
 
