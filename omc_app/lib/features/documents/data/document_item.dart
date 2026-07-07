@@ -29,6 +29,19 @@ class DocumentItem {
 
   bool get requiresAction =>
       status == DocumentStatus.missing || status == DocumentStatus.rejected;
+
+  bool get hasFile {
+    final candidates = [fileUrl, previewUrl, downloadUrl, fileName];
+    return candidates.any((value) => value != null && value!.trim().isNotEmpty);
+  }
+
+  String get displayFileName {
+    final cleanFileName = fileName?.trim();
+    if (cleanFileName != null && cleanFileName.isNotEmpty) return cleanFileName;
+
+    final cleanTitle = title.trim();
+    return cleanTitle.isEmpty ? '-' : cleanTitle;
+  }
 }
 
 extension DocumentStatusLabel on DocumentStatus {
