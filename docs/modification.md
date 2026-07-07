@@ -5,44 +5,51 @@ This document records the next improvement phase after inspecting the current Fl
 Primary focus: Flutter mobile app.
 Secondary focus: backend/API changes needed to support a cleaner mobile experience.
 
+Last reviewed: 2026-07-07.
+
 ---
 
 ## Main Goals
 
-- Make customer-facing screens cleaner and more professional.
-- Remove technical/debug information from normal app UI.
-- Make important app data backend-driven where practical.
-- Keep preview/mock data only behind development flags.
-- Improve More and Settings screens.
-- Improve service tracking, documents, payments, support, notifications, and internal workspace behavior.
+- Make customer-facing screens cleaner, premium, and non-technical.
+- Keep customer UI backend-driven wherever production behaviour depends on real business data.
+- Keep preview/mock data only behind explicit development flags.
+- Keep internal/admin tools hidden unless the backend says the logged-in user can access them.
+- Continue improving service tracking, documents, payments, support, notifications, and internal workspace behaviour.
 - Add backend DocTypes/APIs only where they create clear product value.
 
 ---
 
-## Current Findings
+## Current Repo Findings
 
-### Good existing foundation
+### Completed foundation
 
-- Flutter app is feature-first and already includes auth, home, service catalogue, tracking, documents, payments, tax calculator, expense tracker, knowledge, notifications, profile, settings, support, leads, customers, tasks, and internal workspace.
+- Flutter app is feature-first and includes auth, home, service catalogue, tracking, documents, payments, tax calculator, expense tracker, knowledge, notifications, profile, settings, support, leads, customers, tasks, and internal workspace.
 - Backend method names are centralized in `ApiConfig`.
-- `FrappeClient` supports method calls, resource calls, login, session cookie extraction, API token headers, file upload, and API error normalization.
-- Home dashboard is backend-connected through `get_dashboard_data`.
-- My Services / tracking is backend-connected by default through `get_service_cases` and `get_service_case`.
-- Documents, payments, notifications, settings, support, leads, customers, and tasks have backend repositories.
-- Frappe backend app has mobile APIs and OMC-owned DocTypes for core flows.
-- Backend validates document/payment uploads for type, size, ownership, privacy, and linked records.
+- Frappe backend app exposes mobile APIs and OMC-owned DocTypes for core flows.
+- Backend service catalogue returns service pricing labels, wizard metadata, completion time, and required-document metadata.
+- Backend document/payment upload validation exists for type, size, ownership, privacy, and linked records.
+- Settings preferences are backend-connected through `get_settings_preferences` and `update_settings_preferences`.
+- Notification APIs include list, detail, mark single read, mark all read, and push-token register/unregister.
+- Support APIs include ticket create/list/detail/reply/status update.
 
-### Main gaps
+### Recently completed from this modification plan
 
-- Settings page shows technical details such as environment, API server URL, backend label, catalogue source, and testing flags in non-production.
-- More page shows Internal Workspace to every user, even though it should be internal-role only.
-- Service catalogue defaults to local JSON unless backend catalogue mode is explicitly enabled.
-- Service case detail includes admin controls in the same screen as customer tracking.
-- Tax calculator has backend-first logic but falls back to local hardcoded slabs.
-- Expense tracker is local-only through `SharedPreferences`.
-- Support contact values and support categories are hardcoded in Flutter.
-- `MainShell` opens `/tax-calculator` and `/support`; router should confirm both routes are registered.
-- Tracking timeline has fallback static steps if backend timeline is empty.
+- `/support` and `/tax-calculator` routes are registered.
+- Settings page has been cleaned into customer-safe account/preference/about sections.
+- More page now receives `canAccessInternalWorkspace` from auth state and hides Internal Workspace unless allowed.
+- Auth state now carries `canAccessInternalWorkspace`.
+- Backend `get_session_user` returns roles and `can_access_internal_workspace`.
+
+### Remaining main gaps
+
+- Service case detail still needs stronger separation between customer tracking and admin controls.
+- Service catalogue should be backend-first by default for staging/production.
+- Tax calculator should avoid presenting local fallback estimates as official.
+- Expense tracker is still local-only through `SharedPreferences`.
+- Support contact values and support categories should become backend-configurable.
+- Tracking timeline should prefer real backend timeline/stages and only use static fallback for dev/demo empty states.
+- Profile/auth state should become a shared provider used consistently by Home, More, Profile, and Settings.
 
 ---
 
@@ -50,159 +57,100 @@ Secondary focus: backend/API changes needed to support a cleaner mobile experien
 
 - P0: Must fix before next stable test build.
 - P1: Important for production-quality UX.
-- P2: Useful backend-connected enhancement.
+- P2: Backend-connected enhancement.
 - P3: Future polish.
 
 ---
 
-# P0 - Must Fix
+# P0 - Must Fix / Verify
 
 ## 1. Register Support and Tax Calculator routes
 
-### Problem
+Status: Done.
 
-`MainShell` opens:
+Verified expected routes:
 
 ```text
-/tax-calculator
 /support
+/tax-calculator
 ```
 
-The router must include these routes.
-
-### Flutter changes
-
-In `omc_app/lib/app/router.dart`, add imports:
-
-```dart
-import '../features/tax_calculator/presentation/tax_calculator_screen.dart';
-import '../features/support/presentation/support_screen.dart';
-```
-
-Add routes:
-
-```dart
-GoRoute(
-  path: '/tax-calculator',
-  name: 'tax-calculator',
-  builder: (context, state) => const TaxCalculatorScreen(),
-),
-GoRoute(
-  path: '/support',
-  name: 'support',
-  builder: (context, state) => const SupportScreen(),
-),
-```
-
-### Test
+Required test:
 
 - Home > Calculator opens.
 - More > Tax Calculator opens.
 - Home/More > Support opens.
-- `flutter analyze` is clean.
+- `flutter analyze` stays clean.
 
 ---
 
 ## 2. Clean Settings page
 
-### Problem
+Status: Done.
 
-Settings should not show technical implementation details in normal UI.
+Current direction:
 
-Current items to remove/hide from customer-facing Settings:
+- Keep customer-facing settings focused on Account, Preferences, and About.
+- Do not show API server URL, backend technology label, environment label, testing flags, catalogue source, or raw connection/debug sections.
+- Keep diagnostics only behind a future hidden developer-only screen if needed.
 
-- API server URL/host
-- Backend technology label
-- Environment label
-- Testing flags
-- Catalogue source label
-- Raw backend connection section
+Required test:
 
-### Flutter changes
-
-In `settings_screen.dart`:
-
-- Remove API URL chip from `_SettingsHero`.
-- Replace technical chips with customer-safe labels:
-  - `Account active`
-  - `Protected account`
-  - `OMC services`
-- Remove visible `Connection` section from normal UI.
-- Optional: keep diagnostics behind a hidden non-production developer screen.
-
-### Better copy
-
-Use:
-
-```text
-Manage your account, preferences and OMC service updates.
-```
-
-Avoid:
-
-```text
-Backend-connected development setup.
-API server
-Frappe
-Testing flags
-```
+- Open Settings as a normal customer.
+- Confirm no technical backend/dev labels are visible.
+- Confirm preference toggles load/save through backend.
+- Confirm logout clears secure session and returns to login.
 
 ---
 
 ## 3. Hide Internal Workspace for normal customers
 
-### Problem
+Status: Done.
 
-More page always shows Internal Workspace. Backend blocks unauthorized users, but customer UI should not show internal modules.
+Current direction:
 
-### Flutter changes
+- Backend returns capability flag.
+- Auth state stores capability flag.
+- More page renders Workspace group only when capability is true.
 
-- Add user capability state to auth/profile.
-- Show Workspace group only when `canAccessInternalWorkspace == true`.
+Required test:
 
-### Backend change
-
-Update `get_session_user` or `get_profile` to return:
-
-```json
-{
-  "can_access_internal_workspace": true,
-  "roles": ["System Manager"]
-}
-```
-
-Flutter should use the boolean, not hardcoded role names.
+- Customer user: Internal Workspace is hidden.
+- System Manager/staff user: Internal Workspace is visible.
+- Direct route access should still be protected by backend permissions.
 
 ---
 
 ## 4. Separate customer tracking from admin controls
 
+Status: Next active P0.
+
 ### Problem
 
-`ServiceCaseDetailScreen` includes admin-style controls:
+`ServiceCaseDetailScreen` should not expose admin-style controls to normal customers.
 
-- Admin case controls
-- Status update actions
-- Document approve/reject actions
+Controls to verify/hide for normal customers:
 
-These should not appear for normal customers.
+- Status update actions.
+- Document approve/reject actions.
+- Internal notes/actions.
+- Staff-only case controls.
 
-### Flutter changes
+### Desired customer view
 
-Customer view:
+- Case status.
+- Progress timeline.
+- Required/missing documents.
+- Upload document action.
+- Support/contact action.
+- Expected completion / next step.
 
-- Case status
-- Progress timeline
-- Required/missing documents
-- Upload document
-- Support/contact action
+### Desired internal view
 
-Internal view:
-
-- Status update controls
-- Document review controls
-- Internal notes
-- Expected completion update
+- Status update controls.
+- Document review controls.
+- Internal notes.
+- Expected completion update.
 
 ### Backend improvement
 
@@ -216,7 +164,13 @@ Return capability flags with case detail:
 }
 ```
 
-Flutter should render controls based on backend capability flags.
+Flutter should render controls from backend capability flags, not role-name checks.
+
+### Test
+
+- Login as customer and open My Services detail.
+- Customer can upload/request support but cannot approve/reject/update status.
+- Login as internal user and confirm internal controls appear only when backend allows them.
 
 ---
 
@@ -226,7 +180,7 @@ Flutter should render controls based on backend capability flags.
 
 ### Current state
 
-Flutter loads local `assets/data/service_catalogue.json` unless backend catalogue flag is enabled.
+Flutter supports backend service catalogue, and backend returns service metadata including required documents.
 
 ### Desired state
 
@@ -255,9 +209,16 @@ fee_label
 government_fee_label
 completion_time
 wizard_type
+wizard_config
 required_documents
 required_document_details
 ```
+
+### Test
+
+- Service catalogue loads real backend services in development with `OMC_API_BASE_URL`.
+- Production build does not silently fall back to stale local JSON.
+- Empty backend catalogue shows a clean empty state, not fake data.
 
 ---
 
@@ -265,7 +226,7 @@ required_document_details
 
 ### Current state
 
-Flutter uses backend `progress` if present. If timeline is empty, Flutter creates fallback steps.
+Flutter uses backend progress/timeline when available, but static fallback steps can still appear when timeline is empty.
 
 ### Backend improvement
 
@@ -304,7 +265,7 @@ Flutter should prefer backend timeline/stages and only use fallback for empty de
 
 ### Current state
 
-Support phone, WhatsApp, email, address, business hours, and topics are hardcoded in Flutter.
+Support screen still has static contact/channel/topic style content in Flutter.
 
 ### Backend additions
 
@@ -335,41 +296,28 @@ Add API:
 omc_app.api.mobile.get_support_config
 ```
 
-Flutter should use backend support config and keep local config only as fallback.
+Flutter should use backend support config and keep local config only as dev fallback.
 
 ---
 
 ## 8. Improve More page structure
 
-### Recommended customer More page
+Status: Partly done.
+
+Current More page groups:
 
 ```text
 Account
-- Profile
-- Notifications
-- Preferences
-
 Services
-- My Services
-- Documents
-- Payments
-- Tax Calculator
-- Knowledge Center
-- Personal Expense Tracker
-
-Help
-- Support Tickets
-- Contact OMC
-
-Account Action
-- Logout
+Workspace - capability gated
+Logout
 ```
 
-### Rules
+Next polish:
 
-- Hide Internal Workspace unless backend says user can access it.
-- Hide internal dashboard for customers if it is not customer-focused.
-- Rename Expense Tracker to `Personal Expense Tracker`.
+- Rename `Expense Tracker` to `Personal Expense Tracker` if this is meant as a customer personal finance tool.
+- Consider moving `Support` under a separate Help group if More becomes crowded.
+- Keep Dashboard only if the dashboard is customer-focused; otherwise hide/gate internal analytics.
 
 ---
 
@@ -415,18 +363,18 @@ Flutter should use these flags/details after login or app bootstrap.
 
 ### Current state
 
-Home greeting can derive name from email/local part.
+Auth state contains user id and internal workspace capability.
 
 ### Improvement
 
 Use `get_profile` as source for:
 
-- display name
-- phone
-- company
-- customer status
-- approval status
-- internal access capability
+- Display name.
+- Phone.
+- Company.
+- Customer status.
+- Approval status.
+- Internal access capability if added to profile response.
 
 Flutter should create a shared profile provider and use it in Home, More, Profile, and Settings.
 
@@ -465,8 +413,8 @@ omc_app.api.mobile.get_expense_summary
 
 Flutter UX:
 
-- `Store only on this device`
-- `Sync with my OMC account`
+- `Store only on this device`.
+- `Sync with my OMC account`.
 
 ---
 
@@ -543,10 +491,10 @@ file_url
 
 Flutter should show:
 
-- Missing documents first
-- Rejected documents with reason
-- Uploaded documents with preview/download
-- Upload action per missing document
+- Missing documents first.
+- Rejected documents with reason.
+- Uploaded documents with preview/download.
+- Upload action per missing document.
 
 ---
 
@@ -567,10 +515,10 @@ receipt_review_remarks
 
 Flutter should show:
 
-- Pay now when gateway URL exists
-- Upload receipt for manual payment
-- Receipt review timeline
-- Rejected receipt reason
+- Pay now when gateway URL exists.
+- Upload receipt for manual payment.
+- Receipt review timeline.
+- Rejected receipt reason.
 
 ---
 
@@ -586,10 +534,10 @@ Technical details should remain hidden from normal users.
 
 Cache low-risk data:
 
-- service catalogue
-- profile summary
-- dashboard summary
-- settings preferences
+- service catalogue.
+- profile summary.
+- dashboard summary.
+- settings preferences.
 
 Do not cache sensitive documents/payment data unless necessary and protected.
 
@@ -618,60 +566,19 @@ Backend should return capability flags. Flutter should render UI using flags.
 
 ---
 
-# Recommended Execution Order
+# Immediate Next Step
 
-## Batch 1
+Start from P0 item 4:
 
-1. Add missing `/support` and `/tax-calculator` routes.
-2. Remove Settings connection/debug UI.
-3. Hide Internal Workspace for normal users.
-4. Hide admin case/document controls for customers.
-5. Run `flutter analyze`.
+```text
+ServiceCaseDetailScreen capability gating
+```
 
-## Batch 2
+Work order:
 
-1. Make service catalogue backend-first.
-2. Add/load backend mobile app config.
-3. Move support contact/topics to backend.
-4. Rework More page structure.
-
-## Batch 3
-
-1. Improve `get_service_case` response.
-2. Add richer progress/stage fields.
-3. Improve document checklist and missing document CTA.
-4. Improve timeline UI.
-
-## Batch 4
-
-1. Improve payment metadata and receipt review UX.
-2. Add tax year/slab DocTypes.
-3. Add optional expense tracker sync.
-4. Add push notification integration later.
-
----
-
-# Acceptance Checklist
-
-- `flutter analyze` returns 0 issues.
-- `/support` opens from Home and More.
-- `/tax-calculator` opens from Home and More.
-- Settings does not show backend URL/host, backend technology label, environment, or testing flags to normal users.
-- More page hides internal workspace for customers.
-- Customer case detail does not show admin controls.
-- Service catalogue works from backend in production.
-- Support contact values are real and backend-configurable.
-- Dashboard/home summary still loads from backend.
-- Document upload still works.
-- Payment receipt upload still works.
-- Settings preferences still load/update from backend.
-- Internal workspace still works for authorized users.
-
----
-
-# Notes
-
-- Keep local preview/testing flags for development only.
-- Do not expose backend implementation details in normal customer UI.
-- Backend should remain standalone-first with OMC-owned DocTypes.
-- ERPNext integration should remain optional and should not be required for core mobile app flows.
+1. Inspect `service_case_detail_screen.dart`.
+2. Find all status/document/admin controls.
+3. Add model fields for backend capability flags with safe defaults `false`.
+4. Hide admin controls unless backend allows them.
+5. Add/adjust backend response flags in `get_service_case` if missing.
+6. Run `flutter analyze` after the patch.
