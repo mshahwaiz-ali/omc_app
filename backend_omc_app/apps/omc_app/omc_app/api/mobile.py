@@ -1316,6 +1316,98 @@ def upload_payment_receipt(**kwargs):
     }
 
 
+
+@frappe.whitelist()
+def review_payment_receipt(payment_id=None, status=None, remarks=None, payment_reference=None):
+    _assert_internal_workspace_access()
+
+    if not payment_id:
+        frappe.throw("payment_id is required")
+
+    if not status:
+        frappe.throw("status is required")
+
+    allowed_statuses = ["Under Review", "Paid", "Rejected", "Cancelled"]
+    if status not in allowed_statuses:
+        frappe.throw("status must be one of: Under Review, Paid, Rejected, Cancelled")
+
+    if not frappe.db.exists("OMC Service Payment", payment_id):
+        frappe.throw("Payment not found", frappe.DoesNotExistError)
+
+    payment = frappe.get_doc("OMC Service Payment", payment_id)
+    old_status = payment.status or ""
+
+    if status in ["Paid", "Rejected"] and not payment.receipt_attachment:
+        frappe.throw("A receipt must be uploaded before marking this payment as Paid or Rejected.")
+
+    payment.status = status
+
+    if payment_reference is not None:
+        payment.payment_reference = payment_reference or ""
+
+    if remarks is not None:
+        payment.remarks = remarks or ""
+
+    if status == "Paid":
+        payment.paid_on = frappe.utils.now_datetime()
+    elif status in ["Rejected", "Cancelled"]:
+        payment.paid_on = None
+
+    payment.save(ignore_permissions=True)
+
+    timeline_title = f"Payment {status}"
+    timeline_description = remarks or f"{payment.payment_title or 'Payment'} marked as {status}."
+
+    _create_service_timeline_entry(
+        service_request=payment.service_request,
+        event_type="Payment",
+        title=timeline_title,
+        description=timeline_description,
+        visible_to_customer=1,
+    )
+
+    service_case = frappe.get_doc("OMC Service Request", payment.service_request)
+
+    _create_customer_notification(
+        customer_profile=service_case.customer_profile,
+        title=timeline_title,
+        message=timeline_description,
+        notification_type="Payment",
+        reference_doctype="OMC Service Payment",
+        reference_name=payment.name,
+    )
+
+    frappe.db.commit()
+
+    return {
+        "updated": True,
+        "name": payment.name,
+        "case_id": payment.service_request,
+        "old_status": old_status,
+        "status": payment.status,
+        "paid_on": str(payment.paid_on) if payment.paid_on else "",
+        "receipt_url": payment.receipt_attachment or "",
+        "payment_reference": payment.payment_reference or "",
+        "remarks": payment.remarks or "",
+        "message": "Payment receipt reviewed.",
+    }
+
+
+
+def _knowledge_article_from_service(service):
+    return {
+        "id": service.name,
+        "name": service.name,
+        "title": service.title or "",
+        "description": service.description or "",
+        "category": service.category or "",
+        "type": "Service",
+        "is_featured": int(service.is_featured or 0),
+        "created_at": str(service.creation) if service.creation else "",
+        "updated_at": str(service.modified) if service.modified else "",
+    }
+
+
 @frappe.whitelist(allow_guest=True)
 def get_knowledge():
     services = frappe.get_all(
@@ -1339,6 +1431,22 @@ def get_knowledge():
             _knowledge_article_from_service(service)
             for service in services
         ]
+    }
+
+
+
+
+def _knowledge_article_from_service(service):
+    return {
+        "id": service.name,
+        "name": service.name,
+        "title": service.title or "",
+        "description": service.description or "",
+        "category": service.category or "",
+        "type": "Service",
+        "is_featured": int(service.is_featured or 0),
+        "created_at": str(service.creation) if service.creation else "",
+        "updated_at": str(service.modified) if service.modified else "",
     }
 
 
@@ -1526,6 +1634,33 @@ def get_notification_detail(notification_id=None):
         "created_at": str(notification.creation) if notification.creation else "",
         "read_on": str(notification.read_on) if notification.read_on else "",
     }
+
+
+
+def _create_customer_notification(
+    customer_profile=None,
+    recipient_user=None,
+    title="",
+    message="",
+    notification_type="General",
+    reference_doctype=None,
+    reference_name=None,
+):
+    if not title:
+        return None
+
+    notification = frappe.new_doc("OMC Notification")
+    notification.customer_profile = customer_profile or None
+    notification.recipient_user = recipient_user or None
+    notification.title = title
+    notification.message = message or ""
+    notification.notification_type = notification_type or "General"
+    notification.reference_doctype = reference_doctype or None
+    notification.reference_name = reference_name or None
+    notification.is_read = 0
+    notification.visible_to_customer = 1
+    notification.insert(ignore_permissions=True)
+    return notification
 
 
 @frappe.whitelist()
@@ -1736,22 +1871,6 @@ def get_support_tickets():
 
 
 
-def _assert_support_ticket_access(ticket):
-    user = _current_user()
-    profile = _get_customer_profile_for_user()
-
-    if profile and ticket.customer_profile and ticket.customer_profile != profile.name:
-        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
-
-    if not profile and user != "Guest" and ticket.raised_by and ticket.raised_by != user:
-        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
-
-    if user == "Guest":
-        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
-
-    return user, profile
-
-
 @frappe.whitelist()
 def get_support_ticket(ticket_id=None):
     if not ticket_id:
@@ -1791,10 +1910,12 @@ def _get_customer_preferences(profile=None):
 
     preferences = frappe.new_doc("OMC Customer Preference")
     preferences.customer_profile = profile.name
-    preferences.notifications_enabled = 1
-    preferences.email_updates_enabled = 1
-    preferences.payment_reminders_enabled = 1
     preferences.service_updates_enabled = 1
+    preferences.document_reminders_enabled = 1
+    preferences.payment_alerts_enabled = 1
+    preferences.tax_alerts_enabled = 1
+    preferences.email_notifications_enabled = 1
+    preferences.whatsapp_notifications_enabled = 1
     preferences.theme = "system"
     preferences.language = "en"
     preferences.insert(ignore_permissions=True)
@@ -1803,13 +1924,24 @@ def _get_customer_preferences(profile=None):
     return preferences
 
 
+def _preference_bool(preferences, fieldname, fallback_fieldname=None, default=True):
+    if preferences.meta.has_field(fieldname):
+        return bool(preferences.get(fieldname))
+
+    if fallback_fieldname and preferences.meta.has_field(fallback_fieldname):
+        return bool(preferences.get(fallback_fieldname))
+
+    return default
+
+
 def _settings_preferences_to_dict(preferences):
     return {
-        "notifications_enabled": bool(preferences.notifications_enabled),
-        "push_notifications_enabled": bool(preferences.notifications_enabled),
-        "email_updates_enabled": bool(preferences.email_updates_enabled),
-        "payment_reminders_enabled": bool(preferences.payment_reminders_enabled),
-        "service_updates_enabled": bool(preferences.service_updates_enabled),
+        "service_updates_enabled": _preference_bool(preferences, "service_updates_enabled"),
+        "document_reminders_enabled": _preference_bool(preferences, "document_reminders_enabled"),
+        "payment_alerts_enabled": _preference_bool(preferences, "payment_alerts_enabled", "payment_reminders_enabled"),
+        "tax_alerts_enabled": _preference_bool(preferences, "tax_alerts_enabled"),
+        "email_notifications_enabled": _preference_bool(preferences, "email_notifications_enabled", "email_updates_enabled"),
+        "whatsapp_notifications_enabled": _preference_bool(preferences, "whatsapp_notifications_enabled"),
         "theme": preferences.theme or "system",
         "language": preferences.language or "en",
     }
@@ -1856,6 +1988,59 @@ def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
     }
 
 
+
+@frappe.whitelist()
+def update_support_ticket_status(ticket_id=None, status=None, remarks=None):
+    _assert_internal_workspace_access()
+
+    if not ticket_id:
+        frappe.throw("ticket_id is required")
+
+    if not status:
+        frappe.throw("status is required")
+
+    allowed_statuses = ["Open", "Waiting for Customer", "Resolved", "Closed", "Cancelled"]
+    if status not in allowed_statuses:
+        frappe.throw("status must be one of: Open, Waiting for Customer, Resolved, Closed, Cancelled")
+
+    if not frappe.db.exists("OMC Support Ticket", ticket_id):
+        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
+
+    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
+    old_status = ticket.status or ""
+
+    ticket.status = status
+    if status in ["Resolved", "Closed", "Cancelled"]:
+        ticket.closed_on = frappe.utils.now_datetime()
+    else:
+        ticket.closed_on = None
+
+    if remarks:
+        timestamp = frappe.utils.now_datetime()
+        ticket.message = (ticket.message or "").rstrip() + f"\n\n--- Reply from OMC Support at {timestamp} ---\n{remarks}"
+
+    ticket.save(ignore_permissions=True)
+
+    if ticket.customer_profile:
+        _create_customer_notification(
+            customer_profile=ticket.customer_profile,
+            title=f"Support Ticket {status}",
+            message=remarks or f"Your support ticket '{ticket.subject or ticket.name}' is now {status}.",
+            notification_type="Support",
+            reference_doctype="OMC Support Ticket",
+            reference_name=ticket.name,
+        )
+
+    frappe.db.commit()
+
+    return {
+        "updated": True,
+        "old_status": old_status,
+        "ticket": _support_ticket_to_dict(ticket),
+        "message": "Support ticket status updated.",
+    }
+
+
 @frappe.whitelist()
 def get_settings_preferences():
     profile = _get_customer_profile_for_user()
@@ -1874,7 +2059,10 @@ def update_settings_preferences(**kwargs):
     preferences = _get_customer_preferences(profile)
 
     field_aliases = {
-        "push_notifications_enabled": "notifications_enabled",
+        "notifications_enabled": "service_updates_enabled",
+        "push_notifications_enabled": "service_updates_enabled",
+        "email_updates_enabled": "email_notifications_enabled",
+        "payment_reminders_enabled": "payment_alerts_enabled",
     }
 
     for incoming_field, target_field in field_aliases.items():
@@ -1882,10 +2070,12 @@ def update_settings_preferences(**kwargs):
             kwargs[target_field] = kwargs.get(incoming_field)
 
     allowed_check_fields = [
-        "notifications_enabled",
-        "email_updates_enabled",
-        "payment_reminders_enabled",
         "service_updates_enabled",
+        "document_reminders_enabled",
+        "payment_alerts_enabled",
+        "tax_alerts_enabled",
+        "email_notifications_enabled",
+        "whatsapp_notifications_enabled",
     ]
     allowed_text_fields = ["language"]
     updated_fields = []

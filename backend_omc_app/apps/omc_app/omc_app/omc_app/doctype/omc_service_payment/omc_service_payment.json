@@ -55,7 +55,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Pending\nReceipt Submitted\nUnder Review\nPaid\nFailed\nCancelled",
+   "options": "Pending\nReceipt Submitted\nUnder Review\nPaid\nRejected\nCancelled",
    "reqd": 1
   },
   {

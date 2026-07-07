@@ -8,13 +8,18 @@
  "field_order": [
   "customer_profile",
   "notification_section",
-  "notifications_enabled",
-  "email_updates_enabled",
-  "payment_reminders_enabled",
   "service_updates_enabled",
+  "document_reminders_enabled",
+  "payment_alerts_enabled",
+  "tax_alerts_enabled",
+  "email_notifications_enabled",
+  "whatsapp_notifications_enabled",
   "appearance_section",
   "theme",
-  "language"
+  "language",
+  "notifications_enabled",
+  "email_updates_enabled",
+  "payment_reminders_enabled"
  ],
  "fields": [
   {
@@ -33,27 +38,39 @@
   },
   {
    "default": "1",
-   "fieldname": "notifications_enabled",
-   "fieldtype": "Check",
-   "label": "Notifications Enabled"
-  },
-  {
-   "default": "1",
-   "fieldname": "email_updates_enabled",
-   "fieldtype": "Check",
-   "label": "Email Updates Enabled"
-  },
-  {
-   "default": "1",
-   "fieldname": "payment_reminders_enabled",
-   "fieldtype": "Check",
-   "label": "Payment Reminders Enabled"
-  },
-  {
-   "default": "1",
    "fieldname": "service_updates_enabled",
    "fieldtype": "Check",
    "label": "Service Updates Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "document_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Document Reminders Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "payment_alerts_enabled",
+   "fieldtype": "Check",
+   "label": "Payment Alerts Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "tax_alerts_enabled",
+   "fieldtype": "Check",
+   "label": "Tax Alerts Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "email_notifications_enabled",
+   "fieldtype": "Check",
+   "label": "Email Notifications Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "whatsapp_notifications_enabled",
+   "fieldtype": "Check",
+   "label": "WhatsApp Notifications Enabled"
   },
   {
    "fieldname": "appearance_section",
@@ -72,6 +89,27 @@
    "fieldname": "language",
    "fieldtype": "Data",
    "label": "Language"
+  },
+  {
+   "default": "1",
+   "fieldname": "notifications_enabled",
+   "fieldtype": "Check",
+   "label": "Legacy Notifications Enabled",
+   "hidden": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "email_updates_enabled",
+   "fieldtype": "Check",
+   "label": "Legacy Email Updates Enabled",
+   "hidden": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "payment_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Legacy Payment Reminders Enabled",
+   "hidden": 1
   }
  ],
  "index_web_pages_for_search": 1,
