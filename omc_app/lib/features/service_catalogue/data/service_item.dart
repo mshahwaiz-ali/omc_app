@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../service_templates/data/service_template.dart';
+
 class ServiceItem {
   const ServiceItem({
     required this.id,
@@ -13,9 +15,12 @@ class ServiceItem {
     this.shortDescription,
     this.processSteps = const [],
     this.requiredDocuments = const [],
+    this.requiredDocumentDetails = const [],
     this.supportMessage,
     this.wizardType,
     this.wizardConfig = const {},
+    this.formSchema = const [],
+    this.stages = const [],
   });
 
   final String id;
@@ -29,9 +34,14 @@ class ServiceItem {
   final String? shortDescription;
   final List<String> processSteps;
   final List<String> requiredDocuments;
+  final List<Map<String, dynamic>> requiredDocumentDetails;
   final String? supportMessage;
   final String? wizardType;
   final Map<String, dynamic> wizardConfig;
+  final List<ServiceTemplateField> formSchema;
+  final List<ServiceStageTemplate> stages;
+
+  bool get hasBackendTemplate => formSchema.isNotEmpty || stages.isNotEmpty;
 
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
     return ServiceItem(
@@ -113,6 +123,19 @@ class ServiceItem {
         'required_docs',
         'attachments_required',
       ]),
+      requiredDocumentDetails: _readMapList(json, [
+        'required_document_details',
+        'requiredDocumentDetails',
+        'document_details',
+      ]),
+      formSchema: _readMapList(json, ['form_schema', 'formSchema', 'fields'])
+          .map(ServiceTemplateField.fromJson)
+          .where((field) => field.fieldname.isNotEmpty)
+          .toList(growable: false),
+      stages: _readMapList(json, ['stages', 'stage_templates', 'workflow'])
+          .map(ServiceStageTemplate.fromJson)
+          .where((stage) => stage.stageKey.isNotEmpty || stage.title.isNotEmpty)
+          .toList(growable: false),
     );
   }
 
@@ -165,6 +188,44 @@ class ServiceItem {
           .map((item) => item.trim())
           .where((item) => item.isNotEmpty)
           .toList(growable: false);
+    }
+
+    return const [];
+  }
+
+  static List<Map<String, dynamic>> _readMapList(
+    Map<String, dynamic> json,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = json[key];
+      final items = _mapListFromValue(value);
+      if (items.isNotEmpty) return items;
+    }
+
+    return const [];
+  }
+
+  static List<Map<String, dynamic>> _mapListFromValue(dynamic value) {
+    if (value is List) {
+      return value
+          .whereType<Map>()
+          .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+          .toList(growable: false);
+    }
+
+    if (value is Map<String, dynamic>) return [value];
+    if (value is Map) {
+      return [value.map((key, value) => MapEntry(key.toString(), value))];
+    }
+
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        return _mapListFromValue(decoded);
+      } catch (_) {
+        return const [];
+      }
     }
 
     return const [];
