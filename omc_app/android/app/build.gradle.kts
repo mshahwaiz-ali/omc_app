@@ -47,6 +47,16 @@ android {
 
     buildTypes {
         release {
+            val isReleaseBuild = gradle.startParameter.taskNames.any {
+                it.contains("Release", ignoreCase = true)
+            }
+
+            if (isReleaseBuild && !keystorePropertiesFile.exists()) {
+                throw GradleException(
+                    "Missing android/key.properties. Copy key.properties.example, configure the release keystore, then build again."
+                )
+            }
+
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {

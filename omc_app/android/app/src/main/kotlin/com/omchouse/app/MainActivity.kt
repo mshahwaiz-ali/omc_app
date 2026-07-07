@@ -1,4 +1,4 @@
-package com.example.omc_app
+package com.omchouse.app
 
 import io.flutter.embedding.android.FlutterActivity
 

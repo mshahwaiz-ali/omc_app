@@ -640,8 +640,17 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
     setState(() => _isUploading = true);
 
     try {
+      final serviceRequestId = document.serviceReference?.trim();
+
+      if (serviceRequestId == null || serviceRequestId.isEmpty) {
+        throw const ApiError(
+          message:
+              'This document is not linked to a service request, so upload cannot continue.',
+        );
+      }
+
       final uploadedFiles = await repository.uploadDocumentAttachments(
-        documentId: document.id,
+        serviceRequestId: serviceRequestId,
         attachments: result.accepted,
       );
 

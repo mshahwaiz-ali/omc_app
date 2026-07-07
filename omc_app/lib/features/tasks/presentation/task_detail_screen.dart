@@ -69,10 +69,7 @@ class _TaskDetailBody extends StatelessWidget {
               label: 'Due date',
               value: _valueOrDash(task.dueDateLabel),
             ),
-            CrmInfoRow(
-              label: 'Assigned',
-              value: _valueOrDash(task.assignedTo),
-            ),
+            CrmInfoRow(label: 'Assigned', value: _valueOrDash(task.assignedTo)),
           ],
         ),
         const SizedBox(height: 16),
@@ -93,9 +90,7 @@ class _TaskDetailBody extends StatelessWidget {
         const SizedBox(height: 16),
         CrmDetailInfoCard(
           title: 'Reference',
-          rows: [
-            CrmInfoRow(label: 'Task ID', value: task.id),
-          ],
+          rows: [CrmInfoRow(label: 'Task ID', value: task.id)],
         ),
       ],
     );

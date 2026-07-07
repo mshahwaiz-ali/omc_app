@@ -454,7 +454,9 @@ class _SupportTicketTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.primaryRed.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+          border: Border.all(
+            color: AppTheme.primaryRed.withValues(alpha: 0.07),
+          ),
         ),
         child: Row(
           children: [
@@ -598,7 +600,9 @@ class _SupportTicketsLoadingView extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppTheme.primaryRed.withValues(alpha: 0.035),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+            border: Border.all(
+              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+            ),
           ),
           child: Row(
             children: [
@@ -903,7 +907,9 @@ class _SupportCategoryTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.primaryRed.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+          border: Border.all(
+            color: AppTheme.primaryRed.withValues(alpha: 0.07),
+          ),
         ),
         child: Row(
           children: [
@@ -999,7 +1005,9 @@ class _SupportTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.primaryRed.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+          border: Border.all(
+            color: AppTheme.primaryRed.withValues(alpha: 0.07),
+          ),
         ),
         child: Row(
           children: [

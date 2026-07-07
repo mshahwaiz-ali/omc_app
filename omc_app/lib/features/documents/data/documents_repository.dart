@@ -53,12 +53,14 @@ class DocumentsRepository {
   }
 
   Future<List<Map<String, dynamic>>> uploadDocumentAttachments({
-    required String documentId,
+    required String serviceRequestId,
     required List<DocumentAttachment> attachments,
   }) async {
-    final cleanDocumentId = documentId.trim();
-    if (cleanDocumentId.isEmpty) {
-      throw const ApiError(message: 'Missing document reference for upload.');
+    final cleanServiceRequestId = serviceRequestId.trim();
+    if (cleanServiceRequestId.isEmpty) {
+      throw const ApiError(
+        message: 'Missing service request reference for upload.',
+      );
     }
 
     final uploadableAttachments = attachments
@@ -83,7 +85,7 @@ class DocumentsRepository {
         filePath: filePath,
         fileName: attachment.name,
         doctype: ApiConfig.serviceRequestUploadDoctype,
-        docname: cleanDocumentId,
+        docname: cleanServiceRequestId,
       );
 
       final uploadedFileUrl = _extractFileUrl(uploadResponse);
@@ -97,7 +99,7 @@ class DocumentsRepository {
       final response = await _frappeClient.postMethod(
         ApiConfig.uploadServiceDocumentMethod,
         data: {
-          'case_id': cleanDocumentId,
+          'case_id': cleanServiceRequestId,
           'document_title': attachment.name,
           'document_type': attachment.extension,
           'file_url': uploadedFileUrl,

@@ -172,7 +172,6 @@ class _ServiceCatalogueScreenState
   }
 }
 
-
 class _CatalogueLoadingView extends StatelessWidget {
   const _CatalogueLoadingView();
 

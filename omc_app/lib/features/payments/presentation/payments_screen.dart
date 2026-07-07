@@ -461,7 +461,6 @@ class _PaymentsErrorView extends StatelessWidget {
   }
 }
 
-
 class _PaymentsLoadingRow extends StatelessWidget {
   const _PaymentsLoadingRow({required this.color});
 
@@ -471,12 +470,7 @@ class _PaymentsLoadingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _PaymentsLoadingBlock(
-          width: 48,
-          height: 48,
-          radius: 16,
-          color: color,
-        ),
+        _PaymentsLoadingBlock(width: 48, height: 48, radius: 16, color: color),
         const SizedBox(width: 14),
         Expanded(
           child: Column(

@@ -19,7 +19,6 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
   final String? actionTooltip;
   final VoidCallback? onAction;
 
-
   @override
   Size get preferredSize => Size.fromHeight(subtitle == null ? 64 : 76);
 

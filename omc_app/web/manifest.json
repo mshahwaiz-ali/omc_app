@@ -1,11 +1,11 @@
 {
-    "name": "omc_app",
-    "short_name": "omc_app",
+    "name": "OMC House",
+    "short_name": "OMC House",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#8B1020",
-    "description": "A new Flutter project.",
+    "description": "OMC House mobile app for services, documents, payments, support, and tax tools.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

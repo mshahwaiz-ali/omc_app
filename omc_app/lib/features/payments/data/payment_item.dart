@@ -1,4 +1,12 @@
-enum PaymentStatus { pending, receiptSubmitted, underReview, paid, rejected, overdue, cancelled }
+enum PaymentStatus {
+  pending,
+  receiptSubmitted,
+  underReview,
+  paid,
+  rejected,
+  overdue,
+  cancelled,
+}
 
 class PaymentItem {
   const PaymentItem({

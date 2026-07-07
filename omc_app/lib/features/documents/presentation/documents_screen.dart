@@ -289,9 +289,7 @@ class _DocumentCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.09),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: statusColor.withValues(alpha: 0.10),
-                ),
+                border: Border.all(color: statusColor.withValues(alpha: 0.10)),
               ),
               child: Icon(
                 _statusIcon(document.status),
@@ -477,7 +475,6 @@ class _EmptyDocumentsView extends StatelessWidget {
   }
 }
 
-
 class _DocumentsLoadingRow extends StatelessWidget {
   const _DocumentsLoadingRow({required this.color});
 
@@ -487,12 +484,7 @@ class _DocumentsLoadingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _DocumentsLoadingBlock(
-          width: 48,
-          height: 48,
-          radius: 16,
-          color: color,
-        ),
+        _DocumentsLoadingBlock(width: 48, height: 48, radius: 16, color: color),
         const SizedBox(width: 14),
         Expanded(
           child: Column(

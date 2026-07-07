@@ -325,7 +325,6 @@ class ExpenseTrackerScreen extends ConsumerWidget {
   }
 }
 
-
 class _ExpenseTrackerLoadingView extends StatelessWidget {
   const _ExpenseTrackerLoadingView();
 

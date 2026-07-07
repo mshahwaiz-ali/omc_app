@@ -134,7 +134,6 @@ class ServiceDetailScreen extends ConsumerWidget {
   }
 }
 
-
 class _ServiceDetailLoadingView extends StatelessWidget {
   const _ServiceDetailLoadingView();
 
@@ -224,26 +223,11 @@ class _LoadingStatCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _LoadingBlock(
-            width: 28,
-            height: 28,
-            borderRadius: 12,
-            color: color,
-          ),
+          _LoadingBlock(width: 28, height: 28, borderRadius: 12, color: color),
           const SizedBox(height: 12),
-          _LoadingBlock(
-            width: 42,
-            height: 10,
-            borderRadius: 999,
-            color: color,
-          ),
+          _LoadingBlock(width: 42, height: 10, borderRadius: 999, color: color),
           const SizedBox(height: 8),
-          _LoadingBlock(
-            width: 58,
-            height: 12,
-            borderRadius: 999,
-            color: color,
-          ),
+          _LoadingBlock(width: 58, height: 12, borderRadius: 999, color: color),
         ],
       ),
     );

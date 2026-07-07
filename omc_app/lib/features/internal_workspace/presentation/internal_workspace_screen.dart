@@ -646,10 +646,7 @@ class _LoadingTile extends StatelessWidget {
 }
 
 class _WorkspaceLoadingBar extends StatelessWidget {
-  const _WorkspaceLoadingBar({
-    required this.width,
-    required this.height,
-  });
+  const _WorkspaceLoadingBar({required this.width, required this.height});
 
   final double width;
   final double height;

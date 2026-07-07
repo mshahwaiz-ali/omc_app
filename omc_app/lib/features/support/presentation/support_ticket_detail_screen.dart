@@ -109,12 +109,7 @@ class _LoadingDetailTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       child: Row(
         children: [
-          _TicketLoadingBlock(
-            width: 42,
-            height: 42,
-            radius: 14,
-            color: color,
-          ),
+          _TicketLoadingBlock(width: 42, height: 42, radius: 14, color: color),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -417,7 +412,6 @@ class _DetailTile extends StatelessWidget {
     );
   }
 }
-
 
 class _TicketLoadingBlock extends StatelessWidget {
   const _TicketLoadingBlock({

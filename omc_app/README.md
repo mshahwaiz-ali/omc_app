@@ -287,7 +287,7 @@ Current state:
 * App routing is configured.
 * Backend API method names are centralized.
 * Secure session handling is prepared.
-* File upload flow is prepared.
+* File upload flow is implemented and aligned with the Frappe mobile backend contracts.
 * Local testing flags are isolated from production.
 * Final backend API contracts and Frappe doctypes still need confirmation before live production use.
 
@@ -315,3 +315,32 @@ flutter analyze
 flutter test
 flutter build apk --debug
 ```
+
+## Platform Release Notes
+
+### Android
+
+Android is the current primary release target.
+
+Production Android release requires:
+
+* `android/key.properties` configured from `android/key.properties.example`
+* A valid release keystore
+* Production backend flags:
+
+```bash
+flutter build appbundle --release \
+  --dart-define=OMC_ENV=production \
+  --dart-define=OMC_API_BASE_URL=https://your-frappe-site.com
+### iOS
+
+The same Flutter codebase supports iOS, but iOS release requires a Mac with Xcode.
+
+Before TestFlight/App Store release, clean up iOS identity in Xcode:
+
+Display name: OMC House
+Bundle identifier: com.omchouse.app
+Signing team / provisioning profile
+App icons and launch assets
+
+Current iOS Runner project naming is standard Flutter structure and can remain until the Mac/Xcode release phase.

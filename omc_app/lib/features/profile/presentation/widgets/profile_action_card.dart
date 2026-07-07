@@ -104,7 +104,9 @@ class _ProfileActionTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.primaryRed.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+          border: Border.all(
+            color: AppTheme.primaryRed.withValues(alpha: 0.07),
+          ),
         ),
         child: Row(
           children: [

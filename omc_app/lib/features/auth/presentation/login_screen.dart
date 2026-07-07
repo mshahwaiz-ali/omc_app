@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/omc_logo.dart';
+import '../../../core/config/support_config.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_state.dart';
 
@@ -96,11 +97,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return value;
   }
 
-  void _showForgotPasswordPlaceholder() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Forgot password flow will be connected soon.'),
-      ),
+  void _openForgotPasswordSupport() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Need help signing in?',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Contact OMC support to reset your password or secure your account.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 14,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _SupportContactRow(
+                  icon: Icons.email_outlined,
+                  label: 'Email',
+                  value: SupportConfig.email,
+                ),
+                const SizedBox(height: 10),
+                _SupportContactRow(
+                  icon: Icons.phone_outlined,
+                  label: 'Phone / WhatsApp',
+                  value: SupportConfig.phoneNumber,
+                ),
+                const SizedBox(height: 10),
+                _SupportContactRow(
+                  icon: Icons.schedule_rounded,
+                  label: 'Business hours',
+                  value: SupportConfig.businessHours,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -194,7 +243,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: TextButton(
                               onPressed: isLoading
                                   ? null
-                                  : _showForgotPasswordPlaceholder,
+                                  : _openForgotPasswordSupport,
                               child: const Text('Forgot password?'),
                             ),
                           ),
@@ -241,6 +290,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SupportContactRow extends StatelessWidget {
+  const _SupportContactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: AppTheme.primaryRed),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              SelectableText(
+                value,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

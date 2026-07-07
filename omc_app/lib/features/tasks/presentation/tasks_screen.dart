@@ -76,7 +76,6 @@ String _backendErrorMessage(Object error) {
   return 'Could not load tasks right now. Please try again.';
 }
 
-
 class _TasksLoadingView extends StatelessWidget {
   const _TasksLoadingView();
 
