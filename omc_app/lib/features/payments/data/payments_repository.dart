@@ -235,14 +235,15 @@ class PaymentsRepository {
       return PaymentStatus.underReview;
     }
     if (status.contains('reject')) return PaymentStatus.rejected;
+    if (status.contains('overdue') || status.contains('expired')) {
+      return PaymentStatus.overdue;
+    }
     if (status.contains('unpaid') ||
         status.contains('pending') ||
         status.contains('awaiting') ||
-        status.contains('due')) {
+        status == 'due' ||
+        status.startsWith('due ')) {
       return PaymentStatus.pending;
-    }
-    if (status.contains('overdue') || status.contains('expired')) {
-      return PaymentStatus.overdue;
     }
     if (status == 'paid' ||
         status == 'complete' ||
