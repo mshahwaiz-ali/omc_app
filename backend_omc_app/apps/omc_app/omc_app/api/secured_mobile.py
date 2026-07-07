@@ -11,7 +11,7 @@ from omc_app.api import mobile
 
 @frappe.whitelist()
 def get_service_case(case_id=None):
-    """Return service case detail with a backend-owned fallback timeline.
+    """Return service case detail with backend-owned customer/admin gates.
 
     The mobile app should prefer real OMC Service Timeline rows. When a case has
     no timeline rows yet, return deterministic backend-generated stages instead
@@ -24,12 +24,27 @@ def get_service_case(case_id=None):
     if not isinstance(service_case, dict):
         return response
 
+    _apply_service_case_capabilities(service_case)
+
     timeline = service_case.get("timeline")
     if isinstance(timeline, list) and timeline:
         return response
 
     service_case["timeline"] = _fallback_service_case_timeline(service_case)
     return response
+
+
+def _apply_service_case_capabilities(service_case):
+    """Keep internal-only fields and controls backend-driven."""
+
+    can_access_internal_workspace = mobile._can_access_internal_workspace()
+
+    service_case["can_update_status"] = can_access_internal_workspace
+    service_case["can_review_documents"] = can_access_internal_workspace
+    service_case["can_view_internal_notes"] = can_access_internal_workspace
+
+    if not can_access_internal_workspace:
+        service_case["remarks"] = ""
 
 
 def _fallback_service_case_timeline(service_case):
