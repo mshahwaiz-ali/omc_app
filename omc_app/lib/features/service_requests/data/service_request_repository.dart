@@ -221,17 +221,42 @@ class ServiceRequestRepository {
         continue;
       }
 
-      final response = await _frappeClient.uploadFile(
+      final uploadResponse = await _frappeClient.uploadFile(
         filePath: filePath,
         fileName: attachment.name,
         doctype: ApiConfig.serviceRequestUploadDoctype,
         docname: requestId,
       );
 
-      uploadedFiles.add(response);
+      final uploadedFileUrl = _extractFileUrl(uploadResponse);
+      if (uploadedFileUrl == null) {
+        uploadedFiles.add(uploadResponse);
+        continue;
+      }
+
+      final documentResponse = await _frappeClient.postMethod(
+        ApiConfig.uploadServiceDocumentMethod,
+        data: {
+          'case_id': requestId,
+          'document_title': attachment.name,
+          'document_type': attachment.extension ?? '',
+          'attachment': uploadedFileUrl,
+          'file_url': uploadedFileUrl,
+        },
+      );
+
+      uploadedFiles.add(documentResponse);
     }
 
     return uploadedFiles;
+  }
+
+  String? _extractFileUrl(Map<String, dynamic> response) {
+    final message = response['message'];
+    final data = message is Map<String, dynamic> ? message : response;
+    final fileUrl = data['file_url'] ?? data['url'] ?? data['file'];
+
+    return _stringOrNull(fileUrl);
   }
 
   String? _extractRequestId(Map<String, dynamic> response) {
