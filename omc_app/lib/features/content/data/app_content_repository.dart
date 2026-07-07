@@ -18,8 +18,7 @@ final appFaqsProvider = FutureProvider<List<AppFaqItem>>((ref) {
 });
 
 class AppContentRepository {
-  const AppContentRepository({required FrappeClient frappeClient})
-    : _frappeClient = frappeClient;
+  const AppContentRepository({required this._frappeClient});
 
   final FrappeClient _frappeClient;
 

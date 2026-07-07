@@ -411,10 +411,10 @@ class _SelectedServiceCard extends StatelessWidget {
               letterSpacing: -0.3,
             ),
           ),
-          if (service.shortDescription.trim().isNotEmpty) ...[
+          if ((service.shortDescription?.trim() ?? '').isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              service.shortDescription.trim(),
+              service.shortDescription?.trim() ?? '',
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 13,
@@ -652,7 +652,7 @@ class _DynamicField extends StatelessWidget {
     if (_isSelectField(field) && field.options.isNotEmpty) {
       final selected = field.options.contains(selectValue) ? selectValue : null;
       return DropdownButtonFormField<String>(
-        value: selected,
+        initialValue: selected,
         items: field.options
             .map((option) => DropdownMenuItem(value: option, child: Text(option)))
             .toList(growable: false),

@@ -11,8 +11,7 @@ final serviceTemplateRepositoryProvider = Provider<ServiceTemplateRepository>((r
 });
 
 class ServiceTemplateRepository {
-  const ServiceTemplateRepository({required FrappeClient frappeClient})
-    : _frappeClient = frappeClient;
+  const ServiceTemplateRepository({required this._frappeClient});
 
   final FrappeClient _frappeClient;
 
