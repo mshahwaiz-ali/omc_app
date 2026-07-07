@@ -10,6 +10,46 @@ from omc_app.api import mobile
 
 
 @frappe.whitelist()
+def get_service_cases():
+    """Return service case list with backend-owned tracking metadata."""
+
+    response = mobile.get_service_cases()
+    cases = response.get("cases") if isinstance(response, dict) else None
+
+    if not isinstance(cases, list):
+        return response
+
+    for service_case in cases:
+        if not isinstance(service_case, dict):
+            continue
+
+        _normalize_service_case_list_item(service_case)
+
+    return response
+
+
+def _normalize_service_case_list_item(service_case):
+    case_id = service_case.get("name") or service_case.get("id") or service_case.get("case_id") or ""
+    status = service_case.get("status") or ""
+    progress = _service_case_progress(status)
+
+    service_case["id"] = case_id
+    service_case["reference"] = case_id
+    service_case["case_reference"] = case_id
+    service_case["progress"] = progress
+    service_case["progress_percent"] = int(progress * 100)
+    service_case["current_stage"] = status
+    service_case["next_step"] = _service_case_next_step(status)
+    service_case.setdefault("required_documents_count", 0)
+    service_case.setdefault("submitted_documents_count", 0)
+    service_case.setdefault("missing_documents_count", 0)
+    service_case["customer_action_required"] = status.strip().lower() == "waiting for customer"
+    service_case["can_update_status"] = False
+    service_case["can_review_documents"] = False
+    service_case["can_view_internal_notes"] = False
+
+
+@frappe.whitelist()
 def get_service_case(case_id=None, name=None, service_request=None, request_id=None):
     """Return service case detail with backend-owned customer/admin gates.
 
@@ -46,6 +86,36 @@ def _apply_service_case_capabilities(service_case):
 
     if not can_access_internal_workspace:
         service_case["remarks"] = ""
+
+
+def _service_case_progress(status):
+    normalized = (status or "").strip().lower()
+    mapping = {
+        "open": 0.10,
+        "waiting for customer": 0.35,
+        "in progress": 0.60,
+        "under review": 0.80,
+        "completed": 1.00,
+        "cancelled": 0.00,
+    }
+    return mapping.get(normalized, 0.10)
+
+
+def _service_case_next_step(status):
+    normalized = (status or "").strip().lower()
+    if normalized == "open":
+        return "OMC team will review your request shortly."
+    if normalized == "waiting for customer":
+        return "OMC is waiting for your response or required documents."
+    if normalized == "in progress":
+        return "OMC team is working on your service request."
+    if normalized == "under review":
+        return "Your request is under final review."
+    if normalized == "completed":
+        return "Your service request has been completed."
+    if normalized == "cancelled":
+        return "This service request has been cancelled."
+    return "OMC team will update this service request shortly."
 
 
 def _fallback_service_case_timeline(service_case):
