@@ -68,6 +68,32 @@ class SupportRepository {
     }
   }
 
+  Future<Map<String, dynamic>> addSupportTicketReply({
+    required String ticketId,
+    required String message,
+  }) async {
+    final cleanTicketId = ticketId.trim();
+    final cleanMessage = message.trim();
+
+    if (cleanTicketId.isEmpty) {
+      throw const ApiError(message: 'Missing support ticket reference.');
+    }
+
+    if (cleanMessage.length < 2) {
+      throw const ApiError(message: 'Please enter a reply message.');
+    }
+
+    return frappeClient.postMethod(
+      ApiConfig.addSupportTicketReplyMethod,
+      data: {
+        'ticket_id': cleanTicketId,
+        'name': cleanTicketId,
+        'message': cleanMessage,
+        'reply': cleanMessage,
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> createSupportTicket({
     required String topic,
     required String message,

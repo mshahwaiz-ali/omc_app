@@ -558,6 +558,60 @@ def _get_service_documents(service_request):
     ]
 
 
+
+def _service_case_progress(status):
+    normalized = (status or "").strip().lower()
+    mapping = {
+        "open": 0.10,
+        "waiting for customer": 0.35,
+        "in progress": 0.60,
+        "under review": 0.80,
+        "completed": 1.00,
+        "cancelled": 0.00,
+    }
+    return mapping.get(normalized, 0.10)
+
+
+def _service_case_next_step(status, missing_documents=None):
+    if missing_documents:
+        return "Please upload the missing required document(s)."
+
+    normalized = (status or "").strip().lower()
+    if normalized == "open":
+        return "OMC team will review your request shortly."
+    if normalized == "waiting for customer":
+        return "OMC is waiting for your response or required documents."
+    if normalized == "in progress":
+        return "OMC team is working on your service request."
+    if normalized == "under review":
+        return "Your request is under final review."
+    if normalized == "completed":
+        return "Your service request has been completed."
+    if normalized == "cancelled":
+        return "This service request has been cancelled."
+    return "OMC team will update this service request shortly."
+
+
+def _split_service_documents(documents):
+    submitted_statuses = {"submitted", "approved", "under review", "accepted"}
+    missing_statuses = {"missing", "required", "rejected", "expired"}
+
+    required_documents = []
+    submitted_documents = []
+    missing_documents = []
+
+    for document in documents:
+        required_documents.append(document)
+        status = (document.get("status") or "").strip().lower()
+        has_file = bool(document.get("file_url") or document.get("attachment"))
+
+        if has_file or status in submitted_statuses:
+            submitted_documents.append(document)
+        elif status in missing_statuses or not has_file:
+            missing_documents.append(document)
+
+    return required_documents, submitted_documents, missing_documents
+
 @frappe.whitelist()
 def get_service_cases():
     profile = _get_customer_profile_for_user()
@@ -670,67 +724,44 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
         "message": "Service case updated.",
     }
 
-def _get_service_documents(service_request):
-    docs = frappe.get_all(
-        "OMC Service Document",
-        filters={
-            "service_request": service_request,
-            "visible_to_customer": 1,
-        },
-        fields=[
-            "name",
-            "document_title",
-            "document_type",
-            "attachment",
-            "status",
-            "uploaded_on",
-            "uploaded_by",
-            "remarks",
-        ],
-        order_by="uploaded_on asc, creation asc",
-    )
-
-    return [
-        {
-            "name": doc.name,
-            "title": doc.document_title or "",
-            "type": doc.document_type or "",
-            "file_url": doc.attachment or "",
-            "status": doc.status or "",
-            "uploaded_at": str(doc.uploaded_on) if doc.uploaded_on else "",
-            "uploaded_by": doc.uploaded_by or "",
-            "remarks": doc.remarks or "",
-        }
-        for doc in docs
-    ]
-
-
 @frappe.whitelist()
 def get_service_case(case_id=None):
     if not case_id:
         frappe.throw("case_id is required")
 
     if not frappe.db.exists("OMC Service Request", case_id):
-        frappe.throw("Service case not found", frappe.DoesNotExistError)
+        frappe.throw("Service request not found", frappe.DoesNotExistError)
 
+    service_case = frappe.get_doc("OMC Service Request", case_id)
     profile = _get_customer_profile_for_user()
-    doc = frappe.get_doc("OMC Service Request", case_id)
 
-    if profile and doc.customer_profile and doc.customer_profile != profile.name:
-        frappe.throw("You do not have permission to access this service case", frappe.PermissionError)
+    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
+        frappe.throw("You do not have permission to access this service request", frappe.PermissionError)
+
+    documents = _get_service_documents(service_case.name)
+    required_documents, submitted_documents, missing_documents = _split_service_documents(documents)
+
+    timeline = _get_service_timeline(service_case.name)
 
     return {
-        "name": doc.name,
-        "title": doc.title or doc.service_title or "Service Request",
-        "status": doc.status or "",
-        "priority": doc.priority or "",
-        "service": doc.service_title or doc.service or "",
-        "description": doc.description or "",
-        "created_at": str(doc.creation.date()) if doc.creation else "",
-        "updated_at": str(doc.modified.date()) if doc.modified else "",
-        "expected_completion_date": str(doc.expected_completion_date) if doc.expected_completion_date else "",
-        "timeline": _get_service_timeline(doc.name),
-        "attachments": _get_service_documents(doc.name),
+        "case": {
+            "name": service_case.name,
+            "service_id": service_case.service,
+            "service_title": service_case.service_title or "",
+            "status": service_case.status or "",
+            "priority": service_case.priority or "",
+            "progress": _service_case_progress(service_case.status),
+            "next_step": _service_case_next_step(service_case.status, missing_documents),
+            "submitted_on": str(service_case.submitted_on) if service_case.submitted_on else "",
+            "expected_completion_date": str(service_case.expected_completion_date) if service_case.expected_completion_date else "",
+            "description": service_case.description or "",
+            "remarks": service_case.remarks or "",
+            "required_documents": required_documents,
+            "submitted_documents": submitted_documents,
+            "missing_documents": missing_documents,
+            "timeline": timeline,
+            "attachments": submitted_documents,
+        }
     }
 
 
@@ -770,55 +801,158 @@ def add_service_case_comment(case_id=None, message=None):
 
 
 
+
+ALLOWED_DOCUMENT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "doc", "docx"}
+MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024
+MAX_FILES_PER_CASE = 20
+
+
+def _clean_file_reference(value):
+    text_value = (value or "").strip()
+    if not text_value:
+        return ""
+    return text_value.split("?")[0].strip()
+
+
+def _document_extension(value):
+    file_name = _clean_file_reference(value).rsplit("/", 1)[-1]
+    if "." not in file_name:
+        return ""
+    return file_name.rsplit(".", 1)[-1].strip().lower()
+
+
+def _find_uploaded_file(attachment):
+    clean_attachment = _clean_file_reference(attachment)
+    if not clean_attachment:
+        return None
+
+    file_name = clean_attachment.rsplit("/", 1)[-1]
+    filters = [
+        {"file_url": clean_attachment},
+        {"file_name": file_name},
+    ]
+
+    for file_filter in filters:
+        file_name_value = frappe.db.exists("File", file_filter)
+        if file_name_value:
+            return frappe.get_doc("File", file_name_value)
+
+    return None
+
+
+def _assert_service_document_upload_allowed(service_case, attachment):
+    clean_attachment = _clean_file_reference(attachment)
+    if not clean_attachment:
+        frappe.throw("attachment is required")
+
+    extension = _document_extension(clean_attachment)
+    if extension not in ALLOWED_DOCUMENT_EXTENSIONS:
+        frappe.throw("Unsupported document type. Please upload PDF, JPG, PNG, DOC or DOCX files only.")
+
+    existing_count = frappe.db.count(
+        "OMC Service Document",
+        {
+            "service_request": service_case.name,
+            "visible_to_customer": 1,
+        },
+    )
+    if existing_count >= MAX_FILES_PER_CASE:
+        frappe.throw("Maximum document limit reached for this service request.")
+
+    uploaded_file = _find_uploaded_file(clean_attachment)
+    if not uploaded_file:
+        return clean_attachment
+
+    file_extension = _document_extension(uploaded_file.file_name or uploaded_file.file_url or clean_attachment)
+    if file_extension not in ALLOWED_DOCUMENT_EXTENSIONS:
+        frappe.throw("Unsupported document type. Please upload PDF, JPG, PNG, DOC or DOCX files only.")
+
+    file_size = int(uploaded_file.file_size or 0)
+    if file_size <= 0:
+        frappe.throw("Uploaded file is empty.")
+    if file_size > MAX_DOCUMENT_SIZE_BYTES:
+        frappe.throw("Document is too large. Maximum allowed size is 10 MB.")
+
+    current_user = _current_user()
+    if uploaded_file.owner and uploaded_file.owner != current_user:
+        frappe.throw("You do not have permission to use this uploaded file.", frappe.PermissionError)
+
+    if uploaded_file.attached_to_doctype and uploaded_file.attached_to_doctype != "OMC Service Request":
+        frappe.throw("Uploaded file is attached to another document.", frappe.PermissionError)
+
+    if uploaded_file.attached_to_name and uploaded_file.attached_to_name != service_case.name:
+        frappe.throw("Uploaded file is attached to another service request.", frappe.PermissionError)
+
+    if not uploaded_file.is_private:
+        uploaded_file.is_private = 1
+        uploaded_file.save(ignore_permissions=True)
+
+    return uploaded_file.file_url or clean_attachment
+
 @frappe.whitelist()
 def upload_service_document(**kwargs):
     case_id = kwargs.get("case_id") or kwargs.get("service_request")
-    document_title = kwargs.get("document_title") or kwargs.get("title") or "Uploaded Document"
-    document_type = kwargs.get("document_type") or kwargs.get("type") or ""
+    document_title = (kwargs.get("document_title") or kwargs.get("title") or "").strip()
+    document_type = (kwargs.get("document_type") or kwargs.get("type") or "General").strip()
     attachment = kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file")
+    remarks = kwargs.get("remarks") or ""
 
     if not case_id:
         frappe.throw("case_id is required")
 
-    if not frappe.db.exists("OMC Service Request", case_id):
-        frappe.throw("Service case not found", frappe.DoesNotExistError)
+    if not document_title:
+        frappe.throw("document_title is required")
 
-    profile = _get_customer_profile_for_user()
+    if not frappe.db.exists("OMC Service Request", case_id):
+        frappe.throw("Service request not found", frappe.DoesNotExistError)
+
     service_case = frappe.get_doc("OMC Service Request", case_id)
+    profile = _get_customer_profile_for_user()
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
-        frappe.throw("You do not have permission to update this service case", frappe.PermissionError)
+        frappe.throw("You do not have permission to upload documents for this service request", frappe.PermissionError)
+
+    attachment = _assert_service_document_upload_allowed(service_case, attachment)
 
     doc = frappe.new_doc("OMC Service Document")
     doc.service_request = service_case.name
     doc.document_title = document_title
     doc.document_type = document_type
-    doc.attachment = attachment or ""
-    doc.status = kwargs.get("status") or "Uploaded"
+    doc.attachment = attachment
+    doc.status = "Submitted"
     doc.visible_to_customer = 1
-    doc.remarks = kwargs.get("remarks") or ""
+    doc.uploaded_by = _current_user()
+    doc.uploaded_on = frappe.utils.now_datetime()
+    doc.remarks = remarks
     doc.insert(ignore_permissions=True)
 
     _create_service_timeline_entry(
         service_request=service_case.name,
         event_type="Document Uploaded",
         title="Document Uploaded",
-        description=f"{document_title} uploaded.",
+        description=remarks or f"{document_title} uploaded by customer.",
         visible_to_customer=1,
     )
 
     frappe.db.commit()
 
     return {
-        "name": doc.name,
-        "case_id": service_case.name,
-        "title": doc.document_title,
-        "file_url": doc.attachment or "",
-        "status": doc.status,
         "uploaded": True,
-        "message": "Service document uploaded.",
+        "document": {
+            "name": doc.name,
+            "case_id": doc.service_request,
+            "title": doc.document_title or "",
+            "document_title": doc.document_title or "",
+            "type": doc.document_type or "",
+            "document_type": doc.document_type or "",
+            "status": doc.status or "",
+            "file_url": doc.attachment or "",
+            "attachment": doc.attachment or "",
+            "uploaded_on": str(doc.uploaded_on) if doc.uploaded_on else "",
+            "uploaded_by": doc.uploaded_by or "",
+            "remarks": doc.remarks or "",
+        },
     }
-
 
 
 @frappe.whitelist()
@@ -1092,47 +1226,27 @@ def upload_payment_receipt(**kwargs):
     payment.receipt_attachment = receipt_attachment
     payment.payment_reference = payment_reference or payment.payment_reference
     payment.remarks = remarks or payment.remarks
-    payment.status = "Paid"
+    payment.status = "Receipt Submitted"
     payment.save(ignore_permissions=True)
 
     _create_service_timeline_entry(
         service_request=payment.service_request,
-        event_type="Payment Updated",
-        title="Payment Receipt Uploaded",
-        description=remarks or f"Receipt uploaded for {payment.payment_title or 'payment'}.",
+        event_type="Payment Receipt Uploaded",
+        title="Payment Receipt Submitted",
+        description=remarks or f"Receipt submitted for {payment.payment_title or 'payment'} and is waiting for OMC review.",
         visible_to_customer=1,
     )
 
     frappe.db.commit()
 
     return {
+        "updated": True,
         "name": payment.name,
         "case_id": payment.service_request,
         "status": payment.status,
         "receipt_url": payment.receipt_attachment or "",
-        "uploaded": True,
-        "message": "Payment receipt uploaded.",
-    }
-
-
-def _knowledge_article_from_service(service):
-    title = service.title or service.name
-    description = service.description or ""
-
-    return {
-        "name": service.name,
-        "article_id": service.name,
-        "title": title or "",
-        "summary": description,
-        "body": description,
-        "type": "Guide",
-        "article_type": "Guide",
-        "category": service.category or "",
-        "published_on": str(service.modified) if service.modified else "",
-        "created_at": str(service.creation) if service.creation else "",
-        "author": "OMC House",
-        "external_url": "",
-        "is_featured": int(service.is_featured or 0),
+        "payment_reference": payment.payment_reference or "",
+        "remarks": payment.remarks or "",
     }
 
 
@@ -1267,6 +1381,52 @@ def mark_notification_read(notification_id=None, name=None):
     }
 
 
+
+
+
+@frappe.whitelist()
+def mark_all_notifications_read():
+    user = _current_user()
+
+    if user == "Guest":
+        frappe.throw("Login is required", frappe.PermissionError)
+
+    profile = _get_customer_profile_for_user()
+
+    filters = {
+        "visible_to_customer": 1,
+        "is_read": 0,
+    }
+
+    if profile:
+        filters["customer_profile"] = profile.name
+    else:
+        filters["recipient_user"] = user
+
+    notification_names = frappe.get_all(
+        "OMC Notification",
+        filters=filters,
+        pluck="name",
+    )
+
+    now = frappe.utils.now_datetime()
+
+    for notification_name in notification_names:
+        notification = frappe.get_doc("OMC Notification", notification_name)
+        notification.is_read = 1
+        notification.read_on = now
+        notification.save(ignore_permissions=True)
+
+    if notification_names:
+        frappe.db.commit()
+
+    return {
+        "updated": bool(notification_names),
+        "count": len(notification_names),
+        "message": "All notifications marked as read.",
+    }
+
+
 @frappe.whitelist()
 def get_notification_detail(notification_id=None):
     if not notification_id:
@@ -1366,11 +1526,31 @@ def create_support_ticket(**kwargs):
 
 
 
+def _support_ticket_messages(ticket):
+    raw_message = ticket.message or ""
+    messages = []
+
+    if raw_message:
+        messages.append(
+            {
+                "author": ticket.raised_by or "Customer",
+                "message": raw_message,
+                "created_at": str(ticket.creation) if ticket.creation else "",
+                "type": "initial",
+            }
+        )
+
+    return messages
+
+
 def _support_ticket_to_dict(ticket):
+    messages = _support_ticket_messages(ticket)
+
     return {
         "name": ticket.name,
         "subject": ticket.subject or "",
         "message": ticket.message or "",
+        "messages": messages,
         "status": ticket.status or "",
         "priority": ticket.priority or "",
         "customer_profile": ticket.customer_profile or "",
@@ -1383,6 +1563,23 @@ def _support_ticket_to_dict(ticket):
         "created_at": str(ticket.creation) if ticket.creation else "",
         "updated_at": str(ticket.modified) if ticket.modified else "",
     }
+
+
+
+def _assert_support_ticket_access(ticket):
+    user = _current_user()
+    profile = _get_customer_profile_for_user()
+
+    if profile and ticket.customer_profile and ticket.customer_profile != profile.name:
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    if not profile and user != "Guest" and ticket.raised_by and ticket.raised_by != user:
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    if user == "Guest":
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    return user, profile
 
 
 @frappe.whitelist()
@@ -1445,6 +1642,23 @@ def get_support_tickets():
     }
 
 
+
+def _assert_support_ticket_access(ticket):
+    user = _current_user()
+    profile = _get_customer_profile_for_user()
+
+    if profile and ticket.customer_profile and ticket.customer_profile != profile.name:
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    if not profile and user != "Guest" and ticket.raised_by and ticket.raised_by != user:
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    if user == "Guest":
+        frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
+
+    return user, profile
+
+
 @frappe.whitelist()
 def get_support_ticket(ticket_id=None):
     if not ticket_id:
@@ -1504,6 +1718,47 @@ def _settings_preferences_to_dict(preferences):
         "service_updates_enabled": bool(preferences.service_updates_enabled),
         "theme": preferences.theme or "system",
         "language": preferences.language or "en",
+    }
+
+
+
+
+
+@frappe.whitelist()
+def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
+    ticket_id = ticket_id or kwargs.get("name")
+    message = (message or kwargs.get("reply") or kwargs.get("description") or "").strip()
+
+    if not ticket_id:
+        frappe.throw("ticket_id is required")
+
+    if not message:
+        frappe.throw("message is required")
+
+    if not frappe.db.exists("OMC Support Ticket", ticket_id):
+        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
+
+    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
+    user, _profile = _assert_support_ticket_access(ticket)
+
+    if ticket.status in ["Closed", "Cancelled"]:
+        frappe.throw("This support ticket is closed. Please reopen it before replying.")
+
+    timestamp = frappe.utils.now_datetime()
+    reply_text = f"\n\n--- Reply from {user} at {timestamp} ---\n{message}"
+
+    ticket.message = (ticket.message or "").rstrip() + reply_text
+    if ticket.status == "Resolved":
+        ticket.status = "Open"
+        ticket.closed_on = None
+
+    ticket.save(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {
+        "updated": True,
+        "ticket": _support_ticket_to_dict(ticket),
+        "message": "Support reply added.",
     }
 
 

@@ -66,6 +66,10 @@ class NotificationsRepository {
     );
   }
 
+  Future<void> markAllNotificationsAsRead() async {
+    await _frappeClient.postMethod(ApiConfig.markAllNotificationsReadMethod);
+  }
+
   Future<NotificationItem?> fetchNotificationDetail(
     String notificationId,
   ) async {

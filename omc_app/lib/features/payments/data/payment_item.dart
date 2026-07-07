@@ -1,4 +1,4 @@
-enum PaymentStatus { pending, paid, overdue, cancelled }
+enum PaymentStatus { pending, receiptSubmitted, underReview, paid, rejected, overdue, cancelled }
 
 class PaymentItem {
   const PaymentItem({
@@ -30,7 +30,9 @@ class PaymentItem {
   final PaymentStatus status;
 
   bool get requiresAction =>
-      status == PaymentStatus.pending || status == PaymentStatus.overdue;
+      status == PaymentStatus.pending ||
+      status == PaymentStatus.rejected ||
+      status == PaymentStatus.overdue;
 }
 
 extension PaymentStatusLabel on PaymentStatus {
@@ -38,8 +40,14 @@ extension PaymentStatusLabel on PaymentStatus {
     switch (this) {
       case PaymentStatus.pending:
         return 'Pending';
+      case PaymentStatus.receiptSubmitted:
+        return 'Receipt Submitted';
+      case PaymentStatus.underReview:
+        return 'Under Review';
       case PaymentStatus.paid:
         return 'Paid';
+      case PaymentStatus.rejected:
+        return 'Rejected';
       case PaymentStatus.overdue:
         return 'Overdue';
       case PaymentStatus.cancelled:

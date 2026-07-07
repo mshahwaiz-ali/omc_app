@@ -518,8 +518,14 @@ class _PaymentTimelinePlaceholder extends StatelessWidget {
 
 IconData _paymentStatusIcon(PaymentStatus status) {
   switch (status) {
+    case PaymentStatus.receiptSubmitted:
+      return Icons.receipt_long_rounded;
+    case PaymentStatus.underReview:
+      return Icons.manage_search_rounded;
     case PaymentStatus.paid:
       return Icons.verified_rounded;
+    case PaymentStatus.rejected:
+      return Icons.report_gmailerrorred_rounded;
     case PaymentStatus.overdue:
       return Icons.warning_amber_rounded;
     case PaymentStatus.cancelled:

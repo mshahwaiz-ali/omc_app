@@ -82,7 +82,7 @@ class DocumentsRepository {
       final uploadResponse = await _frappeClient.uploadFile(
         filePath: filePath,
         fileName: attachment.name,
-        doctype: ApiConfig.documentUploadDoctype,
+        doctype: ApiConfig.serviceRequestUploadDoctype,
         docname: cleanDocumentId,
       );
 

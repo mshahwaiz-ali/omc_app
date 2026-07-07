@@ -188,6 +188,15 @@ class PaymentsRepository {
   PaymentStatus _statusFromValue(dynamic value) {
     final status = value?.toString().trim().toLowerCase() ?? '';
 
+    if (status.contains('receipt submitted') ||
+        status.contains('receipt_submitted') ||
+        status.contains('submitted')) {
+      return PaymentStatus.receiptSubmitted;
+    }
+    if (status.contains('under review') || status.contains('review')) {
+      return PaymentStatus.underReview;
+    }
+    if (status.contains('reject')) return PaymentStatus.rejected;
     if (status.contains('paid') || status.contains('complete')) {
       return PaymentStatus.paid;
     }

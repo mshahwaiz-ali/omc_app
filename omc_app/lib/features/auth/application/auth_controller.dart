@@ -53,7 +53,7 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await _authRepository.clearSession();
+    await _authRepository.logout();
     state = const AuthState.unauthenticated();
   }
 }

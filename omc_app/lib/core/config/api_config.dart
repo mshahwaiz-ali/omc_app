@@ -48,6 +48,7 @@ class ApiConfig {
   static const String apiResourcePath = '/api/resource';
 
   static const String loginMethod = 'login';
+  static const String logoutMethod = 'logout';
   static const String googleLoginMethod =
       'omc_app.api.mobile.google_mobile_login';
   static const String signUpMethod = 'omc_app.api.mobile.sign_up';
@@ -98,6 +99,9 @@ class ApiConfig {
   static const String markNotificationReadMethod =
       'omc_app.api.mobile.mark_notification_read';
 
+  static const String markAllNotificationsReadMethod =
+      'omc_app.api.mobile.mark_all_notifications_read';
+
   static const String settingsPreferencesMethod =
       'omc_app.api.mobile.get_settings_preferences';
   static const String updateSettingsPreferencesMethod =
@@ -109,6 +113,8 @@ class ApiConfig {
       'omc_app.api.mobile.get_support_tickets';
   static const String supportTicketDetailMethod =
       'omc_app.api.mobile.get_support_ticket';
+  static const String addSupportTicketReplyMethod =
+      'omc_app.api.mobile.add_support_ticket_reply';
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';

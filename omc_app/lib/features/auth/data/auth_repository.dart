@@ -128,6 +128,16 @@ class AuthRepository {
     return _frappeClient.postMethod(ApiConfig.signUpMethod, data: data);
   }
 
+  Future<void> logout() async {
+    try {
+      await _frappeClient.postMethod(ApiConfig.logoutMethod);
+    } catch (_) {
+      // Local session cleanup must still happen even if the backend session is already expired.
+    }
+
+    await _secureStorageService.clearSession();
+  }
+
   Future<void> clearSession() {
     return _secureStorageService.clearSession();
   }

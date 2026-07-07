@@ -296,8 +296,14 @@ class _PaymentCard extends StatelessWidget {
 
   Color _statusColor(PaymentStatus status) {
     switch (status) {
+      case PaymentStatus.receiptSubmitted:
+        return AppTheme.primaryRed;
+      case PaymentStatus.underReview:
+        return AppTheme.primaryRed;
       case PaymentStatus.paid:
         return Colors.green.shade700;
+      case PaymentStatus.rejected:
+        return Colors.red.shade700;
       case PaymentStatus.overdue:
         return Colors.red.shade700;
       case PaymentStatus.cancelled:
@@ -309,8 +315,14 @@ class _PaymentCard extends StatelessWidget {
 
   IconData _statusIcon(PaymentStatus status) {
     switch (status) {
+      case PaymentStatus.receiptSubmitted:
+        return Icons.receipt_long_rounded;
+      case PaymentStatus.underReview:
+        return Icons.manage_search_rounded;
       case PaymentStatus.paid:
         return Icons.verified_rounded;
+      case PaymentStatus.rejected:
+        return Icons.report_gmailerrorred_rounded;
       case PaymentStatus.overdue:
         return Icons.warning_amber_rounded;
       case PaymentStatus.cancelled:
