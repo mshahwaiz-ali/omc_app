@@ -54,6 +54,21 @@ class Env {
 
   static bool get useServicePreview => isDevelopment && _useServicePreviewFlag;
 
+  /// Development-only fallback for backend catalogue outages.
+  ///
+  /// Enable only with:
+  /// flutter run --dart-define=OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=true
+  ///
+  /// Staging and production builds always force this off. Empty backend
+  /// catalogues should still render an empty state instead of fake data.
+  static const bool _allowServiceCatalogueFallbackFlag = bool.fromEnvironment(
+    'OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK',
+    defaultValue: false,
+  );
+
+  static bool get allowServiceCatalogueFallback =>
+      isDevelopment && _allowServiceCatalogueFallbackFlag;
+
   /// Backend service catalogue is the normal source of truth.
   ///
   /// This getter is kept for older call sites, but no longer gates backend
