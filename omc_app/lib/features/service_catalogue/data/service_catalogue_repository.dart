@@ -34,19 +34,7 @@ class ServiceCatalogueRepository {
       return _fetchAssetServices();
     }
 
-    if (Env.isProduction || Env.current == AppEnvironment.staging) {
-      return _fetchBackendServices();
-    }
-
-    try {
-      return await _fetchBackendServices();
-    } on ApiError {
-      if (Env.useBackendServiceCatalogue) {
-        rethrow;
-      }
-
-      return _fetchAssetServices();
-    }
+    return _fetchBackendServices();
   }
 
   Future<List<ServiceItem>> _fetchAssetServices() async {
@@ -59,7 +47,7 @@ class ServiceCatalogueRepository {
 
       if (decoded is! List) {
         throw const ApiError(
-          message: 'Service catalogue data is not available.',
+          message: 'Service catalogue preview data is not available.',
         );
       }
 
@@ -72,7 +60,7 @@ class ServiceCatalogueRepository {
       rethrow;
     } catch (error) {
       throw ApiError(
-        message: 'Unable to load service catalogue right now.',
+        message: 'Unable to load service catalogue preview right now.',
         details: error,
       );
     }
@@ -84,21 +72,13 @@ class ServiceCatalogueRepository {
         ApiConfig.serviceCatalogueMethod,
       );
 
-      final services = _servicesFromResponse(response);
-      if (services.isEmpty) {
-        throw const ApiError(
-          message: 'No services are available from the OMC server yet.',
-          code: 'empty_service_catalogue',
-        );
-      }
-
-      return services;
+      return _servicesFromResponse(response);
     } on ApiError {
       rethrow;
     } catch (error) {
       throw ApiError(
         message:
-            'Service catalogue is not connected on the server yet. The local catalogue remains available when backend catalogue mode is disabled.',
+            'OMC services could not be loaded from the server right now. Please retry or contact support.',
         code: 'service_catalogue_unavailable',
         details: error,
       );
