@@ -17,7 +17,22 @@ final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
   final repository = ref.watch(profileRepositoryProvider);
   final authState = ref.watch(authControllerProvider);
 
-  return repository.fetchProfile(fallbackUserId: authState.userId);
+  final profile = await repository.fetchProfile(fallbackUserId: authState.userId);
+  if (profile != null) {
+    ref
+        .read(authControllerProvider.notifier)
+        .syncProfileSummary(
+          displayName: profile.displayName,
+          email: profile.email,
+          phone: profile.phone,
+          companyName: profile.companyName,
+          customerStatus: profile.status,
+          approvalStatus: profile.approvalStatus,
+          canAccessInternalWorkspace: profile.canAccessInternalWorkspace,
+        );
+  }
+
+  return profile;
 });
 
 class ProfileRepository {
