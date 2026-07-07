@@ -188,8 +188,9 @@ app_license = "mit"
 # Secure mobile API method overrides
 # ----------------------------------
 # Keep customer-facing endpoints stable while enforcing server-side guards
-# for staff-only actions exposed by service case detail capability flags.
+# and returning backend-owned tracking fallbacks for service case detail.
 override_whitelisted_methods = {
+    "omc_app.api.mobile.get_service_case": "omc_app.api.secured_mobile.get_service_case",
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
     "omc_app.api.mobile.update_service_document_status": "omc_app.api.secured_mobile.update_service_document_status",
 }
