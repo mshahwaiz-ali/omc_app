@@ -79,8 +79,20 @@ class CustomersRepository {
     final rawCustomers = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['customers'] ?? message['data'] ?? message['items']
-        : data['customers'] ?? data['data'] ?? data['items'];
+        ? message['customers'] ??
+              message['customer_profiles'] ??
+              message['data'] ??
+              message['items'] ??
+              message['rows'] ??
+              message['results'] ??
+              message['records']
+        : data['customers'] ??
+              data['customer_profiles'] ??
+              data['data'] ??
+              data['items'] ??
+              data['rows'] ??
+              data['results'] ??
+              data['records'];
 
     if (rawCustomers is! List) return const [];
 
@@ -94,8 +106,19 @@ class CustomersRepository {
     final message = data['message'];
 
     final rawCustomer = message is Map<String, dynamic>
-        ? message['customer'] ?? message['data'] ?? message['item'] ?? message
-        : data['customer'] ?? data['data'] ?? data['item'];
+        ? message['customer'] ??
+              message['customer_profile'] ??
+              message['profile'] ??
+              message['data'] ??
+              message['item'] ??
+              message['record'] ??
+              message
+        : data['customer'] ??
+              data['customer_profile'] ??
+              data['profile'] ??
+              data['data'] ??
+              data['item'] ??
+              data['record'];
 
     if (rawCustomer is! Map<String, dynamic>) return null;
 
