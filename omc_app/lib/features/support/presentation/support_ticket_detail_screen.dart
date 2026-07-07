@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
-import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
@@ -277,6 +277,8 @@ class _SupportTicketDetailBodyState
           ),
         ),
         const SizedBox(height: 16),
+        _TicketConversationCard(ticket: ticket),
+        const SizedBox(height: 16),
         _SupportAdminStatusCard(
           ticket: ticket,
           isUpdating: _isUpdatingStatus,
@@ -325,6 +327,139 @@ class _SupportTicketDetailBodyState
         setState(() => _isUpdatingStatus = false);
       }
     }
+  }
+}
+
+class _TicketConversationCard extends StatelessWidget {
+  const _TicketConversationCard({required this.ticket});
+
+  final SupportTicket ticket;
+
+  @override
+  Widget build(BuildContext context) {
+    final messages = ticket.messages;
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.forum_outlined,
+                  color: AppTheme.primaryRed,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Conversation',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _SmallPill(
+                label: messages.length.toString(),
+                icon: Icons.chat_bubble_outline_rounded,
+                color: Colors.blueGrey.shade700,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (messages.isEmpty)
+            const Text(
+              'No backend replies are attached to this ticket yet.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            for (final message in messages) ...[
+              _ConversationMessageTile(message: message),
+              if (message != messages.last) const SizedBox(height: 10),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ConversationMessageTile extends StatelessWidget {
+  const _ConversationMessageTile({required this.message});
+
+  final SupportTicketMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final isReply = message.isReply;
+    final title = message.author == '-' ? (isReply ? 'OMC Team' : 'Customer') : message.author;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: isReply ? 0.035 : 0.02),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isReply ? Icons.support_agent_rounded : Icons.person_outline,
+                color: AppTheme.primaryRed,
+                size: 17,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (message.createdAtLabel != '-')
+                Text(
+                  message.createdAtLabel,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message.message,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
