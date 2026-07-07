@@ -71,6 +71,7 @@ class ServiceCaseRepository {
           'case_id': caseId,
           'name': caseId,
           'service_request': caseId,
+          'request_id': caseId,
         },
       );
 
@@ -226,6 +227,15 @@ class ServiceCaseRepository {
   }
 
   ServiceCase _mapServiceCase(Map<String, dynamic> json) {
+    final timelineSource =
+        json['timeline'] ??
+        json['stages'] ??
+        json['service_stages'] ??
+        json['tracking_timeline'] ??
+        json['service_timeline'] ??
+        json['activity'] ??
+        json['recent_activity'];
+
     return ServiceCase(
       id: _stringValue(json['id'] ?? json['name'] ?? json['case_id']),
       reference: _nullableString(
@@ -243,15 +253,21 @@ class ServiceCaseRepository {
       category: _stringValue(
         json['category'] ?? json['service_category'] ?? json['service_group'],
       ),
-      status: _stringValue(json['status']),
+      status: _stringValue(json['status'] ?? json['current_stage']),
       createdAtLabel: _stringValue(
-        json['created_at_label'] ?? json['created'] ?? json['creation'],
+        json['created_at_label'] ??
+            json['created'] ??
+            json['created_at'] ??
+            json['submitted_on'] ??
+            json['creation'],
       ),
       updatedAtLabel: _stringValue(
-        json['updated_at_label'] ?? json['modified'],
+        json['updated_at_label'] ?? json['updated_at'] ?? json['modified'],
       ),
       progress: _doubleValue(json['progress'] ?? json['progress_percent']),
-      nextStep: _nullableString(json['next_step'] ?? json['next_action']),
+      nextStep: _nullableString(
+        json['next_step'] ?? json['next_action'] ?? json['customer_next_step'],
+      ),
       remarks: _nullableString(json['remarks']),
       requiredDocuments: _stringList(json['required_documents']),
       submittedDocuments: _stringList(json['submitted_documents']),
@@ -264,11 +280,9 @@ class ServiceCaseRepository {
             json['required_documents'] ??
             json['missing_documents'],
       ),
-      timeline: _timeline(
-        json['timeline'] ?? json['activity'] ?? json['recent_activity'],
-      ),
+      timeline: _timeline(timelineSource),
       progressPercent: _nullableIntValue(json['progress_percent']),
-      currentStage: _nullableString(json['current_stage']),
+      currentStage: _nullableString(json['current_stage'] ?? json['stage']),
       customerActionRequired: _boolValue(json['customer_action_required']),
       requiredDocumentsCount: _nullableIntValue(json['required_documents_count']),
       submittedDocumentsCount: _nullableIntValue(json['submitted_documents_count']),
@@ -309,28 +323,55 @@ class ServiceCaseRepository {
         .map(
           (item) => ServiceCaseTimelineStep(
             title: _stringValue(
-              item['title'] ?? item['status'] ?? item['activity_type'],
+              item['title'] ??
+                  item['stage_title'] ??
+                  item['label'] ??
+                  item['status'] ??
+                  item['activity_type'] ??
+                  item['event_type'],
             ),
             subtitle: _stringValue(
               item['subtitle'] ??
                   item['description'] ??
+                  item['message'] ??
                   item['remarks'] ??
+                  item['expected_duration_label'] ??
                   item['creation'],
             ),
-            isDone:
-                item['is_done'] == true ||
-                item['isDone'] == true ||
-                item['status'] == 'Completed',
+            isDone: _timelineStepIsDone(item),
           ),
         )
+        .where((step) => step.title.trim().isNotEmpty && step.title != '-')
         .toList(growable: false);
+  }
+
+  bool _timelineStepIsDone(Map<String, dynamic> item) {
+    if (item['is_done'] == true || item['isDone'] == true) return true;
+    if (item['completed'] == true || item['is_completed'] == true) return true;
+
+    final status = _nullableString(
+      item['status'] ?? item['state'] ?? item['completion_status'],
+    )?.toLowerCase();
+
+    return status == 'completed' ||
+        status == 'complete' ||
+        status == 'done' ||
+        status == 'approved';
   }
 
   List<String> _stringList(dynamic value) {
     if (value is List) {
       return value
-          .map((item) => item.toString().trim())
-          .where((item) => item.isNotEmpty)
+          .map((item) {
+            if (item is Map<String, dynamic>) {
+              return _stringValue(
+                item['title'] ?? item['document_title'] ?? item['label'],
+              );
+            }
+
+            return item.toString().trim();
+          })
+          .where((item) => item.isNotEmpty && item != '-')
           .toList(growable: false);
     }
 
@@ -344,7 +385,7 @@ class ServiceCaseRepository {
 
   String? _nullableString(dynamic value) {
     final text = value?.toString().trim();
-    if (text == null || text.isEmpty) return null;
+    if (text == null || text.isEmpty || text == '-') return null;
     return text;
   }
 
