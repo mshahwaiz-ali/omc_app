@@ -54,6 +54,11 @@ class ApiConfig {
   static const String signUpMethod = 'omc_app.api.mobile.sign_up';
   static const String getSessionUserMethod =
       'omc_app.api.mobile.get_session_user';
+  static const String createGuestSessionMethod =
+      'omc_app.api.guest_session.create_guest_session';
+  static const String updateGuestActivityMethod =
+      'omc_app.api.guest_session.update_guest_activity';
+
   static const String createServiceMethod = 'omc_app.api.mobile.create_service';
   static const String createLeadMethod = 'omc_app.api.mobile.create_lead';
   static const String dashboardDataMethod =
@@ -63,6 +68,8 @@ class ApiConfig {
 
   static const String serviceCatalogueMethod =
       'omc_app.api.mobile.get_service_catalogue';
+  static const String serviceTemplateMethod =
+      'omc_app.api.service_templates.get_service_template';
 
   static const String serviceCasesMethod =
       'omc_app.api.mobile.get_service_cases';
@@ -70,7 +77,6 @@ class ApiConfig {
       'omc_app.api.secured_mobile.get_service_case';
   static const String updateServiceCaseStatusMethod =
       'omc_app.api.secured_mobile.update_service_case_status';
-
 
   static const String documentsMethod = 'omc_app.api.mobile.get_documents';
   static const String documentDetailMethod = 'omc_app.api.mobile.get_document';
@@ -86,7 +92,6 @@ class ApiConfig {
   static const String reviewPaymentReceiptMethod =
       'omc_app.api.mobile.review_payment_receipt';
 
-
   static const String profileMethod = 'omc_app.api.mobile.get_profile';
   static const String updateProfileMethod = 'omc_app.api.mobile.update_profile';
   static const String updateContactMethod =
@@ -95,6 +100,8 @@ class ApiConfig {
   static const String knowledgeMethod = 'omc_app.api.mobile.get_knowledge';
   static const String knowledgeDetailMethod =
       'omc_app.api.mobile.get_knowledge_article';
+  static const String appBannersMethod = 'omc_app.api.mobile.get_app_banners';
+  static const String faqsMethod = 'omc_app.api.mobile.get_faqs';
 
   static const String notificationsMethod =
       'omc_app.api.mobile.get_notifications';
@@ -146,7 +153,6 @@ class ApiConfig {
       'omc_app.api.expense.delete_expense_entry';
   static const String expenseSummaryMethod =
       'omc_app.api.expense.get_expense_summary';
-
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
