@@ -100,7 +100,19 @@ class _ServiceCatalogueScreenState
                 sliver: SliverToBoxAdapter(child: _MyServicesShortcutCard()),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
-              if (filteredServices.isEmpty)
+              if (services.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: PremiumEmptyState(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'No services configured',
+                    message:
+                        'OMC has not published mobile services from the backend yet. Please retry after services are configured or contact support.',
+                    actionLabel: 'Retry',
+                    onAction: () => ref.invalidate(serviceCatalogueProvider),
+                  ),
+                )
+              else if (filteredServices.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: PremiumEmptyState(
@@ -332,7 +344,7 @@ class _CatalogueHeader extends StatelessWidget {
           icon: Icons.workspace_premium_outlined,
           title: 'Services',
           subtitle: 'Tax, registration and compliance services from OMC.',
-          metaLabel: '\$filteredCount showing',
+          metaLabel: '$filteredCount showing',
         ),
         const SizedBox(height: 16),
         TextField(
