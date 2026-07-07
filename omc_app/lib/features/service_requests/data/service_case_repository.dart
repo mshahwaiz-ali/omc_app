@@ -184,13 +184,17 @@ class ServiceCaseRepository {
               message['requests'] ??
               message['data'] ??
               message['items'] ??
-              message['rows']
+              message['rows'] ??
+              message['results'] ??
+              message['records']
         : data['cases'] ??
               data['service_cases'] ??
               data['requests'] ??
               data['data'] ??
               data['items'] ??
-              data['rows'];
+              data['rows'] ??
+              data['results'] ??
+              data['records'];
 
     if (rawCases is List) {
       return rawCases
@@ -204,11 +208,15 @@ class ServiceCaseRepository {
               message['service_case'] ??
               message['request'] ??
               message['service_request'] ??
+              message['result'] ??
+              message['record'] ??
               message
         : data['case'] ??
               data['service_case'] ??
               data['request'] ??
-              data['service_request'];
+              data['service_request'] ??
+              data['result'] ??
+              data['record'];
 
     if (rawCase is Map<String, dynamic>) {
       return [_mapServiceCase(rawCase)];
@@ -355,9 +363,12 @@ class ServiceCaseRepository {
   }
 
   double _doubleValue(dynamic value) {
-    if (value is num) return value.toDouble().clamp(0, 1);
-    final parsed = double.tryParse(value?.toString() ?? '');
-    return (parsed ?? 0).clamp(0, 1);
+    final number = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+
+    final normalized = number > 1 ? number / 100 : number;
+    return normalized.clamp(0, 1);
   }
 
   List<ServiceCase> sampleCasesForUiPreview() {
