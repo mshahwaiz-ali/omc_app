@@ -40,19 +40,19 @@ class Env {
 
   static bool get useMockAuth => !isProduction && _useMockAuthFlag;
 
-  /// Explicit local service preview mode for UI/module testing.
+  /// Explicit local service preview mode for development UI/module testing.
   ///
   /// Enable only with:
   /// flutter run --dart-define=OMC_USE_SERVICE_PREVIEW=true
   ///
-  /// Production builds always force this off. When this is false, the service
-  /// catalogue must come from the backend in every environment.
+  /// Staging and production builds always force this off. When this is false,
+  /// the service catalogue must come from the backend.
   static const bool _useServicePreviewFlag = bool.fromEnvironment(
     'OMC_USE_SERVICE_PREVIEW',
     defaultValue: false,
   );
 
-  static bool get useServicePreview => !isProduction && _useServicePreviewFlag;
+  static bool get useServicePreview => isDevelopment && _useServicePreviewFlag;
 
   /// Backend service catalogue is the normal source of truth.
   ///
