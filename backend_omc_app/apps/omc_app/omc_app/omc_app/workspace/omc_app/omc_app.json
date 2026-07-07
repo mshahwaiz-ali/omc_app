@@ -1,0 +1,368 @@
+{
+  "doctype": "Workspace",
+  "name": "OMC App",
+  "label": "OMC App",
+  "title": "OMC App",
+  "module": "OMC App",
+  "app": "omc_app",
+  "category": "Modules",
+  "public": 1,
+  "is_hidden": 0,
+  "icon": "/assets/omc_app/images/logo_symbol_transparent.png",
+  "indicator_color": "blue",
+  "sequence_id": 10.0,
+  "hide_custom": 0,
+  "extends_another_page": 0,
+  "for_user": "",
+  "charts": [],
+  "custom_blocks": [],
+  "links": [
+    {
+      "type": "Card Break",
+      "label": "Operations",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Service Request",
+      "link_type": "DocType",
+      "link_to": "OMC Service Request",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Service",
+      "link_type": "DocType",
+      "link_to": "OMC Service",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Service Category",
+      "link_type": "DocType",
+      "link_to": "OMC Service Category",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Service Document",
+      "link_type": "DocType",
+      "link_to": "OMC Service Document",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Service Payment",
+      "link_type": "DocType",
+      "link_to": "OMC Service Payment",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Service Timeline",
+      "link_type": "DocType",
+      "link_to": "OMC Service Timeline",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Card Break",
+      "label": "Customers & Support",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Customer Profile",
+      "link_type": "DocType",
+      "link_to": "OMC Customer Profile",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Customer Preference",
+      "link_type": "DocType",
+      "link_to": "OMC Customer Preference",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Support Ticket",
+      "link_type": "DocType",
+      "link_to": "OMC Support Ticket",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Notification",
+      "link_type": "DocType",
+      "link_to": "OMC Notification",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Card Break",
+      "label": "CRM & Internal",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Lead",
+      "link_type": "DocType",
+      "link_to": "OMC Lead",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Task",
+      "link_type": "DocType",
+      "link_to": "OMC Task",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Mobile Settings",
+      "link_type": "DocType",
+      "link_to": "OMC Mobile Settings",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Branding Settings",
+      "link_type": "DocType",
+      "link_to": "OMC Branding Settings",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Card Break",
+      "label": "Users & Permissions",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Users",
+      "link_type": "DocType",
+      "link_to": "User",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Roles",
+      "link_type": "DocType",
+      "link_to": "Role",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Role Profile",
+      "link_type": "DocType",
+      "link_to": "Role Profile",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Module Profile",
+      "link_type": "DocType",
+      "link_to": "Module Profile",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "User Permissions",
+      "link_type": "DocType",
+      "link_to": "User Permission",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    },
+    {
+      "type": "Link",
+      "label": "Role Permissions Manager",
+      "link_type": "Page",
+      "link_to": "permission-manager",
+      "hidden": 0,
+      "is_query_report": 0,
+      "onboard": 0
+    }
+  ],
+  "quick_lists": [
+    {
+      "document_type": "OMC Service Request",
+      "label": "Open Service Requests",
+      "quick_list_filter": "{\"status\":[\"!=\",\"Completed\"]}"
+    },
+    {
+      "document_type": "OMC Support Ticket",
+      "label": "Open Support Tickets",
+      "quick_list_filter": "{\"status\":[\"!=\",\"Closed\"]}"
+    }
+  ],
+  "shortcuts": [
+    {
+      "type": "DocType",
+      "label": "Service Request",
+      "link_to": "OMC Service Request",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Service",
+      "link_to": "OMC Service",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Service Category",
+      "link_to": "OMC Service Category",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Service Document",
+      "link_to": "OMC Service Document",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Service Payment",
+      "link_to": "OMC Service Payment",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Service Timeline",
+      "link_to": "OMC Service Timeline",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Customer Profile",
+      "link_to": "OMC Customer Profile",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Customer Preference",
+      "link_to": "OMC Customer Preference",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Support Ticket",
+      "link_to": "OMC Support Ticket",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Notification",
+      "link_to": "OMC Notification",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Lead",
+      "link_to": "OMC Lead",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Task",
+      "link_to": "OMC Task",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Mobile Settings",
+      "link_to": "OMC Mobile Settings",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Branding Settings",
+      "link_to": "OMC Branding Settings",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Users",
+      "link_to": "User",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Roles",
+      "link_to": "Role",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Role Profile",
+      "link_to": "Role Profile",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "Module Profile",
+      "link_to": "Module Profile",
+      "color": "Blue"
+    },
+    {
+      "type": "DocType",
+      "label": "User Permissions",
+      "link_to": "User Permission",
+      "color": "Blue"
+    },
+    {
+      "type": "Page",
+      "label": "Role Permissions Manager",
+      "link_to": "permission-manager",
+      "color": "Blue"
+    }
+  ],
+  "roles": [],
+  "onboarding_list": [],
+  "number_cards": [],
+  "cards": [],
+  "content": "[{\"id\": \"section-operations\", \"type\": \"header\", \"data\": {\"text\": \"Operations\"}}, {\"id\": \"shortcut-omc-service-request\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Service Request\", \"col\": 3}}, {\"id\": \"shortcut-omc-service\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Service\", \"col\": 3}}, {\"id\": \"shortcut-omc-service-category\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Service Category\", \"col\": 3}}, {\"id\": \"shortcut-omc-service-document\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Service Document\", \"col\": 3}}, {\"id\": \"shortcut-omc-service-payment\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Service Payment\", \"col\": 3}}, {\"id\": \"shortcut-omc-service-timeline\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Service Timeline\", \"col\": 3}}, {\"id\": \"section-customers-&-support\", \"type\": \"header\", \"data\": {\"text\": \"Customers & Support\"}}, {\"id\": \"shortcut-omc-customer-profile\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Profile\", \"col\": 3}}, {\"id\": \"shortcut-omc-customer-preference\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Preference\", \"col\": 3}}, {\"id\": \"shortcut-omc-support-ticket\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Support Ticket\", \"col\": 3}}, {\"id\": \"shortcut-omc-notification\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Notification\", \"col\": 3}}, {\"id\": \"section-crm-&-internal\", \"type\": \"header\", \"data\": {\"text\": \"CRM & Internal\"}}, {\"id\": \"shortcut-omc-lead\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Lead\", \"col\": 3}}, {\"id\": \"shortcut-omc-task\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Task\", \"col\": 3}}, {\"id\": \"shortcut-omc-mobile-settings\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Mobile Settings\", \"col\": 3}}, {\"id\": \"shortcut-omc-branding-settings\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Branding Settings\", \"col\": 3}}, {\"id\": \"section-users-&-permissions\", \"type\": \"header\", \"data\": {\"text\": \"Users & Permissions\"}}, {\"id\": \"shortcut-users\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Users\", \"col\": 3}}, {\"id\": \"shortcut-roles\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Roles\", \"col\": 3}}, {\"id\": \"shortcut-role-profile\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Role Profile\", \"col\": 3}}, {\"id\": \"shortcut-module-profile\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Module Profile\", \"col\": 3}}, {\"id\": \"shortcut-user-permissions\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"User Permissions\", \"col\": 3}}, {\"id\": \"shortcut-role-permissions-manager\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Role Permissions Manager\", \"col\": 3}}]"
+}

@@ -247,3 +247,17 @@ app_license = "mit"
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+
+# Fixtures
+# --------
+# Export custom workspace so OMC App appears in the Frappe Desk sidebar after install/migrate.
+fixtures = [
+    {
+        "doctype": "Workspace",
+        "filters": [["name", "in", ["OMC App"]]],
+    }
+]
+
+# Desk Branding
+# -------------
+app_include_css = "/assets/omc_app/css/omc_desk.css"

@@ -1,0 +1,121 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-07-07 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "branding_section",
+  "enabled",
+  "brand_name",
+  "full_logo",
+  "logo_symbol",
+  "login_logo",
+  "favicon",
+  "theme_section",
+  "primary_color",
+  "apply_section",
+  "last_applied_on",
+  "last_apply_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "branding_section",
+   "fieldtype": "Section Break",
+   "label": "Branding"
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enable OMC Branding"
+  },
+  {
+   "default": "OMC House",
+   "fieldname": "brand_name",
+   "fieldtype": "Data",
+   "label": "Brand Name",
+   "reqd": 1
+  },
+  {
+   "default": "/assets/omc_app/images/full_logo_transparent.png",
+   "fieldname": "full_logo",
+   "fieldtype": "Attach Image",
+   "label": "Full Logo"
+  },
+  {
+   "default": "/assets/omc_app/images/logo_symbol_transparent.png",
+   "fieldname": "logo_symbol",
+   "fieldtype": "Attach Image",
+   "label": "Logo Symbol"
+  },
+  {
+   "default": "/assets/omc_app/images/full_logo_transparent.png",
+   "fieldname": "login_logo",
+   "fieldtype": "Attach Image",
+   "label": "Login Logo"
+  },
+  {
+   "default": "/assets/omc_app/images/logo_symbol_transparent.png",
+   "fieldname": "favicon",
+   "fieldtype": "Attach",
+   "label": "Favicon"
+  },
+  {
+   "fieldname": "theme_section",
+   "fieldtype": "Section Break",
+   "label": "Theme"
+  },
+  {
+   "default": "#0F5132",
+   "fieldname": "primary_color",
+   "fieldtype": "Data",
+   "label": "Primary Color"
+  },
+  {
+   "fieldname": "apply_section",
+   "fieldtype": "Section Break",
+   "label": "Apply Status"
+  },
+  {
+   "fieldname": "last_applied_on",
+   "fieldtype": "Datetime",
+   "label": "Last Applied On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_apply_status",
+   "fieldtype": "Long Text",
+   "label": "Last Apply Status",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-07 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Branding Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 0,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
