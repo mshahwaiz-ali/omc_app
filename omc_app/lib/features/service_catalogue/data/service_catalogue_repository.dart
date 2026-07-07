@@ -59,11 +59,12 @@ class ServiceCatalogueRepository {
         );
       }
 
-      return decoded
-          .whereType<Map<String, dynamic>>()
-          .map(ServiceItem.fromJson)
-          .where((service) => service.id.isNotEmpty)
-          .toList(growable: false);
+      return _uniqueServices(
+        decoded
+            .whereType<Map<String, dynamic>>()
+            .map(ServiceItem.fromJson)
+            .where((service) => service.id.isNotEmpty),
+      );
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -96,6 +97,19 @@ class ServiceCatalogueRepository {
   Iterable<Map<String, dynamic>> _expandServiceRecord(
     Map<String, dynamic> record,
   ) sync* {
+    final nestedGroups =
+        record['groups'] ??
+        record['categories'] ??
+        record['service_groups'] ??
+        record['service_categories'];
+
+    if (nestedGroups is List) {
+      for (final group in nestedGroups.whereType<Map<String, dynamic>>()) {
+        yield* _expandServiceRecord(group);
+      }
+      return;
+    }
+
     final nestedServices =
         record['services'] ??
         record['items'] ??
@@ -126,25 +140,41 @@ class ServiceCatalogueRepository {
     final rawServices = _rawServicesFromResponse(response);
 
     if (rawServices is List) {
-      return rawServices
-          .whereType<Map<String, dynamic>>()
-          .expand(_expandServiceRecord)
-          .map(ServiceItem.fromJson)
-          .where((service) => service.id.isNotEmpty)
-          .toList(growable: false);
+      return _uniqueServices(
+        rawServices
+            .whereType<Map<String, dynamic>>()
+            .expand(_expandServiceRecord)
+            .map(ServiceItem.fromJson)
+            .where((service) => service.id.isNotEmpty),
+      );
     }
 
     if (rawServices is Map<String, dynamic>) {
-      return _expandServiceRecord(rawServices)
-          .map(ServiceItem.fromJson)
-          .where((service) => service.id.isNotEmpty)
-          .toList(growable: false);
+      return _uniqueServices(
+        _expandServiceRecord(rawServices)
+            .map(ServiceItem.fromJson)
+            .where((service) => service.id.isNotEmpty),
+      );
     }
 
     throw const ApiError(
       message: 'Service catalogue response was not in the expected format.',
       code: 'service_catalogue_invalid_response',
     );
+  }
+
+  List<ServiceItem> _uniqueServices(Iterable<ServiceItem> services) {
+    final seen = <String>{};
+    final unique = <ServiceItem>[];
+
+    for (final service in services) {
+      final key = service.id.trim();
+      if (key.isEmpty || seen.contains(key)) continue;
+      seen.add(key);
+      unique.add(service);
+    }
+
+    return unique;
   }
 
   Object? _rawServicesFromResponse(Map<String, dynamic> response) {
@@ -154,6 +184,10 @@ class ServiceCatalogueRepository {
 
     if (message is Map<String, dynamic>) {
       return message['services'] ??
+          message['service_groups'] ??
+          message['service_categories'] ??
+          message['groups'] ??
+          message['categories'] ??
           message['data'] ??
           message['items'] ??
           message['rows'] ??
@@ -164,6 +198,12 @@ class ServiceCatalogueRepository {
     }
 
     if (response.containsKey('services')) return response['services'];
+    if (response.containsKey('service_groups')) return response['service_groups'];
+    if (response.containsKey('service_categories')) {
+      return response['service_categories'];
+    }
+    if (response.containsKey('groups')) return response['groups'];
+    if (response.containsKey('categories')) return response['categories'];
     if (response.containsKey('data')) return response['data'];
     if (response.containsKey('items')) return response['items'];
     if (response.containsKey('rows')) return response['rows'];
