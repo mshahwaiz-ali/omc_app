@@ -19,16 +19,18 @@ def get_service_cases():
     if not isinstance(cases, list):
         return response
 
+    can_access_internal_workspace = mobile._can_access_internal_workspace()
+
     for service_case in cases:
         if not isinstance(service_case, dict):
             continue
 
-        _normalize_service_case_list_item(service_case)
+        _normalize_service_case_list_item(service_case, can_access_internal_workspace)
 
     return response
 
 
-def _normalize_service_case_list_item(service_case):
+def _normalize_service_case_list_item(service_case, can_access_internal_workspace=False):
     case_id = service_case.get("name") or service_case.get("id") or service_case.get("case_id") or ""
     status = service_case.get("status") or ""
     progress = _service_case_progress(status)
@@ -44,9 +46,9 @@ def _normalize_service_case_list_item(service_case):
     service_case.setdefault("submitted_documents_count", 0)
     service_case.setdefault("missing_documents_count", 0)
     service_case["customer_action_required"] = status.strip().lower() == "waiting for customer"
-    service_case["can_update_status"] = False
-    service_case["can_review_documents"] = False
-    service_case["can_view_internal_notes"] = False
+    service_case["can_update_status"] = can_access_internal_workspace
+    service_case["can_review_documents"] = can_access_internal_workspace
+    service_case["can_view_internal_notes"] = can_access_internal_workspace
 
 
 @frappe.whitelist()
