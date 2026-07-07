@@ -7,6 +7,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../profile/data/profile_repository.dart';
 import '../../support/data/support_repository.dart';
 import '../data/settings_preferences.dart';
 import '../data/settings_repository.dart';
@@ -17,13 +18,26 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final preferencesAsync = ref.watch(settingsPreferencesProvider);
+    final authState = ref.watch(authControllerProvider);
+    final profileSummary = ref.watch(profileSummaryProvider);
+    final profile = profileSummary.maybeWhen(
+      data: (profile) => profile,
+      orElse: () => null,
+    );
+    final accountName = profile?.displayName ?? authState.displayName;
+    final accountStatus = profile?.status ?? authState.customerStatus;
+    final approvalStatus = profile?.approvalStatus ?? authState.approvalStatus;
 
     return Scaffold(
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
-            const _SettingsHero(),
+            _SettingsHero(
+              accountName: accountName,
+              accountStatus: accountStatus,
+              approvalStatus: approvalStatus,
+            ),
             const SizedBox(height: 22),
             _SettingsSection(
               title: 'Account',
@@ -32,8 +46,8 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Profile preferences',
-                  subtitle: 'Customer identity and account details',
-                  trailing: 'Ready',
+                  subtitle: accountName ?? 'Customer identity and account details',
+                  trailing: approvalStatus ?? accountStatus ?? 'Ready',
                   onTap: () => context.push('/profile'),
                 ),
                 const _DividerIndent(),
@@ -283,6 +297,7 @@ class SettingsScreen extends ConsumerWidget {
     if (shouldLogout != true || !context.mounted) return;
 
     await ref.read(authControllerProvider.notifier).logout();
+    ref.invalidate(profileSummaryProvider);
 
     if (!context.mounted) return;
 
@@ -305,7 +320,35 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 class _SettingsHero extends StatelessWidget {
-  const _SettingsHero();
+  const _SettingsHero({
+    this.accountName,
+    this.accountStatus,
+    this.approvalStatus,
+  });
+
+  final String? accountName;
+  final String? accountStatus;
+  final String? approvalStatus;
+
+  String get _settingsSubtitle {
+    final status = _cleanLabel(accountStatus);
+    final approval = _cleanLabel(approvalStatus);
+
+    if (status != null && approval != null) {
+      return '$status • $approval';
+    }
+
+    if (status != null) return status;
+    if (approval != null) return approval;
+
+    return 'Manage your account, preferences and OMC service updates.';
+  }
+
+  String? _cleanLabel(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -349,8 +392,8 @@ class _SettingsHero extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    const Text(
-                      'Manage your account, preferences and OMC service updates.',
+                    Text(
+                      _settingsSubtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -370,13 +413,13 @@ class _SettingsHero extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              const PremiumInfoChip(
+              PremiumInfoChip(
                 icon: Icons.person_pin_circle_outlined,
-                label: 'Account active',
+                label: _cleanLabel(accountStatus) ?? 'Account active',
               ),
-              const PremiumInfoChip(
+              PremiumInfoChip(
                 icon: Icons.verified_user_outlined,
-                label: 'Protected account',
+                label: _cleanLabel(approvalStatus) ?? 'Protected account',
               ),
               const PremiumInfoChip(
                 icon: Icons.business_center_outlined,

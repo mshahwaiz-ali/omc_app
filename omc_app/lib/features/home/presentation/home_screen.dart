@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -84,8 +85,14 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
+    final profileSummary = ref.watch(profileSummaryProvider);
     final dashboardSummary = ref.watch(homeDashboardSummaryProvider);
-    final displayName = _displayNameFromUserId(authState.userId);
+    final displayName = profileSummary.maybeWhen(
+      data: (profile) => profile?.displayName,
+      orElse: () => null,
+    ) ??
+        authState.displayName ??
+        _displayNameFromUserId(authState.userId);
     final summary = dashboardSummary.maybeWhen(
       data: (summary) => summary,
       orElse: () => const HomeDashboardSummary.empty(

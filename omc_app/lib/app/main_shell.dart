@@ -6,6 +6,7 @@ import '../core/widgets/premium_card.dart';
 import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../features/profile/data/profile_repository.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
@@ -66,6 +67,7 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   Future<void> _logout() async {
     await ref.read(authControllerProvider.notifier).logout();
+    ref.invalidate(profileSummaryProvider);
 
     if (!mounted) return;
 
@@ -75,8 +77,13 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
+    final profileSummary = ref.watch(profileSummaryProvider);
     final mobileConfig =
         ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
+    final profile = profileSummary.maybeWhen(
+      data: (profile) => profile,
+      orElse: () => null,
+    );
 
     final screens = [
       HomeScreen(
@@ -99,8 +106,12 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenKnowledge: () => context.push('/knowledge'),
         onOpenExpenseTracker: () => context.push('/expense-tracker'),
         features: mobileConfig.features,
+        displayName: profile?.displayName ?? authState.displayName,
+        companyName: profile?.companyName ?? authState.companyName,
+        customerStatus: profile?.status ?? authState.customerStatus,
         canAccessInternalWorkspace:
-            authState.canAccessInternalWorkspace &&
+            (profile?.canAccessInternalWorkspace ??
+                authState.canAccessInternalWorkspace) &&
             mobileConfig.features.internalWorkspaceEnabled,
         onOpenInternalWorkspace: () => context.push('/internal-workspace'),
         onLogout: _logout,
@@ -307,6 +318,9 @@ class _MoreScreen extends StatelessWidget {
     required this.onOpenKnowledge,
     required this.onOpenExpenseTracker,
     required this.features,
+    this.displayName,
+    this.companyName,
+    this.customerStatus,
     required this.canAccessInternalWorkspace,
     required this.onOpenInternalWorkspace,
     required this.onLogout,
@@ -322,6 +336,9 @@ class _MoreScreen extends StatelessWidget {
   final VoidCallback onOpenKnowledge;
   final VoidCallback onOpenExpenseTracker;
   final MobileFeatureConfig features;
+  final String? displayName;
+  final String? companyName;
+  final String? customerStatus;
   final bool canAccessInternalWorkspace;
   final VoidCallback onOpenInternalWorkspace;
   final VoidCallback onLogout;
@@ -333,7 +350,11 @@ class _MoreScreen extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
         children: [
-          const _MoreHeader(),
+          _MoreHeader(
+            displayName: displayName,
+            companyName: companyName,
+            customerStatus: customerStatus,
+          ),
           const SizedBox(height: 18),
           _MoreGroup(
             title: 'Account',
@@ -445,7 +466,31 @@ class _MoreScreen extends StatelessWidget {
 }
 
 class _MoreHeader extends StatelessWidget {
-  const _MoreHeader();
+  const _MoreHeader({
+    this.displayName,
+    this.companyName,
+    this.customerStatus,
+  });
+
+  final String? displayName;
+  final String? companyName;
+  final String? customerStatus;
+
+  String get _headerSubtitle {
+    final company = _cleanLabel(companyName);
+    final status = _cleanLabel(customerStatus);
+
+    if (company != null && status != null) return '$company • $status';
+    if (company != null) return company;
+    if (status != null) return status;
+    return 'Profile, preferences and business shortcuts.';
+  }
+
+  String? _cleanLabel(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -480,23 +525,27 @@ class _MoreHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'OMC Workspace',
-                  style: TextStyle(
+                  _cleanLabel(displayName) ?? 'OMC Workspace',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.35,
                   ),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
                 Text(
-                  'Profile, preferences and business shortcuts.',
-                  style: TextStyle(
+                  _headerSubtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
                     height: 1.35,
