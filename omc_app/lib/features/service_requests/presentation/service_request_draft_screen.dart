@@ -171,6 +171,10 @@ class _ServiceRequestDraftScreenState
                     attachments: _attachments,
                     selectedCustomer: _selectedCustomer,
                   ),
+                  if (service.wizardConfig.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _BackendConfiguredFormCard(service: service),
+                  ],
                   const SizedBox(height: 16),
                   customersAsync.when(
                     data: (customers) {
@@ -886,6 +890,71 @@ class _SelectedServiceCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _BackendConfiguredFormCard extends StatelessWidget {
+  const _BackendConfiguredFormCard({required this.service});
+
+  final ServiceItem service;
+
+  @override
+  Widget build(BuildContext context) {
+    final configCount = service.wizardConfig.length;
+    final wizardType = _normalizedWizardType(service);
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
+            ),
+            child: const Icon(
+              Icons.dynamic_form_rounded,
+              color: AppTheme.primaryRed,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Backend-configured request form',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  wizardType.isEmpty
+                      ? 'This service includes backend form configuration with $configCount setting(s). Your submitted details will be sent as structured service data.'
+                      : 'This $wizardType flow includes backend form configuration with $configCount setting(s). Your submitted details will be sent as structured service data.',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -32,7 +32,7 @@ class DocumentItem {
 
   bool get hasFile {
     final candidates = [fileUrl, previewUrl, downloadUrl, fileName];
-    return candidates.any((value) => value != null && value!.trim().isNotEmpty);
+    return candidates.any((value) => value != null && value.trim().isNotEmpty);
   }
 
   String get displayFileName {

@@ -229,7 +229,11 @@ class PaymentsRepository {
             json['invoice_number'],
       ),
       invoiceUrl: _nullableString(
-        json['invoice_url'] ?? json['invoice_file'] ?? json['invoice_link'],
+        json['invoice_url'] ??
+            json['invoice_file'] ??
+            json['invoice_link'] ??
+            json['invoice_pdf'] ??
+            json['invoice_attachment'],
       ),
       receiptUrl: _nullableString(
         json['receipt_url'] ??
@@ -239,16 +243,39 @@ class PaymentsRepository {
             json['file_url'],
       ),
       paymentUrl: _nullableString(
-        json['payment_url'] ?? json['payment_link'] ?? json['gateway_url'],
+        json['payment_url'] ??
+            json['payment_link'] ??
+            json['gateway_url'] ??
+            json['payment_gateway_url'],
       ),
-      dueDateLabel: _nullableString(json['due_date_label'] ?? json['due_date']),
+      paymentInstructions: _nullableString(
+        json['payment_instructions'] ??
+            json['payment_method_instructions'] ??
+            json['manual_payment_instructions'],
+      ),
+      bankAccountDetails: _nullableString(
+        json['bank_account_details'] ??
+            json['bank_details'] ??
+            json['deposit_account'],
+      ),
+      dueDateLabel: _nullableString(
+        json['due_date_label'] ??
+            json['due_date'] ??
+            json['payment_deadline'] ??
+            json['deadline'],
+      ),
       paidDateLabel: _nullableString(
         json['paid_date_label'] ?? json['paid_date'] ?? json['paid_on'],
       ),
       serviceReference: _nullableString(
         json['service_reference'] ?? json['case_reference'] ?? json['case_id'],
       ),
-      remarks: _nullableString(json['remarks'] ?? json['notes']),
+      remarks: _nullableString(
+        json['receipt_review_remarks'] ??
+            json['review_remarks'] ??
+            json['remarks'] ??
+            json['notes'],
+      ),
       status: _statusFromValue(json['status']),
     );
   }

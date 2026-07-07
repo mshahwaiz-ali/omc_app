@@ -397,6 +397,13 @@ class _PaymentInfoCard extends StatelessWidget {
             label: 'Payment link',
             value: payment.paymentUrl == null ? '-' : 'Available',
           ),
+          if (payment.paymentInstructions != null)
+            _PaymentInfoRow(
+              label: 'Instructions',
+              value: payment.paymentInstructions!,
+            ),
+          if (payment.bankAccountDetails != null)
+            _PaymentInfoRow(label: 'Bank', value: payment.bankAccountDetails!),
           _PaymentInfoRow(
             label: 'Service',
             value: payment.serviceReference ?? '-',

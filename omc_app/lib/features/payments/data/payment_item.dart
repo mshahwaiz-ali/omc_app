@@ -18,6 +18,8 @@ class PaymentItem {
     this.invoiceUrl,
     this.receiptUrl,
     this.paymentUrl,
+    this.paymentInstructions,
+    this.bankAccountDetails,
     this.dueDateLabel,
     this.paidDateLabel,
     this.serviceReference,
@@ -31,6 +33,8 @@ class PaymentItem {
   final String? invoiceUrl;
   final String? receiptUrl;
   final String? paymentUrl;
+  final String? paymentInstructions;
+  final String? bankAccountDetails;
   final String? dueDateLabel;
   final String? paidDateLabel;
   final String? serviceReference;

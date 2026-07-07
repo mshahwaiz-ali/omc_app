@@ -474,6 +474,8 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 128),
       children: [
+        const _StorageModeBanner(mode: ExpenseTrackerStorageMode.localOnly),
+        const SizedBox(height: 16),
         _HeroSummaryCard(stats: allStats),
         const SizedBox(height: 16),
         _FilterChips(
@@ -604,6 +606,70 @@ class _TrackerStats {
       income: income,
       expenses: expenses,
       transactionCount: transactions.length,
+    );
+  }
+}
+
+class _StorageModeBanner extends StatelessWidget {
+  const _StorageModeBanner({required this.mode});
+
+  final ExpenseTrackerStorageMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLocalOnly = mode == ExpenseTrackerStorageMode.localOnly;
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Icon(
+              isLocalOnly
+                  ? Icons.phone_iphone_rounded
+                  : Icons.cloud_sync_outlined,
+              color: AppTheme.primaryRed,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mode.label,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  mode.description,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -405,8 +405,8 @@ class _TaxResultCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   isBackendResult
-                      ? 'Backend Tax Result'
-                      : 'Unofficial Tax Estimate',
+                      ? 'OMC verified calculation'
+                      : 'Estimate only — not for filing',
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 18,
@@ -486,8 +486,8 @@ class _TaxResultCard extends StatelessWidget {
                   child: Text(
                     note ??
                         (isBackendResult
-                            ? 'Calculated from OMC backend tax data. Confirm final filing figures with OMC if needed.'
-                            : 'Unofficial local estimate only. Do not use this result for filing until OMC verifies the applicable tax slabs.'),
+                            ? 'Calculated from verified OMC backend tax data. Confirm final filing figures with OMC if needed.'
+                            : 'Estimate only — not for filing. Use this as a guide until OMC verifies the applicable tax slabs.'),
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 12,
@@ -521,7 +521,7 @@ class _ResultSourcePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isBackendResult ? 'BACKEND' : 'UNOFFICIAL',
+        isBackendResult ? 'OMC VERIFIED' : 'ESTIMATE ONLY',
         style: TextStyle(
           color: color,
           fontSize: 11,

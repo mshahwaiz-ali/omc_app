@@ -83,9 +83,9 @@ class _ServiceCaseDetailScreenState
                           onStatusSelected: _isUpdatingStatus
                               ? null
                               : (status) => _updateServiceCaseStatus(
-                                    serviceCase,
-                                    status,
-                                  ),
+                                  serviceCase,
+                                  status,
+                                ),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -740,9 +740,11 @@ class _QuickStatusGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
-    final progressPercent = serviceCase.progressPercent ?? (progress * 100).round();
+    final progressPercent =
+        serviceCase.progressPercent ?? (progress * 100).round();
     final missingDocumentsCount =
-        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
 
     return Row(
       children: [
@@ -998,7 +1000,8 @@ class _ActionRequiredCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final missingDocumentsCount =
-        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
 
     return PremiumCard(
       child: Row(
@@ -1033,7 +1036,8 @@ class _ActionRequiredCard extends StatelessWidget {
                 Text(
                   missingDocumentsCount > 0
                       ? '$missingDocumentsCount document(s) are needed to continue this service request.'
-                      : serviceCase.nextStep ?? 'OMC needs an update from you to continue this request.',
+                      : serviceCase.nextStep ??
+                            'OMC needs an update from you to continue this request.',
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
@@ -1219,7 +1223,7 @@ class _RequiredDocumentsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final documentDetails = serviceCase.documentDetails;
+    final documentDetails = _sortedDocumentDetails(serviceCase.documentDetails);
     final documents = _documentsForCase(serviceCase);
 
     return PremiumCard(
@@ -1254,6 +1258,8 @@ class _RequiredDocumentsCard extends StatelessWidget {
                   isSubmitted: document.isSubmitted,
                   isMissing: document.isMissing,
                   status: document.status,
+                  fileUrl: document.fileUrl,
+                  remarks: document.remarks,
                   canReview:
                       document.hasRealId && onUpdateDocumentStatus != null,
                   isUpdating: isUpdatingDocumentStatus,
@@ -1280,6 +1286,31 @@ class _RequiredDocumentsCard extends StatelessWidget {
     );
   }
 
+  List<ServiceCaseDocument> _sortedDocumentDetails(
+    List<ServiceCaseDocument> documents,
+  ) {
+    final sorted = [...documents];
+
+    sorted.sort((a, b) {
+      final aRank = a.isMissing
+          ? 0
+          : a.isSubmitted
+          ? 1
+          : 2;
+      final bRank = b.isMissing
+          ? 0
+          : b.isSubmitted
+          ? 1
+          : 2;
+
+      if (aRank != bRank) return aRank.compareTo(bRank);
+
+      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+    });
+
+    return sorted;
+  }
+
   List<String> _documentsForCase(ServiceCase serviceCase) {
     if (serviceCase.requiredDocuments.isNotEmpty) {
       return serviceCase.requiredDocuments;
@@ -1299,6 +1330,8 @@ class _DocumentRequirementRow extends StatelessWidget {
     required this.isSubmitted,
     required this.isMissing,
     this.status,
+    this.fileUrl,
+    this.remarks,
     this.canReview = false,
     this.isUpdating = false,
     this.onApprove,
@@ -1309,6 +1342,8 @@ class _DocumentRequirementRow extends StatelessWidget {
   final bool isSubmitted;
   final bool isMissing;
   final String? status;
+  final String? fileUrl;
+  final String? remarks;
   final bool canReview;
   final bool isUpdating;
   final VoidCallback? onApprove;
@@ -1316,11 +1351,18 @@ class _DocumentRequirementRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusLabel = isSubmitted
+    final normalizedStatus = status?.trim();
+    final hasStatus = normalizedStatus != null && normalizedStatus.isNotEmpty;
+    final statusLabel = hasStatus
+        ? normalizedStatus
+        : isSubmitted
         ? 'Submitted'
         : isMissing
         ? 'Missing'
         : 'Required';
+    final hasFile = fileUrl != null && fileUrl!.trim().isNotEmpty;
+    final cleanRemarks = remarks?.trim();
+    final hasRemarks = cleanRemarks != null && cleanRemarks.isNotEmpty;
 
     final icon = isSubmitted
         ? Icons.check_circle_rounded
@@ -1347,14 +1389,42 @@ class _DocumentRequirementRow extends StatelessWidget {
           Icon(icon, color: statusColor, size: 20),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    height: 1.35,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (hasFile) ...[
+                  const SizedBox(height: 5),
+                  const Text(
+                    'File attached',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (hasRemarks) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    cleanRemarks,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(width: 8),

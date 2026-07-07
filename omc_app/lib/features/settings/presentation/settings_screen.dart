@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
@@ -12,6 +13,10 @@ import '../../support/data/support_repository.dart';
 import '../data/settings_preferences.dart';
 import '../data/settings_repository.dart';
 
+final appPackageInfoProvider = FutureProvider<PackageInfo>((ref) {
+  return PackageInfo.fromPlatform();
+});
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -20,6 +25,7 @@ class SettingsScreen extends ConsumerWidget {
     final preferencesAsync = ref.watch(settingsPreferencesProvider);
     final authState = ref.watch(authControllerProvider);
     final profileSummary = ref.watch(profileSummaryProvider);
+    final packageInfo = ref.watch(appPackageInfoProvider);
     final profile = profileSummary.maybeWhen(
       data: (profile) => profile,
       orElse: () => null,
@@ -46,7 +52,8 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Profile preferences',
-                  subtitle: accountName ?? 'Customer identity and account details',
+                  subtitle:
+                      accountName ?? 'Customer identity and account details',
                   trailing: approvalStatus ?? accountStatus ?? 'Ready',
                   onTap: () => context.push('/profile'),
                 ),
@@ -104,11 +111,22 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsTile(
                   icon: Icons.phone_iphone_rounded,
                   title: 'OMC Mobile App',
-                  subtitle: 'Premium customer service app',
-                  trailing: 'Flutter',
+                  subtitle: packageInfo.maybeWhen(
+                    data: (info) =>
+                        'Version ${info.version}+${info.buildNumber}',
+                    orElse: () => 'Premium customer service app',
+                  ),
+                  trailing: packageInfo.maybeWhen(
+                    data: (info) => info.appName,
+                    orElse: () => 'Flutter',
+                  ),
                   onTap: () => _showBackendPendingSnack(
                     context,
-                    'App version display will be connected with package info later.',
+                    packageInfo.maybeWhen(
+                      data: (info) =>
+                          '${info.appName} ${info.version}+${info.buildNumber}',
+                      orElse: () => 'OMC Mobile App',
+                    ),
                   ),
                 ),
                 const _DividerIndent(),

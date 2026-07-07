@@ -5,12 +5,23 @@ import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/storage/json_cache_service.dart';
 import 'service_case.dart';
+
+final serviceCaseCacheProvider = FutureProvider<JsonCacheService>((ref) {
+  return JsonCacheService.create();
+});
 
 final serviceCaseRepositoryProvider = Provider<ServiceCaseRepository>((ref) {
   final frappeClient = ref.watch(frappeClientProvider);
+  final cacheService = ref
+      .watch(serviceCaseCacheProvider)
+      .maybeWhen(data: (cacheService) => cacheService, orElse: () => null);
 
-  return ServiceCaseRepository(frappeClient: frappeClient);
+  return ServiceCaseRepository(
+    frappeClient: frappeClient,
+    cacheService: cacheService,
+  );
 });
 
 final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
@@ -45,9 +56,17 @@ final serviceCaseDetailProvider = FutureProvider.family<ServiceCase?, String>((
 });
 
 class ServiceCaseRepository {
-  const ServiceCaseRepository({required this._frappeClient});
+  const ServiceCaseRepository({
+    required FrappeClient frappeClient,
+    JsonCacheService? cacheService,
+  }) : this._(frappeClient, cacheService);
+
+  const ServiceCaseRepository._(this._frappeClient, this._cacheService);
+
+  static const String _serviceCasesCacheKey = 'service_cases_cache_v1';
 
   final FrappeClient _frappeClient;
+  final JsonCacheService? _cacheService;
 
   Future<List<ServiceCase>> fetchServiceCases() async {
     try {
@@ -55,10 +74,22 @@ class ServiceCaseRepository {
         ApiConfig.serviceCasesMethod,
       );
 
+      await _cacheService?.saveMap(_serviceCasesCacheKey, response);
+
       return _mapServiceCasesResponse(response);
     } on ApiError catch (error) {
+      final cachedResponse = _cacheService?.readMap(_serviceCasesCacheKey);
+      if (cachedResponse != null) {
+        return _mapServiceCasesResponse(cachedResponse);
+      }
+
       throw _trackingApiUnavailable(error);
     } catch (error) {
+      final cachedResponse = _cacheService?.readMap(_serviceCasesCacheKey);
+      if (cachedResponse != null) {
+        return _mapServiceCasesResponse(cachedResponse);
+      }
+
       throw _trackingApiUnavailable(error);
     }
   }
@@ -284,8 +315,12 @@ class ServiceCaseRepository {
       progressPercent: _nullableIntValue(json['progress_percent']),
       currentStage: _nullableString(json['current_stage'] ?? json['stage']),
       customerActionRequired: _boolValue(json['customer_action_required']),
-      requiredDocumentsCount: _nullableIntValue(json['required_documents_count']),
-      submittedDocumentsCount: _nullableIntValue(json['submitted_documents_count']),
+      requiredDocumentsCount: _nullableIntValue(
+        json['required_documents_count'],
+      ),
+      submittedDocumentsCount: _nullableIntValue(
+        json['submitted_documents_count'],
+      ),
       missingDocumentsCount: _nullableIntValue(json['missing_documents_count']),
       canUpdateStatus: _boolValue(json['can_update_status']),
       canReviewDocuments: _boolValue(json['can_review_documents']),
@@ -327,22 +362,43 @@ class ServiceCaseRepository {
                   item['stage_title'] ??
                   item['label'] ??
                   item['status'] ??
+                  item['type'] ??
                   item['activity_type'] ??
                   item['event_type'],
             ),
-            subtitle: _stringValue(
-              item['subtitle'] ??
-                  item['description'] ??
-                  item['message'] ??
-                  item['remarks'] ??
-                  item['expected_duration_label'] ??
-                  item['creation'],
-            ),
+            subtitle: _timelineSubtitle(item),
             isDone: _timelineStepIsDone(item),
           ),
         )
         .where((step) => step.title.trim().isNotEmpty && step.title != '-')
         .toList(growable: false);
+  }
+
+  String _timelineSubtitle(Map<String, dynamic> item) {
+    final mainText = _nullableString(
+      item['subtitle'] ??
+          item['description'] ??
+          item['message'] ??
+          item['remarks'] ??
+          item['expected_duration_label'],
+    );
+
+    final timestamp = _nullableString(
+      item['created_at'] ??
+          item['created_on'] ??
+          item['creation'] ??
+          item['date'] ??
+          item['updated_at'] ??
+          item['modified'],
+    );
+
+    if (mainText != null &&
+        timestamp != null &&
+        !mainText.contains(timestamp)) {
+      return '$mainText\n$timestamp';
+    }
+
+    return mainText ?? timestamp ?? '-';
   }
 
   bool _timelineStepIsDone(Map<String, dynamic> item) {
