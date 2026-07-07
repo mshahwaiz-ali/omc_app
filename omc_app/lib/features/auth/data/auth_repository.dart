@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -132,10 +134,12 @@ class AuthRepository {
 
       final serverSession = await getSessionUser();
       if (serverSession != null) {
+        await updateGuestActivity(convertedUser: serverSession.userId);
         return serverSession;
       }
 
       await _secureStorageService.saveUserId(email);
+      await updateGuestActivity(convertedUser: email);
       return AuthSession(userId: email);
     }
 
@@ -143,10 +147,12 @@ class AuthRepository {
 
     final serverSession = await getSessionUser();
     if (serverSession != null) {
+      await updateGuestActivity(convertedUser: serverSession.userId);
       return serverSession;
     }
 
     await _secureStorageService.saveUserId(email);
+    await updateGuestActivity(convertedUser: email);
     return AuthSession(userId: email);
   }
 
@@ -170,6 +176,56 @@ class AuthRepository {
     return _frappeClient.postMethod(ApiConfig.signUpMethod, data: data);
   }
 
+  Future<void> createGuestSession() async {
+    try {
+      final deviceId = await _guestDeviceId();
+      final response = await _frappeClient.postMethod(
+        ApiConfig.createGuestSessionMethod,
+        data: {
+          'device_id': deviceId,
+          'platform': _platformName,
+          'app_version': 'unknown',
+        },
+      );
+      await _storeGuestSessionId(response);
+    } catch (_) {
+      // Guest mode must stay usable even when analytics/session tracking fails.
+    }
+  }
+
+  Future<void> updateGuestActivity({
+    String? interestedService,
+    String? convertedUser,
+  }) async {
+    try {
+      final deviceId = await _guestDeviceId();
+      final sessionId = await _secureStorageService.readGuestSessionId();
+      final data = <String, dynamic>{
+        'device_id': deviceId,
+        'platform': _platformName,
+        'app_version': 'unknown',
+      };
+
+      if (sessionId != null && sessionId.isNotEmpty) {
+        data['session_id'] = sessionId;
+      }
+      if (interestedService != null && interestedService.trim().isNotEmpty) {
+        data['interested_services'] = [interestedService.trim()];
+      }
+      if (convertedUser != null && convertedUser.trim().isNotEmpty) {
+        data['converted_user'] = convertedUser.trim();
+      }
+
+      final response = await _frappeClient.postMethod(
+        ApiConfig.updateGuestActivityMethod,
+        data: data,
+      );
+      await _storeGuestSessionId(response);
+    } catch (_) {
+      // Non-blocking by design.
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _frappeClient.postMethod(ApiConfig.logoutMethod);
@@ -182,5 +238,36 @@ class AuthRepository {
 
   Future<void> clearSession() {
     return _secureStorageService.clearSession();
+  }
+
+  Future<String> _guestDeviceId() async {
+    final existing = await _secureStorageService.readGuestDeviceId();
+    if (existing != null && existing.isNotEmpty) return existing;
+
+    final random = Random.secure();
+    final suffix = List.generate(
+      16,
+      (_) => random.nextInt(16).toRadixString(16),
+    ).join();
+    final deviceId = 'guest-${DateTime.now().millisecondsSinceEpoch}-$suffix';
+    await _secureStorageService.saveGuestDeviceId(deviceId);
+    return deviceId;
+  }
+
+  Future<void> _storeGuestSessionId(Map<String, dynamic> response) async {
+    final message = response['message'];
+    final data = message is Map<String, dynamic> ? message : response;
+    final guestSession = data['guest_session'];
+    final sessionId = guestSession is Map<String, dynamic>
+        ? (guestSession['session_id'] ?? guestSession['name'])?.toString()
+        : null;
+    if (sessionId != null && sessionId.isNotEmpty) {
+      await _secureStorageService.saveGuestSessionId(sessionId);
+    }
+  }
+
+  String get _platformName {
+    if (kIsWeb) return 'web';
+    return defaultTargetPlatform.name.toLowerCase();
   }
 }
