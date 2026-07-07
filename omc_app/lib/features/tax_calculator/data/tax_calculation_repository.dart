@@ -80,19 +80,19 @@ class TaxCalculationRepository {
       return _localEstimate(
         input,
         backendMessage:
-            'OMC tax service returned incomplete slab data, so an estimated calculation is shown.',
+            'OMC tax service did not return complete verified slab data, so this is an unofficial local estimate. Please verify with OMC before filing.',
       );
     } on ApiError catch (error) {
       return _localEstimate(
         input,
         backendMessage:
-            '${error.message} A safe estimated calculation is shown.',
+            '${error.message} Showing an unofficial local estimate only; do not treat this as a verified tax result.',
       );
     } catch (_) {
       return _localEstimate(
         input,
         backendMessage:
-            'Safe estimated calculation shown. Final tax may vary after OMC slab verification.',
+            'Showing an unofficial local estimate only. Final tax may vary after OMC slab verification.',
       );
     }
   }
@@ -158,7 +158,7 @@ class TaxCalculationRepository {
       isBackendResult: false,
       note:
           backendMessage ??
-          'Safe estimated calculation shown. Final tax may vary after OMC slab verification.',
+          'Showing an unofficial local estimate only. Final tax may vary after OMC slab verification.',
     );
   }
 
