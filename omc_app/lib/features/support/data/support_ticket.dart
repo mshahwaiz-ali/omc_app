@@ -12,6 +12,7 @@ class SupportTicket {
     this.closedOnLabel,
     this.createdAtLabel,
     this.updatedAtLabel,
+    this.messages = const [],
   });
 
   final String id;
@@ -26,4 +27,21 @@ class SupportTicket {
   final String? closedOnLabel;
   final String? createdAtLabel;
   final String? updatedAtLabel;
+  final List<SupportTicketMessage> messages;
+}
+
+class SupportTicketMessage {
+  const SupportTicketMessage({
+    required this.author,
+    required this.message,
+    required this.createdAtLabel,
+    required this.type,
+  });
+
+  final String author;
+  final String message;
+  final String createdAtLabel;
+  final String type;
+
+  bool get isReply => type.trim().toLowerCase() == 'reply';
 }
