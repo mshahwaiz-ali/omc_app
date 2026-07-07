@@ -28,6 +28,14 @@ class SupportTicket {
   final String? createdAtLabel;
   final String? updatedAtLabel;
   final List<SupportTicketMessage> messages;
+
+  bool get isClosed {
+    final normalized = status.trim().toLowerCase();
+    return normalized.contains('closed') ||
+        normalized.contains('resolved') ||
+        normalized.contains('cancel') ||
+        normalized.contains('done');
+  }
 }
 
 class SupportTicketMessage {
@@ -43,5 +51,11 @@ class SupportTicketMessage {
   final String createdAtLabel;
   final String type;
 
-  bool get isReply => type.trim().toLowerCase() == 'reply';
+  bool get isReply {
+    final normalized = type.trim().toLowerCase();
+    return normalized.contains('reply') ||
+        normalized.contains('support') ||
+        normalized.contains('staff') ||
+        normalized.contains('agent');
+  }
 }
