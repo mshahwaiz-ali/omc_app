@@ -65,6 +65,28 @@ class _CustomerDetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusLabel = _customerStatusLabel(customer.status);
+    final backendRows = <CrmInfoRow>[
+      CrmInfoRow(label: 'Customer ID', value: customer.id),
+    ];
+
+    if (customer.approvalStatus != null) {
+      backendRows.add(
+        CrmInfoRow(label: 'Approval', value: customer.approvalStatus!),
+      );
+    }
+    if (customer.isActive != null) {
+      backendRows.add(
+        CrmInfoRow(label: 'Active flag', value: customer.isActive! ? 'Yes' : 'No'),
+      );
+    }
+    if (customer.linkedErpnextCustomer != null) {
+      backendRows.add(
+        CrmInfoRow(
+          label: 'ERPNext customer',
+          value: customer.linkedErpnextCustomer!,
+        ),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -81,11 +103,22 @@ class _CustomerDetailBody extends StatelessWidget {
           rows: [
             CrmInfoRow(label: 'Email', value: customer.email ?? '-'),
             CrmInfoRow(label: 'Phone', value: customer.phone ?? '-'),
+            CrmInfoRow(label: 'Company', value: customer.companyName ?? '-'),
             CrmInfoRow(label: 'City', value: customer.city ?? '-'),
             CrmInfoRow(
               label: 'Activity',
               value: customer.lastActivityLabel ?? '-',
             ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        CrmDetailInfoCard(title: 'Backend profile', rows: backendRows),
+        const SizedBox(height: 16),
+        CrmDetailInfoCard(
+          title: 'Timeline',
+          rows: [
+            CrmInfoRow(label: 'Created', value: customer.createdAtLabel ?? '-'),
+            CrmInfoRow(label: 'Updated', value: customer.updatedAtLabel ?? '-'),
           ],
         ),
         const SizedBox(height: 16),
