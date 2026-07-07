@@ -60,4 +60,16 @@ class Env {
     'OMC_USE_BACKEND_SERVICE_CATALOGUE',
     defaultValue: false,
   );
+
+  /// Optional Google login entry point.
+  ///
+  /// Keep disabled until the backend validates Google ID tokens server-side.
+  /// Production builds force this off unless Google login is intentionally
+  /// implemented and this guard is updated.
+  static const bool _googleLoginFlag = bool.fromEnvironment(
+    'OMC_ENABLE_GOOGLE_LOGIN',
+    defaultValue: false,
+  );
+
+  static bool get googleLoginEnabled => !isProduction && _googleLoginFlag;
 }

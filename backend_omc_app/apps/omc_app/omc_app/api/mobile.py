@@ -16,6 +16,22 @@ def _current_user():
     return user or "Guest"
 
 
+INTERNAL_WORKSPACE_ROLES = {"System Manager"}
+
+
+def _assert_internal_workspace_access():
+    user = _current_user()
+
+    if user == "Guest":
+        frappe.throw("Login is required", frappe.PermissionError)
+
+    user_roles = set(frappe.get_roles(user) or [])
+    if not user_roles.intersection(INTERNAL_WORKSPACE_ROLES):
+        frappe.throw("You do not have permission to access internal workspace data.", frappe.PermissionError)
+
+    return user
+
+
 @frappe.whitelist(allow_guest=True)
 def sign_up(**kwargs):
     email = (kwargs.get("email") or kwargs.get("user") or "").strip().lower()
@@ -803,7 +819,9 @@ def add_service_case_comment(case_id=None, message=None):
 
 
 ALLOWED_DOCUMENT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "doc", "docx"}
+ALLOWED_PAYMENT_RECEIPT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png"}
 MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024
+MAX_PAYMENT_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024
 MAX_FILES_PER_CASE = 20
 
 
@@ -885,6 +903,52 @@ def _assert_service_document_upload_allowed(service_case, attachment):
 
     if not uploaded_file.is_private:
         uploaded_file.is_private = 1
+        uploaded_file.save(ignore_permissions=True)
+
+    return uploaded_file.file_url or clean_attachment
+
+
+def _assert_payment_receipt_upload_allowed(payment, receipt_attachment):
+    clean_attachment = _clean_file_reference(receipt_attachment)
+    if not clean_attachment:
+        frappe.throw("receipt_attachment is required")
+
+    extension = _document_extension(clean_attachment)
+    if extension not in ALLOWED_PAYMENT_RECEIPT_EXTENSIONS:
+        frappe.throw("Unsupported receipt type. Please upload PDF, JPG or PNG files only.")
+
+    uploaded_file = _find_uploaded_file(clean_attachment)
+    if not uploaded_file:
+        return clean_attachment
+
+    file_extension = _document_extension(uploaded_file.file_name or uploaded_file.file_url or clean_attachment)
+    if file_extension not in ALLOWED_PAYMENT_RECEIPT_EXTENSIONS:
+        frappe.throw("Unsupported receipt type. Please upload PDF, JPG or PNG files only.")
+
+    file_size = int(uploaded_file.file_size or 0)
+    if file_size <= 0:
+        frappe.throw("Uploaded receipt is empty.")
+    if file_size > MAX_PAYMENT_RECEIPT_SIZE_BYTES:
+        frappe.throw("Receipt is too large. Maximum allowed size is 10 MB.")
+
+    current_user = _current_user()
+    if uploaded_file.owner and uploaded_file.owner != current_user:
+        frappe.throw("You do not have permission to use this uploaded receipt.", frappe.PermissionError)
+
+    allowed_doctypes = {"", "OMC Service Payment"}
+    if uploaded_file.attached_to_doctype and uploaded_file.attached_to_doctype not in allowed_doctypes:
+        frappe.throw("Uploaded receipt is attached to another document.", frappe.PermissionError)
+
+    if uploaded_file.attached_to_name and uploaded_file.attached_to_name != payment.name:
+        frappe.throw("Uploaded receipt is attached to another payment record.", frappe.PermissionError)
+
+    if not uploaded_file.is_private:
+        uploaded_file.is_private = 1
+        uploaded_file.save(ignore_permissions=True)
+
+    if uploaded_file.attached_to_doctype != "OMC Service Payment" or uploaded_file.attached_to_name != payment.name:
+        uploaded_file.attached_to_doctype = "OMC Service Payment"
+        uploaded_file.attached_to_name = payment.name
         uploaded_file.save(ignore_permissions=True)
 
     return uploaded_file.file_url or clean_attachment
@@ -1223,6 +1287,8 @@ def upload_payment_receipt(**kwargs):
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
         frappe.throw("You do not have permission to update this payment", frappe.PermissionError)
 
+    receipt_attachment = _assert_payment_receipt_upload_allowed(payment, receipt_attachment)
+
     payment.receipt_attachment = receipt_attachment
     payment.payment_reference = payment_reference or payment.payment_reference
     payment.remarks = remarks or payment.remarks
@@ -1530,13 +1596,40 @@ def _support_ticket_messages(ticket):
     raw_message = ticket.message or ""
     messages = []
 
-    if raw_message:
+    if not raw_message:
+        return messages
+
+    reply_marker = "\n\n--- Reply from "
+    parts = raw_message.split(reply_marker)
+
+    initial_message = parts[0].strip()
+    if initial_message:
         messages.append(
             {
                 "author": ticket.raised_by or "Customer",
-                "message": raw_message,
+                "message": initial_message,
                 "created_at": str(ticket.creation) if ticket.creation else "",
                 "type": "initial",
+            }
+        )
+
+    for raw_reply in parts[1:]:
+        header, separator, body = raw_reply.partition(" ---\n")
+        if not separator:
+            continue
+
+        author = header
+        created_at = ""
+
+        if " at " in header:
+            author, created_at = header.rsplit(" at ", 1)
+
+        messages.append(
+            {
+                "author": author.strip() or "Customer",
+                "message": body.strip(),
+                "created_at": created_at.strip(),
+                "type": "reply",
             }
         )
 
@@ -1713,6 +1806,7 @@ def _get_customer_preferences(profile=None):
 def _settings_preferences_to_dict(preferences):
     return {
         "notifications_enabled": bool(preferences.notifications_enabled),
+        "push_notifications_enabled": bool(preferences.notifications_enabled),
         "email_updates_enabled": bool(preferences.email_updates_enabled),
         "payment_reminders_enabled": bool(preferences.payment_reminders_enabled),
         "service_updates_enabled": bool(preferences.service_updates_enabled),
@@ -1766,14 +1860,26 @@ def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
 def get_settings_preferences():
     profile = _get_customer_profile_for_user()
     preferences = _get_customer_preferences(profile)
+    preference_data = _settings_preferences_to_dict(preferences)
 
-    return _settings_preferences_to_dict(preferences)
+    return {
+        **preference_data,
+        "preferences": preference_data,
+    }
 
 
 @frappe.whitelist()
 def update_settings_preferences(**kwargs):
     profile = _get_customer_profile_for_user()
     preferences = _get_customer_preferences(profile)
+
+    field_aliases = {
+        "push_notifications_enabled": "notifications_enabled",
+    }
+
+    for incoming_field, target_field in field_aliases.items():
+        if incoming_field in kwargs and target_field not in kwargs:
+            kwargs[target_field] = kwargs.get(incoming_field)
 
     allowed_check_fields = [
         "notifications_enabled",
@@ -1830,6 +1936,7 @@ def update_settings_preferences(**kwargs):
 
 @frappe.whitelist()
 def get_internal_workspace_summary():
+    _assert_internal_workspace_access()
     return {
         "leads": frappe.db.count("OMC Lead"),
         "customers": frappe.db.count("OMC Customer Profile"),
@@ -1853,6 +1960,7 @@ def get_internal_workspace_summary():
 
 @frappe.whitelist()
 def create_lead(**kwargs):
+    _assert_internal_workspace_access()
     title = (kwargs.get("title") or kwargs.get("subject") or "").strip()
     lead_name = (kwargs.get("lead_name") or kwargs.get("name") or kwargs.get("full_name") or "").strip()
     company_name = (kwargs.get("company_name") or kwargs.get("company") or "").strip()
@@ -1908,6 +2016,7 @@ def _lead_to_dict(lead):
 
 @frappe.whitelist()
 def get_leads():
+    _assert_internal_workspace_access()
     leads = frappe.get_all(
         "OMC Lead",
         fields=[
@@ -1957,6 +2066,7 @@ def get_leads():
 
 @frappe.whitelist()
 def get_lead(lead_id=None):
+    _assert_internal_workspace_access()
     if not lead_id:
         frappe.throw("lead_id is required")
 
@@ -1989,6 +2099,7 @@ def _customer_profile_to_dict(profile):
 
 @frappe.whitelist()
 def get_customers():
+    _assert_internal_workspace_access()
     customers = frappe.get_all(
         "OMC Customer Profile",
         fields=[
@@ -2036,6 +2147,7 @@ def get_customers():
 
 @frappe.whitelist()
 def get_customer(customer_id=None):
+    _assert_internal_workspace_access()
     if not customer_id:
         frappe.throw("customer_id is required")
 
@@ -2066,6 +2178,7 @@ def _task_to_dict(task):
 
 @frappe.whitelist()
 def get_tasks():
+    _assert_internal_workspace_access()
     tasks = frappe.get_all(
         "OMC Task",
         fields=[
@@ -2111,6 +2224,7 @@ def get_tasks():
 
 @frappe.whitelist()
 def get_task(task_id=None):
+    _assert_internal_workspace_access()
     if not task_id:
         frappe.throw("task_id is required")
 
