@@ -355,41 +355,45 @@ Before production release, verify the following against the production backend U
 flutter run --release \
   --dart-define=OMC_ENV=production \
   --dart-define=OMC_API_BASE_URL=https://erp.omchouse.com
+```
 
 Checklist:
 
-Login succeeds with a valid backend user.
-Invalid login shows a clear wrong email/password message.
-Service catalogue loads from backend.
-Service request creation works.
-Created service request appears in My Services.
-Service request document upload works using the linked service request id.
-Payment receipt upload works against the selected payment/request record.
-Forgot password/support contact opens without requiring login.
-Notifications screen does not crash when backend notifications are empty.
-Production backend URL uses HTTPS.
-Android release build uses configured android/key.properties.
-Release Hardening Backlog
-Kotlin / Gradle
+* Login succeeds with a valid backend user.
+* Invalid login shows a clear wrong email or password message.
+* Service catalogue loads from backend.
+* Service request creation works.
+* Created service request appears in My Services.
+* Service request document upload works using the linked service request id.
+* Payment receipt upload works against the selected payment/request record.
+* Forgot password/support contact opens without requiring login.
+* Notifications screen does not crash when backend notifications are empty.
+* Production backend URL uses HTTPS.
+* Android release build uses configured `android/key.properties`.
 
-Android currently keeps the explicit Kotlin Gradle Plugin configuration because removing it breaks the debug build while Flutter plugins such as file_picker still apply KGP.
+## Release Hardening Backlog
+
+### Kotlin / Gradle
+
+Android currently keeps the explicit Kotlin Gradle Plugin configuration because removing it breaks the debug build while Flutter plugins such as `file_picker` still apply KGP.
 
 Do not migrate to built-in Kotlin until all Android Flutter plugins in the dependency tree support it cleanly.
 
 Current expected state:
 
-android.builtInKotlin=false
-android.newDsl=false
-org.jetbrains.kotlin.android remains configured
-Debug APK build must stay green
-iOS
+* `android.builtInKotlin=false`
+* `android.newDsl=false`
+* `org.jetbrains.kotlin.android` remains configured
+* Debug APK build must stay green
+
+### iOS
 
 iOS identity has been cleaned in project files for planning, but final TestFlight/App Store setup must be completed on macOS with Xcode.
 
 Before iOS release:
 
-Confirm bundle identifier in Xcode.
-Configure signing team.
-Configure app icons and launch assets.
-Run iOS archive from Xcode.
-Validate TestFlight upload.
+* Confirm bundle identifier in Xcode.
+* Configure signing team.
+* Configure app icons and launch assets.
+* Run iOS archive from Xcode.
+* Validate TestFlight upload.

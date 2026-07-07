@@ -91,7 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         lower.contains('invalid') ||
         lower.contains('not permitted') ||
         lower.contains('login failed')) {
-      return 'Invalid username or password. Please check your credentials.';
+      return 'Wrong email or password. Please try again.';
     }
 
     return value;

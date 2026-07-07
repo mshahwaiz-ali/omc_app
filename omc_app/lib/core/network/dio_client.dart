@@ -71,7 +71,7 @@ class DioClient {
 
     if (response?.statusCode == 401 || response?.statusCode == 403) {
       return ApiError(
-        message: 'Invalid username or password. Please check your credentials.',
+        message: 'Wrong email or password. Please try again.',
         statusCode: response?.statusCode,
         details: data,
       );

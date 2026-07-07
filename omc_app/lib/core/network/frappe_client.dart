@@ -198,7 +198,7 @@ class FrappeClient {
 
     if (looksRejected && !hasAcceptedLoginSignal) {
       throw ApiError(
-        message: 'Invalid username or password. Please check your credentials.',
+        message: 'Wrong email or password. Please try again.',
         details: data,
       );
     }
