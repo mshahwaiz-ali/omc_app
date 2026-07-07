@@ -206,7 +206,11 @@ class PaymentsRepository {
         json['invoice_url'] ?? json['invoice_file'] ?? json['invoice_link'],
       ),
       receiptUrl: _nullableString(
-        json['receipt_url'] ?? json['receipt_file'] ?? json['receipt_link'],
+        json['receipt_url'] ??
+            json['receipt_attachment'] ??
+            json['receipt_file'] ??
+            json['receipt_link'] ??
+            json['file_url'],
       ),
       paymentUrl: _nullableString(
         json['payment_url'] ?? json['payment_link'] ?? json['gateway_url'],
