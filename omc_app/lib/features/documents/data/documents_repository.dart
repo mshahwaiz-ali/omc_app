@@ -100,6 +100,9 @@ class DocumentsRepository {
         ApiConfig.uploadServiceDocumentMethod,
         data: {
           'case_id': cleanServiceRequestId,
+          'request_id': cleanServiceRequestId,
+          'service_request': cleanServiceRequestId,
+          'name': cleanServiceRequestId,
           'document_title': attachment.name,
           'document_type': attachment.extension,
           'file_url': uploadedFileUrl,
@@ -120,9 +123,10 @@ class DocumentsRepository {
 
     final fileUrl =
         data['file_url'] ??
-        data['file_url'.replaceAll('_', '')] ??
+        data['fileurl'] ??
         data['url'] ??
-        data['file'];
+        data['file'] ??
+        data['file_name'];
 
     final text = fileUrl?.toString().trim();
     if (text == null || text.isEmpty) return null;
@@ -137,8 +141,24 @@ class DocumentsRepository {
     final rawDocuments = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['documents'] ?? message['data'] ?? message['items']
-        : data['documents'] ?? data['data'] ?? data['items'];
+        ? message['documents'] ??
+              message['document_list'] ??
+              message['attachments'] ??
+              message['files'] ??
+              message['data'] ??
+              message['items'] ??
+              message['rows'] ??
+              message['results'] ??
+              message['records']
+        : data['documents'] ??
+              data['document_list'] ??
+              data['attachments'] ??
+              data['files'] ??
+              data['data'] ??
+              data['items'] ??
+              data['rows'] ??
+              data['results'] ??
+              data['records'];
 
     if (rawDocuments is! List) return const [];
 
@@ -153,8 +173,21 @@ class DocumentsRepository {
 
     final message = data['message'];
     final rawDocument = message is Map<String, dynamic>
-        ? message['document'] ?? message['data'] ?? message['item'] ?? message
-        : data['document'] ?? data['data'] ?? data['item'];
+        ? message['document'] ??
+              message['attachment'] ??
+              message['file'] ??
+              message['document_detail'] ??
+              message['data'] ??
+              message['item'] ??
+              message['record'] ??
+              message
+        : data['document'] ??
+              data['attachment'] ??
+              data['file'] ??
+              data['document_detail'] ??
+              data['data'] ??
+              data['item'] ??
+              data['record'];
 
     if (rawDocument is! Map<String, dynamic>) return null;
 
