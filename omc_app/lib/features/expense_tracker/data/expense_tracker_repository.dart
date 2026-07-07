@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../app/providers/core_providers.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/network/frappe_client.dart';
 import '../domain/expense_transaction.dart';
 
 final expenseTrackerRepositoryProvider = Provider<ExpenseTrackerRepository>((
   ref,
 ) {
-  return const ExpenseTrackerRepository();
+  return ExpenseTrackerRepository(frappeClient: ref.watch(frappeClientProvider));
 });
 
 enum ExpenseTrackerStorageMode { localOnly, syncWithAccount }
@@ -28,15 +31,18 @@ extension ExpenseTrackerStorageModeLabel on ExpenseTrackerStorageMode {
       case ExpenseTrackerStorageMode.localOnly:
         return 'Expense tracker entries are saved in local app storage and are not synced to the OMC backend.';
       case ExpenseTrackerStorageMode.syncWithAccount:
-        return 'Backend sync is planned but not enabled yet. Your current entries stay local until sync is available.';
+        return 'Backend sync APIs are available, but the app still keeps local mode as the default until account sync is explicitly enabled.';
     }
   }
 }
 
 class ExpenseTrackerRepository {
-  const ExpenseTrackerRepository();
+  const ExpenseTrackerRepository({required FrappeClient frappeClient})
+    : _frappeClient = frappeClient;
 
   static const _storageKey = 'omc_expense_tracker_transactions';
+
+  final FrappeClient _frappeClient;
 
   ExpenseTrackerStorageMode get storageMode =>
       ExpenseTrackerStorageMode.localOnly;
@@ -76,5 +82,99 @@ class ExpenseTrackerRepository {
   Future<void> clearTransactions() async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.remove(_storageKey);
+  }
+
+  Future<List<ExpenseTransaction>> fetchSyncedTransactions() async {
+    final response = await _frappeClient.getMethod(
+      ApiConfig.expenseEntriesMethod,
+    );
+
+    final rawEntries = _extractList(response, 'entries');
+    return rawEntries
+        .map(ExpenseTransaction.fromJson)
+        .where((item) => item.id.isNotEmpty && item.amount > 0)
+        .toList(growable: false);
+  }
+
+  Future<ExpenseTransaction?> createSyncedTransaction(
+    ExpenseTransaction transaction,
+  ) async {
+    final response = await _frappeClient.postMethod(
+      ApiConfig.createExpenseEntryMethod,
+      data: _toBackendPayload(transaction),
+    );
+
+    return _extractTransaction(response);
+  }
+
+  Future<ExpenseTransaction?> updateSyncedTransaction(
+    ExpenseTransaction transaction,
+  ) async {
+    final response = await _frappeClient.postMethod(
+      ApiConfig.updateExpenseEntryMethod,
+      data: {
+        'entry_id': transaction.id,
+        ..._toBackendPayload(transaction),
+      },
+    );
+
+    return _extractTransaction(response);
+  }
+
+  Future<bool> deleteSyncedTransaction(String id) async {
+    final response = await _frappeClient.postMethod(
+      ApiConfig.deleteExpenseEntryMethod,
+      data: {'entry_id': id},
+    );
+
+    final message = response['message'];
+    final payload = message is Map<String, dynamic> ? message : response;
+    return payload['deleted'] == true || payload['deleted'].toString() == '1';
+  }
+
+  Future<Map<String, dynamic>> fetchSyncedSummary() async {
+    final response = await _frappeClient.getMethod(
+      ApiConfig.expenseSummaryMethod,
+    );
+
+    final message = response['message'];
+    if (message is Map<String, dynamic>) return message;
+    return response;
+  }
+
+  Map<String, dynamic> _toBackendPayload(ExpenseTransaction transaction) {
+    return {
+      'transaction_type': transaction.isIncome ? 'Income' : 'Expense',
+      'amount': transaction.amount,
+      'category': transaction.category,
+      'transaction_date': transaction.date.toIso8601String().split('T').first,
+      'account': transaction.account,
+      'payment_method': transaction.paymentMethod,
+      'note': transaction.note,
+    };
+  }
+
+  ExpenseTransaction? _extractTransaction(Map<String, dynamic> response) {
+    final message = response['message'];
+    final payload = message is Map<String, dynamic> ? message : response;
+    final rawEntry = payload['entry'] ?? payload['expense'] ?? payload['data'];
+
+    if (rawEntry is! Map) return null;
+    return ExpenseTransaction.fromJson(Map<String, dynamic>.from(rawEntry));
+  }
+
+  List<Map<String, dynamic>> _extractList(
+    Map<String, dynamic> response,
+    String key,
+  ) {
+    final message = response['message'];
+    final payload = message is Map<String, dynamic> ? message : response;
+    final raw = payload[key] ?? payload['data'] ?? payload['results'] ?? [];
+
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
   }
 }
