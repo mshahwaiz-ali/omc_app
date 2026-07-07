@@ -53,6 +53,16 @@ class ServiceCase {
   final bool canReviewDocuments;
   final bool canViewInternalNotes;
 
+  String get displayReference {
+    final cleanReference = reference?.trim();
+    if (cleanReference != null && cleanReference.isNotEmpty) {
+      return cleanReference;
+    }
+
+    final cleanId = id.trim();
+    return cleanId.isEmpty ? '-' : cleanId;
+  }
+
   bool get isClosed {
     final normalized = status.trim().toLowerCase();
     return normalized.contains('complete') ||
