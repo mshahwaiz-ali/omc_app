@@ -10,7 +10,7 @@ from omc_app.api import mobile
 
 
 @frappe.whitelist()
-def get_service_case(case_id=None):
+def get_service_case(case_id=None, name=None, service_request=None, request_id=None):
     """Return service case detail with backend-owned customer/admin gates.
 
     The mobile app should prefer real OMC Service Timeline rows. When a case has
@@ -18,7 +18,8 @@ def get_service_case(case_id=None):
     of letting the Flutter client invent production tracking steps locally.
     """
 
-    response = mobile.get_service_case(case_id=case_id)
+    resolved_case_id = case_id or name or service_request or request_id
+    response = mobile.get_service_case(case_id=resolved_case_id)
     service_case = response.get("case") if isinstance(response, dict) else None
 
     if not isinstance(service_case, dict):
