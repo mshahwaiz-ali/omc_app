@@ -149,6 +149,8 @@ class ServiceCatalogueRepository {
           message['data'] ??
           message['items'] ??
           message['rows'] ??
+          message['results'] ??
+          message['records'] ??
           message['catalogue'] ??
           message['service_catalogue'];
     }
@@ -157,6 +159,8 @@ class ServiceCatalogueRepository {
     if (response.containsKey('data')) return response['data'];
     if (response.containsKey('items')) return response['items'];
     if (response.containsKey('rows')) return response['rows'];
+    if (response.containsKey('results')) return response['results'];
+    if (response.containsKey('records')) return response['records'];
     if (response.containsKey('catalogue')) return response['catalogue'];
     if (response.containsKey('service_catalogue')) {
       return response['service_catalogue'];
