@@ -68,6 +68,7 @@ class PaymentsRepository {
 
     final data = <String, dynamic>{
       'payment_id': cleanPaymentId,
+      'name': cleanPaymentId,
       'status': cleanStatus,
     };
 
@@ -132,9 +133,13 @@ class PaymentsRepository {
         ApiConfig.uploadPaymentReceiptMethod,
         data: {
           'payment_id': cleanPaymentId,
+          'name': cleanPaymentId,
+          'docname': cleanPaymentId,
           'receipt_attachment': uploadedFileUrl,
           'receipt_url': uploadedFileUrl,
+          'receipt_file': uploadedFileUrl,
           'file_url': uploadedFileUrl,
+          'attachment': uploadedFileUrl,
         },
       );
 
@@ -163,8 +168,20 @@ class PaymentsRepository {
     final rawPayments = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['payments'] ?? message['data'] ?? message['items']
-        : data['payments'] ?? data['data'] ?? data['items'];
+        ? message['payments'] ??
+              message['payment_list'] ??
+              message['data'] ??
+              message['items'] ??
+              message['rows'] ??
+              message['results'] ??
+              message['records']
+        : data['payments'] ??
+              data['payment_list'] ??
+              data['data'] ??
+              data['items'] ??
+              data['rows'] ??
+              data['results'] ??
+              data['records'];
 
     if (rawPayments is! List) return const [];
 
@@ -179,8 +196,17 @@ class PaymentsRepository {
 
     final message = data['message'];
     final rawPayment = message is Map<String, dynamic>
-        ? message['payment'] ?? message['data'] ?? message['item'] ?? message
-        : data['payment'] ?? data['data'] ?? data['item'];
+        ? message['payment'] ??
+              message['payment_detail'] ??
+              message['data'] ??
+              message['item'] ??
+              message['record'] ??
+              message
+        : data['payment'] ??
+              data['payment_detail'] ??
+              data['data'] ??
+              data['item'] ??
+              data['record'];
 
     if (rawPayment is! Map<String, dynamic>) return null;
 
