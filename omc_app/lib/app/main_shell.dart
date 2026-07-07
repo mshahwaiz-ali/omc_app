@@ -72,6 +72,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+
     final screens = [
       HomeScreen(
         onOpenServices: () => _selectTab(1),
@@ -92,6 +94,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenNotifications: () => context.push('/notifications'),
         onOpenKnowledge: () => context.push('/knowledge'),
         onOpenExpenseTracker: () => context.push('/expense-tracker'),
+        canAccessInternalWorkspace: authState.canAccessInternalWorkspace,
         onOpenInternalWorkspace: () => context.push('/internal-workspace'),
         onLogout: _logout,
       ),
@@ -296,6 +299,7 @@ class _MoreScreen extends StatelessWidget {
     required this.onOpenNotifications,
     required this.onOpenKnowledge,
     required this.onOpenExpenseTracker,
+    required this.canAccessInternalWorkspace,
     required this.onOpenInternalWorkspace,
     required this.onLogout,
   });
@@ -309,6 +313,7 @@ class _MoreScreen extends StatelessWidget {
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenKnowledge;
   final VoidCallback onOpenExpenseTracker;
+  final bool canAccessInternalWorkspace;
   final VoidCallback onOpenInternalWorkspace;
   final VoidCallback onLogout;
 
@@ -386,18 +391,20 @@ class _MoreScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          _MoreGroup(
-            title: 'Workspace',
-            children: [
-              _MoreTile(
-                icon: Icons.admin_panel_settings_outlined,
-                title: 'Internal Workspace',
-                subtitle: 'Leads, customers, tasks and payments',
-                onTap: onOpenInternalWorkspace,
-              ),
-            ],
-          ),
+          if (canAccessInternalWorkspace) ...[
+            const SizedBox(height: 16),
+            _MoreGroup(
+              title: 'Workspace',
+              children: [
+                _MoreTile(
+                  icon: Icons.admin_panel_settings_outlined,
+                  title: 'Internal Workspace',
+                  subtitle: 'Leads, customers, tasks and payments',
+                  onTap: onOpenInternalWorkspace,
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 18),
           PremiumCard(
             padding: EdgeInsets.zero,

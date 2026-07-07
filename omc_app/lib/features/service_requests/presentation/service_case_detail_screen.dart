@@ -72,26 +72,32 @@ class _ServiceCaseDetailScreenState
                       const SizedBox(height: 16),
                       _CaseInfoCard(serviceCase: serviceCase),
                       const SizedBox(height: 16),
-                      _CaseAdminStatusCard(
-                        serviceCase: serviceCase,
-                        isUpdating: _isUpdatingStatus,
-                        onStatusSelected: _isUpdatingStatus
-                            ? null
-                            : (status) =>
-                                  _updateServiceCaseStatus(serviceCase, status),
-                      ),
-                      const SizedBox(height: 16),
+                      if (serviceCase.canUpdateStatus) ...[
+                        _CaseAdminStatusCard(
+                          serviceCase: serviceCase,
+                          isUpdating: _isUpdatingStatus,
+                          onStatusSelected: _isUpdatingStatus
+                              ? null
+                              : (status) => _updateServiceCaseStatus(
+                                    serviceCase,
+                                    status,
+                                  ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _RequiredDocumentsCard(
                         serviceCase: serviceCase,
                         isUpdatingDocumentStatus: _isUpdatingDocumentStatus,
-                        onUpdateDocumentStatus: _isUpdatingDocumentStatus
-                            ? null
-                            : (document, status) =>
+                        onUpdateDocumentStatus:
+                            serviceCase.canReviewDocuments &&
+                                !_isUpdatingDocumentStatus
+                            ? (document, status) =>
                                   _updateServiceDocumentStatus(
                                     serviceCase,
                                     document,
                                     status,
-                                  ),
+                                  )
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       _CaseActionsCard(

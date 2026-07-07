@@ -256,6 +256,9 @@ class ServiceCaseRepository {
       timeline: _timeline(
         json['timeline'] ?? json['activity'] ?? json['recent_activity'],
       ),
+      canUpdateStatus: _boolValue(json['can_update_status']),
+      canReviewDocuments: _boolValue(json['can_review_documents']),
+      canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
     );
   }
 
@@ -326,6 +329,12 @@ class ServiceCaseRepository {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) return null;
     return text;
+  }
+
+  bool _boolValue(dynamic value) {
+    if (value is bool) return value;
+    final text = value?.toString().trim().toLowerCase();
+    return text == 'true' || text == '1' || text == 'yes';
   }
 
   double _doubleValue(dynamic value) {

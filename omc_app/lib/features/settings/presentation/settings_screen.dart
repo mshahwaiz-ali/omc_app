@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/config/api_config.dart';
-import '../../../core/config/env.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -25,11 +23,7 @@ class SettingsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
-            _SettingsHero(
-              environmentLabel: _environmentLabel,
-              apiBaseUrl: ApiConfig.baseUrl,
-              isProduction: Env.isProduction,
-            ),
+            const _SettingsHero(),
             const SizedBox(height: 22),
             _SettingsSection(
               title: 'Account',
@@ -88,61 +82,6 @@ class SettingsScreen extends ConsumerWidget {
                     _savePreferences(context, ref, updatedPreferences),
               ),
             ),
-            if (!Env.isProduction) ...[
-              const SizedBox(height: 20),
-              _SettingsSection(
-                title: 'Connection',
-                subtitle:
-                    'Backend environment and service source currently in use.',
-                children: [
-                  _SettingsTile(
-                    icon: Icons.cloud_outlined,
-                    title: 'Environment',
-                    subtitle: _environmentLabel,
-                    trailing: Env.isProduction ? 'Live' : 'Dev',
-                    onTap: () => _showBackendPendingSnack(
-                      context,
-                      'Environment is configured at build time.',
-                    ),
-                  ),
-                  const _DividerIndent(),
-                  _SettingsTile(
-                    icon: Icons.link_rounded,
-                    title: 'API server',
-                    subtitle: ApiConfig.baseUrl,
-                    trailing: 'Frappe',
-                    onTap: () => _showBackendPendingSnack(
-                      context,
-                      'API server is configured through ApiConfig.',
-                    ),
-                  ),
-                  const _DividerIndent(),
-                  _SettingsTile(
-                    icon: Icons.grid_view_outlined,
-                    title: 'Service catalogue',
-                    subtitle: Env.useBackendServiceCatalogue
-                        ? 'Backend service catalogue is active'
-                        : 'Bundled catalogue fallback is active',
-                    trailing: Env.useBackendServiceCatalogue ? 'API' : 'Local',
-                    onTap: () => _showBackendPendingSnack(
-                      context,
-                      'Catalogue source is configured through environment flags.',
-                    ),
-                  ),
-                  const _DividerIndent(),
-                  _SettingsTile(
-                    icon: Icons.science_outlined,
-                    title: 'Testing flags',
-                    subtitle: _testingFlagsLabel,
-                    trailing: _hasTestingFlags ? 'On' : 'Off',
-                    onTap: () => _showBackendPendingSnack(
-                      context,
-                      'Testing flags are configured at build time.',
-                    ),
-                  ),
-                ],
-              ),
-            ],
             const SizedBox(height: 20),
             _SettingsSection(
               title: 'About',
@@ -350,26 +289,6 @@ class SettingsScreen extends ConsumerWidget {
     context.go('/login');
   }
 
-  static String get _environmentLabel {
-    switch (Env.current) {
-      case AppEnvironment.development:
-        return 'Development';
-      case AppEnvironment.staging:
-        return 'Staging';
-      case AppEnvironment.production:
-        return 'Production';
-    }
-  }
-
-  static bool get _hasTestingFlags => Env.useServicePreview;
-
-  static String get _testingFlagsLabel {
-    final enabled = <String>[if (Env.useServicePreview) 'Service preview'];
-
-    if (enabled.isEmpty) return 'No local testing flags enabled';
-    return enabled.join(', ');
-  }
-
   String _settingsErrorMessage(Object error) {
     if (error is ApiError && error.message.trim().isNotEmpty) {
       return error.message.trim();
@@ -386,15 +305,7 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 class _SettingsHero extends StatelessWidget {
-  const _SettingsHero({
-    required this.environmentLabel,
-    required this.apiBaseUrl,
-    required this.isProduction,
-  });
-
-  final String environmentLabel;
-  final String apiBaseUrl;
-  final bool isProduction;
+  const _SettingsHero();
 
   @override
   Widget build(BuildContext context) {
@@ -438,13 +349,11 @@ class _SettingsHero extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      isProduction
-                          ? 'Live account controls and preferences.'
-                          : 'Backend-connected development setup.',
+                    const Text(
+                      'Manage your account, preferences and OMC service updates.',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
                         height: 1.35,
@@ -461,17 +370,17 @@ class _SettingsHero extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              PremiumInfoChip(
-                icon: Icons.cloud_done_outlined,
-                label: environmentLabel,
+              const PremiumInfoChip(
+                icon: Icons.person_pin_circle_outlined,
+                label: 'Account active',
               ),
               const PremiumInfoChip(
                 icon: Icons.verified_user_outlined,
-                label: 'Secure session',
+                label: 'Protected account',
               ),
-              PremiumInfoChip(
-                icon: Icons.dns_outlined,
-                label: apiBaseUrl.replaceFirst(RegExp(r'^https?://'), ''),
+              const PremiumInfoChip(
+                icon: Icons.business_center_outlined,
+                label: 'OMC services',
               ),
             ],
           ),

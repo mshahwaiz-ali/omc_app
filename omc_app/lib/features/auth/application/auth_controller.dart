@@ -24,7 +24,10 @@ class AuthController extends Notifier<AuthState> {
         return;
       }
 
-      state = AuthState.authenticated(userId: session.userId);
+      state = AuthState.authenticated(
+        userId: session.userId,
+        canAccessInternalWorkspace: session.canAccessInternalWorkspace,
+      );
     } catch (_) {
       await _authRepository.clearSession();
       state = const AuthState.unauthenticated();
@@ -40,7 +43,10 @@ class AuthController extends Notifier<AuthState> {
         password: password,
       );
 
-      state = AuthState.authenticated(userId: session.userId);
+      state = AuthState.authenticated(
+        userId: session.userId,
+        canAccessInternalWorkspace: session.canAccessInternalWorkspace,
+      );
     } on ApiError catch (error) {
       await _authRepository.clearSession();
       state = AuthState.unauthenticated(message: error.message);

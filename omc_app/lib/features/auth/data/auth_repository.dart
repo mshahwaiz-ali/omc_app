@@ -15,9 +15,13 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 class AuthSession {
-  const AuthSession({required this.userId});
+  const AuthSession({
+    required this.userId,
+    this.canAccessInternalWorkspace = false,
+  });
 
   final String userId;
+  final bool canAccessInternalWorkspace;
 }
 
 class AuthRepository {
@@ -48,16 +52,16 @@ class AuthRepository {
       return null;
     }
 
-    final serverUserId = await getSessionUser();
-    if (serverUserId == null || serverUserId.isEmpty) {
+    final serverSession = await getSessionUser();
+    if (serverSession == null || serverSession.userId.isEmpty) {
       await clearSession();
       return null;
     }
 
-    return AuthSession(userId: serverUserId);
+    return serverSession;
   }
 
-  Future<String?> getSessionUser() async {
+  Future<AuthSession?> getSessionUser() async {
     final response = await _frappeClient.getMethod(
       ApiConfig.getSessionUserMethod,
     );
@@ -77,8 +81,21 @@ class AuthRepository {
     final text = user?.toString().trim();
     if (text == null || text.isEmpty) return null;
 
+    final rolesValue = data['roles'];
+    final roles = rolesValue is List
+        ? rolesValue.map((role) => role.toString().trim()).toSet()
+        : <String>{};
+
+    final canAccessInternalWorkspace =
+        data['can_access_internal_workspace'] == true ||
+        data['canAccessInternalWorkspace'] == true ||
+        roles.contains('System Manager');
+
     await _secureStorageService.saveUserId(text);
-    return text;
+    return AuthSession(
+      userId: text,
+      canAccessInternalWorkspace: canAccessInternalWorkspace,
+    );
   }
 
   Future<AuthSession> loginWithPassword({
@@ -106,14 +123,24 @@ class AuthRepository {
       // If the Frappe login call reached this point without throwing, login was
       // accepted and the browser owns the session cookie.
       await _secureStorageService.saveSessionCookie('browser-managed-session');
-      await _secureStorageService.saveUserId(email);
 
+      final serverSession = await getSessionUser();
+      if (serverSession != null) {
+        return serverSession;
+      }
+
+      await _secureStorageService.saveUserId(email);
       return AuthSession(userId: email);
     }
 
     await _secureStorageService.saveSessionCookie(sessionCookie);
-    await _secureStorageService.saveUserId(email);
 
+    final serverSession = await getSessionUser();
+    if (serverSession != null) {
+      return serverSession;
+    }
+
+    await _secureStorageService.saveUserId(email);
     return AuthSession(userId: email);
   }
 

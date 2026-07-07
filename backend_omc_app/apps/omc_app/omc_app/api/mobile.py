@@ -134,6 +134,18 @@ def _service_to_catalogue_dict(service, include_required_documents=False):
 INTERNAL_WORKSPACE_ROLES = {"System Manager"}
 
 
+def _current_user_roles(user=None):
+    user = user or _current_user()
+    if not user or user == "Guest":
+        return set()
+
+    return set(frappe.get_roles(user))
+
+
+def _can_access_internal_workspace(user=None):
+    return bool(_current_user_roles(user).intersection(INTERNAL_WORKSPACE_ROLES))
+
+
 def _assert_internal_workspace_access():
     user = _current_user()
 
@@ -266,9 +278,13 @@ def google_mobile_login(id_token=None, **kwargs):
 @frappe.whitelist()
 def get_session_user():
     user = _current_user()
+    roles = sorted(_current_user_roles(user))
+
     return {
         "user": user,
         "is_guest": user == "Guest",
+        "roles": roles,
+        "can_access_internal_workspace": _can_access_internal_workspace(user),
     }
 
 
@@ -897,6 +913,9 @@ def get_service_case(case_id=None):
             "missing_documents": missing_documents,
             "timeline": timeline,
             "attachments": submitted_documents,
+            "can_update_status": _can_access_internal_workspace(),
+            "can_review_documents": _can_access_internal_workspace(),
+            "can_view_internal_notes": _can_access_internal_workspace(),
         }
     }
 

@@ -17,6 +17,9 @@ class ServiceCase {
     this.missingDocuments = const [],
     this.documentDetails = const [],
     this.timeline = const [],
+    this.canUpdateStatus = false,
+    this.canReviewDocuments = false,
+    this.canViewInternalNotes = false,
   });
 
   final String id;
@@ -34,6 +37,9 @@ class ServiceCase {
   final List<String> missingDocuments;
   final List<ServiceCaseDocument> documentDetails;
   final List<ServiceCaseTimelineStep> timeline;
+  final bool canUpdateStatus;
+  final bool canReviewDocuments;
+  final bool canViewInternalNotes;
 }
 
 class ServiceCaseDocument {
