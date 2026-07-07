@@ -8,6 +8,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/config/env.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../service_templates/data/service_template.dart';
 import 'service_item.dart';
 
 final serviceCatalogueRepositoryProvider = Provider<ServiceCatalogueRepository>(
@@ -81,7 +82,8 @@ class ServiceCatalogueRepository {
         ApiConfig.serviceCatalogueMethod,
       );
 
-      return _servicesFromResponse(response);
+      final services = _servicesFromResponse(response);
+      return _withBackendTemplates(services);
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -91,6 +93,58 @@ class ServiceCatalogueRepository {
         code: 'service_catalogue_unavailable',
         details: error,
       );
+    }
+  }
+
+  Future<List<ServiceItem>> _withBackendTemplates(List<ServiceItem> services) async {
+    final enriched = <ServiceItem>[];
+
+    for (final service in services) {
+      enriched.add(await _serviceWithTemplate(service));
+    }
+
+    return enriched;
+  }
+
+  Future<ServiceItem> _serviceWithTemplate(ServiceItem service) async {
+    if (service.hasBackendTemplate) return service;
+
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.serviceTemplateMethod,
+        queryParameters: {'service_id': service.id},
+      );
+      final message = response['message'];
+      final data = message is Map<String, dynamic> ? message : response;
+      final template = ServiceTemplate.fromJson(data);
+
+      if (!template.hasDynamicFields && template.stages.isEmpty) {
+        return service;
+      }
+
+      return ServiceItem(
+        id: service.id,
+        title: service.title,
+        category: service.category,
+        feeLabel: service.feeLabel,
+        completionTime: service.completionTime,
+        requirements: service.requirements,
+        governmentFeeLabel: service.governmentFeeLabel,
+        description: service.description,
+        shortDescription: service.shortDescription,
+        processSteps: service.processSteps,
+        requiredDocuments: template.requiredDocuments.isNotEmpty
+            ? template.requiredDocuments
+            : service.requiredDocuments,
+        requiredDocumentDetails: service.requiredDocumentDetails,
+        supportMessage: service.supportMessage,
+        wizardType: service.wizardType,
+        wizardConfig: service.wizardConfig,
+        formSchema: template.formSchema,
+        stages: template.stages,
+      );
+    } catch (_) {
+      return service;
     }
   }
 
