@@ -115,7 +115,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Calculate monthly and yearly tax from income with OMC tax slabs when available.',
+            'Calculate monthly and yearly tax from OMC backend slabs when available. Local fallback results are unofficial estimates only.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 14,
@@ -236,7 +236,7 @@ class _TaxCalculatorHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Quick tax estimate',
+                  'Quick tax calculation',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -247,7 +247,7 @@ class _TaxCalculatorHero extends StatelessWidget {
                 ),
                 SizedBox(height: 5),
                 Text(
-                  'Uses backend slabs first, then a safe estimate if live data is unavailable.',
+                  'Uses OMC backend tax data first. If live data is unavailable, any fallback is clearly marked as unofficial and not for filing.',
                   style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
@@ -349,7 +349,7 @@ class _EmptyCalculatorState extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           const Text(
-            'Enter income to view estimate',
+            'Enter income to calculate tax',
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 17,
@@ -358,7 +358,7 @@ class _EmptyCalculatorState extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           const Text(
-            'The calculator will use OMC tax slabs when available and show a safe estimate otherwise.',
+            'Backend tax data is preferred. Any local fallback is an unofficial estimate only and should not be used for filing.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.textSecondary,
@@ -405,8 +405,8 @@ class _TaxResultCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   isBackendResult
-                      ? 'Verified Tax Result'
-                      : 'Estimated Tax Result',
+                      ? 'Backend Tax Result'
+                      : 'Unofficial Tax Estimate',
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 18,
@@ -475,7 +475,7 @@ class _TaxResultCard extends StatelessWidget {
                 Icon(
                   isBackendResult
                       ? Icons.verified_outlined
-                      : Icons.info_outline_rounded,
+                      : Icons.warning_amber_rounded,
                   color: isBackendResult
                       ? AppTheme.primaryRed
                       : Colors.amber.shade900,
@@ -486,8 +486,8 @@ class _TaxResultCard extends StatelessWidget {
                   child: Text(
                     note ??
                         (isBackendResult
-                            ? 'Calculated from OMC tax data.'
-                            : 'Estimated calculation shown. Final tax may vary after slab verification.'),
+                            ? 'Calculated from OMC backend tax data. Confirm final filing figures with OMC if needed.'
+                            : 'Unofficial local estimate only. Do not use this result for filing until OMC verifies the applicable tax slabs.'),
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 12,
@@ -521,7 +521,7 @@ class _ResultSourcePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isBackendResult ? 'LIVE' : 'ESTIMATE',
+        isBackendResult ? 'BACKEND' : 'UNOFFICIAL',
         style: TextStyle(
           color: color,
           fontSize: 11,
