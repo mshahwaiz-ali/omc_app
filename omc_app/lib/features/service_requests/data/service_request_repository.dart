@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -85,6 +87,35 @@ class ServiceRequestPayload {
 
     if (normalizedDetails.isNotEmpty) {
       data['service_details'] = normalizedDetails;
+      data['additional_details'] = normalizedDetails;
+      data['form_data'] = normalizedDetails;
+      data['form_data_json'] = jsonEncode(normalizedDetails);
+    }
+
+    if (service.formSchema.isNotEmpty) {
+      data['form_schema'] = service.formSchema
+          .map(
+            (field) => {
+              'fieldname': field.fieldname,
+              'label': field.label,
+              'fieldtype': field.fieldtype,
+              'required': field.isRequired,
+            },
+          )
+          .toList(growable: false);
+    }
+
+    if (service.stages.isNotEmpty) {
+      data['stage_template'] = service.stages
+          .where((stage) => stage.isCustomerVisible)
+          .map(
+            (stage) => {
+              'stage_key': stage.stageKey,
+              'title': stage.title,
+              'description': stage.description,
+            },
+          )
+          .toList(growable: false);
     }
 
     if (service.wizardConfig.isNotEmpty) {
@@ -140,7 +171,10 @@ class ServiceRequestPayload {
       }
     }
 
-    if (service.wizardConfig.isNotEmpty) {
+    if (service.hasBackendTemplate) {
+      if (lines.isNotEmpty) lines.add('');
+      lines.add('Request form used backend service template configuration.');
+    } else if (service.wizardConfig.isNotEmpty) {
       if (lines.isNotEmpty) lines.add('');
       lines.add('Request form used backend wizard configuration.');
     }
@@ -168,6 +202,8 @@ class ServiceRequestPayload {
         return 'Business option';
       case 'business_context':
         return 'Business context';
+      case 'form_data_json':
+        return 'Form data';
       default:
         return key
             .trim()
