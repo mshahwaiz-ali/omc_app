@@ -128,7 +128,7 @@ class ServiceRequestPayload {
       if (lines.isNotEmpty) lines.add('');
       lines.add('Service details:');
       for (final entry in normalizedDetails.entries) {
-        lines.add('- ${entry.key}: ${entry.value}');
+        lines.add('- ${_serviceDetailLabel(entry.key)}: ${entry.value}');
       }
     }
 
@@ -138,6 +138,37 @@ class ServiceRequestPayload {
     }
 
     return lines.join('\n').trim();
+  }
+
+  String _serviceDetailLabel(String key) {
+    switch (key.trim()) {
+      case 'ntn_cnic':
+        return 'CNIC';
+      case 'occupation':
+        return 'Occupation';
+      case 'source_of_income':
+        return 'Source of income';
+      case 'iris_income_source':
+        return 'IRIS income source';
+      case 'gst_business_type':
+        return 'GST business type';
+      case 'gst_business_nature':
+        return 'GST business nature';
+      case 'consumer_number':
+        return 'Consumer number';
+      case 'business_option':
+        return 'Business option';
+      case 'business_context':
+        return 'Business context';
+      default:
+        return key
+            .trim()
+            .replaceAll('_', ' ')
+            .split(' ')
+            .where((word) => word.isNotEmpty)
+            .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+            .join(' ');
+    }
   }
 }
 
