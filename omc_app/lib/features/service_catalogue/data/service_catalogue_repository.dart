@@ -34,7 +34,15 @@ class ServiceCatalogueRepository {
       return _fetchAssetServices();
     }
 
-    return _fetchBackendServices();
+    try {
+      return await _fetchBackendServices();
+    } on ApiError {
+      if (Env.allowServiceCatalogueFallback) {
+        return _fetchAssetServices();
+      }
+
+      rethrow;
+    }
   }
 
   Future<List<ServiceItem>> _fetchAssetServices() async {
