@@ -64,12 +64,14 @@ backend_omc_app/apps/omc_app -> backend_omc_app/frappe-bench/apps/omc_app
 - Secured document review accepts document aliases: `document_id`, `document`, `name`.
 - Service catalogue parser accepts additional backend response keys.
 - Service tracking parser accepts additional backend response shapes.
+- Service catalogue loading is backend-first by default.
+- Service catalogue local JSON fallback is now development-only and requires explicit `OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=true`.
+- Staging/production service catalogue loading no longer silently falls back to local JSON.
 
 ### Remaining main gaps
 
 - Copied backend files in the running Frappe bench still need local verification and Frappe reload.
 - Service case detail still needs final customer/internal UI verification after secured API routing.
-- Service catalogue should be backend-first by default for staging/production.
 - Tax calculator should avoid presenting local fallback estimates as official.
 - Expense tracker is still local-only through `SharedPreferences`.
 - Tracking timeline should prefer real backend timeline/stages and only use static fallback for dev/demo empty states.
@@ -262,7 +264,7 @@ bench restart
 
 ## 5. Make service catalogue backend-first
 
-Status: Next after P0 service tracking verification.
+Status: Done - pending local Flutter analyze/test.
 
 ### Current state
 
@@ -272,10 +274,18 @@ Recent parser improvement:
 
 - Flutter catalogue parser accepts additional backend list keys and response wrappers.
 
+Recent fallback guard:
+
+- `Env.useServicePreview` remains an explicit development-only local preview mode.
+- `Env.allowServiceCatalogueFallback` adds a separate development-only backend outage fallback.
+- `OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=true` is required before local JSON can be used after backend API failure.
+- Staging and production always force this fallback off.
+- Empty backend catalogues still render an empty state instead of fake data.
+
 ### Desired state
 
-- Production/staging: backend catalogue first.
-- Development: backend first with optional local fallback.
+- Production/staging: backend catalogue first and no silent local fallback.
+- Development: backend first with optional explicit local fallback.
 - Explicit preview flag: local catalogue only.
 
 ### Backend requirements
@@ -306,9 +316,11 @@ required_document_details
 
 ### Test
 
+- Run `flutter analyze`.
 - Service catalogue loads real backend services in development with `OMC_API_BASE_URL`.
 - Production build does not silently fall back to stale local JSON.
 - Empty backend catalogue shows a clean empty state, not fake data.
+- Development fallback works only with `--dart-define=OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=true`.
 
 ---
 
@@ -706,4 +718,4 @@ After backend reload passes, continue with:
 1. `flutter analyze`.
 2. Customer service-case detail verification.
 3. Internal user service-case detail verification.
-4. P1 item 5: backend-first service catalogue behaviour.
+4. P1 item 6: improve service progress model.
