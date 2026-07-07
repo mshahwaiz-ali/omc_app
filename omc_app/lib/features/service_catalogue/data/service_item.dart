@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class ServiceItem {
   const ServiceItem({
     required this.id,
@@ -146,9 +148,28 @@ class ServiceItem {
       if (value is Map) {
         return value.map((key, value) => MapEntry(key.toString(), value));
       }
+
+      if (value is String && value.trim().isNotEmpty) {
+        final decoded = _tryDecodeJsonMap(value);
+        if (decoded != null) return decoded;
+      }
     }
 
     return const {};
+  }
+
+  static Map<String, dynamic>? _tryDecodeJsonMap(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) {
+        return decoded.map((key, value) => MapEntry(key.toString(), value));
+      }
+    } catch (_) {
+      return null;
+    }
+
+    return null;
   }
 
   static String _readString(Map<String, dynamic> json, List<String> keys) {
