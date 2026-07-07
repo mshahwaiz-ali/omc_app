@@ -50,14 +50,22 @@ def _stage_to_dict(row):
     }
 
 
-@frappe.whitelist(allow_guest=True)
-def get_service_template(service_id=None, service=None):
-    service_name = _service_name(service_id or service)
-    if not service_name:
-        frappe.throw("service_id is required")
-    if not frappe.db.exists("OMC Service", service_name):
-        frappe.throw("Service not found", frappe.DoesNotExistError)
+def _required_document_to_dict(row):
+    return {
+        "name": row.name,
+        "title": row.document_title or "",
+        "document_title": row.document_title or "",
+        "type": row.document_type or "",
+        "document_type": row.document_type or "",
+        "is_required": int(row.is_required or 0),
+        "instructions": row.instructions or "",
+        "allowed_extensions": row.allowed_extensions or "",
+        "max_size_mb": row.max_size_mb or 10,
+        "sort_order": row.sort_order or 0,
+    }
 
+
+def get_template_for_service(service_name):
     fields = []
     if _has_doctype("OMC Service Form Field"):
         fields = [
@@ -101,8 +109,41 @@ def get_service_template(service_id=None, service=None):
             )
         ]
 
+    required_documents = []
+    if _has_doctype("OMC Service Required Document"):
+        required_documents = [
+            _required_document_to_dict(row)
+            for row in frappe.get_all(
+                "OMC Service Required Document",
+                filters={"service": service_name, "is_active": 1},
+                fields=[
+                    "name",
+                    "document_title",
+                    "document_type",
+                    "is_required",
+                    "instructions",
+                    "allowed_extensions",
+                    "max_size_mb",
+                    "sort_order",
+                ],
+                order_by="sort_order asc, creation asc",
+            )
+        ]
+
     return {
         "service": service_name,
         "form_schema": fields,
         "stages": stages,
+        "required_documents": required_documents,
     }
+
+
+@frappe.whitelist(allow_guest=True)
+def get_service_template(service_id=None, service=None):
+    service_name = _service_name(service_id or service)
+    if not service_name:
+        frappe.throw("service_id is required")
+    if not frappe.db.exists("OMC Service", service_name):
+        frappe.throw("Service not found", frappe.DoesNotExistError)
+
+    return get_template_for_service(service_name)
