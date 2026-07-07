@@ -10,8 +10,6 @@ class CustomerItem {
     this.phone,
     this.city,
     this.lastActivityLabel,
-    this.cnic,
-    this.ntn,
     this.approvalStatus,
     this.isActive,
     this.linkedErpnextCustomer,
@@ -38,8 +36,6 @@ class CustomerItem {
             json['updated_at'] ??
             json['modified'],
       ),
-      cnic: _nullableString(json['cnic']),
-      ntn: _nullableString(json['ntn']),
       approvalStatus: _nullableString(json['approval_status']),
       isActive: _boolOrNull(json['is_active']),
       linkedErpnextCustomer: _nullableString(json['linked_erpnext_customer']),
@@ -56,8 +52,6 @@ class CustomerItem {
   final String? phone;
   final String? city;
   final String? lastActivityLabel;
-  final String? cnic;
-  final String? ntn;
   final String? approvalStatus;
   final bool? isActive;
   final String? linkedErpnextCustomer;
