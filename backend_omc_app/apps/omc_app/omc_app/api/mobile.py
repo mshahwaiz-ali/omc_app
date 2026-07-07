@@ -881,10 +881,15 @@ def get_service_case(case_id=None):
         frappe.throw("Service request not found", frappe.DoesNotExistError)
 
     service_case = frappe.get_doc("OMC Service Request", case_id)
-    profile = _get_customer_profile_for_user()
+    can_access_internal_workspace = _can_access_internal_workspace()
+    profile = None if can_access_internal_workspace else _get_customer_profile_for_user()
 
-    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
-        frappe.throw("You do not have permission to access this service request", frappe.PermissionError)
+    if not can_access_internal_workspace:
+        if not profile:
+            frappe.throw("Login is required", frappe.PermissionError)
+
+        if service_case.customer_profile and service_case.customer_profile != profile.name:
+            frappe.throw("You do not have permission to access this service request", frappe.PermissionError)
 
     documents = _get_service_documents(service_case.name)
     required_document_templates = _service_required_documents(service_case.service)
@@ -894,6 +899,13 @@ def get_service_case(case_id=None):
     )
 
     timeline = _get_service_timeline(service_case.name)
+    progress = _service_case_progress(service_case.status)
+    missing_documents_count = len(missing_documents)
+    submitted_documents_count = len(submitted_documents)
+    required_documents_count = len(required_documents)
+    customer_action_required = missing_documents_count > 0 or (
+        (service_case.status or "").strip().lower() == "waiting for customer"
+    )
 
     return {
         "case": {
@@ -902,20 +914,26 @@ def get_service_case(case_id=None):
             "service_title": service_case.service_title or "",
             "status": service_case.status or "",
             "priority": service_case.priority or "",
-            "progress": _service_case_progress(service_case.status),
+            "progress": progress,
+            "progress_percent": int(progress * 100),
+            "current_stage": service_case.status or "",
             "next_step": _service_case_next_step(service_case.status, missing_documents),
-            "submitted_on": str(service_case.submitted_on) if service_case.submitted_on else "",
-            "expected_completion_date": str(service_case.expected_completion_date) if service_case.expected_completion_date else "",
+            "customer_action_required": customer_action_required,
+            "required_documents_count": required_documents_count,
+            "submitted_documents_count": submitted_documents_count,
+            "missing_documents_count": missing_documents_count,
+            "submitted_on": str(getattr(service_case, "submitted_on", None) or service_case.creation or ""),
+            "expected_completion_date": str(getattr(service_case, "expected_completion_date", None) or ""),
             "description": service_case.description or "",
-            "remarks": service_case.remarks or "",
+            "remarks": getattr(service_case, "remarks", None) or "",
             "required_documents": required_documents,
             "submitted_documents": submitted_documents,
             "missing_documents": missing_documents,
             "timeline": timeline,
             "attachments": submitted_documents,
-            "can_update_status": _can_access_internal_workspace(),
-            "can_review_documents": _can_access_internal_workspace(),
-            "can_view_internal_notes": _can_access_internal_workspace(),
+            "can_update_status": can_access_internal_workspace,
+            "can_review_documents": can_access_internal_workspace,
+            "can_view_internal_notes": can_access_internal_workspace,
         }
     }
 

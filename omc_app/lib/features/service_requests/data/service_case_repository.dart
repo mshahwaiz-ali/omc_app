@@ -249,13 +249,22 @@ class ServiceCaseRepository {
       submittedDocuments: _stringList(json['submitted_documents']),
       missingDocuments: _stringList(json['missing_documents']),
       documentDetails: _documentDetails(
-        json['submitted_documents'] ??
+        json['document_details'] ??
+            json['required_document_details'] ??
+            json['documents'] ??
+            json['submitted_documents'] ??
             json['required_documents'] ??
             json['missing_documents'],
       ),
       timeline: _timeline(
         json['timeline'] ?? json['activity'] ?? json['recent_activity'],
       ),
+      progressPercent: _nullableIntValue(json['progress_percent']),
+      currentStage: _nullableString(json['current_stage']),
+      customerActionRequired: _boolValue(json['customer_action_required']),
+      requiredDocumentsCount: _nullableIntValue(json['required_documents_count']),
+      submittedDocumentsCount: _nullableIntValue(json['submitted_documents_count']),
+      missingDocumentsCount: _nullableIntValue(json['missing_documents_count']),
       canUpdateStatus: _boolValue(json['can_update_status']),
       canReviewDocuments: _boolValue(json['can_review_documents']),
       canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
@@ -335,6 +344,14 @@ class ServiceCaseRepository {
     if (value is bool) return value;
     final text = value?.toString().trim().toLowerCase();
     return text == 'true' || text == '1' || text == 'yes';
+  }
+
+  int? _nullableIntValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+
+    final parsed = int.tryParse(value?.toString().trim() ?? '');
+    return parsed;
   }
 
   double _doubleValue(dynamic value) {

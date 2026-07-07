@@ -29,12 +29,24 @@ class ServiceCatalogueRepository {
   final FrappeClient _frappeClient;
   final AssetBundle? _assetBundle;
 
-  Future<List<ServiceItem>> fetchServices() {
-    if (Env.useBackendServiceCatalogue) {
+  Future<List<ServiceItem>> fetchServices() async {
+    if (Env.useServicePreview) {
+      return _fetchAssetServices();
+    }
+
+    if (Env.isProduction || Env.current == AppEnvironment.staging) {
       return _fetchBackendServices();
     }
 
-    return _fetchAssetServices();
+    try {
+      return await _fetchBackendServices();
+    } on ApiError {
+      if (Env.useBackendServiceCatalogue) {
+        rethrow;
+      }
+
+      return _fetchAssetServices();
+    }
   }
 
   Future<List<ServiceItem>> _fetchAssetServices() async {

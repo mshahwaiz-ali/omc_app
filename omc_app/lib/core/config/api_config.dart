@@ -129,6 +129,8 @@ class ApiConfig {
       'omc_app.api.mobile.add_support_ticket_reply';
   static const String updateSupportTicketStatusMethod =
       'omc_app.api.mobile.update_support_ticket_status';
+  static const String supportConfigMethod =
+      'omc_app.api.mobile.get_support_config';
 
 
   static const String internalWorkspaceSummaryMethod =

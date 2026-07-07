@@ -69,6 +69,10 @@ class _ServiceCaseDetailScreenState
                       _QuickStatusGrid(serviceCase: serviceCase),
                       const SizedBox(height: 16),
                       _ProgressCard(serviceCase: serviceCase),
+                      if (serviceCase.customerActionRequired) ...[
+                        const SizedBox(height: 16),
+                        _ActionRequiredCard(serviceCase: serviceCase),
+                      ],
                       const SizedBox(height: 16),
                       _CaseInfoCard(serviceCase: serviceCase),
                       const SizedBox(height: 16),
@@ -736,7 +740,9 @@ class _QuickStatusGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
-    final progressPercent = (progress * 100).round();
+    final progressPercent = serviceCase.progressPercent ?? (progress * 100).round();
+    final missingDocumentsCount =
+        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
 
     return Row(
       children: [
@@ -752,7 +758,7 @@ class _QuickStatusGrid extends StatelessWidget {
           child: _QuickStatusTile(
             icon: Icons.file_present_rounded,
             label: 'Missing docs',
-            value: serviceCase.missingDocuments.length.toString(),
+            value: missingDocumentsCount.toString(),
           ),
         ),
         const SizedBox(width: 10),
@@ -821,7 +827,8 @@ class _ProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
-    final progressPercent = (progress * 100).round().toString();
+    final progressPercent =
+        (serviceCase.progressPercent ?? (progress * 100).round()).toString();
 
     return PremiumCard(
       child: Column(
@@ -979,6 +986,66 @@ class _TimelineStep extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ActionRequiredCard extends StatelessWidget {
+  const _ActionRequiredCard({required this.serviceCase});
+
+  final ServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final missingDocumentsCount =
+        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+
+    return PremiumCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFB25E00).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.priority_high_rounded,
+              color: Color(0xFFB25E00),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Action required',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  missingDocumentsCount > 0
+                      ? '$missingDocumentsCount document(s) are needed to continue this service request.'
+                      : serviceCase.nextStep ?? 'OMC needs an update from you to continue this request.',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1291,20 +1358,43 @@ class _DocumentRequirementRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              statusLabel,
-              style: TextStyle(
-                color: statusColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-            ),
+              if (canReview) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: isUpdating ? null : onReject,
+                      child: const Text('Reject'),
+                    ),
+                    FilledButton(
+                      onPressed: isUpdating ? null : onApprove,
+                      child: const Text('Approve'),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ],
       ),

@@ -17,6 +17,12 @@ class ServiceCase {
     this.missingDocuments = const [],
     this.documentDetails = const [],
     this.timeline = const [],
+    this.progressPercent,
+    this.currentStage,
+    this.customerActionRequired = false,
+    this.requiredDocumentsCount,
+    this.submittedDocumentsCount,
+    this.missingDocumentsCount,
     this.canUpdateStatus = false,
     this.canReviewDocuments = false,
     this.canViewInternalNotes = false,
@@ -37,6 +43,12 @@ class ServiceCase {
   final List<String> missingDocuments;
   final List<ServiceCaseDocument> documentDetails;
   final List<ServiceCaseTimelineStep> timeline;
+  final int? progressPercent;
+  final String? currentStage;
+  final bool customerActionRequired;
+  final int? requiredDocumentsCount;
+  final int? submittedDocumentsCount;
+  final int? missingDocumentsCount;
   final bool canUpdateStatus;
   final bool canReviewDocuments;
   final bool canViewInternalNotes;

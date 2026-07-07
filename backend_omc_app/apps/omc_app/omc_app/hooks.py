@@ -261,3 +261,6 @@ fixtures = [
 # Desk Branding
 # -------------
 app_include_css = "/assets/omc_app/css/omc_desk.css"
+
+# Dev/mobile app CORS support
+after_request = ["omc_app.api.cors.add_cors_headers"]
