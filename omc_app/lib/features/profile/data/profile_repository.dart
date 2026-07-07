@@ -5,6 +5,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import 'profile_summary.dart';
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
@@ -14,9 +15,10 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 });
 
 final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
-  final repository = ref.watch(profileRepositoryProvider);
   final authState = ref.watch(authControllerProvider);
+  if (authState.status != AuthStatus.authenticated) return null;
 
+  final repository = ref.watch(profileRepositoryProvider);
   final profile = await repository.fetchProfile(fallbackUserId: authState.userId);
   if (profile != null) {
     ref
