@@ -58,6 +58,39 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  void syncProfileSummary({
+    required String displayName,
+    required String email,
+    required bool canAccessInternalWorkspace,
+    String? phone,
+    String? companyName,
+    String? customerStatus,
+    String? approvalStatus,
+  }) {
+    if (state.status != AuthStatus.authenticated) return;
+
+    final nextState = state.copyWith(
+      userId: email,
+      canAccessInternalWorkspace: canAccessInternalWorkspace,
+      displayName: displayName,
+      phone: phone,
+      companyName: companyName,
+      customerStatus: customerStatus,
+      approvalStatus: approvalStatus,
+    );
+
+    final didChange =
+        nextState.userId != state.userId ||
+        nextState.canAccessInternalWorkspace != state.canAccessInternalWorkspace ||
+        nextState.displayName != state.displayName ||
+        nextState.phone != state.phone ||
+        nextState.companyName != state.companyName ||
+        nextState.customerStatus != state.customerStatus ||
+        nextState.approvalStatus != state.approvalStatus;
+
+    if (didChange) state = nextState;
+  }
+
   Future<void> logout() async {
     await _authRepository.logout();
     state = const AuthState.unauthenticated();
