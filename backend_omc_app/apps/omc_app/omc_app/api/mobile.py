@@ -328,6 +328,7 @@ def get_profile():
             "customer_id": "",
             "customer_status": "Guest",
             "approval_status": "",
+            "can_access_internal_workspace": False,
         }
 
     profile = _get_customer_profile_for_user(user)
@@ -343,6 +344,7 @@ def get_profile():
         "company_name": profile.company_name or "",
         "cnic": profile.cnic or "",
         "ntn": profile.ntn or "",
+        "can_access_internal_workspace": _can_access_internal_workspace(user),
     }
 
 
@@ -1918,6 +1920,207 @@ def _create_customer_notification(
     notification.visible_to_customer = 1
     notification.insert(ignore_permissions=True)
     return notification
+
+
+
+
+def _default_support_channels():
+    return [
+        {
+            "channel_type": "whatsapp",
+            "label": "WhatsApp support",
+            "value": "923001234567",
+            "subtitle": "Fastest option for service and document queries",
+            "is_active": 1,
+            "sort_order": 1,
+        },
+        {
+            "channel_type": "phone",
+            "label": "Call OMC",
+            "value": "+923001234567",
+            "subtitle": "Talk to OMC support during business hours",
+            "is_active": 1,
+            "sort_order": 2,
+        },
+        {
+            "channel_type": "email",
+            "label": "Email support",
+            "value": "support@omchouse.com",
+            "subtitle": "Send service, tax, document and payment queries",
+            "is_active": 1,
+            "sort_order": 3,
+        },
+    ]
+
+
+def _default_support_topics():
+    return [
+        {
+            "title": "Income Tax",
+            "subtitle": "Returns, NTN, IRIS and filing help",
+            "default_message": "Hello OMC, I need help with an income tax or IRIS matter.",
+            "icon_key": "tax",
+            "is_active": 1,
+            "sort_order": 1,
+        },
+        {
+            "title": "POS & Digital Invoicing",
+            "subtitle": "POS setup, FBR integration and invoices",
+            "default_message": "Hello OMC, I need help with POS or digital invoicing.",
+            "icon_key": "pos",
+            "is_active": 1,
+            "sort_order": 2,
+        },
+        {
+            "title": "Sales Tax",
+            "subtitle": "GST registration and sales tax queries",
+            "default_message": "Hello OMC, I need help with sales tax or GST registration.",
+            "icon_key": "sales_tax",
+            "is_active": 1,
+            "sort_order": 3,
+        },
+        {
+            "title": "Technical Support",
+            "subtitle": "App, login, upload or tracking issues",
+            "default_message": "Hello OMC, I need technical support for the mobile app.",
+            "icon_key": "technical",
+            "is_active": 1,
+            "sort_order": 4,
+        },
+        {
+            "title": "Payment Support",
+            "subtitle": "Invoices, receipts and payment follow-up",
+            "default_message": "Hello OMC, I need help with payment or invoice status.",
+            "icon_key": "payment",
+            "is_active": 1,
+            "sort_order": 5,
+        },
+    ]
+
+
+def _support_channel_to_dict(row):
+    return {
+        "name": row.name,
+        "channel_type": row.channel_type or "",
+        "label": row.label or "",
+        "value": row.value or "",
+        "subtitle": getattr(row, "subtitle", None) or "",
+        "is_active": int(row.is_active or 0),
+        "sort_order": row.sort_order or 0,
+    }
+
+
+def _support_topic_to_dict(row):
+    return {
+        "name": row.name,
+        "title": row.title or "",
+        "subtitle": row.subtitle or "",
+        "default_message": row.default_message or "",
+        "icon_key": row.icon_key or "",
+        "is_active": int(row.is_active or 0),
+        "sort_order": row.sort_order or 0,
+    }
+
+
+
+
+@frappe.whitelist(allow_guest=True)
+def get_mobile_app_config():
+    """Return safe backend-driven mobile app configuration.
+
+    Keep this API lightweight and public-safe. Do not expose internal secrets,
+    backend URLs, credentials, or staff-only implementation details here.
+    """
+
+    support_config = get_support_config()
+
+    return {
+        "support": {
+            "channels": support_config.get("channels", []),
+            "topics": support_config.get("topics", []),
+            "business_hours": support_config.get("business_hours", ""),
+            "office_address": support_config.get("office_address", ""),
+            "whatsapp_message": support_config.get("whatsapp_message", ""),
+            "fallback": bool(support_config.get("fallback")),
+        },
+        "features": {
+            "expense_tracker_enabled": True,
+            "knowledge_enabled": True,
+            "payments_enabled": True,
+            "tax_calculator_enabled": True,
+            "support_enabled": True,
+            "internal_workspace_enabled": False,
+        },
+        "branding": {
+            "company_name": "OMC House",
+            "tagline": "Business, tax and compliance support",
+        },
+        "meta": {
+            "source": "backend",
+            "fallback": bool(support_config.get("fallback")),
+        },
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+def get_support_config():
+    channels = []
+    topics = []
+
+    if _has_doctype("OMC Support Channel"):
+        channels = [
+            _support_channel_to_dict(row)
+            for row in frappe.get_all(
+                "OMC Support Channel",
+                filters={"is_active": 1},
+                fields=[
+                    "name",
+                    "channel_type",
+                    "label",
+                    "value",
+                    "is_active",
+                    "sort_order",
+                ],
+                order_by="sort_order asc, creation asc",
+            )
+        ]
+
+    if _has_doctype("OMC Support Topic"):
+        topics = [
+            _support_topic_to_dict(row)
+            for row in frappe.get_all(
+                "OMC Support Topic",
+                filters={"is_active": 1},
+                fields=[
+                    "name",
+                    "title",
+                    "subtitle",
+                    "default_message",
+                    "icon_key",
+                    "is_active",
+                    "sort_order",
+                ],
+                order_by="sort_order asc, creation asc",
+            )
+        ]
+
+    used_fallback = False
+    if not channels:
+        channels = _default_support_channels()
+        used_fallback = True
+
+    if not topics:
+        topics = _default_support_topics()
+        used_fallback = True
+
+    return {
+        "channels": channels,
+        "topics": topics,
+        "business_hours": "Monday to Saturday, 10:00 AM - 6:00 PM",
+        "office_address": "OMC House, Pakistan",
+        "whatsapp_message": "Hello OMC, I need help with my service request.",
+        "fallback": used_fallback,
+    }
 
 
 @frappe.whitelist()

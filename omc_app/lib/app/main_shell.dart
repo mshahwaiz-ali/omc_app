@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/widgets/premium_card.dart';
+import '../features/app_config/data/mobile_app_config.dart';
+import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/home/presentation/home_screen.dart';
@@ -73,6 +75,8 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
+    final mobileConfig =
+        ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
 
     final screens = [
       HomeScreen(
@@ -94,7 +98,10 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenNotifications: () => context.push('/notifications'),
         onOpenKnowledge: () => context.push('/knowledge'),
         onOpenExpenseTracker: () => context.push('/expense-tracker'),
-        canAccessInternalWorkspace: authState.canAccessInternalWorkspace,
+        features: mobileConfig.features,
+        canAccessInternalWorkspace:
+            authState.canAccessInternalWorkspace &&
+            mobileConfig.features.internalWorkspaceEnabled,
         onOpenInternalWorkspace: () => context.push('/internal-workspace'),
         onLogout: _logout,
       ),
@@ -299,6 +306,7 @@ class _MoreScreen extends StatelessWidget {
     required this.onOpenNotifications,
     required this.onOpenKnowledge,
     required this.onOpenExpenseTracker,
+    required this.features,
     required this.canAccessInternalWorkspace,
     required this.onOpenInternalWorkspace,
     required this.onLogout,
@@ -313,6 +321,7 @@ class _MoreScreen extends StatelessWidget {
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenKnowledge;
   final VoidCallback onOpenExpenseTracker;
+  final MobileFeatureConfig features;
   final bool canAccessInternalWorkspace;
   final VoidCallback onOpenInternalWorkspace;
   final VoidCallback onLogout;
@@ -356,41 +365,53 @@ class _MoreScreen extends StatelessWidget {
               _MoreTile(
                 icon: Icons.analytics_outlined,
                 title: 'Dashboard',
-                subtitle: 'Cases, documents and service analytics',
+                subtitle: 'Your service summary, documents and recent activity',
                 onTap: onOpenDashboard,
               ),
-              _MoreTile(
-                icon: Icons.receipt_long_outlined,
-                title: 'Payments',
-                subtitle: 'Invoices, dues and receipt uploads',
-                onTap: onOpenPayments,
-              ),
-              _MoreTile(
-                icon: Icons.calculate_outlined,
-                title: 'Tax Calculator',
-                subtitle: 'Estimate salary tax quickly',
-                onTap: onOpenTaxCalculator,
-              ),
-              _MoreTile(
-                icon: Icons.support_agent_outlined,
-                title: 'Support',
-                subtitle: 'Tickets, WhatsApp and help center',
-                onTap: onOpenSupport,
-              ),
-              _MoreTile(
-                icon: Icons.menu_book_outlined,
-                title: 'Knowledge & News',
-                subtitle: 'Tax guides, FBR updates and OMC news',
-                onTap: onOpenKnowledge,
-              ),
-              _MoreTile(
-                icon: Icons.account_balance_wallet_outlined,
-                title: 'Expense Tracker',
-                subtitle: 'Track income, expenses and balance locally',
-                onTap: onOpenExpenseTracker,
-              ),
+              if (features.paymentsEnabled)
+                _MoreTile(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Payments',
+                  subtitle: 'Invoices, dues and receipt uploads',
+                  onTap: onOpenPayments,
+                ),
+              if (features.taxCalculatorEnabled)
+                _MoreTile(
+                  icon: Icons.calculate_outlined,
+                  title: 'Tax Calculator',
+                  subtitle: 'Estimate salary tax quickly',
+                  onTap: onOpenTaxCalculator,
+                ),
+              if (features.knowledgeEnabled)
+                _MoreTile(
+                  icon: Icons.menu_book_outlined,
+                  title: 'Knowledge & News',
+                  subtitle: 'Tax guides, FBR updates and OMC news',
+                  onTap: onOpenKnowledge,
+                ),
+              if (features.expenseTrackerEnabled)
+                _MoreTile(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Personal Expense Tracker',
+                  subtitle: 'Track income, expenses and balance on this device',
+                  onTap: onOpenExpenseTracker,
+                ),
             ],
           ),
+          if (features.supportEnabled) ...[
+            const SizedBox(height: 16),
+            _MoreGroup(
+              title: 'Help',
+              children: [
+                _MoreTile(
+                  icon: Icons.support_agent_outlined,
+                  title: 'Support',
+                  subtitle: 'Tickets, WhatsApp and contact channels',
+                  onTap: onOpenSupport,
+                ),
+              ],
+            ),
+          ],
           if (canAccessInternalWorkspace) ...[
             const SizedBox(height: 16),
             _MoreGroup(

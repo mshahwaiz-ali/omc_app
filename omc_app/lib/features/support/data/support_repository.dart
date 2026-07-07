@@ -4,12 +4,19 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import 'support_config_data.dart';
 import 'support_ticket.dart';
 
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {
   final frappeClient = ref.watch(frappeClientProvider);
 
   return SupportRepository(frappeClient: frappeClient);
+});
+
+
+final supportConfigProvider = FutureProvider<SupportConfigData>((ref) async {
+  final repository = ref.watch(supportRepositoryProvider);
+  return repository.fetchSupportConfig();
 });
 
 final supportTicketsProvider = FutureProvider<List<SupportTicket>>((ref) async {
@@ -27,6 +34,18 @@ class SupportRepository {
   const SupportRepository({required this.frappeClient});
 
   final FrappeClient frappeClient;
+
+
+  Future<SupportConfigData> fetchSupportConfig() async {
+    try {
+      final response = await frappeClient.getMethod(
+        ApiConfig.supportConfigMethod,
+      );
+      return SupportConfigData.fromApiResponse(response);
+    } catch (_) {
+      return SupportConfigData.fallback;
+    }
+  }
 
   Future<List<SupportTicket>> fetchSupportTickets() async {
     try {

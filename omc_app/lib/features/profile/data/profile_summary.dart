@@ -9,6 +9,7 @@ class ProfileSummary {
     this.companyName,
     this.approvalStatus,
     this.status,
+    this.canAccessInternalWorkspace = false,
   });
 
   final String displayName;
@@ -20,6 +21,7 @@ class ProfileSummary {
   final String? companyName;
   final String? approvalStatus;
   final String? status;
+  final bool canAccessInternalWorkspace;
 
   factory ProfileSummary.fromUserId(String? userId) {
     final email = userId?.trim() ?? '';

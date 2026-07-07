@@ -4,11 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../application/support_launcher.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/config/support_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
+import '../data/support_config_data.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
 
@@ -21,7 +21,7 @@ class SupportScreen extends ConsumerStatefulWidget {
 
 class _SupportScreenState extends ConsumerState<SupportScreen> {
   final TextEditingController _messageController = TextEditingController();
-  String _selectedTopic = _SupportCategoriesCard.categories.first.title;
+  String _selectedTopic = SupportConfigData.fallback.topics.first.title;
   bool _isSubmitting = false;
 
   bool get _canSubmit =>
@@ -46,6 +46,19 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final supportConfigAsync = ref.watch(supportConfigProvider);
+    final supportConfig = supportConfigAsync.value ?? SupportConfigData.fallback;
+    final supportTopics = supportConfig.topics.isNotEmpty
+        ? supportConfig.topics
+        : SupportConfigData.fallback.topics;
+
+    if (!supportTopics.any((topic) => topic.title == _selectedTopic)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _selectedTopic = supportTopics.first.title);
+      });
+    }
+
     return SafeArea(
       child: ListView(
         physics: const BouncingScrollPhysics(),
@@ -59,76 +72,57 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             metaLabel: 'Help desk',
           ),
           const SizedBox(height: 20),
-          const _SupportHeroCard(),
+          _SupportHeroCard(channelCount: supportConfig.channels.length),
           const SizedBox(height: 16),
-          const _SupportCategoriesCard(),
+          _SupportCategoriesCard(topics: supportTopics),
           const SizedBox(height: 16),
           _CreateSupportTicketCard(
             selectedTopic: _selectedTopic,
             messageController: _messageController,
             isSubmitting: _isSubmitting,
             canSubmit: _canSubmit,
-            topics: _SupportCategoriesCard.categories
-                .map((category) => category.title)
-                .toList(growable: false),
+            topics: supportTopics.map((topic) => topic.title).toList(growable: false),
             onTopicChanged: (value) {
               if (value == null) return;
-              setState(() => _selectedTopic = value);
+              final topic = supportTopics.firstWhere(
+                (item) => item.title == value,
+                orElse: () => SupportTopicConfig(
+                  title: value,
+                  subtitle: '',
+                  defaultMessage: '',
+                  iconKey: '',
+                  sortOrder: 0,
+                ),
+              );
+              setState(() {
+                _selectedTopic = value;
+                if (_messageController.text.trim().isEmpty &&
+                    topic.defaultMessage.trim().isNotEmpty) {
+                  _messageController.text = topic.defaultMessage;
+                }
+              });
             },
             onSubmit: _submitSupportTicket,
           ),
           const SizedBox(height: 16),
           const _SupportTicketsCard(),
           const SizedBox(height: 16),
-          PremiumCard(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _SectionHeader(
-                  title: 'Contact channels',
-                  subtitle:
-                      'Use direct support options when you need faster help.',
-                ),
-                const SizedBox(height: 14),
-                _SupportTile(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  title: 'WhatsApp support',
-                  subtitle: 'Fastest option for service and document queries',
-                  onTap: () => SupportLauncher.openWhatsApp(context),
-                ),
-                const SizedBox(height: 10),
-                _SupportTile(
-                  icon: Icons.call_outlined,
-                  title: 'Call OMC',
-                  subtitle: SupportConfig.phoneNumber,
-                  onTap: () => SupportLauncher.callSupport(context),
-                ),
-                const SizedBox(height: 10),
-                _SupportTile(
-                  icon: Icons.email_outlined,
-                  title: 'Email support',
-                  subtitle: SupportConfig.email,
-                  onTap: () => SupportLauncher.emailSupport(context),
-                ),
-              ],
-            ),
-          ),
+          _SupportContactChannelsCard(config: supportConfig),
           const SizedBox(height: 16),
           PremiumCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 _InfoRow(
                   icon: Icons.schedule_rounded,
                   title: 'Business hours',
-                  value: SupportConfig.businessHours,
+                  value: supportConfig.businessHours,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 _InfoRow(
                   icon: Icons.location_on_outlined,
                   title: 'Office',
-                  value: SupportConfig.officeAddress,
+                  value: supportConfig.officeAddress,
                 ),
               ],
             ),
@@ -181,7 +175,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
 }
 
 class _SupportHeroCard extends StatelessWidget {
-  const _SupportHeroCard();
+  const _SupportHeroCard({required this.channelCount});
+
+  final int channelCount;
 
   @override
   Widget build(BuildContext context) {
@@ -250,20 +246,20 @@ class _SupportHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Row(
+          Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: _SupportMetric(
                   label: 'Tickets',
                   value: 'Tracked',
                   icon: Icons.confirmation_number_outlined,
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: _SupportMetric(
                   label: 'Channels',
-                  value: '3 options',
+                  value: '$channelCount options',
                   icon: Icons.forum_outlined,
                 ),
               ),
@@ -819,40 +815,9 @@ class _CreateSupportTicketCard extends StatelessWidget {
 }
 
 class _SupportCategoriesCard extends StatelessWidget {
-  const _SupportCategoriesCard();
+  const _SupportCategoriesCard({required this.topics});
 
-  static const categories = [
-    _SupportCategory(
-      icon: Icons.receipt_long_outlined,
-      title: 'Income Tax',
-      subtitle: 'Returns, NTN, IRIS and filing help',
-      message: 'Hello OMC, I need help with an income tax or IRIS matter.',
-    ),
-    _SupportCategory(
-      icon: Icons.point_of_sale_outlined,
-      title: 'POS & Digital Invoicing',
-      subtitle: 'POS setup, FBR integration and invoices',
-      message: 'Hello OMC, I need help with POS or digital invoicing.',
-    ),
-    _SupportCategory(
-      icon: Icons.storefront_outlined,
-      title: 'Sales Tax',
-      subtitle: 'GST registration and sales tax queries',
-      message: 'Hello OMC, I need help with sales tax or GST registration.',
-    ),
-    _SupportCategory(
-      icon: Icons.build_circle_outlined,
-      title: 'Technical Support',
-      subtitle: 'App, login, upload or tracking issues',
-      message: 'Hello OMC, I need technical support for the mobile app.',
-    ),
-    _SupportCategory(
-      icon: Icons.account_balance_wallet_outlined,
-      title: 'Payment Support',
-      subtitle: 'Invoices, receipts and payment follow-up',
-      message: 'Hello OMC, I need help with payment or invoice status.',
-    ),
-  ];
+  final List<SupportTopicConfig> topics;
 
   @override
   Widget build(BuildContext context) {
@@ -879,9 +844,9 @@ class _SupportCategoriesCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          for (final category in categories) ...[
-            _SupportCategoryTile(category: category),
-            if (category != categories.last) const SizedBox(height: 10),
+          for (final topic in topics) ...[
+            _SupportCategoryTile(topic: topic),
+            if (topic != topics.last) const SizedBox(height: 10),
           ],
         ],
       ),
@@ -890,16 +855,18 @@ class _SupportCategoriesCard extends StatelessWidget {
 }
 
 class _SupportCategoryTile extends StatelessWidget {
-  const _SupportCategoryTile({required this.category});
+  const _SupportCategoryTile({required this.topic});
 
-  final _SupportCategory category;
+  final SupportTopicConfig topic;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () => SupportLauncher.openWhatsAppWithMessage(
         context,
-        message: category.message,
+        message: topic.defaultMessage.trim().isNotEmpty
+            ? topic.defaultMessage
+            : 'Hello OMC, I need help with ${topic.title}.',
       ),
       borderRadius: BorderRadius.circular(18),
       child: Container(
@@ -923,7 +890,7 @@ class _SupportCategoryTile extends StatelessWidget {
                   color: AppTheme.primaryRed.withValues(alpha: 0.08),
                 ),
               ),
-              child: Icon(category.icon, color: AppTheme.primaryRed, size: 21),
+              child: Icon(_supportTopicIcon(topic.iconKey), color: AppTheme.primaryRed, size: 21),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -931,7 +898,7 @@ class _SupportCategoryTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    category.title,
+                    topic.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -943,7 +910,7 @@ class _SupportCategoryTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    category.subtitle,
+                    topic.subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -968,18 +935,100 @@ class _SupportCategoryTile extends StatelessWidget {
   }
 }
 
-class _SupportCategory {
-  const _SupportCategory({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.message,
-  });
+class _SupportContactChannelsCard extends StatelessWidget {
+  const _SupportContactChannelsCard({required this.config});
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String message;
+  final SupportConfigData config;
+
+  @override
+  Widget build(BuildContext context) {
+    final channels = config.channels.isNotEmpty
+        ? config.channels
+        : SupportConfigData.fallback.channels;
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'Contact channels',
+            subtitle: 'Use direct support options when you need faster help.',
+          ),
+          const SizedBox(height: 14),
+          for (final channel in channels) ...[
+            _SupportTile(
+              icon: _supportChannelIcon(channel),
+              title: channel.label,
+              subtitle: channel.subtitle.trim().isNotEmpty
+                  ? channel.subtitle
+                  : channel.value,
+              onTap: () => _openChannel(context, channel, config),
+            ),
+            if (channel != channels.last) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _openChannel(
+    BuildContext context,
+    SupportChannelConfig channel,
+    SupportConfigData config,
+  ) {
+    if (channel.isWhatsApp) {
+      SupportLauncher.openWhatsApp(
+        context,
+        phoneNumber: channel.value,
+        message: config.whatsappMessage,
+      );
+      return;
+    }
+
+    if (channel.isPhone) {
+      SupportLauncher.callSupport(context, phoneNumber: channel.value);
+      return;
+    }
+
+    if (channel.isEmail) {
+      SupportLauncher.emailSupport(context, email: channel.value);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${channel.label}: ${channel.value}')),
+    );
+  }
+}
+
+IconData _supportTopicIcon(String iconKey) {
+  switch (iconKey.trim().toLowerCase()) {
+    case 'tax':
+    case 'income_tax':
+      return Icons.receipt_long_outlined;
+    case 'pos':
+    case 'invoice':
+    case 'digital_invoice':
+      return Icons.point_of_sale_outlined;
+    case 'sales_tax':
+    case 'gst':
+      return Icons.storefront_outlined;
+    case 'technical':
+    case 'app':
+      return Icons.build_circle_outlined;
+    case 'payment':
+      return Icons.account_balance_wallet_outlined;
+    default:
+      return Icons.support_agent_rounded;
+  }
+}
+
+IconData _supportChannelIcon(SupportChannelConfig channel) {
+  if (channel.isWhatsApp) return Icons.chat_bubble_outline_rounded;
+  if (channel.isPhone) return Icons.call_outlined;
+  if (channel.isEmail) return Icons.email_outlined;
+  return Icons.support_agent_rounded;
 }
 
 class _SupportTile extends StatelessWidget {

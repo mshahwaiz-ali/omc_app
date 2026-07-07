@@ -263,9 +263,11 @@ Flutter should prefer backend timeline/stages and only use fallback for empty de
 
 ## 7. Backend-driven support configuration
 
+Status: Done.
+
 ### Current state
 
-Support screen still has static contact/channel/topic style content in Flutter.
+Support screen now loads backend support channels/topics through `get_support_config` and keeps local values as safe fallback.
 
 ### Backend additions
 
@@ -296,13 +298,13 @@ Add API:
 omc_app.api.mobile.get_support_config
 ```
 
-Flutter should use backend support config and keep local config only as dev fallback.
+Flutter uses backend support config and keeps local config as safe fallback when backend config is unavailable or empty.
 
 ---
 
 ## 8. Improve More page structure
 
-Status: Partly done.
+Status: Done.
 
 Current More page groups:
 
@@ -313,11 +315,12 @@ Workspace - capability gated
 Logout
 ```
 
-Next polish:
+Completed polish:
 
-- Rename `Expense Tracker` to `Personal Expense Tracker` if this is meant as a customer personal finance tool.
-- Consider moving `Support` under a separate Help group if More becomes crowded.
-- Keep Dashboard only if the dashboard is customer-focused; otherwise hide/gate internal analytics.
+- Renamed `Expense Tracker` to `Personal Expense Tracker`.
+- Moved `Support` into a separate Help group.
+- Updated Dashboard wording to customer-focused service summary language.
+- Kept Internal Workspace backend capability-gated.
 
 ---
 
