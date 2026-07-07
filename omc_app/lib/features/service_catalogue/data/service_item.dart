@@ -122,16 +122,60 @@ class ServiceItem {
   ) {
     for (final key in keys) {
       final value = json[key];
-
-      if (value is List) {
-        return value
-            .map((item) => item.toString().trim())
-            .where((item) => item.isNotEmpty)
-            .toList(growable: false);
-      }
+      final items = _stringListFromValue(value);
+      if (items.isNotEmpty) return items;
     }
 
     return const [];
+  }
+
+  static List<String> _stringListFromValue(dynamic value) {
+    if (value is List) {
+      return value
+          .map(_stringFromListItem)
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    if (value is String && value.trim().isNotEmpty) {
+      final decoded = _tryDecodeJsonList(value);
+      if (decoded.isNotEmpty) return decoded;
+
+      return value
+          .split(RegExp(r'\r?\n|,|;'))
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    return const [];
+  }
+
+  static String _stringFromListItem(dynamic item) {
+    if (item is Map<String, dynamic>) {
+      return _readString(item, [
+        'title',
+        'label',
+        'name',
+        'description',
+        'document_title',
+        'step',
+      ]).trim();
+    }
+
+    if (item is Map) {
+      final normalized = item.map((key, value) => MapEntry(key.toString(), value));
+      return _readString(normalized, [
+        'title',
+        'label',
+        'name',
+        'description',
+        'document_title',
+        'step',
+      ]).trim();
+    }
+
+    return item.toString().trim();
   }
 
   static Map<String, dynamic> _readMap(
@@ -156,6 +200,19 @@ class ServiceItem {
     }
 
     return const {};
+  }
+
+  static List<String> _tryDecodeJsonList(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is List) {
+        return _stringListFromValue(decoded);
+      }
+    } catch (_) {
+      return const [];
+    }
+
+    return const [];
   }
 
   static Map<String, dynamic>? _tryDecodeJsonMap(String value) {
