@@ -1,11 +1,26 @@
 # OMC App Modification Plan
 
-This document records the next improvement phase after inspecting the current Flutter app and Frappe backend.
+This document records the active improvement phase for the OMC Flutter app and Frappe backend.
 
 Primary focus: Flutter mobile app.
-Secondary focus: backend/API changes needed to support a cleaner mobile experience.
+Secondary focus: backend/API changes needed to support a cleaner, backend-driven mobile experience.
 
 Last reviewed: 2026-07-07.
+
+---
+
+## Working Rules
+
+- Branch flow: commit directly to `main` unless a PR is explicitly requested.
+- Keep `chatgpt-work` synced to `main` after direct-main work.
+- Do not force-push unless explicitly approved.
+- Backend-driven architecture is mandatory for production behaviour.
+- Do not use `sync_apps.sh` for the current local bench sync situation.
+- Current local backend sync direction is:
+
+```text
+backend_omc_app/apps/omc_app -> backend_omc_app/frappe-bench/apps/omc_app
+```
 
 ---
 
@@ -40,15 +55,23 @@ Last reviewed: 2026-07-07.
 - More page now receives `canAccessInternalWorkspace` from auth state and hides Internal Workspace unless allowed.
 - Auth state now carries `canAccessInternalWorkspace`.
 - Backend `get_session_user` returns roles and `can_access_internal_workspace`.
-- Service-case detail/status/document-review Flutter methods now route through `omc_app.api.secured_mobile` wrappers.
+- Service-case detail/status/document-review Flutter methods route through `omc_app.api.secured_mobile` wrappers.
+- `omc_app.api.mobile.get_service_cases` routes through the secured service-case list API.
+- Service-case list response is normalized for Flutter tracking cards.
+- Service-case list capability flags are role-aware.
+- Secured service-case detail accepts request aliases: `case_id`, `name`, `service_request`, `request_id`.
+- Secured service-case status update accepts request aliases: `case_id`, `name`, `service_request`, `request_id`.
+- Secured document review accepts document aliases: `document_id`, `document`, `name`.
+- Service catalogue parser accepts additional backend response keys.
+- Service tracking parser accepts additional backend response shapes.
 
 ### Remaining main gaps
 
+- Copied backend files in the running Frappe bench still need local verification and Frappe reload.
 - Service case detail still needs final customer/internal UI verification after secured API routing.
 - Service catalogue should be backend-first by default for staging/production.
 - Tax calculator should avoid presenting local fallback estimates as official.
 - Expense tracker is still local-only through `SharedPreferences`.
-- Support contact values and support categories should become backend-configurable.
 - Tracking timeline should prefer real backend timeline/stages and only use static fallback for dev/demo empty states.
 - Profile/auth state should become a shared provider used consistently by Home, More, Profile, and Settings.
 
@@ -124,7 +147,7 @@ Required test:
 
 ## 4. Separate customer tracking from admin controls
 
-Status: In progress - secured API routing patched.
+Status: Backend patched - pending local bench reload and UI verification.
 
 ### Problem
 
@@ -153,27 +176,80 @@ Controls to verify/hide for normal customers:
 - Internal notes.
 - Expected completion update.
 
-### Backend improvement
+### Backend route state
 
-Return capability flags with case detail:
+Expected mobile routes:
 
-```json
-{
-  "can_update_status": false,
-  "can_review_documents": false,
-  "can_view_internal_notes": false
-}
+```text
+omc_app.api.mobile.get_service_cases -> omc_app.api.secured_mobile.get_service_cases
+omc_app.api.mobile.get_service_case -> omc_app.api.secured_mobile.get_service_case
+omc_app.api.mobile.update_service_case_status -> secured wrapper
+omc_app.api.mobile.update_service_document_status -> secured wrapper
 ```
 
-Flutter should render controls from backend capability flags, not role-name checks.
+Expected accepted aliases:
 
-Current patch:
+```text
+case detail: case_id, name, service_request, request_id
+case status: case_id, name, service_request, request_id
+document review: document_id, document, name
+```
 
-- `serviceCaseDetailMethod` now points to `omc_app.api.secured_mobile.get_service_case`.
-- `updateServiceCaseStatusMethod` now points to `omc_app.api.secured_mobile.update_service_case_status`.
-- `updateServiceDocumentStatusMethod` now points to `omc_app.api.secured_mobile.update_service_document_status`.
+Expected list fields:
 
-### Test
+```text
+id
+reference
+case_reference
+progress
+progress_percent
+current_stage
+next_step
+required_documents_count
+submitted_documents_count
+missing_documents_count
+customer_action_required
+can_update_status
+can_review_documents
+can_view_internal_notes
+```
+
+Security expectation:
+
+- Internal workspace users receive internal capability flags when allowed.
+- Normal customers receive capability flags as false.
+- Normal customers should not receive internal remarks in case detail response.
+- Flutter should render controls from backend capability flags, not role-name checks.
+
+### Required local verification
+
+First verify copied backend files in the running bench target:
+
+```bash
+cd ~/data_drive/app_omc/backend_omc_app
+
+grep -n "def get_service_cases\|omc_app.api.mobile.get_service_cases\|results\|records" \
+  frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py \
+  frappe-bench/apps/omc_app/omc_app/hooks.py
+```
+
+If the expected secured routing/list normalization code is present, reload Frappe:
+
+```bash
+cd ~/data_drive/app_omc/backend_omc_app/frappe-bench
+
+bench --site all clear-cache
+bench restart
+```
+
+If behaviour is still old after restart:
+
+```bash
+bench --site all migrate
+bench restart
+```
+
+### Flutter test
 
 - Run `flutter analyze`.
 - Login as customer and open My Services detail.
@@ -186,9 +262,15 @@ Current patch:
 
 ## 5. Make service catalogue backend-first
 
+Status: Next after P0 service tracking verification.
+
 ### Current state
 
 Flutter supports backend service catalogue, and backend returns service metadata including required documents.
+
+Recent parser improvement:
+
+- Flutter catalogue parser accepts additional backend list keys and response wrappers.
 
 ### Desired state
 
@@ -232,9 +314,15 @@ required_document_details
 
 ## 6. Improve service progress model
 
+Status: Partially patched - list response normalized; detail/timeline verification remains.
+
 ### Current state
 
 Flutter uses backend progress/timeline when available, but static fallback steps can still appear when timeline is empty.
+
+Recent parser improvement:
+
+- Flutter service tracking parser accepts additional response shapes such as `results`, `records`, wrapped lists, and normalized tracking fields.
 
 ### Backend improvement
 
@@ -319,6 +407,7 @@ Current More page groups:
 ```text
 Account
 Services
+Help
 Workspace - capability gated
 Logout
 ```
@@ -579,16 +668,42 @@ Backend should return capability flags. Flutter should render UI using flags.
 
 # Immediate Next Step
 
-Verify P0 item 4 after secured API routing:
+Verify copied backend files in the Frappe bench, then reload Frappe.
 
-```text
-ServiceCaseDetailScreen capability gating
+Run locally:
+
+```bash
+cd ~/data_drive/app_omc/backend_omc_app
+
+grep -n "def get_service_cases\|omc_app.api.mobile.get_service_cases\|results\|records" \
+  frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py \
+  frappe-bench/apps/omc_app/omc_app/hooks.py
 ```
 
-Work order:
+Expected result:
 
-1. Run `flutter analyze`.
-2. Login as a customer and open My Services detail.
-3. Confirm customer can upload/request support but cannot approve/reject/update status.
-4. Login as an internal user and confirm internal controls appear only when backend allows them.
-5. If verification passes, continue with P1 item 5: backend-first service catalogue behavior.
+- `secured_mobile.py` contains `def get_service_cases` and list response normalization for `results` / `records`.
+- `hooks.py` contains the route override for `omc_app.api.mobile.get_service_cases`.
+
+Then run:
+
+```bash
+cd ~/data_drive/app_omc/backend_omc_app/frappe-bench
+
+bench --site all clear-cache
+bench restart
+```
+
+If behaviour is still old:
+
+```bash
+bench --site all migrate
+bench restart
+```
+
+After backend reload passes, continue with:
+
+1. `flutter analyze`.
+2. Customer service-case detail verification.
+3. Internal user service-case detail verification.
+4. P1 item 5: backend-first service catalogue behaviour.
