@@ -46,7 +46,7 @@ app_license = "mit"
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
-# doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
+# doctype_calendar_js = {"doctype" : "public/js/doctype.js"}
 
 # Svg Icons
 # ------------------
@@ -188,8 +188,9 @@ app_license = "mit"
 # Secure mobile API method overrides
 # ----------------------------------
 # Keep customer-facing endpoints stable while enforcing server-side guards
-# and returning backend-owned tracking fallbacks for service case detail.
+# and returning backend-owned tracking data for service cases.
 override_whitelisted_methods = {
+    "omc_app.api.mobile.get_service_cases": "omc_app.api.secured_mobile.get_service_cases",
     "omc_app.api.mobile.get_service_case": "omc_app.api.secured_mobile.get_service_case",
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
     "omc_app.api.mobile.update_service_document_status": "omc_app.api.secured_mobile.update_service_document_status",
