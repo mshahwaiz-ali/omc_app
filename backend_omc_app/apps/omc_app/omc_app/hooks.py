@@ -185,6 +185,15 @@ app_license = "mit"
 # 	"Task": "omc_app.task.get_dashboard_data"
 # }
 
+# Secure mobile API method overrides
+# ----------------------------------
+# Keep customer-facing endpoints stable while enforcing server-side guards
+# for staff-only actions exposed by service case detail capability flags.
+override_whitelisted_methods = {
+    "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
+    "omc_app.api.mobile.update_service_document_status": "omc_app.api.secured_mobile.update_service_document_status",
+}
+
 # exempt linked doctypes from being automatically cancelled
 #
 # auto_cancel_exempted_doctypes = ["Auto Repeat"]
