@@ -235,11 +235,20 @@ class PaymentsRepository {
       return PaymentStatus.underReview;
     }
     if (status.contains('reject')) return PaymentStatus.rejected;
-    if (status.contains('paid') || status.contains('complete')) {
-      return PaymentStatus.paid;
+    if (status.contains('unpaid') ||
+        status.contains('pending') ||
+        status.contains('awaiting') ||
+        status.contains('due')) {
+      return PaymentStatus.pending;
     }
     if (status.contains('overdue') || status.contains('expired')) {
       return PaymentStatus.overdue;
+    }
+    if (status == 'paid' ||
+        status == 'complete' ||
+        status == 'completed' ||
+        status.contains('fully paid')) {
+      return PaymentStatus.paid;
     }
     if (status.contains('cancel')) return PaymentStatus.cancelled;
 
