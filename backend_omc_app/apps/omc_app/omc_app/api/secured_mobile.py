@@ -154,13 +154,21 @@ def update_service_case_status(
 
 
 @frappe.whitelist()
-def update_service_document_status(document_id=None, status=None, remarks=None):
+def update_service_document_status(
+    document_id=None,
+    document=None,
+    name=None,
+    status=None,
+    remarks=None,
+):
     """Allow only internal workspace users to approve/reject documents."""
 
     mobile._assert_internal_workspace_access()
 
+    resolved_document_id = document_id or document or name
+
     return mobile.update_service_document_status(
-        document_id=document_id,
+        document_id=resolved_document_id,
         status=status,
         remarks=remarks,
     )
