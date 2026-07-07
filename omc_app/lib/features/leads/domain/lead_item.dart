@@ -10,6 +10,11 @@ class LeadItem {
     this.phone,
     this.source,
     this.createdAtLabel,
+    this.serviceInterest,
+    this.assignedTo,
+    this.customerProfile,
+    this.convertedCustomerProfile,
+    this.updatedAtLabel,
   });
 
   factory LeadItem.fromJson(Map<String, dynamic> json) {
@@ -31,6 +36,13 @@ class LeadItem {
       createdAtLabel: _nullableString(
         json['created_at_label'] ?? json['creation'] ?? json['created_at'],
       ),
+      serviceInterest: _nullableString(json['service_interest'] ?? json['service']),
+      assignedTo: _nullableString(json['assigned_to'] ?? json['owner']),
+      customerProfile: _nullableString(json['customer_profile']),
+      convertedCustomerProfile: _nullableString(
+        json['converted_customer_profile'] ?? json['converted_customer'],
+      ),
+      updatedAtLabel: _nullableString(json['updated_at'] ?? json['modified']),
     );
   }
 
@@ -42,6 +54,11 @@ class LeadItem {
   final String? phone;
   final String? source;
   final String? createdAtLabel;
+  final String? serviceInterest;
+  final String? assignedTo;
+  final String? customerProfile;
+  final String? convertedCustomerProfile;
+  final String? updatedAtLabel;
 
   static String _stringValue(dynamic value) {
     final text = value?.toString().trim() ?? '';
