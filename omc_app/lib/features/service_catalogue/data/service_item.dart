@@ -13,6 +13,7 @@ class ServiceItem {
     this.requiredDocuments = const [],
     this.supportMessage,
     this.wizardType,
+    this.wizardConfig = const {},
   });
 
   final String id;
@@ -28,6 +29,7 @@ class ServiceItem {
   final List<String> requiredDocuments;
   final String? supportMessage;
   final String? wizardType;
+  final Map<String, dynamic> wizardConfig;
 
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
     return ServiceItem(
@@ -87,6 +89,11 @@ class ServiceItem {
         'wizard_type',
         'request_wizard_type',
       ]),
+      wizardConfig: _readMap(json, [
+        'wizardConfig',
+        'wizard_config',
+        'request_wizard_config',
+      ]),
       requirements: _readStringList(json, [
         'requirements',
         'required_information',
@@ -123,6 +130,25 @@ class ServiceItem {
     }
 
     return const [];
+  }
+
+  static Map<String, dynamic> _readMap(
+    Map<String, dynamic> json,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = json[key];
+
+      if (value is Map<String, dynamic>) {
+        return value;
+      }
+
+      if (value is Map) {
+        return value.map((key, value) => MapEntry(key.toString(), value));
+      }
+    }
+
+    return const {};
   }
 
   static String _readString(Map<String, dynamic> json, List<String> keys) {
