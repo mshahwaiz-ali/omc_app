@@ -151,7 +151,7 @@ class ServiceRequestPayload {
   String _serviceDetailLabel(String key) {
     switch (key.trim()) {
       case 'ntn_cnic':
-        return 'CNIC';
+        return 'Tax ID';
       case 'occupation':
         return 'Occupation';
       case 'source_of_income':
@@ -238,6 +238,9 @@ class ServiceRequestRepository {
         ApiConfig.uploadServiceDocumentMethod,
         data: {
           'case_id': requestId,
+          'request_id': requestId,
+          'service_request': requestId,
+          'name': requestId,
           'document_title': attachment.name,
           'document_type': attachment.extension ?? '',
           'attachment': uploadedFileUrl,
