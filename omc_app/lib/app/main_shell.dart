@@ -9,6 +9,7 @@ import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/documents/presentation/documents_screen.dart';
+import '../features/home/data/home_dashboard_repository.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_requests/presentation/my_services_screen.dart';
@@ -152,6 +153,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       orElse: () => null,
     );
     final capabilities = profile?.capabilities ?? authState.capabilities;
+    final unreadNotifications =
+        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
 
     final screens = [
       HomeScreen(
@@ -207,6 +210,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         companyName: profile?.companyName ?? authState.companyName,
         customerStatus: profile?.status ?? authState.customerStatus,
         capabilities: capabilities,
+        unreadNotifications: unreadNotifications,
         isGuest: authState.status == AuthStatus.guest,
         canAccessInternalWorkspace:
             capabilities.canAccessInternalWorkspace &&
@@ -224,6 +228,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       bottomNavigationBar: _FloatingShellNav(
         selectedIndex: _currentIndex,
         items: _navItems,
+        notificationBadgeCount: unreadNotifications,
         onSelected: _selectTab,
       ),
     );
@@ -234,11 +239,13 @@ class _FloatingShellNav extends StatelessWidget {
   const _FloatingShellNav({
     required this.selectedIndex,
     required this.items,
+    required this.notificationBadgeCount,
     required this.onSelected,
   });
 
   final int selectedIndex;
   final List<_ShellNavItem> items;
+  final int notificationBadgeCount;
   final ValueChanged<int> onSelected;
 
   @override
@@ -290,6 +297,7 @@ class _FloatingShellNav extends StatelessWidget {
                     child: _FloatingShellNavItem(
                       item: items[index],
                       isSelected: selectedIndex == index,
+                      badgeCount: index == 4 ? notificationBadgeCount : 0,
                       onTap: () => onSelected(index),
                     ),
                   ),
@@ -306,11 +314,13 @@ class _FloatingShellNavItem extends StatelessWidget {
   const _FloatingShellNavItem({
     required this.item,
     required this.isSelected,
+    required this.badgeCount,
     required this.onTap,
   });
 
   final _ShellNavItem item;
   final bool isSelected;
+  final int badgeCount;
   final VoidCallback onTap;
 
   @override
@@ -350,37 +360,48 @@ class _FloatingShellNavItem extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                width: isSelected ? 36 : 30,
-                height: isSelected ? 30 : 30,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withValues(alpha: 0.82)
-                      : AppTheme.primaryRed.withValues(alpha: 0.045),
-                  borderRadius: BorderRadius.circular(13),
-                  border: isSelected
-                      ? Border.all(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          width: 1,
-                        )
-                      : null,
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Icon(
-                  isSelected ? item.activeIcon : item.icon,
-                  color: iconColor,
-                  size: isSelected ? 19 : 18,
-                ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    width: isSelected ? 36 : 30,
+                    height: isSelected ? 30 : 30,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.82)
+                          : AppTheme.primaryRed.withValues(alpha: 0.045),
+                      borderRadius: BorderRadius.circular(13),
+                      border: isSelected
+                          ? Border.all(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              width: 1,
+                            )
+                          : null,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Icon(
+                      isSelected ? item.activeIcon : item.icon,
+                      color: iconColor,
+                      size: isSelected ? 19 : 18,
+                    ),
+                  ),
+                  if (badgeCount > 0)
+                    Positioned(
+                      top: -7,
+                      right: -9,
+                      child: _CompactBadge(count: badgeCount),
+                    ),
+                ],
               ),
               const SizedBox(height: 4),
               AnimatedDefaultTextStyle(
@@ -422,6 +443,7 @@ class _MoreScreen extends StatelessWidget {
     this.companyName,
     this.customerStatus,
     required this.capabilities,
+    required this.unreadNotifications,
     required this.isGuest,
     required this.canAccessInternalWorkspace,
     required this.onOpenInternalWorkspace,
@@ -442,6 +464,7 @@ class _MoreScreen extends StatelessWidget {
   final String? companyName;
   final String? customerStatus;
   final AuthCapabilities capabilities;
+  final int unreadNotifications;
   final bool isGuest;
   final bool canAccessInternalWorkspace;
   final VoidCallback onOpenInternalWorkspace;
@@ -479,6 +502,7 @@ class _MoreScreen extends StatelessWidget {
                 icon: Icons.notifications_none_rounded,
                 title: 'Notifications',
                 subtitle: 'Service updates and tax alerts',
+                badgeCount: unreadNotifications,
                 onTap: onOpenNotifications,
               ),
               _MoreTile(
@@ -791,6 +815,7 @@ class _MoreTile extends StatelessWidget {
     required this.onTap,
     this.isDestructive = false,
     this.showChevron = true,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -799,6 +824,7 @@ class _MoreTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool isDestructive;
   final bool showChevron;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -807,14 +833,25 @@ class _MoreTile extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Icon(icon, color: color, size: 22),
+      leading: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              top: -5,
+              right: -7,
+              child: _CompactBadge(count: badgeCount),
+            ),
+        ],
       ),
       title: Text(
         title,
@@ -836,6 +873,38 @@ class _MoreTile extends StatelessWidget {
       trailing: showChevron
           ? Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400)
           : null,
+    );
+  }
+}
+
+class _CompactBadge extends StatelessWidget {
+  const _CompactBadge({required this.count});
+
+  final int count;
+
+  String get _label => count > 99 ? '99+' : count.toString();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18),
+      height: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Text(
+        _label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
     );
   }
 }

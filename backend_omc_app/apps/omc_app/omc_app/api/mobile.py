@@ -1779,17 +1779,169 @@ def _knowledge_article_from_service(service):
         "id": service.name,
         "name": service.name,
         "title": service.title or "",
+        "summary": service.description or "",
+        "body": service.description or "",
+        "content": service.description or "",
         "description": service.description or "",
         "category": service.category or "",
-        "type": "Service",
+        "type": "Guide",
         "is_featured": int(service.is_featured or 0),
+        "published_on": str(service.modified) if service.modified else "",
         "created_at": str(service.creation) if service.creation else "",
         "updated_at": str(service.modified) if service.modified else "",
+        "source_doctype": "OMC Service",
     }
 
 
-@frappe.whitelist(allow_guest=True)
-def get_knowledge():
+def _is_content_visible(record):
+    starts_on = getattr(record, "starts_on", None)
+    ends_on = getattr(record, "ends_on", None)
+    now = frappe.utils.now_datetime()
+
+    if starts_on and frappe.utils.get_datetime(starts_on) > now:
+        return False
+    if ends_on and frappe.utils.get_datetime(ends_on) < now:
+        return False
+
+    return True
+
+
+def _safe_published_records(doctype, fields, order_by, limit=100):
+    if not _has_doctype(doctype):
+        return []
+
+    try:
+        rows = frappe.get_all(
+            doctype,
+            filters={"status": "Published"},
+            fields=fields,
+            order_by=order_by,
+            limit_page_length=limit,
+        )
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), f"Mobile content lookup failed: {doctype}")
+        return []
+
+    return [row for row in rows if _is_content_visible(row)]
+
+
+def _content_article_dict(record, id_field, content_type, summary_field="summary", body_field="content"):
+    content_id = getattr(record, id_field, None) or record.name
+    summary = getattr(record, summary_field, None) or getattr(record, "message", None) or ""
+    body = getattr(record, body_field, None) or summary
+    published_on = (
+        getattr(record, "published_on", None)
+        or getattr(record, "effective_date", None)
+        or getattr(record, "starts_on", None)
+        or getattr(record, "modified", None)
+    )
+
+    return {
+        "id": content_id,
+        "name": record.name,
+        id_field: content_id,
+        "title": getattr(record, "title", None) or "",
+        "summary": summary,
+        "description": summary,
+        "body": body,
+        "content": body,
+        "category": getattr(record, "category", None) or getattr(record, "priority", None) or "",
+        "type": content_type,
+        "is_featured": int(getattr(record, "is_featured", None) or 0),
+        "published_on": str(published_on) if published_on else "",
+        "published_at_label": str(published_on) if published_on else "",
+        "author": getattr(record, "owner", None) or "",
+        "external_url": getattr(record, "mobile_route", None) or "",
+        "image": getattr(record, "cover_image", None) or "",
+        "created_at": str(record.creation) if getattr(record, "creation", None) else "",
+        "updated_at": str(record.modified) if getattr(record, "modified", None) else "",
+        "source_doctype": record.doctype if getattr(record, "doctype", None) else "",
+    }
+
+
+def _knowledge_content_articles():
+    articles = []
+
+    articles.extend(
+        _content_article_dict(row, "article_id", "Guide")
+        for row in _safe_published_records(
+            "OMC Knowledge Article",
+            [
+                "name",
+                "article_id",
+                "title",
+                "category",
+                "summary",
+                "content",
+                "cover_image",
+                "is_featured",
+                "sort_order",
+                "published_on",
+                "owner",
+                "creation",
+                "modified",
+            ],
+            "is_featured desc, sort_order asc, published_on desc, modified desc",
+        )
+    )
+
+    articles.extend(
+        _content_article_dict(row, "alert_id", "Tax Update")
+        for row in _safe_published_records(
+            "OMC Tax Alert",
+            [
+                "name",
+                "alert_id",
+                "title",
+                "category",
+                "summary",
+                "content",
+                "effective_date",
+                "is_featured",
+                "sort_order",
+                "published_on",
+                "owner",
+                "creation",
+                "modified",
+            ],
+            "is_featured desc, sort_order asc, effective_date desc, modified desc",
+        )
+    )
+
+    articles.extend(
+        _content_article_dict(row, "announcement_id", "News", summary_field="message", body_field="message")
+        for row in _safe_published_records(
+            "OMC Announcement",
+            [
+                "name",
+                "announcement_id",
+                "title",
+                "message",
+                "priority",
+                "mobile_route",
+                "starts_on",
+                "ends_on",
+                "is_featured",
+                "sort_order",
+                "owner",
+                "creation",
+                "modified",
+            ],
+            "is_featured desc, sort_order asc, modified desc",
+        )
+    )
+
+    articles.sort(
+        key=lambda item: (
+            int(item.get("is_featured") or 0),
+            item.get("published_on") or item.get("updated_at") or "",
+        ),
+        reverse=True,
+    )
+    return articles
+
+
+def _fallback_service_articles():
     services = frappe.get_all(
         "OMC Service",
         filters={"is_active": 1},
@@ -1806,28 +1958,51 @@ def get_knowledge():
         limit_page_length=100,
     )
 
-    return {
-        "articles": [
-            _knowledge_article_from_service(service)
-            for service in services
-        ]
-    }
+    return [_knowledge_article_from_service(service) for service in services]
 
 
+@frappe.whitelist(allow_guest=True)
+def get_knowledge():
+    articles = _knowledge_content_articles()
+    if not articles:
+        articles = _fallback_service_articles()
+
+    return {"articles": articles}
 
 
-def _knowledge_article_from_service(service):
-    return {
-        "id": service.name,
-        "name": service.name,
-        "title": service.title or "",
-        "description": service.description or "",
-        "category": service.category or "",
-        "type": "Service",
-        "is_featured": int(service.is_featured or 0),
-        "created_at": str(service.creation) if service.creation else "",
-        "updated_at": str(service.modified) if service.modified else "",
-    }
+def _find_content_article(article_id):
+    content_sources = [
+        ("OMC Knowledge Article", "article_id", "Guide"),
+        ("OMC Tax Alert", "alert_id", "Tax Update"),
+        ("OMC Announcement", "announcement_id", "News"),
+    ]
+
+    for doctype, id_field, content_type in content_sources:
+        if not _has_doctype(doctype):
+            continue
+
+        name = article_id if frappe.db.exists(doctype, article_id) else None
+        if not name:
+            matches = frappe.get_all(
+                doctype,
+                filters={id_field: article_id, "status": "Published"},
+                fields=["name"],
+                limit_page_length=1,
+            )
+            name = matches[0].name if matches else None
+
+        if not name:
+            continue
+
+        record = frappe.get_doc(doctype, name)
+        if record.status != "Published" or not _is_content_visible(record):
+            continue
+
+        if doctype == "OMC Announcement":
+            return _content_article_dict(record, id_field, content_type, summary_field="message", body_field="message")
+        return _content_article_dict(record, id_field, content_type)
+
+    return None
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1835,6 +2010,10 @@ def get_knowledge_article(article_id=None, name=None):
     article_id = article_id or name
     if not article_id:
         frappe.throw("article_id is required")
+
+    content_article = _find_content_article(article_id)
+    if content_article:
+        return {"article": content_article}
 
     if not frappe.db.exists("OMC Service", article_id):
         frappe.throw("Knowledge article not found", frappe.DoesNotExistError)
@@ -1845,6 +2024,87 @@ def get_knowledge_article(article_id=None, name=None):
         frappe.throw("Knowledge article not found", frappe.DoesNotExistError)
 
     return {"article": _knowledge_article_from_service(service)}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_app_banners():
+    banners = []
+
+    for row in _safe_published_records(
+        "OMC App Banner",
+        [
+            "name",
+            "banner_id",
+            "title",
+            "subtitle",
+            "image",
+            "action_label",
+            "mobile_route",
+            "starts_on",
+            "ends_on",
+            "sort_order",
+            "creation",
+            "modified",
+        ],
+        "sort_order asc, modified desc",
+        limit=20,
+    ):
+        banners.append(
+            {
+                "id": row.banner_id or row.name,
+                "name": row.name,
+                "title": row.title or "",
+                "subtitle": row.subtitle or "",
+                "image": row.image or "",
+                "action_label": row.action_label or "",
+                "mobile_route": row.mobile_route or "",
+                "starts_on": str(row.starts_on) if row.starts_on else "",
+                "ends_on": str(row.ends_on) if row.ends_on else "",
+            }
+        )
+
+    return {"banners": banners}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_faqs(category=None):
+    if not _has_doctype("OMC FAQ"):
+        return {"faqs": []}
+
+    filters = {"status": "Published"}
+    if category:
+        filters["category"] = category
+
+    rows = frappe.get_all(
+        "OMC FAQ",
+        filters=filters,
+        fields=[
+            "name",
+            "faq_id",
+            "question",
+            "answer",
+            "category",
+            "sort_order",
+            "creation",
+            "modified",
+        ],
+        order_by="sort_order asc, modified desc",
+        limit_page_length=100,
+    )
+
+    return {
+        "faqs": [
+            {
+                "id": row.faq_id or row.name,
+                "name": row.name,
+                "question": row.question or "",
+                "answer": row.answer or "",
+                "category": row.category or "",
+                "updated_at": str(row.modified) if row.modified else "",
+            }
+            for row in rows
+        ]
+    }
 
 
 def _notification_mobile_route(notification):
@@ -2296,6 +2556,19 @@ def _get_single_settings(doctype):
 
 def _settings_bool(doc, fieldname, default=False):
     if not doc or not doc.meta.has_field(fieldname):
+        return default
+
+    # Frappe Single DocTypes can return Check fields as 0 before a row exists in
+    # tabSingles. Use code defaults until an admin explicitly saves the field.
+    try:
+        has_saved_value = frappe.db.exists(
+            "Singles",
+            {"doctype": doc.doctype, "field": fieldname},
+        )
+    except Exception:
+        has_saved_value = True
+
+    if not has_saved_value:
         return default
 
     value = doc.get(fieldname)

@@ -157,9 +157,18 @@ class _SupportTicketDetailBody extends ConsumerStatefulWidget {
 
 class _SupportTicketDetailBodyState
     extends ConsumerState<_SupportTicketDetailBody> {
+  final _replyController = TextEditingController();
+
   bool _isUpdatingStatus = false;
+  bool _isSendingReply = false;
 
   SupportTicket get ticket => widget.ticket;
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +287,16 @@ class _SupportTicketDetailBodyState
         ),
         const SizedBox(height: 16),
         _TicketConversationCard(ticket: ticket),
+        if (ticket.canReply) ...[
+          const SizedBox(height: 16),
+          _SupportReplyComposer(
+            controller: _replyController,
+            enabled: !ticket.isClosed && !_isSendingReply,
+            isSending: _isSendingReply,
+            isClosed: ticket.isClosed,
+            onSend: () => _sendReply(context),
+          ),
+        ],
         if (ticket.canUpdateStatus) ...[
           const SizedBox(height: 16),
           _SupportAdminStatusCard(
@@ -290,6 +309,59 @@ class _SupportTicketDetailBodyState
         ],
       ],
     );
+  }
+
+  Future<void> _sendReply(BuildContext context) async {
+    final message = _replyController.text.trim();
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (ticket.isClosed) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Closed tickets cannot receive replies.')),
+      );
+      return;
+    }
+
+    if (message.length < 2) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Please enter a reply message.')),
+      );
+      return;
+    }
+
+    final repository = ref.read(supportRepositoryProvider);
+
+    setState(() => _isSendingReply = true);
+
+    try {
+      await repository.addSupportTicketReply(
+        ticketId: ticket.id,
+        message: message,
+      );
+
+      if (!context.mounted) return;
+
+      _replyController.clear();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Reply added to support ticket.')),
+      );
+      ref.invalidate(supportTicketDetailProvider(ticket.id));
+      ref.invalidate(supportTicketsProvider);
+    } on ApiError catch (error) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Reply could not be sent right now. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSendingReply = false);
+      }
+    }
   }
 
   Future<void> _updateTicketStatus(BuildContext context, String status) async {
@@ -329,6 +401,97 @@ class _SupportTicketDetailBodyState
         setState(() => _isUpdatingStatus = false);
       }
     }
+  }
+}
+
+class _SupportReplyComposer extends StatelessWidget {
+  const _SupportReplyComposer({
+    required this.controller,
+    required this.enabled,
+    required this.isSending,
+    required this.isClosed,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+  final bool isSending;
+  final bool isClosed;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.reply_rounded,
+                  color: AppTheme.primaryRed,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Reply',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (isClosed) ...[
+            const Text(
+              'This ticket is closed. Reopen it before adding a reply.',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ] else ...[
+            TextField(
+              controller: controller,
+              enabled: enabled,
+              minLines: 3,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                labelText: 'Message',
+                hintText: 'Write a reply',
+                prefixIcon: Icon(Icons.message_outlined),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: enabled ? onSend : null,
+                icon: Icon(
+                  isSending ? Icons.hourglass_top_rounded : Icons.send_rounded,
+                ),
+                label: Text(isSending ? 'Sending...' : 'Send reply'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

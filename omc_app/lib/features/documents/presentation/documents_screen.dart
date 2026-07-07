@@ -121,16 +121,140 @@ class _DocumentsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    final sections = _documentSections(documents);
+
+    return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-      itemCount: documents.length + 1,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        if (index == 0) return _DocumentsHeader(documents: documents);
+      children: [
+        _DocumentsHeader(documents: documents),
+        const SizedBox(height: 12),
+        for (final section in sections) ...[
+          _DocumentSection(section: section),
+          if (section != sections.last) const SizedBox(height: 16),
+        ],
+      ],
+    );
+  }
 
-        return _DocumentCard(document: documents[index - 1]);
-      },
+  List<_DocumentSectionData> _documentSections(List<DocumentItem> documents) {
+    final missing = documents
+        .where(
+          (item) =>
+              item.status == DocumentStatus.missing ||
+              item.status == DocumentStatus.rejected,
+        )
+        .toList(growable: false);
+    final submitted = documents
+        .where(
+          (item) =>
+              item.status == DocumentStatus.uploaded ||
+              item.status == DocumentStatus.pendingReview,
+        )
+        .toList(growable: false);
+    final approved = documents
+        .where((item) => item.status == DocumentStatus.approved)
+        .toList(growable: false);
+
+    return [
+      if (missing.isNotEmpty)
+        _DocumentSectionData(
+          title: 'Action needed',
+          subtitle: 'Missing or rejected documents to upload again.',
+          icon: Icons.priority_high_rounded,
+          documents: missing,
+        ),
+      if (submitted.isNotEmpty)
+        _DocumentSectionData(
+          title: 'Submitted',
+          subtitle: 'Uploaded documents waiting for OMC review.',
+          icon: Icons.upload_file_rounded,
+          documents: submitted,
+        ),
+      if (approved.isNotEmpty)
+        _DocumentSectionData(
+          title: 'Approved',
+          subtitle: 'Documents verified by OMC.',
+          icon: Icons.verified_rounded,
+          documents: approved,
+        ),
+    ];
+  }
+}
+
+class _DocumentSectionData {
+  const _DocumentSectionData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.documents,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<DocumentItem> documents;
+}
+
+class _DocumentSection extends StatelessWidget {
+  const _DocumentSection({required this.section});
+
+  final _DocumentSectionData section;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.075),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(section.icon, color: AppTheme.primaryRed, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    section.title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    section.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            PremiumInfoChip(label: section.documents.length.toString()),
+          ],
+        ),
+        const SizedBox(height: 10),
+        for (var index = 0; index < section.documents.length; index++) ...[
+          _DocumentCard(document: section.documents[index]),
+          if (index != section.documents.length - 1) const SizedBox(height: 10),
+        ],
+      ],
     );
   }
 }
@@ -359,15 +483,27 @@ class _DocumentCard extends StatelessWidget {
                   ],
                   if (document.remarks != null) ...[
                     const SizedBox(height: 8),
-                    Text(
-                      document.remarks!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.055),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        document.status == DocumentStatus.rejected
+                            ? 'Rejected: ${document.remarks!}'
+                            : document.remarks!,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: document.status == DocumentStatus.rejected
+                              ? Colors.red.shade800
+                              : AppTheme.textSecondary,
+                          fontSize: 12,
+                          height: 1.35,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
