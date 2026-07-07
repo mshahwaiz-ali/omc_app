@@ -11,12 +11,19 @@
   "title",
   "category",
   "description",
+  "short_description",
   "icon",
   "estimated_duration",
+  "completion_time",
   "base_price",
   "currency",
+  "fee_label",
+  "government_fee_label",
   "sort_order",
   "is_featured",
+  "support_message",
+  "wizard_type",
+  "wizard_config",
   "is_active"
  ],
  "fields": [
@@ -83,6 +90,43 @@
    "fieldname": "is_active",
    "fieldtype": "Check",
    "label": "Is Active"
+  },
+  {
+   "fieldname": "short_description",
+   "fieldtype": "Small Text",
+   "label": "Short Description"
+  },
+  {
+   "fieldname": "fee_label",
+   "fieldtype": "Data",
+   "label": "Fee Label"
+  },
+  {
+   "fieldname": "government_fee_label",
+   "fieldtype": "Data",
+   "label": "Government Fee Label"
+  },
+  {
+   "fieldname": "completion_time",
+   "fieldtype": "Data",
+   "label": "Completion Time"
+  },
+  {
+   "fieldname": "support_message",
+   "fieldtype": "Small Text",
+   "label": "Support Message"
+  },
+  {
+   "fieldname": "wizard_type",
+   "fieldtype": "Select",
+   "label": "Wizard Type",
+   "options": "\nTax\nGST\nBusiness"
+  },
+  {
+   "fieldname": "wizard_config",
+   "fieldtype": "Code",
+   "label": "Wizard Config JSON",
+   "options": "JSON"
   }
  ],
  "index_web_pages_for_search": 1,

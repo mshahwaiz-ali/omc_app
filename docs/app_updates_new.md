@@ -221,13 +221,15 @@ omc_app.api.mobile.add_support_ticket_reply
 
 Production catalogue should come from backend by default.
 
+Status: backend contract implemented for service pricing/duration aliases, active services, required-document metadata, and wizard config fields. Flutter production fallback removal still needs final app-side verification.
+
 Required:
 
-* Remove production dependency on bundled/local catalogue fallback.
-* Add required documents per service.
-* Add service pricing/estimated duration from backend.
-* Add active/inactive service controls.
-* Add wizard config from backend where needed.
+* Backend returns required documents per service. ✅
+* Backend returns service pricing/estimated duration fields and Flutter aliases. ✅
+* Backend has active/inactive service controls. ✅
+* Backend has wizard config fields. ✅
+* Remove production dependency on bundled/local catalogue fallback. Pending Flutter verification.
 
 ### 2. Required Documents
 

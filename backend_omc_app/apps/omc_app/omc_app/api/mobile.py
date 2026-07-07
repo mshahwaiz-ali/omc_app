@@ -15,6 +15,119 @@ def _current_user():
     user = frappe.session.user if getattr(frappe, "session", None) else "Guest"
     return user or "Guest"
 
+def _has_doctype(doctype):
+    try:
+        return bool(frappe.db.exists("DocType", doctype))
+    except Exception:
+        return False
+
+
+def _service_fee_label(service):
+    fee_label = (getattr(service, "fee_label", None) or "").strip()
+    if fee_label:
+        return fee_label
+
+    amount = getattr(service, "base_price", None) or 0
+    currency = getattr(service, "currency", None) or "PKR"
+    try:
+        amount_value = float(amount)
+    except (TypeError, ValueError):
+        amount_value = 0
+
+    if amount_value <= 0:
+        return "Contact OMC for pricing"
+
+    if amount_value.is_integer():
+        amount_value = int(amount_value)
+
+    return f"{currency} {amount_value}"
+
+
+def _service_completion_time(service):
+    return (
+        (getattr(service, "completion_time", None) or "").strip()
+        or (getattr(service, "estimated_duration", None) or "").strip()
+    )
+
+
+def _service_required_documents(service_name):
+    if not service_name or not _has_doctype("OMC Service Required Document"):
+        return []
+
+    rows = frappe.get_all(
+        "OMC Service Required Document",
+        filters={
+            "service": service_name,
+            "is_active": 1,
+        },
+        fields=[
+            "name",
+            "document_title",
+            "document_type",
+            "is_required",
+            "instructions",
+            "allowed_extensions",
+            "max_size_mb",
+            "sort_order",
+        ],
+        order_by="sort_order asc, creation asc",
+    )
+
+    return [
+        {
+            "name": row.name,
+            "title": row.document_title or "",
+            "document_title": row.document_title or "",
+            "type": row.document_type or "",
+            "document_type": row.document_type or "",
+            "is_required": int(row.is_required or 0),
+            "instructions": row.instructions or "",
+            "allowed_extensions": row.allowed_extensions or "",
+            "max_size_mb": row.max_size_mb or 10,
+            "sort_order": row.sort_order or 0,
+            "status": "Required" if row.is_required else "Optional",
+            "file_url": "",
+        }
+        for row in rows
+    ]
+
+
+def _service_to_catalogue_dict(service, include_required_documents=False):
+    required_documents = (
+        _service_required_documents(service.name)
+        if include_required_documents
+        else []
+    )
+
+    return {
+        "id": service.service_id or service.name,
+        "name": service.name,
+        "title": service.title or "",
+        "description": service.description or "",
+        "short_description": getattr(service, "short_description", None) or "",
+        "category": service.category or "",
+        "icon": service.icon or "",
+        "estimated_duration": service.estimated_duration or "",
+        "completion_time": _service_completion_time(service),
+        "completionTime": _service_completion_time(service),
+        "base_price": service.base_price or 0,
+        "currency": service.currency or "PKR",
+        "fee_label": _service_fee_label(service),
+        "feeLabel": _service_fee_label(service),
+        "government_fee_label": getattr(service, "government_fee_label", None) or "",
+        "support_message": getattr(service, "support_message", None) or "",
+        "wizard_type": getattr(service, "wizard_type", None) or "",
+        "wizardType": getattr(service, "wizard_type", None) or "",
+        "wizard_config": getattr(service, "wizard_config", None) or "",
+        "is_featured": int(service.is_featured or 0),
+        "required_documents": [
+            doc.get("title") or doc.get("document_title") or ""
+            for doc in required_documents
+            if doc.get("title") or doc.get("document_title")
+        ],
+        "required_document_details": required_documents,
+    }
+
 
 INTERNAL_WORKSPACE_ROLES = {"System Manager"}
 
@@ -382,10 +495,17 @@ def get_service_catalogue():
             "title",
             "category",
             "description",
+            "short_description",
             "icon",
             "estimated_duration",
+            "completion_time",
             "base_price",
             "currency",
+            "fee_label",
+            "government_fee_label",
+            "support_message",
+            "wizard_type",
+            "wizard_config",
             "is_featured",
         ],
         order_by="sort_order asc, modified desc",
@@ -393,18 +513,7 @@ def get_service_catalogue():
 
     return {
         "services": [
-            {
-                "id": service.service_id or service.name,
-                "name": service.name,
-                "title": service.title,
-                "description": service.description or "",
-                "category": service.category or "",
-                "icon": service.icon or "",
-                "estimated_duration": service.estimated_duration or "",
-                "base_price": service.base_price or 0,
-                "currency": service.currency or "PKR",
-                "is_featured": int(service.is_featured or 0),
-            }
+            _service_to_catalogue_dict(service, include_required_documents=True)
             for service in services
         ]
     }
@@ -429,19 +538,7 @@ def get_service_detail(service_id=None):
 
     service = frappe.get_doc("OMC Service", name)
 
-    return {
-        "name": service.name,
-        "id": service.service_id or service.name,
-        "title": service.title,
-        "description": service.description or "",
-        "category": service.category or "",
-        "icon": service.icon or "",
-        "estimated_duration": service.estimated_duration or "",
-        "base_price": service.base_price or 0,
-        "currency": service.currency or "PKR",
-        "is_featured": int(service.is_featured or 0),
-        "required_documents": [],
-    }
+    return _service_to_catalogue_dict(service, include_required_documents=True)
 
 
 def _create_service_timeline_entry(
@@ -608,13 +705,18 @@ def _service_case_next_step(status, missing_documents=None):
     return "OMC team will update this service request shortly."
 
 
-def _split_service_documents(documents):
-    submitted_statuses = {"submitted", "approved", "under review", "accepted"}
+def _split_service_documents(documents, required_document_templates=None):
+    submitted_statuses = {"submitted", "approved", "under review", "accepted", "uploaded"}
     missing_statuses = {"missing", "required", "rejected", "expired"}
 
     required_documents = []
     submitted_documents = []
     missing_documents = []
+
+    for template in required_document_templates or []:
+        required_documents.append(template)
+        if template.get("is_required"):
+            missing_documents.append(template)
 
     for document in documents:
         required_documents.append(document)
@@ -623,6 +725,18 @@ def _split_service_documents(documents):
 
         if has_file or status in submitted_statuses:
             submitted_documents.append(document)
+
+            doc_title = (document.get("title") or document.get("document_title") or "").strip().lower()
+            doc_type = (document.get("type") or document.get("document_type") or "").strip().lower()
+
+            missing_documents = [
+                missing
+                for missing in missing_documents
+                if (
+                    (missing.get("title") or missing.get("document_title") or "").strip().lower() != doc_title
+                    and (missing.get("type") or missing.get("document_type") or "").strip().lower() != doc_type
+                )
+            ]
         elif status in missing_statuses or not has_file:
             missing_documents.append(document)
 
@@ -755,7 +869,11 @@ def get_service_case(case_id=None):
         frappe.throw("You do not have permission to access this service request", frappe.PermissionError)
 
     documents = _get_service_documents(service_case.name)
-    required_documents, submitted_documents, missing_documents = _split_service_documents(documents)
+    required_document_templates = _service_required_documents(service_case.service)
+    required_documents, submitted_documents, missing_documents = _split_service_documents(
+        documents,
+        required_document_templates,
+    )
 
     timeline = _get_service_timeline(service_case.name)
 
