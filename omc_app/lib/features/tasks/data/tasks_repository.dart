@@ -75,8 +75,20 @@ class TasksRepository {
     final rawTasks = message is List
         ? message
         : message is Map<String, dynamic>
-        ? message['tasks'] ?? message['data'] ?? message['items']
-        : data['tasks'] ?? data['data'] ?? data['items'];
+        ? message['tasks'] ??
+              message['task_list'] ??
+              message['data'] ??
+              message['items'] ??
+              message['rows'] ??
+              message['results'] ??
+              message['records']
+        : data['tasks'] ??
+              data['task_list'] ??
+              data['data'] ??
+              data['items'] ??
+              data['rows'] ??
+              data['results'] ??
+              data['records'];
 
     if (rawTasks is! List) return const [];
 
@@ -90,8 +102,17 @@ class TasksRepository {
     final message = data['message'];
 
     final rawTask = message is Map<String, dynamic>
-        ? message['task'] ?? message['data'] ?? message['item'] ?? message
-        : data['task'] ?? data['data'] ?? data['item'];
+        ? message['task'] ??
+              message['task_detail'] ??
+              message['data'] ??
+              message['item'] ??
+              message['record'] ??
+              message
+        : data['task'] ??
+              data['task_detail'] ??
+              data['data'] ??
+              data['item'] ??
+              data['record'];
 
     if (rawTask is! Map<String, dynamic>) return null;
 
