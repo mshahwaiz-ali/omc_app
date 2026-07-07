@@ -14,6 +14,27 @@ final expenseTrackerRepositoryProvider = Provider<ExpenseTrackerRepository>((
   return ExpenseTrackerRepository(frappeClient: ref.watch(frappeClientProvider));
 });
 
+final expenseTrackerStorageModeProvider =
+    AsyncNotifierProvider<ExpenseTrackerStorageModeController, ExpenseTrackerStorageMode>(
+  ExpenseTrackerStorageModeController.new,
+);
+
+class ExpenseTrackerStorageModeController
+    extends AsyncNotifier<ExpenseTrackerStorageMode> {
+  late final ExpenseTrackerRepository _repository;
+
+  @override
+  Future<ExpenseTrackerStorageMode> build() async {
+    _repository = ref.read(expenseTrackerRepositoryProvider);
+    return _repository.readStorageMode();
+  }
+
+  Future<void> setMode(ExpenseTrackerStorageMode mode) async {
+    state = AsyncData(mode);
+    await _repository.saveStorageMode(mode);
+  }
+}
+
 enum ExpenseTrackerStorageMode { localOnly, syncWithAccount }
 
 extension ExpenseTrackerStorageModeLabel on ExpenseTrackerStorageMode {
@@ -41,11 +62,28 @@ class ExpenseTrackerRepository {
     : _frappeClient = frappeClient;
 
   static const _storageKey = 'omc_expense_tracker_transactions';
+  static const _storageModeKey = 'omc_expense_tracker_storage_mode';
 
   final FrappeClient _frappeClient;
 
   ExpenseTrackerStorageMode get storageMode =>
       ExpenseTrackerStorageMode.localOnly;
+
+  Future<ExpenseTrackerStorageMode> readStorageMode() async {
+    final preferences = await SharedPreferences.getInstance();
+    final raw = preferences.getString(_storageModeKey);
+
+    if (raw == ExpenseTrackerStorageMode.syncWithAccount.name) {
+      return ExpenseTrackerStorageMode.syncWithAccount;
+    }
+
+    return ExpenseTrackerStorageMode.localOnly;
+  }
+
+  Future<void> saveStorageMode(ExpenseTrackerStorageMode mode) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_storageModeKey, mode.name);
+  }
 
   Future<List<ExpenseTransaction>> readTransactions() async {
     final preferences = await SharedPreferences.getInstance();
