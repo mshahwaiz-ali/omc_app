@@ -132,6 +132,9 @@ def _int_number(value):
 @frappe.whitelist()
 def update_service_case_status(
     case_id=None,
+    name=None,
+    service_request=None,
+    request_id=None,
     status=None,
     note=None,
     expected_completion_date=None,
@@ -140,8 +143,10 @@ def update_service_case_status(
 
     mobile._assert_internal_workspace_access()
 
+    resolved_case_id = case_id or name or service_request or request_id
+
     return mobile.update_service_case_status(
-        case_id=case_id,
+        case_id=resolved_case_id,
         status=status,
         note=note,
         expected_completion_date=expected_completion_date,
