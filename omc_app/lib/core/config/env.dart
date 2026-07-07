@@ -40,12 +40,13 @@ class Env {
 
   static bool get useMockAuth => !isProduction && _useMockAuthFlag;
 
-  /// Local-only service tracking sample data for UI/module testing.
+  /// Explicit local service preview mode for UI/module testing.
   ///
   /// Enable only with:
   /// flutter run --dart-define=OMC_USE_SERVICE_PREVIEW=true
   ///
-  /// Production builds always force this off.
+  /// Production builds always force this off. When this is false, the service
+  /// catalogue must come from the backend in every environment.
   static const bool _useServicePreviewFlag = bool.fromEnvironment(
     'OMC_USE_SERVICE_PREVIEW',
     defaultValue: false,
@@ -53,13 +54,11 @@ class Env {
 
   static bool get useServicePreview => !isProduction && _useServicePreviewFlag;
 
-  /// Optional backend catalogue source for future Frappe service catalogue API.
+  /// Backend service catalogue is the normal source of truth.
   ///
-  /// Keep disabled until the backend method and response contract are confirmed.
-  static const bool useBackendServiceCatalogue = bool.fromEnvironment(
-    'OMC_USE_BACKEND_SERVICE_CATALOGUE',
-    defaultValue: false,
-  );
+  /// This getter is kept for older call sites, but no longer gates backend
+  /// catalogue loading. Use `useServicePreview` for explicit local/mock data.
+  static bool get useBackendServiceCatalogue => true;
 
   /// Optional Google login entry point.
   ///
