@@ -499,7 +499,7 @@ class _AdvancedField extends StatelessWidget {
 
     if (type == 'select' && field.options.isNotEmpty) {
       return DropdownButtonFormField<String>(
-        value: field.options.contains(value) ? value?.toString() : null,
+        initialValue: field.options.contains(value) ? value?.toString() : null,
         decoration: InputDecoration(
           labelText: field.label,
           helperText: field.helpText.isEmpty ? null : field.helpText,

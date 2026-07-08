@@ -1,8 +1,7 @@
 {
  "actions": [],
- "allow_rename": 0,
  "autoname": "naming_series:",
- "creation": "2026-07-06 00:00:00.000000",
+ "creation": "2026-07-06 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -37,11 +36,13 @@
    "reqd": 1
   },
   {
+   "bold": 1,
    "fieldname": "title",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Title",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "lead_name",
@@ -65,23 +66,34 @@
    "label": "Phone"
   },
   {
+   "bold": 1,
    "default": "New",
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_filter": 1,
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
-   "options": "New\nContacted\nQualified\nConverted\nLost"
+   "options": "New\nContacted\nQualified\nConverted\nLost",
+   "search_index": 1
   },
   {
    "fieldname": "source",
    "fieldtype": "Data",
-   "label": "Source"
+   "in_filter": 1,
+   "in_standard_filter": 1,
+   "label": "Source",
+   "search_index": 1
   },
   {
    "fieldname": "service_interest",
    "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Service Interest",
-   "options": "OMC Service"
+   "options": "OMC Service",
+   "search_index": 1
   },
   {
    "fieldname": "notes",
@@ -96,8 +108,12 @@
   {
    "fieldname": "assigned_to",
    "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Assigned To",
-   "options": "User"
+   "options": "User",
+   "search_index": 1
   },
   {
    "fieldname": "customer_profile",
@@ -114,7 +130,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-06 00:00:00.000000",
+ "modified": "2026-07-09 02:48:11.039943",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Lead",
@@ -134,7 +150,10 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
+ "search_fields": "title,lead_name,company_name,email,phone,status",
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "title"
 }
