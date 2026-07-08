@@ -45,17 +45,24 @@ This checklist tracks what has been implemented against `docs/final_modi.md`. It
   - `appBannersProvider` calls `ApiConfig.appBannersMethod`.
   - `appFaqsProvider` calls `ApiConfig.faqsMethod`.
   - Added typed models for app banners and FAQs.
+- Wired backend content into customer UI:
+  - Home screen now watches `appBannersProvider` and displays backend-managed app banners/announcements.
+  - Banner `action_url` / mobile routes can navigate when a local route is provided.
+  - Support screen now watches `appFaqsProvider` and displays backend-managed FAQs.
 - Confirmed notifications repository already supports:
   - `mobile_route` / `action_url` parsing.
   - Mark-one-read API.
   - Mark-all-read API.
-- Confirmed Settings screen exists and already includes major customer-safe items:
-  - Profile shortcut.
-  - Backend-backed notification preferences.
-  - App version/build using `package_info_plus`.
-  - Security/account-support request sheet.
-  - Logout confirmation.
-  - No customer-visible API URL/debug flags found in inspected settings file.
+- Updated Settings screen customer-facing actions:
+  - Profile shortcut remains available.
+  - Backend-backed notification preferences remain available.
+  - App version/build still uses `package_info_plus`.
+  - Security account request remains routed through support ticket creation.
+  - Added Privacy policy tile.
+  - Added Terms & Conditions tile.
+  - Added Delete account request tile routed through support ticket creation.
+  - Logout confirmation remains available.
+  - No customer-visible API URL/debug flags are intentionally shown.
 - Confirmed expense tracker already has a local-first base:
   - Local transaction repository/controller.
   - Local-only storage banner.
@@ -66,12 +73,15 @@ This checklist tracks what has been implemented against `docs/final_modi.md`. It
 
 ## Remaining before calling `final_modi.md` fully complete
 
-- Home/content UI:
-  - App banners and FAQs now have frontend providers.
-  - Home and Support/Knowledge screens still need UI cards wired to those providers.
-- Settings polish:
-  - Add Privacy policy, Terms, and Delete account request tiles if they are required for the first release.
-  - Current settings screen already has version, preferences, profile, account/security request and logout.
+- Local validation after pulling `main`:
+  - Run `flutter analyze` and fix any compile/lint errors caused by GitHub-only edits.
+  - Run `flutter test` and fix any failing tests.
+  - Run backend bench checks against the active local site.
+- Home/content follow-up:
+  - If OMC wants image banners, confirm backend image URLs are public/authorized and add image rendering.
+  - If non-local action URLs are needed, add an approved external URL launcher flow.
+- Settings legal follow-up:
+  - Replace temporary policy/terms bottom-sheet text with backend-driven policy URLs or approved legal copy when available.
 - Expense sync consent:
   - Current tracker is local-only and safe.
   - Optional cloud sync CTA/confirmation still needs implementation only if/when backend sync is intentionally enabled.
@@ -111,6 +121,6 @@ flutter test
 - No new branch was created.
 - No README progress claims were used.
 - Backend permission enforcement remains the source of truth.
-- Flutter changes are additive and intended to preserve existing working flows.
+- Flutter changes are additive in intent, but Home/Support/Settings screens were updated directly through GitHub and must be validated locally.
 - Dynamic request-form completion was confirmed by GitHub code inspection, not local runtime validation.
 - Local validation was not run from this GitHub-only session.
