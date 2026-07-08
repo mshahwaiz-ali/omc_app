@@ -46,8 +46,8 @@ class _ServiceCaseDetailScreenState
             child: SafeArea(
               top: false,
               child: caseAsync.when(
-                loading: () => const _CaseDetailLoadingView(),
-                error: (error, stackTrace) => _LoadErrorState(
+                loading: () => const _LoadingView(),
+                error: (error, stackTrace) => _ErrorView(
                   title: 'Tracking detail unavailable',
                   message: _cleanErrorMessage(error),
                   onRetry: () =>
@@ -56,7 +56,13 @@ class _ServiceCaseDetailScreenState
                 ),
                 data: (serviceCase) {
                   if (serviceCase == null) {
-                    return _CaseNotFoundState(
+                    return _ErrorView(
+                      title: 'Case not found',
+                      message:
+                          'This tracking reference may no longer be available.',
+                      onRetry: () => ref.invalidate(
+                        serviceCaseDetailProvider(widget.caseId),
+                      ),
                       onSupport: () => SupportLauncher.openWhatsApp(context),
                     );
                   }
@@ -84,9 +90,9 @@ class _ServiceCaseDetailScreenState
                           onStatusSelected: _isUpdatingStatus
                               ? null
                               : (status) => _updateServiceCaseStatus(
-                                  serviceCase,
-                                  status,
-                                ),
+                                    serviceCase,
+                                    status,
+                                  ),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -95,14 +101,14 @@ class _ServiceCaseDetailScreenState
                         isUpdatingDocumentStatus: _isUpdatingDocumentStatus,
                         onUpdateDocumentStatus:
                             serviceCase.canReviewDocuments &&
-                                !_isUpdatingDocumentStatus
-                            ? (document, status) =>
-                                  _updateServiceDocumentStatus(
-                                    serviceCase,
-                                    document,
-                                    status,
-                                  )
-                            : null,
+                                    !_isUpdatingDocumentStatus
+                                ? (document, status) =>
+                                    _updateServiceDocumentStatus(
+                                      serviceCase,
+                                      document,
+                                      status,
+                                    )
+                                : null,
                       ),
                       const SizedBox(height: 16),
                       _CaseActionsCard(
@@ -132,7 +138,9 @@ class _ServiceCaseDetailScreenState
 
     final caseId = _uploadDocnameFor(serviceCase);
     if (caseId == null) {
-      _showSnack('Status update cannot continue because this case is missing its service reference.');
+      _showSnack(
+        'Status update cannot continue because this case is missing its service reference.',
+      );
       return;
     }
 
@@ -206,18 +214,14 @@ class _ServiceCaseDetailScreenState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _DocumentUploadSheet(
+      builder: (_) => _DocumentUploadSheet(
         documents: options,
-        onPickDocument: _pickDocumentAttachment,
+        onPickDocument: () =>
+            ref.read(documentAttachmentControllerProvider).pickDocuments(),
         onUpload: (document, attachment) =>
             _uploadSelectedDocument(serviceCase, document, attachment),
       ),
     );
-  }
-
-  Future<DocumentPickResult> _pickDocumentAttachment() {
-    final picker = ref.read(documentAttachmentControllerProvider);
-    return picker.pickDocuments();
   }
 
   Future<void> _uploadSelectedDocument(
@@ -229,7 +233,9 @@ class _ServiceCaseDetailScreenState
 
     final uploadDocname = _uploadDocnameFor(serviceCase);
     if (uploadDocname == null) {
-      _showSnack('Upload cannot continue because this case is missing its service reference.');
+      _showSnack(
+        'Upload cannot continue because this case is missing its service reference.',
+      );
       return;
     }
 
@@ -248,18 +254,20 @@ class _ServiceCaseDetailScreenState
       ref.invalidate(serviceCaseDetailProvider(widget.caseId));
       ref.invalidate(serviceCasesProvider);
 
-      final uploadedCount = uploadedFiles.length;
-      final message = uploadedCount > 0
-          ? '${document.title} uploaded successfully.'
-          : 'Document was selected, but upload did not return a saved file.';
-      _showSnack(message);
+      _showSnack(
+        uploadedFiles.isNotEmpty
+            ? '${document.title} uploaded successfully.'
+            : 'Document upload completed, but no saved file was returned.',
+      );
     } on ApiError catch (error) {
       if (!mounted) return;
       _showSnack(error.message);
       rethrow;
     } catch (_) {
       if (!mounted) return;
-      _showSnack('Missing document could not be uploaded right now. Please try again.');
+      _showSnack(
+        'Missing document could not be uploaded right now. Please try again.',
+      );
       rethrow;
     } finally {
       if (mounted) setState(() => _isUploadingDocument = false);
@@ -324,26 +332,31 @@ class _DocumentUploadSheet extends StatefulWidget {
   final Future<void> Function(
     ServiceCaseDocument document,
     DocumentAttachment attachment,
-  )
-  onUpload;
+  ) onUpload;
 
   @override
   State<_DocumentUploadSheet> createState() => _DocumentUploadSheetState();
 }
 
 class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
-  late ServiceCaseDocument _selectedDocument = widget.documents.first;
+  late ServiceCaseDocument _selectedDocument;
   DocumentAttachment? _selectedAttachment;
   bool _isPicking = false;
   bool _isUploading = false;
   String? _errorMessage;
 
   @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+  void initState() {
+    super.initState();
+    _selectedDocument = widget.documents.first;
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: const BoxDecoration(
           color: AppTheme.background,
@@ -480,7 +493,10 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
     }
 
     if (!attachment.hasUploadPath) {
-      setState(() => _errorMessage = 'Selected file path is unavailable. Choose the file again.');
+      setState(
+        () => _errorMessage =
+            'Selected file path is unavailable. Choose the file again.',
+      );
       return;
     }
 
@@ -535,7 +551,9 @@ class _SelectedFileTile extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              fileName == null || fileName.isEmpty ? 'No file selected' : fileName,
+              fileName == null || fileName.isEmpty
+                  ? 'No file selected'
+                  : fileName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -563,121 +581,17 @@ class _SelectedFileTile extends StatelessWidget {
   }
 }
 
-class _CaseDetailLoadingView extends StatelessWidget {
-  const _CaseDetailLoadingView();
+class _LoadingView extends StatelessWidget {
+  const _LoadingView();
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-      children: const [
-        _ServiceLoadingView(
-          icon: Icons.fact_check_rounded,
-          title: 'Loading case',
-          message: 'Fetching request progress, documents and support actions.',
-        ),
-      ],
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 }
 
-class _ServiceLoadingView extends StatelessWidget {
-  const _ServiceLoadingView({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(19),
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2.4),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _cleanErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final rawMessage = error.toString().replaceFirst('ApiError:', '').trim();
-  if (rawMessage.isEmpty) {
-    return 'Service tracking detail is unavailable right now.';
-  }
-
-  return rawMessage;
-}
-
-class _CaseNotFoundState extends StatelessWidget {
-  const _CaseNotFoundState({required this.onSupport});
-
-  final VoidCallback onSupport;
-
-  @override
-  Widget build(BuildContext context) {
-    return _CenteredStateCard(
-      icon: Icons.search_off_rounded,
-      title: 'Case not found',
-      message:
-          'This tracking reference may no longer be available, or the server has not returned its detail yet.',
-      actionLabel: 'Ask support',
-      onAction: onSupport,
-    );
-  }
-}
-
-class _LoadErrorState extends StatelessWidget {
-  const _LoadErrorState({
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({
     required this.title,
     required this.message,
     required this.onRetry,
@@ -698,7 +612,11 @@ class _LoadErrorState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, color: AppTheme.primaryRed, size: 42),
+              const Icon(
+                Icons.cloud_off_rounded,
+                color: AppTheme.primaryRed,
+                size: 42,
+              ),
               const SizedBox(height: 12),
               Text(
                 title,
@@ -748,64 +666,17 @@ class _LoadErrorState extends StatelessWidget {
   }
 }
 
-class _CenteredStateCard extends StatelessWidget {
-  const _CenteredStateCard({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.actionLabel,
-    required this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final String actionLabel;
-  final VoidCallback onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: PremiumCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: AppTheme.primaryRed, size: 42),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: onAction,
-                icon: const Icon(Icons.support_agent_rounded),
-                label: Text(actionLabel),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+String _cleanErrorMessage(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
   }
+
+  final rawMessage = error.toString().replaceFirst('ApiError:', '').trim();
+  if (rawMessage.isEmpty) {
+    return 'Service tracking detail is unavailable right now.';
+  }
+
+  return rawMessage;
 }
 
 class _CaseHero extends StatelessWidget {
@@ -831,7 +702,11 @@ class _CaseHero extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.assignment_turned_in_outlined, color: Colors.white, size: 34),
+            const Icon(
+              Icons.assignment_turned_in_outlined,
+              color: Colors.white,
+              size: 34,
+            ),
             const SizedBox(height: 14),
             Text(
               serviceCase.category,
@@ -964,6 +839,7 @@ class _ProgressCard extends StatelessWidget {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
     final progressPercent =
         (serviceCase.progressPercent ?? (progress * 100).round()).toString();
+    final steps = _timelineSteps(serviceCase);
 
     return PremiumCard(
       child: Column(
@@ -1001,7 +877,7 @@ class _ProgressCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          for (final step in _timelineSteps(serviceCase)) _TimelineStep(step: step),
+          for (final step in steps) _TimelineStep(step: step),
         ],
       ),
     );
@@ -1117,7 +993,10 @@ class _ActionRequiredCard extends StatelessWidget {
               color: const Color(0xFFB25E00).withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.priority_high_rounded, color: Color(0xFFB25E00)),
+            child: const Icon(
+              Icons.priority_high_rounded,
+              color: Color(0xFFB25E00),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1137,7 +1016,7 @@ class _ActionRequiredCard extends StatelessWidget {
                   missingDocumentsCount > 0
                       ? '$missingDocumentsCount document(s) are needed to continue this service request.'
                       : serviceCase.nextStep ??
-                            'OMC needs an update from you to continue this request.',
+                          'OMC needs an update from you to continue this request.',
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
@@ -1303,7 +1182,7 @@ class _RequiredDocumentsCard extends StatelessWidget {
   final ServiceCase serviceCase;
   final bool isUpdatingDocumentStatus;
   final void Function(ServiceCaseDocument document, String status)?
-  onUpdateDocumentStatus;
+      onUpdateDocumentStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -1425,10 +1304,10 @@ class _DocumentRequirementRow extends StatelessWidget {
     final statusLabel = normalizedStatus != null && normalizedStatus.isNotEmpty
         ? normalizedStatus
         : isSubmitted
-        ? 'Submitted'
-        : isMissing
-        ? 'Missing'
-        : 'Required';
+            ? 'Submitted'
+            : isMissing
+                ? 'Missing'
+                : 'Required';
     final hasFile = fileUrl != null && fileUrl!.trim().isNotEmpty;
     final cleanRemarks = remarks?.trim();
     final hasRemarks = cleanRemarks != null && cleanRemarks.isNotEmpty;
@@ -1436,14 +1315,14 @@ class _DocumentRequirementRow extends StatelessWidget {
     final icon = isSubmitted
         ? Icons.check_circle_rounded
         : isMissing
-        ? Icons.error_outline_rounded
-        : Icons.description_outlined;
+            ? Icons.error_outline_rounded
+            : Icons.description_outlined;
 
     final statusColor = isSubmitted
         ? const Color(0xFF18864B)
         : isMissing
-        ? const Color(0xFFB25E00)
-        : AppTheme.textSecondary;
+            ? const Color(0xFFB25E00)
+            : AppTheme.textSecondary;
 
     return Container(
       padding: const EdgeInsets.all(13),
