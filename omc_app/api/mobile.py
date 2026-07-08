@@ -11,6 +11,15 @@ def _message(message="OK", **extra):
     return data
 
 
+def _format_datetime(value):
+    if not value:
+        return ""
+    try:
+        return str(value).split(".")[0]
+    except Exception:
+        return str(value)
+
+
 def _current_user():
     user = frappe.session.user if getattr(frappe, "session", None) else "Guest"
     return user or "Guest"
@@ -848,7 +857,7 @@ def _get_service_timeline(service_request):
             "type": entry.event_type or "",
             "title": entry.title or "",
             "description": entry.description or "",
-            "created_at": str(entry.event_time) if entry.event_time else "",
+            "created_at": _format_datetime(entry.event_time),
             "created_by": entry.created_by or "",
         }
         for entry in entries
@@ -928,7 +937,7 @@ def _get_service_documents(service_request):
             "type": doc.document_type or "",
             "file_url": doc.attachment or "",
             "status": doc.status or "",
-            "uploaded_at": str(doc.uploaded_on) if doc.uploaded_on else "",
+            "uploaded_at": _format_datetime(doc.uploaded_on),
             "uploaded_by": doc.uploaded_by or "",
             "remarks": doc.remarks or "",
         }
@@ -1421,7 +1430,7 @@ def upload_service_document(**kwargs):
             "status": doc.status or "",
             "file_url": doc.attachment or "",
             "attachment": doc.attachment or "",
-            "uploaded_on": str(doc.uploaded_on) if doc.uploaded_on else "",
+            "uploaded_on": _format_datetime(doc.uploaded_on),
             "uploaded_by": doc.uploaded_by or "",
             "remarks": doc.remarks or "",
         },
@@ -1538,7 +1547,7 @@ def get_documents():
                 "type": doc.document_type or "",
                 "status": doc.status or "",
                 "file_url": doc.attachment or "",
-                "created_at": str(doc.uploaded_on) if doc.uploaded_on else "",
+                "created_at": _format_datetime(doc.uploaded_on),
                 "uploaded_by": doc.uploaded_by or "",
                 "remarks": doc.remarks or "",
                 "can_review_documents": capabilities["can_review_documents"],
@@ -1575,7 +1584,7 @@ def get_document(document_id=None):
         "type": doc.document_type or "",
         "status": doc.status or "",
         "file_url": doc.attachment or "",
-        "created_at": str(doc.uploaded_on) if doc.uploaded_on else "",
+        "created_at": _format_datetime(doc.uploaded_on),
         "uploaded_by": doc.uploaded_by or "",
         "remarks": doc.remarks or "",
         "can_review_documents": capabilities["can_review_documents"],
@@ -1634,8 +1643,8 @@ def get_payments():
                 "amount": payment.amount or 0,
                 "currency": payment.currency or "PKR",
                 "status": payment.status or "",
-                "due_date": str(payment.due_date) if payment.due_date else "",
-                "paid_on": str(payment.paid_on) if payment.paid_on else "",
+                "due_date": _format_datetime(payment.due_date),
+                "paid_on": _format_datetime(payment.paid_on),
                 "payment_reference": payment.payment_reference or "",
                 "receipt_url": payment.receipt_attachment or "",
                 "remarks": payment.remarks or "",
@@ -1673,8 +1682,8 @@ def get_payment(payment_id=None):
         "amount": payment.amount or 0,
         "currency": payment.currency or "PKR",
         "status": payment.status or "",
-        "due_date": str(payment.due_date) if payment.due_date else "",
-        "paid_on": str(payment.paid_on) if payment.paid_on else "",
+        "due_date": _format_datetime(payment.due_date),
+        "paid_on": _format_datetime(payment.paid_on),
         "payment_reference": payment.payment_reference or "",
         "receipt_url": payment.receipt_attachment or "",
         "remarks": payment.remarks or "",
@@ -1804,7 +1813,7 @@ def review_payment_receipt(payment_id=None, status=None, remarks=None, payment_r
         "case_id": payment.service_request,
         "old_status": old_status,
         "status": payment.status,
-        "paid_on": str(payment.paid_on) if payment.paid_on else "",
+        "paid_on": _format_datetime(payment.paid_on),
         "receipt_url": payment.receipt_attachment or "",
         "payment_reference": payment.payment_reference or "",
         "remarks": payment.remarks or "",
@@ -1825,9 +1834,9 @@ def _knowledge_article_from_service(service):
         "category": service.category or "",
         "type": "Guide",
         "is_featured": int(service.is_featured or 0),
-        "published_on": str(service.modified) if service.modified else "",
-        "created_at": str(service.creation) if service.creation else "",
-        "updated_at": str(service.modified) if service.modified else "",
+        "published_on": _format_datetime(service.modified),
+        "created_at": _format_datetime(service.creation),
+        "updated_at": _format_datetime(service.modified),
         "source_doctype": "OMC Service",
     }
 
@@ -1887,13 +1896,13 @@ def _content_article_dict(record, id_field, content_type, summary_field="summary
         "category": getattr(record, "category", None) or getattr(record, "priority", None) or "",
         "type": content_type,
         "is_featured": int(getattr(record, "is_featured", None) or 0),
-        "published_on": str(published_on) if published_on else "",
-        "published_at_label": str(published_on) if published_on else "",
+        "published_on": _format_datetime(published_on),
+        "published_at_label": _format_datetime(published_on),
         "author": getattr(record, "owner", None) or "",
         "external_url": getattr(record, "mobile_route", None) or "",
         "image": getattr(record, "cover_image", None) or "",
-        "created_at": str(record.creation) if getattr(record, "creation", None) else "",
-        "updated_at": str(record.modified) if getattr(record, "modified", None) else "",
+        "created_at": _format_datetime(getattr(record, "creation", None)),
+        "updated_at": _format_datetime(getattr(record, "modified", None)),
         "source_doctype": record.doctype if getattr(record, "doctype", None) else "",
     }
 
@@ -2002,11 +2011,7 @@ def _fallback_service_articles():
 
 @frappe.whitelist(allow_guest=True)
 def get_knowledge():
-    articles = _knowledge_content_articles()
-    if not articles:
-        articles = _fallback_service_articles()
-
-    return {"articles": articles}
+    return {"articles": _knowledge_content_articles()}
 
 
 def _find_content_article(article_id):
@@ -2054,15 +2059,7 @@ def get_knowledge_article(article_id=None, name=None):
     if content_article:
         return {"article": content_article}
 
-    if not frappe.db.exists("OMC Service", article_id):
-        frappe.throw("Knowledge article not found", frappe.DoesNotExistError)
-
-    service = frappe.get_doc("OMC Service", article_id)
-
-    if not service.is_active:
-        frappe.throw("Knowledge article not found", frappe.DoesNotExistError)
-
-    return {"article": _knowledge_article_from_service(service)}
+    frappe.throw("Knowledge article not found", frappe.DoesNotExistError)
 
 
 @frappe.whitelist(allow_guest=True)
@@ -2222,7 +2219,7 @@ def get_notifications():
                 "mobile_route": _notification_mobile_route(notification),
                 "action_url": _notification_mobile_route(notification),
                 "is_read": int(notification.is_read or 0),
-                "created_at": str(notification.creation) if notification.creation else "",
+                "created_at": _format_datetime(notification.creation),
                 "read_on": str(notification.read_on) if notification.read_on else "",
             }
             for notification in notifications
@@ -2451,7 +2448,7 @@ def get_notification_detail(notification_id=None):
         "mobile_route": _notification_mobile_route(notification),
         "action_url": _notification_mobile_route(notification),
         "is_read": int(notification.is_read or 0),
-        "created_at": str(notification.creation) if notification.creation else "",
+        "created_at": _format_datetime(notification.creation),
         "read_on": str(notification.read_on) if notification.read_on else "",
     }
 
