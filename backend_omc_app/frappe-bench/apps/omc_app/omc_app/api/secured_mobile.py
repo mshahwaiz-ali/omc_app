@@ -11,12 +11,7 @@ from omc_app.api import mobile
 
 @frappe.whitelist()
 def get_service_cases():
-    """Return service case list with backend-owned tracking metadata.
-
-    Accept common backend response wrappers so Flutter receives consistent
-    list items even when the lower-level mobile API returns cases under
-    ``cases``, ``results``, ``records``, or ``data``.
-    """
+    """Return service case list with backend-owned tracking metadata."""
 
     response = mobile.get_service_cases()
     cases = _extract_service_case_list(response)
@@ -70,6 +65,9 @@ def _normalize_service_case_list_item(service_case, can_access_internal_workspac
     service_case.setdefault("required_documents_count", 0)
     service_case.setdefault("submitted_documents_count", 0)
     service_case.setdefault("missing_documents_count", 0)
+    service_case.setdefault("payments_count", 0)
+    service_case.setdefault("paid_payments_count", 0)
+    service_case.setdefault("open_payments_count", 0)
     service_case["customer_action_required"] = status.strip().lower() == "waiting for customer"
     service_case["can_update_status"] = capabilities["can_update_service_status"]
     service_case["can_review_documents"] = capabilities["can_review_documents"]
@@ -78,12 +76,7 @@ def _normalize_service_case_list_item(service_case, can_access_internal_workspac
 
 @frappe.whitelist()
 def get_service_case(case_id=None, name=None, service_request=None, request_id=None):
-    """Return service case detail with backend-owned customer/admin gates.
-
-    The mobile app should prefer real OMC Service Timeline rows. When a case has
-    no timeline rows yet, return deterministic backend-generated stages instead
-    of letting the Flutter client invent production tracking steps locally.
-    """
+    """Return service case detail with backend-owned customer/admin gates."""
 
     resolved_case_id = case_id or name or service_request or request_id
     response = mobile.get_service_case(case_id=resolved_case_id)
@@ -94,6 +87,8 @@ def get_service_case(case_id=None, name=None, service_request=None, request_id=N
 
     _apply_service_case_capabilities(service_case)
     _normalize_service_case_documents(service_case)
+    _normalize_service_case_payments(service_case)
+    _apply_service_case_tracking_summary(service_case)
 
     timeline = service_case.get("timeline")
     if isinstance(timeline, list) and timeline:
@@ -113,6 +108,7 @@ def _apply_service_case_capabilities(service_case):
 
     service_case["can_update_status"] = capabilities["can_update_service_status"]
     service_case["can_review_documents"] = capabilities["can_review_documents"]
+    service_case["can_review_payments"] = capabilities["can_review_payments"]
     service_case["can_view_internal_notes"] = can_access_internal_workspace
 
     if not can_access_internal_workspace:
@@ -120,12 +116,7 @@ def _apply_service_case_capabilities(service_case):
 
 
 def _normalize_service_case_documents(service_case):
-    service_request = (
-        service_case.get("name")
-        or service_case.get("id")
-        or service_case.get("case_id")
-        or service_case.get("reference")
-    )
+    service_request = _service_request_id(service_case)
     service_name = service_case.get("service_id") or service_case.get("service")
 
     documents = []
@@ -156,6 +147,8 @@ def _normalize_service_case_documents(service_case):
     required_documents = document_details
     submitted_documents = [doc for doc in document_details if _document_is_submitted(doc)]
     missing_documents = [doc for doc in document_details if _document_needs_upload(doc)]
+    approved_documents = [doc for doc in document_details if _document_is_approved(doc)]
+    rejected_documents = [doc for doc in document_details if _document_is_rejected(doc)]
 
     service_case["required_documents"] = required_documents
     service_case["document_details"] = document_details
@@ -166,12 +159,85 @@ def _normalize_service_case_documents(service_case):
     service_case["required_documents_count"] = len(required_documents)
     service_case["submitted_documents_count"] = len(submitted_documents)
     service_case["missing_documents_count"] = len(missing_documents)
-    service_case["customer_action_required"] = bool(missing_documents) or (
-        (service_case.get("status") or "").strip().lower() == "waiting for customer"
-    )
+    service_case["approved_documents_count"] = len(approved_documents)
+    service_case["rejected_documents_count"] = len(rejected_documents)
+
+
+def _normalize_service_case_payments(service_case):
+    service_request = _service_request_id(service_case)
+    if not service_request:
+        return
+
+    payments = []
+    try:
+        payments = frappe.get_all(
+            "OMC Service Payment",
+            filters={"service_request": service_request, "visible_to_customer": 1},
+            fields=[
+                "name",
+                "service_request",
+                "payment_title",
+                "amount",
+                "currency",
+                "status",
+                "due_date",
+                "paid_on",
+                "payment_reference",
+                "receipt_attachment",
+                "remarks",
+            ],
+            order_by="due_date asc, creation asc",
+        )
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Service payment tracking lookup failed")
+        payments = []
+
+    payment_details = [_payment_detail(row) for row in payments]
+    active_payments = [payment for payment in payment_details if not _payment_is_cancelled(payment)]
+    paid_payments = [payment for payment in active_payments if _payment_is_paid(payment)]
+    rejected_payments = [payment for payment in active_payments if _payment_is_rejected(payment)]
+    open_payments = [payment for payment in active_payments if not _payment_is_paid(payment)]
+
+    service_case["payments"] = payment_details
+    service_case["payment_details"] = payment_details
+    service_case["payments_count"] = len(active_payments)
+    service_case["paid_payments_count"] = len(paid_payments)
+    service_case["open_payments_count"] = len(open_payments)
+    service_case["rejected_payments_count"] = len(rejected_payments)
+
+
+def _apply_service_case_tracking_summary(service_case):
+    status = (service_case.get("status") or "").strip()
+    normalized_status = status.lower()
+    missing_documents = service_case.get("missing_documents") or []
+    rejected_documents_count = _int_number(service_case.get("rejected_documents_count"))
+    open_payments_count = _int_number(service_case.get("open_payments_count"))
+    rejected_payments_count = _int_number(service_case.get("rejected_payments_count"))
+
+    customer_action_required = bool(missing_documents) or rejected_documents_count > 0 or rejected_payments_count > 0
+    if normalized_status in {"waiting for documents", "waiting for customer", "waiting for payment"}:
+        customer_action_required = True
+
+    service_case["customer_action_required"] = customer_action_required
     service_case["next_step"] = _service_case_next_step(
-        service_case.get("status"),
-        missing_documents,
+        status,
+        missing_documents=missing_documents,
+        rejected_documents_count=rejected_documents_count,
+        open_payments_count=open_payments_count,
+        rejected_payments_count=rejected_payments_count,
+    )
+
+    progress = _weighted_service_case_progress(service_case)
+    service_case["progress"] = progress
+    service_case["progress_percent"] = int(round(progress * 100))
+
+
+def _service_request_id(service_case):
+    return (
+        service_case.get("name")
+        or service_case.get("id")
+        or service_case.get("case_id")
+        or service_case.get("reference")
     )
 
 
@@ -255,8 +321,6 @@ def _document_detail_from_uploaded(document, template=None):
     attachment = document.get("file_url") or document.get("attachment") or ""
 
     if status_normalized == "rejected":
-        # Rejected documents must show their review status but remain available
-        # in the customer upload modal for replacement.
         attachment = ""
 
     return {
@@ -273,6 +337,24 @@ def _document_detail_from_uploaded(document, template=None):
         "uploaded_at": _format_mobile_datetime(document.get("uploaded_at") or document.get("uploaded_on")),
         "uploaded_by": document.get("uploaded_by") or "",
         "is_required": template.get("is_required", 0),
+    }
+
+
+def _payment_detail(payment):
+    return {
+        "name": payment.name,
+        "id": payment.name,
+        "case_id": payment.service_request,
+        "title": payment.payment_title or "Payment",
+        "amount": payment.amount or 0,
+        "currency": payment.currency or "PKR",
+        "status": payment.status or "Open",
+        "due_date": _format_mobile_datetime(payment.due_date),
+        "paid_on": _format_mobile_datetime(payment.paid_on),
+        "payment_reference": payment.payment_reference or "",
+        "receipt_url": payment.receipt_attachment or "",
+        "receipt_attachment": payment.receipt_attachment or "",
+        "remarks": payment.remarks or "",
     }
 
 
@@ -294,6 +376,31 @@ def _document_needs_upload(document):
         return True
 
     return not has_file
+
+
+def _document_is_approved(document):
+    status = (document.get("status") or "").strip().lower()
+    return status in {"approved", "accepted", "verified"}
+
+
+def _document_is_rejected(document):
+    status = (document.get("status") or "").strip().lower()
+    return status == "rejected"
+
+
+def _payment_is_paid(payment):
+    status = (payment.get("status") or "").strip().lower()
+    return status in {"paid", "approved", "payment approved"}
+
+
+def _payment_is_rejected(payment):
+    status = (payment.get("status") or "").strip().lower()
+    return status == "rejected"
+
+
+def _payment_is_cancelled(payment):
+    status = (payment.get("status") or "").strip().lower()
+    return status == "cancelled"
 
 
 def _normalize_service_case_timeline(timeline):
@@ -324,22 +431,82 @@ def _service_case_progress(status):
     normalized = (status or "").strip().lower()
     mapping = {
         "open": 0.10,
+        "waiting for documents": 0.10,
+        "documents under review": 0.25,
+        "waiting for payment": 0.45,
+        "payment under review": 0.55,
         "waiting for customer": 0.35,
-        "in progress": 0.60,
+        "in progress": 0.75,
         "under review": 0.80,
         "completed": 1.00,
+        "closed": 1.00,
         "cancelled": 0.00,
     }
     return mapping.get(normalized, 0.10)
 
 
-def _service_case_next_step(status, missing_documents=None):
+def _weighted_service_case_progress(service_case):
+    status = (service_case.get("status") or "").strip().lower()
+    if status == "cancelled":
+        return 0.0
+    if status in {"completed", "closed"}:
+        return 1.0
+
+    required_documents_count = _int_number(service_case.get("required_documents_count"))
+    approved_documents_count = _int_number(service_case.get("approved_documents_count"))
+    payments_count = _int_number(service_case.get("payments_count"))
+    paid_payments_count = _int_number(service_case.get("paid_payments_count"))
+
+    if required_documents_count > 0:
+        document_ratio = min(1.0, approved_documents_count / required_documents_count)
+    else:
+        document_ratio = 1.0 if status in {"waiting for payment", "payment under review", "in progress", "completed", "closed"} else 0.0
+
+    if payments_count > 0:
+        payment_ratio = min(1.0, paid_payments_count / payments_count)
+    else:
+        payment_ratio = 1.0 if status in {"in progress", "completed", "closed"} else 0.0
+
+    internal_stage_ratio = 0.0
+    if status in {"documents under review"}:
+        internal_stage_ratio = 0.20
+    elif status in {"payment under review"}:
+        internal_stage_ratio = 0.35
+    elif status == "in progress":
+        internal_stage_ratio = 0.75
+
+    completed_bonus = 10 if status in {"completed", "closed"} else 0
+    percent = 10 + (document_ratio * 35) + (payment_ratio * 25) + (internal_stage_ratio * 20) + completed_bonus
+    return max(0.0, min(1.0, percent / 100))
+
+
+def _service_case_next_step(
+    status,
+    missing_documents=None,
+    rejected_documents_count=0,
+    open_payments_count=0,
+    rejected_payments_count=0,
+):
+    if rejected_documents_count:
+        return "A document was rejected. Please upload the corrected document again."
     if missing_documents:
         return "Please upload the missing required document(s)."
+    if rejected_payments_count:
+        return "A payment receipt was rejected. Please upload the corrected receipt again."
+    if open_payments_count:
+        return "Please complete the pending payment or submit its receipt."
 
     normalized = (status or "").strip().lower()
     if normalized == "open":
         return "OMC team will review your request shortly."
+    if normalized == "waiting for documents":
+        return "Please upload the required document(s)."
+    if normalized == "documents under review":
+        return "Your documents are under OMC review."
+    if normalized == "waiting for payment":
+        return "Please complete the pending payment."
+    if normalized == "payment under review":
+        return "Your payment receipt is under OMC review."
     if normalized == "waiting for customer":
         return "OMC is waiting for your response or required documents."
     if normalized == "in progress":
@@ -373,9 +540,14 @@ def _fallback_service_case_timeline(service_case):
             "is_done": progress >= 0.35,
         },
         {
+            "title": "Payment review",
+            "subtitle": _payments_stage_subtitle(service_case, normalized_status),
+            "is_done": progress >= 0.60,
+        },
+        {
             "title": "OMC processing",
             "subtitle": next_step,
-            "is_done": progress >= 0.65,
+            "is_done": progress >= 0.75,
         },
     ]
 
@@ -401,18 +573,33 @@ def _fallback_service_case_timeline(service_case):
 
 def _documents_stage_subtitle(service_case, normalized_status):
     missing_count = _int_number(service_case.get("missing_documents_count"))
-    submitted_count = _int_number(service_case.get("submitted_documents_count"))
+    approved_count = _int_number(service_case.get("approved_documents_count"))
+    required_count = _int_number(service_case.get("required_documents_count"))
 
     if missing_count > 0:
         return f"{missing_count} document(s) still needed."
 
-    if submitted_count > 0:
-        return f"{submitted_count} document(s) submitted for review."
+    if required_count > 0:
+        return f"{approved_count}/{required_count} document(s) approved."
 
     if normalized_status == "waiting for customer":
         return "OMC is waiting for customer input."
 
     return "OMC will confirm document requirements."
+
+
+def _payments_stage_subtitle(service_case, normalized_status):
+    payments_count = _int_number(service_case.get("payments_count"))
+    paid_count = _int_number(service_case.get("paid_payments_count"))
+    rejected_count = _int_number(service_case.get("rejected_payments_count"))
+
+    if rejected_count > 0:
+        return f"{rejected_count} payment receipt(s) need correction."
+    if payments_count > 0:
+        return f"{paid_count}/{payments_count} payment(s) approved."
+    if normalized_status == "waiting for payment":
+        return "Payment is pending."
+    return "No payment has been opened yet."
 
 
 def _progress_number(value):
