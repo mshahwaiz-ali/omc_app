@@ -35,11 +35,11 @@
    "label": "Request"
   },
   {
-   "default": "OMC-SR-.YYYY.-.#####",
+   "default": "OMC-SR-.YY..MM..DD.-.#####",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "label": "Naming Series",
-   "options": "OMC-SR-.YYYY.-.#####",
+   "options": "OMC-SR-.YY..MM..DD.-.#####",
    "reqd": 1
   },
   {
