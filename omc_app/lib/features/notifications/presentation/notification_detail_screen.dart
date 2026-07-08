@@ -76,8 +76,34 @@ class _NotificationDetailBody extends ConsumerStatefulWidget {
 class _NotificationDetailBodyState
     extends ConsumerState<_NotificationDetailBody> {
   bool _isMarkingRead = false;
+  bool _autoReadQueued = false;
 
   NotificationItem get notification => widget.notification;
+
+  @override
+  void initState() {
+    super.initState();
+    _queueAutoMarkAsRead();
+  }
+
+  @override
+  void didUpdateWidget(covariant _NotificationDetailBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.notification.id != widget.notification.id ||
+        oldWidget.notification.isRead != widget.notification.isRead) {
+      _autoReadQueued = false;
+      _queueAutoMarkAsRead();
+    }
+  }
+
+  void _queueAutoMarkAsRead() {
+    if (_autoReadQueued || notification.isRead) return;
+    _autoReadQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || notification.isRead) return;
+      _markNotificationAsRead(showSnack: false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +120,7 @@ class _NotificationDetailBodyState
         const SizedBox(height: 18),
         _DetailSection(
           title: 'Notification details',
-          subtitle: 'Reference, time and backend metadata for this update.',
+          subtitle: 'Reference and time for this update.',
           children: [
             _DetailTile(
               icon: Icons.tag_rounded,
@@ -115,29 +141,20 @@ class _NotificationDetailBodyState
                   ? 'Not available'
                   : 'Available',
             ),
-            const _DividerIndent(),
-            _DetailTile(
-              icon: Icons.fingerprint_rounded,
-              label: 'Notification ID',
-              value: notification.id,
-            ),
           ],
         ),
         const SizedBox(height: 20),
         _ActionsCard(
           relatedActionLabel: _relatedActionLabel(notification),
-          isRead: notification.isRead,
-          isMarkingRead: _isMarkingRead,
           onOpenRelated: () => _openRelatedRecord(context, notification),
-          onMarkRead: notification.isRead || _isMarkingRead
-              ? null
-              : _markNotificationAsRead,
         ),
       ],
     );
   }
 
-  Future<void> _markNotificationAsRead() async {
+  Future<void> _markNotificationAsRead({bool showSnack = true}) async {
+    if (_isMarkingRead || notification.isRead) return;
+
     final repository = ref.read(notificationsRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -152,11 +169,13 @@ class _NotificationDetailBodyState
         ..invalidate(notificationsProvider)
         ..invalidate(notificationDetailProvider(notification.id));
 
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Notification marked as read.')),
-      );
+      if (showSnack) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Notification marked as read.')),
+        );
+      }
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || !showSnack) return;
 
       final message = error is ApiError && error.message.trim().isNotEmpty
           ? error.message.trim()
@@ -463,17 +482,11 @@ class _DetailSection extends StatelessWidget {
 class _ActionsCard extends StatelessWidget {
   const _ActionsCard({
     required this.relatedActionLabel,
-    required this.isRead,
-    required this.isMarkingRead,
     required this.onOpenRelated,
-    required this.onMarkRead,
   });
 
   final String relatedActionLabel;
-  final bool isRead;
-  final bool isMarkingRead;
   final VoidCallback onOpenRelated;
-  final VoidCallback? onMarkRead;
 
   @override
   Widget build(BuildContext context) {
@@ -498,7 +511,7 @@ class _ActionsCard extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           const Text(
-            'Open the related record or update notification status.',
+            'Open the related record for this notification.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12,
@@ -511,18 +524,6 @@ class _ActionsCard extends StatelessWidget {
             icon: Icons.open_in_new_rounded,
             label: relatedActionLabel,
             onTap: onOpenRelated,
-          ),
-          const SizedBox(height: 10),
-          _ActionButton(
-            icon: isMarkingRead
-                ? Icons.hourglass_top_rounded
-                : Icons.done_all_rounded,
-            label: isRead
-                ? 'Already marked read'
-                : isMarkingRead
-                ? 'Marking as read...'
-                : 'Mark as read',
-            onTap: onMarkRead,
           ),
         ],
       ),
