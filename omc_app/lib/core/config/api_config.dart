@@ -22,10 +22,6 @@ class ApiConfig {
       );
     }
 
-    if (Env.isProduction && uri.scheme != 'https') {
-      throw StateError('Production OMC_API_BASE_URL must use HTTPS.');
-    }
-
     return cleanUrl;
   }
 
@@ -33,8 +29,6 @@ class ApiConfig {
     switch (Env.current) {
       case AppEnvironment.development:
         return 'http://127.0.0.1:8000';
-      case AppEnvironment.staging:
-        return 'https://erp.omchouse.com';
       case AppEnvironment.production:
         return 'https://erp.omchouse.com';
     }

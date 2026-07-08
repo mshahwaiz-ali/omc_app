@@ -5,6 +5,7 @@ import 'dio_web_credentials_stub.dart'
     if (dart.library.html) 'dio_web_credentials_web.dart';
 
 import '../config/api_config.dart';
+import '../config/env.dart';
 import '../storage/secure_storage_service.dart';
 import 'api_error.dart';
 
@@ -101,6 +102,9 @@ class DioClient {
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.transformTimeout:
       case DioExceptionType.connectionError:
+        if (Env.isDevelopment) {
+          return 'Unable to reach local/dev OMC backend at ${ApiConfig.baseUrl}. Check bench start, selected site, port, and CORS settings.';
+        }
         return 'Unable to reach the OMC server. Please check your connection and try again.';
       case DioExceptionType.badCertificate:
         return 'The server security certificate could not be verified.';

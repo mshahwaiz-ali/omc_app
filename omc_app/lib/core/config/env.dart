@@ -1,4 +1,4 @@
-enum AppEnvironment { development, staging, production }
+enum AppEnvironment { development, production }
 
 class Env {
   const Env._();
@@ -13,9 +13,6 @@ class Env {
       case 'prod':
       case 'production':
         return AppEnvironment.production;
-      case 'stage':
-      case 'staging':
-        return AppEnvironment.staging;
       case 'dev':
       case 'development':
       default:
@@ -24,7 +21,6 @@ class Env {
   }
 
   static bool get isDevelopment => current == AppEnvironment.development;
-  static bool get isStaging => current == AppEnvironment.staging;
   static bool get isProduction => current == AppEnvironment.production;
 
   /// Local-only auth bypass for UI/module testing.
@@ -45,8 +41,8 @@ class Env {
   /// Enable only with:
   /// flutter run --dart-define=OMC_USE_SERVICE_PREVIEW=true
   ///
-  /// Staging and production builds always force this off. When this is false,
-  /// the service catalogue must come from the backend.
+  /// Production builds always force this off. When this is false, the service
+  /// catalogue must come from the backend.
   static const bool _useServicePreviewFlag = bool.fromEnvironment(
     'OMC_USE_SERVICE_PREVIEW',
     defaultValue: false,
@@ -59,8 +55,8 @@ class Env {
   /// Enable only with:
   /// flutter run --dart-define=OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK=true
   ///
-  /// Staging and production builds always force this off. Empty backend
-  /// catalogues should still render an empty state instead of fake data.
+  /// Production builds always force this off. Empty backend catalogues should
+  /// still render an empty state instead of fake data.
   static const bool _allowServiceCatalogueFallbackFlag = bool.fromEnvironment(
     'OMC_ALLOW_SERVICE_CATALOGUE_FALLBACK',
     defaultValue: false,

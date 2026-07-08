@@ -132,7 +132,7 @@ class AuthRepository {
       // accepted and the browser owns the session cookie.
       await _secureStorageService.saveSessionCookie('browser-managed-session');
 
-      final serverSession = await getSessionUser();
+      final serverSession = await _getSessionAfterAcceptedLogin(result.data);
       if (serverSession != null) {
         await updateGuestActivity(convertedUser: serverSession.userId);
         return serverSession;
@@ -145,7 +145,7 @@ class AuthRepository {
 
     await _secureStorageService.saveSessionCookie(sessionCookie);
 
-    final serverSession = await getSessionUser();
+    final serverSession = await _getSessionAfterAcceptedLogin(result.data);
     if (serverSession != null) {
       await updateGuestActivity(convertedUser: serverSession.userId);
       return serverSession;
@@ -163,6 +163,20 @@ class AuthRepository {
     }
 
     return AuthCapabilities.fromJson(data);
+  }
+
+  Future<AuthSession?> _getSessionAfterAcceptedLogin(
+    Map<String, dynamic> loginData,
+  ) async {
+    try {
+      return await getSessionUser();
+    } on ApiError catch (error) {
+      throw ApiError(
+        message:
+            'Login succeeded, but the app could not verify the server session. Rerun the local dev script so Flutter and Frappe use the same host.',
+        details: {'login': loginData, 'session_error': error.details},
+      );
+    }
   }
 
   Future<Map<String, dynamic>> loginWithGoogleToken({required String idToken}) {
