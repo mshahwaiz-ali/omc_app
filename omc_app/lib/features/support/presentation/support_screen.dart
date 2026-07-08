@@ -86,7 +86,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
             canCreateTicket: capabilities.canCreateSupportTicket,
             lockedMessage: _lockedAccessMessage(capabilities),
-            topics: supportTopics.map((topic) => topic.title).toList(growable: false),
+            topics: supportTopics
+                .map((topic) => topic.title)
+                .toList(growable: false),
             onTopicChanged: _handleTopicChanged,
             onSubmit: _submitSupportTicket,
           ),
@@ -218,11 +220,16 @@ class _SupportHeroCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.14)),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.14),
+                  ),
                 ),
                 child: const Text(
                   'Active support',
@@ -383,7 +390,8 @@ class _CreateSupportTicketCard extends StatelessWidget {
         children: [
           const _SectionHeader(
             title: 'Create ticket',
-            subtitle: 'Approved customers can create tracked tickets from the app.',
+            subtitle:
+                'Approved customers can create tracked tickets from the app.',
           ),
           if (!canCreateTicket) ...[
             const SizedBox(height: 12),
@@ -393,7 +401,9 @@ class _CreateSupportTicketCard extends StatelessWidget {
           DropdownButtonFormField<String>(
             initialValue: topics.contains(selectedTopic) ? selectedTopic : null,
             items: topics
-                .map((topic) => DropdownMenuItem(value: topic, child: Text(topic)))
+                .map(
+                  (topic) => DropdownMenuItem(value: topic, child: Text(topic)),
+                )
                 .toList(growable: false),
             onChanged: canCreateTicket ? onTopicChanged : null,
             decoration: const InputDecoration(
@@ -427,7 +437,9 @@ class _CreateSupportTicketCard extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send_rounded),
-              label: Text(isSubmitting ? 'Submitting...' : 'Submit support ticket'),
+              label: Text(
+                isSubmitting ? 'Submitting...' : 'Submit support ticket',
+              ),
             ),
           ),
         ],
@@ -436,13 +448,22 @@ class _CreateSupportTicketCard extends StatelessWidget {
   }
 }
 
-class _SupportTicketsCard extends ConsumerWidget {
+class _SupportTicketsCard extends ConsumerStatefulWidget {
   const _SupportTicketsCard({required this.capabilities});
 
   final AuthCapabilities capabilities;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SupportTicketsCard> createState() =>
+      _SupportTicketsCardState();
+}
+
+class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
+  int _selectedTab = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final capabilities = widget.capabilities;
     if (!capabilities.canViewSupportTickets &&
         !capabilities.canAccessInternalWorkspace) {
       return PremiumCard(
@@ -462,7 +483,8 @@ class _SupportTicketsCard extends ConsumerWidget {
               const Expanded(
                 child: _SectionHeader(
                   title: 'Your support tickets',
-                  subtitle: 'Track submitted support requests and open ticket details.',
+                  subtitle:
+                      'Track active support and review closed ticket history.',
                 ),
               ),
               IconButton.filledTonal(
@@ -475,11 +497,42 @@ class _SupportTicketsCard extends ConsumerWidget {
           const SizedBox(height: 14),
           ticketsAsync.when(
             data: (tickets) {
-              if (tickets.isEmpty) return const _EmptyTickets();
+              final activeTickets = tickets
+                  .where((ticket) => !ticket.isClosed)
+                  .toList(growable: false);
+              final closedTickets = tickets
+                  .where((ticket) => ticket.isClosed)
+                  .toList(growable: false);
+              final selectedTickets = _selectedTab == 0
+                  ? activeTickets
+                  : closedTickets;
+
               return Column(
-                children: tickets.take(4).map((ticket) {
-                  return _TicketTile(ticket: ticket);
-                }).toList(growable: false),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SupportTicketTabs(
+                    selectedIndex: _selectedTab,
+                    activeCount: activeTickets.length,
+                    closedCount: closedTickets.length,
+                    onChanged: (index) => setState(() => _selectedTab = index),
+                  ),
+                  const SizedBox(height: 14),
+                  if (selectedTickets.isEmpty)
+                    _EmptyTickets(
+                      message: _selectedTab == 0
+                          ? 'No active support tickets right now.'
+                          : 'No closed support tickets yet.',
+                    )
+                  else
+                    Column(
+                      children: selectedTickets
+                          .take(6)
+                          .map((ticket) {
+                            return _TicketTile(ticket: ticket);
+                          })
+                          .toList(growable: false),
+                    ),
+                ],
               );
             },
             loading: () => const Padding(
@@ -509,6 +562,41 @@ class _SupportTicketsCard extends ConsumerWidget {
   }
 }
 
+class _SupportTicketTabs extends StatelessWidget {
+  const _SupportTicketTabs({
+    required this.selectedIndex,
+    required this.activeCount,
+    required this.closedCount,
+    required this.onChanged,
+  });
+
+  final int selectedIndex;
+  final int activeCount;
+  final int closedCount;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<int>(
+      selected: {selectedIndex},
+      showSelectedIcon: false,
+      onSelectionChanged: (selection) => onChanged(selection.first),
+      segments: [
+        ButtonSegment<int>(
+          value: 0,
+          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+          label: Text('Active ($activeCount)'),
+        ),
+        ButtonSegment<int>(
+          value: 1,
+          icon: const Icon(Icons.history_rounded, size: 18),
+          label: Text('Closed ($closedCount)'),
+        ),
+      ],
+    );
+  }
+}
+
 class _BackendFaqCard extends StatelessWidget {
   const _BackendFaqCard({required this.faqsAsync});
 
@@ -527,7 +615,8 @@ class _BackendFaqCard extends StatelessWidget {
             children: [
               const _SectionHeader(
                 title: 'Frequently asked questions',
-                subtitle: 'Backend-managed answers for common OMC support questions.',
+                subtitle:
+                    'Backend-managed answers for common OMC support questions.',
               ),
               const SizedBox(height: 12),
               for (final faq in visible.take(5)) _FaqTile(faq: faq),
@@ -594,7 +683,11 @@ class _TopicRow extends StatelessWidget {
             _showChannelError(context);
             return;
           }
-          _openSupportChannel(context, channel, _topicMessage(topic, fallbackMessage));
+          _openSupportChannel(
+            context,
+            channel,
+            _topicMessage(topic, fallbackMessage),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -614,7 +707,11 @@ class _TopicRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chat_rounded, color: AppTheme.primaryRed, size: 20),
+              const Icon(
+                Icons.chat_rounded,
+                color: AppTheme.primaryRed,
+                size: 20,
+              ),
             ],
           ),
         ),
@@ -667,10 +764,7 @@ class _FaqTile extends StatelessWidget {
 }
 
 class _ChannelTile extends StatelessWidget {
-  const _ChannelTile({
-    required this.channel,
-    required this.whatsappMessage,
-  });
+  const _ChannelTile({required this.channel, required this.whatsappMessage});
 
   final SupportChannelConfig channel;
   final String whatsappMessage;
@@ -701,7 +795,10 @@ class _ChannelTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.open_in_new_rounded, color: AppTheme.textSecondary),
+              const Icon(
+                Icons.open_in_new_rounded,
+                color: AppTheme.textSecondary,
+              ),
             ],
           ),
         ),
@@ -774,14 +871,16 @@ class _LockedNote extends StatelessWidget {
 }
 
 class _EmptyTickets extends StatelessWidget {
-  const _EmptyTickets();
+  const _EmptyTickets({
+    this.message =
+        'No support tickets yet. Submitted tickets will appear here.',
+  });
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    return const _InlineNote(
-      icon: Icons.inbox_outlined,
-      message: 'No support tickets yet. Submitted tickets will appear here.',
-    );
+    return _InlineNote(icon: Icons.inbox_outlined, message: message);
   }
 }
 
@@ -964,9 +1063,7 @@ Uri? _supportChannelUri(SupportChannelConfig channel, String whatsappMessage) {
     return Uri(
       scheme: 'mailto',
       path: value,
-      queryParameters: const {
-        'subject': 'OMC support request',
-      },
+      queryParameters: const {'subject': 'OMC support request'},
     );
   }
 

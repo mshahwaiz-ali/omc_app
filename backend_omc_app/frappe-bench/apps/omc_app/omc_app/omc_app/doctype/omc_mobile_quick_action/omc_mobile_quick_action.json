@@ -1,0 +1,163 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-08 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "title",
+  "subtitle",
+  "icon_key",
+  "sort_order",
+  "target_section",
+  "target_type",
+  "target_value",
+  "service",
+  "access_section",
+  "access_level",
+  "required_capability",
+  "badge_type",
+  "style",
+  "description"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "subtitle",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Subtitle"
+  },
+  {
+   "fieldname": "icon_key",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Icon Key",
+   "options": "tax-return\nntn\ngst\ndocuments\ntrack\ncalculator\nsupport\npayments\nmessage\nknowledge\nservices\nnotifications\ndashboard",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Sort Order"
+  },
+  {
+   "fieldname": "target_section",
+   "fieldtype": "Section Break",
+   "label": "Target"
+  },
+  {
+   "default": "Route",
+   "fieldname": "target_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Target Type",
+   "options": "Route\nFeature\nService\nExternal URL",
+   "reqd": 1
+  },
+  {
+   "fieldname": "target_value",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Target Value"
+  },
+  {
+   "fieldname": "service",
+   "fieldtype": "Link",
+   "label": "Service",
+   "options": "OMC Service"
+  },
+  {
+   "fieldname": "access_section",
+   "fieldtype": "Section Break",
+   "label": "Access and Display"
+  },
+  {
+   "default": "Public",
+   "fieldname": "access_level",
+   "fieldtype": "Select",
+   "label": "Access Level",
+   "options": "Public\nLogged In\nApproved Customer\nInternal Staff",
+   "reqd": 1
+  },
+  {
+   "fieldname": "required_capability",
+   "fieldtype": "Select",
+   "label": "Required Capability",
+   "options": "\ncan_create_service_request\ncan_track_requests\ncan_view_documents\ncan_view_payments\ncan_create_support_ticket\ncan_view_support_tickets\ncan_use_tax_calculator\ncan_view_customer_notifications\ncan_access_internal_workspace"
+  },
+  {
+   "default": "None",
+   "fieldname": "badge_type",
+   "fieldtype": "Select",
+   "label": "Badge Type",
+   "options": "None\nDocuments\nPayments\nSupport\nNotifications"
+  },
+  {
+   "default": "Normal",
+   "fieldname": "style",
+   "fieldtype": "Select",
+   "label": "Style",
+   "options": "Normal\nHighlighted\nUrgent"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Internal Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-07-08 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Mobile Quick Action",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "role": "OMC Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "OMC Manager"
+  }
+ ],
+ "sort_field": "sort_order",
+ "sort_order": "ASC",
+ "states": []
+}

@@ -38,8 +38,10 @@ class SupportTicket {
   bool get isClosed {
     final normalized = status.trim().toLowerCase();
     return normalized.contains('closed') ||
+        normalized.contains('resolved') ||
         normalized.contains('cancel') ||
-        normalized.contains('done');
+        normalized.contains('done') ||
+        normalized.contains('complete');
   }
 }
 
@@ -72,7 +74,8 @@ class SupportTicketMessage {
   final int? attachmentSize;
   final bool isInternal;
 
-  bool get hasAttachment => attachmentUrl != null && attachmentUrl!.trim().isNotEmpty;
+  bool get hasAttachment =>
+      attachmentUrl != null && attachmentUrl!.trim().isNotEmpty;
 
   bool get isReply {
     final normalized = type.trim().toLowerCase();

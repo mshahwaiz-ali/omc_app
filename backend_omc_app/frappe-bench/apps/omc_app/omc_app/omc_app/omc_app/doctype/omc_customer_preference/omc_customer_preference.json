@@ -1,0 +1,140 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:customer_profile",
+ "creation": "2026-07-06 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "customer_profile",
+  "notification_section",
+  "service_updates_enabled",
+  "document_reminders_enabled",
+  "payment_alerts_enabled",
+  "tax_alerts_enabled",
+  "email_notifications_enabled",
+  "whatsapp_notifications_enabled",
+  "appearance_section",
+  "theme",
+  "language",
+  "notifications_enabled",
+  "email_updates_enabled",
+  "payment_reminders_enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_profile",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer Profile",
+   "options": "OMC Customer Profile",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "notification_section",
+   "fieldtype": "Section Break",
+   "label": "Notifications"
+  },
+  {
+   "default": "1",
+   "fieldname": "service_updates_enabled",
+   "fieldtype": "Check",
+   "label": "Service Updates Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "document_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Document Reminders Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "payment_alerts_enabled",
+   "fieldtype": "Check",
+   "label": "Payment Alerts Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "tax_alerts_enabled",
+   "fieldtype": "Check",
+   "label": "Tax Alerts Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "email_notifications_enabled",
+   "fieldtype": "Check",
+   "label": "Email Notifications Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "whatsapp_notifications_enabled",
+   "fieldtype": "Check",
+   "label": "WhatsApp Notifications Enabled"
+  },
+  {
+   "fieldname": "appearance_section",
+   "fieldtype": "Section Break",
+   "label": "Appearance"
+  },
+  {
+   "default": "system",
+   "fieldname": "theme",
+   "fieldtype": "Select",
+   "label": "Theme",
+   "options": "system\nlight\ndark"
+  },
+  {
+   "default": "en",
+   "fieldname": "language",
+   "fieldtype": "Data",
+   "label": "Language"
+  },
+  {
+   "default": "1",
+   "fieldname": "notifications_enabled",
+   "fieldtype": "Check",
+   "label": "Legacy Notifications Enabled",
+   "hidden": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "email_updates_enabled",
+   "fieldtype": "Check",
+   "label": "Legacy Email Updates Enabled",
+   "hidden": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "payment_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Legacy Payment Reminders Enabled",
+   "hidden": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Customer Preference",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
