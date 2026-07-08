@@ -4,12 +4,8 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
 
-final taxCalculationRepositoryProvider = Provider<TaxCalculationRepository>((
-  ref,
-) {
-  return TaxCalculationRepository(
-    frappeClient: ref.watch(frappeClientProvider),
-  );
+final taxCalculationRepositoryProvider = Provider<TaxCalculationRepository>((ref) {
+  return TaxCalculationRepository(frappeClient: ref.watch(frappeClientProvider));
 });
 
 enum TaxIncomeType { salary, business, rental }
@@ -19,27 +15,17 @@ enum TaxIncomeMode { monthly, annual }
 enum TaxFilerStatus { activeFiler, lateFiler, nonFiler }
 
 extension TaxIncomeTypeX on TaxIncomeType {
-  String get key {
-    switch (this) {
-      case TaxIncomeType.salary:
-        return 'salary';
-      case TaxIncomeType.business:
-        return 'business';
-      case TaxIncomeType.rental:
-        return 'rental';
-    }
-  }
+  String get key => switch (this) {
+    TaxIncomeType.salary => 'salary',
+    TaxIncomeType.business => 'business',
+    TaxIncomeType.rental => 'rental',
+  };
 
-  String get label {
-    switch (this) {
-      case TaxIncomeType.salary:
-        return 'Salary';
-      case TaxIncomeType.business:
-        return 'Business';
-      case TaxIncomeType.rental:
-        return 'Rental';
-    }
-  }
+  String get label => switch (this) {
+    TaxIncomeType.salary => 'Salary',
+    TaxIncomeType.business => 'Business',
+    TaxIncomeType.rental => 'Rental',
+  };
 }
 
 extension TaxIncomeModeX on TaxIncomeMode {
@@ -48,27 +34,17 @@ extension TaxIncomeModeX on TaxIncomeMode {
 }
 
 extension TaxFilerStatusX on TaxFilerStatus {
-  String get key {
-    switch (this) {
-      case TaxFilerStatus.activeFiler:
-        return 'active_filer';
-      case TaxFilerStatus.lateFiler:
-        return 'late_filer';
-      case TaxFilerStatus.nonFiler:
-        return 'non_filer';
-    }
-  }
+  String get key => switch (this) {
+    TaxFilerStatus.activeFiler => 'active_filer',
+    TaxFilerStatus.lateFiler => 'late_filer',
+    TaxFilerStatus.nonFiler => 'non_filer',
+  };
 
-  String get label {
-    switch (this) {
-      case TaxFilerStatus.activeFiler:
-        return 'Active Filer';
-      case TaxFilerStatus.lateFiler:
-        return 'Late Filer';
-      case TaxFilerStatus.nonFiler:
-        return 'Non-Filer';
-    }
-  }
+  String get label => switch (this) {
+    TaxFilerStatus.activeFiler => 'Active Filer',
+    TaxFilerStatus.lateFiler => 'Late Filer',
+    TaxFilerStatus.nonFiler => 'Non-Filer',
+  };
 }
 
 class TaxCalculatorConfig {
@@ -120,24 +96,12 @@ class TaxCalculatorConfig {
           .toList(growable: false),
       showAdvancedMode: _bool(settings['show_advanced_mode'], fallback: true),
       showBreakdown: _bool(settings['show_breakdown'], fallback: true),
-      showFilerComparison: _bool(
-        settings['show_filer_comparison'],
-        fallback: true,
-      ),
-      showTaxHealthScore: _bool(
-        settings['show_tax_health_score'],
-        fallback: true,
-      ),
+      showFilerComparison: _bool(settings['show_filer_comparison'], fallback: true),
+      showTaxHealthScore: _bool(settings['show_tax_health_score'], fallback: true),
       disclaimer: _string(json['disclaimer']) ?? '',
       filingDeadlineAlert: _string(json['filing_deadline_alert']) ?? '',
-      recommendedNextSteps: _list(json['recommended_next_steps'])
-          .map((item) => item.toString())
-          .where((item) => item.trim().isNotEmpty)
-          .toList(growable: false),
-      requiredDocuments: _list(json['required_documents'])
-          .map((item) => item.toString())
-          .where((item) => item.trim().isNotEmpty)
-          .toList(growable: false),
+      recommendedNextSteps: _strings(json['recommended_next_steps']),
+      requiredDocuments: _strings(json['required_documents']),
       cta: json['cta'] is Map ? TaxCta.fromJson(_map(json['cta'])) : const TaxCta(),
     );
   }
@@ -209,7 +173,7 @@ class TaxInputField {
       mode: (_string(json['mode']) ?? 'advanced').toLowerCase(),
       isRequired: _bool(json['is_required']),
       defaultValue: _string(json['default_value']) ?? '',
-      options: _list(json['options']).map((item) => item.toString()).toList(),
+      options: _strings(json['options']),
       helpText: _string(json['help_text']) ?? '',
     );
   }
@@ -280,7 +244,6 @@ class TaxCalculationResult {
   final String? note;
 
   double get monthlyIncome => annualIncome / 12;
-  double get yearlyIncome => annualIncome;
   double get yearlyTax => estimatedAnnualTax;
   double get monthlyAfterTax => monthlyTakeHome;
   double get yearlyAfterTax => annualIncome - estimatedAnnualTax;
@@ -290,28 +253,15 @@ class TaxCalculationResult {
     return TaxCalculationResult(
       annualIncome: _double(json['annual_income'] ?? json['yearly_income']),
       taxableIncome: _double(json['taxable_income']),
-      estimatedAnnualTax: _double(
-        json['estimated_annual_tax'] ?? json['yearly_tax'] ?? json['annual_tax'],
-      ),
+      estimatedAnnualTax: _double(json['estimated_annual_tax'] ?? json['yearly_tax'] ?? json['annual_tax']),
       monthlyTax: _double(json['monthly_tax']),
-      monthlyTakeHome: _double(
-        json['monthly_take_home'] ?? json['monthly_after_tax'],
-      ),
+      monthlyTakeHome: _double(json['monthly_take_home'] ?? json['monthly_after_tax']),
       effectiveTaxRate: _double(json['effective_tax_rate']),
       breakdown: _map(json['breakdown']),
-      comparison: json['comparison'] is Map
-          ? TaxComparison.fromJson(_map(json['comparison']))
-          : null,
-      taxHealth: json['tax_health'] is Map
-          ? TaxHealth.fromJson(_map(json['tax_health']))
-          : null,
-      insights: _list(json['insights'])
-          .map((item) => TaxInsight.fromJson(_map(item)))
-          .toList(growable: false),
-      recommendedNextSteps: _list(json['recommended_next_steps'])
-          .map((item) => item.toString())
-          .where((item) => item.trim().isNotEmpty)
-          .toList(growable: false),
+      comparison: json['comparison'] is Map ? TaxComparison.fromJson(_map(json['comparison'])) : null,
+      taxHealth: json['tax_health'] is Map ? TaxHealth.fromJson(_map(json['tax_health'])) : null,
+      insights: _list(json['insights']).map((item) => TaxInsight.fromJson(_map(item))).toList(growable: false),
+      recommendedNextSteps: _strings(json['recommended_next_steps']),
       source: json['source'] is Map ? TaxSource.fromJson(_map(json['source'])) : null,
       cta: json['cta'] is Map ? TaxCta.fromJson(_map(json['cta'])) : const TaxCta(),
       calculationLog: _string(json['calculation_log']),
@@ -321,11 +271,7 @@ class TaxCalculationResult {
 }
 
 class TaxComparison {
-  const TaxComparison({
-    required this.activeFilerTax,
-    required this.nonFilerTax,
-    required this.possibleDifference,
-  });
+  const TaxComparison({required this.activeFilerTax, required this.nonFilerTax, required this.possibleDifference});
 
   final double activeFilerTax;
   final double nonFilerTax;
@@ -347,10 +293,7 @@ class TaxHealth {
   final String reason;
 
   factory TaxHealth.fromJson(Map<String, dynamic> json) {
-    return TaxHealth(
-      score: _string(json['score']) ?? 'Medium',
-      reason: _string(json['reason']) ?? '',
-    );
+    return TaxHealth(score: _string(json['score']) ?? 'Medium', reason: _string(json['reason']) ?? '');
   }
 }
 
@@ -387,12 +330,7 @@ class TaxInsight {
 }
 
 class TaxSource {
-  const TaxSource({
-    required this.taxYear,
-    required this.verified,
-    this.lastVerifiedOn = '',
-    this.publicNote = '',
-  });
+  const TaxSource({required this.taxYear, required this.verified, this.lastVerifiedOn = '', this.publicNote = ''});
 
   final String taxYear;
   final bool verified;
@@ -439,38 +377,126 @@ class StartTaxServiceResult {
   }
 }
 
+class TaxEstimatePdfResult {
+  const TaxEstimatePdfResult({required this.fileName, required this.fileUrl, required this.message});
+
+  final String fileName;
+  final String fileUrl;
+  final String message;
+
+  factory TaxEstimatePdfResult.fromJson(Map<String, dynamic> json) {
+    return TaxEstimatePdfResult(
+      fileName: _string(json['file_name']) ?? '',
+      fileUrl: _string(json['file_url']) ?? '',
+      message: _string(json['message']) ?? 'Tax estimate PDF generated successfully.',
+    );
+  }
+}
+
+class TaxShareResult {
+  const TaxShareResult({required this.message, required this.calculationLog, required this.linkedServiceRequest});
+
+  final String message;
+  final String calculationLog;
+  final String linkedServiceRequest;
+
+  factory TaxShareResult.fromJson(Map<String, dynamic> json) {
+    return TaxShareResult(
+      message: _string(json['message']) ?? 'Tax estimate shared with OMC consultant.',
+      calculationLog: _string(json['calculation_log']) ?? '',
+      linkedServiceRequest: _string(json['linked_service_request']) ?? '',
+    );
+  }
+}
+
+class TaxCalculationHistoryItem {
+  const TaxCalculationHistoryItem({
+    required this.name,
+    required this.createdOn,
+    required this.taxYear,
+    required this.incomeType,
+    required this.filerStatus,
+    required this.annualIncome,
+    required this.estimatedAnnualTax,
+    required this.monthlyTax,
+    required this.effectiveTaxRate,
+    this.linkedServiceRequest = '',
+  });
+
+  final String name;
+  final String createdOn;
+  final String taxYear;
+  final String incomeType;
+  final String filerStatus;
+  final double annualIncome;
+  final double estimatedAnnualTax;
+  final double monthlyTax;
+  final double effectiveTaxRate;
+  final String linkedServiceRequest;
+
+  factory TaxCalculationHistoryItem.fromJson(Map<String, dynamic> json) {
+    return TaxCalculationHistoryItem(
+      name: _string(json['name']) ?? '',
+      createdOn: _string(json['created_on']) ?? '',
+      taxYear: _string(json['tax_year']) ?? '',
+      incomeType: _string(json['income_type']) ?? '',
+      filerStatus: _string(json['filer_status']) ?? '',
+      annualIncome: _double(json['annual_income']),
+      estimatedAnnualTax: _double(json['estimated_annual_tax']),
+      monthlyTax: _double(json['monthly_tax']),
+      effectiveTaxRate: _double(json['effective_tax_rate']),
+      linkedServiceRequest: _string(json['linked_service_request']) ?? '',
+    );
+  }
+}
+
 class TaxCalculationRepository {
   const TaxCalculationRepository({required this.frappeClient});
 
   final FrappeClient frappeClient;
 
   Future<TaxCalculatorConfig> getConfig() async {
-    final response = await frappeClient.getMethod(
-      ApiConfig.taxCalculatorConfigMethod,
-    );
+    final response = await frappeClient.getMethod(ApiConfig.taxCalculatorConfigMethod);
     return TaxCalculatorConfig.fromJson(_unwrap(response));
   }
 
   Future<TaxCalculationResult> calculate(TaxCalculationInput input) async {
-    final response = await frappeClient.postMethod(
-      ApiConfig.taxCalculatorMethod,
-      data: input.toJson(),
-    );
+    final response = await frappeClient.postMethod(ApiConfig.taxCalculatorMethod, data: input.toJson());
     return TaxCalculationResult.fromJson(_unwrap(response));
   }
 
-  Future<StartTaxServiceResult> startServiceFromCalculation({
-    required String calculationLog,
-    required String service,
-  }) async {
+  Future<StartTaxServiceResult> startServiceFromCalculation({required String calculationLog, required String service}) async {
     final response = await frappeClient.postMethod(
       ApiConfig.startTaxServiceFromCalculationMethod,
-      data: {
-        'calculation_log': calculationLog,
-        'service': service,
-      },
+      data: {'calculation_log': calculationLog, 'service': service},
     );
     return StartTaxServiceResult.fromJson(_unwrap(response));
+  }
+
+  Future<List<TaxCalculationHistoryItem>> getHistory({int limit = 20}) async {
+    final response = await frappeClient.getMethod(
+      ApiConfig.taxCalculationHistoryMethod,
+      queryParameters: {'limit': limit},
+    );
+    return _list(_unwrap(response)['items'])
+        .map((item) => TaxCalculationHistoryItem.fromJson(_map(item)))
+        .toList(growable: false);
+  }
+
+  Future<TaxEstimatePdfResult> downloadEstimatePdf(String calculationLog) async {
+    final response = await frappeClient.postMethod(
+      ApiConfig.downloadTaxEstimatePdfMethod,
+      data: {'calculation_log': calculationLog},
+    );
+    return TaxEstimatePdfResult.fromJson(_unwrap(response));
+  }
+
+  Future<TaxShareResult> shareEstimateWithConsultant(String calculationLog) async {
+    final response = await frappeClient.postMethod(
+      ApiConfig.shareTaxEstimateWithConsultantMethod,
+      data: {'calculation_log': calculationLog},
+    );
+    return TaxShareResult.fromJson(_unwrap(response));
   }
 }
 
@@ -486,15 +512,17 @@ Map<String, dynamic> _unwrap(Map<String, dynamic> response) {
 
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) return value;
-  if (value is Map) {
-    return value.map((key, item) => MapEntry(key.toString(), item));
-  }
+  if (value is Map) return value.map((key, item) => MapEntry(key.toString(), item));
   return <String, dynamic>{};
 }
 
-List<dynamic> _list(Object? value) {
-  if (value is List) return value;
-  return const [];
+List<dynamic> _list(Object? value) => value is List ? value : const [];
+
+List<String> _strings(Object? value) {
+  return _list(value)
+      .map((item) => item.toString().trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
 }
 
 String? _string(Object? value) {
