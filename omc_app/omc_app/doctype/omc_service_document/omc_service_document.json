@@ -1,8 +1,7 @@
 {
  "actions": [],
- "allow_rename": 0,
  "autoname": "naming_series:",
- "creation": "2026-07-06 00:00:00.000000",
+ "creation": "2026-07-06 00:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -36,32 +35,40 @@
    "reqd": 1
   },
   {
+   "bold": 1,
    "fieldname": "document_title",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Document Title",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "document_type",
    "fieldtype": "Data",
+   "in_filter": 1,
    "in_list_view": 1,
-   "label": "Document Type"
+   "in_standard_filter": 1,
+   "label": "Document Type",
+   "search_index": 1
   },
   {
    "fieldname": "attachment",
    "fieldtype": "Attach",
-   "in_list_view": 1,
    "label": "Attachment"
   },
   {
+   "bold": 1,
    "default": "Uploaded",
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_filter": 1,
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
    "options": "Pending\nUploaded\nApproved\nRejected",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "uploaded_by",
@@ -81,7 +88,10 @@
    "default": "1",
    "fieldname": "visible_to_customer",
    "fieldtype": "Check",
-   "label": "Visible To Customer"
+   "in_filter": 1,
+   "in_standard_filter": 1,
+   "label": "Visible To Customer",
+   "search_index": 1
   },
   {
    "fieldname": "remarks",
@@ -91,7 +101,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-06 00:00:00.000000",
+ "modified": "2026-07-09 02:48:10.682457",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Service Document",
@@ -111,7 +121,8 @@
    "write": 1
   }
  ],
- "quick_entry": 0,
+ "row_format": "Dynamic",
+ "search_fields": "document_title,document_type,service_request,status",
  "sort_field": "uploaded_on",
  "sort_order": "DESC",
  "states": [],

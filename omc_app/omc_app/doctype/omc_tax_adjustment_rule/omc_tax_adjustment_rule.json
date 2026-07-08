@@ -2,32 +2,138 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "format:OMC-TAX-ADJ-{#####}",
- "creation": "2026-07-09 00:00:00.000000",
+ "creation": "2026-07-09 00:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["rule_section", "tax_year", "income_type", "adjustment_key", "label", "adjustment_type", "calculation_type", "max_amount", "rate_percent", "is_active"],
+ "field_order": [
+  "rule_section",
+  "tax_year",
+  "income_type",
+  "adjustment_key",
+  "label",
+  "adjustment_type",
+  "calculation_type",
+  "max_amount",
+  "rate_percent",
+  "is_active"
+ ],
  "fields": [
-  {"fieldname": "rule_section", "fieldtype": "Section Break", "label": "Rule"},
-  {"fieldname": "tax_year", "fieldtype": "Link", "label": "Tax Year", "options": "OMC Tax Year", "reqd": 1},
-  {"default": "All", "fieldname": "income_type", "fieldtype": "Select", "label": "Income Type", "options": "Salary\nBusiness\nRental\nAll", "reqd": 1},
-  {"fieldname": "adjustment_key", "fieldtype": "Data", "label": "Adjustment Key", "reqd": 1},
-  {"fieldname": "label", "fieldtype": "Data", "label": "Label", "reqd": 1},
-  {"default": "Add", "fieldname": "adjustment_type", "fieldtype": "Select", "label": "Adjustment Type", "options": "Add\nDeduct\nCredit", "reqd": 1},
-  {"default": "User Input", "fieldname": "calculation_type", "fieldtype": "Select", "label": "Calculation Type", "options": "User Input\nFixed\nPercentage", "reqd": 1},
-  {"default": "0", "fieldname": "max_amount", "fieldtype": "Currency", "label": "Max Amount"},
-  {"default": "0", "fieldname": "rate_percent", "fieldtype": "Percent", "label": "Rate Percent"},
-  {"default": "1", "fieldname": "is_active", "fieldtype": "Check", "label": "Is Active"}
+  {
+   "fieldname": "rule_section",
+   "fieldtype": "Section Break",
+   "label": "Rule"
+  },
+  {
+   "fieldname": "tax_year",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tax Year",
+   "options": "OMC Tax Year",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "All",
+   "fieldname": "income_type",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Income Type",
+   "options": "Salary\nBusiness\nRental\nAll",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "adjustment_key",
+   "fieldtype": "Data",
+   "label": "Adjustment Key",
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "bold": 1,
+   "default": "Add",
+   "fieldname": "adjustment_type",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Adjustment Type",
+   "options": "Add\nDeduct\nCredit",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "User Input",
+   "fieldname": "calculation_type",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Calculation Type",
+   "options": "User Input\nFixed\nPercentage",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "max_amount",
+   "fieldtype": "Currency",
+   "label": "Max Amount"
+  },
+  {
+   "default": "0",
+   "fieldname": "rate_percent",
+   "fieldtype": "Percent",
+   "label": "Rate Percent"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Active",
+   "search_index": 1
+  }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-09 00:00:00.000000",
+ "modified": "2026-07-09 02:48:11.489111",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Tax Adjustment Rule",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
- "permissions": [{"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}],
- "quick_entry": 0,
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "label,adjustment_key,tax_year,income_type,adjustment_type",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

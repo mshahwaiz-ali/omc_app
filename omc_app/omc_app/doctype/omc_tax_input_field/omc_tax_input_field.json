@@ -2,36 +2,155 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "field:field_key",
- "creation": "2026-07-09 00:00:00.000000",
+ "creation": "2026-07-09 00:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["field_section", "tax_year", "field_key", "label", "input_type", "income_type", "mode", "is_required", "is_active", "default_value", "options_json", "help_text", "sort_order"],
+ "field_order": [
+  "field_section",
+  "tax_year",
+  "field_key",
+  "label",
+  "input_type",
+  "income_type",
+  "mode",
+  "is_required",
+  "is_active",
+  "default_value",
+  "options_json",
+  "help_text",
+  "sort_order"
+ ],
  "fields": [
-  {"fieldname": "field_section", "fieldtype": "Section Break", "label": "Field"},
-  {"fieldname": "tax_year", "fieldtype": "Link", "label": "Tax Year", "options": "OMC Tax Year"},
-  {"fieldname": "field_key", "fieldtype": "Data", "label": "Field Key", "reqd": 1, "unique": 1},
-  {"fieldname": "label", "fieldtype": "Data", "label": "Label", "reqd": 1},
-  {"default": "Number", "fieldname": "input_type", "fieldtype": "Select", "label": "Input Type", "options": "Number\nSelect\nToggle\nText", "reqd": 1},
-  {"default": "All", "fieldname": "income_type", "fieldtype": "Select", "label": "Income Type", "options": "Salary\nBusiness\nRental\nAll", "reqd": 1},
-  {"default": "Advanced", "fieldname": "mode", "fieldtype": "Select", "label": "Mode", "options": "Simple\nAdvanced", "reqd": 1},
-  {"default": "0", "fieldname": "is_required", "fieldtype": "Check", "label": "Is Required"},
-  {"default": "1", "fieldname": "is_active", "fieldtype": "Check", "label": "Is Active"},
-  {"fieldname": "default_value", "fieldtype": "Data", "label": "Default Value"},
-  {"description": "JSON array for select options.", "fieldname": "options_json", "fieldtype": "Code", "label": "Options JSON", "options": "JSON"},
-  {"fieldname": "help_text", "fieldtype": "Small Text", "label": "Help Text"},
-  {"default": "0", "fieldname": "sort_order", "fieldtype": "Int", "label": "Sort Order"}
+  {
+   "fieldname": "field_section",
+   "fieldtype": "Section Break",
+   "label": "Field"
+  },
+  {
+   "fieldname": "tax_year",
+   "fieldtype": "Link",
+   "label": "Tax Year",
+   "options": "OMC Tax Year"
+  },
+  {
+   "fieldname": "field_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Field Key",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Number",
+   "fieldname": "input_type",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Input Type",
+   "options": "Number\nSelect\nToggle\nText",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "All",
+   "fieldname": "income_type",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Income Type",
+   "options": "Salary\nBusiness\nRental\nAll",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Advanced",
+   "fieldname": "mode",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Mode",
+   "options": "Simple\nAdvanced",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_required",
+   "fieldtype": "Check",
+   "label": "Is Required"
+  },
+  {
+   "bold": 1,
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Active",
+   "search_index": 1
+  },
+  {
+   "fieldname": "default_value",
+   "fieldtype": "Data",
+   "label": "Default Value"
+  },
+  {
+   "description": "JSON array for select options.",
+   "fieldname": "options_json",
+   "fieldtype": "Code",
+   "label": "Options JSON",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "help_text",
+   "fieldtype": "Small Text",
+   "label": "Help Text"
+  },
+  {
+   "default": "0",
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "label": "Sort Order"
+  }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-09 00:00:00.000000",
+ "modified": "2026-07-09 02:48:11.366508",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Tax Input Field",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
- "permissions": [{"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}],
- "quick_entry": 0,
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "label,field_key,income_type,mode,input_type",
  "sort_field": "sort_order",
  "sort_order": "ASC",
  "states": [],

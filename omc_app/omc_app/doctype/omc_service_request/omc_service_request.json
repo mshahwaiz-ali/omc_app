@@ -2,7 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "naming_series:",
- "creation": "2026-07-06 00:00:00.000000",
+ "creation": "2026-07-06 00:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -45,8 +45,12 @@
   {
    "fieldname": "service",
    "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Service",
-   "options": "OMC Service"
+   "options": "OMC Service",
+   "search_index": 1
   },
   {
    "fieldname": "service_title",
@@ -55,10 +59,13 @@
    "read_only": 1
   },
   {
+   "bold": 1,
    "fieldname": "title",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Title",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "description",
@@ -66,18 +73,27 @@
    "label": "Description"
   },
   {
+   "bold": 1,
    "default": "Open",
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
-   "options": "Open\nIn Progress\nWaiting for Customer\nCompleted\nCancelled"
+   "options": "Open\nIn Progress\nWaiting for Customer\nCompleted\nCancelled",
+   "search_index": 1
   },
   {
    "default": "Medium",
    "fieldname": "priority",
    "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Priority",
-   "options": "Low\nMedium\nHigh\nUrgent"
+   "options": "Low\nMedium\nHigh\nUrgent",
+   "search_index": 1
   },
   {
    "fieldname": "customer_section",
@@ -93,6 +109,7 @@
   {
    "fieldname": "customer_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Customer Name",
    "read_only": 1
   },
@@ -137,8 +154,12 @@
   {
    "fieldname": "assigned_to",
    "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Assigned To",
-   "options": "User"
+   "options": "User",
+   "search_index": 1
   },
   {
    "fieldname": "internal_notes",
@@ -148,10 +169,11 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-06 00:00:00.000000",
+ "modified": "2026-07-09 02:48:10.265347",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Service Request",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
@@ -167,11 +189,11 @@
    "write": 1
   }
  ],
- "quick_entry": 0,
+ "row_format": "Dynamic",
+ "search_fields": "title,customer_name,service,status,priority",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
  "title_field": "title",
- "track_changes": 1,
- "naming_rule": "By \"Naming Series\" field"
+ "track_changes": 1
 }

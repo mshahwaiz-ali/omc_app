@@ -1,8 +1,7 @@
 {
  "actions": [],
- "allow_rename": 0,
  "autoname": "naming_series:",
- "creation": "2026-07-06 00:00:00.000000",
+ "creation": "2026-07-06 00:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -38,11 +37,13 @@
    "reqd": 1
   },
   {
+   "bold": 1,
    "fieldname": "payment_title",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Payment Title",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "default": "0",
@@ -60,19 +61,26 @@
    "label": "Currency"
   },
   {
+   "bold": 1,
    "default": "Pending",
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_filter": 1,
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
    "options": "Pending\nReceipt Submitted\nUnder Review\nPaid\nRejected\nCancelled",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "due_date",
    "fieldtype": "Date",
+   "in_filter": 1,
    "in_list_view": 1,
-   "label": "Due Date"
+   "in_standard_filter": 1,
+   "label": "Due Date",
+   "search_index": 1
   },
   {
    "fieldname": "paid_on",
@@ -94,7 +102,10 @@
    "default": "1",
    "fieldname": "visible_to_customer",
    "fieldtype": "Check",
-   "label": "Visible To Customer"
+   "in_filter": 1,
+   "in_standard_filter": 1,
+   "label": "Visible To Customer",
+   "search_index": 1
   },
   {
    "fieldname": "remarks",
@@ -104,7 +115,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-06 00:00:00.000000",
+ "modified": "2026-07-09 02:48:10.799390",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Service Payment",
@@ -124,7 +135,8 @@
    "write": 1
   }
  ],
- "quick_entry": 0,
+ "row_format": "Dynamic",
+ "search_fields": "payment_title,service_request,status,payment_reference",
  "sort_field": "due_date",
  "sort_order": "DESC",
  "states": [],
