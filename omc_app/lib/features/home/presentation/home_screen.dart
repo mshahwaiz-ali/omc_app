@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -11,6 +12,7 @@ import '../../auth/application/auth_state.dart';
 import '../../content/data/app_content_repository.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
+import '../data/mobile_quick_actions_repository.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({
@@ -26,63 +28,26 @@ class HomeScreen extends ConsumerWidget {
   final VoidCallback? onOpenSupport;
   final VoidCallback? onOpenNotifications;
 
-  static const List<_HomeAction> _quickActions = [
-    _HomeAction(
-      title: 'Tax Return',
-      subtitle: 'File now',
-      icon: Icons.receipt_long_rounded,
-      target: _HomeActionTarget.services,
-    ),
-    _HomeAction(
-      title: 'NTN',
-      subtitle: 'Registration',
-      icon: Icons.badge_rounded,
-      target: _HomeActionTarget.services,
-    ),
-    _HomeAction(
-      title: 'GST',
-      subtitle: 'Registration',
-      icon: Icons.storefront_rounded,
-      target: _HomeActionTarget.services,
-    ),
-    _HomeAction(
-      title: 'Documents',
-      subtitle: 'Upload',
-      icon: Icons.upload_file_rounded,
-      target: _HomeActionTarget.documents,
-    ),
-    _HomeAction(
-      title: 'Track',
-      subtitle: 'Request',
-      icon: Icons.timeline_rounded,
-      target: _HomeActionTarget.myServices,
-    ),
-    _HomeAction(
-      title: 'Calculator',
-      subtitle: 'Tax',
-      icon: Icons.calculate_rounded,
-      target: _HomeActionTarget.calculator,
-    ),
-  ];
-
   static const List<_WorkspaceAction> _workspaceActions = [
     _WorkspaceAction(
       title: 'My Services',
       subtitle: 'Track active cases and request status',
       icon: Icons.assignment_outlined,
-      target: _HomeActionTarget.myServices,
+      route: '/my-services',
+      capability: 'can_track_requests',
     ),
     _WorkspaceAction(
       title: 'Payments',
       subtitle: 'Review invoices and pending dues',
       icon: Icons.account_balance_wallet_outlined,
-      target: _HomeActionTarget.payments,
+      route: '/payments',
+      capability: 'can_view_payments',
     ),
     _WorkspaceAction(
       title: 'Knowledge',
       subtitle: 'Guides, updates and tax information',
       icon: Icons.menu_book_outlined,
-      target: _HomeActionTarget.knowledge,
+      route: '/knowledge',
     ),
   ];
 
@@ -92,6 +57,7 @@ class HomeScreen extends ConsumerWidget {
     final capabilities = authState.capabilities;
     final profileSummary = ref.watch(profileSummaryProvider);
     final appBanners = ref.watch(appBannersProvider);
+    final quickActionsAsync = ref.watch(mobileQuickActionsProvider);
     final canLoadDashboard =
         capabilities.canViewCustomerDashboard ||
         capabilities.canAccessInternalWorkspace;
@@ -102,6 +68,12 @@ class HomeScreen extends ConsumerWidget {
               fallbackMessage: _lockedAccessMessage(capabilities),
             ),
           );
+    final summary = dashboardSummary.maybeWhen(
+      data: (summary) => summary,
+      orElse: () => const HomeDashboardSummary.empty(
+        fallbackMessage: 'Dashboard summary is loading right now.',
+      ),
+    );
     final displayName =
         profileSummary.maybeWhen(
           data: (profile) => profile?.displayName,
@@ -109,11 +81,13 @@ class HomeScreen extends ConsumerWidget {
         ) ??
         authState.displayName ??
         _displayNameFromUserId(authState.userId);
-    final summary = dashboardSummary.maybeWhen(
-      data: (summary) => summary,
-      orElse: () => const HomeDashboardSummary.empty(
-        fallbackMessage: 'Dashboard summary is loading right now.',
-      ),
+    final quickActions = quickActionsAsync.maybeWhen(
+      data: (actions) {
+        final sorted = [...actions]
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        return sorted.isEmpty ? fallbackMobileQuickActions : sorted;
+      },
+      orElse: () => fallbackMobileQuickActions,
     );
 
     return Scaffold(
@@ -128,8 +102,10 @@ class HomeScreen extends ConsumerWidget {
                   displayName: displayName,
                   unreadNotifications: summary.unreadNotifications,
                   onOpenNotifications: () {
-                    if (capabilities.canViewCustomerNotifications ||
-                        capabilities.canAccessInternalWorkspace) {
+                    if (_capabilityAllowed(
+                      'can_view_customer_notifications',
+                      capabilities,
+                    )) {
                       onOpenNotifications?.call();
                       return;
                     }
@@ -175,9 +151,7 @@ class HomeScreen extends ConsumerWidget {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 sliver: SliverToBoxAdapter(
-                  child: _DashboardFallbackNote(
-                    message: summary.fallbackMessage!,
-                  ),
+                  child: _DashboardFallbackNote(message: summary.fallbackMessage!),
                 ),
               ),
             SliverPadding(
@@ -194,9 +168,13 @@ class HomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
               sliver: SliverToBoxAdapter(
                 child: _QuickActionLauncher(
-                  actions: _quickActions,
-                  onTap: (target) =>
-                      _handleAction(context, target, capabilities),
+                  actions: quickActions,
+                  summary: summary,
+                  onTap: (action) => _handleQuickAction(
+                    context,
+                    action,
+                    capabilities,
+                  ),
                 ),
               ),
             ),
@@ -209,11 +187,12 @@ class HomeScreen extends ConsumerWidget {
                       : 'Start with OMC',
                   actionText: summary.activeCases > 0 ? 'Track' : null,
                   onAction: summary.activeCases > 0
-                      ? () => _handleAction(
-                          context,
-                          _HomeActionTarget.myServices,
-                          capabilities,
-                        )
+                      ? () => _goWithCapability(
+                            context,
+                            '/my-services',
+                            capabilities,
+                            'can_track_requests',
+                          )
                       : null,
                 ),
               ),
@@ -224,10 +203,11 @@ class HomeScreen extends ConsumerWidget {
                 child: _ProgressCard(
                   summary: summary,
                   onStartRequest: onOpenServices,
-                  onTrack: () => _handleAction(
+                  onTrack: () => _goWithCapability(
                     context,
-                    _HomeActionTarget.myServices,
+                    '/my-services',
                     capabilities,
+                    'can_track_requests',
                   ),
                 ),
               ),
@@ -239,32 +219,36 @@ class HomeScreen extends ConsumerWidget {
                   child: _AttentionCard(
                     pendingDocuments: summary.pendingDocuments,
                     paymentsDue: summary.paymentsDue,
-                    onOpenDocuments: () => _handleAction(
+                    onOpenDocuments: () => _goWithCapability(
                       context,
-                      _HomeActionTarget.documents,
+                      '/documents',
                       capabilities,
+                      'can_view_documents',
                     ),
-                    onOpenPayments: () => _handleAction(
+                    onOpenPayments: () => _goWithCapability(
                       context,
-                      _HomeActionTarget.payments,
+                      '/payments',
                       capabilities,
+                      'can_view_payments',
                     ),
                   ),
                 ),
               ),
             const SliverPadding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
-              sliver: SliverToBoxAdapter(
-                child: _SectionHeader(title: 'Workspace'),
-              ),
+              sliver: SliverToBoxAdapter(child: _SectionHeader(title: 'Workspace')),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
               sliver: SliverToBoxAdapter(
                 child: _WorkspaceList(
                   actions: _workspaceActions,
-                  onTap: (target) =>
-                      _handleAction(context, target, capabilities),
+                  onTap: (action) => _goWithCapability(
+                    context,
+                    action.route,
+                    capabilities,
+                    action.capability,
+                  ),
                 ),
               ),
             ),
@@ -274,10 +258,11 @@ class HomeScreen extends ConsumerWidget {
                 child: _SectionHeader(
                   title: 'Recent Activity',
                   actionText: 'Track',
-                  onAction: () => _handleAction(
+                  onAction: () => _goWithCapability(
                     context,
-                    _HomeActionTarget.myServices,
+                    '/my-services',
                     capabilities,
+                    'can_track_requests',
                   ),
                 ),
               ),
@@ -287,10 +272,11 @@ class HomeScreen extends ConsumerWidget {
               sliver: SliverToBoxAdapter(
                 child: _RecentActivityCard(
                   activities: summary.recentActivity,
-                  onTrack: () => _handleAction(
+                  onTrack: () => _goWithCapability(
                     context,
-                    _HomeActionTarget.myServices,
+                    '/my-services',
                     capabilities,
+                    'can_track_requests',
                   ),
                 ),
               ),
@@ -326,6 +312,121 @@ class HomeScreen extends ConsumerWidget {
     ];
   }
 
+  void _handleQuickAction(
+    BuildContext context,
+    MobileQuickAction action,
+    AuthCapabilities capabilities,
+  ) {
+    if (!_capabilityAllowed(action.requiredCapability, capabilities)) {
+      _showLockedSnack(context, capabilities);
+      return;
+    }
+
+    switch (action.targetType) {
+      case MobileQuickActionTargetType.feature:
+        _handleFeatureTarget(context, action.targetValue, capabilities);
+        return;
+      case MobileQuickActionTargetType.route:
+        final route = action.targetValue.trim();
+        if (route.isEmpty) {
+          onOpenServices?.call();
+          return;
+        }
+        context.go(route.startsWith('/') ? route : '/$route');
+        return;
+      case MobileQuickActionTargetType.service:
+        final serviceId = action.targetValue.trim();
+        if (serviceId.isEmpty) {
+          onOpenServices?.call();
+          return;
+        }
+        context.go('/services/${Uri.encodeComponent(serviceId)}');
+        return;
+      case MobileQuickActionTargetType.externalUrl:
+        final uri = _safeExternalUri(action.targetValue);
+        if (uri != null) {
+          launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+        return;
+    }
+  }
+
+  void _handleFeatureTarget(
+    BuildContext context,
+    String target,
+    AuthCapabilities capabilities,
+  ) {
+    switch (target.trim().toLowerCase().replaceAll('_', '-')) {
+      case 'services':
+      case 'service':
+      case 'tax-return':
+      case 'ntn':
+      case 'gst':
+        onOpenServices?.call();
+        return;
+      case 'calculator':
+      case 'tax-calculator':
+        onOpenCalculator?.call();
+        return;
+      case 'support':
+        if (!_capabilityAllowed('can_create_support_ticket', capabilities)) {
+          _showLockedSnack(context, capabilities);
+          return;
+        }
+        onOpenSupport?.call();
+        return;
+      case 'documents':
+        _goWithCapability(context, '/documents', capabilities, 'can_view_documents');
+        return;
+      case 'payments':
+        _goWithCapability(context, '/payments', capabilities, 'can_view_payments');
+        return;
+      case 'track':
+      case 'my-services':
+        _goWithCapability(context, '/my-services', capabilities, 'can_track_requests');
+        return;
+      case 'knowledge':
+        context.go('/knowledge');
+        return;
+      default:
+        onOpenServices?.call();
+    }
+  }
+
+  void _goWithCapability(
+    BuildContext context,
+    String route,
+    AuthCapabilities capabilities,
+    String? capability,
+  ) {
+    if (!_capabilityAllowed(capability, capabilities)) {
+      _showLockedSnack(context, capabilities);
+      return;
+    }
+    context.go(route);
+  }
+
+  bool _capabilityAllowed(String? capability, AuthCapabilities capabilities) {
+    if (capability == null || capability.trim().isEmpty) return true;
+    return switch (capability.trim()) {
+      'can_create_service_request' => capabilities.canCreateServiceRequest,
+      'can_track_requests' =>
+        capabilities.canTrackRequests || capabilities.canAccessInternalWorkspace,
+      'can_view_documents' =>
+        capabilities.canViewDocuments || capabilities.canReviewDocuments,
+      'can_view_payments' =>
+        capabilities.canViewPayments || capabilities.canReviewPayments,
+      'can_create_support_ticket' => capabilities.canCreateSupportTicket,
+      'can_view_support_tickets' => capabilities.canViewSupportTickets,
+      'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
+      'can_view_customer_notifications' =>
+        capabilities.canViewCustomerNotifications ||
+        capabilities.canAccessInternalWorkspace,
+      'can_access_internal_workspace' => capabilities.canAccessInternalWorkspace,
+      _ => true,
+    };
+  }
+
   void _handleBannerTap(BuildContext context, AppBannerItem banner) {
     final target = banner.actionUrl?.trim();
     if (target == null || target.isEmpty) return;
@@ -352,65 +453,6 @@ class HomeScreen extends ConsumerWidget {
     if (uri == null || !uri.hasScheme || uri.host.trim().isEmpty) return null;
     if (uri.scheme != 'https' && uri.scheme != 'http') return null;
     return uri;
-  }
-
-  void _handleAction(
-    BuildContext context,
-    _HomeActionTarget target,
-    AuthCapabilities capabilities,
-  ) {
-    switch (target) {
-      case _HomeActionTarget.dashboard:
-        if (!capabilities.canViewCustomerDashboard &&
-            !capabilities.canAccessInternalWorkspace) {
-          _showLockedSnack(context, capabilities);
-          return;
-        }
-        context.go('/dashboard');
-        return;
-      case _HomeActionTarget.myServices:
-        if (!capabilities.canViewCustomerDashboard &&
-            !capabilities.canAccessInternalWorkspace) {
-          _showLockedSnack(context, capabilities);
-          return;
-        }
-        context.go('/my-services');
-        return;
-      case _HomeActionTarget.services:
-        onOpenServices?.call();
-        return;
-      case _HomeActionTarget.documents:
-        if (!capabilities.canViewDocuments &&
-            !capabilities.canReviewDocuments) {
-          _showLockedSnack(context, capabilities);
-          return;
-        }
-        context.go('/documents');
-        return;
-      case _HomeActionTarget.payments:
-        if (!capabilities.canViewPayments && !capabilities.canReviewPayments) {
-          _showLockedSnack(context, capabilities);
-          return;
-        }
-        context.go('/payments');
-        return;
-      case _HomeActionTarget.calculator:
-        onOpenCalculator?.call();
-        return;
-      case _HomeActionTarget.support:
-        onOpenSupport?.call();
-        return;
-      case _HomeActionTarget.knowledge:
-        context.go('/knowledge');
-        return;
-      case _HomeActionTarget.expenseTracker:
-        if (!capabilities.isApproved && !capabilities.isInternal) {
-          _showLockedSnack(context, capabilities);
-          return;
-        }
-        context.go('/expense-tracker');
-        return;
-    }
   }
 
   void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
@@ -495,26 +537,13 @@ class _HomeHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Welcome back',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              const Text('Welcome back', style: _TextStyles.eyebrow),
               const SizedBox(height: 3),
               Text(
                 displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  height: 1.05,
-                  letterSpacing: -0.4,
-                ),
+                style: _TextStyles.pageTitle,
               ),
             ],
           ),
@@ -610,11 +639,7 @@ class _HeroCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryRed,
-                Color(0xFFA3162A),
-                AppTheme.darkRed,
-              ],
+              colors: [AppTheme.primaryRed, Color(0xFFA3162A), AppTheme.darkRed],
             ),
           ),
           child: Column(
@@ -678,10 +703,7 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _BackendBannersSection extends StatelessWidget {
-  const _BackendBannersSection({
-    required this.bannersAsync,
-    required this.onTap,
-  });
+  const _BackendBannersSection({required this.bannersAsync, required this.onTap});
 
   final AsyncValue<List<AppBannerItem>> bannersAsync;
   final ValueChanged<AppBannerItem> onTap;
@@ -690,8 +712,7 @@ class _BackendBannersSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return bannersAsync.maybeWhen(
       data: (banners) {
-        final visible = [...banners]
-          ..sort((a, b) => b.priority.compareTo(a.priority));
+        final visible = [...banners]..sort((a, b) => b.priority.compareTo(a.priority));
         if (visible.isEmpty) return const SizedBox.shrink();
         return SizedBox(
           height: 132,
@@ -700,12 +721,10 @@ class _BackendBannersSection extends StatelessWidget {
             physics: const BouncingScrollPhysics(),
             itemCount: visible.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              return _BackendBannerCard(
-                banner: visible[index],
-                onTap: () => onTap(visible[index]),
-              );
-            },
+            itemBuilder: (context, index) => _BackendBannerCard(
+              banner: visible[index],
+              onTap: () => onTap(visible[index]),
+            ),
           ),
         );
       },
@@ -759,11 +778,7 @@ class _BackendBannerCard extends StatelessWidget {
                       banner.actionLabel!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.primaryRed,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                      ),
+                      style: _TextStyles.linkLabel,
                     ),
                   ],
                 ],
@@ -823,11 +838,7 @@ class _HeroBadge extends StatelessWidget {
           SizedBox(width: 7),
           Text(
             'OMC Premium Workspace',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
+            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
           ),
         ],
       ),
@@ -859,11 +870,7 @@ class _HeroMiniStat extends StatelessWidget {
               '$activeCases active',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
             ),
           ),
         ],
@@ -903,18 +910,7 @@ class _StatusChip extends StatelessWidget {
     return Container(
       width: 146,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(23),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.045)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.032),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      decoration: _softCardDecoration(radius: 23),
       child: Row(
         children: [
           _IconBox(icon: item.icon, size: 38, iconSize: 19),
@@ -972,27 +968,13 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
-              height: 1.05,
-              letterSpacing: -0.45,
-            ),
-          ),
-        ),
+        Expanded(child: Text(title, style: _TextStyles.sectionTitle)),
         if (actionText != null)
           TextButton(
             onPressed: onAction,
             style: TextButton.styleFrom(
               foregroundColor: AppTheme.primaryRed,
-              textStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-              ),
+              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
             ),
             child: Text(actionText!),
           ),
@@ -1002,10 +984,15 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _QuickActionLauncher extends StatelessWidget {
-  const _QuickActionLauncher({required this.actions, required this.onTap});
+  const _QuickActionLauncher({
+    required this.actions,
+    required this.summary,
+    required this.onTap,
+  });
 
-  final List<_HomeAction> actions;
-  final ValueChanged<_HomeActionTarget> onTap;
+  final List<MobileQuickAction> actions;
+  final HomeDashboardSummary summary;
+  final ValueChanged<MobileQuickAction> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1025,24 +1012,43 @@ class _QuickActionLauncher extends StatelessWidget {
           final action = actions[index];
           return _LogoActionTile(
             action: action,
-            onTap: () => onTap(action.target),
+            badgeCount: _badgeCount(action.badgeType, summary),
+            onTap: () => onTap(action),
           );
         },
       ),
     );
   }
+
+  int _badgeCount(String badgeType, HomeDashboardSummary summary) {
+    return switch (badgeType.trim().toLowerCase().replaceAll('_', '-')) {
+      'documents' => summary.pendingDocuments,
+      'payments' => summary.paymentsDue,
+      'notifications' => summary.unreadNotifications,
+      _ => 0,
+    };
+  }
 }
 
 class _LogoActionTile extends StatelessWidget {
-  const _LogoActionTile({required this.action, required this.onTap});
+  const _LogoActionTile({
+    required this.action,
+    required this.onTap,
+    required this.badgeCount,
+  });
 
-  final _HomeAction action;
+  final MobileQuickAction action;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
+    final isUrgent = action.style == MobileQuickActionStyle.urgent;
+    final isHighlighted = action.style == MobileQuickActionStyle.highlighted || isUrgent;
     return Material(
-      color: AppTheme.primaryRed.withValues(alpha: 0.04),
+      color: isHighlighted
+          ? AppTheme.primaryRed.withValues(alpha: isUrgent ? 0.12 : 0.08)
+          : AppTheme.primaryRed.withValues(alpha: 0.04),
       borderRadius: BorderRadius.circular(23),
       child: InkWell(
         onTap: onTap,
@@ -1052,19 +1058,25 @@ class _LogoActionTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _IconBox(icon: action.icon, size: 48, iconSize: 24, solid: true),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  _SvgIconBox(asset: action.iconAsset, solid: isHighlighted),
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: _CountBadge(count: badgeCount),
+                    ),
+                ],
+              ),
               const SizedBox(height: 10),
               Text(
                 action.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.2,
-                ),
+                style: _TextStyles.actionTitle,
               ),
               const SizedBox(height: 2),
               Text(
@@ -1072,14 +1084,75 @@ class _LogoActionTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: _TextStyles.actionSubtitle,
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SvgIconBox extends StatelessWidget {
+  const _SvgIconBox({required this.asset, this.solid = false});
+
+  final String asset;
+  final bool solid;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: solid ? AppTheme.primaryRed : Colors.white,
+        borderRadius: BorderRadius.circular(19),
+        boxShadow: solid
+            ? null
+            : [
+                BoxShadow(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.06),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+      ),
+      child: SvgPicture.asset(
+        asset,
+        colorFilter: ColorFilter.mode(
+          solid ? Colors.white : AppTheme.primaryRed,
+          BlendMode.srcIn,
+        ),
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        count > 99 ? '99+' : count.toString(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w900,
+          height: 1,
         ),
       ),
     );
@@ -1102,20 +1175,13 @@ class _AttentionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasDocuments = pendingDocuments > 0;
-    final title = hasDocuments ? 'Documents needed' : 'Payment pending';
-    final subtitle = hasDocuments
-        ? '$pendingDocuments document(s) required for your active request.'
-        : '$paymentsDue payment item(s) need your review.';
-    final icon = hasDocuments
-        ? Icons.folder_copy_rounded
-        : Icons.account_balance_wallet_rounded;
-    final onTap = hasDocuments ? onOpenDocuments : onOpenPayments;
-
     return _SimpleActionCard(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      onTap: onTap,
+      title: hasDocuments ? 'Documents needed' : 'Payment pending',
+      subtitle: hasDocuments
+          ? '$pendingDocuments document(s) required for your active request.'
+          : '$paymentsDue payment item(s) need your review.',
+      icon: hasDocuments ? Icons.folder_copy_rounded : Icons.account_balance_wallet_rounded,
+      onTap: hasDocuments ? onOpenDocuments : onOpenPayments,
     );
   }
 }
@@ -1135,15 +1201,11 @@ class _ProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasActiveCase = summary.activeCases > 0;
     return _SimpleActionCard(
-      title: hasActiveCase
-          ? 'Service work is in progress'
-          : 'No active service yet',
+      title: hasActiveCase ? 'Service work is in progress' : 'No active service yet',
       subtitle: hasActiveCase
           ? '${summary.activeCases} active case(s) currently being tracked.'
           : 'Start a request and your service progress will appear here.',
-      icon: hasActiveCase
-          ? Icons.track_changes_rounded
-          : Icons.add_task_rounded,
+      icon: hasActiveCase ? Icons.track_changes_rounded : Icons.add_task_rounded,
       onTap: hasActiveCase ? onTrack : onStartRequest,
       progressValue: hasActiveCase ? 0.62 : null,
     );
@@ -1154,7 +1216,7 @@ class _WorkspaceList extends StatelessWidget {
   const _WorkspaceList({required this.actions, required this.onTap});
 
   final List<_WorkspaceAction> actions;
-  final ValueChanged<_HomeActionTarget> onTap;
+  final ValueChanged<_WorkspaceAction> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1163,10 +1225,7 @@ class _WorkspaceList extends StatelessWidget {
       child: Column(
         children: [
           for (int index = 0; index < actions.length; index++) ...[
-            _WorkspaceTile(
-              action: actions[index],
-              onTap: () => onTap(actions[index].target),
-            ),
+            _WorkspaceTile(action: actions[index], onTap: () => onTap(actions[index])),
             if (index != actions.length - 1)
               const Divider(height: 1, indent: 76, endIndent: 18),
           ],
@@ -1226,13 +1285,11 @@ class _RecentActivityCard extends StatelessWidget {
       subtitle: latestActivity == null
           ? 'Submitted requests and status updates stay here.'
           : latestActivity.subtitle.isNotEmpty
-          ? latestActivity.subtitle
-          : latestActivity.createdAtLabel ?? 'Latest update',
+              ? latestActivity.subtitle
+              : latestActivity.createdAtLabel ?? 'Latest update',
       icon: Icons.history_rounded,
       onTap: onTrack,
-      footer: activities.length > 1
-          ? '+${activities.length - 1} more update(s)'
-          : null,
+      footer: activities.length > 1 ? '+${activities.length - 1} more update(s)' : null,
     );
   }
 }
@@ -1267,19 +1324,9 @@ class _SimpleActionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _TextStyles.cardTitle,
-                ),
+                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: _TextStyles.cardTitle),
                 const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _TextStyles.cardSubtitle,
-                ),
+                Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: _TextStyles.cardSubtitle),
                 if (progressValue != null) ...[
                   const SizedBox(height: 12),
                   ClipRRect(
@@ -1287,34 +1334,20 @@ class _SimpleActionCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       minHeight: 7,
                       value: progressValue,
-                      backgroundColor: AppTheme.primaryRed.withValues(
-                        alpha: 0.10,
-                      ),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        AppTheme.primaryRed,
-                      ),
+                      backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.10),
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
                     ),
                   ),
                 ],
                 if (footer != null) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    footer!,
-                    style: const TextStyle(
-                      color: AppTheme.primaryRed,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+                  Text(footer!, style: _TextStyles.linkLabel),
                 ],
               ],
             ),
           ),
           const SizedBox(width: 10),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppTheme.textSecondary,
-          ),
+          const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
         ],
       ),
     );
@@ -1353,23 +1386,26 @@ class _RoundIconButton extends StatelessWidget {
               children: [
                 Icon(icon, color: AppTheme.primaryRed, size: 23),
                 if (badgeCount > 0)
-                  Positioned(
-                    top: 9,
-                    right: 9,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryRed,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                    ),
-                  ),
+                  Positioned(top: 9, right: 9, child: _CountDot()),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CountDot extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
       ),
     );
   }
@@ -1394,21 +1430,52 @@ class _IconBox extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: solid
-            ? AppTheme.primaryRed
-            : AppTheme.primaryRed.withValues(alpha: 0.08),
+        color: solid ? AppTheme.primaryRed : AppTheme.primaryRed.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(size * 0.38),
       ),
-      child: Icon(
-        icon,
-        color: solid ? Colors.white : AppTheme.primaryRed,
-        size: iconSize,
-      ),
+      child: Icon(icon, color: solid ? Colors.white : AppTheme.primaryRed, size: iconSize),
     );
   }
 }
 
+BoxDecoration _softCardDecoration({required double radius}) {
+  return BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(radius),
+    border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.045)),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.032),
+        blurRadius: 20,
+        offset: const Offset(0, 10),
+      ),
+    ],
+  );
+}
+
 class _TextStyles {
+  static const eyebrow = TextStyle(
+    color: AppTheme.textSecondary,
+    fontSize: 13,
+    fontWeight: FontWeight.w800,
+  );
+
+  static const pageTitle = TextStyle(
+    color: AppTheme.textPrimary,
+    fontSize: 21,
+    fontWeight: FontWeight.w900,
+    height: 1.05,
+    letterSpacing: -0.4,
+  );
+
+  static const sectionTitle = TextStyle(
+    color: AppTheme.textPrimary,
+    fontSize: 21,
+    fontWeight: FontWeight.w900,
+    height: 1.05,
+    letterSpacing: -0.45,
+  );
+
   static const cardTitle = TextStyle(
     color: AppTheme.textPrimary,
     fontSize: 15,
@@ -1435,32 +1502,25 @@ class _TextStyles {
     height: 1.15,
     fontWeight: FontWeight.w700,
   );
-}
 
-enum _HomeActionTarget {
-  dashboard,
-  myServices,
-  services,
-  documents,
-  payments,
-  calculator,
-  support,
-  knowledge,
-  expenseTracker,
-}
+  static const actionTitle = TextStyle(
+    color: AppTheme.textPrimary,
+    fontSize: 12.5,
+    fontWeight: FontWeight.w900,
+    letterSpacing: -0.2,
+  );
 
-class _HomeAction {
-  const _HomeAction({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.target,
-  });
+  static const actionSubtitle = TextStyle(
+    color: AppTheme.textSecondary,
+    fontSize: 10.5,
+    fontWeight: FontWeight.w700,
+  );
 
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final _HomeActionTarget target;
+  static const linkLabel = TextStyle(
+    color: AppTheme.primaryRed,
+    fontSize: 11.5,
+    fontWeight: FontWeight.w900,
+  );
 }
 
 class _WorkspaceAction {
@@ -1468,21 +1528,19 @@ class _WorkspaceAction {
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.target,
+    required this.route,
+    this.capability,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
-  final _HomeActionTarget target;
+  final String route;
+  final String? capability;
 }
 
 class _StatusItem {
-  const _StatusItem({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+  const _StatusItem({required this.label, required this.value, required this.icon});
 
   final String label;
   final String value;
