@@ -182,7 +182,7 @@ def _ensure_payment_for_case(service_case):
 
     mobile._create_service_timeline_entry(
         service_request=service_case.name,
-        event_type="Payment Opened",
+        event_type="Payment Updated",
         title="Payment Opened",
         description="Payment is now available. Contact OMC for payment details and upload your receipt after payment.",
         visible_to_customer=1,
