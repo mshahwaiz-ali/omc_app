@@ -9,11 +9,11 @@ import '../features/auth/presentation/signup_screen.dart';
 import '../features/auth/presentation/under_review_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
 import '../features/expense_tracker/presentation/expense_tracker_screen.dart';
+import '../features/internal_workspace/presentation/internal_service_cases_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
 import '../features/knowledge/presentation/knowledge_detail_screen.dart';
 import '../features/knowledge/presentation/knowledge_screen.dart';
 import '../features/tasks/presentation/task_detail_screen.dart';
-import '../features/tasks/presentation/tasks_screen.dart';
 import '../features/customers/presentation/customer_detail_screen.dart';
 import '../features/customers/presentation/customers_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
@@ -317,6 +317,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'internal-workspace',
         builder: (context, state) => const InternalWorkspaceScreen(),
       ),
+      GoRoute(
+        path: '/internal-workspace/service-cases',
+        name: 'internal-service-cases',
+        builder: (context, state) => const InternalServiceCasesScreen(),
+      ),
     ],
   );
 });
@@ -397,7 +402,8 @@ bool _canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.isApproved || capabilities.isInternal;
   }
 
-  if (location == '/internal-workspace') {
+  if (location == '/internal-workspace' ||
+      location.startsWith('/internal-workspace/')) {
     return capabilities.canAccessInternalWorkspace;
   }
 
@@ -420,6 +426,5 @@ bool _canAccessRoute(String location, AuthCapabilities capabilities) {
 }
 
 bool _isServiceRequestRoute(String location) {
-  final parts = location.split('/').where((part) => part.isNotEmpty).toList();
-  return parts.length == 3 && parts[0] == 'services' && parts[2] == 'request';
+  return location.startsWith('/services/') && location.endsWith('/request');
 }
