@@ -58,7 +58,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (authState.status == AuthStatus.guest) {
-        if (isAuthRoute || isSplash) return '/home';
+        if (isSplash) return '/home';
+
+        // Guests must be able to leave guest mode and open Login/Signup from
+        // the More screen. Previously `/login` was redirected back to `/home`,
+        // so the visible Login tile looked clickable but did nothing.
+        if (isAuthRoute) return null;
+
         return _isGuestAllowedRoute(location) ? null : '/home';
       }
 
@@ -194,7 +200,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'tasks',
         builder: (context, state) => const TasksScreen(),
       ),
-
       GoRoute(
         path: '/leads/:leadId',
         name: 'lead-detail',
