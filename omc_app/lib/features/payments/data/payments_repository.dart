@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -98,7 +100,7 @@ class PaymentsRepository {
     }
 
     final uploadableAttachments = attachments
-        .where((attachment) => attachment.hasUploadPath)
+        .where((attachment) => attachment.hasUploadData)
         .toList(growable: false);
 
     if (uploadableAttachments.isEmpty) {
@@ -110,34 +112,18 @@ class PaymentsRepository {
     final uploadedFiles = <Map<String, dynamic>>[];
 
     for (final attachment in uploadableAttachments) {
-      if (!attachment.hasUploadData) {
+      final fileBytes = attachment.bytes;
+      if (fileBytes == null || fileBytes.isEmpty) {
         continue;
       }
 
-      final uploadResponse = await _frappeClient.uploadFile(
-        filePath: attachment.path,
-        fileBytes: attachment.bytes,
-        fileName: attachment.name,
-      );
-
-      final uploadedFileUrl = _extractFileUrl(uploadResponse);
-      if (uploadedFileUrl == null) {
-        throw const ApiError(
-          message: 'Receipt uploaded but the server did not return a file URL.',
-        );
-      }
-
       final response = await _frappeClient.postMethod(
-        ApiConfig.uploadPaymentReceiptMethod,
+        ApiConfig.uploadPaymentReceiptFileMethod,
         data: {
           'payment_id': cleanPaymentId,
           'name': cleanPaymentId,
-          'docname': cleanPaymentId,
-          'receipt_attachment': uploadedFileUrl,
-          'receipt_url': uploadedFileUrl,
-          'receipt_file': uploadedFileUrl,
-          'file_url': uploadedFileUrl,
-          'attachment': uploadedFileUrl,
+          'file_name': attachment.name,
+          'content_base64': base64Encode(fileBytes),
         },
       );
 
