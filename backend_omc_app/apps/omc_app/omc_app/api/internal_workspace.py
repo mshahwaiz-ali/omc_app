@@ -148,8 +148,8 @@ def _case_to_queue_item(row):
         "contact_email": row.contact_email or "",
         "contact_phone": row.contact_phone or "",
         "description": row.description or "",
-        "created_at": mobile._format_mobile_datetime(row.creation),
-        "updated_at": mobile._format_mobile_datetime(row.modified),
+        "created_at": _format_datetime(row.creation),
+        "updated_at": _format_datetime(row.modified),
         "expected_completion_date": str(row.expected_completion_date) if row.expected_completion_date else "",
         "required_documents_count": doc_summary["required"],
         "submitted_documents_count": doc_summary["uploaded"] + doc_summary["approved"],
@@ -279,6 +279,19 @@ def _customer_name(customer_profile):
     if not customer_profile:
         return ""
     return frappe.db.get_value("OMC Customer Profile", customer_profile, "full_name") or ""
+
+
+def _format_datetime(value):
+    if not value:
+        return ""
+
+    try:
+        return frappe.utils.format_datetime(value, "dd MMM yyyy, h:mm a")
+    except Exception:
+        text = str(value).strip()
+        if "." in text:
+            text = text.split(".", 1)[0]
+        return text
 
 
 def _int_value(value):
