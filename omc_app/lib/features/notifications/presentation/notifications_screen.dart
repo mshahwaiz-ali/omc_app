@@ -83,7 +83,7 @@ class _NotificationsList extends StatelessWidget {
 
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       itemCount: notifications.length + 1,
       separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
       itemBuilder: (context, index) {
@@ -351,7 +351,7 @@ class _EmptyNotificationsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: const [
         _NotificationsHero(
           totalCount: 0,
@@ -392,7 +392,7 @@ class _NotificationsErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         const _NotificationsHero(
           totalCount: 0,
@@ -477,7 +477,7 @@ class _NotificationsLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       itemBuilder: (context, index) {
         if (index == 0) {
           return const _NotificationsLoadingHero();

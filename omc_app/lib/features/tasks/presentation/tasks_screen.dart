@@ -36,7 +36,7 @@ class TasksScreen extends ConsumerWidget {
             },
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return PremiumListHeader(
@@ -83,7 +83,7 @@ class _TasksLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       itemBuilder: (context, index) {
         if (index == 0) {
           return const PremiumListHeader(

@@ -41,7 +41,7 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
           children: [
             _SettingsHero(
               accountName: accountName,

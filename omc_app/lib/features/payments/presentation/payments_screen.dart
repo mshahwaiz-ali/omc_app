@@ -47,7 +47,7 @@ class _PaymentsList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       itemCount: payments.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
@@ -340,7 +340,7 @@ class _EmptyPaymentsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         const _PaymentsHeader(payments: []),
         const SizedBox(height: 24),
@@ -411,7 +411,7 @@ class _PaymentsErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         const _PaymentsHeader(payments: []),
         const SizedBox(height: 24),
@@ -530,7 +530,7 @@ class _PaymentsLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       itemBuilder: (context, index) {
         if (index == 0) return const _PaymentsHeader(payments: []);
 

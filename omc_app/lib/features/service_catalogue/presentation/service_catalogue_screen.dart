@@ -237,7 +237,7 @@ class _CatalogueLoadingView extends StatelessWidget {
 
     return ListView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(22),

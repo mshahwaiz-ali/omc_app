@@ -125,7 +125,7 @@ class _DocumentsList extends StatelessWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         _DocumentsHeader(documents: documents),
         const SizedBox(height: 12),
@@ -553,7 +553,7 @@ class _EmptyDocumentsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         const _DocumentsHeader(documents: []),
         const SizedBox(height: 24),
@@ -680,7 +680,7 @@ class _DocumentsLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       itemBuilder: (context, index) {
         if (index == 0) return const _DocumentsHeader(documents: []);
 

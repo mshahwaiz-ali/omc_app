@@ -95,7 +95,7 @@ class _LeadsContent extends StatelessWidget {
 
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       itemCount: leads.length + 1,
       separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
       itemBuilder: (context, index) {
@@ -121,7 +121,7 @@ class _LeadsLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       itemBuilder: (context, index) {
         if (index == 0) {
           return const PremiumListHeader(

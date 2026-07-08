@@ -697,7 +697,7 @@ class _NotificationDetailLoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: const [
         PremiumCard(
           padding: EdgeInsets.all(20),

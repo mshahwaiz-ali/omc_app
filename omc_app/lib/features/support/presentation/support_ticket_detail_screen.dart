@@ -53,7 +53,7 @@ class _TicketDetailLoadingView extends StatelessWidget {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(20),
@@ -174,7 +174,7 @@ class _SupportTicketDetailBodyState
   Widget build(BuildContext context) {
     return ListView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         PremiumCard(
           padding: const EdgeInsets.all(20),
