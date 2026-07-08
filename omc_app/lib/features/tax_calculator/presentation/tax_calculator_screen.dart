@@ -1137,8 +1137,9 @@ String _ctaTitleFor(AuthState authState, String backendTitle) {
         : 'Want to save this estimate?';
   }
   if (authState.capabilities.isPending) return 'Account approval is pending';
-  if (authState.capabilities.isRejected)
+  if (authState.capabilities.isRejected) {
     return 'Contact OMC to review your account';
+  }
   return backendTitle.trim().isNotEmpty
       ? backendTitle
       : 'Need OMC to verify and file this?';
@@ -1149,8 +1150,9 @@ String _ctaButtonFor(AuthState authState, String backendButton) {
       authState.status == AuthStatus.unauthenticated) {
     return backendButton.trim().isNotEmpty ? backendButton : 'Create Account';
   }
-  if (authState.capabilities.isPending || authState.capabilities.isRejected)
+  if (authState.capabilities.isPending || authState.capabilities.isRejected) {
     return 'View Account Status';
+  }
   return backendButton.trim().isNotEmpty
       ? backendButton
       : 'Start Tax Filing Service';

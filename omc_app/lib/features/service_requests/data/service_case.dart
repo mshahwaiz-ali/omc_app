@@ -8,7 +8,7 @@ class ServiceCase {
     required this.status,
     required this.createdAtLabel,
     required this.updatedAtLabel,
-    required double progress,
+    required this._progress,
     this.reference,
     this.nextStep,
     this.remarks,
@@ -18,7 +18,7 @@ class ServiceCase {
     this.documentDetails = const [],
     this.paymentDetails = const [],
     this.timeline = const [],
-    int? progressPercent,
+    this._progressPercent,
     this.currentStage,
     this.customerActionRequired = false,
     this.requiredDocumentsCount,
@@ -27,8 +27,7 @@ class ServiceCase {
     this.canUpdateStatus = false,
     this.canReviewDocuments = false,
     this.canViewInternalNotes = false,
-  }) : _progress = progress,
-       _progressPercent = progressPercent;
+  });
 
   final String id;
   final String title;
