@@ -47,10 +47,25 @@ node_modules/
 .yarn/
 .yarn-cache/
 
-# Frappe bench - do not commit runtime bench
-backend_omc_app/frappe-bench/
+# Frappe bench - ignore runtime bench, but allow the custom OMC app
+backend_omc_app/frappe-bench/*
+!backend_omc_app/frappe-bench/apps/
+backend_omc_app/frappe-bench/apps/*
+!backend_omc_app/frappe-bench/apps/omc_app/
+!backend_omc_app/frappe-bench/apps/omc_app/**
+backend_omc_app/frappe-bench/apps/frappe/
+backend_omc_app/frappe-bench/apps/erpnext/
+backend_omc_app/frappe-bench/env/
+backend_omc_app/frappe-bench/logs/
+backend_omc_app/frappe-bench/sites/
+backend_omc_app/frappe-bench/config/
+backend_omc_app/frappe-bench/node_modules/
 backend_omc_app/logs/
 backend_omc_app/.secrets/
+
+# Legacy backend sync source - keep tracked until one-time migration is complete
+!backend_omc_app/apps/
+!backend_omc_app/apps/**
 
 # Frappe local/runtime files
 sites/
@@ -61,10 +76,6 @@ config/pids/
 *.sql.gz
 *.tar
 *.tar.gz
-
-# Keep synced custom apps only
-!backend_omc_app/apps/
-!backend_omc_app/apps/**
 
 # Flutter / Dart
 omc_app/.dart_tool/
