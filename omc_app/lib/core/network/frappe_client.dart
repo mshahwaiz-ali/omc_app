@@ -129,19 +129,25 @@ class FrappeClient {
     String? filePath,
     Uint8List? fileBytes,
     required String fileName,
+    String? method,
     String? doctype,
     String? docname,
     bool isPrivate = true,
   }) async {
     try {
       final cleanPath = filePath?.trim();
+      final uploadMethod = (method?.trim().isNotEmpty ?? false)
+          ? method!.trim()
+          : ApiConfig.uploadFileMethod;
       final cleanDoctype = doctype?.trim();
       final cleanDocname = docname?.trim();
       final filePart = fileBytes != null && fileBytes.isNotEmpty
           ? MultipartFile.fromBytes(fileBytes, filename: fileName)
           : cleanPath != null && cleanPath.isNotEmpty
-              ? await MultipartFile.fromFile(cleanPath, filename: fileName)
-              : throw StateError('Selected file data is unavailable. Choose the file again.');
+          ? await MultipartFile.fromFile(cleanPath, filename: fileName)
+          : throw StateError(
+              'Selected file data is unavailable. Choose the file again.',
+            );
 
       final formData = FormData.fromMap({
         'is_private': isPrivate ? 1 : 0,
@@ -156,7 +162,7 @@ class FrappeClient {
       }
 
       final response = await _dioClient.instance.post<Map<String, dynamic>>(
-        '${ApiConfig.apiMethodPath}/${ApiConfig.uploadFileMethod}',
+        '${ApiConfig.apiMethodPath}/$uploadMethod',
         data: formData,
         options: Options(contentType: Headers.multipartFormDataContentType),
       );

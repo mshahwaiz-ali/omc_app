@@ -108,6 +108,7 @@ class SupportRepository {
       filePath: filePath,
       fileBytes: fileBytes,
       fileName: cleanFileName,
+      method: ApiConfig.uploadSupportTicketAttachmentMethod,
       doctype: ApiConfig.supportTicketUploadDoctype,
       docname: cleanTicketId,
     );
@@ -115,7 +116,8 @@ class SupportRepository {
     final uploadedFileUrl = _extractFileUrl(response);
     if (uploadedFileUrl == null) {
       throw const ApiError(
-        message: 'Attachment uploaded but the server did not return a file URL.',
+        message:
+            'Attachment uploaded but the server did not return a file URL.',
       );
     }
 
@@ -340,12 +342,16 @@ class SupportRepository {
           (item) => SupportTicketMessage(
             id: _stringValue(item['id'] ?? item['name']),
             author: _stringValue(
-              item['author'] ?? item['user'] ?? item['sender_user'] ?? item['owner'],
+              item['author'] ??
+                  item['user'] ??
+                  item['sender_user'] ??
+                  item['owner'],
             ),
             message: _stringValue(
               item['message'] ?? item['body'] ?? item['text'],
             ),
-            createdAtLabel: _dateTimeLabel(
+            createdAtLabel:
+                _dateTimeLabel(
                   item['created_at'] ?? item['creation'] ?? item['timestamp'],
                 ) ??
                 '-',

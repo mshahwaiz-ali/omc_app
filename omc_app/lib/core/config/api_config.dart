@@ -135,6 +135,8 @@ class ApiConfig {
       'omc_app.api.support_chat.add_support_ticket_reply';
   static const String updateSupportTicketStatusMethod =
       'omc_app.api.support_chat.update_support_ticket_status';
+  static const String uploadSupportTicketAttachmentMethod =
+      'omc_app.api.support_chat.upload_support_ticket_attachment';
   static const String supportConfigMethod =
       'omc_app.api.mobile.get_support_config';
   static const String mobileAppConfigMethod =

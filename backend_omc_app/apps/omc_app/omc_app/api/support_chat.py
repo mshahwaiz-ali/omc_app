@@ -1,6 +1,7 @@
 import re
 
 import frappe
+from frappe.utils.file_manager import save_file
 
 from omc_app.api.mobile import (
     _assert_approved_customer,
@@ -638,3 +639,51 @@ def assign_support_ticket(ticket_id=None, assigned_to=None, **kwargs):
 
     frappe.db.commit()
     return {"updated": True, "ticket": _support_ticket_to_dict(ticket), "message": assignment_note}
+
+@frappe.whitelist()
+def upload_support_ticket_attachment(ticket_id=None, name=None, **kwargs):
+    ticket_id = ticket_id or name or kwargs.get("docname")
+    if not ticket_id:
+        frappe.throw("ticket_id is required")
+    if not frappe.db.exists("OMC Support Ticket", ticket_id):
+        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
+
+    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
+    _assert_support_ticket_access(ticket)
+
+    uploaded = frappe.request.files.get("file") if getattr(frappe, "request", None) else None
+    if not uploaded:
+        frappe.throw("No attachment file received.")
+
+    filename = (uploaded.filename or kwargs.get("filename") or "").strip()
+    if not filename:
+        frappe.throw("Selected attachment has no file name.")
+
+    extension = _file_extension(filename)
+    if extension not in ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS:
+        frappe.throw("Unsupported attachment type. Please upload PDF, JPG, PNG, DOC or DOCX files only.")
+
+    content = uploaded.stream.read()
+    if not content:
+        frappe.throw("Uploaded attachment is empty.")
+    if len(content) > MAX_SUPPORT_ATTACHMENT_SIZE_BYTES:
+        frappe.throw("Attachment is too large. Maximum allowed size is 10 MB.")
+
+    file_doc = save_file(
+        filename,
+        content,
+        "OMC Support Ticket",
+        ticket.name,
+        is_private=1,
+    )
+
+    file_url = _assert_support_attachment_allowed(ticket, file_doc.file_url)
+    frappe.db.commit()
+
+    return {
+        "file_url": file_url,
+        "file_name": file_doc.file_name,
+        "name": file_doc.name,
+        "is_private": 1,
+    }
+
