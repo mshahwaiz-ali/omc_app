@@ -91,6 +91,13 @@ class _ServiceCaseDetailScreenState
                       ],
                       _RequiredDocumentsCard(
                         serviceCase: serviceCase,
+                        isUploadingDocument: _isUploadingDocument,
+                        onUploadDocument: _isUploadingDocument
+                            ? null
+                            : (document) => _uploadMissingDocument(
+                                  serviceCase,
+                                  document,
+                                ),
                         isUpdatingDocumentStatus: _isUpdatingDocumentStatus,
                         onUpdateDocumentStatus:
                             serviceCase.canReviewDocuments &&
@@ -242,7 +249,7 @@ class _ServiceCaseDetailScreenState
     }
   }
 
-  Future<void> _uploadMissingDocument(ServiceCase serviceCase) async {
+  Future<void> _uploadMissingDocument(ServiceCase serviceCase, [ServiceCaseDocument? document]) async {
     if (_isUploadingDocument) return;
 
     final uploadDocname = _uploadDocnameFor(serviceCase);
@@ -280,7 +287,9 @@ class _ServiceCaseDetailScreenState
       final repository = ref.read(serviceRequestRepositoryProvider);
       final uploadedFiles = await repository.uploadRequestAttachments(
         requestId: uploadDocname,
-        attachments: pickResult.accepted,
+        attachments: pickResult.accepted.take(1).toList(growable: false),
+        documentTitle: document?.title,
+        documentType: document?.type,
       );
 
       if (!mounted) return;
@@ -1212,11 +1221,15 @@ class _CaseStatusActionButton extends StatelessWidget {
 class _RequiredDocumentsCard extends StatelessWidget {
   const _RequiredDocumentsCard({
     required this.serviceCase,
+    required this.isUploadingDocument,
     required this.isUpdatingDocumentStatus,
+    required this.onUploadDocument,
     required this.onUpdateDocumentStatus,
   });
 
   final ServiceCase serviceCase;
+  final bool isUploadingDocument;
+  final void Function(ServiceCaseDocument document)? onUploadDocument;
   final bool isUpdatingDocumentStatus;
   final void Function(ServiceCaseDocument document, String status)?
   onUpdateDocumentStatus;
@@ -1260,6 +1273,9 @@ class _RequiredDocumentsCard extends StatelessWidget {
                   status: document.status,
                   fileUrl: document.fileUrl,
                   remarks: document.remarks,
+                  canUpload: !document.isSubmitted && onUploadDocument != null,
+                  isUploading: isUploadingDocument,
+                  onUpload: () => onUploadDocument?.call(document),
                   canReview:
                       document.hasRealId && onUpdateDocumentStatus != null,
                   isUpdating: isUpdatingDocumentStatus,
@@ -1332,6 +1348,9 @@ class _DocumentRequirementRow extends StatelessWidget {
     this.status,
     this.fileUrl,
     this.remarks,
+    this.canUpload = false,
+    this.isUploading = false,
+    this.onUpload,
     this.canReview = false,
     this.isUpdating = false,
     this.onApprove,
@@ -1344,6 +1363,9 @@ class _DocumentRequirementRow extends StatelessWidget {
   final String? status;
   final String? fileUrl;
   final String? remarks;
+  final bool canUpload;
+  final bool isUploading;
+  final VoidCallback? onUpload;
   final bool canReview;
   final bool isUpdating;
   final VoidCallback? onApprove;
@@ -1446,6 +1468,23 @@ class _DocumentRequirementRow extends StatelessWidget {
                   ),
                 ),
               ),
+              if (canUpload) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: isUploading ? null : onUpload,
+                  icon: isUploading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.upload_file_rounded, size: 16),
+                  label: Text(isUploading ? 'Uploading...' : 'Upload'),
+                ),
+              ],
               if (canReview) ...[
                 const SizedBox(height: 8),
                 Wrap(

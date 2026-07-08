@@ -248,8 +248,12 @@ class ServiceRequestRepository {
   Future<List<Map<String, dynamic>>> uploadRequestAttachments({
     required String requestId,
     required List<DocumentAttachment> attachments,
+    String? documentTitle,
+    String? documentType,
   }) async {
     final uploadedFiles = <Map<String, dynamic>>[];
+    final cleanDocumentTitle = documentTitle?.trim();
+    final cleanDocumentType = documentType?.trim();
 
     for (final attachment in attachments) {
       final filePath = attachment.path;
@@ -277,8 +281,12 @@ class ServiceRequestRepository {
           'request_id': requestId,
           'service_request': requestId,
           'name': requestId,
-          'document_title': attachment.name,
-          'document_type': attachment.extension ?? '',
+          'document_title': cleanDocumentTitle != null && cleanDocumentTitle.isNotEmpty
+              ? cleanDocumentTitle
+              : attachment.name,
+          'document_type': cleanDocumentType != null && cleanDocumentType.isNotEmpty
+              ? cleanDocumentType
+              : attachment.extension ?? '',
           'attachment': uploadedFileUrl,
           'file_url': uploadedFileUrl,
         },
