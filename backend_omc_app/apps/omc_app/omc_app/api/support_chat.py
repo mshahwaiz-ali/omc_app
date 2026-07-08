@@ -135,6 +135,15 @@ def _has_message_doctype():
         return False
 
 
+def _message_has_field(fieldname):
+    if not _has_message_doctype():
+        return False
+    try:
+        return bool(frappe.get_meta(SUPPORT_MESSAGE_DOCTYPE).has_field(fieldname))
+    except Exception:
+        return False
+
+
 def _legacy_support_ticket_messages(ticket):
     raw_message = ticket.message or ""
     messages = []
@@ -332,6 +341,43 @@ def _assert_support_ticket_access(ticket):
     return user, profile
 
 
+def _support_ticket_filters_for_current_user():
+    user = _current_user()
+    if user == "Guest":
+        return user, None, None
+
+    if _can_access_internal_workspace(user):
+        return user, None, {}
+
+    profile = _assert_approved_customer()
+    if profile:
+        return user, profile, {"customer_profile": profile.name}
+
+    return user, None, {"raised_by": user}
+
+
+def _support_message_read_filters(user, profile, mark_read=False):
+    if user == "Guest" or not _has_message_doctype():
+        return None
+
+    if _can_access_internal_workspace(user):
+        if not _message_has_field("read_by_staff"):
+            return None
+        return {
+            "is_internal": 0,
+            "sender_type": "Customer",
+            "read_by_staff": 0 if not mark_read else ["in", [0, 1]],
+        }
+
+    if not _message_has_field("read_by_customer"):
+        return None
+    return {
+        "is_internal": 0,
+        "sender_type": ["in", ["Support", "Admin", "System"]],
+        "read_by_customer": 0 if not mark_read else ["in", [0, 1]],
+    }
+
+
 @frappe.whitelist()
 def create_support_ticket(**kwargs):
     subject = (kwargs.get("subject") or kwargs.get("title") or "").strip()
@@ -374,19 +420,8 @@ def create_support_ticket(**kwargs):
 
 @frappe.whitelist()
 def get_support_tickets():
-    user = _current_user()
-    if user == "Guest":
-        return {"tickets": []}
-
-    profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
-    filters = {}
-    if profile:
-        filters["customer_profile"] = profile.name
-    elif _can_access_internal_workspace(user):
-        filters = {}
-    elif user != "Guest":
-        filters["raised_by"] = user
-    else:
+    user, _profile, filters = _support_ticket_filters_for_current_user()
+    if user == "Guest" or filters is None:
         return {"tickets": []}
 
     ticket_names = frappe.get_all(
@@ -411,6 +446,75 @@ def get_support_ticket(ticket_id=None, name=None):
     _assert_support_ticket_access(ticket)
     _ensure_initial_message_record(ticket)
     return {"ticket": _support_ticket_to_dict(ticket)}
+
+
+@frappe.whitelist()
+def get_active_support_ticket():
+    user, _profile, filters = _support_ticket_filters_for_current_user()
+    if user == "Guest" or filters is None:
+        return {"ticket": None}
+
+    active_filters = dict(filters)
+    active_filters["status"] = ["not in", ["Closed", "Cancelled"]]
+    ticket_names = frappe.get_all(
+        "OMC Support Ticket",
+        filters=active_filters,
+        pluck="name",
+        order_by="modified desc",
+        limit_page_length=1,
+    )
+    if not ticket_names:
+        return {"ticket": None}
+
+    ticket = frappe.get_doc("OMC Support Ticket", ticket_names[0])
+    _assert_support_ticket_access(ticket)
+    _ensure_initial_message_record(ticket)
+    return {"ticket": _support_ticket_to_dict(ticket)}
+
+
+@frappe.whitelist()
+def get_support_unread_count():
+    user, profile, ticket_filters = _support_ticket_filters_for_current_user()
+    if user == "Guest" or ticket_filters is None:
+        return {"count": 0}
+
+    message_filters = _support_message_read_filters(user, profile)
+    if not message_filters:
+        return {"count": 0}
+
+    ticket_names = frappe.get_all("OMC Support Ticket", filters=ticket_filters, pluck="name")
+    if not ticket_names:
+        return {"count": 0}
+
+    message_filters["support_ticket"] = ["in", ticket_names]
+    return {"count": frappe.db.count(SUPPORT_MESSAGE_DOCTYPE, message_filters)}
+
+
+@frappe.whitelist()
+def mark_support_ticket_read(ticket_id=None, name=None):
+    ticket_id = ticket_id or name
+    if not ticket_id:
+        frappe.throw("ticket_id is required")
+    if not frappe.db.exists("OMC Support Ticket", ticket_id):
+        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
+
+    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
+    user, profile = _assert_support_ticket_access(ticket)
+    _ensure_initial_message_record(ticket)
+
+    message_filters = _support_message_read_filters(user, profile, mark_read=True)
+    if not message_filters:
+        return {"updated": 0}
+
+    message_filters["support_ticket"] = ticket.name
+    message_names = frappe.get_all(SUPPORT_MESSAGE_DOCTYPE, filters=message_filters, pluck="name")
+    read_field = "read_by_staff" if _can_access_internal_workspace(user) else "read_by_customer"
+
+    for message_name in message_names:
+        frappe.db.set_value(SUPPORT_MESSAGE_DOCTYPE, message_name, read_field, 1, update_modified=False)
+
+    frappe.db.commit()
+    return {"updated": len(message_names)}
 
 
 @frappe.whitelist()
