@@ -1,402 +1,704 @@
-Premium but not heavy: recommended feature set
-1. Simple Calculator Mode
+# OMC Tax Calculator — Premium Lightweight Backend-Controlled Plan
 
-This should be default.
+## Goal
 
-Fields
-Field	User sees?	Notes
-Tax Year	Yes, auto-selected	Read-only or dropdown
-Income Type	Yes	Salary / Business / Rental
-Income Mode	Yes	Monthly / Annual
-Income Amount	Yes	Main input
-Filer Status	Yes	Active Filer / Late Filer / Non-Filer
+Build a **premium but fast tax calculator** inside the OMC app.
 
-This is enough for guest.
+The calculator should feel simple for users, but powerful for OMC because all important rules, slabs, content, CTAs, and guidance are controlled from **Frappe backend**.
 
-Result
+The mobile app should not hardcode tax slabs or business rules.
+The app should only render the calculator based on Frappe configuration and call backend APIs for calculation.
 
-Show clean cards:
+---
 
-Card	Example
-Annual Income	PKR 3,000,000
-Estimated Annual Tax	PKR 580,000
-Monthly Tax	PKR 48,333
-Monthly Take-home	PKR 201,667
-Effective Tax Rate	19.33%
+# 1. Core User Experience
 
-Then below:
+## Default Mode: Simple Calculator
 
-Based on OMC Tax Year 2026-27
-Verified from OMC configured slabs
-Estimate only, final filing may require document review
-2. Advanced Mode
+This should be the default experience for guests and customers.
 
-Hidden under:
+The user should only see the minimum fields needed to calculate tax.
 
-Refine calculation
+| Field         | User Sees? | Notes                                                                                      |
+| ------------- | ---------: | ------------------------------------------------------------------------------------------ |
+| Tax Year      |        Yes | Auto-selected from backend. Can be read-only or dropdown if multiple published years exist |
+| Income Type   |        Yes | Salary / Business / Rental                                                                 |
+| Income Mode   |        Yes | Monthly / Annual                                                                           |
+| Income Amount |        Yes | Main input                                                                                 |
+| Filer Status  |        Yes | Active Filer / Late Filer / Non-Filer                                                      |
 
-User taps only if needed.
+This gives the user a clean and fast experience.
 
-Advanced optional fields
-Field	Why useful
-Bonus / additional annual income	Salary users often need this
-Other income	Rental, freelance, profit
-Deductible expenses	Business/rental cases
-Tax already deducted	Salary/WHT adjustment
-Zakat / donation / approved deductions	Optional
-Province / city	Later useful for provincial/service taxes
-Business turnover	For business users later
-Rental annual income	Rental-specific flow
-Withholding tax paid	Common Pakistan scenario
+## Result Cards
 
-Important: advanced fields should be dynamic. Salary user should not see business turnover fields. Rental user should not see salary bonus fields.
+After calculation, show clean result cards:
 
-Killer premium features we can add
-A. “Tax Health Score”
+| Card                 | Example       |
+| -------------------- | ------------- |
+| Annual Income        | PKR 3,000,000 |
+| Estimated Annual Tax | PKR 580,000   |
+| Monthly Tax          | PKR 48,333    |
+| Monthly Take-home    | PKR 201,667   |
+| Effective Tax Rate   | 19.33%        |
 
-After calculation, app gives a friendly score:
+Below the result cards, show small trust text:
 
-Tax readiness: Medium
-Reason: You have estimated liability but have not uploaded income proof or tax deduction certificate.
+* Based on OMC Tax Year 2026-27
+* Verified from OMC configured slabs
+* Estimate only. Final filing may require document review.
 
-This is very premium and useful.
+---
 
-Backend configurable factors
+# 2. Advanced Mode
 
-From Frappe Settings:
+Advanced mode should be hidden under:
 
-Missing NTN?
-Non-filer?
-Tax payable above threshold?
-No prior return?
-No documents uploaded?
-Has business income?
+**Refine calculation**
 
-This can drive OMC service conversion.
+The user should only open this if they need extra accuracy.
 
-B. “What should I do next?”
+## Advanced Optional Fields
 
-Instead of only showing numbers, result should show action items.
+| Field                                  | Why Useful                                        |
+| -------------------------------------- | ------------------------------------------------- |
+| Bonus / additional annual income       | Salary users often need this                      |
+| Other income                           | Rental, freelance, profit, or side income         |
+| Deductible expenses                    | Useful for business and rental cases              |
+| Tax already deducted                   | Salary/WHT adjustment                             |
+| Zakat / donation / approved deductions | Optional deductions                               |
+| Province / city                        | Useful for future provincial/service tax handling |
+| Business turnover                      | Business users                                    |
+| Rental annual income                   | Rental-specific flow                              |
+| Withholding tax paid                   | Common Pakistan tax scenario                      |
+
+## Important Rule
+
+Advanced fields must be **dynamic by income type**.
+
+Examples:
+
+* Salary user should see salary-related fields only.
+* Business user should see business turnover, expenses, and WHT fields.
+* Rental user should see rental income, deductions, and WHT fields.
+* Guest should never feel overwhelmed.
+
+---
+
+# 3. Premium Features
+
+## A. Tax Health Score
+
+After calculation, show a friendly readiness score.
 
 Example:
 
-Recommended next steps:
+**Tax readiness: Medium**
+
+Reason:
+You have an estimated tax liability, but income proof or tax deduction certificate has not been uploaded yet.
+
+## Backend-Controlled Health Factors
+
+Frappe settings can control factors such as:
+
+* Missing NTN
+* Non-filer status
+* Tax payable above threshold
+* No prior return
+* No documents uploaded
+* Business income present
+* Rental income present
+* Tax already deducted but no certificate uploaded
+
+This is useful because it helps convert calculator users into OMC service customers.
+
+---
+
+## B. Recommended Next Steps
+
+Instead of only showing numbers, the result should guide the user.
+
+Example:
+
+**Recommended next steps:**
+
 1. Verify your filer status.
-2. Keep salary certificate / bank statement ready.
-3. Start OMC Tax Filing service before deadline.
+2. Keep salary certificate or bank statement ready.
+3. Start OMC Tax Filing service before the deadline.
 
-Admin can maintain these from Frappe.
+These next steps should be maintained from Frappe, not hardcoded in the app.
 
-C. “Compare Filer vs Non-Filer”
+---
 
-Very useful in Pakistan context.
+## C. Compare Filer vs Non-Filer
 
-Result can show:
+This is very useful for Pakistan users.
 
-Scenario	Estimated Tax
-Active Filer	PKR X
-Non-Filer	PKR Y
-Possible Difference	PKR Z
+Show a clean comparison when rules are configured in backend.
 
-But only if backend has rules configured.
+| Scenario            | Estimated Tax |
+| ------------------- | ------------: |
+| Active Filer        |         PKR X |
+| Non-Filer           |         PKR Y |
+| Possible Difference |         PKR Z |
 
-This becomes a strong conversion feature:
+This can become a strong conversion point:
 
-Become active filer / file return with OMC.
+**Become an active filer with OMC.**
 
-D. “Monthly Take-home Planner”
+---
 
-For salary users:
+## D. Monthly Take-home Planner
 
-Monthly Income: PKR 250,000
-Estimated Monthly Tax: PKR 48,333
-Estimated Take-home: PKR 201,667
+For salary users, show:
 
-This is simple but premium-looking.
+| Item                  |     Example |
+| --------------------- | ----------: |
+| Monthly Income        | PKR 250,000 |
+| Estimated Monthly Tax |  PKR 48,333 |
+| Estimated Take-home   | PKR 201,667 |
 
-E. “Download / Share Estimate”
+This is simple, useful, and premium-looking.
+
+---
+
+## E. Download / Share Estimate
 
 For logged-in users:
 
-Save as PDF
-Share with OMC consultant
-Attach to tax service request
+* Save as PDF
+* Share with OMC consultant
+* Attach to tax service request
 
-For guest:
+For guests:
 
-“Create account to save this estimate”
-F. “Start Service from Result”
+**Create account to save this estimate**
 
-CTA should be powerful:
+---
 
-Need OMC to verify and file this?
-[Start Tax Filing Service]
+## F. Start Service from Result
 
-If guest taps:
-
-Login/signup
-Or lead form
-
-If approved customer taps:
-
-Create service request
-Pre-fill income estimate
-Link calculation log
-G. “Admin-controlled content blocks”
-
-From Frappe, OMC team can maintain:
-
-Calculator disclaimer
-Tax year note
-Filing deadline alert
-Required documents list
-CTA service
-Educational tips
-
-This keeps app dynamic without app release.
-
-Backend/Frappe design for this premium version
-Required DocTypes
-1. OMC Tax Calculator Settings
-
-Single doctype.
-
-Fields:
-
-Field	Type
-calculator_enabled	Check
-allow_guest_calculation	Check
-default_tax_year	Link
-show_advanced_mode	Check
-show_breakdown	Check
-show_filer_comparison	Check
-show_tax_health_score	Check
-allow_pdf_for_guest	Check
-save_logged_in_calculations	Check
-result_disclaimer	Text Editor
-guest_cta_title	Data
-guest_cta_button	Data
-customer_cta_title	Data
-customer_cta_service	Link OMC Service
-2. OMC Tax Year
-
-Parent yearly config.
-
-Fields:
-
-Field	Type
-tax_year	Data
-title	Data
-country	Data
-currency	Data
-effective_from	Date
-effective_to	Date
-status	Draft / Published / Archived
-is_active	Check
-source_reference	Data
-last_verified_on	Date
-public_note	Text Editor
-3. OMC Tax Slab
-
-Child table.
-
-Fields:
-
-Field	Type
-income_type	Select
-filer_status	Select
-taxpayer_type	Select
-from_amount	Currency
-to_amount	Currency
-fixed_tax	Currency
-rate_percent	Percent
-amount_over	Currency
-sort_order	Int
-label	Data
-
-This supports Pakistan-style slabs properly.
-
-4. OMC Tax Input Field
-
-This is what makes it premium and configurable.
-
-Instead of hardcoding advanced fields in app, backend sends field schema.
-
-Fields:
-
-Field	Type
-field_key	Data
-label	Data
-input_type	Select: Number / Select / Toggle
-income_type	Select
-mode	Simple / Advanced
-is_required	Check
-default_value	Data
-help_text	Small Text
-sort_order	Int
-is_active	Check
+The result screen should have a strong CTA.
 
 Example:
 
-bonus_income
-Label: Bonus / additional annual income
-Income Type: Salary
-Mode: Advanced
+**Need OMC to verify and file this?**
+**Start Tax Filing Service**
 
-App renders fields dynamically.
+Behavior:
 
-5. OMC Tax Adjustment Rule
+### Guest User
 
-For deductions/additions.
+If guest taps CTA:
 
-Fields:
+* Send to login/signup
+* Or show lead form if enabled from backend
 
-Field	Type
-tax_year	Link
-income_type	Select
-adjustment_key	Data
-label	Data
-adjustment_type	Add / Deduct / Credit
-calculation_type	User Input / Fixed / Percentage
-max_amount	Currency
-rate_percent	Percent
-is_active	Check
+### Approved Customer
 
-This lets admin maintain advanced logic without code changes.
+If approved customer taps CTA:
 
-6. OMC Tax Result Insight
+* Create service request
+* Pre-fill income estimate
+* Link calculation log
+* Attach result summary to request
 
-For premium advice cards.
+---
 
-Fields:
+## G. Admin-Controlled Content Blocks
 
-Field	Type
-tax_year	Link
-condition_type	Select
-min_income	Currency
-max_income	Currency
-filer_status	Select
-income_type	Select
-severity	Low / Medium / High
-title	Data
-message	Text
-action_label	Data
-action_type	Service / Article / Signup
-linked_service	Link
-linked_article	Link
-is_active	Check
+OMC staff should be able to control calculator content from Frappe.
+
+Backend-controlled content:
+
+* Calculator disclaimer
+* Tax year note
+* Filing deadline alert
+* Required documents list
+* CTA title and button
+* Linked service
+* Educational tips
+* Result insight cards
+* Warning messages
+* Verified/unverified source badge
+
+This keeps the app dynamic without requiring a mobile app release.
+
+---
+
+# 4. Frappe Backend Design
+
+## Required DocTypes
+
+---
+
+## 1. OMC Tax Calculator Settings
+
+Single DocType.
+
+Controls the calculator globally.
+
+| Field                       | Type               |
+| --------------------------- | ------------------ |
+| calculator_enabled          | Check              |
+| allow_guest_calculation     | Check              |
+| default_tax_year            | Link: OMC Tax Year |
+| show_advanced_mode          | Check              |
+| show_breakdown              | Check              |
+| show_filer_comparison       | Check              |
+| show_tax_health_score       | Check              |
+| allow_pdf_for_guest         | Check              |
+| save_logged_in_calculations | Check              |
+| result_disclaimer           | Text Editor        |
+| guest_cta_title             | Data               |
+| guest_cta_button            | Data               |
+| customer_cta_title          | Data               |
+| customer_cta_service        | Link: OMC Service  |
+| verified_badge_label        | Data               |
+| filing_deadline_alert       | Text Editor        |
+
+---
+
+## 2. OMC Tax Year
+
+Parent yearly configuration.
+
+| Field            | Type                                 |
+| ---------------- | ------------------------------------ |
+| tax_year         | Data                                 |
+| title            | Data                                 |
+| country          | Data                                 |
+| currency         | Data                                 |
+| effective_from   | Date                                 |
+| effective_to     | Date                                 |
+| status           | Select: Draft / Published / Archived |
+| is_active        | Check                                |
+| source_reference | Data                                 |
+| last_verified_on | Date                                 |
+| public_note      | Text Editor                          |
+
+Purpose:
+
+* Maintain tax year separately
+* Allow future tax years without app release
+* Keep old years archived
+* Let admin publish only verified years
+
+---
+
+## 3. OMC Tax Slab
+
+Child table under OMC Tax Year.
+
+| Field         | Type                                          |
+| ------------- | --------------------------------------------- |
+| income_type   | Select: Salary / Business / Rental            |
+| filer_status  | Select: Active Filer / Late Filer / Non-Filer |
+| taxpayer_type | Select                                        |
+| from_amount   | Currency                                      |
+| to_amount     | Currency                                      |
+| fixed_tax     | Currency                                      |
+| rate_percent  | Percent                                       |
+| amount_over   | Currency                                      |
+| sort_order    | Int                                           |
+| label         | Data                                          |
+
+Purpose:
+
+* Supports Pakistan-style slabs
+* Supports fixed tax + percentage over threshold
+* Supports filer and non-filer variations
+* Supports income-type specific rules
+
+Formula example:
+
+**Tax = fixed_tax + ((taxable_income - amount_over) × rate_percent)**
+
+---
+
+## 4. OMC Tax Input Field
+
+This makes the calculator flexible and premium.
+
+Instead of hardcoding advanced fields in Flutter, backend sends field schema.
+
+| Field         | Type                                     |
+| ------------- | ---------------------------------------- |
+| field_key     | Data                                     |
+| label         | Data                                     |
+| input_type    | Select: Number / Select / Toggle / Text  |
+| income_type   | Select: Salary / Business / Rental / All |
+| mode          | Select: Simple / Advanced                |
+| is_required   | Check                                    |
+| default_value | Data                                     |
+| options_json  | Code                                     |
+| help_text     | Small Text                               |
+| sort_order    | Int                                      |
+| is_active     | Check                                    |
 
 Example:
 
-Title: Filing recommended
-Message: Your annual income is above the taxable threshold. OMC can help verify your return.
-Action: Start Tax Filing
-7. OMC Tax Calculation Log
+| Field       | Value                            |
+| ----------- | -------------------------------- |
+| field_key   | bonus_income                     |
+| label       | Bonus / additional annual income |
+| income_type | Salary                           |
+| mode        | Advanced                         |
+| input_type  | Number                           |
 
-For logged-in users only.
+The app renders fields dynamically based on:
 
-Fields:
+* selected tax year
+* income type
+* simple or advanced mode
+* active backend fields
 
-Field	Type
-user	Link User
-customer	Link OMC Customer
-tax_year	Link
-income_type	Select
-filer_status	Select
-input_json	Code
-result_json	Code
-yearly_income	Currency
-yearly_tax	Currency
-source	Select
-created_from_app	Check
-Mobile UI design
-Screen layout
-Top
-Tax Calculator
-Estimate your tax using OMC configured tax rules.
+---
 
-Show small badge:
+## 5. OMC Tax Adjustment Rule
 
-Tax Year 2026-27 · PKR · Verified slabs
-Input card
+Used for deductions, additions, and credits.
+
+| Field            | Type                                    |
+| ---------------- | --------------------------------------- |
+| tax_year         | Link: OMC Tax Year                      |
+| income_type      | Select                                  |
+| adjustment_key   | Data                                    |
+| label            | Data                                    |
+| adjustment_type  | Select: Add / Deduct / Credit           |
+| calculation_type | Select: User Input / Fixed / Percentage |
+| max_amount       | Currency                                |
+| rate_percent     | Percent                                 |
+| is_active        | Check                                   |
+
+Purpose:
+
+* Bonus can be added
+* Expenses can be deducted
+* Tax already deducted can be treated as credit
+* WHT can be adjusted
+* Admin can manage supported adjustments from Frappe
+
+---
+
+## 6. OMC Tax Result Insight
+
+Used for premium advice cards and next steps.
+
+| Field          | Type                                      |
+| -------------- | ----------------------------------------- |
+| tax_year       | Link: OMC Tax Year                        |
+| condition_type | Select                                    |
+| min_income     | Currency                                  |
+| max_income     | Currency                                  |
+| filer_status   | Select                                    |
+| income_type    | Select                                    |
+| severity       | Select: Low / Medium / High               |
+| title          | Data                                      |
+| message        | Text                                      |
+| action_label   | Data                                      |
+| action_type    | Select: Service / Article / Signup / None |
+| linked_service | Link: OMC Service                         |
+| linked_article | Link                                      |
+| is_active      | Check                                     |
+
+Example:
+
+**Title:** Filing recommended
+**Message:** Your annual income is above the taxable threshold. OMC can help verify your return.
+**Action:** Start Tax Filing
+
+---
+
+## 7. OMC Tax Calculation Log
+
+For logged-in users.
+
+| Field                  | Type                                       |
+| ---------------------- | ------------------------------------------ |
+| user                   | Link: User                                 |
+| customer               | Link: OMC Customer                         |
+| tax_year               | Link: OMC Tax Year                         |
+| income_type            | Select                                     |
+| filer_status           | Select                                     |
+| input_json             | Code                                       |
+| result_json            | Code                                       |
+| yearly_income          | Currency                                   |
+| yearly_tax             | Currency                                   |
+| monthly_tax            | Currency                                   |
+| effective_tax_rate     | Percent                                    |
+| source                 | Select: Guest / Customer / Service Request |
+| created_from_app       | Check                                      |
+| linked_service_request | Link: OMC Service Request                  |
+
+Purpose:
+
+* Save customer calculations
+* Attach estimate to service request
+* Allow OMC consultant to view estimate context
+* Build calculation history later if needed
+
+---
+
+# 5. Mobile UI Design
+
+## Screen Top
+
+Title:
+
+**Tax Calculator**
+
+Subtitle:
+
+**Estimate your tax using OMC configured tax rules.**
+
+Small badge:
+
+**Tax Year 2026-27 · PKR · Verified slabs**
+
+---
+
+## Input Card
 
 Default simple mode:
 
-Income Type
-[Salary] [Business] [Rental]
+### Income Type
 
-Income
-[Monthly] [Annual]
+Segmented selector:
 
-Amount
-[PKR 250,000]
+* Salary
+* Business
+* Rental
 
-Filer Status
-[Active Filer] [Late Filer] [Non-Filer]
+### Income Mode
 
-[Calculate Tax]
+Segmented selector:
 
-Advanced collapsed:
+* Monthly
+* Annual
 
-+ Refine calculation
-Result card
-Estimated Annual Tax
-PKR 580,000
+### Amount
 
-Monthly Tax
-PKR 48,333
+Input:
 
-Take-home / month
-PKR 201,667
+**PKR 250,000**
 
-Effective rate
-19.33%
-Premium sections
-Breakdown
-Slab used
-Fixed tax
-Percentage
-Amount above threshold
-Comparison
-Active filer vs non-filer
-Tax health
-Low / Medium / High readiness
-Next steps
-Documents needed
-Filing recommendation
-CTA
-Important: keep it light for user
-Do not show everything at once
+### Filer Status
 
-Default should be only:
+Segmented selector:
 
-Income type
-Monthly/annual
-Amount
-Filer status
-Calculate
+* Active Filer
+* Late Filer
+* Non-Filer
 
-Everything else hidden under Refine calculation.
+Button:
 
-That gives premium depth without making it boring.
+**Calculate Tax**
 
-Backend API endpoints
-1. Get config
+---
+
+## Advanced Section
+
+Collapsed by default:
+
+**+ Refine calculation**
+
+When opened, show only fields relevant to selected income type.
+
+Examples:
+
+### Salary
+
+* Bonus / additional annual income
+* Tax already deducted
+* Other income
+* Approved deductions
+
+### Business
+
+* Business turnover
+* Deductible expenses
+* WHT paid
+* Other income
+
+### Rental
+
+* Rental annual income
+* Property-related deductions
+* WHT paid
+* Other income
+
+---
+
+# 6. Result UI
+
+## Main Result Card
+
+Show the strongest number first.
+
+**Estimated Annual Tax**
+**PKR 580,000**
+
+Then smaller cards:
+
+| Label             |         Value |
+| ----------------- | ------------: |
+| Annual Income     | PKR 3,000,000 |
+| Monthly Tax       |    PKR 48,333 |
+| Monthly Take-home |   PKR 201,667 |
+| Effective Rate    |        19.33% |
+
+---
+
+## Breakdown Card
+
+Show only if enabled from backend.
+
+Example:
+
+| Item                   |                         Value |
+| ---------------------- | ----------------------------: |
+| Slab Used              | PKR 2,400,000 – PKR 3,600,000 |
+| Fixed Tax              |                         PKR X |
+| Rate                   |                            X% |
+| Amount Above Threshold |                         PKR X |
+| Tax Before Credits     |                         PKR X |
+| Tax Credits            |                         PKR X |
+| Final Estimated Tax    |                         PKR X |
+
+---
+
+## Filer Comparison Card
+
+Show only if enabled and backend has comparison rules.
+
+| Scenario            | Estimated Tax |
+| ------------------- | ------------: |
+| Active Filer        |         PKR X |
+| Non-Filer           |         PKR Y |
+| Possible Difference |         PKR Z |
+
+CTA:
+
+**File your return and improve filer status with OMC**
+
+---
+
+## Tax Health Card
+
+Show only if enabled.
+
+Example:
+
+**Tax Readiness: Medium**
+
+Reason:
+
+You have an estimated tax liability, but income proof or tax deduction certificate is missing.
+
+Possible statuses:
+
+* Low
+* Medium
+* High
+
+---
+
+## Recommended Next Steps
+
+Backend-controlled next steps.
+
+Example:
+
+1. Verify your filer status.
+2. Keep salary certificate or bank statement ready.
+3. Start OMC Tax Filing service before the deadline.
+
+---
+
+## CTA Card
+
+For guest:
+
+**Want to save this estimate?**
+**Create account**
+
+For customer:
+
+**Need OMC to verify and file this?**
+**Start Tax Filing Service**
+
+---
+
+# 7. Backend API Endpoints
+
+## 1. Get Calculator Config
+
+Endpoint:
+
+```text
 omc_app.api.tax_calculator.get_tax_calculator_config
+```
 
 Returns:
 
-active tax year
-enabled income types
-filer status options
-dynamic fields
-settings
-disclaimer
-2. Calculate
+```json
+{
+  "enabled": true,
+  "active_tax_year": {
+    "name": "2026-2027",
+    "title": "Tax Year 2026-27",
+    "currency": "PKR",
+    "verified": true,
+    "last_verified_on": "2026-07-01",
+    "public_note": "Based on OMC configured slabs."
+  },
+  "income_types": ["salary", "business", "rental"],
+  "filer_status_options": [
+    "active_filer",
+    "late_filer",
+    "non_filer"
+  ],
+  "simple_fields": [],
+  "advanced_fields": [
+    {
+      "field_key": "bonus_income",
+      "label": "Bonus / additional annual income",
+      "input_type": "number",
+      "income_type": "salary",
+      "is_required": false,
+      "help_text": "Add annual bonus if applicable."
+    }
+  ],
+  "settings": {
+    "show_advanced_mode": true,
+    "show_breakdown": true,
+    "show_filer_comparison": true,
+    "show_tax_health_score": true
+  },
+  "disclaimer": "Estimate only. Final filing may require document review.",
+  "cta": {
+    "guest_title": "Create account to save this estimate",
+    "guest_button": "Create Account",
+    "customer_title": "Need OMC to verify and file this?",
+    "customer_button": "Start Tax Filing Service"
+  }
+}
+```
+
+---
+
+## 2. Calculate Tax
+
+Endpoint:
+
+```text
 omc_app.api.tax_calculator.calculate_tax
+```
 
 Accepts:
 
+```json
 {
   "tax_year": "2026-2027",
   "income_type": "salary",
@@ -408,74 +710,358 @@ Accepts:
     "tax_already_deducted": 50000
   }
 }
+```
 
 Returns:
 
-result numbers
-breakdown
-comparison
-insights
-CTA
-source/verified status
-Recommended v1 vs later
-Build now — v1 premium
+```json
+{
+  "annual_income": 3100000,
+  "taxable_income": 3100000,
+  "estimated_annual_tax": 580000,
+  "monthly_tax": 48333,
+  "monthly_take_home": 201667,
+  "effective_tax_rate": 18.71,
+  "breakdown": {
+    "slab_label": "PKR 2,400,000 - PKR 3,600,000",
+    "fixed_tax": 0,
+    "rate_percent": 0,
+    "amount_over": 0,
+    "tax_before_credits": 630000,
+    "credits": 50000,
+    "final_tax": 580000
+  },
+  "comparison": {
+    "active_filer_tax": 580000,
+    "non_filer_tax": 700000,
+    "possible_difference": 120000
+  },
+  "tax_health": {
+    "score": "Medium",
+    "reason": "You have estimated liability but no income proof or deduction certificate uploaded."
+  },
+  "insights": [
+    {
+      "severity": "Medium",
+      "title": "Filing recommended",
+      "message": "Your annual income is above the taxable threshold.",
+      "action_label": "Start Tax Filing",
+      "action_type": "Service"
+    }
+  ],
+  "source": {
+    "tax_year": "Tax Year 2026-27",
+    "verified": true,
+    "last_verified_on": "2026-07-01"
+  },
+  "cta": {
+    "title": "Need OMC to verify and file this?",
+    "button": "Start Tax Filing Service",
+    "linked_service": "Tax Filing"
+  }
+}
+```
 
-This is enough and not too heavy:
+---
 
-Tax Year DocType
-Tax Slab child table
-Tax Calculator Settings
-Dynamic input fields
-Backend calculation from Frappe
-Simple + Advanced UI
-Breakdown
-CTA
-No guest data save
-Logged-in save optional
-Later — v2
-PDF estimate
-Filer vs non-filer comparison
-Tax health score
-Required documents auto-suggest
-Calculation history
-Consultant review flow
-WhatsApp/share estimate
-Final best plan
-We should build it like this
-User experience
+## 3. Start Service from Calculation
 
-Guest opens calculator → 4 fields → result → CTA.
+Endpoint:
 
-Admin experience
+```text
+omc_app.api.tax_calculator.start_service_from_calculation
+```
 
-OMC staff opens Frappe → updates Tax Year/slabs/settings → app instantly follows.
+Purpose:
 
-Backend
+* Create OMC Service Request
+* Link tax calculation log
+* Pre-fill estimate data
+* Attach calculation summary for consultant/admin review
 
-No hardcoded slabs. Code only knows formula engine. Rules live in Frappe.
+Accepts:
 
-Premium feel
+```json
+{
+  "calculation_log": "OMC-TAX-LOG-0001",
+  "service": "Tax Filing"
+}
+```
+
+Returns:
+
+```json
+{
+  "service_request": "OMC-SR-0001",
+  "message": "Tax filing service request created successfully."
+}
+```
+
+---
+
+# 8. Calculation Engine Rules
+
+## Backend Formula Flow
+
+1. Get active/published tax year.
+2. Validate calculator is enabled.
+3. Convert income to annual amount.
+4. Apply advanced income additions.
+5. Apply deductions.
+6. Find matching slab by:
+
+   * tax year
+   * income type
+   * filer status
+   * taxable income range
+7. Calculate tax:
+
+   * fixed tax
+   * plus percentage over threshold
+8. Apply credits:
+
+   * tax already deducted
+   * WHT paid
+9. Calculate:
+
+   * annual tax
+   * monthly tax
+   * take-home
+   * effective tax rate
+10. Generate:
+
+* breakdown
+* comparison
+* tax health score
+* insights
+* CTA
+
+11. Save log only if logged-in user and setting is enabled.
+
+---
+
+# 9. Guest vs Customer Behavior
+
+## Guest User
+
+Guest can:
+
+* Open calculator
+* Enter basic values
+* Use advanced fields if enabled
+* View estimate
+* View CTA
+* Create account or login
+
+Guest should not:
+
+* Save calculation by default
+* Create service request directly unless login/signup is completed
+* Access calculation history
+
+## Approved Customer
+
+Customer can:
+
+* Calculate tax
+* Save estimate if enabled
+* Start tax filing service
+* Attach calculation to service request
+* Share estimate with OMC consultant
+* View previous estimates if calculation history is enabled
+
+---
+
+# 10. Admin Experience in Frappe
+
+OMC admin should be able to:
+
+* Enable/disable calculator
+* Select default tax year
+* Publish/archive tax years
+* Add or update tax slabs
+* Control simple/advanced fields
+* Control filer status options
+* Control disclaimers
+* Control CTA text
+* Link CTA to OMC service
+* Add result insights
+* Control next steps
+* Update filing deadline alert
+* Enable/disable comparison
+* Enable/disable tax health score
+* Review logged-in calculation logs
+
+No mobile app update should be required for normal tax rule/content changes.
+
+---
+
+# 11. Best Final Feature Set
+
+| Feature                             | Priority |
+| ----------------------------------- | -------- |
+| Simple guest calculator             | Must     |
+| Frappe-managed tax years/slabs      | Must     |
+| Monthly/annual income mode          | Must     |
+| Income type-specific fields         | Must     |
+| Filer status                        | Must     |
+| Verified tax year badge             | Must     |
+| Backend calculation engine          | Must     |
+| Breakdown card                      | Must     |
+| CTA to tax filing service           | Must     |
+| Admin-controlled disclaimer/content | Must     |
+| Dynamic advanced fields             | Must     |
+| Recommended next steps              | Must     |
+| Start service from result           | Must     |
+| Logged-in calculation log           | Must     |
+| Filer vs non-filer comparison       | Should   |
+| Tax health score                    | Should   |
+| Download/share estimate             | Should   |
+| Required documents suggestion       | Should   |
+| Calculation history                 | Should   |
+
+---
+
+# 12. Final Recommended Build
+
+## Build It Like This
+
+### User Side
+
+Guest opens calculator:
+
+1. Select income type
+2. Select monthly or annual
+3. Enter amount
+4. Select filer status
+5. Tap calculate
+6. See clean result
+7. See CTA to start OMC service
+
+### Admin Side
+
+OMC staff opens Frappe:
+
+1. Configure tax year
+2. Add slabs
+3. Configure fields
+4. Configure disclaimer
+5. Configure CTA
+6. Configure result insights
+7. App follows instantly
+
+### Backend Side
+
+* No hardcoded slabs in Flutter
+* No hardcoded tax rules in Flutter
+* Backend owns formula engine
+* Frappe owns data, rules, content, CTAs, and visibility settings
+
+### Premium Feel
 
 Add:
 
-Verified tax year badge
-Smart breakdown
-Take-home income
-Filer status comparison later
-Recommended next steps
-Start service from result
-My recommended final feature list for OMC
-Feature	Priority
-Simple guest calculator	Must
-Frappe-managed tax years/slabs	Must
-Monthly/annual income mode	Must
-Income type-specific fields	Must
-Filer status	Must
-Verified/unverified source badge	Must
-Breakdown card	Must
-CTA to tax filing service	Must
-Advanced refine fields	Should
-Logged-in calculation history	Later
-PDF estimate	Later
-Filer vs non-filer comparison	Later
-Tax health score	Later
+* Verified tax year badge
+* Clean result cards
+* Smart breakdown
+* Monthly take-home
+* Filer comparison
+* Tax health score
+* Recommended next steps
+* Start service from result
+* Dynamic backend content
+
+---
+
+# 13. Implementation Order
+
+## Phase 1 — Backend Foundation
+
+1. Create Frappe DocTypes:
+
+   * OMC Tax Calculator Settings
+   * OMC Tax Year
+   * OMC Tax Slab
+   * OMC Tax Input Field
+   * OMC Tax Adjustment Rule
+   * OMC Tax Result Insight
+   * OMC Tax Calculation Log
+
+2. Add calculation API:
+
+   * get_tax_calculator_config
+   * calculate_tax
+   * start_service_from_calculation
+
+3. Add backend formula engine:
+
+   * annualization
+   * slab matching
+   * deductions/additions
+   * credits
+   * result breakdown
+   * insights
+   * CTA
+   * optional calculation log
+
+---
+
+## Phase 2 — Mobile Calculator UI
+
+1. Add Tax Calculator screen.
+2. Fetch backend config.
+3. Render simple fields.
+4. Render advanced fields dynamically.
+5. Call calculate API.
+6. Show result cards.
+7. Show breakdown.
+8. Show disclaimer.
+9. Show CTA.
+
+---
+
+## Phase 3 — Service Conversion
+
+1. If guest taps CTA:
+
+   * login/signup flow
+
+2. If approved customer taps CTA:
+
+   * create service request
+   * pre-fill estimate
+   * link calculation log
+
+3. Show success state:
+
+   * “Tax Filing service request created successfully.”
+
+---
+
+# 14. Final Product Direction
+
+The OMC Tax Calculator should not be just a number tool.
+
+It should be a **conversion feature**.
+
+It gives the user:
+
+* Quick estimate
+* Clear tax picture
+* Take-home understanding
+* Filer/non-filer awareness
+* Next steps
+* Direct OMC service path
+
+It gives OMC:
+
+* Backend-controlled tax rules
+* No app release needed for slab updates
+* Service lead generation
+* Customer calculation logs
+* Consultant-ready estimate context
+* Premium app experience without heavy UI complexity
+
+Final approach:
+
+**Simple for user. Powerful from backend. Fully controlled from Frappe. Fast to use. Easy to maintain.**
