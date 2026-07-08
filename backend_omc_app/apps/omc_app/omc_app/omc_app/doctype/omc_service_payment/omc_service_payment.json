@@ -1,11 +1,13 @@
 {
  "actions": [],
  "allow_rename": 0,
+ "autoname": "naming_series:",
  "creation": "2026-07-06 00:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "naming_series",
   "service_request",
   "payment_title",
   "amount",
@@ -19,6 +21,14 @@
   "remarks"
  ],
  "fields": [
+  {
+   "default": "OMC-PAY-.YY..MM..DD.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "OMC-PAY-.YY..MM..DD.-.#####",
+   "reqd": 1
+  },
   {
    "fieldname": "service_request",
    "fieldtype": "Link",
@@ -98,6 +108,7 @@
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Service Payment",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
