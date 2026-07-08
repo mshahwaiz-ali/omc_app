@@ -65,6 +65,12 @@ class ApiConfig {
       'omc_app.api.tax_calculator.get_tax_calculator_config';
   static const String taxCalculatorMethod =
       'omc_app.api.tax_calculator.calculate_tax';
+  static const String taxCalculationHistoryMethod =
+      'omc_app.api.tax_calculator.get_tax_calculation_history';
+  static const String downloadTaxEstimatePdfMethod =
+      'omc_app.api.tax_calculator.download_tax_estimate_pdf';
+  static const String shareTaxEstimateWithConsultantMethod =
+      'omc_app.api.tax_calculator.share_tax_estimate_with_consultant';
   static const String startTaxServiceFromCalculationMethod =
       'omc_app.api.tax_calculator.start_service_from_calculation';
 
