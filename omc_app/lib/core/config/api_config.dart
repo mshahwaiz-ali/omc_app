@@ -123,15 +123,15 @@ class ApiConfig {
       'omc_app.api.mobile.update_settings_preferences';
 
   static const String createSupportTicketMethod =
-      'omc_app.api.mobile.create_support_ticket';
+      'omc_app.api.support_chat.create_support_ticket';
   static const String supportTicketsMethod =
-      'omc_app.api.mobile.get_support_tickets';
+      'omc_app.api.support_chat.get_support_tickets';
   static const String supportTicketDetailMethod =
-      'omc_app.api.mobile.get_support_ticket';
+      'omc_app.api.support_chat.get_support_ticket';
   static const String addSupportTicketReplyMethod =
-      'omc_app.api.mobile.add_support_ticket_reply';
+      'omc_app.api.support_chat.add_support_ticket_reply';
   static const String updateSupportTicketStatusMethod =
-      'omc_app.api.mobile.update_support_ticket_status';
+      'omc_app.api.support_chat.update_support_ticket_status';
   static const String supportConfigMethod =
       'omc_app.api.mobile.get_support_config';
   static const String mobileAppConfigMethod =
@@ -171,6 +171,8 @@ class ApiConfig {
   static const String documentUploadDoctype = 'OMC Service Document';
 
   static const String paymentUploadDoctype = 'OMC Service Payment';
+
+  static const String supportTicketUploadDoctype = 'OMC Support Ticket';
 
   static const String uploadFileMethod = 'upload_file';
 
