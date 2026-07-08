@@ -77,7 +77,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
           const SizedBox(height: 20),
           _SupportHeroCard(channelCount: supportConfig.channels.length),
           const SizedBox(height: 16),
-          _SupportCategoriesCard(topics: supportTopics),
+          _SupportCategoriesCard(config: supportConfig, topics: supportTopics),
           const SizedBox(height: 16),
           _CreateSupportTicketCard(
             selectedTopic: _selectedTopic,
@@ -319,25 +319,31 @@ class _SupportMetric extends StatelessWidget {
 }
 
 class _SupportCategoriesCard extends StatelessWidget {
-  const _SupportCategoriesCard({required this.topics});
+  const _SupportCategoriesCard({required this.config, required this.topics});
 
+  final SupportConfigData config;
   final List<SupportTopicConfig> topics;
 
   @override
   Widget build(BuildContext context) {
     final sorted = [...topics]
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final whatsappChannel = config.whatsappChannel;
     return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _SectionHeader(
             title: 'Support topics',
-            subtitle: 'Choose the right area so OMC can route the request faster.',
+            subtitle: 'Tap a topic to open WhatsApp with a ready message.',
           ),
           const SizedBox(height: 14),
           for (final topic in sorted.take(6)) ...[
-            _TopicRow(topic: topic),
+            _TopicRow(
+              topic: topic,
+              whatsappChannel: whatsappChannel,
+              fallbackMessage: config.whatsappMessage,
+            ),
             if (topic != sorted.take(6).last) const SizedBox(height: 12),
           ],
         ],
@@ -566,29 +572,53 @@ class _SupportContactChannelsCard extends StatelessWidget {
 }
 
 class _TopicRow extends StatelessWidget {
-  const _TopicRow({required this.topic});
+  const _TopicRow({
+    required this.topic,
+    required this.whatsappChannel,
+    required this.fallbackMessage,
+  });
 
   final SupportTopicConfig topic;
+  final SupportChannelConfig? whatsappChannel;
+  final String fallbackMessage;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _IconBox(icon: _topicIcon(topic.iconKey), size: 40, iconSize: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          final channel = whatsappChannel;
+          if (channel == null) {
+            _showChannelError(context);
+            return;
+          }
+          _openSupportChannel(context, channel, _topicMessage(topic, fallbackMessage));
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
             children: [
-              Text(topic.title, style: _TextStyles.title),
-              if (topic.subtitle.trim().isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(topic.subtitle, style: _TextStyles.caption),
-              ],
+              _IconBox(icon: _topicIcon(topic.iconKey), size: 40, iconSize: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(topic.title, style: _TextStyles.title),
+                    if (topic.subtitle.trim().isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(topic.subtitle, style: _TextStyles.caption),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(Icons.chat_rounded, color: AppTheme.primaryRed, size: 20),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -886,6 +916,16 @@ String _channelActionLabel(SupportChannelConfig channel) {
   if (channel.isPhone) return 'Call OMC support';
   if (channel.isEmail) return 'Send email';
   return 'Open support channel';
+}
+
+String _topicMessage(SupportTopicConfig topic, String fallbackMessage) {
+  final message = topic.defaultMessage.trim();
+  if (message.isNotEmpty) return message;
+
+  final fallback = fallbackMessage.trim();
+  if (fallback.isNotEmpty) return '$fallback\n\nTopic: ${topic.title}';
+
+  return 'Hello OMC, I need support with ${topic.title}.';
 }
 
 Future<void> _openSupportChannel(
