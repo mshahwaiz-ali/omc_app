@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_error.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_empty_state.dart';
 import '../domain/internal_workspace_summary.dart';
 import 'internal_workspace_providers.dart';
 
@@ -148,8 +148,14 @@ class _InternalWorkspaceContent extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _ShortcutTile(
+          title: 'Service Cases',
+          subtitle: 'Search customers, review documents, and update allowed case statuses',
+          icon: Icons.assignment_turned_in_rounded,
+          onTap: () => context.go('/internal-workspace/service-cases'),
+        ),
+        _ShortcutTile(
           title: 'Leads',
-          subtitle: 'Review new opportunities and follow-ups',
+          subtitle: 'Create or review inquiry-stage opportunities',
           icon: Icons.person_add_alt_1_rounded,
           onTap: () => context.go('/leads'),
         ),
@@ -313,7 +319,7 @@ class _WorkspaceHero extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                'Team Command Center',
+                'Admin Workspace',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   color: theme.colorScheme.onPrimary,
                   fontWeight: FontWeight.w900,
@@ -322,7 +328,7 @@ class _WorkspaceHero extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Track sales, customers, payments, and daily execution from one clean workspace.',
+                'Handle service cases, customers, leads, payments, and daily execution from one clean workspace.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onPrimary.withValues(alpha: 0.84),
                   height: 1.4,
@@ -355,60 +361,53 @@ class _SummaryCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return PremiumCard(
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: null,
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(9),
-                  child: Icon(
-                    icon,
-                    color: theme.colorScheme.onPrimaryContainer,
-                    size: 21,
-                  ),
-                ),
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(9),
+              child: Icon(
+                icon,
+                color: theme.colorScheme.onPrimaryContainer,
+                size: 21,
               ),
-              const Spacer(),
-              Text(
-                value.toString(),
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.8,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                helper,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          const Spacer(),
+          Text(
+            value.toString(),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.8,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            helper,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -499,168 +498,45 @@ class _InternalWorkspaceLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-      children: [
-        Container(
-          height: 172,
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            color: theme.colorScheme.primary.withValues(alpha: 0.08),
-            border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.08),
-            ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -28,
-                top: -34,
-                child: Icon(
-                  Icons.dashboard_customize_rounded,
-                  size: 118,
-                  color: theme.colorScheme.primary.withValues(alpha: 0.06),
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomLeft,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _WorkspaceLoadingBar(width: 92, height: 26),
-                    const SizedBox(height: 16),
-                    _WorkspaceLoadingBar(width: 210, height: 18),
-                    const SizedBox(height: 10),
-                    _WorkspaceLoadingBar(width: 260, height: 12),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 14,
-          crossAxisSpacing: 14,
-          childAspectRatio: 1.08,
-          children: const [
-            _LoadingCard(),
-            _LoadingCard(),
-            _LoadingCard(),
-            _LoadingCard(),
+      children: const [
+        _LoadingPanel(height: 172),
+        SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(child: _LoadingPanel(height: 142)),
+            SizedBox(width: 14),
+            Expanded(child: _LoadingPanel(height: 142)),
           ],
         ),
-        const SizedBox(height: 24),
-        const _LoadingTile(),
-        const _LoadingTile(),
-        const _LoadingTile(),
+        SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(child: _LoadingPanel(height: 142)),
+            SizedBox(width: 14),
+            Expanded(child: _LoadingPanel(height: 142)),
+          ],
+        ),
       ],
     );
   }
 }
 
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
+class _LoadingPanel extends StatelessWidget {
+  const _LoadingPanel({required this.height});
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final skeletonColor = theme.colorScheme.primary.withValues(alpha: 0.07);
-
-    return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: skeletonColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.06),
-              ),
-            ),
-          ),
-          const Spacer(),
-          const _WorkspaceLoadingBar(width: 54, height: 22),
-          const SizedBox(height: 8),
-          const _WorkspaceLoadingBar(width: 96, height: 11),
-          const SizedBox(height: 7),
-          const _WorkspaceLoadingBar(width: 76, height: 10),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoadingTile extends StatelessWidget {
-  const _LoadingTile();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final skeletonColor = theme.colorScheme.primary.withValues(alpha: 0.07);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: PremiumCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: skeletonColor,
-                borderRadius: BorderRadius.circular(17),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.06),
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _WorkspaceLoadingBar(width: 150, height: 12),
-                  SizedBox(height: 9),
-                  _WorkspaceLoadingBar(width: 220, height: 10),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceLoadingBar extends StatelessWidget {
-  const _WorkspaceLoadingBar({required this.width, required this.height});
-
-  final double width;
   final double height;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Container(
-      width: width,
       height: height,
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(24),
       ),
     );
   }
