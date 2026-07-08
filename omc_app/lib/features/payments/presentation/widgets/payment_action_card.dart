@@ -24,7 +24,7 @@ class PaymentActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canPay = payment.requiresAction && payment.paymentUrl != null;
+    final canContactSupport = payment.requiresAction && payment.paymentUrl != null;
     final canOpenInvoice = payment.invoiceUrl != null;
     final canOpenReceipt = payment.receiptUrl != null;
 
@@ -53,7 +53,7 @@ class PaymentActionCard extends StatelessWidget {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Invoice, receipt and proof upload actions.',
+                      'Contact OMC, upload payment proof, and track review status.',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -69,6 +69,32 @@ class PaymentActionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
+          _ActionTile(
+            icon: Icons.chat_rounded,
+            title: 'Contact OMC on WhatsApp',
+            subtitle: payment.status == PaymentStatus.paid
+                ? 'Payment is already confirmed.'
+                : canContactSupport
+                ? 'Get account details and confirm this payment with OMC.'
+                : 'Payment support number is not configured yet.',
+            enabled: canContactSupport,
+            onTap: onPayNow,
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: isUploadingReceipt
+                ? Icons.hourglass_top_rounded
+                : Icons.upload_file_rounded,
+            title: isUploadingReceipt ? 'Uploading receipt' : 'Upload receipt',
+            subtitle: isUploadingReceipt
+                ? 'Please wait while the receipt is uploaded.'
+                : payment.status == PaymentStatus.rejected
+                ? 'Upload corrected proof for finance review.'
+                : 'Attach payment proof for verification.',
+            enabled: !isUploadingReceipt && onUploadReceipt != null,
+            onTap: onUploadReceipt,
+          ),
+          const SizedBox(height: 10),
           _ActionTile(
             icon: Icons.receipt_long_outlined,
             title: 'View invoice',
@@ -87,30 +113,6 @@ class PaymentActionCard extends StatelessWidget {
                 : 'Receipt will be available after reconciliation.',
             enabled: canOpenReceipt,
             onTap: onReceipt,
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: isUploadingReceipt
-                ? Icons.hourglass_top_rounded
-                : Icons.upload_file_rounded,
-            title: isUploadingReceipt ? 'Uploading receipt' : 'Upload receipt',
-            subtitle: isUploadingReceipt
-                ? 'Please wait while the receipt is uploaded.'
-                : 'Attach payment proof for verification.',
-            enabled: !isUploadingReceipt && onUploadReceipt != null,
-            onTap: onUploadReceipt,
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.payments_outlined,
-            title: 'Pay now',
-            subtitle: payment.status == PaymentStatus.paid
-                ? 'No payment action is required.'
-                : payment.paymentUrl == null
-                ? 'Online payment is not enabled for this record.'
-                : 'Open the secure payment link.',
-            enabled: canPay,
-            onTap: onPayNow,
           ),
         ],
       ),
