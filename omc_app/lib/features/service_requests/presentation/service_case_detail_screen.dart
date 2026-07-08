@@ -1313,17 +1313,35 @@ class _DocumentRequirementRow extends StatelessWidget {
     final cleanRemarks = remarks?.trim();
     final hasRemarks = cleanRemarks != null && cleanRemarks.isNotEmpty;
 
-    final icon = isSubmitted
-        ? Icons.check_circle_rounded
-        : isMissing
-            ? Icons.error_outline_rounded
-            : Icons.description_outlined;
+    final statusKey = statusLabel.trim().toLowerCase();
 
-    final statusColor = isSubmitted
-        ? const Color(0xFF18864B)
-        : isMissing
-            ? const Color(0xFFB25E00)
-            : AppTheme.textSecondary;
+    final icon = switch (statusKey) {
+      'approved' => Icons.check_circle_rounded,
+      'uploaded' => Icons.cloud_done_rounded,
+      'rejected' => Icons.cancel_rounded,
+      'pending' => Icons.hourglass_empty_rounded,
+      'missing' => Icons.error_outline_rounded,
+      'required' => Icons.description_outlined,
+      _ => isSubmitted
+          ? Icons.check_circle_rounded
+          : isMissing
+              ? Icons.error_outline_rounded
+              : Icons.description_outlined,
+    };
+
+    final statusColor = switch (statusKey) {
+      'approved' => const Color(0xFF18864B),
+      'uploaded' => const Color(0xFFB25E00),
+      'rejected' => const Color(0xFFC62828),
+      'pending' => AppTheme.textSecondary,
+      'missing' => const Color(0xFFB25E00),
+      'required' => AppTheme.textSecondary,
+      _ => isSubmitted
+          ? const Color(0xFF18864B)
+          : isMissing
+              ? const Color(0xFFB25E00)
+              : AppTheme.textSecondary,
+    };
 
     return Container(
       padding: const EdgeInsets.all(13),
