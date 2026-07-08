@@ -11,6 +11,7 @@ from omc_app.api.mobile import (
 )
 
 
+SUPPORT_MESSAGE_DOCTYPE = "OMC Support Ticket Message"
 ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "doc", "docx"}
 MAX_SUPPORT_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -39,7 +40,6 @@ def _find_uploaded_file(file_reference):
         file_docname = frappe.db.exists("File", filters)
         if file_docname:
             return frappe.get_doc("File", file_docname)
-
     return None
 
 
@@ -111,8 +111,7 @@ def _assert_support_attachment_allowed(ticket, file_reference):
     if uploaded_file.owner and uploaded_file.owner != current_user and not _can_access_internal_workspace(current_user):
         frappe.throw("You do not have permission to use this uploaded attachment.", frappe.PermissionError)
 
-    allowed_doctypes = {"", "OMC Support Ticket"}
-    if uploaded_file.attached_to_doctype and uploaded_file.attached_to_doctype not in allowed_doctypes:
+    if uploaded_file.attached_to_doctype and uploaded_file.attached_to_doctype not in {"", "OMC Support Ticket"}:
         frappe.throw("Uploaded attachment is attached to another document.", frappe.PermissionError)
 
     if uploaded_file.attached_to_name and uploaded_file.attached_to_name != ticket.name:
@@ -127,6 +126,13 @@ def _assert_support_attachment_allowed(ticket, file_reference):
 
     uploaded_file.save(ignore_permissions=True)
     return uploaded_file.file_url or clean_reference
+
+
+def _has_message_doctype():
+    try:
+        return bool(frappe.db.exists("DocType", SUPPORT_MESSAGE_DOCTYPE))
+    except Exception:
+        return False
 
 
 def _legacy_support_ticket_messages(ticket):
@@ -197,31 +203,51 @@ def _message_row_to_dict(row):
 
 
 def _support_ticket_messages(ticket):
-    rows = [row for row in (getattr(ticket, "conversation", None) or []) if not getattr(row, "is_internal", 0)]
+    if not _has_message_doctype():
+        return _legacy_support_ticket_messages(ticket)
+
+    rows = frappe.get_all(
+        SUPPORT_MESSAGE_DOCTYPE,
+        filters={"support_ticket": ticket.name, "is_internal": 0},
+        fields=[
+            "name",
+            "sender_user",
+            "sender_type",
+            "message",
+            "attachment",
+            "is_internal",
+            "creation",
+            "owner",
+        ],
+        order_by="creation asc",
+        limit_page_length=500,
+    )
+
     if rows:
         return [_message_row_to_dict(row) for row in rows]
+
     return _legacy_support_ticket_messages(ticket)
 
 
-def _ensure_initial_message_row(ticket):
-    if getattr(ticket, "conversation", None):
+def _ensure_initial_message_record(ticket):
+    if not _has_message_doctype():
+        return
+    if frappe.db.exists(SUPPORT_MESSAGE_DOCTYPE, {"support_ticket": ticket.name}):
         return
 
     initial_message = (ticket.message or "").split("\n\n--- Reply from ")[0].strip()
     if not initial_message:
         return
 
-    ticket.append(
-        "conversation",
-        {
-            "sender_user": ticket.raised_by,
-            "sender_type": "Customer",
-            "message": initial_message,
-            "is_internal": 0,
-            "read_by_customer": 1,
-            "read_by_staff": 0,
-        },
-    )
+    chat_message = frappe.new_doc(SUPPORT_MESSAGE_DOCTYPE)
+    chat_message.support_ticket = ticket.name
+    chat_message.sender_user = ticket.raised_by
+    chat_message.sender_type = "Customer"
+    chat_message.message = initial_message
+    chat_message.is_internal = 0
+    chat_message.read_by_customer = 1
+    chat_message.read_by_staff = 0
+    chat_message.insert(ignore_permissions=True)
 
 
 def _create_support_message(ticket, message="", attachment="", sender_type=None, is_internal=0):
@@ -233,23 +259,28 @@ def _create_support_message(ticket, message="", attachment="", sender_type=None,
 
     user = _current_user()
     sender_type = sender_type or ("Support" if _can_access_internal_workspace(user) else "Customer")
-    attachment_data = _attachment_meta(attachment)
 
-    ticket.append(
-        "conversation",
-        {
-            "sender_user": user if user != "Guest" else None,
-            "sender_type": sender_type,
-            "message": message,
-            "attachment": attachment_data["attachment"] or None,
-            "attachment_name": attachment_data["attachment_name"] or "",
-            "attachment_type": attachment_data["attachment_type"] or "",
-            "attachment_size": attachment_data["attachment_size"] or 0,
-            "is_internal": 1 if is_internal else 0,
-            "read_by_customer": 1 if sender_type == "Customer" else 0,
-            "read_by_staff": 1 if sender_type in {"Support", "Admin", "System"} else 0,
-        },
-    )
+    if not _has_message_doctype():
+        timestamp = frappe.utils.now_datetime()
+        ticket.message = (ticket.message or "").rstrip() + f"\n\n--- Reply from {user} at {timestamp} ---\n{message}"
+        ticket.save(ignore_permissions=True)
+        return None
+
+    attachment_data = _attachment_meta(attachment)
+    chat_message = frappe.new_doc(SUPPORT_MESSAGE_DOCTYPE)
+    chat_message.support_ticket = ticket.name
+    chat_message.sender_user = user if user != "Guest" else None
+    chat_message.sender_type = sender_type
+    chat_message.message = message
+    chat_message.attachment = attachment_data["attachment"] or None
+    chat_message.attachment_name = attachment_data["attachment_name"] or ""
+    chat_message.attachment_type = attachment_data["attachment_type"] or ""
+    chat_message.attachment_size = attachment_data["attachment_size"] or 0
+    chat_message.is_internal = 1 if is_internal else 0
+    chat_message.read_by_customer = 1 if sender_type == "Customer" else 0
+    chat_message.read_by_staff = 1 if sender_type in {"Support", "Admin", "System"} else 0
+    chat_message.insert(ignore_permissions=True)
+    return chat_message
 
 
 def _support_ticket_to_dict(ticket):
@@ -273,6 +304,7 @@ def _support_ticket_to_dict(ticket):
         "contact_email": ticket.contact_email or "",
         "contact_phone": ticket.contact_phone or "",
         "reference_service_request": ticket.reference_service_request or "",
+        "assigned_to": ticket.assigned_to or "",
         "raised_on": str(ticket.raised_on) if ticket.raised_on else "",
         "closed_on": str(ticket.closed_on) if ticket.closed_on else "",
         "created_at": str(ticket.creation) if ticket.creation else "",
@@ -335,7 +367,6 @@ def create_support_ticket(**kwargs):
     ticket.insert(ignore_permissions=True)
 
     _create_support_message(ticket, message=message, attachment=attachment, sender_type="Customer")
-    ticket.save(ignore_permissions=True)
     frappe.db.commit()
 
     return {"message": "Support ticket created.", "created": True, "ticket": _support_ticket_to_dict(ticket)}
@@ -365,7 +396,6 @@ def get_support_tickets():
         order_by="modified desc",
         limit_page_length=50,
     )
-
     return {"tickets": [_support_ticket_to_dict(frappe.get_doc("OMC Support Ticket", name)) for name in ticket_names]}
 
 
@@ -379,6 +409,7 @@ def get_support_ticket(ticket_id=None, name=None):
 
     ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
     _assert_support_ticket_access(ticket)
+    _ensure_initial_message_record(ticket)
     return {"ticket": _support_ticket_to_dict(ticket)}
 
 
@@ -401,7 +432,7 @@ def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
     if ticket.status in ["Closed", "Cancelled"]:
         frappe.throw("This support ticket is closed. Please reopen it before replying.")
 
-    _ensure_initial_message_row(ticket)
+    _ensure_initial_message_record(ticket)
     is_internal_user = _can_access_internal_workspace(user)
     sender_type = "Support" if is_internal_user else "Customer"
     _create_support_message(ticket, message=message, attachment=attachment, sender_type=sender_type)
@@ -411,7 +442,6 @@ def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
         ticket.closed_on = None
     elif is_internal_user and ticket.status == "Open":
         ticket.status = "In Progress"
-
     ticket.save(ignore_permissions=True)
 
     if is_internal_user and ticket.customer_profile:
@@ -452,7 +482,7 @@ def update_support_ticket_status(ticket_id=None, status=None, remarks=None, **kw
     ticket.closed_on = frappe.utils.now_datetime() if status in ["Resolved", "Closed", "Cancelled"] else None
 
     if remarks:
-        _ensure_initial_message_row(ticket)
+        _ensure_initial_message_record(ticket)
         _create_support_message(ticket, message=remarks, sender_type="Support")
 
     ticket.save(ignore_permissions=True)
@@ -468,9 +498,39 @@ def update_support_ticket_status(ticket_id=None, status=None, remarks=None, **kw
         )
 
     frappe.db.commit()
-    return {
-        "updated": True,
-        "old_status": old_status,
-        "ticket": _support_ticket_to_dict(ticket),
-        "message": "Support ticket status updated.",
-    }
+    return {"updated": True, "old_status": old_status, "ticket": _support_ticket_to_dict(ticket), "message": "Support ticket status updated."}
+
+
+@frappe.whitelist()
+def assign_support_ticket(ticket_id=None, assigned_to=None, **kwargs):
+    ticket_id = ticket_id or kwargs.get("name")
+    assigned_to = (assigned_to or kwargs.get("user") or "").strip()
+
+    if not ticket_id:
+        frappe.throw("ticket_id is required")
+    if not assigned_to:
+        frappe.throw("assigned_to is required")
+    if not frappe.db.exists("OMC Support Ticket", ticket_id):
+        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
+    if not frappe.db.exists("User", assigned_to):
+        frappe.throw("Assigned user not found", frappe.DoesNotExistError)
+
+    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
+    user, _profile = _assert_support_ticket_access(ticket)
+    if not _can_access_internal_workspace(user):
+        frappe.throw("You do not have permission to assign support tickets.", frappe.PermissionError)
+
+    previous_user = ticket.assigned_to or ""
+    ticket.assigned_to = assigned_to
+    if ticket.status == "Open":
+        ticket.status = "In Progress"
+    ticket.save(ignore_permissions=True)
+
+    _ensure_initial_message_record(ticket)
+    assignment_note = f"Ticket assigned to {assigned_to}."
+    if previous_user and previous_user != assigned_to:
+        assignment_note = f"Ticket transferred from {previous_user} to {assigned_to}."
+    _create_support_message(ticket, message=assignment_note, sender_type="System")
+
+    frappe.db.commit()
+    return {"updated": True, "ticket": _support_ticket_to_dict(ticket), "message": assignment_note}
