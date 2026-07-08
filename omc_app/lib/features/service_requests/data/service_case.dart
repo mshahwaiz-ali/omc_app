@@ -121,8 +121,14 @@ class ServiceCase {
 
   int get _calculatedProgressPercent {
     final completedBonus = _normalizedStatus.contains('complete') ? 10 : 0;
-    final value = 10 + (_documentRatio * 35) + (_paymentRatio * 25) + (_internalStageRatio * 20) + completedBonus;
-    return value.round().clamp(0, 100);
+    final value =
+        10 +
+        (_documentRatio * 35) +
+        (_paymentRatio * 25) +
+        (_internalStageRatio * 20) +
+        completedBonus;
+
+    return value.round().clamp(0, 100).toInt();
   }
 
   double get _documentRatio {
@@ -153,7 +159,8 @@ class ServiceCase {
   }
 
   double get _internalStageRatio {
-    if (_normalizedStatus.contains('complete') || _normalizedStatus.contains('closed')) {
+    if (_normalizedStatus.contains('complete') ||
+        _normalizedStatus.contains('closed')) {
       return 1;
     }
     if (_normalizedStatus.contains('in progress')) return 0.75;
