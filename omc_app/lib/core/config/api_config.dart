@@ -58,6 +58,9 @@ class ApiConfig {
   static const String dashboardDataMethod =
       'omc_app.api.mobile.get_dashboard_data';
 
+  static const String mobileQuickActionsMethod =
+      'omc_app.api.quick_actions.get_mobile_quick_actions';
+
   static const String taxCalculatorMethod = 'omc_app.api.mobile.calculate_tax';
 
   static const String serviceCatalogueMethod =
