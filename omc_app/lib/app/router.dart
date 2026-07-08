@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -34,6 +35,7 @@ import '../features/support/presentation/support_ticket_detail_screen.dart';
 import '../features/tax_calculator/presentation/tax_calculator_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'main_shell.dart';
+import 'shell_nav_scaffold.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final routerRefreshNotifier = _RouterRefreshNotifier(ref);
@@ -123,6 +125,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MainShell(initialIndex: 2),
       ),
       GoRoute(
+        path: '/more',
+        name: 'more',
+        builder: (context, state) => const MainShell(initialIndex: 4),
+      ),
+      GoRoute(
         path: '/services/:serviceId',
         name: 'service-detail',
         builder: (context, state) {
@@ -130,7 +137,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['serviceId'] ?? '',
           );
 
-          return ServiceDetailScreen(serviceId: serviceId);
+          return _withShell(
+            ShellNavScaffold.servicesIndex,
+            ServiceDetailScreen(serviceId: serviceId),
+          );
         },
       ),
       GoRoute(
@@ -141,7 +151,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['serviceId'] ?? '',
           );
 
-          return ServiceRequestDraftScreen(serviceId: serviceId);
+          return _withShell(
+            ShellNavScaffold.servicesIndex,
+            ServiceRequestDraftScreen(serviceId: serviceId),
+          );
         },
       ),
       GoRoute(
@@ -152,7 +165,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/dashboard',
         name: 'dashboard',
-        builder: (context, state) => const DashboardScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const DashboardScreen(),
+        ),
       ),
       GoRoute(
         path: '/documents',
@@ -167,13 +183,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['documentId'] ?? '',
           );
 
-          return DocumentDetailScreen(documentId: documentId);
+          return _withShell(
+            ShellNavScaffold.documentsIndex,
+            DocumentDetailScreen(documentId: documentId),
+          );
         },
       ),
       GoRoute(
         path: '/payments',
         name: 'payments',
-        builder: (context, state) => const PaymentsScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const PaymentsScreen(),
+        ),
       ),
       GoRoute(
         path: '/payments/:paymentId',
@@ -183,23 +205,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['paymentId'] ?? '',
           );
 
-          return PaymentDetailScreen(paymentId: paymentId);
+          return _withShell(
+            ShellNavScaffold.moreIndex,
+            PaymentDetailScreen(paymentId: paymentId),
+          );
         },
       ),
       GoRoute(
         path: '/leads',
         name: 'leads',
-        builder: (context, state) => const LeadsScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const LeadsScreen(),
+        ),
       ),
       GoRoute(
         path: '/customers',
         name: 'customers',
-        builder: (context, state) => const CustomersScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const CustomersScreen(),
+        ),
       ),
       GoRoute(
         path: '/tasks',
         name: 'tasks',
-        builder: (context, state) => const TasksScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const TasksScreen(),
+        ),
       ),
       GoRoute(
         path: '/leads/:leadId',
@@ -209,7 +243,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['leadId'] ?? '',
           );
 
-          return LeadDetailScreen(leadId: leadId);
+          return _withShell(
+            ShellNavScaffold.moreIndex,
+            LeadDetailScreen(leadId: leadId),
+          );
         },
       ),
       GoRoute(
@@ -220,7 +257,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['customerId'] ?? '',
           );
 
-          return CustomerDetailScreen(customerId: customerId);
+          return _withShell(
+            ShellNavScaffold.moreIndex,
+            CustomerDetailScreen(customerId: customerId),
+          );
         },
       ),
       GoRoute(
@@ -231,7 +271,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['taskId'] ?? '',
           );
 
-          return TaskDetailScreen(taskId: taskId);
+          return _withShell(
+            ShellNavScaffold.moreIndex,
+            TaskDetailScreen(taskId: taskId),
+          );
         },
       ),
       GoRoute(
@@ -242,13 +285,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['caseId'] ?? '',
           );
 
-          return ServiceCaseDetailScreen(caseId: caseId);
+          return _withShell(
+            ShellNavScaffold.trackIndex,
+            ServiceCaseDetailScreen(caseId: caseId),
+          );
         },
       ),
       GoRoute(
         path: '/knowledge',
         name: 'knowledge',
-        builder: (context, state) => const KnowledgeScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const KnowledgeScreen(),
+        ),
       ),
       GoRoute(
         path: '/knowledge/:articleId',
@@ -258,13 +307,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['articleId'] ?? '',
           );
 
-          return KnowledgeDetailScreen(articleId: articleId);
+          return _withShell(
+            ShellNavScaffold.moreIndex,
+            KnowledgeDetailScreen(articleId: articleId),
+          );
         },
       ),
       GoRoute(
         path: '/notifications',
         name: 'notifications',
-        builder: (context, state) => const NotificationsScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const NotificationsScreen(),
+        ),
       ),
       GoRoute(
         path: '/notifications/:notificationId',
@@ -274,28 +329,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['notificationId'] ?? '',
           );
 
-          return NotificationDetailScreen(notificationId: notificationId);
+          return _withShell(
+            ShellNavScaffold.moreIndex,
+            NotificationDetailScreen(notificationId: notificationId),
+          );
         },
       ),
       GoRoute(
         path: '/support',
         name: 'support',
-        builder: (context, state) => const SupportScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const SupportScreen(),
+        ),
       ),
       GoRoute(
         path: '/tax-calculator',
         name: 'tax-calculator',
-        builder: (context, state) => const TaxCalculatorScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const TaxCalculatorScreen(),
+        ),
       ),
       GoRoute(
         path: '/profile',
         name: 'profile',
-        builder: (context, state) => const ProfileScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const ProfileScreen(),
+        ),
       ),
       GoRoute(
         path: '/expense-tracker',
         name: 'expense-tracker',
-        builder: (context, state) => const ExpenseTrackerScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const ExpenseTrackerScreen(),
+        ),
       ),
       GoRoute(
         path: '/support-tickets/:ticketId',
@@ -305,27 +375,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['ticketId'] ?? '',
           );
 
-          return SupportTicketDetailScreen(ticketId: ticketId);
+          return _withShell(
+            ShellNavScaffold.moreIndex,
+            SupportTicketDetailScreen(ticketId: ticketId),
+          );
         },
       ),
       GoRoute(
         path: '/settings',
         name: 'settings',
-        builder: (context, state) => const SettingsScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const SettingsScreen(),
+        ),
       ),
       GoRoute(
         path: '/internal-workspace',
         name: 'internal-workspace',
-        builder: (context, state) => const InternalWorkspaceScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const InternalWorkspaceScreen(),
+        ),
       ),
       GoRoute(
         path: '/internal-workspace/service-cases',
         name: 'internal-service-cases',
-        builder: (context, state) => const InternalServiceCasesScreen(),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const InternalServiceCasesScreen(),
+        ),
       ),
     ],
   );
 });
+
+Widget _withShell(int selectedIndex, Widget child) {
+  return ShellNavScaffold(selectedIndex: selectedIndex, child: child);
+}
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(this._ref) {
@@ -348,6 +434,7 @@ class _RouterRefreshNotifier extends ChangeNotifier {
 bool _isGuestAllowedRoute(String location) {
   if (location == '/home' ||
       location == '/services' ||
+      location == '/more' ||
       location == '/knowledge' ||
       location == '/tax-calculator' ||
       location == '/support') {
