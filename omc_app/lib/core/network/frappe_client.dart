@@ -183,7 +183,32 @@ class FrappeClient {
       throw ApiError(message: _cleanMessage(exception), details: data);
     }
 
-    return data;
+    return _sanitizeResponseData(data) as Map<String, dynamic>;
+  }
+
+  Object? _sanitizeResponseData(Object? value) {
+    if (value is Map) {
+      return value.map(
+        (key, item) => MapEntry(key.toString(), _sanitizeResponseData(item)),
+      );
+    }
+
+    if (value is List) {
+      return value.map(_sanitizeResponseData).toList(growable: false);
+    }
+
+    if (value is String) {
+      return _stripFractionalSeconds(value);
+    }
+
+    return value;
+  }
+
+  String _stripFractionalSeconds(String value) {
+    return value.replaceAllMapped(
+      RegExp(r'(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})\.\d+'),
+      (match) => '\${match.group(1)} \${match.group(2)}',
+    );
   }
 
   void _throwIfRejectedLogin(Map<String, dynamic> data) {
