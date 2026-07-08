@@ -5,6 +5,7 @@ class SupportTicket {
     required this.message,
     required this.status,
     required this.priority,
+    this.lastMessage,
     this.referenceServiceRequest,
     this.contactEmail,
     this.contactPhone,
@@ -22,6 +23,7 @@ class SupportTicket {
   final String message;
   final String status;
   final String priority;
+  final String? lastMessage;
   final String? referenceServiceRequest;
   final String? contactEmail;
   final String? contactPhone;
@@ -44,22 +46,53 @@ class SupportTicket {
 
 class SupportTicketMessage {
   const SupportTicketMessage({
+    required this.id,
     required this.author,
     required this.message,
     required this.createdAtLabel,
     required this.type,
+    this.senderUser,
+    this.senderType,
+    this.attachmentUrl,
+    this.attachmentName,
+    this.attachmentType,
+    this.attachmentSize,
+    this.isInternal = false,
   });
 
+  final String id;
   final String author;
   final String message;
   final String createdAtLabel;
   final String type;
+  final String? senderUser;
+  final String? senderType;
+  final String? attachmentUrl;
+  final String? attachmentName;
+  final String? attachmentType;
+  final int? attachmentSize;
+  final bool isInternal;
+
+  bool get hasAttachment => attachmentUrl != null && attachmentUrl!.trim().isNotEmpty;
 
   bool get isReply {
     final normalized = type.trim().toLowerCase();
     return normalized.contains('reply') ||
         normalized.contains('support') ||
         normalized.contains('staff') ||
-        normalized.contains('agent');
+        normalized.contains('agent') ||
+        normalized.contains('admin');
+  }
+
+  bool get isFromCustomer {
+    final normalizedSender = (senderType ?? type).trim().toLowerCase();
+    if (normalizedSender.contains('support') ||
+        normalizedSender.contains('staff') ||
+        normalizedSender.contains('agent') ||
+        normalizedSender.contains('admin') ||
+        normalizedSender.contains('system')) {
+      return false;
+    }
+    return true;
   }
 }
