@@ -16,6 +16,7 @@ class ServiceCase {
     this.submittedDocuments = const [],
     this.missingDocuments = const [],
     this.documentDetails = const [],
+    this.paymentDetails = const [],
     this.timeline = const [],
     int? progressPercent,
     this.currentStage,
@@ -43,6 +44,7 @@ class ServiceCase {
   final List<String> submittedDocuments;
   final List<String> missingDocuments;
   final List<ServiceCaseDocument> documentDetails;
+  final List<ServiceCasePayment> paymentDetails;
   final List<ServiceCaseTimelineStep> timeline;
   final int? _progressPercent;
   final String? currentStage;
@@ -63,8 +65,6 @@ class ServiceCase {
     if (isClosed && _normalizedStatus.contains('complete')) return 1;
     if (_normalizedStatus.contains('cancel')) return 0;
 
-    // Prefer the richer record-based value, while keeping older backend values
-    // from causing visible regressions for legacy cases.
     return calculated > backendProgress ? calculated : backendProgress;
   }
 
@@ -94,6 +94,18 @@ class ServiceCase {
     return documentDetails.where((document) => document.isRejected).length;
   }
 
+  int get activePaymentTotal {
+    return paymentDetails.where((payment) => !payment.isCancelled).length;
+  }
+
+  int get approvedPaymentTotal {
+    return paymentDetails.where((payment) => payment.isPaid).length;
+  }
+
+  int get rejectedPaymentTotal {
+    return paymentDetails.where((payment) => payment.isRejected).length;
+  }
+
   String get documentSummaryLabel {
     final total = requiredDocumentTotal;
     if (total <= 0) return 'No documents required';
@@ -101,9 +113,9 @@ class ServiceCase {
   }
 
   String get paymentSummaryLabel {
-    if (_paymentRatio >= 1) return 'Paid / approved';
-    if (_normalizedStatus.contains('payment')) return 'Payment pending';
-    return 'Not started';
+    final total = activePaymentTotal;
+    if (total <= 0) return 'No payment opened';
+    return '$approvedPaymentTotal/$total paid';
   }
 
   String get actionRequiredLabel {
@@ -114,7 +126,14 @@ class ServiceCase {
     final missing = missingDocumentsCount ?? missingDocuments.length;
     if (missing > 0) return '$missing document(s) required';
 
-    if (_normalizedStatus.contains('payment')) return 'Payment action required';
+    if (rejectedPaymentTotal > 0) {
+      return '$rejectedPaymentTotal rejected receipt(s)';
+    }
+
+    if (_normalizedStatus.contains('payment') ||
+        paymentDetails.any((payment) => payment.needsCustomerAction)) {
+      return 'Payment action required';
+    }
 
     return nextStep ?? 'No customer action required';
   }
@@ -141,6 +160,11 @@ class ServiceCase {
   }
 
   double get _paymentRatio {
+    final total = activePaymentTotal;
+    if (total > 0) {
+      return (approvedPaymentTotal / total).clamp(0, 1).toDouble();
+    }
+
     if (_normalizedStatus.contains('payment under review') ||
         _normalizedStatus.contains('waiting for payment') ||
         _normalizedStatus.contains('receipt submitted')) {
@@ -245,6 +269,51 @@ class ServiceCaseDocument {
             normalized.contains('required') ||
             normalized.contains('pending') ||
             normalized.contains('rejected'));
+  }
+}
+
+class ServiceCasePayment {
+  const ServiceCasePayment({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.amount,
+    required this.currency,
+    this.dueDateLabel,
+    this.paidOnLabel,
+    this.paymentReference,
+    this.receiptUrl,
+    this.remarks,
+  });
+
+  final String id;
+  final String title;
+  final String status;
+  final double amount;
+  final String currency;
+  final String? dueDateLabel;
+  final String? paidOnLabel;
+  final String? paymentReference;
+  final String? receiptUrl;
+  final String? remarks;
+
+  bool get isPaid {
+    final normalized = status.trim().toLowerCase();
+    return normalized == 'paid' ||
+        normalized == 'approved' ||
+        normalized == 'payment approved';
+  }
+
+  bool get isRejected => status.trim().toLowerCase() == 'rejected';
+
+  bool get isCancelled => status.trim().toLowerCase() == 'cancelled';
+
+  bool get needsCustomerAction {
+    final normalized = status.trim().toLowerCase();
+    return normalized == 'open' ||
+        normalized == 'pending' ||
+        normalized == 'rejected' ||
+        normalized == 'waiting for payment';
   }
 }
 
