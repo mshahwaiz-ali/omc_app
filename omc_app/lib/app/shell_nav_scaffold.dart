@@ -24,8 +24,6 @@ class ShellNavScaffold extends ConsumerWidget {
   static const int documentsIndex = 3;
   static const int moreIndex = 4;
 
-  static const double _contentBottomInset = 112;
-
   static const List<_ShellNavItem> _navItems = [
     _ShellNavItem(
       label: 'Home',
@@ -67,10 +65,7 @@ class ShellNavScaffold extends ConsumerWidget {
 
     return Scaffold(
       extendBody: true,
-      body: Padding(
-        padding: const EdgeInsets.only(bottom: _contentBottomInset),
-        child: child,
-      ),
+      body: child,
       bottomNavigationBar: _FloatingShellNav(
         selectedIndex: selectedIndex,
         items: _navItems,
