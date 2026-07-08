@@ -1,13 +1,14 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:email",
+ "autoname": "naming_series:",
  "creation": "2026-07-06 00:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
   "user_section",
+  "naming_series",
   "user",
   "full_name",
   "email",
@@ -36,6 +37,14 @@
    "fieldname": "user_section",
    "fieldtype": "Section Break",
    "label": "User"
+  },
+  {
+   "default": "OMC-CUST-.YY..MM..DD.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Customer ID Series",
+   "options": "OMC-CUST-.YY..MM..DD.-.#####",
+   "reqd": 1
   },
   {
    "fieldname": "user",
@@ -167,7 +176,7 @@
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Customer Profile",
- "naming_rule": "By fieldname",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
