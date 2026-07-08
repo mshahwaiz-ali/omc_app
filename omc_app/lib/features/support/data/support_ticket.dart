@@ -38,7 +38,6 @@ class SupportTicket {
   bool get isClosed {
     final normalized = status.trim().toLowerCase();
     return normalized.contains('closed') ||
-        normalized.contains('resolved') ||
         normalized.contains('cancel') ||
         normalized.contains('done');
   }
