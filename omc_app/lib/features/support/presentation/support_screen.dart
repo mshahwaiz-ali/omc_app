@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../application/support_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
-import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../content/data/app_content_repository.dart';
 import '../data/support_config_data.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
@@ -49,6 +48,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   @override
   Widget build(BuildContext context) {
     final supportConfigAsync = ref.watch(supportConfigProvider);
+    final faqsAsync = ref.watch(appFaqsProvider);
     final capabilities = ref.watch(authControllerProvider).capabilities;
     final supportConfig =
         supportConfigAsync.value ?? SupportConfigData.fallback;
@@ -87,33 +87,14 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
             canCreateTicket: capabilities.canCreateSupportTicket,
             lockedMessage: _lockedAccessMessage(capabilities),
-            topics: supportTopics
-                .map((topic) => topic.title)
-                .toList(growable: false),
-            onTopicChanged: (value) {
-              if (value == null) return;
-              final topic = supportTopics.firstWhere(
-                (item) => item.title == value,
-                orElse: () => SupportTopicConfig(
-                  title: value,
-                  subtitle: '',
-                  defaultMessage: '',
-                  iconKey: '',
-                  sortOrder: 0,
-                ),
-              );
-              setState(() {
-                _selectedTopic = value;
-                if (_messageController.text.trim().isEmpty &&
-                    topic.defaultMessage.trim().isNotEmpty) {
-                  _messageController.text = topic.defaultMessage;
-                }
-              });
-            },
+            topics: supportTopics.map((topic) => topic.title).toList(growable: false),
+            onTopicChanged: _handleTopicChanged,
             onSubmit: _submitSupportTicket,
           ),
           const SizedBox(height: 16),
           _SupportTicketsCard(capabilities: capabilities),
+          const SizedBox(height: 16),
+          _BackendFaqCard(faqsAsync: faqsAsync),
           const SizedBox(height: 16),
           _SupportContactChannelsCard(config: supportConfig),
           const SizedBox(height: 16),
@@ -140,23 +121,37 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     );
   }
 
+  void _handleTopicChanged(String? value) {
+    if (value == null) return;
+    final supportConfig =
+        ref.read(supportConfigProvider).value ?? SupportConfigData.fallback;
+    final topic = supportConfig.topics.firstWhere(
+      (item) => item.title == value,
+      orElse: () => SupportTopicConfig(
+        title: value,
+        subtitle: '',
+        defaultMessage: '',
+        iconKey: '',
+        sortOrder: 0,
+      ),
+    );
+    setState(() {
+      _selectedTopic = value;
+      if (_messageController.text.trim().isEmpty &&
+          topic.defaultMessage.trim().isNotEmpty) {
+        _messageController.text = topic.defaultMessage;
+      }
+    });
+  }
+
   Future<void> _submitSupportTicket() async {
     final capabilities = ref.read(authControllerProvider).capabilities;
     if (!capabilities.canCreateSupportTicket) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(_lockedAccessMessage(capabilities)),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      _showSnack(_lockedAccessMessage(capabilities));
       return;
     }
 
     final repository = ref.read(supportRepositoryProvider);
-    final messenger = ScaffoldMessenger.of(context);
-
     setState(() => _isSubmitting = true);
 
     try {
@@ -164,34 +159,27 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         topic: _selectedTopic,
         message: _messageController.text,
       );
-
       if (!mounted) return;
-
-      setState(() {
-        _messageController.clear();
-      });
+      setState(_messageController.clear);
       ref.invalidate(supportTicketsProvider);
-
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Support ticket submitted.')),
-      );
+      _showSnack('Support ticket submitted.');
     } on ApiError catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      _showSnack(error.message);
     } catch (_) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Support ticket could not be submitted right now. Please try again.',
-          ),
-        ),
-      );
+      _showSnack('Support ticket could not be submitted right now. Please try again.');
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
   }
 
   String _lockedAccessMessage(AuthCapabilities capabilities) {
@@ -222,31 +210,14 @@ class _SupportHeroCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.support_agent_rounded,
-                  color: AppTheme.primaryRed,
-                  size: 30,
-                ),
-              ),
+              const _IconBox(icon: Icons.support_agent_rounded, size: 56, iconSize: 30),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: Colors.green.withValues(alpha: 0.14),
-                  ),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.14)),
                 ),
                 child: const Text(
                   'Active support',
@@ -260,24 +231,11 @@ class _SupportHeroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          const Text(
-            'How can we help?',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 22,
-              height: 1.15,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          const Text('How can we help?', style: _TextStyles.heroTitle),
           const SizedBox(height: 8),
           const Text(
             'Create a tracked ticket or contact OMC directly for service, document, tax and payment support.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
-            ),
+            style: _TextStyles.body,
           ),
           const SizedBox(height: 16),
           Row(
@@ -327,41 +285,15 @@ class _SupportMetric extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 17),
-          ),
+          _IconBox(icon: icon, size: 30, iconSize: 17),
           const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: _TextStyles.metricValue),
                 const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: _TextStyles.metricLabel),
               ],
             ),
           ),
@@ -371,465 +303,31 @@ class _SupportMetric extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.subtitle});
+class _SupportCategoriesCard extends StatelessWidget {
+  const _SupportCategoriesCard({required this.topics});
 
-  final String title;
-  final String subtitle;
+  final List<SupportTopicConfig> topics;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 13,
-            height: 1.4,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SupportTicketsCard extends ConsumerWidget {
-  const _SupportTicketsCard({required this.capabilities});
-
-  final AuthCapabilities capabilities;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (!capabilities.canViewSupportTickets &&
-        !capabilities.canAccessInternalWorkspace) {
-      return PremiumCard(
-        padding: const EdgeInsets.all(18),
-        child: _LockedSupportTicketsView(
-          message: _lockedTicketsMessage(capabilities),
-        ),
-      );
-    }
-
-    final ticketsAsync = ref.watch(supportTicketsProvider);
-
+    final sorted = [...topics]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: _SectionHeader(
-                  title: 'Your support tickets',
-                  subtitle:
-                      'Track submitted support requests and open ticket details.',
-                ),
-              ),
-              IconButton.filledTonal(
-                tooltip: 'Refresh',
-                onPressed: () => ref.invalidate(supportTicketsProvider),
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-            ],
+          const _SectionHeader(
+            title: 'Support topics',
+            subtitle: 'Choose the right area so OMC can route the request faster.',
           ),
           const SizedBox(height: 14),
-          ticketsAsync.when(
-            data: (tickets) {
-              if (tickets.isEmpty) {
-                return const _EmptySupportTicketsView();
-              }
-
-              final visibleTickets = tickets.take(5).toList(growable: false);
-
-              return Column(
-                children: [
-                  for (
-                    var index = 0;
-                    index < visibleTickets.length;
-                    index++
-                  ) ...[
-                    _SupportTicketTile(ticket: visibleTickets[index]),
-                    if (index != visibleTickets.length - 1)
-                      const SizedBox(height: 10),
-                  ],
-                ],
-              );
-            },
-            loading: () => const _SupportTicketsLoadingView(),
-            error: (error, _) => _SupportTicketsErrorView(
-              message: _cleanSupportError(error),
-              onRetry: () => ref.invalidate(supportTicketsProvider),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _lockedTicketsMessage(AuthCapabilities capabilities) {
-    if (capabilities.isGuest) {
-      return 'Sign in or create an account to see tracked support tickets.';
-    }
-    if (capabilities.isPending) {
-      return 'Support tickets will appear after OMC approves your account.';
-    }
-    return 'Tracked support tickets are not available for this account.';
-  }
-}
-
-class _LockedSupportTicketsView extends StatelessWidget {
-  const _LockedSupportTicketsView({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(
-            Icons.lock_outline_rounded,
-            color: AppTheme.primaryRed,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Tracked tickets',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                message,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SupportTicketTile extends StatelessWidget {
-  const _SupportTicketTile({required this.ticket});
-
-  final SupportTicket ticket;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () =>
-          context.push('/support-tickets/${Uri.encodeComponent(ticket.id)}'),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.035),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppTheme.primaryRed.withValues(alpha: 0.07),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                ),
-              ),
-              child: const Icon(
-                Icons.support_agent_rounded,
-                color: AppTheme.primaryRed,
-                size: 21,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    ticket.subject,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${ticket.status} • ${ticket.priority}',
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (ticket.updatedAtLabel != null) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      ticket.updatedAtLabel!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11,
-                        height: 1.25,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
-                size: 20,
-              ),
-            ),
+          for (final topic in sorted.take(6)) ...[
+            _TopicRow(topic: topic),
+            if (topic != sorted.take(6).last) const SizedBox(height: 12),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptySupportTicketsView extends StatelessWidget {
-  const _EmptySupportTicketsView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.035),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: const Icon(
-              Icons.inbox_outlined,
-              color: AppTheme.primaryRed,
-              size: 19,
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'No support tickets yet. Submit a request above when you need tracked follow-up.',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
-}
-
-class _SupportTicketsLoadingView extends StatelessWidget {
-  const _SupportTicketsLoadingView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        3,
-        (index) => Container(
-          margin: EdgeInsets.only(bottom: index == 2 ? 0 : 10),
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.035),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: AppTheme.primaryRed.withValues(alpha: 0.07),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 12,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 10,
-                      width: 150,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SupportTicketsErrorView extends StatelessWidget {
-  const _SupportTicketsErrorView({
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: AppTheme.primaryRed,
-                size: 18,
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Tickets unavailable',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          Text(
-            message,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _cleanSupportError(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  if (message.isEmpty) {
-    return 'Support tickets could not be loaded right now.';
-  }
-  return message;
 }
 
 class _CreateSupportTicketCard extends StatelessWidget {
@@ -858,246 +356,165 @@ class _CreateSupportTicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'Create ticket',
+            subtitle: 'Approved customers can create tracked tickets from the app.',
+          ),
+          if (!canCreateTicket) ...[
+            const SizedBox(height: 12),
+            _LockedNote(message: lockedMessage),
+          ],
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: topics.contains(selectedTopic) ? selectedTopic : null,
+            items: topics
+                .map((topic) => DropdownMenuItem(value: topic, child: Text(topic)))
+                .toList(growable: false),
+            onChanged: canCreateTicket ? onTopicChanged : null,
+            decoration: const InputDecoration(
+              labelText: 'Topic',
+              prefixIcon: Icon(Icons.topic_outlined),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: messageController,
+            enabled: canCreateTicket,
+            minLines: 4,
+            maxLines: 7,
+            decoration: const InputDecoration(
+              labelText: 'Message',
+              hintText: 'Explain what you need help with...',
+              alignLabelWithHint: true,
+              prefixIcon: Icon(Icons.message_outlined),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: canSubmit ? onSubmit : null,
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send_rounded),
+              label: Text(isSubmitting ? 'Submitting...' : 'Submit support ticket'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SupportTicketsCard extends ConsumerWidget {
+  const _SupportTicketsCard({required this.capabilities});
+
+  final AuthCapabilities capabilities;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!capabilities.canViewSupportTickets &&
+        !capabilities.canAccessInternalWorkspace) {
+      return PremiumCard(
+        padding: const EdgeInsets.all(18),
+        child: _LockedNote(message: _lockedTicketsMessage(capabilities)),
+      );
+    }
+
+    final ticketsAsync = ref.watch(supportTicketsProvider);
+    return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Create support ticket',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.15,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Send a support request for tracking and team follow-up.',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 14),
-          if (!canCreateTicket) ...[
-            _SupportLockedNote(message: lockedMessage),
-            const SizedBox(height: 12),
-          ],
-          DropdownButtonFormField<String>(
-            initialValue: selectedTopic,
-            items: topics
-                .map(
-                  (topic) => DropdownMenuItem<String>(
-                    value: topic,
-                    child: Text(topic),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: isSubmitting || !canCreateTicket ? null : onTopicChanged,
-            decoration: const InputDecoration(
-              labelText: 'Topic',
-              prefixIcon: Icon(Icons.category_outlined),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: messageController,
-            enabled: !isSubmitting && canCreateTicket,
-            minLines: 3,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              labelText: 'Message',
-              hintText: 'Describe the issue or support request',
-              helperText: 'Minimum 10 characters required.',
-              prefixIcon: Icon(Icons.message_outlined),
-              alignLabelWithHint: true,
-            ),
-          ),
-          const SizedBox(height: 14),
-          AppButton(
-            label: !canCreateTicket
-                ? 'Approval required'
-                : isSubmitting
-                ? 'Submitting...'
-                : 'Submit ticket',
-            icon: Icons.send_rounded,
-            onPressed: canSubmit ? onSubmit : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SupportLockedNote extends StatelessWidget {
-  const _SupportLockedNote({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.lock_outline_rounded,
-            color: AppTheme.primaryRed,
-            size: 18,
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SupportCategoriesCard extends StatelessWidget {
-  const _SupportCategoriesCard({required this.topics});
-
-  final List<SupportTopicConfig> topics;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Choose a support topic',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Start with the right context so OMC can route your query faster.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 14),
-          for (final topic in topics) ...[
-            _SupportCategoryTile(topic: topic),
-            if (topic != topics.last) const SizedBox(height: 10),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SupportCategoryTile extends StatelessWidget {
-  const _SupportCategoryTile({required this.topic});
-
-  final SupportTopicConfig topic;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => SupportLauncher.openWhatsAppWithMessage(
-        context,
-        message: topic.defaultMessage.trim().isNotEmpty
-            ? topic.defaultMessage
-            : 'Hello OMC, I need help with ${topic.title}.',
-      ),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.035),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppTheme.primaryRed.withValues(alpha: 0.07),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+          Row(
+            children: [
+              const Expanded(
+                child: _SectionHeader(
+                  title: 'Your support tickets',
+                  subtitle: 'Track submitted support requests and open ticket details.',
                 ),
               ),
-              child: Icon(
-                _supportTopicIcon(topic.iconKey),
-                color: AppTheme.primaryRed,
-                size: 21,
+              IconButton.filledTonal(
+                tooltip: 'Refresh',
+                onPressed: () => ref.invalidate(supportTicketsProvider),
+                icon: const Icon(Icons.refresh_rounded),
               ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ticketsAsync.when(
+            data: (tickets) {
+              if (tickets.isEmpty) return const _EmptyTickets();
+              return Column(
+                children: tickets.take(4).map((ticket) {
+                  return _TicketTile(ticket: ticket);
+                }).toList(growable: false),
+              );
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    topic.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    topic.subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+            error: (error, _) => _ErrorNote(
+              message: error is ApiError
+                  ? error.message
+                  : 'Support tickets could not be loaded right now.',
+              onRetry: () => ref.invalidate(supportTicketsProvider),
             ),
-            const Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: AppTheme.primaryRed,
-              size: 20,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+
+  String _lockedTicketsMessage(AuthCapabilities capabilities) {
+    if (capabilities.isGuest) {
+      return 'Sign in or create an account to view tracked support tickets.';
+    }
+    if (capabilities.isPending) {
+      return 'Ticket history unlocks after OMC approves your profile.';
+    }
+    return 'This account does not have access to tracked support tickets.';
+  }
+}
+
+class _BackendFaqCard extends StatelessWidget {
+  const _BackendFaqCard({required this.faqsAsync});
+
+  final AsyncValue<List<AppFaqItem>> faqsAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    return faqsAsync.maybeWhen(
+      data: (faqs) {
+        final visible = [...faqs]
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        if (visible.isEmpty) return const SizedBox.shrink();
+        return PremiumCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _SectionHeader(
+                title: 'Frequently asked questions',
+                subtitle: 'Backend-managed answers for common OMC support questions.',
+              ),
+              const SizedBox(height: 12),
+              for (final faq in visible.take(5))
+                _FaqTile(faq: faq),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
@@ -1109,193 +526,127 @@ class _SupportContactChannelsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final channels = config.channels.isNotEmpty
-        ? config.channels
-        : SupportConfigData.fallback.channels;
-
+    final channels = [...config.channels]
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _SectionHeader(
-            title: 'Contact channels',
-            subtitle: 'Use direct support options when you need faster help.',
+            title: 'Direct channels',
+            subtitle: 'Use these for public or urgent support contact.',
           ),
           const SizedBox(height: 14),
           for (final channel in channels) ...[
-            _SupportTile(
-              icon: _supportChannelIcon(channel),
-              title: channel.label,
-              subtitle: channel.subtitle.trim().isNotEmpty
-                  ? channel.subtitle
-                  : channel.value,
-              onTap: () => _openChannel(context, channel, config),
-            ),
-            if (channel != channels.last) const SizedBox(height: 10),
+            _ChannelTile(channel: channel),
+            if (channel != channels.last) const Divider(height: 18),
           ],
         ],
       ),
     );
   }
+}
 
-  void _openChannel(
-    BuildContext context,
-    SupportChannelConfig channel,
-    SupportConfigData config,
-  ) {
-    if (channel.isWhatsApp) {
-      SupportLauncher.openWhatsApp(
-        context,
-        phoneNumber: channel.value,
-        message: config.whatsappMessage,
-      );
-      return;
-    }
+class _TopicRow extends StatelessWidget {
+  const _TopicRow({required this.topic});
 
-    if (channel.isPhone) {
-      SupportLauncher.callSupport(context, phoneNumber: channel.value);
-      return;
-    }
+  final SupportTopicConfig topic;
 
-    if (channel.isEmail) {
-      SupportLauncher.emailSupport(context, email: channel.value);
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${channel.label}: ${channel.value}')),
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _IconBox(icon: _topicIcon(topic.iconKey), size: 40, iconSize: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(topic.title, style: _TextStyles.title),
+              if (topic.subtitle.trim().isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(topic.subtitle, style: _TextStyles.caption),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
-IconData _supportTopicIcon(String iconKey) {
-  switch (iconKey.trim().toLowerCase()) {
-    case 'tax':
-    case 'income_tax':
-      return Icons.receipt_long_outlined;
-    case 'pos':
-    case 'invoice':
-    case 'digital_invoice':
-      return Icons.point_of_sale_outlined;
-    case 'sales_tax':
-    case 'gst':
-      return Icons.storefront_outlined;
-    case 'technical':
-    case 'app':
-      return Icons.build_circle_outlined;
-    case 'payment':
-      return Icons.account_balance_wallet_outlined;
-    default:
-      return Icons.support_agent_rounded;
-  }
-}
+class _TicketTile extends StatelessWidget {
+  const _TicketTile({required this.ticket});
 
-IconData _supportChannelIcon(SupportChannelConfig channel) {
-  if (channel.isWhatsApp) return Icons.chat_bubble_outline_rounded;
-  if (channel.isPhone) return Icons.call_outlined;
-  if (channel.isEmail) return Icons.email_outlined;
-  return Icons.support_agent_rounded;
-}
-
-class _SupportTile extends StatelessWidget {
-  const _SupportTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
+  final SupportTicket ticket;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.035),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppTheme.primaryRed.withValues(alpha: 0.07),
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const _IconBox(icon: Icons.confirmation_number_outlined),
+      title: Text(ticket.subject.isEmpty ? ticket.id : ticket.subject),
+      subtitle: Text(
+        '${ticket.status.isEmpty ? 'Open' : ticket.status} • ${ticket.priority.isEmpty ? 'Medium' : ticket.priority}',
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: () => context.push('/support-tickets/${Uri.encodeComponent(ticket.id)}'),
+    );
+  }
+}
+
+class _FaqTile extends StatelessWidget {
+  const _FaqTile({required this.faq});
+
+  final AppFaqItem faq;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(left: 2, right: 2, bottom: 10),
+      title: Text(faq.question, style: _TextStyles.title),
+      subtitle: faq.category == null ? null : Text(faq.category!),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(faq.answer, style: _TextStyles.body),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChannelTile extends StatelessWidget {
+  const _ChannelTile({required this.channel});
+
+  final SupportChannelConfig channel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _IconBox(icon: _channelIcon(channel), size: 42, iconSize: 22),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(channel.label, style: _TextStyles.title),
+              const SizedBox(height: 3),
+              Text(channel.value, style: _TextStyles.body),
+              if (channel.subtitle.trim().isNotEmpty)
+                Text(channel.subtitle, style: _TextStyles.caption),
+            ],
           ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                ),
-              ),
-              child: Icon(icon, color: AppTheme.primaryRed, size: 21),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
-                size: 20,
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
+  const _InfoRow({required this.icon, required this.title, required this.value});
 
   final IconData icon;
   final String title;
@@ -1306,50 +657,187 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            ),
-          ),
-          child: Icon(icon, color: AppTheme.primaryRed, size: 21),
-        ),
+        _IconBox(icon: icon, size: 38, iconSize: 20),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              Text(title, style: _TextStyles.title),
               const SizedBox(height: 4),
-              Text(
-                value,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 14,
-                  height: 1.35,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.05,
-                ),
-              ),
+              Text(value, style: _TextStyles.body),
             ],
           ),
         ),
       ],
     );
   }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: _TextStyles.sectionTitle),
+        const SizedBox(height: 6),
+        Text(subtitle, style: _TextStyles.body),
+      ],
+    );
+  }
+}
+
+class _LockedNote extends StatelessWidget {
+  const _LockedNote({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InlineNote(icon: Icons.lock_outline_rounded, message: message);
+  }
+}
+
+class _EmptyTickets extends StatelessWidget {
+  const _EmptyTickets();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _InlineNote(
+      icon: Icons.inbox_outlined,
+      message: 'No support tickets yet. Submitted tickets will appear here.',
+    );
+  }
+}
+
+class _ErrorNote extends StatelessWidget {
+  const _ErrorNote({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _InlineNote(icon: Icons.cloud_off_outlined, message: message),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Retry'),
+        ),
+      ],
+    );
+  }
+}
+
+class _InlineNote extends StatelessWidget {
+  const _InlineNote({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _IconBox(icon: icon, size: 36, iconSize: 19),
+        const SizedBox(width: 12),
+        Expanded(child: Text(message, style: _TextStyles.body)),
+      ],
+    );
+  }
+}
+
+class _IconBox extends StatelessWidget {
+  const _IconBox({required this.icon, this.size = 40, this.iconSize = 21});
+
+  final IconData icon;
+  final double size;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(size * 0.36),
+      ),
+      child: Icon(icon, color: AppTheme.primaryRed, size: iconSize),
+    );
+  }
+}
+
+class _TextStyles {
+  static const heroTitle = TextStyle(
+    color: AppTheme.textPrimary,
+    fontSize: 22,
+    height: 1.15,
+    fontWeight: FontWeight.w900,
+  );
+
+  static const sectionTitle = TextStyle(
+    color: AppTheme.textPrimary,
+    fontSize: 18,
+    fontWeight: FontWeight.w900,
+  );
+
+  static const title = TextStyle(
+    color: AppTheme.textPrimary,
+    fontSize: 14,
+    fontWeight: FontWeight.w900,
+  );
+
+  static const body = TextStyle(
+    color: AppTheme.textSecondary,
+    fontSize: 13,
+    height: 1.4,
+    fontWeight: FontWeight.w600,
+  );
+
+  static const caption = TextStyle(
+    color: AppTheme.textSecondary,
+    fontSize: 12,
+    height: 1.35,
+    fontWeight: FontWeight.w500,
+  );
+
+  static const metricValue = TextStyle(
+    color: AppTheme.textPrimary,
+    fontSize: 13,
+    fontWeight: FontWeight.w900,
+  );
+
+  static const metricLabel = TextStyle(
+    color: AppTheme.textSecondary,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+  );
+}
+
+IconData _topicIcon(String iconKey) {
+  final key = iconKey.toLowerCase();
+  if (key.contains('payment')) return Icons.account_balance_wallet_outlined;
+  if (key.contains('technical')) return Icons.phonelink_setup_rounded;
+  if (key.contains('sales')) return Icons.storefront_outlined;
+  if (key.contains('pos')) return Icons.point_of_sale_rounded;
+  if (key.contains('tax')) return Icons.receipt_long_outlined;
+  return Icons.help_outline_rounded;
+}
+
+IconData _channelIcon(SupportChannelConfig channel) {
+  if (channel.isWhatsApp) return Icons.chat_rounded;
+  if (channel.isPhone) return Icons.phone_outlined;
+  if (channel.isEmail) return Icons.email_outlined;
+  return Icons.support_agent_rounded;
 }
