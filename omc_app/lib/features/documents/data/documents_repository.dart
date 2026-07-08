@@ -76,13 +76,13 @@ class DocumentsRepository {
     final uploadedFiles = <Map<String, dynamic>>[];
 
     for (final attachment in uploadableAttachments) {
-      final filePath = attachment.path;
-      if (filePath == null || filePath.trim().isEmpty) {
+      if (!attachment.hasUploadData) {
         continue;
       }
 
       final uploadResponse = await _frappeClient.uploadFile(
-        filePath: filePath,
+        filePath: attachment.path,
+        fileBytes: attachment.bytes,
         fileName: attachment.name,
         doctype: ApiConfig.serviceRequestUploadDoctype,
         docname: cleanServiceRequestId,

@@ -85,6 +85,7 @@ class DocumentAttachmentController {
       name: file.name,
       sizeInBytes: file.size,
       path: file.path,
+      bytes: file.bytes,
       extension: extension,
     );
   }

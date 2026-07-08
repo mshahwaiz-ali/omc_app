@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import '../config/api_config.dart';
@@ -124,19 +126,34 @@ class FrappeClient {
   }
 
   Future<Map<String, dynamic>> uploadFile({
-    required String filePath,
+    String? filePath,
+    Uint8List? fileBytes,
     required String fileName,
-    required String doctype,
-    required String docname,
+    String? doctype,
+    String? docname,
     bool isPrivate = true,
   }) async {
     try {
+      final cleanPath = filePath?.trim();
+      final cleanDoctype = doctype?.trim();
+      final cleanDocname = docname?.trim();
+      final filePart = fileBytes != null && fileBytes.isNotEmpty
+          ? MultipartFile.fromBytes(fileBytes, filename: fileName)
+          : cleanPath != null && cleanPath.isNotEmpty
+              ? await MultipartFile.fromFile(cleanPath, filename: fileName)
+              : throw StateError('Selected file data is unavailable. Choose the file again.');
+
       final formData = FormData.fromMap({
-        'doctype': doctype,
-        'docname': docname,
         'is_private': isPrivate ? 1 : 0,
-        'file': await MultipartFile.fromFile(filePath, filename: fileName),
+        'file': filePart,
       });
+
+      if (cleanDoctype != null && cleanDoctype.isNotEmpty) {
+        formData.fields.add(MapEntry('doctype', cleanDoctype));
+      }
+      if (cleanDocname != null && cleanDocname.isNotEmpty) {
+        formData.fields.add(MapEntry('docname', cleanDocname));
+      }
 
       final response = await _dioClient.instance.post<Map<String, dynamic>>(
         '${ApiConfig.apiMethodPath}/${ApiConfig.uploadFileMethod}',

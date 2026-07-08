@@ -400,7 +400,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<ServiceCaseDocument>(
-                value: _selectedDocument,
+                initialValue: _selectedDocument,
                 decoration: const InputDecoration(labelText: 'Required document'),
                 items: widget.documents
                     .map(
@@ -492,10 +492,10 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
       return;
     }
 
-    if (!attachment.hasUploadPath) {
+    if (!attachment.hasUploadData) {
       setState(
         () => _errorMessage =
-            'Selected file path is unavailable. Choose the file again.',
+            'Selected file data is unavailable. Choose the file again.',
       );
       return;
     }
@@ -509,9 +509,10 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
       await widget.onUpload(_selectedDocument, attachment);
       if (!mounted) return;
       Navigator.of(context).pop();
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Document upload failed: $error');
       if (!mounted) return;
-      setState(() => _errorMessage = 'Upload failed. Please try again.');
+      setState(() => _errorMessage = error.toString());
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }

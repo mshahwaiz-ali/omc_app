@@ -256,16 +256,14 @@ class ServiceRequestRepository {
     final cleanDocumentType = documentType?.trim();
 
     for (final attachment in attachments) {
-      final filePath = attachment.path;
-      if (filePath == null || filePath.trim().isEmpty) {
+      if (!attachment.hasUploadData) {
         continue;
       }
 
       final uploadResponse = await _frappeClient.uploadFile(
-        filePath: filePath,
+        filePath: attachment.path,
+        fileBytes: attachment.bytes,
         fileName: attachment.name,
-        doctype: ApiConfig.serviceRequestUploadDoctype,
-        docname: requestId,
       );
 
       final uploadedFileUrl = _extractFileUrl(uploadResponse);
