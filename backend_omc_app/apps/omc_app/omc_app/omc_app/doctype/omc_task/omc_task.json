@@ -29,11 +29,11 @@
    "label": "Task"
   },
   {
-   "default": "OMC-TASK-.YYYY.-.#####",
+   "default": "OMC-TASK-.YY..MM..DD.-.#####",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "label": "Naming Series",
-   "options": "OMC-TASK-.YYYY.-.#####",
+   "options": "OMC-TASK-.YY..MM..DD.-.#####",
    "reqd": 1
   },
   {
