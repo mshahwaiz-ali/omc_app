@@ -207,7 +207,7 @@ class FrappeClient {
   String _stripFractionalSeconds(String value) {
     return value.replaceAllMapped(
       RegExp(r'(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})\.\d+'),
-      (match) => '\${match.group(1)} \${match.group(2)}',
+      (match) => '${match.group(1)} ${match.group(2)}',
     );
   }
 
