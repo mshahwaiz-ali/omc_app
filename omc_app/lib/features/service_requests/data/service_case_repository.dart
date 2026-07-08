@@ -274,6 +274,10 @@ class ServiceCaseRepository {
           json['documents'],
     );
 
+    final paymentDetails = _paymentDetails(
+      json['payment_details'] ?? json['payments'] ?? json['service_payments'],
+    );
+
     return ServiceCase(
       id: _stringValue(json['id'] ?? json['name'] ?? json['case_id']),
       reference: _nullableString(
@@ -313,6 +317,7 @@ class ServiceCaseRepository {
       documentDetails: documentDetails.isNotEmpty
           ? documentDetails
           : _fallbackDocumentDetails(json),
+      paymentDetails: paymentDetails,
       timeline: _timeline(timelineSource),
       progressPercent: _nullableIntValue(json['progress_percent']),
       currentStage: _nullableString(json['current_stage'] ?? json['stage']),
@@ -375,6 +380,33 @@ class ServiceCaseRepository {
             remarks: _nullableString(item['remarks'] ?? item['notes']),
           );
         })
+        .where((item) => item.title.trim().isNotEmpty && item.title != '-')
+        .toList(growable: false);
+  }
+
+  List<ServiceCasePayment> _paymentDetails(dynamic value) {
+    if (value is! List) return const [];
+
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (item) => ServiceCasePayment(
+            id: _stringValue(item['id'] ?? item['name'] ?? item['payment_id']),
+            title: _stringValue(
+              item['title'] ?? item['payment_title'] ?? item['label'],
+            ),
+            status: _stringValue(item['status'] ?? item['payment_status']),
+            amount: _moneyValue(item['amount'] ?? item['payment_amount']),
+            currency: _stringValue(item['currency'] ?? 'PKR'),
+            dueDateLabel: _nullableString(_displayDate(item['due_date'])),
+            paidOnLabel: _nullableString(_displayDate(item['paid_on'])),
+            paymentReference: _nullableString(item['payment_reference']),
+            receiptUrl: _nullableString(
+              item['receipt_url'] ?? item['receipt_attachment'] ?? item['attachment'],
+            ),
+            remarks: _nullableString(item['remarks'] ?? item['notes']),
+          ),
+        )
         .where((item) => item.title.trim().isNotEmpty && item.title != '-')
         .toList(growable: false);
   }
@@ -485,7 +517,8 @@ class ServiceCaseRepository {
     final raw = value?.toString().trim() ?? '';
     if (raw.isEmpty || raw == '-') return '-';
 
-    final alreadyClean = RegExp(r'^[0-9]{1,2} [A-Za-z]{3} [0-9]{4}').hasMatch(raw) ||
+    final alreadyClean =
+        RegExp(r'^[0-9]{1,2} [A-Za-z]{3} [0-9]{4}').hasMatch(raw) ||
         RegExp(r'^[A-Za-z]+$').hasMatch(raw) ||
         raw.toLowerCase().contains('ago') ||
         raw.toLowerCase().contains('pending') ||
@@ -523,7 +556,12 @@ class ServiceCaseRepository {
         : double.tryParse(value?.toString() ?? '') ?? 0;
 
     final normalized = number > 1 ? number / 100 : number;
-    return normalized.clamp(0, 1);
+    return normalized.clamp(0, 1).toDouble();
+  }
+
+  double _moneyValue(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   List<ServiceCase> sampleCasesForUiPreview() {
@@ -533,27 +571,21 @@ class ServiceCaseRepository {
         reference: 'OMC-2026-001',
         title: 'Annual Income Tax Filing - Salaried',
         category: 'Income Tax Return',
-        status: 'In Review',
+        status: 'Waiting for Payment',
         createdAtLabel: 'Today',
         updatedAtLabel: 'Just now',
         progress: 0.35,
-        nextStep: 'OMC team is reviewing your salary and tax documents.',
+        nextStep: 'Please complete the pending payment or submit its receipt.',
         remarks: 'Upload any missing withholding certificates if available.',
         requiredDocuments: [
           'CNIC front image',
           'CNIC back image',
           'Salary certificate',
-          'Tax deduction certificates',
-          'Bank statement if required',
         ],
         submittedDocuments: [
           'CNIC front image',
           'CNIC back image',
           'Salary certificate',
-        ],
-        missingDocuments: [
-          'Tax deduction certificates',
-          'Bank statement if required',
         ],
         documentDetails: [
           ServiceCaseDocument(
@@ -567,41 +599,41 @@ class ServiceCaseRepository {
             id: 'doc-002',
             title: 'CNIC back image',
             type: 'CNIC',
-            status: 'Uploaded',
+            status: 'Approved',
             fileUrl: '/files/cnic-back.jpg',
           ),
           ServiceCaseDocument(
-            id: '-',
-            title: 'Tax deduction certificates',
+            id: 'doc-003',
+            title: 'Salary certificate',
             type: 'Tax',
-            status: 'Pending',
+            status: 'Approved',
+            fileUrl: '/files/salary.pdf',
           ),
-          ServiceCaseDocument(
-            id: '-',
-            title: 'Bank statement if required',
-            type: 'Bank',
-            status: 'Pending',
+        ],
+        paymentDetails: [
+          ServiceCasePayment(
+            id: 'pay-001',
+            title: 'Service fee',
+            status: 'Open',
+            amount: 5000,
+            currency: 'PKR',
+            dueDateLabel: 'Today',
           ),
         ],
         timeline: [
           ServiceCaseTimelineStep(
-            title: 'Request received',
+            title: 'Request Created',
             subtitle: 'Today',
             isDone: true,
           ),
           ServiceCaseTimelineStep(
-            title: 'Documents review',
-            subtitle: 'In progress',
+            title: 'Documents Approved',
+            subtitle: 'All required documents approved.',
             isDone: true,
           ),
           ServiceCaseTimelineStep(
-            title: 'OMC processing',
-            subtitle: 'Pending',
-            isDone: false,
-          ),
-          ServiceCaseTimelineStep(
-            title: 'Completed',
-            subtitle: 'Pending',
+            title: 'Payment Opened',
+            subtitle: 'Service fee is pending.',
             isDone: false,
           ),
         ],
