@@ -31,6 +31,7 @@ import '../features/service_requests/presentation/service_request_draft_screen.d
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
 import '../features/support/presentation/support_screen.dart';
 import '../features/support/presentation/support_ticket_detail_screen.dart';
+import '../features/tax_calculator/presentation/tax_calculation_history_screen.dart';
 import '../features/tax_calculator/presentation/tax_calculator_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'main_shell.dart';
@@ -61,12 +62,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (authState.status == AuthStatus.guest) {
         if (isSplash) return '/home';
-
-        // Guests must be able to leave guest mode and open Login/Signup from
-        // the More screen. Previously `/login` was redirected back to `/home`,
-        // so the visible Login tile looked clickable but did nothing.
         if (isAuthRoute) return null;
-
         return _isGuestAllowedRoute(location) ? null : '/home';
       }
 
@@ -135,7 +131,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final serviceId = Uri.decodeComponent(
             state.pathParameters['serviceId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.servicesIndex,
             ServiceDetailScreen(serviceId: serviceId),
@@ -149,7 +144,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final serviceId = Uri.decodeComponent(
             state.pathParameters['serviceId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.servicesIndex,
             ServiceRequestDraftScreen(serviceId: serviceId),
@@ -181,7 +175,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final documentId = Uri.decodeComponent(
             state.pathParameters['documentId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.documentsIndex,
             DocumentDetailScreen(documentId: documentId),
@@ -203,7 +196,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final paymentId = Uri.decodeComponent(
             state.pathParameters['paymentId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.moreIndex,
             PaymentDetailScreen(paymentId: paymentId),
@@ -241,7 +233,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final leadId = Uri.decodeComponent(
             state.pathParameters['leadId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.moreIndex,
             LeadDetailScreen(leadId: leadId),
@@ -255,7 +246,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final customerId = Uri.decodeComponent(
             state.pathParameters['customerId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.moreIndex,
             CustomerDetailScreen(customerId: customerId),
@@ -269,7 +259,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final taskId = Uri.decodeComponent(
             state.pathParameters['taskId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.moreIndex,
             TaskDetailScreen(taskId: taskId),
@@ -283,7 +272,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final caseId = Uri.decodeComponent(
             state.pathParameters['caseId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.trackIndex,
             ServiceCaseDetailScreen(caseId: caseId),
@@ -305,7 +293,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final articleId = Uri.decodeComponent(
             state.pathParameters['articleId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.moreIndex,
             KnowledgeDetailScreen(articleId: articleId),
@@ -327,7 +314,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final notificationId = Uri.decodeComponent(
             state.pathParameters['notificationId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.moreIndex,
             NotificationDetailScreen(notificationId: notificationId),
@@ -348,6 +334,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => _withShell(
           ShellNavScaffold.moreIndex,
           const TaxCalculatorScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/tax-calculator/history',
+        name: 'tax-calculation-history',
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const TaxCalculationHistoryScreen(),
         ),
       ),
       GoRoute(
@@ -373,7 +367,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final ticketId = Uri.decodeComponent(
             state.pathParameters['ticketId'] ?? '',
           );
-
           return _withShell(
             ShellNavScaffold.moreIndex,
             SupportTicketDetailScreen(ticketId: ticketId),
