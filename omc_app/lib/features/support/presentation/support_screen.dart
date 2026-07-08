@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
@@ -41,9 +42,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     super.dispose();
   }
 
-  void _handleMessageChanged() {
-    setState(() {});
-  }
+  void _handleMessageChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +65,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     return SafeArea(
       child: ListView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
         children: [
           const PremiumListHeader(
             icon: Icons.support_agent_rounded,
@@ -87,9 +86,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
             canCreateTicket: capabilities.canCreateSupportTicket,
             lockedMessage: _lockedAccessMessage(capabilities),
-            topics: supportTopics
-                .map((topic) => topic.title)
-                .toList(growable: false),
+            topics: supportTopics.map((topic) => topic.title).toList(growable: false),
             onTopicChanged: _handleTopicChanged,
             onSubmit: _submitSupportTicket,
           ),
@@ -221,16 +218,11 @@ class _SupportHeroCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: Colors.green.withValues(alpha: 0.14),
-                  ),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.14)),
                 ),
                 child: const Text(
                   'Active support',
@@ -341,8 +333,7 @@ class _SupportCategoriesCard extends StatelessWidget {
         children: [
           const _SectionHeader(
             title: 'Support topics',
-            subtitle:
-                'Choose the right area so OMC can route the request faster.',
+            subtitle: 'Choose the right area so OMC can route the request faster.',
           ),
           const SizedBox(height: 14),
           for (final topic in sorted.take(6)) ...[
@@ -386,8 +377,7 @@ class _CreateSupportTicketCard extends StatelessWidget {
         children: [
           const _SectionHeader(
             title: 'Create ticket',
-            subtitle:
-                'Approved customers can create tracked tickets from the app.',
+            subtitle: 'Approved customers can create tracked tickets from the app.',
           ),
           if (!canCreateTicket) ...[
             const SizedBox(height: 12),
@@ -397,9 +387,7 @@ class _CreateSupportTicketCard extends StatelessWidget {
           DropdownButtonFormField<String>(
             initialValue: topics.contains(selectedTopic) ? selectedTopic : null,
             items: topics
-                .map(
-                  (topic) => DropdownMenuItem(value: topic, child: Text(topic)),
-                )
+                .map((topic) => DropdownMenuItem(value: topic, child: Text(topic)))
                 .toList(growable: false),
             onChanged: canCreateTicket ? onTopicChanged : null,
             decoration: const InputDecoration(
@@ -433,9 +421,7 @@ class _CreateSupportTicketCard extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send_rounded),
-              label: Text(
-                isSubmitting ? 'Submitting...' : 'Submit support ticket',
-              ),
+              label: Text(isSubmitting ? 'Submitting...' : 'Submit support ticket'),
             ),
           ),
         ],
@@ -470,8 +456,7 @@ class _SupportTicketsCard extends ConsumerWidget {
               const Expanded(
                 child: _SectionHeader(
                   title: 'Your support tickets',
-                  subtitle:
-                      'Track submitted support requests and open ticket details.',
+                  subtitle: 'Track submitted support requests and open ticket details.',
                 ),
               ),
               IconButton.filledTonal(
@@ -486,12 +471,9 @@ class _SupportTicketsCard extends ConsumerWidget {
             data: (tickets) {
               if (tickets.isEmpty) return const _EmptyTickets();
               return Column(
-                children: tickets
-                    .take(4)
-                    .map((ticket) {
-                      return _TicketTile(ticket: ticket);
-                    })
-                    .toList(growable: false),
+                children: tickets.take(4).map((ticket) {
+                  return _TicketTile(ticket: ticket);
+                }).toList(growable: false),
               );
             },
             loading: () => const Padding(
@@ -539,8 +521,7 @@ class _BackendFaqCard extends StatelessWidget {
             children: [
               const _SectionHeader(
                 title: 'Frequently asked questions',
-                subtitle:
-                    'Backend-managed answers for common OMC support questions.',
+                subtitle: 'Backend-managed answers for common OMC support questions.',
               ),
               const SizedBox(height: 12),
               for (final faq in visible.take(5)) _FaqTile(faq: faq),
@@ -568,11 +549,14 @@ class _SupportContactChannelsCard extends StatelessWidget {
         children: [
           const _SectionHeader(
             title: 'Direct channels',
-            subtitle: 'Use these for public or urgent support contact.',
+            subtitle: 'Tap an option to contact OMC directly.',
           ),
           const SizedBox(height: 14),
           for (final channel in channels) ...[
-            _ChannelTile(channel: channel),
+            _ChannelTile(
+              channel: channel,
+              whatsappMessage: config.whatsappMessage,
+            ),
             if (channel != channels.last) const Divider(height: 18),
           ],
         ],
@@ -653,29 +637,45 @@ class _FaqTile extends StatelessWidget {
 }
 
 class _ChannelTile extends StatelessWidget {
-  const _ChannelTile({required this.channel});
+  const _ChannelTile({
+    required this.channel,
+    required this.whatsappMessage,
+  });
 
   final SupportChannelConfig channel;
+  final String whatsappMessage;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _IconBox(icon: _channelIcon(channel), size: 42, iconSize: 22),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final actionLabel = _channelActionLabel(channel);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _openSupportChannel(context, channel, whatsappMessage),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
             children: [
-              Text(channel.label, style: _TextStyles.title),
-              const SizedBox(height: 3),
-              Text(channel.value, style: _TextStyles.body),
-              if (channel.subtitle.trim().isNotEmpty)
-                Text(channel.subtitle, style: _TextStyles.caption),
+              _IconBox(icon: _channelIcon(channel), size: 42, iconSize: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(channel.label, style: _TextStyles.title),
+                    const SizedBox(height: 3),
+                    Text(actionLabel, style: _TextStyles.body),
+                    if (channel.subtitle.trim().isNotEmpty)
+                      Text(channel.subtitle, style: _TextStyles.caption),
+                  ],
+                ),
+              ),
+              const Icon(Icons.open_in_new_rounded, color: AppTheme.textSecondary),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -879,4 +879,76 @@ IconData _channelIcon(SupportChannelConfig channel) {
   if (channel.isPhone) return Icons.phone_outlined;
   if (channel.isEmail) return Icons.email_outlined;
   return Icons.support_agent_rounded;
+}
+
+String _channelActionLabel(SupportChannelConfig channel) {
+  if (channel.isWhatsApp) return 'Open WhatsApp chat';
+  if (channel.isPhone) return 'Call OMC support';
+  if (channel.isEmail) return 'Send email';
+  return 'Open support channel';
+}
+
+Future<void> _openSupportChannel(
+  BuildContext context,
+  SupportChannelConfig channel,
+  String whatsappMessage,
+) async {
+  final uri = _supportChannelUri(channel, whatsappMessage);
+  if (uri == null) {
+    _showChannelError(context);
+    return;
+  }
+
+  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!opened && context.mounted) _showChannelError(context);
+}
+
+Uri? _supportChannelUri(SupportChannelConfig channel, String whatsappMessage) {
+  final value = channel.value.trim();
+  if (value.isEmpty) return null;
+
+  if (channel.isWhatsApp) {
+    final number = _digitsOnly(value);
+    if (number.isEmpty) return null;
+    final message = whatsappMessage.trim().isNotEmpty
+        ? whatsappMessage.trim()
+        : 'Hello OMC, I need support.';
+    return Uri.https('wa.me', '/$number', {'text': message});
+  }
+
+  if (channel.isPhone) {
+    return Uri(scheme: 'tel', path: value.replaceAll(' ', ''));
+  }
+
+  if (channel.isEmail) {
+    return Uri(
+      scheme: 'mailto',
+      path: value,
+      queryParameters: const {
+        'subject': 'OMC support request',
+      },
+    );
+  }
+
+  final parsed = Uri.tryParse(value);
+  return parsed?.hasScheme == true ? parsed : null;
+}
+
+String _digitsOnly(String value) {
+  final buffer = StringBuffer();
+  for (final codeUnit in value.codeUnits) {
+    if (codeUnit >= 48 && codeUnit <= 57) buffer.writeCharCode(codeUnit);
+  }
+  return buffer.toString();
+}
+
+void _showChannelError(BuildContext context) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        content: Text('This support channel could not be opened right now.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
 }
