@@ -118,8 +118,6 @@ class PaymentsRepository {
         filePath: attachment.path,
         fileBytes: attachment.bytes,
         fileName: attachment.name,
-        doctype: ApiConfig.paymentUploadDoctype,
-        docname: cleanPaymentId,
       );
 
       final uploadedFileUrl = _extractFileUrl(uploadResponse);
