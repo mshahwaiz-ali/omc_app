@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -85,29 +87,86 @@ class SupportRepository {
     }
   }
 
-  Future<Map<String, dynamic>> addSupportTicketReply({
+  Future<String> uploadSupportTicketAttachment({
     required String ticketId,
-    required String message,
+    String? filePath,
+    Uint8List? fileBytes,
+    required String fileName,
   }) async {
     final cleanTicketId = ticketId.trim();
-    final cleanMessage = message.trim();
+    final cleanFileName = fileName.trim();
 
     if (cleanTicketId.isEmpty) {
       throw const ApiError(message: 'Missing support ticket reference.');
     }
 
-    if (cleanMessage.length < 2) {
-      throw const ApiError(message: 'Please enter a reply message.');
+    if (cleanFileName.isEmpty) {
+      throw const ApiError(message: 'Selected attachment has no file name.');
+    }
+
+    final response = await frappeClient.uploadFile(
+      filePath: filePath,
+      fileBytes: fileBytes,
+      fileName: cleanFileName,
+      doctype: ApiConfig.supportTicketUploadDoctype,
+      docname: cleanTicketId,
+    );
+
+    final uploadedFileUrl = _extractFileUrl(response);
+    if (uploadedFileUrl == null) {
+      throw const ApiError(
+        message: 'Attachment uploaded but the server did not return a file URL.',
+      );
+    }
+
+    return uploadedFileUrl;
+  }
+
+  Future<Map<String, dynamic>> addSupportTicketReply({
+    required String ticketId,
+    String message = '',
+    String? attachmentUrl,
+    String? attachmentName,
+    String? attachmentType,
+  }) async {
+    final cleanTicketId = ticketId.trim();
+    final cleanMessage = message.trim();
+    final cleanAttachmentUrl = attachmentUrl?.trim();
+
+    if (cleanTicketId.isEmpty) {
+      throw const ApiError(message: 'Missing support ticket reference.');
+    }
+
+    if (cleanMessage.isEmpty &&
+        (cleanAttachmentUrl == null || cleanAttachmentUrl.isEmpty)) {
+      throw const ApiError(message: 'Please enter a message or attach a file.');
+    }
+
+    final data = <String, dynamic>{
+      'ticket_id': cleanTicketId,
+      'name': cleanTicketId,
+      'message': cleanMessage,
+      'reply': cleanMessage,
+    };
+
+    if (cleanAttachmentUrl != null && cleanAttachmentUrl.isNotEmpty) {
+      data['attachment'] = cleanAttachmentUrl;
+      data['file_url'] = cleanAttachmentUrl;
+    }
+
+    final cleanAttachmentName = attachmentName?.trim();
+    if (cleanAttachmentName != null && cleanAttachmentName.isNotEmpty) {
+      data['attachment_name'] = cleanAttachmentName;
+    }
+
+    final cleanAttachmentType = attachmentType?.trim();
+    if (cleanAttachmentType != null && cleanAttachmentType.isNotEmpty) {
+      data['attachment_type'] = cleanAttachmentType;
     }
 
     return frappeClient.postMethod(
       ApiConfig.addSupportTicketReplyMethod,
-      data: {
-        'ticket_id': cleanTicketId,
-        'name': cleanTicketId,
-        'message': cleanMessage,
-        'reply': cleanMessage,
-      },
+      data: data,
     );
   }
 
@@ -232,6 +291,7 @@ class SupportRepository {
       id: _stringValue(json['id'] ?? json['name'] ?? json['ticket_id']),
       subject: _stringValue(json['subject'] ?? json['title']),
       message: _stringValue(json['message'] ?? json['description']),
+      lastMessage: _nullableString(json['last_message'] ?? json['lastMessage']),
       status: _stringValue(json['status']),
       priority: _stringValue(json['priority']),
       referenceServiceRequest: _nullableString(
@@ -264,6 +324,13 @@ class SupportRepository {
     return text == 'true' || text == '1' || text == 'yes' || text == 'on';
   }
 
+  int? _intValue(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim());
+  }
+
   List<SupportTicketMessage> _mapTicketMessages(dynamic value) {
     if (value is! List) return const [];
 
@@ -271,8 +338,9 @@ class SupportRepository {
         .whereType<Map<String, dynamic>>()
         .map(
           (item) => SupportTicketMessage(
+            id: _stringValue(item['id'] ?? item['name']),
             author: _stringValue(
-              item['author'] ?? item['user'] ?? item['owner'],
+              item['author'] ?? item['user'] ?? item['sender_user'] ?? item['owner'],
             ),
             message: _stringValue(
               item['message'] ?? item['body'] ?? item['text'],
@@ -281,11 +349,57 @@ class SupportRepository {
                   item['created_at'] ?? item['creation'] ?? item['timestamp'],
                 ) ??
                 '-',
-            type: _stringValue(item['type'] ?? item['message_type']),
+            type: _stringValue(
+              item['type'] ?? item['message_type'] ?? item['sender_type'],
+            ),
+            senderUser: _nullableString(item['sender_user'] ?? item['user']),
+            senderType: _nullableString(item['sender_type'] ?? item['type']),
+            attachmentUrl: _nullableString(
+              item['attachment_url'] ?? item['file_url'] ?? item['attachment'],
+            ),
+            attachmentName: _nullableString(
+              item['attachment_name'] ?? item['file_name'],
+            ),
+            attachmentType: _nullableString(
+              item['attachment_type'] ?? item['file_type'],
+            ),
+            attachmentSize: _intValue(
+              item['attachment_size'] ?? item['file_size'],
+            ),
+            isInternal: _boolValue(item['is_internal']),
           ),
         )
-        .where((item) => item.message.trim().isNotEmpty && item.message != '-')
+        .where(
+          (item) =>
+              (item.message.trim().isNotEmpty && item.message != '-') ||
+              item.hasAttachment,
+        )
         .toList(growable: false);
+  }
+
+  String? _extractFileUrl(Map<String, dynamic> response) {
+    final message = response['message'];
+    final candidates = <dynamic>[
+      response['file_url'],
+      response['file'],
+      response['url'],
+      response['name'],
+      if (message is Map<String, dynamic>) ...[
+        message['file_url'],
+        message['file'],
+        message['url'],
+        message['name'],
+      ],
+    ];
+
+    for (final candidate in candidates) {
+      final value = candidate?.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    return null;
   }
 
   String _stringValue(dynamic value) {
@@ -295,7 +409,7 @@ class SupportRepository {
 
   String? _nullableString(dynamic value) {
     final text = value?.toString().trim();
-    if (text == null || text.isEmpty) return null;
+    if (text == null || text.isEmpty || text == '-') return null;
     return text;
   }
 
