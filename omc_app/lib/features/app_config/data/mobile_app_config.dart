@@ -5,12 +5,14 @@ class MobileAppConfig {
     required this.support,
     required this.features,
     required this.branding,
+    required this.legal,
     required this.isFallback,
   });
 
   final SupportConfigData support;
   final MobileFeatureConfig features;
   final MobileBrandingConfig branding;
+  final MobileLegalConfig legal;
   final bool isFallback;
 
   static MobileAppConfig get fallback {
@@ -21,6 +23,7 @@ class MobileAppConfig {
         companyName: 'OMC House',
         tagline: 'Business, tax and compliance support',
       ),
+      legal: MobileLegalConfig.fallback,
       isFallback: true,
     );
   }
@@ -34,6 +37,7 @@ class MobileAppConfig {
     final supportRaw = raw['support'];
     final featuresRaw = raw['features'];
     final brandingRaw = raw['branding'];
+    final legalRaw = raw['legal'];
     final metaRaw = raw['meta'];
 
     final fallbackConfig = fallback;
@@ -48,6 +52,9 @@ class MobileAppConfig {
       branding: brandingRaw is Map<String, dynamic>
           ? MobileBrandingConfig.fromJson(brandingRaw)
           : fallbackConfig.branding,
+      legal: legalRaw is Map<String, dynamic>
+          ? MobileLegalConfig.fromJson(legalRaw)
+          : fallbackConfig.legal,
       isFallback:
           raw['fallback'] == true ||
           raw['is_fallback'] == true ||
@@ -127,4 +134,42 @@ class MobileBrandingConfig {
   }
 
   static String _stringValue(dynamic value) => value?.toString().trim() ?? '';
+}
+
+class MobileLegalConfig {
+  const MobileLegalConfig({
+    required this.privacyPolicyText,
+    required this.termsText,
+    this.privacyPolicyUrl,
+    this.termsUrl,
+  });
+
+  final String? privacyPolicyUrl;
+  final String privacyPolicyText;
+  final String? termsUrl;
+  final String termsText;
+
+  static const fallback = MobileLegalConfig(
+    privacyPolicyText:
+        'OMC uses customer information to manage service requests, documents, support, notifications and account access.',
+    termsText:
+        'OMC services are subject to review, approval, document verification and applicable compliance requirements.',
+  );
+
+  factory MobileLegalConfig.fromJson(Map<String, dynamic> json) {
+    return MobileLegalConfig(
+      privacyPolicyUrl: _nullableString(json['privacy_policy_url']),
+      privacyPolicyText:
+          _nullableString(json['privacy_policy_text']) ??
+          fallback.privacyPolicyText,
+      termsUrl: _nullableString(json['terms_url']),
+      termsText: _nullableString(json['terms_text']) ?? fallback.termsText,
+    );
+  }
+
+  static String? _nullableString(dynamic value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
+  }
 }

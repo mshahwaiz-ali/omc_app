@@ -125,7 +125,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       return 'Please sign in or create an account to use this service.';
     }
     if (capabilities.isPending) {
-      return 'Your account is under review. OMC will enable this after approval.';
+      return 'Your account is under review. OMC team will verify your profile before enabling service access.';
     }
     if (capabilities.isRejected) {
       return 'This account is not approved for this action. Please contact OMC support.';
@@ -709,7 +709,7 @@ class _AccessStatusNote extends StatelessWidget {
       AccountAccessState.pending => (
         Icons.hourglass_top_rounded,
         'Account under review',
-        'OMC will enable requests, documents, payments and tickets after approval.',
+        'Your account is under review. OMC team will verify your profile before enabling service access.',
       ),
       AccountAccessState.rejected => (
         Icons.block_rounded,

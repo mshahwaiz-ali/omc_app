@@ -152,6 +152,10 @@ INTERNAL_WORKSPACE_ROLES = (
     | OMC_FINANCE_ROLES
     | OMC_FIELD_ROLES
 )
+SERVICE_STATUS_ROLES = SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_FIELD_ROLES
+DOCUMENT_REVIEW_ROLES = SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_DOCUMENT_ROLES
+PAYMENT_REVIEW_ROLES = SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_FINANCE_ROLES
+SUPPORT_STAFF_ROLES = SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_SUPPORT_ROLES
 
 
 def _current_user_roles(user=None):
@@ -182,6 +186,10 @@ def _profile_status(profile):
 def _is_approved_customer(profile):
     customer_status, approval_status = _profile_status(profile)
     return customer_status.lower() == "active" and approval_status.lower() == "approved"
+
+
+def is_customer_approved(profile=None, user=None):
+    return _is_approved_customer(profile or _get_customer_profile_for_user(user))
 
 
 def _is_pending_customer(profile):
@@ -218,15 +226,17 @@ def _get_mobile_capabilities(user=None, profile=None):
     is_guest = not user or user == "Guest"
     is_internal = bool(roles.intersection(INTERNAL_WORKSPACE_ROLES))
     is_admin = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES))
-    is_support = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_SUPPORT_ROLES))
-    is_document_reviewer = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_DOCUMENT_ROLES))
-    is_finance_reviewer = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_FINANCE_ROLES))
+    is_support = bool(roles.intersection(SUPPORT_STAFF_ROLES))
+    is_document_reviewer = bool(roles.intersection(DOCUMENT_REVIEW_ROLES))
+    is_finance_reviewer = bool(roles.intersection(PAYMENT_REVIEW_ROLES))
+    can_update_service_status = bool(roles.intersection(SERVICE_STATUS_ROLES))
 
     if not is_guest and profile is None and not is_internal:
         profile = _get_customer_profile_for_user(user)
 
     is_approved = _is_approved_customer(profile)
     access_state = _customer_access_state(user=user, profile=profile)
+    payments_enabled = _settings_bool(_get_single_settings("OMC Mobile Settings"), "payments_enabled", True)
 
     return {
         "access_state": access_state,
@@ -238,15 +248,18 @@ def _get_mobile_capabilities(user=None, profile=None):
         "can_use_tax_calculator": True,
         "can_create_service_request": is_approved,
         "can_upload_documents": is_approved,
+        "can_track_requests": is_approved,
         "can_view_documents": is_approved,
         "can_view_payments": is_approved,
-        "can_upload_payment_receipt": is_approved,
+        "can_upload_payment_receipt": is_approved and payments_enabled,
+        "can_upload_payment_receipts": is_approved and payments_enabled,
         "can_create_support_ticket": is_approved,
         "can_view_support_tickets": is_approved,
         "can_view_customer_dashboard": is_approved,
+        "can_access_customer_dashboard": is_approved,
         "can_view_customer_notifications": is_approved,
         "can_access_internal_workspace": is_internal,
-        "can_update_service_status": is_admin,
+        "can_update_service_status": can_update_service_status,
         "can_review_documents": is_document_reviewer,
         "can_review_payments": is_finance_reviewer,
         "can_update_support_ticket_status": is_support,
@@ -275,6 +288,14 @@ def _assert_approved_customer():
         frappe.throw(_approved_customer_required_message(profile), frappe.PermissionError)
 
     return profile
+
+
+def get_current_customer_profile():
+    return _get_customer_profile_for_user()
+
+
+def require_approved_customer():
+    return _assert_approved_customer()
 
 
 def _set_if_has_field(doc, fieldname, value):
@@ -317,6 +338,24 @@ def _assert_internal_workspace_access():
         frappe.throw("You do not have permission to access internal workspace data.", frappe.PermissionError)
 
     return user
+
+
+def require_omc_staff(required_roles=None, message=None):
+    user = _assert_internal_workspace_access()
+    roles = _current_user_roles(user)
+    allowed_roles = set(required_roles or INTERNAL_WORKSPACE_ROLES)
+
+    if not roles.intersection(allowed_roles):
+        frappe.throw(
+            message or "You do not have permission to perform this OMC staff action.",
+            frappe.PermissionError,
+        )
+
+    return user
+
+
+def get_mobile_capabilities():
+    return _get_mobile_capabilities()
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1019,7 +1058,7 @@ def get_service_cases():
 
 @frappe.whitelist()
 def update_service_case_status(case_id=None, status=None, note=None, expected_completion_date=None):
-    _assert_internal_workspace_access()
+    require_omc_staff(SERVICE_STATUS_ROLES, "You do not have permission to update service case status.")
 
     if not case_id:
         frappe.throw("case_id is required")
@@ -1353,7 +1392,7 @@ def upload_service_document(**kwargs):
     doc.document_title = document_title
     doc.document_type = document_type
     doc.attachment = attachment
-    doc.status = "Submitted"
+    doc.status = "Uploaded"
     doc.visible_to_customer = 1
     doc.uploaded_by = _current_user()
     doc.uploaded_on = frappe.utils.now_datetime()
@@ -1391,7 +1430,7 @@ def upload_service_document(**kwargs):
 
 @frappe.whitelist()
 def update_service_document_status(document_id=None, status=None, remarks=None):
-    _assert_internal_workspace_access()
+    require_omc_staff(DOCUMENT_REVIEW_ROLES, "You do not have permission to review service documents.")
 
     if not document_id:
         frappe.throw("document_id is required")
@@ -1677,7 +1716,7 @@ def upload_payment_receipt(**kwargs):
 
     _create_service_timeline_entry(
         service_request=payment.service_request,
-        event_type="Payment Receipt Uploaded",
+        event_type="Payment Updated",
         title="Payment Receipt Submitted",
         description=remarks or f"Receipt submitted for {payment.payment_title or 'payment'} and is waiting for OMC review.",
         visible_to_customer=1,
@@ -1699,7 +1738,7 @@ def upload_payment_receipt(**kwargs):
 
 @frappe.whitelist()
 def review_payment_receipt(payment_id=None, status=None, remarks=None, payment_reference=None):
-    _assert_internal_workspace_access()
+    require_omc_staff(PAYMENT_REVIEW_ROLES, "You do not have permission to review payments.")
 
     if not payment_id:
         frappe.throw("payment_id is required")
@@ -2056,8 +2095,10 @@ def get_app_banners():
                 "title": row.title or "",
                 "subtitle": row.subtitle or "",
                 "image": row.image or "",
+                "image_url": _public_file_url(row.image),
                 "action_label": row.action_label or "",
                 "mobile_route": row.mobile_route or "",
+                "action_url": row.mobile_route or "",
                 "starts_on": str(row.starts_on) if row.starts_on else "",
                 "ends_on": str(row.ends_on) if row.ends_on else "",
             }
@@ -2590,6 +2631,20 @@ def _settings_text(doc, fieldname, default=""):
     return text or default
 
 
+def _public_file_url(value):
+    text = (value or "").strip()
+    if not text:
+        return ""
+
+    if text.startswith(("http://", "https://")):
+        return text
+
+    if text.startswith(("/files/", "/private/files/", "/assets/")):
+        return frappe.utils.get_url(text)
+
+    return text
+
+
 
 
 @frappe.whitelist(allow_guest=True)
@@ -2634,6 +2689,20 @@ def get_mobile_app_config():
             "full_logo": _settings_text(branding_settings, "full_logo"),
             "logo_symbol": _settings_text(branding_settings, "logo_symbol"),
             "login_logo": _settings_text(branding_settings, "login_logo"),
+        },
+        "legal": {
+            "privacy_policy_url": _settings_text(mobile_settings, "privacy_policy_url"),
+            "privacy_policy_text": _settings_text(
+                mobile_settings,
+                "privacy_policy_text",
+                "OMC uses customer information to manage service requests, documents, support, notifications and account access.",
+            ),
+            "terms_url": _settings_text(mobile_settings, "terms_url"),
+            "terms_text": _settings_text(
+                mobile_settings,
+                "terms_text",
+                "OMC services are subject to review, approval, document verification and applicable compliance requirements.",
+            ),
         },
         "meta": {
             "source": "backend",
@@ -3042,7 +3111,7 @@ def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
 
 @frappe.whitelist()
 def update_support_ticket_status(ticket_id=None, status=None, remarks=None):
-    _assert_internal_workspace_access()
+    require_omc_staff(SUPPORT_STAFF_ROLES, "You do not have permission to update support tickets.")
 
     if not ticket_id:
         frappe.throw("ticket_id is required")

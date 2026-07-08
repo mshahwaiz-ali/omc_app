@@ -6,6 +6,7 @@ import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
+import '../features/auth/presentation/under_review_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
 import '../features/expense_tracker/presentation/expense_tracker_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
@@ -46,6 +47,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final isSplash = location == '/';
       final isAuthRoute = location == '/login' || location == '/signup';
+      final isUnderReviewRoute = location == '/under-review';
 
       if (authState.status == AuthStatus.checking) {
         return isSplash ? null : '/';
@@ -62,9 +64,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (authState.status == AuthStatus.authenticated) {
         if (isAuthRoute || isSplash) return '/home';
-        return _canAccessRoute(location, authState.capabilities)
-            ? null
-            : '/home';
+        if (isUnderReviewRoute) {
+          return authState.capabilities.isPending ? null : '/home';
+        }
+
+        final canAccessRoute = _canAccessRoute(
+          location,
+          authState.capabilities,
+        );
+        if (canAccessRoute) return null;
+
+        return authState.capabilities.isPending ? '/under-review' : '/home';
       }
 
       return null;
@@ -84,6 +94,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/signup',
         name: 'signup',
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/under-review',
+        name: 'under-review',
+        builder: (context, state) => const UnderReviewScreen(),
       ),
       GoRoute(
         path: '/home',
@@ -342,13 +357,16 @@ bool _canAccessRoute(String location, AuthCapabilities capabilities) {
 
   if (location == '/dashboard') {
     return capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessCustomerDashboard ||
         capabilities.canAccessInternalWorkspace;
   }
 
   if (location == '/track' ||
       location == '/my-services' ||
       location.startsWith('/my-services/')) {
-    return capabilities.canViewCustomerDashboard ||
+    return capabilities.canTrackRequests ||
+        capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessCustomerDashboard ||
         capabilities.canAccessInternalWorkspace;
   }
 

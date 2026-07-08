@@ -87,7 +87,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
             canCreateTicket: capabilities.canCreateSupportTicket,
             lockedMessage: _lockedAccessMessage(capabilities),
-            topics: supportTopics.map((topic) => topic.title).toList(growable: false),
+            topics: supportTopics
+                .map((topic) => topic.title)
+                .toList(growable: false),
             onTopicChanged: _handleTopicChanged,
             onSubmit: _submitSupportTicket,
           ),
@@ -168,7 +170,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       _showSnack(error.message);
     } catch (_) {
       if (!mounted) return;
-      _showSnack('Support ticket could not be submitted right now. Please try again.');
+      _showSnack(
+        'Support ticket could not be submitted right now. Please try again.',
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -187,7 +191,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       return 'Please sign in or create an account to open tracked support tickets.';
     }
     if (capabilities.isPending) {
-      return 'Your account is under review. Ticket creation will unlock after approval.';
+      return 'Your account is under review. OMC team will verify your profile before enabling service access.';
     }
     if (capabilities.isRejected) {
       return 'This account is not approved for tracked support. Please use direct contact channels.';
@@ -210,14 +214,23 @@ class _SupportHeroCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const _IconBox(icon: Icons.support_agent_rounded, size: 56, iconSize: 30),
+              const _IconBox(
+                icon: Icons.support_agent_rounded,
+                size: 56,
+                iconSize: 30,
+              ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.14)),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.14),
+                  ),
                 ),
                 child: const Text(
                   'Active support',
@@ -291,9 +304,19 @@ class _SupportMetric extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: _TextStyles.metricValue),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _TextStyles.metricValue,
+                ),
                 const SizedBox(height: 2),
-                Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: _TextStyles.metricLabel),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _TextStyles.metricLabel,
+                ),
               ],
             ),
           ),
@@ -310,14 +333,16 @@ class _SupportCategoriesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sorted = [...topics]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final sorted = [...topics]
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _SectionHeader(
             title: 'Support topics',
-            subtitle: 'Choose the right area so OMC can route the request faster.',
+            subtitle:
+                'Choose the right area so OMC can route the request faster.',
           ),
           const SizedBox(height: 14),
           for (final topic in sorted.take(6)) ...[
@@ -361,7 +386,8 @@ class _CreateSupportTicketCard extends StatelessWidget {
         children: [
           const _SectionHeader(
             title: 'Create ticket',
-            subtitle: 'Approved customers can create tracked tickets from the app.',
+            subtitle:
+                'Approved customers can create tracked tickets from the app.',
           ),
           if (!canCreateTicket) ...[
             const SizedBox(height: 12),
@@ -371,7 +397,9 @@ class _CreateSupportTicketCard extends StatelessWidget {
           DropdownButtonFormField<String>(
             initialValue: topics.contains(selectedTopic) ? selectedTopic : null,
             items: topics
-                .map((topic) => DropdownMenuItem(value: topic, child: Text(topic)))
+                .map(
+                  (topic) => DropdownMenuItem(value: topic, child: Text(topic)),
+                )
                 .toList(growable: false),
             onChanged: canCreateTicket ? onTopicChanged : null,
             decoration: const InputDecoration(
@@ -405,7 +433,9 @@ class _CreateSupportTicketCard extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send_rounded),
-              label: Text(isSubmitting ? 'Submitting...' : 'Submit support ticket'),
+              label: Text(
+                isSubmitting ? 'Submitting...' : 'Submit support ticket',
+              ),
             ),
           ),
         ],
@@ -440,7 +470,8 @@ class _SupportTicketsCard extends ConsumerWidget {
               const Expanded(
                 child: _SectionHeader(
                   title: 'Your support tickets',
-                  subtitle: 'Track submitted support requests and open ticket details.',
+                  subtitle:
+                      'Track submitted support requests and open ticket details.',
                 ),
               ),
               IconButton.filledTonal(
@@ -455,9 +486,12 @@ class _SupportTicketsCard extends ConsumerWidget {
             data: (tickets) {
               if (tickets.isEmpty) return const _EmptyTickets();
               return Column(
-                children: tickets.take(4).map((ticket) {
-                  return _TicketTile(ticket: ticket);
-                }).toList(growable: false),
+                children: tickets
+                    .take(4)
+                    .map((ticket) {
+                      return _TicketTile(ticket: ticket);
+                    })
+                    .toList(growable: false),
               );
             },
             loading: () => const Padding(
@@ -505,11 +539,11 @@ class _BackendFaqCard extends StatelessWidget {
             children: [
               const _SectionHeader(
                 title: 'Frequently asked questions',
-                subtitle: 'Backend-managed answers for common OMC support questions.',
+                subtitle:
+                    'Backend-managed answers for common OMC support questions.',
               ),
               const SizedBox(height: 12),
-              for (final faq in visible.take(5))
-                _FaqTile(faq: faq),
+              for (final faq in visible.take(5)) _FaqTile(faq: faq),
             ],
           ),
         );
@@ -590,7 +624,8 @@ class _TicketTile extends StatelessWidget {
         '${ticket.status.isEmpty ? 'Open' : ticket.status} • ${ticket.priority.isEmpty ? 'Medium' : ticket.priority}',
       ),
       trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: () => context.push('/support-tickets/${Uri.encodeComponent(ticket.id)}'),
+      onTap: () =>
+          context.push('/support-tickets/${Uri.encodeComponent(ticket.id)}'),
     );
   }
 }
@@ -646,7 +681,11 @@ class _ChannelTile extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.title, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
 
   final IconData icon;
   final String title;

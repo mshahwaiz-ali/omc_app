@@ -16,12 +16,15 @@ class AuthCapabilities {
     this.canUseTaxCalculator = true,
     this.canCreateServiceRequest = false,
     this.canUploadDocuments = false,
+    this.canTrackRequests = false,
     this.canViewDocuments = false,
     this.canViewPayments = false,
     this.canUploadPaymentReceipt = false,
+    this.canUploadPaymentReceipts = false,
     this.canCreateSupportTicket = false,
     this.canViewSupportTickets = false,
     this.canViewCustomerDashboard = false,
+    this.canAccessCustomerDashboard = false,
     this.canViewCustomerNotifications = false,
     this.canAccessInternalWorkspace = false,
     this.canUpdateServiceStatus = false,
@@ -40,12 +43,15 @@ class AuthCapabilities {
   final bool canUseTaxCalculator;
   final bool canCreateServiceRequest;
   final bool canUploadDocuments;
+  final bool canTrackRequests;
   final bool canViewDocuments;
   final bool canViewPayments;
   final bool canUploadPaymentReceipt;
+  final bool canUploadPaymentReceipts;
   final bool canCreateSupportTicket;
   final bool canViewSupportTickets;
   final bool canViewCustomerDashboard;
+  final bool canAccessCustomerDashboard;
   final bool canViewCustomerNotifications;
   final bool canAccessInternalWorkspace;
   final bool canUpdateServiceStatus;
@@ -76,12 +82,15 @@ class AuthCapabilities {
             canUseTaxCalculator == other.canUseTaxCalculator &&
             canCreateServiceRequest == other.canCreateServiceRequest &&
             canUploadDocuments == other.canUploadDocuments &&
+            canTrackRequests == other.canTrackRequests &&
             canViewDocuments == other.canViewDocuments &&
             canViewPayments == other.canViewPayments &&
             canUploadPaymentReceipt == other.canUploadPaymentReceipt &&
+            canUploadPaymentReceipts == other.canUploadPaymentReceipts &&
             canCreateSupportTicket == other.canCreateSupportTicket &&
             canViewSupportTickets == other.canViewSupportTickets &&
             canViewCustomerDashboard == other.canViewCustomerDashboard &&
+            canAccessCustomerDashboard == other.canAccessCustomerDashboard &&
             canViewCustomerNotifications ==
                 other.canViewCustomerNotifications &&
             canAccessInternalWorkspace == other.canAccessInternalWorkspace &&
@@ -104,12 +113,15 @@ class AuthCapabilities {
     canUseTaxCalculator,
     canCreateServiceRequest,
     canUploadDocuments,
+    canTrackRequests,
     canViewDocuments,
     canViewPayments,
     canUploadPaymentReceipt,
+    canUploadPaymentReceipts,
     canCreateSupportTicket,
     canViewSupportTickets,
     canViewCustomerDashboard,
+    canAccessCustomerDashboard,
     canViewCustomerNotifications,
     canAccessInternalWorkspace,
     canUpdateServiceStatus,
@@ -125,6 +137,14 @@ class AuthCapabilities {
   factory AuthCapabilities.fromJson(Map<String, dynamic>? json) {
     if (json == null || json.isEmpty) return guest;
 
+    final canUploadPaymentReceipt = _boolValue(
+      json['can_upload_payment_receipt'] ?? json['can_upload_payment_receipts'],
+    );
+    final canViewCustomerDashboard = _boolValue(
+      json['can_view_customer_dashboard'] ??
+          json['can_access_customer_dashboard'],
+    );
+
     return AuthCapabilities(
       accessState: _accessStateFromValue(json['access_state']),
       canViewPublicCatalogue: _boolValue(
@@ -135,12 +155,15 @@ class AuthCapabilities {
       canUseTaxCalculator: _boolValue(json['can_use_tax_calculator'], true),
       canCreateServiceRequest: _boolValue(json['can_create_service_request']),
       canUploadDocuments: _boolValue(json['can_upload_documents']),
+      canTrackRequests: _boolValue(json['can_track_requests']),
       canViewDocuments: _boolValue(json['can_view_documents']),
       canViewPayments: _boolValue(json['can_view_payments']),
-      canUploadPaymentReceipt: _boolValue(json['can_upload_payment_receipt']),
+      canUploadPaymentReceipt: canUploadPaymentReceipt,
+      canUploadPaymentReceipts: canUploadPaymentReceipt,
       canCreateSupportTicket: _boolValue(json['can_create_support_ticket']),
       canViewSupportTickets: _boolValue(json['can_view_support_tickets']),
-      canViewCustomerDashboard: _boolValue(json['can_view_customer_dashboard']),
+      canViewCustomerDashboard: canViewCustomerDashboard,
+      canAccessCustomerDashboard: canViewCustomerDashboard,
       canViewCustomerNotifications: _boolValue(
         json['can_view_customer_notifications'],
       ),

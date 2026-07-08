@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../app_config/data/mobile_app_config.dart';
+import '../../app_config/data/mobile_app_config_repository.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../support/data/support_repository.dart';
 import '../data/settings_preferences.dart';
@@ -24,6 +27,8 @@ class SettingsScreen extends ConsumerWidget {
     final preferencesAsync = ref.watch(settingsPreferencesProvider);
     final authState = ref.watch(authControllerProvider);
     final profileSummary = ref.watch(profileSummaryProvider);
+    final mobileConfig =
+        ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final packageInfo = ref.watch(appPackageInfoProvider);
     final profile = profileSummary.maybeWhen(
       data: (profile) => profile,
@@ -51,7 +56,8 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Profile preferences',
-                  subtitle: accountName ?? 'Customer identity and account details',
+                  subtitle:
+                      accountName ?? 'Customer identity and account details',
                   trailing: approvalStatus ?? accountStatus ?? 'Ready',
                   onTap: () => context.push('/profile'),
                 ),
@@ -67,7 +73,8 @@ class SettingsScreen extends ConsumerWidget {
                     title: 'Security request',
                     topic: 'Account security / password change',
                     label: 'What do you need help with?',
-                    hint: 'Example: I want to change my password or secure my account.',
+                    hint:
+                        'Example: I want to change my password or secure my account.',
                     submitLabel: 'Submit security request',
                   ),
                 ),
@@ -84,7 +91,8 @@ class SettingsScreen extends ConsumerWidget {
                     title: 'Delete account request',
                     topic: 'Delete account request',
                     label: 'Reason or instructions',
-                    hint: 'Example: Please delete my mobile app account and related access.',
+                    hint:
+                        'Example: Please delete my mobile app account and related access.',
                     submitLabel: 'Submit deletion request',
                   ),
                 ),
@@ -127,11 +135,11 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Privacy policy',
                   subtitle: 'How OMC handles customer and service data',
                   trailing: 'View',
-                  onTap: () => _showPolicySheet(
+                  onTap: () => _openLegalDocument(
                     context,
                     title: 'Privacy policy',
-                    message:
-                        'OMC will use customer information to manage service requests, documents, support, notifications and account access. Full legal text can be linked from backend settings when available.',
+                    url: mobileConfig.legal.privacyPolicyUrl,
+                    message: mobileConfig.legal.privacyPolicyText,
                   ),
                 ),
                 const _DividerIndent(),
@@ -140,11 +148,11 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Terms & Conditions',
                   subtitle: 'Service usage, support and account access terms',
                   trailing: 'View',
-                  onTap: () => _showPolicySheet(
+                  onTap: () => _openLegalDocument(
                     context,
                     title: 'Terms & Conditions',
-                    message:
-                        'OMC services are subject to review, approval, document verification and applicable compliance requirements. Full legal text can be linked from backend settings when available.',
+                    url: mobileConfig.legal.termsUrl,
+                    message: mobileConfig.legal.termsText,
                   ),
                 ),
               ],
@@ -158,7 +166,8 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.phone_iphone_rounded,
                   title: 'OMC Mobile App',
                   subtitle: packageInfo.maybeWhen(
-                    data: (info) => 'Version ${info.version}+${info.buildNumber}',
+                    data: (info) =>
+                        'Version ${info.version}+${info.buildNumber}',
                     orElse: () => 'Premium customer service app',
                   ),
                   trailing: packageInfo.maybeWhen(
@@ -168,7 +177,8 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => _showSnack(
                     context,
                     packageInfo.maybeWhen(
-                      data: (info) => '${info.appName} ${info.version}+${info.buildNumber}',
+                      data: (info) =>
+                          '${info.appName} ${info.version}+${info.buildNumber}',
                       orElse: () => 'OMC Mobile App',
                     ),
                   ),
@@ -346,6 +356,32 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _openLegalDocument(
+    BuildContext context, {
+    required String title,
+    required String? url,
+    required String message,
+  }) async {
+    final uri = _safeExternalUri(url);
+    if (uri != null) {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (opened) return;
+    }
+
+    if (!context.mounted) return;
+    await _showPolicySheet(context, title: title, message: message);
+  }
+
+  Uri? _safeExternalUri(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+
+    final uri = Uri.tryParse(text);
+    if (uri == null || !uri.hasScheme || uri.host.trim().isEmpty) return null;
+    if (uri.scheme != 'https' && uri.scheme != 'http') return null;
+    return uri;
+  }
+
   String _settingsErrorMessage(Object error) {
     if (error is ApiError && error.message.trim().isNotEmpty) {
       return error.message.trim();
@@ -354,12 +390,18 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
 class _SettingsHero extends StatelessWidget {
-  const _SettingsHero({this.accountName, this.accountStatus, this.approvalStatus});
+  const _SettingsHero({
+    this.accountName,
+    this.accountStatus,
+    this.approvalStatus,
+  });
 
   final String? accountName;
   final String? accountStatus;
@@ -367,9 +409,10 @@ class _SettingsHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusText = [accountStatus, approvalStatus]
-        .where((value) => (value ?? '').trim().isNotEmpty)
-        .join(' • ');
+    final statusText = [
+      accountStatus,
+      approvalStatus,
+    ].where((value) => (value ?? '').trim().isNotEmpty).join(' • ');
     return PremiumCard(
       padding: const EdgeInsets.all(20),
       child: Row(
@@ -427,32 +470,39 @@ class _PreferencesSection extends StatelessWidget {
         _SwitchTile(
           title: 'Service updates',
           value: preferences.serviceUpdatesEnabled,
-          onChanged: (value) => onToggle(preferences.copyWith(serviceUpdatesEnabled: value)),
+          onChanged: (value) =>
+              onToggle(preferences.copyWith(serviceUpdatesEnabled: value)),
         ),
         _SwitchTile(
           title: 'Document reminders',
           value: preferences.documentRemindersEnabled,
-          onChanged: (value) => onToggle(preferences.copyWith(documentRemindersEnabled: value)),
+          onChanged: (value) =>
+              onToggle(preferences.copyWith(documentRemindersEnabled: value)),
         ),
         _SwitchTile(
           title: 'Payment alerts',
           value: preferences.paymentAlertsEnabled,
-          onChanged: (value) => onToggle(preferences.copyWith(paymentAlertsEnabled: value)),
+          onChanged: (value) =>
+              onToggle(preferences.copyWith(paymentAlertsEnabled: value)),
         ),
         _SwitchTile(
           title: 'Tax alerts',
           value: preferences.taxAlertsEnabled,
-          onChanged: (value) => onToggle(preferences.copyWith(taxAlertsEnabled: value)),
+          onChanged: (value) =>
+              onToggle(preferences.copyWith(taxAlertsEnabled: value)),
         ),
         _SwitchTile(
           title: 'Email notifications',
           value: preferences.emailNotificationsEnabled,
-          onChanged: (value) => onToggle(preferences.copyWith(emailNotificationsEnabled: value)),
+          onChanged: (value) =>
+              onToggle(preferences.copyWith(emailNotificationsEnabled: value)),
         ),
         _SwitchTile(
           title: 'WhatsApp notifications',
           value: preferences.whatsAppNotificationsEnabled,
-          onChanged: (value) => onToggle(preferences.copyWith(whatsAppNotificationsEnabled: value)),
+          onChanged: (value) => onToggle(
+            preferences.copyWith(whatsAppNotificationsEnabled: value),
+          ),
         ),
       ],
     );
@@ -474,7 +524,11 @@ class _PreferencesLoadingSection extends StatelessWidget {
 }
 
 class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.subtitle, required this.children});
+  const _SettingsSection({
+    required this.title,
+    required this.subtitle,
+    required this.children,
+  });
 
   final String title;
   final String subtitle;
@@ -537,7 +591,11 @@ class _SettingsTile extends StatelessWidget {
 }
 
 class _SwitchTile extends StatelessWidget {
-  const _SwitchTile({required this.title, required this.value, required this.onChanged});
+  const _SwitchTile({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
 
   final String title;
   final bool value;
@@ -550,7 +608,7 @@ class _SwitchTile extends StatelessWidget {
       title: Text(title, style: _TextStyles.tileTitle),
       value: value,
       onChanged: onChanged,
-      activeColor: AppTheme.primaryRed,
+      activeThumbColor: AppTheme.primaryRed,
     );
   }
 }
@@ -695,7 +753,9 @@ class _SmallIcon extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: isDestructive ? 0.10 : 0.08),
+        color: AppTheme.primaryRed.withValues(
+          alpha: isDestructive ? 0.10 : 0.08,
+        ),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Icon(icon, color: AppTheme.primaryRed),

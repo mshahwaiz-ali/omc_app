@@ -55,6 +55,7 @@ def _extract_service_case_list(response):
 
 
 def _normalize_service_case_list_item(service_case, can_access_internal_workspace=False):
+    capabilities = mobile.get_mobile_capabilities()
     case_id = service_case.get("name") or service_case.get("id") or service_case.get("case_id") or ""
     status = service_case.get("status") or ""
     progress = _service_case_progress(status)
@@ -70,8 +71,8 @@ def _normalize_service_case_list_item(service_case, can_access_internal_workspac
     service_case.setdefault("submitted_documents_count", 0)
     service_case.setdefault("missing_documents_count", 0)
     service_case["customer_action_required"] = status.strip().lower() == "waiting for customer"
-    service_case["can_update_status"] = can_access_internal_workspace
-    service_case["can_review_documents"] = can_access_internal_workspace
+    service_case["can_update_status"] = capabilities["can_update_service_status"]
+    service_case["can_review_documents"] = capabilities["can_review_documents"]
     service_case["can_view_internal_notes"] = can_access_internal_workspace
 
 
@@ -105,9 +106,10 @@ def _apply_service_case_capabilities(service_case):
     """Keep internal-only fields and controls backend-driven."""
 
     can_access_internal_workspace = mobile._can_access_internal_workspace()
+    capabilities = mobile.get_mobile_capabilities()
 
-    service_case["can_update_status"] = can_access_internal_workspace
-    service_case["can_review_documents"] = can_access_internal_workspace
+    service_case["can_update_status"] = capabilities["can_update_service_status"]
+    service_case["can_review_documents"] = capabilities["can_review_documents"]
     service_case["can_view_internal_notes"] = can_access_internal_workspace
 
     if not can_access_internal_workspace:
@@ -237,7 +239,10 @@ def update_service_case_status(
 ):
     """Allow only internal workspace users to update service case status."""
 
-    mobile._assert_internal_workspace_access()
+    mobile.require_omc_staff(
+        mobile.SERVICE_STATUS_ROLES,
+        "You do not have permission to update service case status.",
+    )
 
     resolved_case_id = case_id or name or service_request or request_id
 
@@ -259,7 +264,10 @@ def update_service_document_status(
 ):
     """Allow only internal workspace users to approve/reject documents."""
 
-    mobile._assert_internal_workspace_access()
+    mobile.require_omc_staff(
+        mobile.DOCUMENT_REVIEW_ROLES,
+        "You do not have permission to review service documents.",
+    )
 
     resolved_document_id = document_id or document or name
 

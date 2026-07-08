@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -173,7 +175,9 @@ class HomeScreen extends ConsumerWidget {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 sliver: SliverToBoxAdapter(
-                  child: _DashboardFallbackNote(message: summary.fallbackMessage!),
+                  child: _DashboardFallbackNote(
+                    message: summary.fallbackMessage!,
+                  ),
                 ),
               ),
             SliverPadding(
@@ -191,7 +195,8 @@ class HomeScreen extends ConsumerWidget {
               sliver: SliverToBoxAdapter(
                 child: _QuickActionLauncher(
                   actions: _quickActions,
-                  onTap: (target) => _handleAction(context, target, capabilities),
+                  onTap: (target) =>
+                      _handleAction(context, target, capabilities),
                 ),
               ),
             ),
@@ -199,14 +204,16 @@ class HomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               sliver: SliverToBoxAdapter(
                 child: _SectionHeader(
-                  title: summary.activeCases > 0 ? 'Current Progress' : 'Start with OMC',
+                  title: summary.activeCases > 0
+                      ? 'Current Progress'
+                      : 'Start with OMC',
                   actionText: summary.activeCases > 0 ? 'Track' : null,
                   onAction: summary.activeCases > 0
                       ? () => _handleAction(
-                            context,
-                            _HomeActionTarget.myServices,
-                            capabilities,
-                          )
+                          context,
+                          _HomeActionTarget.myServices,
+                          capabilities,
+                        )
                       : null,
                 ),
               ),
@@ -256,7 +263,8 @@ class HomeScreen extends ConsumerWidget {
               sliver: SliverToBoxAdapter(
                 child: _WorkspaceList(
                   actions: _workspaceActions,
-                  onTap: (target) => _handleAction(context, target, capabilities),
+                  onTap: (target) =>
+                      _handleAction(context, target, capabilities),
                 ),
               ),
             ),
@@ -325,14 +333,25 @@ class HomeScreen extends ConsumerWidget {
       context.go(target);
       return;
     }
+
+    final uri = _safeExternalUri(target);
+    if (uri != null) {
+      launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(target),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(target), behavior: SnackBarBehavior.floating),
       );
+  }
+
+  Uri? _safeExternalUri(String value) {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null || !uri.hasScheme || uri.host.trim().isEmpty) return null;
+    if (uri.scheme != 'https' && uri.scheme != 'http') return null;
+    return uri;
   }
 
   void _handleAction(
@@ -361,7 +380,8 @@ class HomeScreen extends ConsumerWidget {
         onOpenServices?.call();
         return;
       case _HomeActionTarget.documents:
-        if (!capabilities.canViewDocuments && !capabilities.canReviewDocuments) {
+        if (!capabilities.canViewDocuments &&
+            !capabilities.canReviewDocuments) {
           _showLockedSnack(context, capabilities);
           return;
         }
@@ -409,7 +429,7 @@ class HomeScreen extends ConsumerWidget {
       return 'Please sign in or create an account to use this service.';
     }
     if (capabilities.isPending) {
-      return 'Your account is under review. OMC will enable this after approval.';
+      return 'Your account is under review. OMC team will verify your profile before enabling service access.';
     }
     if (capabilities.isRejected) {
       return 'This account is not approved for this action. Please contact OMC support.';
@@ -590,7 +610,11 @@ class _HeroCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppTheme.primaryRed, Color(0xFFA3162A), AppTheme.darkRed],
+              colors: [
+                AppTheme.primaryRed,
+                Color(0xFFA3162A),
+                AppTheme.darkRed,
+              ],
             ),
           ),
           child: Column(
@@ -654,7 +678,10 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _BackendBannersSection extends StatelessWidget {
-  const _BackendBannersSection({required this.bannersAsync, required this.onTap});
+  const _BackendBannersSection({
+    required this.bannersAsync,
+    required this.onTap,
+  });
 
   final AsyncValue<List<AppBannerItem>> bannersAsync;
   final ValueChanged<AppBannerItem> onTap;
@@ -695,6 +722,7 @@ class _BackendBannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = _resolvedImageUrl(banner.imageUrl);
     return SizedBox(
       width: 286,
       child: PremiumCard(
@@ -702,7 +730,10 @@ class _BackendBannerCard extends StatelessWidget {
         onTap: banner.actionUrl == null ? null : onTap,
         child: Row(
           children: [
-            _IconBox(icon: Icons.campaign_rounded),
+            if (imageUrl == null)
+              _IconBox(icon: Icons.campaign_rounded)
+            else
+              _BannerImage(url: imageUrl),
             const SizedBox(width: 13),
             Expanded(
               child: Column(
@@ -743,6 +774,34 @@ class _BackendBannerCard extends StatelessWidget {
       ),
     );
   }
+
+  String? _resolvedImageUrl(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+    if (text.startsWith('http://') || text.startsWith('https://')) return text;
+    if (text.startsWith('/')) return '${ApiConfig.baseUrl}$text';
+    return null;
+  }
+}
+
+class _BannerImage extends StatelessWidget {
+  const _BannerImage({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.network(
+        url,
+        width: 52,
+        height: 52,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _IconBox(icon: Icons.campaign_rounded),
+      ),
+    );
+  }
 }
 
 class _HeroBadge extends StatelessWidget {
@@ -764,7 +823,11 @@ class _HeroBadge extends StatelessWidget {
           SizedBox(width: 7),
           Text(
             'OMC Premium Workspace',
-            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -926,7 +989,10 @@ class _SectionHeader extends StatelessWidget {
             onPressed: onAction,
             style: TextButton.styleFrom(
               foregroundColor: AppTheme.primaryRed,
-              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             child: Text(actionText!),
           ),
@@ -957,7 +1023,10 @@ class _QuickActionLauncher extends StatelessWidget {
         ),
         itemBuilder: (context, index) {
           final action = actions[index];
-          return _LogoActionTile(action: action, onTap: () => onTap(action.target));
+          return _LogoActionTile(
+            action: action,
+            onTap: () => onTap(action.target),
+          );
         },
       ),
     );
@@ -1037,10 +1106,17 @@ class _AttentionCard extends StatelessWidget {
     final subtitle = hasDocuments
         ? '$pendingDocuments document(s) required for your active request.'
         : '$paymentsDue payment item(s) need your review.';
-    final icon = hasDocuments ? Icons.folder_copy_rounded : Icons.account_balance_wallet_rounded;
+    final icon = hasDocuments
+        ? Icons.folder_copy_rounded
+        : Icons.account_balance_wallet_rounded;
     final onTap = hasDocuments ? onOpenDocuments : onOpenPayments;
 
-    return _SimpleActionCard(title: title, subtitle: subtitle, icon: icon, onTap: onTap);
+    return _SimpleActionCard(
+      title: title,
+      subtitle: subtitle,
+      icon: icon,
+      onTap: onTap,
+    );
   }
 }
 
@@ -1059,11 +1135,15 @@ class _ProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasActiveCase = summary.activeCases > 0;
     return _SimpleActionCard(
-      title: hasActiveCase ? 'Service work is in progress' : 'No active service yet',
+      title: hasActiveCase
+          ? 'Service work is in progress'
+          : 'No active service yet',
       subtitle: hasActiveCase
           ? '${summary.activeCases} active case(s) currently being tracked.'
           : 'Start a request and your service progress will appear here.',
-      icon: hasActiveCase ? Icons.track_changes_rounded : Icons.add_task_rounded,
+      icon: hasActiveCase
+          ? Icons.track_changes_rounded
+          : Icons.add_task_rounded,
       onTap: hasActiveCase ? onTrack : onStartRequest,
       progressValue: hasActiveCase ? 0.62 : null,
     );
@@ -1083,7 +1163,10 @@ class _WorkspaceList extends StatelessWidget {
       child: Column(
         children: [
           for (int index = 0; index < actions.length; index++) ...[
-            _WorkspaceTile(action: actions[index], onTap: () => onTap(actions[index].target)),
+            _WorkspaceTile(
+              action: actions[index],
+              onTap: () => onTap(actions[index].target),
+            ),
             if (index != actions.length - 1)
               const Divider(height: 1, indent: 76, endIndent: 18),
           ],
@@ -1143,11 +1226,13 @@ class _RecentActivityCard extends StatelessWidget {
       subtitle: latestActivity == null
           ? 'Submitted requests and status updates stay here.'
           : latestActivity.subtitle.isNotEmpty
-              ? latestActivity.subtitle
-              : latestActivity.createdAtLabel ?? 'Latest update',
+          ? latestActivity.subtitle
+          : latestActivity.createdAtLabel ?? 'Latest update',
       icon: Icons.history_rounded,
       onTap: onTrack,
-      footer: activities.length > 1 ? '+${activities.length - 1} more update(s)' : null,
+      footer: activities.length > 1
+          ? '+${activities.length - 1} more update(s)'
+          : null,
     );
   }
 }
@@ -1182,9 +1267,19 @@ class _SimpleActionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: _TextStyles.cardTitle),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _TextStyles.cardTitle,
+                ),
                 const SizedBox(height: 6),
-                Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: _TextStyles.cardSubtitle),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: _TextStyles.cardSubtitle,
+                ),
                 if (progressValue != null) ...[
                   const SizedBox(height: 12),
                   ClipRRect(
@@ -1192,8 +1287,12 @@ class _SimpleActionCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       minHeight: 7,
                       value: progressValue,
-                      backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.10),
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
+                      backgroundColor: AppTheme.primaryRed.withValues(
+                        alpha: 0.10,
+                      ),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppTheme.primaryRed,
+                      ),
                     ),
                   ),
                 ],
@@ -1212,7 +1311,10 @@ class _SimpleActionCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
+          ),
         ],
       ),
     );
@@ -1292,10 +1394,16 @@ class _IconBox extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: solid ? AppTheme.primaryRed : AppTheme.primaryRed.withValues(alpha: 0.08),
+        color: solid
+            ? AppTheme.primaryRed
+            : AppTheme.primaryRed.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(size * 0.38),
       ),
-      child: Icon(icon, color: solid ? Colors.white : AppTheme.primaryRed, size: iconSize),
+      child: Icon(
+        icon,
+        color: solid ? Colors.white : AppTheme.primaryRed,
+        size: iconSize,
+      ),
     );
   }
 }
@@ -1370,7 +1478,11 @@ class _WorkspaceAction {
 }
 
 class _StatusItem {
-  const _StatusItem({required this.label, required this.value, required this.icon});
+  const _StatusItem({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   final String label;
   final String value;

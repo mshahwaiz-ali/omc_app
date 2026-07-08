@@ -26,6 +26,11 @@
   "minimum_app_version",
   "force_update",
   "maintenance_mode",
+  "legal_section",
+  "privacy_policy_url",
+  "privacy_policy_text",
+  "terms_url",
+  "terms_text",
   "mapping_section",
   "customer_doctype",
   "customer_name_field",
@@ -166,6 +171,31 @@
    "fieldname": "maintenance_mode",
    "fieldtype": "Check",
    "label": "Maintenance Mode"
+  },
+  {
+   "fieldname": "legal_section",
+   "fieldtype": "Section Break",
+   "label": "Legal Content"
+  },
+  {
+   "fieldname": "privacy_policy_url",
+   "fieldtype": "Data",
+   "label": "Privacy Policy URL"
+  },
+  {
+   "fieldname": "privacy_policy_text",
+   "fieldtype": "Long Text",
+   "label": "Privacy Policy Text"
+  },
+  {
+   "fieldname": "terms_url",
+   "fieldtype": "Data",
+   "label": "Terms & Conditions URL"
+  },
+  {
+   "fieldname": "terms_text",
+   "fieldtype": "Long Text",
+   "label": "Terms & Conditions Text"
   },
   {
    "fieldname": "mapping_section",

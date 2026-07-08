@@ -151,7 +151,7 @@ class ServiceDetailScreen extends ConsumerWidget {
       return 'Please sign in or create an account to request this service.';
     }
     if (capabilities.isPending) {
-      return 'Your account is under review. OMC will enable service requests after approval.';
+      return 'Your account is under review. OMC team will verify your profile before enabling service access.';
     }
     if (capabilities.isRejected) {
       return 'This account is not approved for service requests. Please contact OMC support.';
