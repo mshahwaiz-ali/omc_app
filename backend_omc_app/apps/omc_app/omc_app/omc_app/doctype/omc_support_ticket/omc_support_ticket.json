@@ -32,11 +32,11 @@
    "label": "Ticket"
   },
   {
-   "default": "OMC-ST-.YYYY.-.#####",
+   "default": "OMC-ST-.YY..MM..DD.-.#####",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "label": "Naming Series",
-   "options": "OMC-ST-.YYYY.-.#####",
+   "options": "OMC-ST-.YY..MM..DD.-.#####",
    "reqd": 1
   },
   {
