@@ -1,3 +1,4 @@
+import base64
 import re
 from urllib.parse import quote
 
@@ -6,9 +7,11 @@ import frappe
 from omc_app.api import mobile
 
 
-ACTIVE_REQUEST_STATUSES = {"Open", "Waiting for Customer", "In Progress", "Under Review"}
 PAYMENT_ACCOUNT_DOCTYPE = "OMC Payment Account"
 PAYMENT_DOCTYPE = "OMC Service Payment"
+DEFAULT_PAYMENT_WHATSAPP_NUMBER = "923001234567"
+ALLOWED_RECEIPT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png"}
+MAX_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024
 
 
 def _clean_text(value):
@@ -46,6 +49,23 @@ def _digits_only(value):
     return re.sub(r"\D+", "", value or "")
 
 
+def _file_extension(file_name):
+    clean_name = _clean_text(file_name).split("?")[0].rsplit("/", 1)[-1]
+    if "." not in clean_name:
+        return ""
+    return clean_name.rsplit(".", 1)[-1].lower().strip()
+
+
+def _assert_payment_customer_access(payment):
+    profile = None if mobile._can_access_internal_workspace() else mobile._assert_approved_customer()
+    service_case = frappe.get_doc("OMC Service Request", payment.service_request)
+
+    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
+        frappe.throw("You do not have permission to update this payment", frappe.PermissionError)
+
+    return profile, service_case
+
+
 def _payment_support_payload(payment=None, service_case=None):
     account = _first_payment_account()
     account_title = _clean_text(getattr(account, "account_title", "")) if account else ""
@@ -55,6 +75,9 @@ def _payment_support_payload(payment=None, service_case=None):
     branch = _clean_text(getattr(account, "branch", "")) if account else ""
     whatsapp_number = _clean_text(getattr(account, "whatsapp_number", "")) if account else ""
     instructions = _clean_text(getattr(account, "instructions", "")) if account else ""
+
+    if not whatsapp_number:
+        whatsapp_number = DEFAULT_PAYMENT_WHATSAPP_NUMBER
 
     bank_lines = []
     if bank_name:
@@ -70,7 +93,7 @@ def _payment_support_payload(payment=None, service_case=None):
 
     if not instructions:
         instructions = (
-            "Contact OMC support for payment details, transfer the amount, "
+            "Contact OMC support on WhatsApp for payment details, transfer the amount, "
             "then upload the receipt screenshot here for finance review."
         )
 
@@ -182,7 +205,7 @@ def _ensure_payment_for_case(service_case):
 
     mobile._create_service_timeline_entry(
         service_request=service_case.name,
-        event_type="Payment Opened",
+        event_type="Payment Updated",
         title="Payment Opened",
         description="Payment is now available. Contact OMC for payment details and upload your receipt after payment.",
         visible_to_customer=1,
@@ -286,3 +309,71 @@ def get_payment(payment_id=None, name=None):
         frappe.throw("You do not have permission to access this payment", frappe.PermissionError)
 
     return _payment_dict(payment, capabilities=capabilities)
+
+
+@frappe.whitelist()
+def upload_payment_receipt_file(payment_id=None, name=None, file_name=None, content_base64=None, payment_reference=None, remarks=None):
+    payment_id = payment_id or name
+    if not payment_id:
+        frappe.throw("payment_id is required")
+    if not file_name:
+        frappe.throw("file_name is required")
+    if not content_base64:
+        frappe.throw("content_base64 is required")
+
+    if not frappe.db.exists(PAYMENT_DOCTYPE, payment_id):
+        frappe.throw("Payment not found", frappe.DoesNotExistError)
+
+    payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
+    _assert_payment_customer_access(payment)
+
+    extension = _file_extension(file_name)
+    if extension not in ALLOWED_RECEIPT_EXTENSIONS:
+        frappe.throw("Unsupported receipt type. Please upload PDF, JPG or PNG files only.")
+
+    try:
+        content = base64.b64decode(content_base64)
+    except Exception:
+        frappe.throw("Receipt file data is invalid. Please choose the file again.")
+
+    if not content:
+        frappe.throw("Uploaded receipt is empty.")
+    if len(content) > MAX_RECEIPT_SIZE_BYTES:
+        frappe.throw("Receipt is too large. Maximum allowed size is 10 MB.")
+
+    file_doc = frappe.get_doc({
+        "doctype": "File",
+        "file_name": file_name,
+        "attached_to_doctype": PAYMENT_DOCTYPE,
+        "attached_to_name": payment.name,
+        "is_private": 1,
+        "content": content,
+    })
+    file_doc.insert(ignore_permissions=True)
+
+    payment.receipt_attachment = file_doc.file_url
+    payment.payment_reference = payment_reference or payment.payment_reference
+    payment.remarks = remarks or payment.remarks
+    payment.status = "Receipt Submitted"
+    payment.save(ignore_permissions=True)
+
+    mobile._create_service_timeline_entry(
+        service_request=payment.service_request,
+        event_type="Payment Updated",
+        title="Payment Receipt Submitted",
+        description=remarks or f"Receipt submitted for {payment.payment_title or 'payment'} and is waiting for OMC review.",
+        visible_to_customer=1,
+    )
+
+    frappe.db.commit()
+
+    return {
+        "updated": True,
+        "name": payment.name,
+        "case_id": payment.service_request,
+        "status": payment.status,
+        "receipt_url": payment.receipt_attachment or "",
+        "payment_reference": payment.payment_reference or "",
+        "remarks": payment.remarks or "",
+        "file_url": file_doc.file_url,
+    }
