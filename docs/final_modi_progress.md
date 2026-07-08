@@ -35,6 +35,12 @@ This checklist tracks what has been implemented against `docs/final_modi.md`. It
 - Connected backend templates into the service catalogue load path:
   - Catalogue services are enriched from `ApiConfig.serviceTemplateMethod`.
   - Template failures are per-service non-blocking, so the catalogue still loads.
+- Wired backend-driven dynamic request forms into the service request draft screen:
+  - `service_request_draft_screen.dart` now renders fields from `service.formSchema`.
+  - Supports text, long text, select, checkbox-style fields, numeric/email/phone/date-friendly input behaviour, defaults and required validation.
+  - Falls back to a safe request details field if backend fields are not configured.
+  - Submitted dynamic field values are sent through `additionalDetails` and encoded as `form_data_json` without removing the existing static payload.
+  - Customer-visible service stages are shown from backend stage templates when available.
 - Added backend content frontend repository:
   - `appBannersProvider` calls `ApiConfig.appBannersMethod`.
   - `appFaqsProvider` calls `ApiConfig.faqsMethod`.
@@ -60,13 +66,9 @@ This checklist tracks what has been implemented against `docs/final_modi.md`. It
 
 ## Remaining before calling `final_modi.md` fully complete
 
-- `omc_app/lib/features/service_requests/presentation/service_request_draft_screen.dart`
-  - Dynamic rendering from `service.formSchema` still needs to be wired into the actual request form.
-  - Submitted dynamic values should go under `additionalDetails` / `form_data` without removing the existing static payload.
-  - The catalogue now supplies template fields, but the draft UI still needs the final renderer.
 - Home/content UI:
   - App banners and FAQs now have frontend providers.
-  - Home and Support screens still need UI cards wired to those providers.
+  - Home and Support/Knowledge screens still need UI cards wired to those providers.
 - Settings polish:
   - Add Privacy policy, Terms, and Delete account request tiles if they are required for the first release.
   - Current settings screen already has version, preferences, profile, account/security request and logout.
@@ -110,4 +112,5 @@ flutter test
 - No README progress claims were used.
 - Backend permission enforcement remains the source of truth.
 - Flutter changes are additive and intended to preserve existing working flows.
+- Dynamic request-form completion was confirmed by GitHub code inspection, not local runtime validation.
 - Local validation was not run from this GitHub-only session.
