@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
@@ -267,6 +268,12 @@ class ServiceCaseRepository {
         json['activity'] ??
         json['recent_activity'];
 
+    final documentDetails = _documentDetails(
+      json['document_details'] ??
+          json['required_document_details'] ??
+          json['documents'],
+    );
+
     return ServiceCase(
       id: _stringValue(json['id'] ?? json['name'] ?? json['case_id']),
       reference: _nullableString(
@@ -285,14 +292,14 @@ class ServiceCaseRepository {
         json['category'] ?? json['service_category'] ?? json['service_group'],
       ),
       status: _stringValue(json['status'] ?? json['current_stage']),
-      createdAtLabel: _stringValue(
+      createdAtLabel: _displayDate(
         json['created_at_label'] ??
             json['created'] ??
             json['created_at'] ??
             json['submitted_on'] ??
             json['creation'],
       ),
-      updatedAtLabel: _stringValue(
+      updatedAtLabel: _displayDate(
         json['updated_at_label'] ?? json['updated_at'] ?? json['modified'],
       ),
       progress: _doubleValue(json['progress'] ?? json['progress_percent']),
@@ -303,14 +310,9 @@ class ServiceCaseRepository {
       requiredDocuments: _stringList(json['required_documents']),
       submittedDocuments: _stringList(json['submitted_documents']),
       missingDocuments: _stringList(json['missing_documents']),
-      documentDetails: _documentDetails(
-        json['document_details'] ??
-            json['required_document_details'] ??
-            json['documents'] ??
-            json['submitted_documents'] ??
-            json['required_documents'] ??
-            json['missing_documents'],
-      ),
+      documentDetails: documentDetails.isNotEmpty
+          ? documentDetails
+          : _fallbackDocumentDetails(json),
       timeline: _timeline(timelineSource),
       progressPercent: _nullableIntValue(json['progress_percent']),
       currentStage: _nullableString(json['current_stage'] ?? json['stage']),
@@ -328,25 +330,52 @@ class ServiceCaseRepository {
     );
   }
 
+  List<ServiceCaseDocument> _fallbackDocumentDetails(Map<String, dynamic> json) {
+    final required = _stringList(json['required_documents']);
+    if (required.isEmpty) return const [];
+
+    final submitted = _stringSet(json['submitted_documents']);
+    final missing = _stringSet(json['missing_documents']);
+
+    return required
+        .map(
+          (title) => ServiceCaseDocument(
+            id: '-',
+            title: title,
+            type: '',
+            status: submitted.contains(title.toLowerCase())
+                ? 'Uploaded'
+                : missing.contains(title.toLowerCase())
+                ? 'Pending'
+                : 'Pending',
+          ),
+        )
+        .toList(growable: false);
+  }
+
   List<ServiceCaseDocument> _documentDetails(dynamic value) {
     if (value is! List) return const [];
 
     return value
         .whereType<Map<String, dynamic>>()
         .map((item) {
+          final status = _stringValue(item['status']);
+          final fileUrl = _nullableString(
+            item['file_url'] ?? item['attachment'] ?? item['url'],
+          );
+
           return ServiceCaseDocument(
             id: _stringValue(item['id'] ?? item['name'] ?? item['document_id']),
             title: _stringValue(
               item['title'] ?? item['document_title'] ?? item['label'],
             ),
             type: _stringValue(item['type'] ?? item['document_type']),
-            status: _stringValue(item['status']),
-            fileUrl: _nullableString(
-              item['file_url'] ?? item['attachment'] ?? item['url'],
-            ),
+            status: status == 'Required' ? 'Pending' : status,
+            fileUrl: status.toLowerCase() == 'rejected' ? null : fileUrl,
             remarks: _nullableString(item['remarks'] ?? item['notes']),
           );
         })
+        .where((item) => item.title.trim().isNotEmpty && item.title != '-')
         .toList(growable: false);
   }
 
@@ -389,16 +418,19 @@ class ServiceCaseRepository {
           item['creation'] ??
           item['date'] ??
           item['updated_at'] ??
-          item['modified'],
+          item['modified'] ??
+          item['event_time'],
     );
 
+    final formattedTimestamp = _nullableString(_displayDate(timestamp));
+
     if (mainText != null &&
-        timestamp != null &&
-        !mainText.contains(timestamp)) {
-      return '$mainText\n$timestamp';
+        formattedTimestamp != null &&
+        !mainText.contains(formattedTimestamp)) {
+      return '$mainText\n$formattedTimestamp';
     }
 
-    return mainText ?? timestamp ?? '-';
+    return mainText ?? formattedTimestamp ?? '-';
   }
 
   bool _timelineStepIsDone(Map<String, dynamic> item) {
@@ -434,6 +466,10 @@ class ServiceCaseRepository {
     return const [];
   }
 
+  Set<String> _stringSet(dynamic value) {
+    return _stringList(value).map((item) => item.toLowerCase()).toSet();
+  }
+
   String _stringValue(dynamic value) {
     final text = value?.toString().trim() ?? '';
     return text.isEmpty ? '-' : text;
@@ -443,6 +479,28 @@ class ServiceCaseRepository {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty || text == '-') return null;
     return text;
+  }
+
+  String _displayDate(dynamic value) {
+    final raw = value?.toString().trim() ?? '';
+    if (raw.isEmpty || raw == '-') return '-';
+
+    final alreadyClean = RegExp(r'^[0-9]{1,2} [A-Za-z]{3} [0-9]{4}').hasMatch(raw) ||
+        RegExp(r'^[A-Za-z]+$').hasMatch(raw) ||
+        raw.toLowerCase().contains('ago') ||
+        raw.toLowerCase().contains('pending') ||
+        raw.toLowerCase().contains('completed');
+    if (alreadyClean) return raw;
+
+    final withoutMicroseconds = raw.replaceFirst(RegExp(r'\.\d+'), '');
+    final isoCandidate = withoutMicroseconds.contains('T')
+        ? withoutMicroseconds
+        : withoutMicroseconds.replaceFirst(' ', 'T');
+
+    final parsed = DateTime.tryParse(isoCandidate);
+    if (parsed == null) return withoutMicroseconds;
+
+    return DateFormat('dd MMM yyyy, h:mm a').format(parsed.toLocal());
   }
 
   bool _boolValue(dynamic value) {
@@ -497,6 +555,34 @@ class ServiceCaseRepository {
           'Tax deduction certificates',
           'Bank statement if required',
         ],
+        documentDetails: [
+          ServiceCaseDocument(
+            id: 'doc-001',
+            title: 'CNIC front image',
+            type: 'CNIC',
+            status: 'Approved',
+            fileUrl: '/files/cnic-front.jpg',
+          ),
+          ServiceCaseDocument(
+            id: 'doc-002',
+            title: 'CNIC back image',
+            type: 'CNIC',
+            status: 'Uploaded',
+            fileUrl: '/files/cnic-back.jpg',
+          ),
+          ServiceCaseDocument(
+            id: '-',
+            title: 'Tax deduction certificates',
+            type: 'Tax',
+            status: 'Pending',
+          ),
+          ServiceCaseDocument(
+            id: '-',
+            title: 'Bank statement if required',
+            type: 'Bank',
+            status: 'Pending',
+          ),
+        ],
         timeline: [
           ServiceCaseTimelineStep(
             title: 'Request received',
@@ -517,97 +603,6 @@ class ServiceCaseRepository {
             title: 'Completed',
             subtitle: 'Pending',
             isDone: false,
-          ),
-        ],
-      ),
-      ServiceCase(
-        id: 'case-002',
-        reference: 'OMC-2026-002',
-        title: 'NTN Registration',
-        category: 'NTN Registration',
-        status: 'Documents Required',
-        createdAtLabel: 'Yesterday',
-        updatedAtLabel: '2 hours ago',
-        progress: 0.55,
-        nextStep: 'CNIC back image is required to continue.',
-        remarks: 'Please upload a clear CNIC back image.',
-        requiredDocuments: [
-          'CNIC front image',
-          'CNIC back image',
-          'Mobile number linked with CNIC',
-          'Email address',
-        ],
-        submittedDocuments: [
-          'CNIC front image',
-          'Mobile number linked with CNIC',
-          'Email address',
-        ],
-        missingDocuments: ['CNIC back image'],
-        timeline: [
-          ServiceCaseTimelineStep(
-            title: 'Request received',
-            subtitle: 'Yesterday',
-            isDone: true,
-          ),
-          ServiceCaseTimelineStep(
-            title: 'Basic details checked',
-            subtitle: 'Completed',
-            isDone: true,
-          ),
-          ServiceCaseTimelineStep(
-            title: 'Documents required',
-            subtitle: 'CNIC back image pending',
-            isDone: true,
-          ),
-          ServiceCaseTimelineStep(
-            title: 'Submitted to FBR',
-            subtitle: 'Pending',
-            isDone: false,
-          ),
-        ],
-      ),
-      ServiceCase(
-        id: 'case-003',
-        reference: 'OMC-2026-003',
-        title: 'IRIS Profile Update',
-        category: 'IRIS Profile',
-        status: 'Completed',
-        createdAtLabel: 'Last week',
-        updatedAtLabel: 'Completed',
-        progress: 1,
-        nextStep: 'No action required.',
-        remarks: 'Your IRIS profile update has been completed.',
-        requiredDocuments: [
-          'CNIC front and back',
-          'IRIS login details',
-          'Updated contact information',
-        ],
-        submittedDocuments: [
-          'CNIC front and back',
-          'IRIS login details',
-          'Updated contact information',
-        ],
-        missingDocuments: [],
-        timeline: [
-          ServiceCaseTimelineStep(
-            title: 'Request received',
-            subtitle: 'Last week',
-            isDone: true,
-          ),
-          ServiceCaseTimelineStep(
-            title: 'Documents verified',
-            subtitle: 'Completed',
-            isDone: true,
-          ),
-          ServiceCaseTimelineStep(
-            title: 'Profile updated',
-            subtitle: 'Completed',
-            isDone: true,
-          ),
-          ServiceCaseTimelineStep(
-            title: 'Completed',
-            subtitle: 'Completed',
-            isDone: true,
           ),
         ],
       ),
