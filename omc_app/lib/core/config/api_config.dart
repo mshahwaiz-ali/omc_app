@@ -150,6 +150,10 @@ class ApiConfig {
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
+  static const String internalServiceCasesMethod =
+      'omc_app.api.internal_workspace.get_service_cases';
+  static const String createServiceRequestForCustomerMethod =
+      'omc_app.api.internal_workspace.create_service_request_for_customer';
 
   static const String leadsMethod = 'omc_app.api.mobile.get_leads';
   static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
