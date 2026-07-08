@@ -9,6 +9,8 @@ class ServiceItem {
     required this.category,
     required this.feeLabel,
     required this.completionTime,
+    this.basePrice,
+    this.currency,
     required this.requirements,
     this.governmentFeeLabel,
     this.description,
@@ -29,6 +31,8 @@ class ServiceItem {
   final String feeLabel;
   final String? governmentFeeLabel;
   final String completionTime;
+  final double? basePrice;
+  final String? currency;
   final List<String> requirements;
   final String? description;
   final String? shortDescription;
@@ -42,6 +46,19 @@ class ServiceItem {
   final List<ServiceStageTemplate> stages;
 
   bool get hasBackendTemplate => formSchema.isNotEmpty || stages.isNotEmpty;
+
+  String get priceLabel {
+    final amount = basePrice;
+    if (amount == null) return feeLabel;
+
+    final normalizedCurrency = (currency ?? '').trim();
+    final formattedAmount = amount % 1 == 0
+        ? amount.toInt().toString()
+        : amount.toStringAsFixed(2);
+
+    if (normalizedCurrency.isEmpty) return formattedAmount;
+    return '$normalizedCurrency $formattedAmount';
+  }
 
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
     return ServiceItem(
@@ -71,6 +88,17 @@ class ServiceItem {
         'governmentFeeLabel',
         'government_fee_label',
         'government_fee',
+      ]),
+      basePrice: _readNullableDouble(json, [
+        'basePrice',
+        'base_price',
+        'price',
+        'amount',
+      ]),
+      currency: _readNullableString(json, [
+        'currency',
+        'currency_code',
+        'currencyCode',
       ]),
       completionTime: _readString(json, [
         'completionTime',
@@ -307,6 +335,27 @@ class ServiceItem {
 
   static String _readString(Map<String, dynamic> json, List<String> keys) {
     return _readNullableString(json, keys) ?? '';
+  }
+
+  static double? _readNullableDouble(
+    Map<String, dynamic> json,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value == null) continue;
+
+      if (value is num) return value.toDouble();
+
+      final text = value.toString().trim();
+      if (text.isEmpty) continue;
+
+      final normalized = text.replaceAll(',', '');
+      final parsed = double.tryParse(normalized);
+      if (parsed != null) return parsed;
+    }
+
+    return null;
   }
 
   static String? _readNullableString(

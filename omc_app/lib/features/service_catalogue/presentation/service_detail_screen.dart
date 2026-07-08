@@ -380,7 +380,7 @@ class _ServiceStatsGrid extends StatelessWidget {
           child: _ServiceStatTile(
             icon: Icons.payments_outlined,
             label: 'Fee',
-            value: service.feeLabel,
+            value: service.priceLabel,
           ),
         ),
         const SizedBox(width: 10),
@@ -464,7 +464,7 @@ class _ServiceFacts extends StatelessWidget {
           _FactRow(
             icon: Icons.payments_outlined,
             label: 'Fee',
-            value: service.feeLabel,
+            value: service.priceLabel,
           ),
           const Divider(height: 24),
           _FactRow(

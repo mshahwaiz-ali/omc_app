@@ -215,7 +215,7 @@ class _ServiceCatalogueScreenState
           final searchableText = [
             service.title,
             service.category,
-            service.feeLabel,
+            service.priceLabel,
             service.completionTime,
             ...service.requirements,
           ].join(' ').toLowerCase();
