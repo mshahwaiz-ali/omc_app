@@ -62,7 +62,7 @@ class _HistoryCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.65)),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.65)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
