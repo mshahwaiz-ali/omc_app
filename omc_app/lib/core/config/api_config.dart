@@ -79,8 +79,8 @@ class ApiConfig {
   static const String updateServiceDocumentStatusMethod =
       'omc_app.api.secured_mobile.update_service_document_status';
 
-  static const String paymentsMethod = 'omc_app.api.mobile.get_payments';
-  static const String paymentDetailMethod = 'omc_app.api.mobile.get_payment';
+  static const String paymentsMethod = 'omc_app.api.payments.get_payments';
+  static const String paymentDetailMethod = 'omc_app.api.payments.get_payment';
   static const String uploadPaymentReceiptMethod =
       'omc_app.api.mobile.upload_payment_receipt';
   static const String reviewPaymentReceiptMethod =
