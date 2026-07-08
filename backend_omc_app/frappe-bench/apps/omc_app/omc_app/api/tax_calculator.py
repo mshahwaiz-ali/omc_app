@@ -1,7 +1,9 @@
 import json
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import flt, now_datetime
+from frappe.utils.file_manager import save_file
+from frappe.utils.pdf import get_pdf
 
 
 INCOME_TYPES = {
@@ -140,6 +142,92 @@ def calculate_tax(**kwargs):
 
 
 @frappe.whitelist()
+def get_tax_calculation_history(limit=20):
+    user = _current_user()
+    if user == "Guest":
+        frappe.throw("Please login to view calculation history.")
+
+    rows = frappe.get_all(
+        "OMC Tax Calculation Log",
+        filters={"user": user},
+        fields=[
+            "name",
+            "creation",
+            "tax_year",
+            "income_type",
+            "filer_status",
+            "yearly_income",
+            "yearly_tax",
+            "monthly_tax",
+            "effective_tax_rate",
+            "linked_service_request",
+        ],
+        order_by="creation desc",
+        limit=flt(limit) or 20,
+    )
+
+    return {
+        "items": [
+            {
+                "name": row.name,
+                "created_on": str(row.creation or ""),
+                "tax_year": row.tax_year or "",
+                "income_type": row.income_type or "",
+                "filer_status": row.filer_status or "",
+                "annual_income": flt(row.yearly_income),
+                "estimated_annual_tax": flt(row.yearly_tax),
+                "monthly_tax": flt(row.monthly_tax),
+                "effective_tax_rate": flt(row.effective_tax_rate),
+                "linked_service_request": row.linked_service_request or "",
+            }
+            for row in rows
+        ]
+    }
+
+
+@frappe.whitelist()
+def download_tax_estimate_pdf(calculation_log):
+    log = _get_owned_calculation_log(calculation_log)
+    html = _estimate_pdf_html(log)
+    pdf_bytes = get_pdf(html)
+    filename = f"{log.name}-tax-estimate.pdf"
+    file_doc = save_file(
+        filename,
+        pdf_bytes,
+        "OMC Tax Calculation Log",
+        log.name,
+        is_private=1,
+    )
+    return {
+        "file_name": file_doc.file_name,
+        "file_url": file_doc.file_url,
+        "message": "Tax estimate PDF generated successfully.",
+    }
+
+
+@frappe.whitelist()
+def share_tax_estimate_with_consultant(calculation_log, note=None):
+    log = _get_owned_calculation_log(calculation_log)
+    message = note or "Customer shared this tax estimate with OMC consultant from the mobile app."
+    comment = _share_comment(log, message)
+    log.add_comment("Comment", comment)
+
+    if log.linked_service_request:
+        try:
+            request = frappe.get_doc("OMC Service Request", log.linked_service_request)
+            request.add_comment("Comment", comment)
+        except Exception:
+            pass
+
+    frappe.db.commit()
+    return {
+        "message": "Tax estimate shared with OMC consultant.",
+        "calculation_log": log.name,
+        "linked_service_request": log.linked_service_request or "",
+    }
+
+
+@frappe.whitelist()
 def start_service_from_calculation(calculation_log=None, service=None):
     if not calculation_log:
         frappe.throw("Calculation log is required.")
@@ -149,11 +237,8 @@ def start_service_from_calculation(calculation_log=None, service=None):
     if not service:
         frappe.throw("No linked tax service is configured.")
 
-    log = frappe.get_doc("OMC Tax Calculation Log", calculation_log)
+    log = _get_owned_calculation_log(calculation_log)
     user = _current_user()
-    if user != "Administrator" and log.user != user:
-        frappe.throw("You cannot use this calculation log.")
-
     profile = _get_customer_profile(user)
     request = frappe.get_doc({
         "doctype": "OMC Service Request",
@@ -172,6 +257,7 @@ def start_service_from_calculation(calculation_log=None, service=None):
     request.insert(ignore_permissions=True)
 
     log.linked_service_request = request.name
+    log.add_comment("Comment", "Tax filing service request created from this calculator estimate.")
     log.save(ignore_permissions=True)
     frappe.db.commit()
 
@@ -444,6 +530,16 @@ def _cta_payload(settings, user):
     }
 
 
+def _get_owned_calculation_log(calculation_log):
+    if not calculation_log:
+        frappe.throw("Calculation log is required.")
+    log = frappe.get_doc("OMC Tax Calculation Log", calculation_log)
+    user = _current_user()
+    if user != "Administrator" and log.user != user:
+        frappe.throw("You cannot access this calculation log.")
+    return log
+
+
 def _get_customer_profile(user):
     if not user or user == "Guest":
         return None
@@ -455,6 +551,64 @@ def _service_request_description(log):
     return "Tax estimate submitted from OMC Tax Calculator.\n\nAnnual Income: PKR {0:,.0f}\nEstimated Annual Tax: PKR {1:,.0f}\nMonthly Tax: PKR {2:,.0f}\nEffective Tax Rate: {3:.2f}%".format(
         flt(log.yearly_income), flt(log.yearly_tax), flt(log.monthly_tax), flt(log.effective_tax_rate)
     )
+
+
+def _share_comment(log, message):
+    return "{0}\n\nCalculation Log: {1}\nAnnual Income: PKR {2:,.0f}\nEstimated Annual Tax: PKR {3:,.0f}\nMonthly Tax: PKR {4:,.0f}\nEffective Tax Rate: {5:.2f}%".format(
+        message,
+        log.name,
+        flt(log.yearly_income),
+        flt(log.yearly_tax),
+        flt(log.monthly_tax),
+        flt(log.effective_tax_rate),
+    )
+
+
+def _estimate_pdf_html(log):
+    result = _ensure_dict(log.result_json)
+    source = _ensure_dict(result.get("source"))
+    cta = _ensure_dict(result.get("cta"))
+    generated_on = now_datetime().strftime("%Y-%m-%d %H:%M")
+    return f"""
+    <html>
+      <head>
+        <style>
+          body {{ font-family: Arial, sans-serif; color: #111827; font-size: 13px; }}
+          .card {{ border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 14px; }}
+          h1 {{ margin: 0 0 8px; font-size: 24px; }}
+          h2 {{ margin: 0 0 12px; font-size: 17px; }}
+          table {{ width: 100%; border-collapse: collapse; }}
+          td {{ padding: 8px 0; border-bottom: 1px solid #f3f4f6; }}
+          .label {{ color: #6b7280; }}
+          .value {{ text-align: right; font-weight: 700; }}
+          .note {{ color: #6b7280; font-size: 12px; line-height: 1.5; }}
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>OMC Tax Estimate</h1>
+          <div class="note">Generated on {frappe.utils.escape_html(generated_on)} · Estimate only. Final filing may require document review.</div>
+        </div>
+        <div class="card">
+          <h2>Summary</h2>
+          <table>
+            <tr><td class="label">Tax Year</td><td class="value">{frappe.utils.escape_html(source.get('tax_year') or log.tax_year or '')}</td></tr>
+            <tr><td class="label">Income Type</td><td class="value">{frappe.utils.escape_html(log.income_type or '')}</td></tr>
+            <tr><td class="label">Filer Status</td><td class="value">{frappe.utils.escape_html(log.filer_status or '')}</td></tr>
+            <tr><td class="label">Annual Income</td><td class="value">PKR {flt(log.yearly_income):,.0f}</td></tr>
+            <tr><td class="label">Estimated Annual Tax</td><td class="value">PKR {flt(log.yearly_tax):,.0f}</td></tr>
+            <tr><td class="label">Monthly Tax</td><td class="value">PKR {flt(log.monthly_tax):,.0f}</td></tr>
+            <tr><td class="label">Effective Tax Rate</td><td class="value">{flt(log.effective_tax_rate):.2f}%</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h2>OMC Guidance</h2>
+          <p>{frappe.utils.escape_html(cta.get('title') or 'Need OMC to verify and file this?')}</p>
+          <p class="note">This PDF is generated from OMC configured calculator data and is not a final return or legal tax filing document.</p>
+        </div>
+      </body>
+    </html>
+    """
 
 
 def _current_user():
