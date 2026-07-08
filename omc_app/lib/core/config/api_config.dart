@@ -61,7 +61,12 @@ class ApiConfig {
   static const String mobileQuickActionsMethod =
       'omc_app.api.quick_actions.get_mobile_quick_actions';
 
-  static const String taxCalculatorMethod = 'omc_app.api.mobile.calculate_tax';
+  static const String taxCalculatorConfigMethod =
+      'omc_app.api.tax_calculator.get_tax_calculator_config';
+  static const String taxCalculatorMethod =
+      'omc_app.api.tax_calculator.calculate_tax';
+  static const String startTaxServiceFromCalculationMethod =
+      'omc_app.api.tax_calculator.start_service_from_calculation';
 
   static const String serviceCatalogueMethod =
       'omc_app.api.mobile.get_service_catalogue';
