@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
@@ -1454,8 +1455,28 @@ class _CaseActionsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final missingDocumentsCount =
         serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+    final documents = serviceCase.documentDetails;
     final hasMissingDocuments = missingDocumentsCount > 0 ||
-        serviceCase.documentDetails.any((document) => !document.isSubmitted);
+        serviceCase.missingDocuments.isNotEmpty ||
+        documents.any((document) => document.isMissing || !document.isSubmitted);
+    final hasRejectedDocuments = documents.any((document) {
+      final status = document.status.trim().toLowerCase();
+      return status.contains('reject');
+    });
+    final hasPendingReview = documents.any((document) {
+      final status = document.status.trim().toLowerCase();
+      return document.isSubmitted &&
+          !status.contains('approve') &&
+          !status.contains('verified') &&
+          !status.contains('reject');
+    });
+    final allDocumentsApproved = documents.isNotEmpty &&
+        !hasMissingDocuments &&
+        !hasRejectedDocuments &&
+        documents.every((document) {
+          final status = document.status.trim().toLowerCase();
+          return status.contains('approve') || status.contains('verified');
+        });
 
     return PremiumCard(
       child: Column(
@@ -1470,19 +1491,14 @@ class _CaseActionsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _ActionNotice(
-            icon: hasMissingDocuments
-                ? Icons.cloud_upload_outlined
-                : Icons.check_circle_outline_rounded,
-            title: hasMissingDocuments
-                ? 'Missing documents required'
-                : 'No missing documents',
-            message: hasMissingDocuments
-                ? 'Upload the requested document by selecting its required document type first.'
-                : 'All currently required documents for this case appear submitted.',
-          ),
-          const SizedBox(height: 12),
           if (hasMissingDocuments) ...[
+            _ActionNotice(
+              icon: Icons.cloud_upload_outlined,
+              title: 'Missing documents required',
+              message:
+                  'Upload the requested document by selecting its required document type first.',
+            ),
+            const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: isUploading ? null : onUploadMissingDocument,
               icon: isUploading
@@ -1498,6 +1514,59 @@ class _CaseActionsCard extends StatelessWidget {
               label: Text(isUploading ? 'Uploading...' : 'Upload documents'),
             ),
             const SizedBox(height: 10),
+          ] else if (hasRejectedDocuments) ...[
+            _ActionNotice(
+              icon: Icons.error_outline_rounded,
+              title: 'Documents need correction',
+              message:
+                  'One or more documents were rejected. Please upload corrected documents or contact OMC support.',
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isUploading ? null : onUploadMissingDocument,
+              icon: isUploading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.upload_file_rounded),
+              label: Text(isUploading ? 'Uploading...' : 'Upload corrected documents'),
+            ),
+            const SizedBox(height: 10),
+          ] else if (allDocumentsApproved) ...[
+            const _ActionNotice(
+              icon: Icons.verified_rounded,
+              title: 'All documents approved',
+              message:
+                  'Your documents are approved. Please proceed to payment to continue your service request.',
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => context.go('/payments'),
+              icon: const Icon(Icons.payments_rounded),
+              label: const Text('Proceed to payment'),
+            ),
+            const SizedBox(height: 10),
+          ] else if (hasPendingReview) ...[
+            const _ActionNotice(
+              icon: Icons.hourglass_top_rounded,
+              title: 'Documents submitted',
+              message:
+                  'Your documents are submitted and waiting for OMC review. You will see the next step once review is complete.',
+            ),
+            const SizedBox(height: 12),
+          ] else ...[
+            const _ActionNotice(
+              icon: Icons.check_circle_outline_rounded,
+              title: 'Documents submitted',
+              message:
+                  'All currently required documents for this case appear submitted. OMC will share the next step shortly.',
+            ),
+            const SizedBox(height: 12),
           ],
           OutlinedButton.icon(
             onPressed: () => SupportLauncher.openWhatsApp(context),
