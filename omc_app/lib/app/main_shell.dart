@@ -530,13 +530,12 @@ class _MoreScreen extends StatelessWidget {
                   subtitle: 'Invoices, dues and receipt uploads',
                   onTap: onOpenPayments,
                 ),
-              if (features.taxCalculatorEnabled)
-                _MoreTile(
-                  icon: Icons.calculate_outlined,
-                  title: 'Tax Calculator',
-                  subtitle: 'Estimate salary tax quickly',
-                  onTap: onOpenTaxCalculator,
-                ),
+              _MoreTile(
+                icon: Icons.calculate_outlined,
+                title: 'Tax Calculator',
+                subtitle: 'Estimate salary tax quickly',
+                onTap: onOpenTaxCalculator,
+              ),
               if (features.knowledgeEnabled)
                 _MoreTile(
                   icon: Icons.menu_book_outlined,

@@ -11,7 +11,8 @@ class TaxCalculatorScreen extends ConsumerStatefulWidget {
   const TaxCalculatorScreen({super.key});
 
   @override
-  ConsumerState<TaxCalculatorScreen> createState() => _TaxCalculatorScreenState();
+  ConsumerState<TaxCalculatorScreen> createState() =>
+      _TaxCalculatorScreenState();
 }
 
 class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
@@ -76,7 +77,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
             return _StateMessage(
               icon: Icons.calculate_outlined,
               title: 'Calculator unavailable',
-              message: config?.message ?? 'Tax calculator is currently disabled.',
+              message:
+                  config?.message ?? 'Tax calculator is currently disabled.',
             );
           }
 
@@ -119,14 +121,16 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     });
                   },
                 ),
-                if (config.showAdvancedMode && activeAdvancedFields.isNotEmpty) ...[
+                if (config.showAdvancedMode &&
+                    activeAdvancedFields.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _AdvancedSection(
                     expanded: _showAdvanced,
                     fields: activeAdvancedFields,
                     controllers: _advancedControllers,
                     values: _advancedValues,
-                    onToggle: () => setState(() => _showAdvanced = !_showAdvanced),
+                    onToggle: () =>
+                        setState(() => _showAdvanced = !_showAdvanced),
                     onChanged: (key, value) {
                       _advancedValues[key] = value;
                       _result = null;
@@ -143,7 +147,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                 ],
                 const SizedBox(height: 16),
                 FilledButton.icon(
-                  onPressed: _isCalculating ? null : () => _calculate(repository, config),
+                  onPressed: _isCalculating
+                      ? null
+                      : () => _calculate(repository, config),
                   icon: _isCalculating
                       ? const SizedBox(
                           width: 18,
@@ -151,7 +157,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.calculate_rounded),
-                  label: Text(_isCalculating ? 'Calculating...' : 'Calculate Tax'),
+                  label: Text(
+                    _isCalculating ? 'Calculating...' : 'Calculate Tax',
+                  ),
                 ),
                 if (_result != null) ...[
                   const SizedBox(height: 18),
@@ -160,7 +168,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     config: config,
                     authState: authState,
                     isStartingService: _isStartingService,
-                    onCtaPressed: () => _handleCta(repository, config, authState),
+                    onCtaPressed: () =>
+                        _handleCta(repository, config, authState),
                   ),
                 ],
               ],
@@ -183,7 +192,10 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     }
   }
 
-  Future<void> _calculate(TaxCalculationRepository repository, TaxCalculatorConfig config) async {
+  Future<void> _calculate(
+    TaxCalculationRepository repository,
+    TaxCalculatorConfig config,
+  ) async {
     final amount = _parseAmount(_amountController.text);
     if (amount <= 0) {
       setState(() => _error = 'Enter a valid income amount greater than zero.');
@@ -231,7 +243,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     final result = _result;
     if (result == null) return;
 
-    if (authState.status == AuthStatus.guest || authState.status == AuthStatus.unauthenticated) {
+    if (authState.status == AuthStatus.guest ||
+        authState.status == AuthStatus.unauthenticated) {
       context.push('/signup');
       return;
     }
@@ -241,9 +254,12 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
       return;
     }
 
-    if (!authState.capabilities.canCreateServiceRequest && !authState.capabilities.isInternal) {
+    if (!authState.capabilities.canCreateServiceRequest &&
+        !authState.capabilities.isInternal) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Your account cannot start a service request yet.')),
+        const SnackBar(
+          content: Text('Your account cannot start a service request yet.'),
+        ),
       );
       return;
     }
@@ -251,7 +267,11 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     final calculationLog = result.calculationLog;
     if (calculationLog == null || calculationLog.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Calculation was not saved by backend, so service cannot be started from this estimate.')),
+        const SnackBar(
+          content: Text(
+            'Calculation was not saved by backend, so service cannot be started from this estimate.',
+          ),
+        ),
       );
       return;
     }
@@ -261,7 +281,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
         : config.cta.linkedService.trim();
     if (service.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No tax filing service is linked in backend settings.')),
+        const SnackBar(
+          content: Text('No tax filing service is linked in backend settings.'),
+        ),
       );
       return;
     }
@@ -273,13 +295,19 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
         service: service,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(created.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(created.message)));
       if (created.serviceRequest.trim().isNotEmpty) {
-        context.push('/my-services/${Uri.encodeComponent(created.serviceRequest)}');
+        context.push(
+          '/my-services/${Uri.encodeComponent(created.serviceRequest)}',
+        );
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendlyError(error))));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_friendlyError(error))));
     } finally {
       if (mounted) setState(() => _isStartingService = false);
     }
@@ -294,7 +322,9 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final year = config.activeTaxYear;
-    final verifiedText = year?.verified == true ? 'Verified slabs' : 'Backend configured';
+    final verifiedText = year?.verified == true
+        ? 'Verified slabs'
+        : 'Backend configured';
     final badgeText = year == null
         ? 'OMC configured tax rules'
         : '${year.title} · ${year.currency} · $verifiedText';
@@ -322,7 +352,13 @@ class _HeaderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Tax Calculator', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                    Text(
+                      'Tax Calculator',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     SizedBox(height: 2),
                     Text('Estimate your tax using OMC configured rules.'),
                   ],
@@ -337,7 +373,10 @@ class _HeaderCard extends StatelessWidget {
             children: [
               _Chip(icon: Icons.verified_rounded, label: badgeText),
               if (config.filingDeadlineAlert.trim().isNotEmpty)
-                _Chip(icon: Icons.event_available_rounded, label: config.filingDeadlineAlert.trim()),
+                _Chip(
+                  icon: Icons.event_available_rounded,
+                  label: config.filingDeadlineAlert.trim(),
+                ),
             ],
           ),
         ],
@@ -371,7 +410,10 @@ class _InputCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(title: 'Simple Calculator', subtitle: 'Fast estimate for guests and customers.'),
+          const _SectionTitle(
+            title: 'Simple Calculator',
+            subtitle: 'Fast estimate for guests and customers.',
+          ),
           const SizedBox(height: 14),
           _SegmentBlock<TaxIncomeType>(
             title: 'Income Type',
@@ -392,9 +434,13 @@ class _InputCard extends StatelessWidget {
           TextField(
             controller: amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))],
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
+            ],
             decoration: InputDecoration(
-              labelText: incomeMode == TaxIncomeMode.monthly ? 'Monthly Income Amount' : 'Annual Income Amount',
+              labelText: incomeMode == TaxIncomeMode.monthly
+                  ? 'Monthly Income Amount'
+                  : 'Annual Income Amount',
               prefixText: 'PKR ',
               border: const OutlineInputBorder(),
             ),
@@ -448,7 +494,11 @@ class _AdvancedSection extends StatelessWidget {
                       subtitle: 'Optional fields change by income type.',
                     ),
                   ),
-                  Icon(expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+                  Icon(
+                    expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                  ),
                 ],
               ),
             ),
@@ -492,7 +542,10 @@ class _AdvancedField extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         title: Text(field.label),
         subtitle: field.helpText.isEmpty ? null : Text(field.helpText),
-        value: value == true || value?.toString() == '1' || value?.toString().toLowerCase() == 'true',
+        value:
+            value == true ||
+            value?.toString() == '1' ||
+            value?.toString().toLowerCase() == 'true',
         onChanged: onChanged,
       );
     }
@@ -505,15 +558,23 @@ class _AdvancedField extends StatelessWidget {
           helperText: field.helpText.isEmpty ? null : field.helpText,
           border: const OutlineInputBorder(),
         ),
-        items: field.options.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(growable: false),
+        items: field.options
+            .map(
+              (option) => DropdownMenuItem(value: option, child: Text(option)),
+            )
+            .toList(growable: false),
         onChanged: onChanged,
       );
     }
 
     return TextField(
       controller: controller,
-      keyboardType: type == 'number' ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
-      inputFormatters: type == 'number' ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))] : null,
+      keyboardType: type == 'number'
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
+      inputFormatters: type == 'number'
+          ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))]
+          : null,
       onChanged: (raw) => onChanged(type == 'number' ? _parseAmount(raw) : raw),
       decoration: InputDecoration(
         labelText: field.label,
@@ -553,21 +614,38 @@ class _ResultSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Estimated Annual Tax', style: TextStyle(fontWeight: FontWeight.w700)),
+              const Text(
+                'Estimated Annual Tax',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 6),
               Text(
                 _formatMoney(result.estimatedAnnualTax),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  _MetricTile(label: 'Annual Income', value: _formatMoney(result.annualIncome)),
-                  _MetricTile(label: 'Monthly Tax', value: _formatMoney(result.monthlyTax)),
-                  _MetricTile(label: 'Monthly Take-home', value: _formatMoney(result.monthlyTakeHome)),
-                  _MetricTile(label: 'Effective Rate', value: '${result.effectiveTaxRate.toStringAsFixed(2)}%'),
+                  _MetricTile(
+                    label: 'Annual Income',
+                    value: _formatMoney(result.annualIncome),
+                  ),
+                  _MetricTile(
+                    label: 'Monthly Tax',
+                    value: _formatMoney(result.monthlyTax),
+                  ),
+                  _MetricTile(
+                    label: 'Monthly Take-home',
+                    value: _formatMoney(result.monthlyTakeHome),
+                  ),
+                  _MetricTile(
+                    label: 'Effective Rate',
+                    value: '${result.effectiveTaxRate.toStringAsFixed(2)}%',
+                  ),
                 ],
               ),
             ],
@@ -589,14 +667,23 @@ class _ResultSection extends StatelessWidget {
             message: result.taxHealth!.reason,
           ),
         ],
-        if (result.recommendedNextSteps.isNotEmpty || config.recommendedNextSteps.isNotEmpty) ...[
+        if (result.recommendedNextSteps.isNotEmpty ||
+            config.recommendedNextSteps.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _StepsCard(steps: result.recommendedNextSteps.isNotEmpty ? result.recommendedNextSteps : config.recommendedNextSteps),
+          _StepsCard(
+            steps: result.recommendedNextSteps.isNotEmpty
+                ? result.recommendedNextSteps
+                : config.recommendedNextSteps,
+          ),
         ],
         if (result.insights.isNotEmpty) ...[
           const SizedBox(height: 12),
           for (final insight in result.insights) ...[
-            _NoticeCard(icon: Icons.tips_and_updates_rounded, title: insight.title, message: insight.message),
+            _NoticeCard(
+              icon: Icons.tips_and_updates_rounded,
+              title: insight.title,
+              message: insight.message,
+            ),
             const SizedBox(height: 12),
           ],
         ],
@@ -612,18 +699,29 @@ class _ResultSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(ctaTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              Text(
+                ctaTitle,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 10),
               FilledButton.icon(
                 onPressed: isStartingService ? null : onCtaPressed,
                 icon: isStartingService
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.arrow_forward_rounded),
                 label: Text(isStartingService ? 'Starting...' : ctaButton),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 220),
       ],
     );
   }
@@ -641,16 +739,41 @@ class _BreakdownCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(title: 'Tax Breakdown', subtitle: 'Backend slab calculation details.'),
+          const _SectionTitle(
+            title: 'Tax Breakdown',
+            subtitle: 'Backend slab calculation details.',
+          ),
           const SizedBox(height: 12),
-          _KeyValue(label: 'Slab Used', value: data['slab_label']?.toString() ?? '-'),
-          _KeyValue(label: 'Taxable Income', value: _formatMoney(_num(data['taxable_income']))),
-          _KeyValue(label: 'Fixed Tax', value: _formatMoney(_num(data['fixed_tax']))),
-          _KeyValue(label: 'Rate', value: '${_num(data['rate_percent']).toStringAsFixed(2)}%'),
-          _KeyValue(label: 'Tax Before Credits', value: _formatMoney(_num(data['tax_before_credits']))),
-          _KeyValue(label: 'Credits', value: _formatMoney(_num(data['credits']))),
+          _KeyValue(
+            label: 'Slab Used',
+            value: data['slab_label']?.toString() ?? '-',
+          ),
+          _KeyValue(
+            label: 'Taxable Income',
+            value: _formatMoney(_num(data['taxable_income'])),
+          ),
+          _KeyValue(
+            label: 'Fixed Tax',
+            value: _formatMoney(_num(data['fixed_tax'])),
+          ),
+          _KeyValue(
+            label: 'Rate',
+            value: '${_num(data['rate_percent']).toStringAsFixed(2)}%',
+          ),
+          _KeyValue(
+            label: 'Tax Before Credits',
+            value: _formatMoney(_num(data['tax_before_credits'])),
+          ),
+          _KeyValue(
+            label: 'Credits',
+            value: _formatMoney(_num(data['credits'])),
+          ),
           const Divider(height: 20),
-          _KeyValue(label: 'Final Estimated Tax', value: _formatMoney(result.estimatedAnnualTax), strong: true),
+          _KeyValue(
+            label: 'Final Estimated Tax',
+            value: _formatMoney(result.estimatedAnnualTax),
+            strong: true,
+          ),
         ],
       ),
     );
@@ -668,12 +791,25 @@ class _ComparisonCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(title: 'Filer vs Non-Filer', subtitle: 'See the possible tax difference.'),
+          const _SectionTitle(
+            title: 'Filer vs Non-Filer',
+            subtitle: 'See the possible tax difference.',
+          ),
           const SizedBox(height: 12),
-          _KeyValue(label: 'Active Filer', value: _formatMoney(comparison.activeFilerTax)),
-          _KeyValue(label: 'Non-Filer', value: _formatMoney(comparison.nonFilerTax)),
+          _KeyValue(
+            label: 'Active Filer',
+            value: _formatMoney(comparison.activeFilerTax),
+          ),
+          _KeyValue(
+            label: 'Non-Filer',
+            value: _formatMoney(comparison.nonFilerTax),
+          ),
           const Divider(height: 20),
-          _KeyValue(label: 'Possible Difference', value: _formatMoney(comparison.possibleDifference), strong: true),
+          _KeyValue(
+            label: 'Possible Difference',
+            value: _formatMoney(comparison.possibleDifference),
+            strong: true,
+          ),
         ],
       ),
     );
@@ -691,7 +827,10 @@ class _StepsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(title: 'Recommended next steps', subtitle: 'Guidance from OMC backend.'),
+          const _SectionTitle(
+            title: 'Recommended next steps',
+            subtitle: 'Guidance from OMC backend.',
+          ),
           const SizedBox(height: 8),
           for (var index = 0; index < steps.length; index++)
             Padding(
@@ -699,7 +838,10 @@ class _StepsCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${index + 1}.', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text(
+                    '${index + 1}.',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(child: Text(steps[index])),
                 ],
@@ -738,7 +880,12 @@ class _SegmentBlock<T> extends StatelessWidget {
           child: SegmentedButton<T>(
             showSelectedIcon: false,
             segments: values
-                .map((value) => ButtonSegment<T>(value: value, label: Text(label(value), overflow: TextOverflow.ellipsis)))
+                .map(
+                  (value) => ButtonSegment<T>(
+                    value: value,
+                    label: Text(label(value), overflow: TextOverflow.ellipsis),
+                  ),
+                )
                 .toList(growable: false),
             selected: {selected},
             onSelectionChanged: (selection) => onChanged(selection.first),
@@ -761,7 +908,9 @@ class _MetricTile extends StatelessWidget {
       width: MediaQuery.sizeOf(context).width > 420 ? 170 : double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -777,7 +926,11 @@ class _MetricTile extends StatelessWidget {
 }
 
 class _NoticeCard extends StatelessWidget {
-  const _NoticeCard({required this.icon, required this.title, required this.message});
+  const _NoticeCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
 
   final IconData icon;
   final String title;
@@ -795,7 +948,10 @@ class _NoticeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
                 if (message.trim().isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(message.trim()),
@@ -834,7 +990,11 @@ class _StateMessage extends StatelessWidget {
           children: [
             Icon(icon, size: 46),
             const SizedBox(height: 14),
-            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900), textAlign: TextAlign.center),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
             Text(message, textAlign: TextAlign.center),
             if (actionLabel != null && onAction != null) ...[
@@ -859,7 +1019,11 @@ class _Card extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.65)),
+        side: BorderSide(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.65),
+        ),
       ),
       child: Padding(padding: const EdgeInsets.all(16), child: child),
     );
@@ -877,7 +1041,10 @@ class _SectionTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+        ),
         if (subtitle != null) ...[
           const SizedBox(height: 2),
           Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
@@ -904,12 +1071,19 @@ class _Chip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: Theme.of(context).colorScheme.onSecondaryContainer),
+          Icon(
+            icon,
+            size: 15,
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               label,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSecondaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -919,7 +1093,11 @@ class _Chip extends StatelessWidget {
 }
 
 class _KeyValue extends StatelessWidget {
-  const _KeyValue({required this.label, required this.value, this.strong = false});
+  const _KeyValue({
+    required this.label,
+    required this.value,
+    this.strong = false,
+  });
 
   final String label;
   final String value;
@@ -927,7 +1105,9 @@ class _KeyValue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(fontWeight: strong ? FontWeight.w900 : FontWeight.w600);
+    final style = TextStyle(
+      fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -935,7 +1115,9 @@ class _KeyValue extends StatelessWidget {
         children: [
           Expanded(child: Text(label)),
           const SizedBox(width: 12),
-          Flexible(child: Text(value, textAlign: TextAlign.end, style: style)),
+          Flexible(
+            child: Text(value, textAlign: TextAlign.end, style: style),
+          ),
         ],
       ),
     );
@@ -943,24 +1125,35 @@ class _KeyValue extends StatelessWidget {
 }
 
 bool _canOpenHistory(AuthState authState) {
-  return authState.status == AuthStatus.authenticated && !authState.capabilities.isGuest;
+  return authState.status == AuthStatus.authenticated &&
+      !authState.capabilities.isGuest;
 }
 
 String _ctaTitleFor(AuthState authState, String backendTitle) {
-  if (authState.status == AuthStatus.guest || authState.status == AuthStatus.unauthenticated) {
-    return backendTitle.trim().isNotEmpty ? backendTitle : 'Want to save this estimate?';
+  if (authState.status == AuthStatus.guest ||
+      authState.status == AuthStatus.unauthenticated) {
+    return backendTitle.trim().isNotEmpty
+        ? backendTitle
+        : 'Want to save this estimate?';
   }
   if (authState.capabilities.isPending) return 'Account approval is pending';
-  if (authState.capabilities.isRejected) return 'Contact OMC to review your account';
-  return backendTitle.trim().isNotEmpty ? backendTitle : 'Need OMC to verify and file this?';
+  if (authState.capabilities.isRejected)
+    return 'Contact OMC to review your account';
+  return backendTitle.trim().isNotEmpty
+      ? backendTitle
+      : 'Need OMC to verify and file this?';
 }
 
 String _ctaButtonFor(AuthState authState, String backendButton) {
-  if (authState.status == AuthStatus.guest || authState.status == AuthStatus.unauthenticated) {
+  if (authState.status == AuthStatus.guest ||
+      authState.status == AuthStatus.unauthenticated) {
     return backendButton.trim().isNotEmpty ? backendButton : 'Create Account';
   }
-  if (authState.capabilities.isPending || authState.capabilities.isRejected) return 'View Account Status';
-  return backendButton.trim().isNotEmpty ? backendButton : 'Start Tax Filing Service';
+  if (authState.capabilities.isPending || authState.capabilities.isRejected)
+    return 'View Account Status';
+  return backendButton.trim().isNotEmpty
+      ? backendButton
+      : 'Start Tax Filing Service';
 }
 
 double _parseAmount(String raw) {
@@ -969,7 +1162,8 @@ double _parseAmount(String raw) {
 
 double _num(Object? value) {
   if (value is num) return value.toDouble();
-  return double.tryParse(value?.toString().replaceAll(',', '').trim() ?? '') ?? 0;
+  return double.tryParse(value?.toString().replaceAll(',', '').trim() ?? '') ??
+      0;
 }
 
 String _formatMoney(double value) {
@@ -986,5 +1180,7 @@ String _formatMoney(double value) {
 String _friendlyError(Object? error) {
   final text = error?.toString().trim() ?? '';
   if (text.isEmpty) return 'Something went wrong. Please try again.';
-  return text.replaceFirst('Exception: ', '').replaceFirst('DioException [bad response]: ', '');
+  return text
+      .replaceFirst('Exception: ', '')
+      .replaceFirst('DioException [bad response]: ', '');
 }
