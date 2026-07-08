@@ -19,10 +19,21 @@ final internalWorkspaceSummaryProvider =
       return repository.getSummary();
     });
 
-final internalServiceCaseFiltersProvider =
-    StateProvider<InternalServiceCaseFilters>((ref) {
-      return const InternalServiceCaseFilters();
-    });
+final internalServiceCaseFiltersProvider = NotifierProvider<
+    InternalServiceCaseFiltersNotifier,
+    InternalServiceCaseFilters>(InternalServiceCaseFiltersNotifier.new);
+
+class InternalServiceCaseFiltersNotifier
+    extends Notifier<InternalServiceCaseFilters> {
+  @override
+  InternalServiceCaseFilters build() {
+    return const InternalServiceCaseFilters();
+  }
+
+  void setFilters(InternalServiceCaseFilters filters) {
+    state = filters;
+  }
+}
 
 final internalServiceCasesProvider = FutureProvider<InternalServiceCaseQueue>((
   ref,

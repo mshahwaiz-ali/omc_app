@@ -36,7 +36,7 @@ class _InternalServiceCasesScreenState
   }
 
   void _updateFilters(InternalServiceCaseFilters filters) {
-    ref.read(internalServiceCaseFiltersProvider.notifier).state = filters;
+    ref.read(internalServiceCaseFiltersProvider.notifier).setFilters(filters);
   }
 
   @override
@@ -111,7 +111,13 @@ class _InternalServiceCasesScreenState
         return StatefulBuilder(
           builder: (context, setSheetState) {
             Future<void> submit() async {
+              if (isSaving) return;
               setSheetState(() => isSaving = true);
+
+              var sheetIsOpen = true;
+              final navigator = Navigator.of(sheetContext);
+              final messenger = ScaffoldMessenger.of(context);
+
               try {
                 final repository = ref.read(internalWorkspaceRepositoryProvider);
                 final created = await repository.createServiceRequestForCustomer(
@@ -123,8 +129,13 @@ class _InternalServiceCasesScreenState
 
                 ref.invalidate(internalServiceCasesProvider);
                 if (!mounted) return;
-                Navigator.of(sheetContext).pop();
-                ScaffoldMessenger.of(context)
+
+                if (navigator.canPop()) {
+                  navigator.pop();
+                  sheetIsOpen = false;
+                }
+
+                messenger
                   ..hideCurrentSnackBar()
                   ..showSnackBar(
                     SnackBar(
@@ -134,7 +145,7 @@ class _InternalServiceCasesScreenState
                   );
               } catch (error) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context)
+                messenger
                   ..hideCurrentSnackBar()
                   ..showSnackBar(
                     SnackBar(
@@ -143,7 +154,9 @@ class _InternalServiceCasesScreenState
                     ),
                   );
               } finally {
-                if (mounted) setSheetState(() => isSaving = false);
+                if (mounted && sheetIsOpen) {
+                  setSheetState(() => isSaving = false);
+                }
               }
             }
 

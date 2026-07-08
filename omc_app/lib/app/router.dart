@@ -14,6 +14,7 @@ import '../features/internal_workspace/presentation/internal_workspace_screen.da
 import '../features/knowledge/presentation/knowledge_detail_screen.dart';
 import '../features/knowledge/presentation/knowledge_screen.dart';
 import '../features/tasks/presentation/task_detail_screen.dart';
+import '../features/tasks/presentation/tasks_screen.dart';
 import '../features/customers/presentation/customer_detail_screen.dart';
 import '../features/customers/presentation/customers_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
