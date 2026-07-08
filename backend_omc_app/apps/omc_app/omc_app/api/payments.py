@@ -1,4 +1,5 @@
 import re
+from urllib.parse import quote
 
 import frappe
 
@@ -91,7 +92,7 @@ def _payment_support_payload(payment=None, service_case=None):
     if digits:
         whatsapp_url = "https://wa.me/{0}?text={1}".format(
             digits,
-            frappe.utils.quote("\n".join(message_parts)),
+            quote("\n".join(message_parts)),
         )
 
     return {
