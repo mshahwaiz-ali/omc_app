@@ -241,10 +241,10 @@ class SupportRepository {
       ),
       contactEmail: _nullableString(json['contact_email'] ?? json['email']),
       contactPhone: _nullableString(json['contact_phone'] ?? json['phone']),
-      raisedOnLabel: _nullableString(json['raised_on']),
-      closedOnLabel: _nullableString(json['closed_on']),
-      createdAtLabel: _nullableString(json['created_at'] ?? json['creation']),
-      updatedAtLabel: _nullableString(json['updated_at'] ?? json['modified']),
+      raisedOnLabel: _dateTimeLabel(json['raised_on']),
+      closedOnLabel: _dateTimeLabel(json['closed_on']),
+      createdAtLabel: _dateTimeLabel(json['created_at'] ?? json['creation']),
+      updatedAtLabel: _dateTimeLabel(json['updated_at'] ?? json['modified']),
       canUpdateStatus: _boolValue(json['can_update_status']),
       canReply: _boolValue(json['can_reply']),
       messages: _mapTicketMessages(
@@ -277,9 +277,10 @@ class SupportRepository {
             message: _stringValue(
               item['message'] ?? item['body'] ?? item['text'],
             ),
-            createdAtLabel: _stringValue(
-              item['created_at'] ?? item['creation'] ?? item['timestamp'],
-            ),
+            createdAtLabel: _dateTimeLabel(
+                  item['created_at'] ?? item['creation'] ?? item['timestamp'],
+                ) ??
+                '-',
             type: _stringValue(item['type'] ?? item['message_type']),
           ),
         )
@@ -296,5 +297,31 @@ class SupportRepository {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) return null;
     return text;
+  }
+
+  String? _dateTimeLabel(dynamic value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+
+    final parsed = DateTime.tryParse(text.replaceFirst(' ', 'T'));
+    if (parsed != null) return _formatDateTime(parsed);
+
+    final match = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?',
+    ).firstMatch(text);
+    if (match == null) return text;
+
+    final second = match.group(6) ?? '00';
+    return '${match.group(1)}-${match.group(2)}-${match.group(3)} '
+        '${match.group(4)}:${match.group(5)}:$second';
+  }
+
+  String _formatDateTime(DateTime value) {
+    return '${_two(value.year, 4)}-${_two(value.month)}-${_two(value.day)} '
+        '${_two(value.hour)}:${_two(value.minute)}:${_two(value.second)}';
+  }
+
+  String _two(int value, [int width = 2]) {
+    return value.toString().padLeft(width, '0');
   }
 }
