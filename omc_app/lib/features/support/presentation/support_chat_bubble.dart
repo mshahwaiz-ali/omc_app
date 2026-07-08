@@ -68,7 +68,9 @@ class _SupportChatBubbleOverlayState
   void didUpdateWidget(covariant SupportChatBubbleOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.router != widget.router) {
-      oldWidget.router.routeInformationProvider.removeListener(_handleRouteChanged);
+      oldWidget.router.routeInformationProvider.removeListener(
+        _handleRouteChanged,
+      );
       widget.router.routeInformationProvider.addListener(_handleRouteChanged);
     }
   }
@@ -96,7 +98,9 @@ class _SupportChatBubbleOverlayState
     if (mounted) setState(() {});
   }
 
-  String get _currentPath => widget.router.routeInformationProvider.value.uri.path;
+  String get _currentPath {
+    return widget.router.routeInformationProvider.value.uri.path;
+  }
 
   bool _canRenderBubble(AuthStatus status, MobileFeatureConfig features) {
     if (!features.supportEnabled) return false;
@@ -134,17 +138,21 @@ class _SupportChatBubbleOverlayState
     return LayoutBuilder(
       builder: (context, constraints) {
         final mediaPadding = MediaQuery.paddingOf(context);
-        final maxX = constraints.maxWidth - _bubbleSize - _edgePadding;
-        final maxY = constraints.maxHeight -
-            _bubbleSize -
-            _bottomNavClearance -
-            mediaPadding.bottom;
+        final maxX = _safeMax(_edgePadding, constraints.maxWidth - _bubbleSize - _edgePadding);
         final minY = mediaPadding.top + 12;
-        final fallback = Offset(
-          maxX,
-          (constraints.maxHeight - _bottomNavClearance - _bubbleSize)
-              .clamp(minY, maxY),
+        final maxY = _safeMax(
+          minY,
+          constraints.maxHeight -
+              _bubbleSize -
+              _bottomNavClearance -
+              mediaPadding.bottom,
         );
+        final fallbackY = _clampDouble(
+          constraints.maxHeight - _bottomNavClearance - _bubbleSize,
+          minY,
+          maxY,
+        );
+        final fallback = Offset(maxX, fallbackY);
         final position = _clampPosition(_position ?? fallback, maxX, minY, maxY);
 
         if (_position != position) {
@@ -203,8 +211,11 @@ class _SupportChatBubbleOverlayState
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.chat_bubble_outline_rounded,
-                    color: AppTheme.primaryRed, size: 18),
+                Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 18,
+                ),
                 SizedBox(width: 8),
                 Text(
                   'Show chat bubble',
@@ -224,9 +235,17 @@ class _SupportChatBubbleOverlayState
 
   Offset _clampPosition(Offset value, double maxX, double minY, double maxY) {
     return Offset(
-      value.dx.clamp(_edgePadding, maxX),
-      value.dy.clamp(minY, maxY),
+      _clampDouble(value.dx, _edgePadding, maxX),
+      _clampDouble(value.dy, minY, maxY),
     );
+  }
+
+  double _safeMax(double min, double value) {
+    return value < min ? min : value;
+  }
+
+  double _clampDouble(double value, double min, double max) {
+    return value.clamp(min, max).toDouble();
   }
 
   Future<void> _snapToEdge(double maxX, double minY, double maxY) async {
