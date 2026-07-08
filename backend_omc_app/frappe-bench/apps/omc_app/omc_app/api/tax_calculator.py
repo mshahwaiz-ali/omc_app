@@ -1,7 +1,7 @@
 import json
 
 import frappe
-from frappe.utils import flt, nowdate
+from frappe.utils import flt
 
 
 INCOME_TYPES = {
@@ -133,10 +133,8 @@ def calculate_tax(**kwargs):
         "note": settings.get("result_disclaimer") or "Estimate only. Final filing may require document review.",
     }
 
-    calculation_log = None
     if user != "Guest" and settings.get("save_logged_in_calculations"):
-        calculation_log = _save_calculation_log(user, year.name, income_type, filer_status, data, result)
-        result["calculation_log"] = calculation_log
+        result["calculation_log"] = _save_calculation_log(user, year.name, income_type, filer_status, data, result)
 
     return result
 
@@ -159,6 +157,7 @@ def start_service_from_calculation(calculation_log=None, service=None):
     profile = _get_customer_profile(user)
     request = frappe.get_doc({
         "doctype": "OMC Service Request",
+        "naming_series": "OMC-SR-.YY..MM..DD.-.#####",
         "service": service,
         "title": "Tax Filing Service Request",
         "description": _service_request_description(log),
@@ -262,17 +261,16 @@ def _tax_year_payload(year):
 
 
 def _get_input_fields(tax_year):
-    filters = {"is_active": 1}
-    if tax_year:
-        filters["tax_year"] = ["in", [tax_year, ""]]
     rows = frappe.get_all(
         "OMC Tax Input Field",
-        filters=filters,
-        fields=["field_key", "label", "input_type", "income_type", "mode", "is_required", "default_value", "options_json", "help_text", "sort_order"],
+        filters={"is_active": 1},
+        fields=["tax_year", "field_key", "label", "input_type", "income_type", "mode", "is_required", "default_value", "options_json", "help_text", "sort_order"],
         order_by="sort_order asc, creation asc",
     )
     fields = []
     for row in rows:
+        if tax_year and row.tax_year and row.tax_year != tax_year:
+            continue
         fields.append({
             "field_key": row.field_key,
             "label": row.label,
