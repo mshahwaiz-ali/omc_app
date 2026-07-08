@@ -25,7 +25,6 @@ class PaymentActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canContactSupport = payment.requiresAction && payment.paymentUrl != null;
-    final canOpenInvoice = payment.invoiceUrl != null;
     final canOpenReceipt = payment.receiptUrl != null;
 
     return PremiumCard(
@@ -93,16 +92,6 @@ class PaymentActionCard extends StatelessWidget {
                 : 'Attach payment proof for verification.',
             enabled: !isUploadingReceipt && onUploadReceipt != null,
             onTap: onUploadReceipt,
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.receipt_long_outlined,
-            title: 'View invoice',
-            subtitle: canOpenInvoice
-                ? 'Open the payment invoice.'
-                : 'Invoice link is not available for this record.',
-            enabled: canOpenInvoice,
-            onTap: onInvoice,
           ),
           const SizedBox(height: 10),
           _ActionTile(

@@ -133,18 +133,6 @@ class PaymentsRepository {
     return uploadedFiles;
   }
 
-  String? _extractFileUrl(Map<String, dynamic> response) {
-    final message = response['message'];
-    final data = message is Map<String, dynamic> ? message : response;
-
-    final fileUrl = data['file_url'] ?? data['url'] ?? data['file'];
-
-    final text = fileUrl?.toString().trim();
-    if (text == null || text.isEmpty) return null;
-
-    return text;
-  }
-
   List<PaymentItem> _mapPaymentsResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];
 
