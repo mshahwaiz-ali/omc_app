@@ -75,7 +75,7 @@ class ApiConfig {
   static const String documentsMethod = 'omc_app.api.mobile.get_documents';
   static const String documentDetailMethod = 'omc_app.api.mobile.get_document';
   static const String uploadServiceDocumentMethod =
-      'omc_app.api.mobile.upload_service_document';
+      'omc_app.api.document_upload.upload_service_document';
   static const String updateServiceDocumentStatusMethod =
       'omc_app.api.secured_mobile.update_service_document_status';
 
