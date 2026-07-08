@@ -29,11 +29,11 @@
    "label": "Lead"
   },
   {
-   "default": "OMC-LEAD-.YYYY.-.#####",
+   "default": "OMC-LEAD-.YY..MM..DD.-.#####",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "label": "Naming Series",
-   "options": "OMC-LEAD-.YYYY.-.#####",
+   "options": "OMC-LEAD-.YY..MM..DD.-.#####",
    "reqd": 1
   },
   {
