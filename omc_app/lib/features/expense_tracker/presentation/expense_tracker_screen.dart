@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -52,7 +53,7 @@ class ExpenseTransactionsController extends AsyncNotifier<List<ExpenseTransactio
     }
   }
 
-  Future<void> add(ExpenseTransaction transaction, {required bool sync}) async {
+  Future<ExpenseTransaction> add(ExpenseTransaction transaction, {required bool sync}) async {
     final current = state.value ?? const <ExpenseTransaction>[];
     var nextTransaction = transaction;
 
@@ -64,9 +65,10 @@ class ExpenseTransactionsController extends AsyncNotifier<List<ExpenseTransactio
     final next = _sort([nextTransaction, ...current]);
     state = AsyncData(next);
     await _repository.saveTransactions(next);
+    return nextTransaction;
   }
 
-  Future<void> updateTransaction(ExpenseTransaction transaction, {required bool sync}) async {
+  Future<ExpenseTransaction> updateTransaction(ExpenseTransaction transaction, {required bool sync}) async {
     final current = state.value ?? const <ExpenseTransaction>[];
     var nextTransaction = transaction;
 
@@ -82,6 +84,31 @@ class ExpenseTransactionsController extends AsyncNotifier<List<ExpenseTransactio
     );
     state = AsyncData(next);
     await _repository.saveTransactions(next);
+    return nextTransaction;
+  }
+
+  Future<void> attachReceipt({
+    required ExpenseTransaction transaction,
+    required PlatformFile file,
+    required bool sync,
+  }) async {
+    if (!sync) return;
+
+    final fileUrl = await _repository.uploadReceiptFile(
+      entryId: transaction.id,
+      fileName: file.name,
+      filePath: file.path,
+      fileBytes: file.bytes,
+    );
+
+    if (fileUrl.trim().isEmpty) {
+      throw StateError('Receipt uploaded but no file URL was returned.');
+    }
+
+    await updateTransaction(
+      transaction.copyWith(receiptFile: fileUrl, synced: true),
+      sync: true,
+    );
   }
 
   Future<void> bulkSync() async {
@@ -232,6 +259,13 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             accessMode: accessMode,
             config: config,
             transactions: transactions,
+            onManualEntry: () => _showTransactionSheet(
+              context,
+              ref,
+              accessMode: accessMode,
+              config: config,
+              sync: shouldSync,
+            ),
             onQuickAdd: (category) => _showTransactionSheet(
               context,
               ref,
@@ -288,17 +322,24 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         categories: config.categories,
         initialCategory: initialCategory,
         receiptEnabled: accessMode == ExpenseTrackerAccessMode.approvedSync,
-        onSave: (next) {
+        onAttachReceipt: accessMode == ExpenseTrackerAccessMode.approvedSync
+            ? (saved, file) => ref.read(expenseTransactionsProvider.notifier).attachReceipt(
+                  transaction: saved,
+                  file: file,
+                  sync: sync,
+                )
+            : null,
+        onSave: (next) async {
           final controller = ref.read(expenseTransactionsProvider.notifier);
           if (transaction == null) {
-            controller.add(next, sync: sync);
-          } else {
-            controller.updateTransaction(next, sync: sync);
+            return controller.add(next, sync: sync);
           }
+          return controller.updateTransaction(next, sync: sync);
         },
       ),
     );
   }
+
 
   void _showExportDialog(BuildContext context, List<ExpenseTransaction> transactions) {
     final encoded = const JsonEncoder.withIndent('  ')
@@ -456,6 +497,7 @@ class _ExpenseTrackerBody extends StatefulWidget {
     required this.accessMode,
     required this.config,
     required this.transactions,
+    required this.onManualEntry,
     required this.onQuickAdd,
     required this.onEdit,
     required this.onDelete,
@@ -465,6 +507,7 @@ class _ExpenseTrackerBody extends StatefulWidget {
   final ExpenseTrackerAccessMode accessMode;
   final ExpenseTrackerConfig config;
   final List<ExpenseTransaction> transactions;
+  final VoidCallback onManualEntry;
   final ValueChanged<ExpenseTrackerCategory> onQuickAdd;
   final ValueChanged<ExpenseTransaction> onEdit;
   final ValueChanged<String> onDelete;
@@ -501,6 +544,7 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
         const SizedBox(height: 16),
         _QuickAddPanel(
           categories: visibleCategories.take(10).toList(growable: false),
+          onManualEntry: widget.onManualEntry,
           onSelected: widget.onQuickAdd,
         ),
         const SizedBox(height: 16),
@@ -745,9 +789,14 @@ class _HeroSummaryCard extends StatelessWidget {
 }
 
 class _QuickAddPanel extends StatelessWidget {
-  const _QuickAddPanel({required this.categories, required this.onSelected});
+  const _QuickAddPanel({
+    required this.categories,
+    required this.onManualEntry,
+    required this.onSelected,
+  });
 
   final List<ExpenseTrackerCategory> categories;
+  final VoidCallback onManualEntry;
   final ValueChanged<ExpenseTrackerCategory> onSelected;
 
   @override
@@ -760,6 +809,15 @@ class _QuickAddPanel extends StatelessWidget {
             title: 'Quick add',
             subtitle: 'Choose a category, enter amount, save.',
             icon: Icons.bolt_rounded,
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onManualEntry,
+              icon: const Icon(Icons.edit_note_rounded),
+              label: const Text('Manual entry'),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1019,13 +1077,15 @@ class _TransactionSheet extends StatefulWidget {
     required this.onSave,
     this.transaction,
     this.initialCategory,
+    this.onAttachReceipt,
   });
 
   final List<ExpenseTrackerCategory> categories;
   final bool receiptEnabled;
-  final ValueChanged<ExpenseTransaction> onSave;
+  final Future<ExpenseTransaction> Function(ExpenseTransaction) onSave;
   final ExpenseTransaction? transaction;
   final ExpenseTrackerCategory? initialCategory;
+  final Future<void> Function(ExpenseTransaction transaction, PlatformFile file)? onAttachReceipt;
 
   @override
   State<_TransactionSheet> createState() => _TransactionSheetState();
@@ -1048,6 +1108,7 @@ class _TransactionSheetState extends State<_TransactionSheet> {
   bool _businessRelated = false;
   bool _recurring = false;
   bool _reimbursable = false;
+  PlatformFile? _selectedReceiptFile;
 
   @override
   void initState() {
@@ -1155,9 +1216,41 @@ class _TransactionSheetState extends State<_TransactionSheet> {
               title: Text('Advanced details', style: _titleStyle(size: 15)),
               children: [
                 const SizedBox(height: 8),
-                TextFormField(controller: _accountController, decoration: const InputDecoration(labelText: 'Account', prefixIcon: Icon(Icons.account_balance_wallet_outlined))),
+                DropdownButtonFormField<String>(
+                  initialValue: _accountController.text.trim().isEmpty ? 'Cash' : _accountController.text.trim(),
+                  decoration: const InputDecoration(
+                    labelText: 'Account',
+                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                    DropdownMenuItem(value: 'Bank', child: Text('Bank')),
+                    DropdownMenuItem(value: 'Card', child: Text('Card')),
+                    DropdownMenuItem(value: 'Wallet', child: Text('Wallet')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) _accountController.text = value;
+                  },
+                ),
                 const SizedBox(height: 12),
-                TextFormField(controller: _paymentMethodController, decoration: const InputDecoration(labelText: 'Payment method', prefixIcon: Icon(Icons.credit_card_rounded))),
+                DropdownButtonFormField<String>(
+                  initialValue: _paymentMethodController.text.trim().isEmpty
+                      ? 'Cash'
+                      : _paymentMethodController.text.trim(),
+                  decoration: const InputDecoration(
+                    labelText: 'Payment method',
+                    prefixIcon: Icon(Icons.credit_card_rounded),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                    DropdownMenuItem(value: 'Card', child: Text('Card')),
+                    DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
+                    DropdownMenuItem(value: 'Wallet', child: Text('Wallet / Digital Wallet')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) _paymentMethodController.text = value;
+                  },
+                ),
                 const SizedBox(height: 12),
                 _DatePickerTile(date: _selectedDate, onTap: _pickDate),
                 const SizedBox(height: 12),
@@ -1166,7 +1259,23 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                 TextFormField(controller: _noteController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Note optional', prefixIcon: Icon(Icons.notes_outlined))),
                 if (widget.receiptEnabled) ...[
                   const SizedBox(height: 12),
-                  TextFormField(controller: _receiptController, decoration: const InputDecoration(labelText: 'Receipt file URL optional', prefixIcon: Icon(Icons.attach_file_rounded))),
+                  OutlinedButton.icon(
+                    onPressed: _pickReceipt,
+                    icon: const Icon(Icons.attach_file_rounded),
+                    label: Text(
+                      _selectedReceiptFile?.name ??
+                          (_receiptController.text.trim().isEmpty
+                              ? 'Attach receipt'
+                              : 'Replace attached receipt'),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _selectedReceiptFile == null
+                        ? 'Upload JPG, PNG, WEBP or PDF receipt with this transaction.'
+                        : 'Selected receipt will upload when you save.',
+                    style: _bodyStyle().copyWith(fontSize: 12),
+                  ),
                 ],
                 const SizedBox(height: 10),
                 SwitchListTile.adaptive(value: _taxRelevant, onChanged: (value) => setState(() => _taxRelevant = value), title: const Text('Useful for tax')),
@@ -1195,7 +1304,21 @@ class _TransactionSheetState extends State<_TransactionSheet> {
     setState(() => _selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day));
   }
 
-  void _save() {
+  Future<void> _pickReceipt() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      withData: true,
+    );
+
+    if (result == null || result.files.isEmpty) return;
+
+    setState(() {
+      _selectedReceiptFile = result.files.first;
+    });
+  }
+
+  Future<void> _save() async {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
 
@@ -1219,7 +1342,14 @@ class _TransactionSheetState extends State<_TransactionSheet> {
       synced: existing?.synced ?? false,
     );
 
-    widget.onSave(transaction);
+    final saved = await widget.onSave(transaction);
+
+    final receipt = _selectedReceiptFile;
+    if (receipt != null && widget.onAttachReceipt != null) {
+      await widget.onAttachReceipt!(saved, receipt);
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pop();
   }
 }

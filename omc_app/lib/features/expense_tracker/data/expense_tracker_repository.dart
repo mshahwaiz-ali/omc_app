@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -346,6 +347,30 @@ class ExpenseTrackerRepository {
       ApiConfig.saveExpenseBudgetMethod,
       data: budget,
     );
+  }
+
+  Future<String> uploadReceiptFile({
+    required String entryId,
+    required String fileName,
+    String? filePath,
+    List<int>? fileBytes,
+  }) async {
+    final response = await _frappeClient.uploadFile(
+      filePath: filePath,
+      fileBytes: fileBytes == null ? null : Uint8List.fromList(fileBytes),
+      fileName: fileName,
+      doctype: ApiConfig.expenseReceiptUploadDoctype,
+      docname: entryId,
+      isPrivate: true,
+    );
+
+    final payload = _extractPayload(response);
+    final message = payload['message'];
+    final fileUrl = message is Map
+        ? message['file_url'] ?? message['file_url'.toString()]
+        : payload['file_url'];
+
+    return fileUrl?.toString() ?? '';
   }
 
   Map<String, dynamic> _toBackendPayload(ExpenseTransaction transaction) {
