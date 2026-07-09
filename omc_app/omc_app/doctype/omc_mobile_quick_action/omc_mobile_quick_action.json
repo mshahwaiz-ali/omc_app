@@ -20,6 +20,13 @@
   "required_capability",
   "badge_type",
   "style",
+  "placement",
+  "layout_size",
+  "is_featured",
+  "starts_on",
+  "ends_on",
+  "group",
+  "description_long",
   "description"
  ],
  "fields": [
@@ -117,6 +124,47 @@
    "options": "Normal\nHighlighted\nUrgent"
   },
   {
+   "default": "home_primary",
+   "fieldname": "placement",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Placement",
+   "options": "home_primary\nhome_secondary\nmore\ninternal_home"
+  },
+  {
+   "default": "small",
+   "fieldname": "layout_size",
+   "fieldtype": "Select",
+   "label": "Layout Size",
+   "options": "small\nwide\nhero"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_featured",
+   "fieldtype": "Check",
+   "label": "Featured"
+  },
+  {
+   "fieldname": "starts_on",
+   "fieldtype": "Date",
+   "label": "Starts On"
+  },
+  {
+   "fieldname": "ends_on",
+   "fieldtype": "Date",
+   "label": "Ends On"
+  },
+  {
+   "fieldname": "group",
+   "fieldtype": "Data",
+   "label": "Group"
+  },
+  {
+   "fieldname": "description_long",
+   "fieldtype": "Small Text",
+   "label": "Long Description"
+  },
+  {
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Internal Notes"
@@ -124,7 +172,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-07-08 00:00:00.000000",
+ "modified": "2026-07-10 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Mobile Quick Action",
