@@ -72,6 +72,7 @@ def _normalize_service_case_list_item(service_case, can_access_internal_workspac
     service_case["can_update_status"] = capabilities["can_update_service_status"]
     service_case["can_review_documents"] = capabilities["can_review_documents"]
     service_case["can_view_internal_notes"] = can_access_internal_workspace
+    service_case["can_cancel"] = _can_customer_cancel_service_case(case_id, status)
 
 
 @frappe.whitelist()
@@ -110,6 +111,7 @@ def _apply_service_case_capabilities(service_case):
     service_case["can_review_documents"] = capabilities["can_review_documents"]
     service_case["can_review_payments"] = capabilities["can_review_payments"]
     service_case["can_view_internal_notes"] = can_access_internal_workspace
+    service_case["can_cancel"] = _can_customer_cancel_service_case(_service_request_id(service_case), service_case.get("status"))
 
     if not can_access_internal_workspace:
         service_case["remarks"] = ""
@@ -619,6 +621,52 @@ def _int_number(value):
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _can_customer_cancel_service_case(case_id, status=None):
+    if not case_id:
+        return False
+
+    normalized_status = (status or "").strip().lower()
+    if normalized_status not in {"open", "waiting for customer", "waiting for documents"}:
+        return False
+
+    if frappe.db.exists("OMC Service Document", {"service_request": case_id, "attachment": ["!=", ""]}):
+        return False
+
+    if frappe.db.exists("OMC Service Payment", {"service_request": case_id}):
+        return False
+
+    return True
+
+
+@frappe.whitelist()
+def cancel_service_request(case_id=None, name=None, service_request=None, request_id=None, reason=None):
+    resolved_case_id = case_id or name or service_request or request_id
+    if not resolved_case_id:
+        frappe.throw("Service request reference is required.")
+
+    request = frappe.get_doc("OMC Service Request", resolved_case_id)
+    user = frappe.session.user
+
+    if user != "Administrator" and request.requested_by != user and not mobile._can_access_internal_workspace():
+        frappe.throw("You cannot cancel this service request.")
+
+    if not _can_customer_cancel_service_case(request.name, request.status):
+        frappe.throw("This request can no longer be cancelled from the app. Please contact OMC support.")
+
+    request.status = "Cancelled"
+    request.closed_on = frappe.utils.now_datetime()
+    request.add_comment("Comment", reason or "Service request cancelled by customer from mobile app.")
+    request.save(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {
+        "service_request": request.name,
+        "status": request.status,
+        "message": "Service request cancelled successfully.",
+        "can_cancel": False,
+    }
 
 
 @frappe.whitelist()

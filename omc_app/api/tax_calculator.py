@@ -239,6 +239,22 @@ def start_service_from_calculation(calculation_log=None, service=None):
 
     log = _get_owned_calculation_log(calculation_log)
     user = _current_user()
+
+    existing_request = _get_existing_active_service_request(user, service)
+    if existing_request:
+        if log.linked_service_request != existing_request.name:
+            log.linked_service_request = existing_request.name
+            log.add_comment("Comment", "Tax estimate linked to existing active tax filing service request.")
+            log.save(ignore_permissions=True)
+            frappe.db.commit()
+
+        return {
+            "service_request": existing_request.name,
+            "created_new": False,
+            "can_cancel": _can_customer_cancel_service_request(existing_request),
+            "message": "Opening your existing tax filing request.",
+        }
+
     profile = _get_customer_profile(user)
     request = frappe.get_doc({
         "doctype": "OMC Service Request",
@@ -263,8 +279,43 @@ def start_service_from_calculation(calculation_log=None, service=None):
 
     return {
         "service_request": request.name,
+        "created_new": True,
+        "can_cancel": True,
         "message": "Tax filing service request created successfully.",
     }
+
+
+def _get_existing_active_service_request(user, service):
+    if not user or user == "Guest" or not service:
+        return None
+
+    closed_statuses = ["Completed", "Closed", "Cancelled", "Rejected", "Expired"]
+    rows = frappe.get_all(
+        "OMC Service Request",
+        filters={
+            "requested_by": user,
+            "service": service,
+            "status": ["not in", closed_statuses],
+        },
+        fields=["name"],
+        order_by="creation desc",
+        limit=1,
+    )
+    return frappe.get_doc("OMC Service Request", rows[0].name) if rows else None
+
+
+def _can_customer_cancel_service_request(request):
+    status = (request.status or "").strip().lower()
+    if status not in {"open", "waiting for customer", "waiting for documents"}:
+        return False
+
+    if frappe.db.exists("OMC Service Document", {"service_request": request.name, "attachment": ["!=", ""]}):
+        return False
+
+    if frappe.db.exists("OMC Service Payment", {"service_request": request.name}):
+        return False
+
+    return True
 
 
 def _extract_payload(kwargs):
