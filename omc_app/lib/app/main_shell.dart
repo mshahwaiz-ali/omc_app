@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/config/api_config.dart';
 import '../core/widgets/premium_card.dart';
 import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
@@ -211,6 +212,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         displayName: profile?.displayName ?? authState.displayName,
         companyName: profile?.companyName ?? authState.companyName,
         customerStatus: profile?.status ?? authState.customerStatus,
+        avatarUrl: profile?.avatarUrl,
         capabilities: capabilities,
         unreadNotifications: unreadNotifications,
         isGuest: authState.status == AuthStatus.guest,
@@ -444,6 +446,7 @@ class _MoreScreen extends StatelessWidget {
     this.displayName,
     this.companyName,
     this.customerStatus,
+    this.avatarUrl,
     required this.capabilities,
     required this.unreadNotifications,
     required this.isGuest,
@@ -465,6 +468,7 @@ class _MoreScreen extends StatelessWidget {
   final String? displayName;
   final String? companyName;
   final String? customerStatus;
+  final String? avatarUrl;
   final AuthCapabilities capabilities;
   final int unreadNotifications;
   final bool isGuest;
@@ -483,6 +487,7 @@ class _MoreScreen extends StatelessWidget {
             displayName: displayName,
             companyName: companyName,
             customerStatus: customerStatus,
+            avatarUrl: avatarUrl,
           ),
           if (capabilities.isGuest ||
               capabilities.isPending ||
@@ -603,11 +608,17 @@ class _MoreScreen extends StatelessWidget {
 }
 
 class _MoreHeader extends StatelessWidget {
-  const _MoreHeader({this.displayName, this.companyName, this.customerStatus});
+  const _MoreHeader({
+    this.displayName,
+    this.companyName,
+    this.customerStatus,
+    this.avatarUrl,
+  });
 
   final String? displayName;
   final String? companyName;
   final String? customerStatus;
+  final String? avatarUrl;
 
   String get _headerSubtitle {
     final company = _cleanLabel(companyName);
@@ -627,35 +638,20 @@ class _MoreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cleanAvatarUrl = avatarUrl?.trim();
+    final resolvedAvatarUrl = cleanAvatarUrl == null || cleanAvatarUrl.isEmpty
+        ? null
+        : cleanAvatarUrl.startsWith('http')
+            ? cleanAvatarUrl
+            : '${ApiConfig.baseUrl}${cleanAvatarUrl.startsWith('/') ? '' : '/'}$cleanAvatarUrl';
+
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Row(
         children: [
-          Container(
-            width: 58,
-            height: 58,
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.primaryRed, AppTheme.darkRed],
-              ),
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.18),
-                  blurRadius: 18,
-                  offset: const Offset(0, 9),
-                ),
-              ],
-            ),
-            child: Image.asset(
-              'assets/images/logo_symbol_transparent.png',
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) =>
-                  const Icon(Icons.business_rounded, color: Colors.white),
-            ),
+          _MoreHeaderAvatar(
+            avatarUrl: resolvedAvatarUrl,
+            initials: _initials(displayName),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -768,6 +764,84 @@ class _AccessStatusNote extends StatelessWidget {
     );
   }
 }
+
+
+class _MoreHeaderAvatar extends StatelessWidget {
+  const _MoreHeaderAvatar({required this.avatarUrl, required this.initials});
+
+  final String? avatarUrl;
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
+
+    return Container(
+      width: 58,
+      height: 58,
+      decoration: BoxDecoration(
+        gradient: hasAvatar
+            ? null
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppTheme.primaryRed, AppTheme.darkRed],
+              ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryRed.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasAvatar
+          ? Image.network(
+              avatarUrl!,
+              fit: BoxFit.cover,
+              webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+              errorBuilder: (_, _, _) => _MoreAvatarFallback(initials: initials),
+            )
+          : _MoreAvatarFallback(initials: initials),
+    );
+  }
+}
+
+class _MoreAvatarFallback extends StatelessWidget {
+  const _MoreAvatarFallback({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 17,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.2,
+        ),
+      ),
+    );
+  }
+}
+
+String _initials(String? name) {
+  final parts = (name ?? '')
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
+
+  if (parts.isEmpty) return 'OMC';
+  if (parts.length == 1) return parts.first.characters.take(2).toString().toUpperCase();
+  return '${parts.first.characters.first}${parts.last.characters.first}'.toUpperCase();
+}
+
 
 class _MoreGroup extends StatelessWidget {
   const _MoreGroup({required this.title, required this.children});
