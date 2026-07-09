@@ -123,17 +123,28 @@ def _patch_payload(data):
     if isinstance(data.get("profile"), dict):
         data["profile"]["capabilities"] = capabilities
         data["profile"]["access_state"] = capabilities["access_state"]
+        data["profile"]["can_access_internal_workspace"] = capabilities["can_access_internal_workspace"]
 
     return data
 
 
-@frappe.whitelist(allow_guest=True)
-def get_session_user():
-    response = mobile.get_session_user()
+def _patch_response(response):
     if isinstance(response, dict) and isinstance(response.get("message"), dict):
         response["message"] = _patch_payload(response["message"])
         return response
     return _patch_payload(response)
+
+
+@frappe.whitelist(allow_guest=True)
+def get_session_user():
+    return _patch_response(mobile.get_session_user())
+
+
+@frappe.whitelist()
+def get_profile():
+    from omc_app.api import profile as profile_api
+
+    return _patch_response(profile_api.get_profile())
 
 
 @frappe.whitelist(allow_guest=True)
