@@ -8,6 +8,11 @@ class AppTheme {
   static const Color textPrimary = Color(0xFF151515);
   static const Color textSecondary = Color(0xFF6B6B6B);
 
+  // Shared aliases used by newer screens/components.
+  static const Color textMuted = textSecondary;
+  static const Color border = Color(0xFFE7E1DA);
+  static const Color cardSoft = Color(0xFFF1ECE6);
+
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: primaryRed,
