@@ -68,9 +68,9 @@ List<OmcSheetAction> _quickActions({
   if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
     return [
       action('Workspace', Icons.admin_panel_settings_outlined, onOpenInternalWorkspace),
-      action('Service Cases', Icons.fact_check_outlined, onOpenServices),
+      action('Cases', Icons.fact_check_outlined, onOpenServices),
       action('Customers', Icons.groups_outlined, onOpenCustomers),
-      action('Docs Review', Icons.folder_copy_outlined, onOpenDocuments),
+      action('Docs', Icons.folder_copy_outlined, onOpenDocuments),
       action('Tasks', Icons.task_alt_outlined, onOpenTasks),
     ];
   }
@@ -79,26 +79,26 @@ List<OmcSheetAction> _quickActions({
     return [
       action('New Service', Icons.add_business_outlined, onOpenServices),
       action('Upload Doc', Icons.upload_file_outlined, onOpenDocuments),
-      action('Payment Receipt', Icons.receipt_long_outlined, onOpenPayments),
-      action('Support Ticket', Icons.support_agent_outlined, onOpenSupport),
-      action('Expense Entry', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
+      action('Receipt', Icons.receipt_long_outlined, onOpenPayments),
+      action('Support', Icons.support_agent_outlined, onOpenSupport),
+      action('Expense', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
     ];
   }
 
   if (capabilities.isPending) {
     return [
-      action('Tax Calculator', Icons.calculate_outlined, onOpenTaxCalculator),
-      action('Expense Tracker', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
+      action('Tax', Icons.calculate_outlined, onOpenTaxCalculator),
+      action('Expense', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
       action('Support', Icons.support_agent_outlined, onOpenSupport),
-      action('Profile Status', Icons.verified_user_outlined, onOpenProfile),
+      action('Status', Icons.verified_user_outlined, onOpenProfile),
     ];
   }
 
   return [
-    action('Tax Calculator', Icons.calculate_outlined, onOpenTaxCalculator),
-    action('Expense Tracker', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
+    action('Tax', Icons.calculate_outlined, onOpenTaxCalculator),
+    action('Expense', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
     action('Support', Icons.support_agent_outlined, onOpenSupport),
-    action('Create Account', Icons.person_add_alt_1_outlined, onOpenProfile),
+    action('Create', Icons.person_add_alt_1_outlined, onOpenProfile),
   ];
 }
 
@@ -115,9 +115,9 @@ class _QuickActionsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.55),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -140,18 +140,18 @@ class _QuickActionsContent extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: actions.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
+                crossAxisCount: 5,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 8,
                 childAspectRatio: 0.82,
               ),
-              itemBuilder: (context, index) => _SheetActionTile(action: actions[index]),
+              itemBuilder: (context, index) => _SheetActionButton(action: actions[index]),
             ),
           ],
         ),
@@ -160,8 +160,8 @@ class _QuickActionsContent extends StatelessWidget {
   }
 }
 
-class _SheetActionTile extends StatelessWidget {
-  const _SheetActionTile({required this.action});
+class _SheetActionButton extends StatelessWidget {
+  const _SheetActionButton({required this.action});
 
   final OmcSheetAction action;
 
@@ -169,36 +169,37 @@ class _SheetActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = action.isDestructive ? Colors.red.shade700 : AppTheme.primaryRed;
     return Material(
-      color: AppTheme.cardSoft.withValues(alpha: 0.48),
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: action.onTap,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.09),
-                  borderRadius: BorderRadius.circular(13),
+                  color: color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(action.icon, color: color, size: 21),
+                child: Icon(action.icon, color: color, size: 20),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 action.label,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 11,
-                  height: 1.12,
-                  fontWeight: FontWeight.w800,
+                style: TextStyle(
+                  color: action.isDestructive ? Colors.red.shade700 : AppTheme.textPrimary,
+                  fontSize: 10.5,
+                  height: 1.08,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
