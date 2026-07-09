@@ -47,6 +47,56 @@ class TasksRepository {
     }
   }
 
+  Future<TaskItem> createTask({
+    required String title,
+    String? status,
+    String? priority,
+    String? dueDate,
+    String? assignedTo,
+    String? description,
+  }) async {
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty) {
+      throw const ApiError(message: 'Task title is required.');
+    }
+
+    try {
+      final response = await _frappeClient.postResource(
+        'OMC Task',
+        data: {
+          'title': cleanTitle,
+          'status': status?.trim().isNotEmpty == true ? status!.trim() : 'Open',
+          'priority': priority?.trim().isNotEmpty == true ? priority!.trim() : 'Normal',
+          'due_date': dueDate?.trim() ?? '',
+          'assigned_to': assignedTo?.trim() ?? '',
+          'description': description?.trim() ?? '',
+        },
+      );
+
+      final rawTask = response['data'];
+      if (rawTask is Map<String, dynamic>) {
+        return TaskItem.fromJson(rawTask);
+      }
+
+      refetch:
+      {
+        final tasks = await fetchTasks();
+        if (tasks.isNotEmpty) return tasks.first;
+        break refetch;
+      }
+
+      throw const ApiError(message: 'Task was created but response was empty.');
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Task could not be created right now.',
+        code: 'task_create_failed',
+        details: error,
+      );
+    }
+  }
+
   Future<TaskItem?> fetchTaskDetail(String taskId) async {
     final cleanTaskId = taskId.trim();
     if (cleanTaskId.isEmpty) return null;
