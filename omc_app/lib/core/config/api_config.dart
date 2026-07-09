@@ -157,18 +157,32 @@ class ApiConfig {
   static const String mobileAppConfigMethod =
       'omc_app.api.mobile.get_mobile_app_config';
 
+  static const String expenseConfigMethod =
+      'omc_app.api.expense.get_expense_config';
   static const String expenseCategoriesMethod =
       'omc_app.api.expense.get_expense_categories';
   static const String expenseEntriesMethod =
       'omc_app.api.expense.get_expense_entries';
   static const String createExpenseEntryMethod =
       'omc_app.api.expense.create_expense_entry';
+  static const String bulkSyncExpenseEntriesMethod =
+      'omc_app.api.expense.bulk_sync_expense_entries';
   static const String updateExpenseEntryMethod =
       'omc_app.api.expense.update_expense_entry';
   static const String deleteExpenseEntryMethod =
       'omc_app.api.expense.delete_expense_entry';
   static const String expenseSummaryMethod =
       'omc_app.api.expense.get_expense_summary';
+  static const String expenseBudgetsMethod =
+      'omc_app.api.expense.get_expense_budgets';
+  static const String saveExpenseBudgetMethod =
+      'omc_app.api.expense.save_expense_budget';
+  static const String generateExpenseReportMethod =
+      'omc_app.api.expense.generate_expense_report';
+  static const String shareExpenseReportWithConsultantMethod =
+      'omc_app.api.expense.share_expense_report_with_consultant';
+  static const String uploadExpenseReceiptMethod =
+      'omc_app.api.expense.upload_expense_receipt';
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
@@ -193,6 +207,8 @@ class ApiConfig {
   static const String paymentUploadDoctype = 'OMC Service Payment';
 
   static const String supportTicketUploadDoctype = 'OMC Support Ticket';
+
+  static const String expenseReceiptUploadDoctype = 'OMC Expense Entry';
 
   static const String uploadFileMethod = 'upload_file';
 
