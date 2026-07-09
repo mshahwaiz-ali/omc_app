@@ -43,6 +43,78 @@ def _get_customer_profile_for_user(user=None):
     return profile
 
 
+def _get_profile_image_url(profile=None, user=None):
+    user = user or _current_user()
+    profile_image = ""
+
+    if profile:
+        try:
+            profile_image = profile.get("profile_image") or ""
+        except Exception:
+            profile_image = ""
+
+    user_image = ""
+    if user and user != "Guest" and frappe.db.exists("User", user):
+        user_image = frappe.db.get_value("User", user, "user_image") or ""
+
+    return profile_image or user_image or ""
+
+
+def _profile_payload(profile, user):
+    avatar_url = _get_profile_image_url(profile, user)
+    if not profile:
+        return {
+            "full_name": "",
+            "email": user if user and user != "Guest" else "",
+            "phone": "",
+            "avatar_url": avatar_url,
+            "profile_image": avatar_url,
+            "user_image": avatar_url,
+            "customer_id": "",
+            "customer_status": "Guest" if user == "Guest" else "",
+            "approval_status": "",
+            "access_state": "guest" if user == "Guest" else "pending",
+        }
+
+    return {
+        "full_name": profile.full_name or "",
+        "display_name": profile.full_name or "",
+        "email": profile.email or user or "",
+        "user": user or "",
+        "phone": profile.phone or "",
+        "whatsapp_no": profile.get("whatsapp_no") or "",
+        "avatar_url": avatar_url,
+        "profile_image": avatar_url,
+        "user_image": avatar_url,
+        "customer_id": profile.name,
+        "customer_status": profile.customer_status or "",
+        "approval_status": profile.approval_status or "",
+        "company_name": profile.company_name or "",
+        "cnic": profile.cnic or "",
+        "ntn": profile.ntn or "",
+        "register_as": profile.get("register_as") or "",
+        "customer_type": profile.get("customer_type") or "",
+        "address": profile.get("address") or "",
+        "education": profile.get("education") or "",
+        "experience": profile.get("experience") or "",
+        "remarks": profile.get("remarks") or "",
+        "access_state": "approved"
+        if (profile.customer_status or "").lower() == "active"
+        and (profile.approval_status or "").lower() == "approved"
+        else "pending",
+    }
+
+
+@frappe.whitelist()
+def get_profile():
+    user = _current_user()
+    if user == "Guest":
+        return _profile_payload(None, user)
+
+    profile = _get_customer_profile_for_user(user)
+    return _profile_payload(profile, user)
+
+
 def _clean_filename(filename, content_type=""):
     raw_filename = (filename or "profile-image").strip() or "profile-image"
     raw_filename = raw_filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
@@ -139,5 +211,6 @@ def upload_profile_image():
         "user_image": file_url,
         "customer_id": profile.name,
         "file_name": file_doc.name,
+        "profile": _profile_payload(profile, user),
         "message": "Profile image updated.",
     }
