@@ -348,8 +348,12 @@ class ServiceCaseRepository {
         json['submitted_documents_count'],
       ),
       missingDocumentsCount: _nullableIntValue(json['missing_documents_count']),
-      canUpdateStatus: _boolValue(json['can_update_status']),
-      canReviewDocuments: _boolValue(json['can_review_documents']),
+      canUpdateStatus:
+          _boolValue(json['can_update_status']) &&
+          _boolValue(json['can_view_internal_notes']),
+      canReviewDocuments:
+          _boolValue(json['can_review_documents']) &&
+          _boolValue(json['can_view_internal_notes']),
       canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
       canCancel: _boolValue(json['can_cancel']),
     );
