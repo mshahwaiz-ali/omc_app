@@ -55,7 +55,8 @@ class ApiConfig {
   static const String updateGuestActivityMethod =
       'omc_app.api.guest_session.update_guest_activity';
 
-  static const String createServiceMethod = 'omc_app.api.mobile.create_service';
+  static const String createServiceMethod =
+      'omc_app.api.service_requests.create_service';
   static const String createLeadMethod = 'omc_app.api.mobile.create_lead';
   static const String dashboardDataMethod =
       'omc_app.api.mobile.get_dashboard_data';
