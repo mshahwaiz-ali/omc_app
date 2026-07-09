@@ -4,20 +4,21 @@ import frappe
 STAFF_ROLES = {
     "OMC Admin",
     "OMC Manager",
-    "OMC Support Agent",
 }
 
 PORTAL_ROLES = {
     "OMC Customer",
-    "OMC Customer Applicant",
+    "OMC Business Partner",
+    "OMC Tax Associate",
 }
 
 OBSOLETE_ROLES = {
+    "OMC Customer Applicant",
+    "OMC Support Agent",
+    "OMC Customer Support",
     "OMC Document Reviewer",
     "OMC Finance Reviewer",
     "OMC Consultant",
-    "OMC Business Partner",
-    "OMC Tax Associate",
 }
 
 
@@ -38,7 +39,7 @@ def execute():
     for role_name in sorted(PORTAL_ROLES):
         _set_role_access(role_name, desk_access=False)
 
-    # Keep old roles from showing in Desk if they already exist on older sites.
+    # Keep removed/legacy roles from showing in Desk if they exist on older sites.
     for role_name in sorted(OBSOLETE_ROLES):
         if frappe.db.exists("Role", role_name):
             frappe.db.set_value("Role", role_name, "desk_access", 0)
