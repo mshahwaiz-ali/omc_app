@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils.file_manager import save_file
 
 
 def _items_response(key, items=None):
@@ -554,6 +555,22 @@ def _get_customer_profile_for_user(user=None):
     return profile
 
 
+def _get_profile_image_url(profile=None, user=None):
+    user = user or _current_user()
+    profile_image = ""
+
+    if profile:
+        try:
+            profile_image = profile.get("profile_image") or ""
+        except Exception:
+            profile_image = ""
+
+    if not profile_image and user and user != "Guest":
+        profile_image = frappe.db.get_value("User", user, "user_image") or ""
+
+    return profile_image or ""
+
+
 @frappe.whitelist()
 def get_profile():
     user = _current_user()
@@ -565,6 +582,8 @@ def get_profile():
             "email": "",
             "phone": "",
             "avatar_url": "",
+            "profile_image": "",
+            "user_image": "",
             "customer_id": "",
             "customer_status": "Guest",
             "approval_status": "",
@@ -581,7 +600,9 @@ def get_profile():
         "email": profile.email or user,
         "phone": profile.phone or "",
         "whatsapp_no": profile.get("whatsapp_no") or "",
-        "avatar_url": "",
+        "avatar_url": _get_profile_image_url(profile, user),
+        "profile_image": _get_profile_image_url(profile, user),
+        "user_image": frappe.db.get_value("User", user, "user_image") or "",
         "customer_id": profile.name,
         "customer_status": profile.customer_status or "",
         "approval_status": profile.approval_status or "",
@@ -597,6 +618,60 @@ def get_profile():
         "access_state": capabilities["access_state"],
         "capabilities": capabilities,
         **capabilities,
+    }
+
+
+@frappe.whitelist()
+def upload_profile_image():
+    user = _current_user()
+    if not user or user == "Guest":
+        frappe.throw("Login is required to upload a profile image.", frappe.PermissionError)
+
+    uploaded_file = frappe.request.files.get("file") if getattr(frappe, "request", None) else None
+    if not uploaded_file:
+        frappe.throw("Profile image file is required.")
+
+    filename = (uploaded_file.filename or "profile-image").strip()
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    lower_filename = filename.lower()
+
+    if not any(lower_filename.endswith(ext) for ext in allowed_extensions):
+        frappe.throw("Only JPG, PNG, or WEBP profile images are allowed.")
+
+    file_content = uploaded_file.stream.read()
+    max_size_bytes = 5 * 1024 * 1024
+    if len(file_content) > max_size_bytes:
+        frappe.throw("Profile image must be 5 MB or smaller.")
+
+    profile = _get_customer_profile_for_user(user)
+
+    file_doc = save_file(
+        filename,
+        file_content,
+        "OMC Customer Profile",
+        profile.name,
+        is_private=0,
+    )
+
+    file_url = file_doc.file_url or ""
+
+    if profile.meta.has_field("profile_image"):
+        profile.profile_image = file_url
+        profile.save(ignore_permissions=True)
+
+    if frappe.db.exists("User", user):
+        user_doc = frappe.get_doc("User", user)
+        user_doc.user_image = file_url
+        user_doc.save(ignore_permissions=True)
+
+    frappe.db.commit()
+
+    return {
+        "message": "Profile image updated.",
+        "avatar_url": file_url,
+        "profile_image": file_url,
+        "user_image": file_url,
+        "customer_id": profile.name,
     }
 
 
