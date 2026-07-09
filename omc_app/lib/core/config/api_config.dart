@@ -160,7 +160,6 @@ class ApiConfig {
   static const String supportConfigMethod =
       'omc_app.api.support_chat.get_support_config';
 
-
   static const String uploadFileMethod = 'upload_file';
 
   static const String mobileAppConfigMethod =
@@ -171,15 +170,11 @@ class ApiConfig {
   static const String customerDetailMethod =
       'omc_app.api.internal_workspace.get_customer';
 
-  static const String leadsMethod =
-      'omc_app.api.internal_workspace.get_leads';
-  static const String leadDetailMethod =
-      'omc_app.api.internal_workspace.get_lead';
+  static const String leadsMethod = 'omc_app.api.mobile.get_leads';
+  static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
 
-  static const String tasksMethod =
-      'omc_app.api.internal_workspace.get_tasks';
-  static const String taskDetailMethod =
-      'omc_app.api.internal_workspace.get_task';
+  static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
+  static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
