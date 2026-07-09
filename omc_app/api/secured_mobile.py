@@ -15,18 +15,36 @@ def get_service_cases():
 
     response = mobile.get_service_cases()
     cases = _extract_service_case_list(response)
-
     if not isinstance(cases, list):
         return response
 
     can_access_internal_workspace = mobile._can_access_internal_workspace()
-
     for service_case in cases:
-        if not isinstance(service_case, dict):
-            continue
+        if isinstance(service_case, dict):
+            _normalize_service_case(service_case, can_access_internal_workspace)
 
-        _normalize_service_case_list_item(service_case, can_access_internal_workspace)
+    return response
 
+
+@frappe.whitelist()
+def get_service_case(case_id=None, name=None, service_request=None, request_id=None):
+    """Return service case detail with backend-owned customer/admin gates."""
+
+    resolved_case_id = case_id or name or service_request or request_id
+    response = mobile.get_service_case(case_id=resolved_case_id)
+    service_case = response.get("case") if isinstance(response, dict) else None
+    if not isinstance(service_case, dict):
+        return response
+
+    _normalize_service_case(service_case)
+
+    timeline = service_case.get("timeline")
+    if isinstance(timeline, list) and timeline:
+        _normalize_service_case_timeline(timeline)
+        return response
+
+    service_case["timeline"] = _fallback_service_case_timeline(service_case)
+    _normalize_service_case_timeline(service_case["timeline"])
     return response
 
 
@@ -49,64 +67,42 @@ def _extract_service_case_list(response):
     return None
 
 
-def _normalize_service_case_list_item(service_case, can_access_internal_workspace=False):
-    case_id = _service_request_id(service_case)
-    _hydrate_service_case_list_item(service_case, case_id)
+def _normalize_service_case(service_case, can_access_internal_workspace=None):
+    _hydrate_service_case(service_case)
     _apply_service_case_capabilities(service_case, can_access_internal_workspace)
     _normalize_service_case_documents(service_case)
     _normalize_service_case_payments(service_case)
     _apply_service_case_tracking_summary(service_case)
 
 
-def _hydrate_service_case_list_item(service_case, case_id):
-    if not case_id:
+def _hydrate_service_case(service_case):
+    case_id = _service_request_id(service_case)
+    if not case_id or not frappe.db.exists("OMC Service Request", case_id):
         return
 
     try:
-        request = frappe.db.get_value(
-            "OMC Service Request",
-            case_id,
-            [
-                "name",
-                "title",
-                "status",
-                "priority",
-                "service",
-                "service_title",
-                "description",
-                "creation",
-                "modified",
-                "submitted_on",
-                "expected_completion_date",
-            ],
-            as_dict=True,
-        )
+        request = frappe.get_doc("OMC Service Request", case_id)
     except Exception:
-        request = None
-
-    if not request:
         return
 
     service_case["name"] = request.name
     service_case["id"] = request.name
     service_case["reference"] = request.name
     service_case["case_reference"] = request.name
-    service_case["title"] = request.title or request.service_title or service_case.get("title") or "Service Request"
+    service_case["title"] = request.title or getattr(request, "service_title", None) or service_case.get("title") or "Service Request"
     service_case["status"] = request.status or service_case.get("status") or ""
     service_case["priority"] = request.priority or service_case.get("priority") or ""
     service_case["service_id"] = request.service or service_case.get("service_id") or ""
     service_case["service"] = request.service or service_case.get("service") or ""
-    service_case["service_title"] = request.service_title or service_case.get("service_title") or service_case.get("service") or ""
+    service_case["service_title"] = getattr(request, "service_title", None) or service_case.get("service_title") or ""
     service_case["description"] = request.description or service_case.get("description") or ""
     service_case["created_at"] = _format_mobile_date(request.creation) or service_case.get("created_at") or ""
-    service_case["submitted_on"] = _format_mobile_datetime(request.submitted_on or request.creation) or service_case.get("submitted_on") or ""
+    service_case["submitted_on"] = _format_mobile_datetime(getattr(request, "submitted_on", None) or request.creation) or service_case.get("submitted_on") or ""
     service_case["updated_at"] = _format_mobile_date(request.modified) or service_case.get("updated_at") or ""
-    service_case["expected_completion_date"] = str(request.expected_completion_date or service_case.get("expected_completion_date") or "")
+    service_case["expected_completion_date"] = str(getattr(request, "expected_completion_date", None) or service_case.get("expected_completion_date") or "")
 
 
 def _apply_service_case_capabilities(service_case, can_access_internal_workspace=None):
-    """Keep internal-only fields and controls backend-driven."""
-
     if can_access_internal_workspace is None:
         can_access_internal_workspace = mobile._can_access_internal_workspace()
 
@@ -131,41 +127,29 @@ def _normalize_service_case_documents(service_case):
     service_request = _service_request_id(service_case)
     service_name = service_case.get("service_id") or service_case.get("service")
 
-    documents = []
-    required_document_templates = []
+    try:
+        documents = mobile._get_service_documents(service_request) if service_request else []
+    except Exception:
+        documents = service_case.get("submitted_documents") or service_case.get("documents") or []
 
-    if service_request:
-        try:
-            documents = mobile._get_service_documents(service_request)
-        except Exception:
-            documents = service_case.get("submitted_documents") or service_case.get("documents") or []
-
-    if service_name:
-        try:
-            required_document_templates = mobile._service_required_documents(service_name)
-        except Exception:
-            required_document_templates = service_case.get("required_documents") or []
-
-    if not documents and isinstance(service_case.get("submitted_documents"), list):
-        documents = service_case.get("submitted_documents") or []
-
-    if not required_document_templates and isinstance(service_case.get("required_documents"), list):
+    try:
+        required_document_templates = mobile._service_required_documents(service_name) if service_name else []
+    except Exception:
         required_document_templates = service_case.get("required_documents") or []
 
     document_details = _merged_document_details(documents, required_document_templates)
-    required_documents = document_details
     submitted_documents = [doc for doc in document_details if _document_is_submitted(doc)]
     missing_documents = [doc for doc in document_details if _document_needs_upload(doc)]
     approved_documents = [doc for doc in document_details if _document_is_approved(doc)]
     rejected_documents = [doc for doc in document_details if _document_is_rejected(doc)]
 
-    service_case["required_documents"] = required_documents
+    service_case["required_documents"] = document_details
     service_case["document_details"] = document_details
     service_case["required_document_details"] = document_details
     service_case["submitted_documents"] = submitted_documents
     service_case["missing_documents"] = missing_documents
     service_case["attachments"] = submitted_documents
-    service_case["required_documents_count"] = len(required_documents)
+    service_case["required_documents_count"] = len(document_details)
     service_case["submitted_documents_count"] = len(submitted_documents)
     service_case["missing_documents_count"] = len(missing_documents)
     service_case["approved_documents_count"] = len(approved_documents)
@@ -175,7 +159,7 @@ def _normalize_service_case_documents(service_case):
 def _normalize_service_case_payments(service_case):
     service_request = _service_request_id(service_case)
     if not service_request:
-        _set_payment_defaults(service_case)
+        service_case.update(_empty_payment_summary())
         return
 
     try:
@@ -215,13 +199,15 @@ def _normalize_service_case_payments(service_case):
     service_case["rejected_payments_count"] = len(rejected_payments)
 
 
-def _set_payment_defaults(service_case):
-    service_case.setdefault("payments", [])
-    service_case.setdefault("payment_details", [])
-    service_case.setdefault("payments_count", 0)
-    service_case.setdefault("paid_payments_count", 0)
-    service_case.setdefault("open_payments_count", 0)
-    service_case.setdefault("rejected_payments_count", 0)
+def _empty_payment_summary():
+    return {
+        "payments": [],
+        "payment_details": [],
+        "payments_count": 0,
+        "paid_payments_count": 0,
+        "open_payments_count": 0,
+        "rejected_payments_count": 0,
+    }
 
 
 def _apply_service_case_tracking_summary(service_case):
@@ -236,6 +222,7 @@ def _apply_service_case_tracking_summary(service_case):
     if normalized_status in {"waiting for documents", "waiting for customer", "waiting for payment"}:
         customer_action_required = True
 
+    progress = _weighted_service_case_progress(service_case)
     service_case["customer_action_required"] = customer_action_required
     service_case["current_stage"] = status
     service_case["next_step"] = _service_case_next_step(
@@ -245,88 +232,37 @@ def _apply_service_case_tracking_summary(service_case):
         open_payments_count=open_payments_count,
         rejected_payments_count=rejected_payments_count,
     )
-
-    progress = _weighted_service_case_progress(service_case)
     service_case["progress"] = progress
     service_case["progress_percent"] = int(round(progress * 100))
 
 
-@frappe.whitelist()
-def get_service_case(case_id=None, name=None, service_request=None, request_id=None):
-    """Return service case detail with backend-owned customer/admin gates."""
-
-    resolved_case_id = case_id or name or service_request or request_id
-    response = mobile.get_service_case(case_id=resolved_case_id)
-    service_case = response.get("case") if isinstance(response, dict) else None
-
-    if not isinstance(service_case, dict):
-        return response
-
-    _hydrate_service_case_list_item(service_case, resolved_case_id or _service_request_id(service_case))
-    _apply_service_case_capabilities(service_case)
-    _normalize_service_case_documents(service_case)
-    _normalize_service_case_payments(service_case)
-    _apply_service_case_tracking_summary(service_case)
-
-    timeline = service_case.get("timeline")
-    if isinstance(timeline, list) and timeline:
-        _normalize_service_case_timeline(timeline)
-        return response
-
-    service_case["timeline"] = _fallback_service_case_timeline(service_case)
-    _normalize_service_case_timeline(service_case["timeline"])
-    return response
-
-
-def _service_request_id(service_case):
-    return (
-        service_case.get("name")
-        or service_case.get("id")
-        or service_case.get("case_id")
-        or service_case.get("reference")
-        or ""
-    )
-
-
 def _merged_document_details(documents, required_document_templates=None):
-    """Return one row per required document with its current upload/review status."""
-
     merged = []
     seen_keys = set()
     uploaded_by_key = {}
 
     for document in documents or []:
-        if not isinstance(document, dict):
-            continue
-
-        key = _document_key(document)
-        if key:
-            uploaded_by_key[key] = document
+        if isinstance(document, dict):
+            key = _document_key(document)
+            if key:
+                uploaded_by_key[key] = document
 
     for template in required_document_templates or []:
         if not isinstance(template, dict):
             continue
-
         key = _document_key(template)
         if not key:
             continue
-
         uploaded = uploaded_by_key.get(key)
-        if uploaded:
-            merged.append(_document_detail_from_uploaded(uploaded, template))
-        else:
-            merged.append(_document_detail_from_template(template))
-
+        merged.append(_document_detail_from_uploaded(uploaded, template) if uploaded else _document_detail_from_template(template))
         seen_keys.add(key)
 
     for document in documents or []:
         if not isinstance(document, dict):
             continue
-
         key = _document_key(document)
         if key and key in seen_keys:
             continue
-
         merged.append(_document_detail_from_uploaded(document, None))
 
     return merged
@@ -341,7 +277,6 @@ def _document_key(item):
 def _document_detail_from_template(template):
     title = template.get("title") or template.get("document_title") or ""
     doc_type = template.get("type") or template.get("document_type") or ""
-
     return {
         "name": "-",
         "id": "-",
@@ -360,14 +295,13 @@ def _document_detail_from_template(template):
 
 
 def _document_detail_from_uploaded(document, template=None):
+    document = document or {}
     template = template or {}
     title = document.get("title") or document.get("document_title") or template.get("title") or template.get("document_title") or ""
     doc_type = document.get("type") or document.get("document_type") or template.get("type") or template.get("document_type") or ""
     status = document.get("status") or "Uploaded"
-    status_normalized = status.strip().lower()
     attachment = document.get("file_url") or document.get("attachment") or ""
-
-    if status_normalized == "rejected":
+    if status.strip().lower() == "rejected":
         attachment = ""
 
     return {
@@ -408,53 +342,41 @@ def _payment_detail(payment):
 def _document_is_submitted(document):
     status = (document.get("status") or "").strip().lower()
     has_file = bool(document.get("file_url") or document.get("attachment"))
-
     if status in {"rejected", "pending", "missing", "required", "expired"}:
         return False
-
     return has_file or status in {"uploaded", "approved", "submitted", "accepted", "verified", "under review"}
 
 
 def _document_needs_upload(document):
     status = (document.get("status") or "").strip().lower()
     has_file = bool(document.get("file_url") or document.get("attachment"))
-
-    if status in {"pending", "missing", "required", "rejected", "expired"}:
-        return True
-
-    return not has_file
+    return status in {"pending", "missing", "required", "rejected", "expired"} or not has_file
 
 
 def _document_is_approved(document):
-    status = (document.get("status") or "").strip().lower()
-    return status in {"approved", "accepted", "verified"}
+    return (document.get("status") or "").strip().lower() in {"approved", "accepted", "verified"}
 
 
 def _document_is_rejected(document):
-    status = (document.get("status") or "").strip().lower()
-    return status == "rejected"
+    return (document.get("status") or "").strip().lower() == "rejected"
 
 
 def _payment_is_paid(payment):
-    status = (payment.get("status") or "").strip().lower()
-    return status in {"paid", "approved", "payment approved"}
+    return (payment.get("status") or "").strip().lower() in {"paid", "approved", "payment approved"}
 
 
 def _payment_is_rejected(payment):
-    status = (payment.get("status") or "").strip().lower()
-    return status == "rejected"
+    return (payment.get("status") or "").strip().lower() == "rejected"
 
 
 def _payment_is_cancelled(payment):
-    status = (payment.get("status") or "").strip().lower()
-    return status == "cancelled"
+    return (payment.get("status") or "").strip().lower() == "cancelled"
 
 
 def _normalize_service_case_timeline(timeline):
     for entry in timeline or []:
         if not isinstance(entry, dict):
             continue
-
         for key in ("created_at", "created_on", "creation", "date", "updated_at", "modified", "event_time"):
             value = entry.get(key)
             if value:
@@ -464,27 +386,21 @@ def _normalize_service_case_timeline(timeline):
 def _format_mobile_datetime(value):
     if not value:
         return ""
-
     try:
         return frappe.utils.format_datetime(value, "dd MMM yyyy, h:mm a")
     except Exception:
         text = str(value).strip()
-        if "." in text:
-            text = text.split(".", 1)[0]
-        return text
+        return text.split(".", 1)[0] if "." in text else text
 
 
 def _format_mobile_date(value):
     if not value:
         return ""
-
     try:
         return str(value.date())
     except Exception:
         text = str(value).strip()
-        if " " in text:
-            return text.split(" ", 1)[0]
-        return text
+        return text.split(" ", 1)[0] if " " in text else text
 
 
 def _service_case_progress(status):
@@ -517,20 +433,13 @@ def _weighted_service_case_progress(service_case):
     payments_count = _int_number(service_case.get("payments_count"))
     paid_payments_count = _int_number(service_case.get("paid_payments_count"))
 
-    if required_documents_count > 0:
-        document_ratio = min(1.0, approved_documents_count / required_documents_count)
-    else:
-        document_ratio = 1.0 if status in {"waiting for payment", "payment under review", "in progress", "completed", "closed"} else 0.0
-
-    if payments_count > 0:
-        payment_ratio = min(1.0, paid_payments_count / payments_count)
-    else:
-        payment_ratio = 1.0 if status in {"in progress", "completed", "closed"} else 0.0
+    document_ratio = min(1.0, approved_documents_count / required_documents_count) if required_documents_count > 0 else (1.0 if status in {"waiting for payment", "payment under review", "in progress", "completed", "closed"} else 0.0)
+    payment_ratio = min(1.0, paid_payments_count / payments_count) if payments_count > 0 else (1.0 if status in {"in progress", "completed", "closed"} else 0.0)
 
     internal_stage_ratio = 0.0
-    if status in {"documents under review"}:
+    if status == "documents under review":
         internal_stage_ratio = 0.20
-    elif status in {"payment under review"}:
+    elif status == "payment under review":
         internal_stage_ratio = 0.35
     elif status == "in progress":
         internal_stage_ratio = 0.75
@@ -540,13 +449,7 @@ def _weighted_service_case_progress(service_case):
     return max(0.0, min(1.0, percent / 100))
 
 
-def _service_case_next_step(
-    status,
-    missing_documents=None,
-    rejected_documents_count=0,
-    open_payments_count=0,
-    rejected_payments_count=0,
-):
+def _service_case_next_step(status, missing_documents=None, rejected_documents_count=0, open_payments_count=0, rejected_payments_count=0):
     if rejected_documents_count:
         return "A document was rejected. Please upload the corrected document again."
     if missing_documents:
@@ -589,45 +492,16 @@ def _fallback_service_case_timeline(service_case):
     next_step = service_case.get("next_step") or "OMC team will update this service request shortly."
 
     stages = [
-        {
-            "title": "Request received",
-            "subtitle": created_on or "Your request has been received by OMC.",
-            "is_done": progress >= 0.05 or bool(created_on),
-        },
-        {
-            "title": "Documents review",
-            "subtitle": _documents_stage_subtitle(service_case, normalized_status),
-            "is_done": progress >= 0.35,
-        },
-        {
-            "title": "Payment review",
-            "subtitle": _payments_stage_subtitle(service_case, normalized_status),
-            "is_done": progress >= 0.60,
-        },
-        {
-            "title": "OMC processing",
-            "subtitle": next_step,
-            "is_done": progress >= 0.75,
-        },
+        {"title": "Request received", "subtitle": created_on or "Your request has been received by OMC.", "is_done": progress >= 0.05 or bool(created_on)},
+        {"title": "Documents review", "subtitle": _documents_stage_subtitle(service_case, normalized_status), "is_done": progress >= 0.35},
+        {"title": "Payment review", "subtitle": _payments_stage_subtitle(service_case, normalized_status), "is_done": progress >= 0.60},
+        {"title": "OMC processing", "subtitle": next_step, "is_done": progress >= 0.75},
     ]
 
     if expected_completion:
-        stages.append(
-            {
-                "title": "Expected completion",
-                "subtitle": expected_completion,
-                "is_done": normalized_status == "completed",
-            }
-        )
+        stages.append({"title": "Expected completion", "subtitle": expected_completion, "is_done": normalized_status == "completed"})
 
-    stages.append(
-        {
-            "title": "Completed",
-            "subtitle": "Service completed." if normalized_status == "completed" else "Pending completion.",
-            "is_done": normalized_status == "completed" or progress >= 1,
-        }
-    )
-
+    stages.append({"title": "Completed", "subtitle": "Service completed." if normalized_status == "completed" else "Pending completion.", "is_done": normalized_status == "completed" or progress >= 1})
     return stages
 
 
@@ -635,16 +509,12 @@ def _documents_stage_subtitle(service_case, normalized_status):
     missing_count = _int_number(service_case.get("missing_documents_count"))
     approved_count = _int_number(service_case.get("approved_documents_count"))
     required_count = _int_number(service_case.get("required_documents_count"))
-
     if missing_count > 0:
         return f"{missing_count} document(s) still needed."
-
     if required_count > 0:
         return f"{approved_count}/{required_count} document(s) approved."
-
     if normalized_status == "waiting for customer":
         return "OMC is waiting for customer input."
-
     return "OMC will confirm document requirements."
 
 
@@ -652,7 +522,6 @@ def _payments_stage_subtitle(service_case, normalized_status):
     payments_count = _int_number(service_case.get("payments_count"))
     paid_count = _int_number(service_case.get("paid_payments_count"))
     rejected_count = _int_number(service_case.get("rejected_payments_count"))
-
     if rejected_count > 0:
         return f"{rejected_count} payment receipt(s) need correction."
     if payments_count > 0:
@@ -667,10 +536,8 @@ def _progress_number(value):
         number = float(value or 0)
     except (TypeError, ValueError):
         return 0.0
-
     if number > 1:
         number = number / 100
-
     return max(0.0, min(1.0, number))
 
 
@@ -684,17 +551,13 @@ def _int_number(value):
 def _can_customer_cancel_service_case(case_id, status=None):
     if not case_id:
         return False
-
     normalized_status = (status or "").strip().lower()
     if normalized_status not in {"open", "waiting for customer", "waiting for documents"}:
         return False
-
     if frappe.db.exists("OMC Service Document", {"service_request": case_id, "attachment": ["!=", ""]}):
         return False
-
     if frappe.db.exists("OMC Service Payment", {"service_request": case_id}):
         return False
-
     return True
 
 
@@ -706,10 +569,9 @@ def cancel_service_request(case_id=None, name=None, service_request=None, reques
 
     request = frappe.get_doc("OMC Service Request", resolved_case_id)
     user = frappe.session.user
-
     can_access_internal_workspace = mobile._can_access_internal_workspace()
     customer_profile = None if can_access_internal_workspace else mobile.get_current_customer_profile()
-    owns_request = customer_profile and request.customer_profile == customer_profile.name
+    owns_request = bool(customer_profile and getattr(request, "customer_profile", None) == customer_profile.name)
 
     if user != "Administrator" and not owns_request and not can_access_internal_workspace:
         frappe.throw("You cannot cancel this service request.")
@@ -723,60 +585,22 @@ def cancel_service_request(case_id=None, name=None, service_request=None, reques
     request.save(ignore_permissions=True)
     frappe.db.commit()
 
-    return {
-        "service_request": request.name,
-        "status": request.status,
-        "message": "Service request cancelled successfully.",
-        "can_cancel": False,
-    }
+    return {"service_request": request.name, "status": request.status, "message": "Service request cancelled successfully.", "can_cancel": False}
 
 
 @frappe.whitelist()
-def update_service_case_status(
-    case_id=None,
-    name=None,
-    service_request=None,
-    request_id=None,
-    status=None,
-    note=None,
-    expected_completion_date=None,
-):
+def update_service_case_status(case_id=None, name=None, service_request=None, request_id=None, status=None, note=None, expected_completion_date=None):
     """Allow only internal workspace users to update service case status."""
 
-    mobile.require_omc_staff(
-        mobile.SERVICE_STATUS_ROLES,
-        "You do not have permission to update service case status.",
-    )
-
+    mobile.require_omc_staff(mobile.SERVICE_STATUS_ROLES, "You do not have permission to update service case status.")
     resolved_case_id = case_id or name or service_request or request_id
-
-    return mobile.update_service_case_status(
-        case_id=resolved_case_id,
-        status=status,
-        note=note,
-        expected_completion_date=expected_completion_date,
-    )
+    return mobile.update_service_case_status(case_id=resolved_case_id, status=status, note=note, expected_completion_date=expected_completion_date)
 
 
 @frappe.whitelist()
-def update_service_document_status(
-    document_id=None,
-    document=None,
-    name=None,
-    status=None,
-    remarks=None,
-):
+def update_service_document_status(document_id=None, document=None, name=None, status=None, remarks=None):
     """Allow only internal workspace users to approve/reject documents."""
 
-    mobile.require_omc_staff(
-        mobile.DOCUMENT_REVIEW_ROLES,
-        "You do not have permission to review service documents.",
-    )
-
+    mobile.require_omc_staff(mobile.DOCUMENT_REVIEW_ROLES, "You do not have permission to review service documents.")
     resolved_document_id = document_id or document or name
-
-    return mobile.update_service_document_status(
-        document_id=resolved_document_id,
-        status=status,
-        remarks=remarks,
-    )
+    return mobile.update_service_document_status(document_id=resolved_document_id, status=status, remarks=remarks)
