@@ -397,7 +397,7 @@ def _apply_adjustments(tax_year, income_type, annual_income, advanced_inputs):
     return {"taxable_income": taxable_income, "credits": credits}
 
 
-def _match_slab(tax_year, income_type, filer_status, taxable_income):
+def _match_slab(tax_year, income_type, filer_status, taxable_income, allow_fallback=True):
     rows = frappe.get_all(
         "OMC Tax Slab",
         filters={"parent": tax_year, "income_type": income_type, "filer_status": filer_status},
@@ -409,6 +409,12 @@ def _match_slab(tax_year, income_type, filer_status, taxable_income):
         to_amount = flt(row.to_amount)
         if taxable_income >= from_amount and (not to_amount or taxable_income <= to_amount):
             return row
+
+    # Safe fallback: if Late Filer / Non-Filer slabs are not configured yet,
+    # calculate from Active Filer slabs instead of breaking the customer app.
+    if allow_fallback and filer_status != "Active Filer":
+        return _match_slab(tax_year, income_type, "Active Filer", taxable_income, allow_fallback=False)
+
     return None
 
 
@@ -431,8 +437,8 @@ def _breakdown_payload(slab, taxable_income, tax_before_credits, credits, final_
 
 
 def _comparison_payload(tax_year, income_type, taxable_income):
-    active = _match_slab(tax_year, income_type, "Active Filer", taxable_income)
-    non = _match_slab(tax_year, income_type, "Non-Filer", taxable_income)
+    active = _match_slab(tax_year, income_type, "Active Filer", taxable_income, allow_fallback=False)
+    non = _match_slab(tax_year, income_type, "Non-Filer", taxable_income, allow_fallback=False)
     if not active or not non:
         return None
     active_tax = _calculate_slab_tax(taxable_income, active)
