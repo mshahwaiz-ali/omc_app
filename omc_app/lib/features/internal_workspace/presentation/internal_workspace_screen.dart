@@ -130,64 +130,7 @@ class _InternalWorkspaceContent extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.96,
-          children: [
-            _WorkAreaCard(
-              title: 'Service Requests',
-              subtitle: 'All customer service cases',
-              icon: Icons.assignment_turned_in_rounded,
-              value: '${summary.activeCustomers}',
-              label: 'active customers',
-              onTap: () => context.go('/internal-workspace/service-cases'),
-            ),
-            _WorkAreaCard(
-              title: 'Customers',
-              subtitle: 'Customer 360 center',
-              icon: Icons.groups_2_rounded,
-              value: '${summary.activeCustomers}',
-              label: 'records',
-              onTap: () => context.go('/internal-workspace/customers'),
-            ),
-            _WorkAreaCard(
-              title: 'Documents',
-              subtitle: 'Review uploaded files',
-              icon: Icons.folder_copy_rounded,
-              value: 'Review',
-              label: 'queue',
-              onTap: () => context.go('/internal-workspace/documents'),
-            ),
-            _WorkAreaCard(
-              title: 'Payments',
-              subtitle: 'Receipt and dues control',
-              icon: Icons.payments_rounded,
-              value: '${summary.pendingPayments}',
-              label: 'pending',
-              onTap: () => context.go('/internal-workspace/payments'),
-            ),
-            _WorkAreaCard(
-              title: 'Leads',
-              subtitle: 'Inquiry follow-up',
-              icon: Icons.trending_up_rounded,
-              value: '${summary.openLeads}',
-              label: 'open',
-              onTap: () => context.go('/leads'),
-            ),
-            _WorkAreaCard(
-              title: 'Tasks',
-              subtitle: 'Team execution queue',
-              icon: Icons.task_alt_rounded,
-              value: '${summary.pendingTasks}',
-              label: 'pending',
-              onTap: () => context.go('/tasks'),
-            ),
-          ],
-        ),
+        _CompactWorkAreas(summary: summary),
         const SizedBox(height: 22),
         _ActivityPlaceholder(onOpenCases: () => context.go('/internal-workspace/service-cases')),
       ],
@@ -526,80 +469,171 @@ class _PriorityQueueFallback extends StatelessWidget {
   }
 }
 
-class _WorkAreaCard extends StatelessWidget {
-  const _WorkAreaCard({
+class _CompactWorkAreas extends StatelessWidget {
+  const _CompactWorkAreas({required this.summary});
+
+  final InternalWorkspaceSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        children: [
+          _CompactWorkAreaTile(
+            title: 'Service Requests',
+            subtitle: 'All customer service cases',
+            icon: Icons.assignment_turned_in_rounded,
+            metric: '${summary.activeCustomers} active',
+            onTap: () => context.go('/internal-workspace/service-cases'),
+          ),
+          const _WorkAreaDivider(),
+          _CompactWorkAreaTile(
+            title: 'Customers',
+            subtitle: 'Customer 360 center',
+            icon: Icons.groups_2_rounded,
+            metric: '${summary.activeCustomers} records',
+            onTap: () => context.go('/internal-workspace/customers'),
+          ),
+          const _WorkAreaDivider(),
+          _CompactWorkAreaTile(
+            title: 'Documents',
+            subtitle: 'Review uploaded files',
+            icon: Icons.folder_copy_rounded,
+            metric: 'Review queue',
+            onTap: () => context.go('/internal-workspace/documents'),
+          ),
+          const _WorkAreaDivider(),
+          _CompactWorkAreaTile(
+            title: 'Payments',
+            subtitle: 'Receipt and dues control',
+            icon: Icons.payments_rounded,
+            metric: '${summary.pendingPayments} pending',
+            onTap: () => context.go('/internal-workspace/payments'),
+          ),
+          const _WorkAreaDivider(),
+          _CompactWorkAreaTile(
+            title: 'Leads',
+            subtitle: 'Inquiry follow-up',
+            icon: Icons.trending_up_rounded,
+            metric: '${summary.openLeads} open',
+            onTap: () => context.go('/leads'),
+          ),
+          const _WorkAreaDivider(),
+          _CompactWorkAreaTile(
+            title: 'Tasks',
+            subtitle: 'Team execution queue',
+            icon: Icons.task_alt_rounded,
+            metric: '${summary.pendingTasks} pending',
+            onTap: () => context.go('/tasks'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactWorkAreaTile extends StatelessWidget {
+  const _CompactWorkAreaTile({
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.value,
-    required this.label,
+    required this.metric,
     required this.onTap,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
-  final String value;
-  final String label;
+  final String metric;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return PremiumCard(
-      padding: EdgeInsets.zero,
+
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
       child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: Row(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.09),
-                    borderRadius: BorderRadius.circular(15),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: theme.colorScheme.primary, size: 19),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                  child: Icon(icon, color: theme.colorScheme.primary, size: 21),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                metric,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w900,
                 ),
-                const Spacer(),
-                Icon(Icons.chevron_right_rounded, color: theme.colorScheme.onSurfaceVariant),
-              ],
-            ),
-            const Spacer(),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              subtitle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                height: 1.25,
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              '$value $label',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w900,
-              ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WorkAreaDivider extends StatelessWidget {
+  const _WorkAreaDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 64,
+      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
     );
   }
 }
