@@ -122,6 +122,25 @@ def _hydrate_service_case(service_case):
     service_case["submitted_on"] = _format_mobile_datetime(getattr(request, "submitted_on", None) or request.creation) or service_case.get("submitted_on") or ""
     service_case["updated_at"] = _format_mobile_date(request.modified) or service_case.get("updated_at") or ""
     service_case["expected_completion_date"] = str(getattr(request, "expected_completion_date", None) or service_case.get("expected_completion_date") or "")
+    customer_profile_name = getattr(request, "customer_profile", None) or ""
+    service_case["customer_profile"] = customer_profile_name
+    service_case["customer_name"] = getattr(request, "customer_name", None) or service_case.get("customer_name") or ""
+    service_case["contact_email"] = getattr(request, "contact_email", None) or service_case.get("contact_email") or ""
+    service_case["contact_phone"] = getattr(request, "contact_phone", None) or service_case.get("contact_phone") or ""
+    service_case["requested_by"] = getattr(request, "requested_by", None) or service_case.get("requested_by") or ""
+
+    if customer_profile_name and frappe.db.exists("OMC Customer Profile", customer_profile_name):
+        try:
+            profile = frappe.get_doc("OMC Customer Profile", customer_profile_name)
+            service_case["customer_name"] = service_case["customer_name"] or profile.full_name or ""
+            service_case["contact_email"] = service_case["contact_email"] or profile.email or ""
+            service_case["contact_phone"] = service_case["contact_phone"] or profile.phone or profile.get("whatsapp_no") or ""
+            service_case["ntn"] = profile.get("ntn") or ""
+            service_case["cnic"] = profile.get("cnic") or ""
+            service_case["company_name"] = profile.get("company_name") or ""
+            service_case["customer_type"] = profile.get("customer_type") or ""
+        except Exception:
+            pass
 
 
 def _apply_service_case_capabilities(service_case, can_access_internal_workspace=None):
