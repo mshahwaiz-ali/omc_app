@@ -2,22 +2,22 @@ import frappe
 
 
 CUSTOMER_ROLE = "OMC Customer"
+BUSINESS_PARTNER_ROLE = "OMC Business Partner"
+TAX_ASSOCIATE_ROLE = "OMC Tax Associate"
 ADMIN_ROLE = "OMC Admin"
 MANAGER_ROLE = "OMC Manager"
-SUPPORT_ROLE = "OMC Customer Support"
 SYSTEM_ROLE = "System Manager"
 
-ACTIVE_PORTAL_ROLES = {CUSTOMER_ROLE}
-ACTIVE_STAFF_ROLES = {ADMIN_ROLE, MANAGER_ROLE, SUPPORT_ROLE}
+ACTIVE_PORTAL_ROLES = {CUSTOMER_ROLE, BUSINESS_PARTNER_ROLE, TAX_ASSOCIATE_ROLE}
+ACTIVE_STAFF_ROLES = {ADMIN_ROLE, MANAGER_ROLE}
 
 LEGACY_CLIENT_ROLES = {"OMC Customer Applicant"}
 LEGACY_STAFF_ROLES = {
     "OMC Support Agent",
+    "OMC Customer Support",
     "OMC Document Reviewer",
     "OMC Finance Reviewer",
     "OMC Consultant",
-    "OMC Business Partner",
-    "OMC Tax Associate",
 }
 LEGACY_ROLES = LEGACY_CLIENT_ROLES | LEGACY_STAFF_ROLES
 
@@ -53,23 +53,6 @@ SETTINGS_KEYWORDS = {
     "Mobile Shortcut",
     "Mobile Banner",
 }
-
-SUPPORT_WRITE_DOCTYPES = {
-    "OMC Support Ticket",
-    "OMC Support Ticket Message",
-}
-
-SUPPORT_READ_KEYWORDS = {
-    "Customer Profile",
-    "Service Request",
-    "Service Document",
-    "Service Timeline",
-    "Support Ticket",
-    "Support Ticket Message",
-    "Service Payment",
-}
-
-PAYMENT_KEYWORDS = {"Payment"}
 
 
 def _role_has_field(fieldname):
@@ -138,15 +121,12 @@ def _normalize_existing_user_assignments():
         if roles.intersection(LEGACY_CLIENT_ROLES):
             _append_role(user_doc, CUSTOMER_ROLE)
 
-        if "OMC Support Agent" in roles:
-            _append_role(user_doc, SUPPORT_ROLE)
-
         user_doc.roles = [row for row in user_doc.roles if row.role not in LEGACY_ROLES]
 
         final_roles = {row.role for row in user_doc.roles}
         if final_roles.intersection(ACTIVE_STAFF_ROLES | {SYSTEM_ROLE}):
             user_doc.user_type = "System User"
-        elif CUSTOMER_ROLE in final_roles:
+        elif final_roles.intersection(ACTIVE_PORTAL_ROLES):
             user_doc.user_type = "Website User"
 
         user_doc.save(ignore_permissions=True)
@@ -238,23 +218,6 @@ def _manager_perm(is_submittable):
     return values
 
 
-def _support_perm(doctype):
-    values = _base_read()
-    if doctype in SUPPORT_WRITE_DOCTYPES:
-        values.update({"write": 1, "create": 1})
-    if any(keyword in doctype for keyword in PAYMENT_KEYWORDS):
-        values.update({"write": 0, "create": 0, "submit": 0, "cancel": 0, "amend": 0})
-    return values
-
-
-def _is_support_visible_doctype(doctype):
-    return any(keyword in doctype for keyword in SUPPORT_READ_KEYWORDS)
-
-
-def _is_settings_doctype(doctype):
-    return any(keyword in doctype for keyword in SETTINGS_KEYWORDS)
-
-
 def _omc_doctypes():
     rows = frappe.get_all(
         "DocType",
@@ -272,11 +235,8 @@ def _apply_permissions():
         _set_docperm(doctype, ADMIN_ROLE, _admin_perm(is_submittable))
         _set_docperm(doctype, MANAGER_ROLE, _manager_perm(is_submittable))
 
-        if _is_support_visible_doctype(doctype) and not _is_settings_doctype(doctype):
-            _set_docperm(doctype, SUPPORT_ROLE, _support_perm(doctype))
-
-    # Customer role is intentionally not given broad DocPerms here. Customer
-    # access remains API-owned and approval-state gated.
+    # Customer, Business Partner and Tax Associate are portal/customer-side
+    # roles. They do not receive broad Desk DocPerms; access stays API-owned.
 
 
 def _remove_legacy_docperms():
