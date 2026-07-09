@@ -1,0 +1,566 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../app/theme.dart';
+import '../../../core/network/api_error.dart';
+import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_empty_state.dart';
+import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
+import '../data/document_item.dart';
+import '../data/documents_repository.dart';
+
+enum _ReviewFilter {
+  needsReview('Needs Review', 'needs_review'),
+  rejected('Rejected', 'rejected'),
+  approved('Approved', 'approved'),
+  archived('Archived', 'archived'),
+  all('All', null);
+
+  const _ReviewFilter(this.label, this.queue);
+
+  final String label;
+  final String? queue;
+}
+
+class InternalDocumentReviewScreen extends ConsumerStatefulWidget {
+  const InternalDocumentReviewScreen({super.key});
+
+  @override
+  ConsumerState<InternalDocumentReviewScreen> createState() =>
+      _InternalDocumentReviewScreenState();
+}
+
+class _InternalDocumentReviewScreenState
+    extends ConsumerState<InternalDocumentReviewScreen> {
+  _ReviewFilter _selectedFilter = _ReviewFilter.needsReview;
+  late Future<List<DocumentItem>> _documentsFuture;
+  String? _busyDocumentId;
+
+  @override
+  void initState() {
+    super.initState();
+    _documentsFuture = _loadDocuments();
+  }
+
+  Future<List<DocumentItem>> _loadDocuments() {
+    final repository = ref.read(documentsRepositoryProvider);
+    return repository.fetchDocuments(queue: _selectedFilter.queue);
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _documentsFuture = _loadDocuments());
+    await _documentsFuture;
+  }
+
+  void _selectFilter(_ReviewFilter filter) {
+    if (_selectedFilter == filter) return;
+    setState(() {
+      _selectedFilter = filter;
+      _documentsFuture = _loadDocuments();
+    });
+  }
+
+  Future<void> _reviewDocument(
+    DocumentItem document,
+    String status, {
+    String? remarks,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busyDocumentId = document.id);
+
+    try {
+      await ref.read(documentsRepositoryProvider).updateServiceDocumentStatus(
+            documentId: document.id,
+            status: status,
+            remarks: remarks,
+          );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${document.title} marked as $status.')),
+      );
+      await _refresh();
+    } on ApiError catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Document review action failed. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busyDocumentId = null);
+    }
+  }
+
+  Future<void> _rejectWithRemarks(DocumentItem document) async {
+    final controller = TextEditingController(text: document.remarks ?? '');
+    final remarks = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject document'),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            labelText: 'Reason / reupload instruction',
+            hintText: 'Example: CNIC image is unclear. Please upload again.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (remarks == null) return;
+    await _reviewDocument(document, 'Rejected', remarks: remarks);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: FutureBuilder<List<DocumentItem>>(
+            future: _documentsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const _ReviewLoadingView();
+              }
+
+              if (snapshot.hasError) {
+                return PremiumEmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Review queue unavailable',
+                  message: _cleanError(snapshot.error!),
+                  actionLabel: 'Retry',
+                  onAction: _refresh,
+                );
+              }
+
+              final documents = snapshot.data ?? const <DocumentItem>[];
+              return _ReviewContent(
+                documents: documents,
+                selectedFilter: _selectedFilter,
+                busyDocumentId: _busyDocumentId,
+                onFilterSelected: _selectFilter,
+                onApprove: (document) => _reviewDocument(document, 'Approved'),
+                onReject: _rejectWithRemarks,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _cleanError(Object error) {
+  if (error is ApiError && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  return message.isEmpty
+      ? 'Could not load customer documents from the backend right now.'
+      : message;
+}
+
+class _ReviewContent extends StatelessWidget {
+  const _ReviewContent({
+    required this.documents,
+    required this.selectedFilter,
+    required this.busyDocumentId,
+    required this.onFilterSelected,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final List<DocumentItem> documents;
+  final _ReviewFilter selectedFilter;
+  final String? busyDocumentId;
+  final ValueChanged<_ReviewFilter> onFilterSelected;
+  final ValueChanged<DocumentItem> onApprove;
+  final ValueChanged<DocumentItem> onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final needsReview = documents.where((item) => item.isUnderReview).length;
+    final rejected = documents.where((item) => item.status == DocumentStatus.rejected).length;
+    final approved = documents.where((item) => item.status == DocumentStatus.approved).length;
+    final archived = documents.where((item) => item.isArchived).length;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
+      children: [
+        PremiumListHeader(
+          icon: Icons.fact_check_outlined,
+          title: 'Document Review Center',
+          subtitle:
+              'Internal queue for uploaded, rejected, approved and archived customer service documents.',
+          metaLabel: '${documents.length} shown',
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _MetricTile(
+                icon: Icons.hourglass_top_rounded,
+                label: 'Review',
+                value: needsReview.toString(),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _MetricTile(
+                icon: Icons.error_outline_rounded,
+                label: 'Rejected',
+                value: rejected.toString(),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _MetricTile(
+                icon: Icons.verified_rounded,
+                label: 'Approved',
+                value: approved.toString(),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _MetricTile(
+                icon: Icons.archive_rounded,
+                label: 'Archive',
+                value: archived.toString(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _ReviewFilterBar(
+          selectedFilter: selectedFilter,
+          onSelected: onFilterSelected,
+        ),
+        const SizedBox(height: 16),
+        if (documents.isEmpty)
+          PremiumEmptyState(
+            icon: Icons.task_alt_rounded,
+            title: 'No documents in this queue',
+            message: 'Switch filters or refresh when new customer uploads arrive.',
+          )
+        else
+          for (final document in documents) ...[
+            _ReviewDocumentCard(
+              document: document,
+              isBusy: busyDocumentId == document.id,
+              onApprove: () => onApprove(document),
+              onReject: () => onReject(document),
+            ),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+}
+
+class _ReviewFilterBar extends StatelessWidget {
+  const _ReviewFilterBar({
+    required this.selectedFilter,
+    required this.onSelected,
+  });
+
+  final _ReviewFilter selectedFilter;
+  final ValueChanged<_ReviewFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            for (final filter in _ReviewFilter.values) ...[
+              ChoiceChip(
+                label: Text(filter.label),
+                selected: selectedFilter == filter,
+                onSelected: (_) => onSelected(filter),
+                selectedColor: AppTheme.primaryRed.withValues(alpha: 0.12),
+                side: BorderSide(
+                  color: selectedFilter == filter
+                      ? AppTheme.primaryRed.withValues(alpha: 0.28)
+                      : Colors.black.withValues(alpha: 0.08),
+                ),
+                labelStyle: TextStyle(
+                  color: selectedFilter == filter
+                      ? AppTheme.primaryRed
+                      : AppTheme.textSecondary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewDocumentCard extends StatelessWidget {
+  const _ReviewDocumentCard({
+    required this.document,
+    required this.isBusy,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final DocumentItem document;
+  final bool isBusy;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final canReview = !document.isArchived &&
+        document.status != DocumentStatus.approved &&
+        !isBusy;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: () => context.push('/documents/${Uri.encodeComponent(document.id)}'),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: _statusColor(document).withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _statusColor(document).withValues(alpha: 0.10),
+                    ),
+                  ),
+                  child: Icon(
+                    document.isArchived
+                        ? Icons.archive_rounded
+                        : Icons.description_rounded,
+                    color: _statusColor(document),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        document.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          height: 1.25,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.1,
+                        ),
+                      ),
+                      if (document.subtitle != null) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                          document.subtitle!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                            height: 1.35,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                PremiumInfoChip(label: document.statusLabel, color: _statusColor(document)),
+                if (document.serviceStatus != null)
+                  PremiumInfoChip(label: document.serviceStatus!),
+                if (document.updatedAtLabel != null)
+                  PremiumInfoChip(label: 'Uploaded ${document.updatedAtLabel!}'),
+              ],
+            ),
+            if (document.remarks != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                document.remarks!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push(
+                      '/my-services/${Uri.encodeComponent(document.serviceReference ?? '')}',
+                    ),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                    label: const Text('Case'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: canReview ? onApprove : null,
+                    icon: isBusy
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check_rounded, size: 16),
+                    label: const Text('Approve'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: canReview ? onReject : null,
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    label: const Text('Reject'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(DocumentItem document) {
+    if (document.isArchived) return Colors.blueGrey.shade700;
+
+    switch (document.status) {
+      case DocumentStatus.approved:
+        return Colors.green.shade700;
+      case DocumentStatus.rejected:
+      case DocumentStatus.missing:
+        return Colors.red.shade700;
+      case DocumentStatus.pendingReview:
+        return Colors.orange.shade800;
+      case DocumentStatus.uploaded:
+        return AppTheme.primaryRed;
+    }
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.primaryRed, size: 20),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewLoadingView extends StatelessWidget {
+  const _ReviewLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
+      children: const [
+        PremiumListHeader(
+          icon: Icons.fact_check_outlined,
+          title: 'Document Review Center',
+          subtitle: 'Loading customer document queue from backend.',
+          metaLabel: 'Loading',
+        ),
+        SizedBox(height: 16),
+        PremiumCard(
+          padding: EdgeInsets.all(22),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ],
+    );
+  }
+}
