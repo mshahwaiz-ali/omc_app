@@ -137,38 +137,67 @@ class AuthCapabilities {
   factory AuthCapabilities.fromJson(Map<String, dynamic>? json) {
     if (json == null || json.isEmpty) return guest;
 
+    final accessState = _accessStateFromJson(json);
+    final isApprovedCustomer = accessState == AccountAccessState.approved;
+    final isInternal = accessState == AccountAccessState.internal;
+
     final canUploadPaymentReceipt = _boolValue(
       json['can_upload_payment_receipt'] ?? json['can_upload_payment_receipts'],
+      isApprovedCustomer,
     );
     final canViewCustomerDashboard = _boolValue(
       json['can_view_customer_dashboard'] ??
           json['can_access_customer_dashboard'],
+      isApprovedCustomer,
     );
 
     return AuthCapabilities(
-      accessState: _accessStateFromValue(json['access_state']),
+      accessState: accessState,
       canViewPublicCatalogue: _boolValue(
         json['can_view_public_catalogue'],
         true,
       ),
       canViewPublicContent: _boolValue(json['can_view_public_content'], true),
       canUseTaxCalculator: _boolValue(json['can_use_tax_calculator'], true),
-      canCreateServiceRequest: _boolValue(json['can_create_service_request']),
-      canUploadDocuments: _boolValue(json['can_upload_documents']),
-      canTrackRequests: _boolValue(json['can_track_requests']),
-      canViewDocuments: _boolValue(json['can_view_documents']),
-      canViewPayments: _boolValue(json['can_view_payments']),
+      canCreateServiceRequest: _boolValue(
+        json['can_create_service_request'],
+        isApprovedCustomer,
+      ),
+      canUploadDocuments: _boolValue(
+        json['can_upload_documents'],
+        isApprovedCustomer,
+      ),
+      canTrackRequests: _boolValue(
+        json['can_track_requests'],
+        isApprovedCustomer,
+      ),
+      canViewDocuments: _boolValue(
+        json['can_view_documents'],
+        isApprovedCustomer,
+      ),
+      canViewPayments: _boolValue(
+        json['can_view_payments'],
+        isApprovedCustomer,
+      ),
       canUploadPaymentReceipt: canUploadPaymentReceipt,
       canUploadPaymentReceipts: canUploadPaymentReceipt,
-      canCreateSupportTicket: _boolValue(json['can_create_support_ticket']),
-      canViewSupportTickets: _boolValue(json['can_view_support_tickets']),
+      canCreateSupportTicket: _boolValue(
+        json['can_create_support_ticket'],
+        isApprovedCustomer,
+      ),
+      canViewSupportTickets: _boolValue(
+        json['can_view_support_tickets'],
+        isApprovedCustomer,
+      ),
       canViewCustomerDashboard: canViewCustomerDashboard,
       canAccessCustomerDashboard: canViewCustomerDashboard,
       canViewCustomerNotifications: _boolValue(
         json['can_view_customer_notifications'],
+        isApprovedCustomer,
       ),
       canAccessInternalWorkspace: _boolValue(
         json['can_access_internal_workspace'],
+        isInternal,
       ),
       canUpdateServiceStatus: _boolValue(json['can_update_service_status']),
       canReviewDocuments: _boolValue(json['can_review_documents']),
@@ -183,8 +212,53 @@ class AuthCapabilities {
     );
   }
 
+  static AccountAccessState _accessStateFromJson(Map<String, dynamic> json) {
+    if (_boolValue(
+      json['can_access_internal_workspace'] ??
+          json['canAccessInternalWorkspace'] ??
+          json['is_internal'],
+    )) {
+      return AccountAccessState.internal;
+    }
+
+    final directState = _accessStateFromValue(
+      json['access_state'] ?? json['account_access_state'],
+    );
+    if (directState != AccountAccessState.guest) return directState;
+
+    if (_boolValue(json['is_approved_customer'] ?? json['is_approved'])) {
+      return AccountAccessState.approved;
+    }
+
+    final customerStatus = _textValue(
+      json['customer_status'] ?? json['status'],
+    );
+    final approvalStatus = _textValue(json['approval_status']);
+
+    if (customerStatus == 'rejected' || approvalStatus == 'rejected') {
+      return AccountAccessState.rejected;
+    }
+
+    if ((customerStatus == 'active' || customerStatus == 'approved') &&
+        (approvalStatus.isEmpty || approvalStatus == 'approved')) {
+      return AccountAccessState.approved;
+    }
+
+    if (approvalStatus == 'approved' && customerStatus.isEmpty) {
+      return AccountAccessState.approved;
+    }
+
+    const pendingValues = {'pending', 'pending_review', 'pending review', 'under review'};
+    if (pendingValues.contains(customerStatus) ||
+        pendingValues.contains(approvalStatus)) {
+      return AccountAccessState.pending;
+    }
+
+    return AccountAccessState.guest;
+  }
+
   static AccountAccessState _accessStateFromValue(dynamic value) {
-    final text = value?.toString().trim().toLowerCase() ?? '';
+    final text = _textValue(value);
     if (text == 'internal') return AccountAccessState.internal;
     if (text == 'approved' || text == 'active') {
       return AccountAccessState.approved;
@@ -211,6 +285,10 @@ class AuthCapabilities {
     }
 
     return fallback;
+  }
+
+  static String _textValue(dynamic value) {
+    return value?.toString().trim().toLowerCase() ?? '';
   }
 }
 
