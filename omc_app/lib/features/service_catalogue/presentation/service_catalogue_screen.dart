@@ -103,7 +103,9 @@ class _ServiceCatalogueScreenState
                 sliver: SliverToBoxAdapter(
                   child: _MyServicesShortcutCard(
                     onTap: () {
-                      if (capabilities.canViewCustomerDashboard ||
+                      if (capabilities.canTrackRequests ||
+                          capabilities.canViewCustomerDashboard ||
+                          capabilities.canAccessCustomerDashboard ||
                           capabilities.canAccessInternalWorkspace) {
                         context.go('/my-services');
                         return;

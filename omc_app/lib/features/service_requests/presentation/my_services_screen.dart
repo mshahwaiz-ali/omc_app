@@ -219,9 +219,11 @@ class _ServiceLoadingView extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.all(22),
-                  child: Row(
-                    children: [
-                      Container(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 260;
+
+                      final iconBox = Container(
                         width: 54,
                         height: 54,
                         decoration: BoxDecoration(
@@ -238,35 +240,52 @@ class _ServiceLoadingView extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2.4),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
+                      );
+
+                      final textColumn = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 20,
+                              height: 1.16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(
+                            message,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 13,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      );
+
+                      if (compact) {
+                        return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 20,
-                                height: 1.16,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              message,
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 13,
-                                height: 1.35,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            iconBox,
+                            const SizedBox(height: 14),
+                            textColumn,
                           ],
-                        ),
-                      ),
-                    ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          iconBox,
+                          const SizedBox(width: 16),
+                          Expanded(child: textColumn),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],

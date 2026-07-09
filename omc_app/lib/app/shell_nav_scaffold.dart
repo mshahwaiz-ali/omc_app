@@ -102,7 +102,9 @@ class ShellNavScaffold extends ConsumerWidget {
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {
-    return capabilities.canViewCustomerDashboard ||
+    return capabilities.canTrackRequests ||
+        capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessCustomerDashboard ||
         capabilities.canAccessInternalWorkspace;
   }
 

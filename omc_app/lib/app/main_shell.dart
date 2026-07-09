@@ -86,7 +86,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {
-    return capabilities.canViewCustomerDashboard ||
+    return capabilities.canTrackRequests ||
+        capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessCustomerDashboard ||
         capabilities.canAccessInternalWorkspace;
   }
 
