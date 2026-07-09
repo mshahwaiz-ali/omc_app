@@ -159,10 +159,9 @@ class AuthCapabilities {
       ),
       canViewPublicContent: _boolValue(json['can_view_public_content'], true),
       canUseTaxCalculator: _boolValue(json['can_use_tax_calculator'], true),
-      canCreateServiceRequest: _boolValue(
-        json['can_create_service_request'],
-        isApprovedCustomer,
-      ),
+      canCreateServiceRequest:
+          _boolValue(json['can_create_service_request'], isApprovedCustomer) ||
+              isInternal,
       canUploadDocuments: _boolValue(
         json['can_upload_documents'],
         isApprovedCustomer,
