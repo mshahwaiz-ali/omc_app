@@ -85,6 +85,8 @@ class ApiConfig {
       'omc_app.api.secured_mobile.get_service_case';
   static const String updateServiceCaseStatusMethod =
       'omc_app.api.secured_mobile.update_service_case_status';
+  static const String cancelServiceRequestMethod =
+      'omc_app.api.secured_mobile.cancel_service_request';
 
   static const String documentsMethod = 'omc_app.api.mobile.get_documents';
   static const String documentDetailMethod = 'omc_app.api.mobile.get_document';

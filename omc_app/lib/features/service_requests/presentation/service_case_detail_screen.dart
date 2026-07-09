@@ -28,6 +28,7 @@ class _ServiceCaseDetailScreenState
   bool _isUploadingDocument = false;
   bool _isUpdatingStatus = false;
   bool _isUpdatingDocumentStatus = false;
+  bool _isCancellingRequest = false;
 
   @override
   Widget build(BuildContext context) {
@@ -117,6 +118,10 @@ class _ServiceCaseDetailScreenState
                         isUploading: _isUploadingDocument,
                         onUploadMissingDocument: () =>
                             _showUploadDocumentSheet(serviceCase),
+                        isCancelling: _isCancellingRequest,
+                        onCancelRequest: serviceCase.canCancel
+                            ? () => _confirmCancelServiceRequest(serviceCase)
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       _SupportCard(serviceCase: serviceCase),
@@ -129,6 +134,62 @@ class _ServiceCaseDetailScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _confirmCancelServiceRequest(ServiceCase serviceCase) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel request?'),
+        content: const Text(
+          'This will cancel this service request. You can start a new request later if needed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Keep request'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Cancel request'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _cancelServiceRequest(serviceCase);
+    }
+  }
+
+  Future<void> _cancelServiceRequest(ServiceCase serviceCase) async {
+    if (_isCancellingRequest) return;
+
+    final caseId = _uploadDocnameFor(serviceCase);
+    if (caseId == null) {
+      _showSnack('Cancel cannot continue because this case is missing its service reference.');
+      return;
+    }
+
+    setState(() => _isCancellingRequest = true);
+
+    try {
+      final repository = ref.read(serviceCaseRepositoryProvider);
+      await repository.cancelServiceRequest(caseId: caseId);
+
+      if (!mounted) return;
+      ref.invalidate(serviceCaseDetailProvider(widget.caseId));
+      ref.invalidate(serviceCasesProvider);
+      _showSnack('Service request cancelled successfully.');
+    } on ApiError catch (error) {
+      if (!mounted) return;
+      _showSnack(error.message);
+    } catch (_) {
+      if (!mounted) return;
+      _showSnack('Service request could not be cancelled right now.');
+    } finally {
+      if (mounted) setState(() => _isCancellingRequest = false);
+    }
   }
 
   Future<void> _updateServiceCaseStatus(
@@ -1445,11 +1506,15 @@ class _CaseActionsCard extends StatelessWidget {
     required this.serviceCase,
     required this.isUploading,
     required this.onUploadMissingDocument,
+    required this.isCancelling,
+    required this.onCancelRequest,
   });
 
   final ServiceCase serviceCase;
   final bool isUploading;
   final VoidCallback onUploadMissingDocument;
+  final bool isCancelling;
+  final VoidCallback? onCancelRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -1567,6 +1632,21 @@ class _CaseActionsCard extends StatelessWidget {
                   'All currently required documents for this case appear submitted. OMC will share the next step shortly.',
             ),
             const SizedBox(height: 12),
+          ],
+          if (onCancelRequest != null) ...[
+            const SizedBox(height: 4),
+            OutlinedButton.icon(
+              onPressed: isCancelling ? null : onCancelRequest,
+              icon: isCancelling
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cancel_outlined),
+              label: Text(isCancelling ? 'Cancelling...' : 'Cancel request'),
+            ),
+            const SizedBox(height: 10),
           ],
           OutlinedButton.icon(
             onPressed: () => SupportLauncher.openWhatsApp(context),

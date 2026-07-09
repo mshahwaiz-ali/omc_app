@@ -150,6 +150,18 @@ class ServiceCaseRepository {
     );
   }
 
+  Future<Map<String, dynamic>> cancelServiceRequest({required String caseId}) async {
+    final cleanCaseId = caseId.trim();
+    if (cleanCaseId.isEmpty) {
+      throw const ApiError(message: 'Missing service case reference.');
+    }
+
+    return _frappeClient.postMethod(
+      ApiConfig.cancelServiceRequestMethod,
+      data: {'case_id': cleanCaseId},
+    );
+  }
+
   Future<ServiceCase?> updateServiceCaseStatus({
     required String caseId,
     required String status,
@@ -332,6 +344,7 @@ class ServiceCaseRepository {
       canUpdateStatus: _boolValue(json['can_update_status']),
       canReviewDocuments: _boolValue(json['can_review_documents']),
       canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
+      canCancel: _boolValue(json['can_cancel']),
     );
   }
 

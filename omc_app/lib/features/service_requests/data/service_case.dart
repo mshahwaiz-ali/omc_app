@@ -27,6 +27,7 @@ class ServiceCase {
     this.canUpdateStatus = false,
     this.canReviewDocuments = false,
     this.canViewInternalNotes = false,
+    this.canCancel = false,
   });
 
   final String id;
@@ -54,6 +55,7 @@ class ServiceCase {
   final bool canUpdateStatus;
   final bool canReviewDocuments;
   final bool canViewInternalNotes;
+  final bool canCancel;
 
   /// Backend values remain accepted, but the customer-facing percentage should
   /// be based on current records, not on timeline step count.

@@ -364,15 +364,24 @@ class TaxCta {
 }
 
 class StartTaxServiceResult {
-  const StartTaxServiceResult({required this.serviceRequest, required this.message});
+  const StartTaxServiceResult({
+    required this.serviceRequest,
+    required this.message,
+    this.createdNew = true,
+    this.canCancel = false,
+  });
 
   final String serviceRequest;
   final String message;
+  final bool createdNew;
+  final bool canCancel;
 
   factory StartTaxServiceResult.fromJson(Map<String, dynamic> json) {
     return StartTaxServiceResult(
       serviceRequest: _string(json['service_request']) ?? '',
       message: _string(json['message']) ?? 'Tax filing service request created successfully.',
+      createdNew: _bool(json['created_new'], fallback: true),
+      canCancel: _bool(json['can_cancel']),
     );
   }
 }
