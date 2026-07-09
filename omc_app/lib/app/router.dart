@@ -12,6 +12,7 @@ import '../features/customers/presentation/customers_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
 import '../features/expense_tracker/presentation/expense_tracker_screen.dart';
+import '../features/internal_workspace/presentation/internal_operations_center_screen.dart';
 import '../features/internal_workspace/presentation/internal_service_cases_screen.dart';
 import '../features/internal_workspace/presentation/internal_workspace_screen.dart';
 import '../features/knowledge/presentation/knowledge_detail_screen.dart';
@@ -194,6 +195,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/settings', name: 'settings', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const SettingsScreen())),
       GoRoute(path: '/internal-workspace', name: 'internal-workspace', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const InternalWorkspaceScreen())),
       GoRoute(path: '/internal-workspace/service-cases', name: 'internal-service-cases', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const InternalServiceCasesScreen())),
+      GoRoute(path: '/internal-workspace/customers', name: 'internal-customers', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const InternalOperationsCenterScreen(area: InternalOperationArea.customers))),
+      GoRoute(path: '/internal-workspace/documents', name: 'internal-documents', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const InternalOperationsCenterScreen(area: InternalOperationArea.documents))),
+      GoRoute(path: '/internal-workspace/payments', name: 'internal-payments', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const InternalOperationsCenterScreen(area: InternalOperationArea.payments))),
+      GoRoute(
+        path: '/internal-workspace/service-cases/:caseId',
+        name: 'internal-service-case-workspace',
+        builder: (context, state) {
+          final caseId = Uri.decodeComponent(state.pathParameters['caseId'] ?? '');
+          return _withShell(ShellNavScaffold.moreIndex, InternalServiceCaseWorkspaceScreen(caseId: caseId));
+        },
+      ),
     ],
   );
 });
