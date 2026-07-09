@@ -49,7 +49,7 @@ class ApiConfig {
       'omc_app.api.mobile.google_mobile_login';
   static const String signUpMethod = 'omc_app.api.mobile.sign_up';
   static const String getSessionUserMethod =
-      'omc_app.api.mobile.get_session_user';
+      'omc_app.api.access_v2.get_session_user';
   static const String createGuestSessionMethod =
       'omc_app.api.guest_session.create_guest_session';
   static const String updateGuestActivityMethod =
