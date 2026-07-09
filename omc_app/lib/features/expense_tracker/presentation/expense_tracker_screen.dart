@@ -66,7 +66,7 @@ class ExpenseTransactionsController extends AsyncNotifier<List<ExpenseTransactio
     await _repository.saveTransactions(next);
   }
 
-  Future<void> update(ExpenseTransaction transaction, {required bool sync}) async {
+  Future<void> updateTransaction(ExpenseTransaction transaction, {required bool sync}) async {
     final current = state.value ?? const <ExpenseTransaction>[];
     var nextTransaction = transaction;
 
@@ -293,7 +293,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
           if (transaction == null) {
             controller.add(next, sync: sync);
           } else {
-            controller.update(next, sync: sync);
+            controller.updateTransaction(next, sync: sync);
           }
         },
       ),
