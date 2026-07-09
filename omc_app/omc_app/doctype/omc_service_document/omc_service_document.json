@@ -8,13 +8,22 @@
  "field_order": [
   "naming_series",
   "service_request",
+  "customer_profile",
   "document_title",
   "document_type",
   "attachment",
   "status",
+  "source",
   "uploaded_by",
   "uploaded_on",
   "visible_to_customer",
+  "is_archived",
+  "archived_on",
+  "archive_reason",
+  "review_section",
+  "reviewed_by",
+  "reviewed_on",
+  "review_remarks",
   "remarks"
  ],
  "fields": [
@@ -33,6 +42,17 @@
    "label": "Service Request",
    "options": "OMC Service Request",
    "reqd": 1
+  },
+  {
+   "fieldname": "customer_profile",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer Profile",
+   "options": "OMC Customer Profile",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "bold": 1,
@@ -71,6 +91,15 @@
    "search_index": 1
   },
   {
+   "default": "Service Upload",
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_standard_filter": 1,
+   "label": "Source",
+   "options": "Service Upload\nManual Upload\nAdmin Upload\nExisting Document"
+  },
+  {
    "fieldname": "uploaded_by",
    "fieldtype": "Link",
    "label": "Uploaded By",
@@ -94,6 +123,55 @@
    "search_index": 1
   },
   {
+   "default": "0",
+   "fieldname": "is_archived",
+   "fieldtype": "Check",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Archived",
+   "search_index": 1
+  },
+  {
+   "fieldname": "archived_on",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Archived On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "archive_reason",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_standard_filter": 1,
+   "label": "Archive Reason",
+   "options": "\nService Completed\nService Cancelled\nReplaced\nManual Archive"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "review_section",
+   "fieldtype": "Section Break",
+   "label": "Review"
+  },
+  {
+   "fieldname": "reviewed_by",
+   "fieldtype": "Link",
+   "label": "Reviewed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reviewed_on",
+   "fieldtype": "Datetime",
+   "label": "Reviewed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "review_remarks",
+   "fieldtype": "Small Text",
+   "label": "Review Remarks"
+  },
+  {
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
@@ -101,7 +179,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-09 02:48:10.682457",
+ "modified": "2026-07-09 19:30:00.000000",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Service Document",
@@ -122,7 +200,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "document_title,document_type,service_request,status",
+ "search_fields": "document_title,document_type,service_request,status,customer_profile",
  "sort_field": "uploaded_on",
  "sort_order": "DESC",
  "states": [],
