@@ -92,9 +92,9 @@ class _ServiceCaseDetailScreenState
                           onStatusSelected: _isUpdatingStatus
                               ? null
                               : (status) => _updateServiceCaseStatus(
-                                    serviceCase,
-                                    status,
-                                  ),
+                                  serviceCase,
+                                  status,
+                                ),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -103,14 +103,14 @@ class _ServiceCaseDetailScreenState
                         isUpdatingDocumentStatus: _isUpdatingDocumentStatus,
                         onUpdateDocumentStatus:
                             serviceCase.canReviewDocuments &&
-                                    !_isUpdatingDocumentStatus
-                                ? (document, status) =>
-                                    _updateServiceDocumentStatus(
-                                      serviceCase,
-                                      document,
-                                      status,
-                                    )
-                                : null,
+                                !_isUpdatingDocumentStatus
+                            ? (document, status) =>
+                                  _updateServiceDocumentStatus(
+                                    serviceCase,
+                                    document,
+                                    status,
+                                  )
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       _CaseActionsCard(
@@ -167,7 +167,9 @@ class _ServiceCaseDetailScreenState
 
     final caseId = _uploadDocnameFor(serviceCase);
     if (caseId == null) {
-      _showSnack('Cancel cannot continue because this case is missing its service reference.');
+      _showSnack(
+        'Cancel cannot continue because this case is missing its service reference.',
+      );
       return;
     }
 
@@ -376,9 +378,9 @@ class _ServiceCaseDetailScreenState
 
   void _showSnack(String message) {
     if (!mounted || message.trim().isEmpty) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message.trim())),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message.trim())));
   }
 }
 
@@ -394,7 +396,8 @@ class _DocumentUploadSheet extends StatefulWidget {
   final Future<void> Function(
     ServiceCaseDocument document,
     DocumentAttachment attachment,
-  ) onUpload;
+  )
+  onUpload;
 
   @override
   State<_DocumentUploadSheet> createState() => _DocumentUploadSheetState();
@@ -463,7 +466,9 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
               const SizedBox(height: 16),
               DropdownButtonFormField<ServiceCaseDocument>(
                 initialValue: _selectedDocument,
-                decoration: const InputDecoration(labelText: 'Required document'),
+                decoration: const InputDecoration(
+                  labelText: 'Required document',
+                ),
                 items: widget.documents
                     .map(
                       (document) => DropdownMenuItem(
@@ -813,9 +818,11 @@ class _QuickStatusGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
-    final progressPercent = serviceCase.progressPercent ?? (progress * 100).round();
+    final progressPercent =
+        serviceCase.progressPercent ?? (progress * 100).round();
     final missingDocumentsCount =
-        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
 
     return Row(
       children: [
@@ -1043,7 +1050,8 @@ class _ActionRequiredCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final missingDocumentsCount =
-        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
 
     return PremiumCard(
       child: Row(
@@ -1079,7 +1087,7 @@ class _ActionRequiredCard extends StatelessWidget {
                   missingDocumentsCount > 0
                       ? '$missingDocumentsCount document(s) are needed to continue this service request.'
                       : serviceCase.nextStep ??
-                          'OMC needs an update from you to continue this request.',
+                            'OMC needs an update from you to continue this request.',
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
@@ -1245,7 +1253,7 @@ class _RequiredDocumentsCard extends StatelessWidget {
   final ServiceCase serviceCase;
   final bool isUpdatingDocumentStatus;
   final void Function(ServiceCaseDocument document, String status)?
-      onUpdateDocumentStatus;
+  onUpdateDocumentStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -1301,7 +1309,9 @@ class _RequiredDocumentsCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: _DocumentRequirementRow(
                   label: document,
-                  isSubmitted: serviceCase.submittedDocuments.contains(document),
+                  isSubmitted: serviceCase.submittedDocuments.contains(
+                    document,
+                  ),
                   isMissing: serviceCase.missingDocuments.contains(document),
                 ),
               ),
@@ -1367,10 +1377,10 @@ class _DocumentRequirementRow extends StatelessWidget {
     final statusLabel = normalizedStatus != null && normalizedStatus.isNotEmpty
         ? normalizedStatus
         : isSubmitted
-            ? 'Submitted'
-            : isMissing
-                ? 'Missing'
-                : 'Required';
+        ? 'Submitted'
+        : isMissing
+        ? 'Missing'
+        : 'Required';
     final hasFile = fileUrl != null && fileUrl!.trim().isNotEmpty;
     final cleanRemarks = remarks?.trim();
     final hasRemarks = cleanRemarks != null && cleanRemarks.isNotEmpty;
@@ -1384,11 +1394,12 @@ class _DocumentRequirementRow extends StatelessWidget {
       'pending' => Icons.hourglass_empty_rounded,
       'missing' => Icons.error_outline_rounded,
       'required' => Icons.description_outlined,
-      _ => isSubmitted
-          ? Icons.check_circle_rounded
-          : isMissing
-              ? Icons.error_outline_rounded
-              : Icons.description_outlined,
+      _ =>
+        isSubmitted
+            ? Icons.check_circle_rounded
+            : isMissing
+            ? Icons.error_outline_rounded
+            : Icons.description_outlined,
     };
 
     final statusColor = switch (statusKey) {
@@ -1398,11 +1409,12 @@ class _DocumentRequirementRow extends StatelessWidget {
       'pending' => AppTheme.textSecondary,
       'missing' => const Color(0xFFB25E00),
       'required' => AppTheme.textSecondary,
-      _ => isSubmitted
-          ? const Color(0xFF18864B)
-          : isMissing
-              ? const Color(0xFFB25E00)
-              : AppTheme.textSecondary,
+      _ =>
+        isSubmitted
+            ? const Color(0xFF18864B)
+            : isMissing
+            ? const Color(0xFFB25E00)
+            : AppTheme.textSecondary,
     };
 
     return Container(
@@ -1519,11 +1531,15 @@ class _CaseActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final missingDocumentsCount =
-        serviceCase.missingDocumentsCount ?? serviceCase.missingDocuments.length;
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
     final documents = serviceCase.documentDetails;
-    final hasMissingDocuments = missingDocumentsCount > 0 ||
+    final hasMissingDocuments =
+        missingDocumentsCount > 0 ||
         serviceCase.missingDocuments.isNotEmpty ||
-        documents.any((document) => document.isMissing || !document.isSubmitted);
+        documents.any(
+          (document) => document.isMissing || !document.isSubmitted,
+        );
     final hasRejectedDocuments = documents.any((document) {
       final status = document.status.trim().toLowerCase();
       return status.contains('reject');
@@ -1535,7 +1551,8 @@ class _CaseActionsCard extends StatelessWidget {
           !status.contains('verified') &&
           !status.contains('reject');
     });
-    final allDocumentsApproved = documents.isNotEmpty &&
+    final allDocumentsApproved =
+        documents.isNotEmpty &&
         !hasMissingDocuments &&
         !hasRejectedDocuments &&
         documents.every((document) {
@@ -1599,7 +1616,9 @@ class _CaseActionsCard extends StatelessWidget {
                       ),
                     )
                   : const Icon(Icons.upload_file_rounded),
-              label: Text(isUploading ? 'Uploading...' : 'Upload corrected documents'),
+              label: Text(
+                isUploading ? 'Uploading...' : 'Upload corrected documents',
+              ),
             ),
             const SizedBox(height: 10),
           ] else if (allDocumentsApproved) ...[
