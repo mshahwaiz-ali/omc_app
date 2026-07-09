@@ -67,7 +67,7 @@ class _DetailLoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 150),
       children: [
         PremiumCard(
           padding: EdgeInsets.zero,
@@ -651,7 +651,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     final capabilities = ref.watch(authControllerProvider).capabilities;
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 180),
       children: [
         _PaymentHeroCard(payment: payment),
         const SizedBox(height: 16),

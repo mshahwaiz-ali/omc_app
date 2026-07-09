@@ -26,6 +26,10 @@ class PaymentActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final canContactSupport = payment.requiresAction && payment.paymentUrl != null;
     final canOpenReceipt = payment.receiptUrl != null;
+    final canUploadReceipt =
+        payment.status != PaymentStatus.paid &&
+        payment.status != PaymentStatus.cancelled &&
+        onUploadReceipt != null;
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
@@ -68,32 +72,32 @@ class PaymentActionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          _ActionTile(
-            icon: Icons.chat_rounded,
-            title: 'Contact OMC on WhatsApp',
-            subtitle: payment.status == PaymentStatus.paid
-                ? 'Payment is already confirmed.'
-                : canContactSupport
-                ? 'Get account details and confirm this payment with OMC.'
-                : 'Payment support number is not configured yet.',
-            enabled: canContactSupport,
-            onTap: onPayNow,
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: isUploadingReceipt
-                ? Icons.hourglass_top_rounded
-                : Icons.upload_file_rounded,
-            title: isUploadingReceipt ? 'Uploading receipt' : 'Upload receipt',
-            subtitle: isUploadingReceipt
-                ? 'Please wait while the receipt is uploaded.'
-                : payment.status == PaymentStatus.rejected
-                ? 'Upload corrected proof for finance review.'
-                : 'Attach payment proof for verification.',
-            enabled: !isUploadingReceipt && onUploadReceipt != null,
-            onTap: onUploadReceipt,
-          ),
-          const SizedBox(height: 10),
+          if (canContactSupport) ...[
+            _ActionTile(
+              icon: Icons.chat_rounded,
+              title: 'Contact OMC on WhatsApp',
+              subtitle: 'Get account details and confirm this payment with OMC.',
+              enabled: true,
+              onTap: onPayNow,
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (canUploadReceipt || isUploadingReceipt) ...[
+            _ActionTile(
+              icon: isUploadingReceipt
+                  ? Icons.hourglass_top_rounded
+                  : Icons.upload_file_rounded,
+              title: isUploadingReceipt ? 'Uploading receipt' : 'Upload receipt',
+              subtitle: isUploadingReceipt
+                  ? 'Please wait while the receipt is uploaded.'
+                  : payment.status == PaymentStatus.rejected
+                  ? 'Upload corrected proof for finance review.'
+                  : 'Attach payment proof for verification.',
+              enabled: !isUploadingReceipt && canUploadReceipt,
+              onTap: canUploadReceipt ? onUploadReceipt : null,
+            ),
+            const SizedBox(height: 10),
+          ],
           _ActionTile(
             icon: Icons.verified_outlined,
             title: 'Download receipt',

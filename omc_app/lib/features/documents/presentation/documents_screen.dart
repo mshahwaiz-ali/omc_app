@@ -114,27 +114,82 @@ String _documentsErrorMessage(Object error) {
   return 'Document records are unavailable right now. Please try again.';
 }
 
-class _DocumentsList extends StatelessWidget {
+enum _DocumentFilter {
+  all('All'),
+  missing('Missing'),
+  review('Review'),
+  approved('Approved');
+
+  const _DocumentFilter(this.label);
+
+  final String label;
+}
+
+class _DocumentsList extends StatefulWidget {
   const _DocumentsList({required this.documents});
 
   final List<DocumentItem> documents;
 
   @override
+  State<_DocumentsList> createState() => _DocumentsListState();
+}
+
+class _DocumentsListState extends State<_DocumentsList> {
+  _DocumentFilter _selectedFilter = _DocumentFilter.all;
+
+  @override
   Widget build(BuildContext context) {
-    final sections = _documentSections(documents);
+    final filteredDocuments = _filteredDocuments(widget.documents);
+    final sections = _documentSections(filteredDocuments);
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
-        _DocumentsHeader(documents: documents),
+        _DocumentsHeader(documents: widget.documents),
         const SizedBox(height: 12),
-        for (final section in sections) ...[
-          _DocumentSection(section: section),
-          if (section != sections.last) const SizedBox(height: 16),
-        ],
+        _DocumentFilterBar(
+          documents: widget.documents,
+          selectedFilter: _selectedFilter,
+          onSelected: (filter) => setState(() => _selectedFilter = filter),
+        ),
+        const SizedBox(height: 16),
+        if (filteredDocuments.isEmpty)
+          _DocumentsFilteredEmptyState(filter: _selectedFilter)
+        else
+          for (final section in sections) ...[
+            _DocumentSection(section: section),
+            if (section != sections.last) const SizedBox(height: 16),
+          ],
       ],
     );
+  }
+
+  List<DocumentItem> _filteredDocuments(List<DocumentItem> documents) {
+    switch (_selectedFilter) {
+      case _DocumentFilter.all:
+        return documents;
+      case _DocumentFilter.missing:
+        return documents
+            .where(
+              (item) =>
+                  item.status == DocumentStatus.missing ||
+                  item.status == DocumentStatus.rejected,
+            )
+            .toList(growable: false);
+      case _DocumentFilter.review:
+        return documents
+            .where(
+              (item) =>
+                  item.status == DocumentStatus.uploaded ||
+                  item.status == DocumentStatus.pendingReview,
+            )
+            .toList(growable: false);
+      case _DocumentFilter.approved:
+        return documents
+            .where((item) => item.status == DocumentStatus.approved)
+            .toList(growable: false);
+    }
   }
 
   List<_DocumentSectionData> _documentSections(List<DocumentItem> documents) {
@@ -179,6 +234,169 @@ class _DocumentsList extends StatelessWidget {
           documents: approved,
         ),
     ];
+  }
+}
+
+class _DocumentFilterBar extends StatelessWidget {
+  const _DocumentFilterBar({
+    required this.documents,
+    required this.selectedFilter,
+    required this.onSelected,
+  });
+
+  final List<DocumentItem> documents;
+  final _DocumentFilter selectedFilter;
+  final ValueChanged<_DocumentFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Filter documents',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                '${_countFor(selectedFilter)} shown',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: [
+                for (final filter in _DocumentFilter.values) ...[
+                  _DocumentFilterChip(
+                    label: filter.label,
+                    count: _countFor(filter),
+                    selected: selectedFilter == filter,
+                    onTap: () => onSelected(filter),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _countFor(_DocumentFilter filter) {
+    switch (filter) {
+      case _DocumentFilter.all:
+        return documents.length;
+      case _DocumentFilter.missing:
+        return documents
+            .where(
+              (item) =>
+                  item.status == DocumentStatus.missing ||
+                  item.status == DocumentStatus.rejected,
+            )
+            .length;
+      case _DocumentFilter.review:
+        return documents
+            .where(
+              (item) =>
+                  item.status == DocumentStatus.uploaded ||
+                  item.status == DocumentStatus.pendingReview,
+            )
+            .length;
+      case _DocumentFilter.approved:
+        return documents
+            .where((item) => item.status == DocumentStatus.approved)
+            .length;
+    }
+  }
+}
+
+class _DocumentFilterChip extends StatelessWidget {
+  const _DocumentFilterChip({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text('$label $count'),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: AppTheme.primaryRed.withValues(alpha: 0.12),
+      side: BorderSide(
+        color: selected
+            ? AppTheme.primaryRed.withValues(alpha: 0.28)
+            : Colors.black.withValues(alpha: 0.08),
+      ),
+      labelStyle: TextStyle(
+        color: selected ? AppTheme.primaryRed : AppTheme.textSecondary,
+        fontWeight: FontWeight.w900,
+        fontSize: 12,
+      ),
+    );
+  }
+}
+
+class _DocumentsFilteredEmptyState extends StatelessWidget {
+  const _DocumentsFilteredEmptyState({required this.filter});
+
+  final _DocumentFilter filter;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          Icon(Icons.filter_alt_off_rounded, color: AppTheme.primaryRed, size: 34),
+          const SizedBox(height: 10),
+          Text(
+            'No ${filter.label.toLowerCase()} documents',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Try another document filter.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
