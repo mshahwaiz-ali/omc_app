@@ -10,7 +10,7 @@ import 'document_item.dart';
 final documentsRepositoryProvider = Provider<DocumentsRepository>((ref) {
   final frappeClient = ref.watch(frappeClientProvider);
 
-  return DocumentsRepository(frappeClient: frappeClient);
+  return DocumentsRepository(frappeClient);
 });
 
 final documentsProvider = FutureProvider<List<DocumentItem>>((ref) async {
@@ -28,8 +28,7 @@ final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
 });
 
 class DocumentsRepository {
-  const DocumentsRepository({required FrappeClient frappeClient})
-    : _frappeClient = frappeClient;
+  const DocumentsRepository(this._frappeClient);
 
   final FrappeClient _frappeClient;
 
