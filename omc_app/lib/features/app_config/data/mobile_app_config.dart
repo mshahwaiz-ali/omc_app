@@ -70,7 +70,7 @@ class MobileFeatureConfig {
     this.knowledgeEnabled = true,
     this.paymentsEnabled = true,
     this.paymentGatewayEnabled = false,
-    this.taxCalculatorEnabled = false,
+    this.taxCalculatorEnabled = true,
     this.supportEnabled = true,
     this.subscriptionsEnabled = false,
     this.internalWorkspaceEnabled = true,
@@ -93,7 +93,7 @@ class MobileFeatureConfig {
       knowledgeEnabled: _boolValue(json['knowledge_enabled'], true),
       paymentsEnabled: _boolValue(json['payments_enabled'], true),
       paymentGatewayEnabled: _boolValue(json['payment_gateway_enabled'], false),
-      taxCalculatorEnabled: false,
+      taxCalculatorEnabled: _boolValue(json['tax_calculator_enabled'], true),
       supportEnabled: _boolValue(json['support_enabled'], true),
       subscriptionsEnabled: _boolValue(json['subscriptions_enabled'], false),
       internalWorkspaceEnabled: _boolValue(
