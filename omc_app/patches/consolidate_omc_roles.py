@@ -4,20 +4,21 @@ import frappe
 ACTIVE_STAFF_ROLES = {
     "OMC Admin",
     "OMC Manager",
-    "OMC Support Agent",
 }
 
 ACTIVE_PORTAL_ROLES = {
     "OMC Customer",
-    "OMC Customer Applicant",
+    "OMC Business Partner",
+    "OMC Tax Associate",
 }
 
 OBSOLETE_ROLES = {
+    "OMC Customer Applicant",
+    "OMC Support Agent",
+    "OMC Customer Support",
     "OMC Document Reviewer",
     "OMC Finance Reviewer",
     "OMC Consultant",
-    "OMC Business Partner",
-    "OMC Tax Associate",
 }
 
 
