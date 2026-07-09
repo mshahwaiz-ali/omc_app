@@ -695,7 +695,6 @@ class _ProfileAvatar extends StatelessWidget {
     final cleanAvatarUrl = avatarUrl?.trim();
     final hasImage = cleanAvatarUrl != null && cleanAvatarUrl.isNotEmpty;
     final imageUrl = hasImage ? _absoluteProfileImageUrl(cleanAvatarUrl) : null;
-
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -729,6 +728,7 @@ class _ProfileAvatar extends StatelessWidget {
                   width: 86,
                   height: 86,
                   fit: BoxFit.cover,
+                  webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                   errorBuilder: (context, error, stackTrace) => Text(
                     initials,
                     style: const TextStyle(
