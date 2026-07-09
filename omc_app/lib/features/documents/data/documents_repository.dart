@@ -283,6 +283,13 @@ class DocumentsRepository {
       serviceReference: serviceReference,
       serviceTitle: serviceTitle,
       serviceStatus: _nullableString(json['service_status']),
+      customerProfile: _nullableString(json['customer_profile']),
+      customerName: _nullableString(json['customer_name'] ?? json['full_name']),
+      customerEmail: _nullableString(json['contact_email'] ?? json['email']),
+      customerPhone: _nullableString(json['contact_phone'] ?? json['phone']),
+      customerNtn: _nullableString(json['ntn'] ?? json['customer_ntn']),
+      customerCnic: _nullableString(json['cnic'] ?? json['customer_cnic']),
+      companyName: _nullableString(json['company_name']),
       source: _nullableString(json['source']),
       remarks: _nullableString(
         json['review_remarks'] ?? json['remarks'] ?? json['notes'],
