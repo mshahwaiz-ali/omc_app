@@ -267,6 +267,9 @@ class _ProfileContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initials = _initials(profile.displayName);
+    final isInternal = profile.canAccessInternalWorkspace || profile.capabilities.isInternal;
+    final typeLabel = isInternal ? (profile.customerType ?? 'Internal') : (profile.customerType ?? 'OMC Customer');
+    final approvalLabel = isInternal ? 'Internal' : (profile.approvalStatus ?? 'Synced');
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -276,16 +279,18 @@ class _ProfileContent extends StatelessWidget {
           initials: initials,
           displayName: profile.displayName,
           email: profile.email,
-          status: profile.status,
-          customerType: profile.customerType ?? 'OMC Customer',
-          approvalStatus: profile.approvalStatus ?? 'Synced',
+          status: isInternal ? 'Active' : profile.status,
+          customerType: typeLabel,
+          approvalStatus: approvalLabel,
           avatarUrl: profile.avatarUrl,
           onChangePhoto: () => _changeProfilePhoto(context, ref),
         ),
         const SizedBox(height: 20),
         _ProfileSection(
-          title: 'Account details',
-          subtitle: 'Customer identity and tax information from your account.',
+          title: isInternal ? 'Internal account details' : 'Account details',
+          subtitle: isInternal
+              ? 'OMC staff identity and internal access from your backend account.'
+              : 'Customer identity and tax information from your account.',
           children: [
             _ProfileTile(
               icon: Icons.email_outlined,
@@ -300,59 +305,92 @@ class _ProfileContent extends StatelessWidget {
             ),
             const _DividerIndent(),
             _ProfileTile(
-              icon: Icons.badge_outlined,
-              label: 'CNIC / Tax ID',
-              value: profile.cnic ?? 'Not available',
+              icon: isInternal ? Icons.admin_panel_settings_outlined : Icons.workspace_premium_outlined,
+              label: isInternal ? 'Internal role' : 'Customer type',
+              value: typeLabel,
             ),
-            const _DividerIndent(),
-            _ProfileTile(
-              icon: Icons.workspace_premium_outlined,
-              label: 'Customer type',
-              value: profile.customerType ?? 'OMC Customer',
-            ),
-            const _DividerIndent(),
-            _ProfileTile(
-              icon: Icons.business_outlined,
-              label: 'Company',
-              value: profile.companyName ?? 'Not available',
-            ),
-            const _DividerIndent(),
-            _ProfileTile(
-              icon: Icons.confirmation_number_outlined,
-              label: 'NTN',
-              value: profile.ntn ?? 'Not available',
-            ),
-            if (profile.approvalStatus != null) ...[
+            if (!isInternal) ...[
               const _DividerIndent(),
               _ProfileTile(
-                icon: Icons.verified_user_outlined,
-                label: 'Approval',
-                value: profile.approvalStatus!,
+                icon: Icons.badge_outlined,
+                label: 'CNIC / Tax ID',
+                value: profile.cnic ?? 'Not available',
+              ),
+              const _DividerIndent(),
+              _ProfileTile(
+                icon: Icons.business_outlined,
+                label: 'Company',
+                value: profile.companyName ?? 'Not available',
+              ),
+              const _DividerIndent(),
+              _ProfileTile(
+                icon: Icons.confirmation_number_outlined,
+                label: 'NTN',
+                value: profile.ntn ?? 'Not available',
               ),
             ],
+            const _DividerIndent(),
+            _ProfileTile(
+              icon: Icons.verified_user_outlined,
+              label: isInternal ? 'Access scope' : 'Approval',
+              value: approvalLabel,
+            ),
           ],
         ),
         const SizedBox(height: 20),
-        ProfileActionCard(
-          onEditProfile: () => _submitProfileUpdateRequest(context, ref),
-          onUpdateContact: () => _submitContactUpdateRequest(context, ref),
-          onContactSupport: () => _showProfileRequestSheet(
-            context,
-            ref,
-            title: 'Contact OMC support',
-            topic: 'Profile / account support',
-            label: 'How can OMC help?',
-            hint: 'Example: I need help with my profile, login, or account.',
-            submitLabel: 'Submit support request',
+        if (!isInternal)
+          ProfileActionCard(
+            onEditProfile: () => _submitProfileUpdateRequest(context, ref),
+            onUpdateContact: () => _submitContactUpdateRequest(context, ref),
+            onContactSupport: () => _showProfileRequestSheet(
+              context,
+              ref,
+              title: 'Contact OMC support',
+              topic: 'Profile / account support',
+              label: 'How can OMC help?',
+              hint: 'Example: I need help with my profile, login, or account.',
+              submitLabel: 'Submit support request',
+            ),
+            onRefresh: () async {
+              ref.invalidate(profileSummaryProvider);
+              _showBackendPendingSnack(context, 'Refreshing profile data...');
+              await ref.read(profileSummaryProvider.future);
+              if (!context.mounted) return;
+              _showBackendPendingSnack(context, 'Profile data refreshed.');
+            },
+          )
+        else
+          PremiumCard(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.admin_panel_settings_rounded,
+                    color: AppTheme.primaryRed,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Text(
+                    'This is an internal OMC account. Customer profile actions are hidden for staff users.',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          onRefresh: () async {
-            ref.invalidate(profileSummaryProvider);
-            _showBackendPendingSnack(context, 'Refreshing profile data...');
-            await ref.read(profileSummaryProvider.future);
-            if (!context.mounted) return;
-            _showBackendPendingSnack(context, 'Profile data refreshed.');
-          },
-        ),
         const SizedBox(height: 20),
         const _ProfileFootnote(),
       ],
@@ -370,7 +408,6 @@ class _ProfileContent extends StatelessWidget {
       );
 
       if (image == null) return;
-
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Uploading profile photo...')),
@@ -678,7 +715,6 @@ class _ProfileHeroCard extends StatelessWidget {
   }
 }
 
-
 class _ProfileStatusChip extends StatelessWidget {
   const _ProfileStatusChip({required this.label});
 
@@ -757,6 +793,18 @@ _ProfileChipStyle _profileChipStyle(String rawLabel) {
     );
   }
 
+  if (label.contains('admin') ||
+      label.contains('manager') ||
+      label.contains('support') ||
+      label.contains('internal') ||
+      label.contains('staff')) {
+    return const _ProfileChipStyle(
+      foreground: Color(0xFF53389E),
+      background: Color(0xFFF4F0FF),
+      border: Color(0xFFD8CCFF),
+    );
+  }
+
   if (label.contains('approved') ||
       label.contains('active') ||
       label.contains('verified') ||
@@ -804,7 +852,6 @@ _ProfileChipStyle _profileChipStyle(String rawLabel) {
     border: Color(0xFFE2E8F0),
   );
 }
-
 
 class _ProfileAvatar extends StatelessWidget {
   const _ProfileAvatar({
@@ -898,62 +945,72 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 String _absoluteProfileImageUrl(String value) {
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  final cleanValue = value.trim();
+  if (cleanValue.startsWith('http://') || cleanValue.startsWith('https://')) {
+    return cleanValue;
+  }
 
-  final baseUrl = ApiConfig.baseUrl;
-  if (value.startsWith('/')) return '$baseUrl$value';
+  final baseUrl = ApiConfig.currentBaseUrl;
+  if (cleanValue.startsWith('/')) return '$baseUrl$cleanValue';
 
-  return '$baseUrl/$value';
+  return '$baseUrl/$cleanValue';
 }
 
+String _initials(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return 'OMC';
+  final parts = trimmed.split(RegExp(r'\s+')).where((part) => part.isNotEmpty);
+  final initials = parts.take(2).map((part) => part[0].toUpperCase()).join();
+  return initials.isEmpty ? 'OMC' : initials;
+}
 
 class _ProfileSection extends StatelessWidget {
   const _ProfileSection({
     required this.title,
+    required this.subtitle,
     required this.children,
-    this.subtitle,
   });
 
   final String title;
-  final String? subtitle;
+  final String subtitle;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 19,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.15,
-          ),
-        ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 5),
-          Text(
-            subtitle!,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
+          ...children,
         ],
-        const SizedBox(height: 12),
-        PremiumCard(
-          padding: EdgeInsets.zero,
-          child: Column(children: children),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -972,18 +1029,15 @@ class _ProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
         children: [
           Container(
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              ),
+              color: AppTheme.primaryRed.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(icon, color: AppTheme.primaryRed, size: 21),
           ),
@@ -994,10 +1048,8 @@ class _ProfileTile extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: AppTheme.textMuted,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1009,10 +1061,9 @@ class _ProfileTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    height: 1.25,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.05,
+                    height: 1.25,
                   ),
                 ),
               ],
@@ -1024,61 +1075,56 @@ class _ProfileTile extends StatelessWidget {
   }
 }
 
+class _DividerIndent extends StatelessWidget {
+  const _DividerIndent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 74,
+      endIndent: 18,
+      color: AppTheme.border.withValues(alpha: 0.7),
+    );
+  }
+}
+
 class _ProfileFootnote extends StatelessWidget {
   const _ProfileFootnote();
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(18),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              ),
-            ),
-            child: const Icon(
-              Icons.info_outline_rounded,
-              color: AppTheme.primaryRed,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Text(
-              'Profile details are loaded from your backend account. Update requests are submitted for review when account services are available.',
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+    return const Text(
+      'Profile information is managed by OMC. Some changes may require verification before they appear in your account.',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: AppTheme.textMuted,
+        fontSize: 12,
+        height: 1.45,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
 }
 
-class _LoadingIconBox extends StatelessWidget {
-  const _LoadingIconBox();
+class _LoadingBar extends StatelessWidget {
+  const _LoadingBar({this.widthFactor = 1, this.height = 11});
+
+  final double widthFactor;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(15),
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: AppTheme.cardSoft,
+          borderRadius: BorderRadius.circular(999),
+        ),
       ),
     );
   }
@@ -1093,54 +1139,27 @@ class _LoadingPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: width,
-      height: 28,
+      height: 32,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        color: AppTheme.cardSoft,
         borderRadius: BorderRadius.circular(999),
       ),
     );
   }
 }
 
-class _LoadingBar extends StatelessWidget {
-  const _LoadingBar({required this.widthFactor, this.height = 9});
-
-  final double widthFactor;
-  final double height;
+class _LoadingIconBox extends StatelessWidget {
+  const _LoadingIconBox();
 
   @override
   Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      widthFactor: widthFactor,
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(999),
-        ),
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: AppTheme.cardSoft,
+        borderRadius: BorderRadius.circular(15),
       ),
     );
   }
-}
-
-class _DividerIndent extends StatelessWidget {
-  const _DividerIndent();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(height: 1, indent: 76);
-  }
-}
-
-String _initials(String name) {
-  final parts = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((part) => part.isNotEmpty)
-      .toList();
-
-  if (parts.isEmpty) return 'OMC';
-  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-
-  return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
 }
