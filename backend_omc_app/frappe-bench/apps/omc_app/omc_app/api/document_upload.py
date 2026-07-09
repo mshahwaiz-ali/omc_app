@@ -15,6 +15,13 @@ MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024
 MAX_FILES_PER_CASE = 20
 
 
+def _has_field(doctype, fieldname):
+    try:
+        return frappe.get_meta(doctype).has_field(fieldname)
+    except Exception:
+        return False
+
+
 def _validate_uploaded_document(service_case, attachment):
     clean_attachment = _clean_file_reference(attachment)
     if not clean_attachment:
@@ -102,10 +109,16 @@ def upload_service_document(**kwargs):
 
     doc = frappe.new_doc("OMC Service Document")
     doc.service_request = service_case.name
+    if _has_field("OMC Service Document", "customer_profile"):
+        doc.customer_profile = service_case.customer_profile or (profile.name if profile else "")
     doc.document_title = document_title
     doc.document_type = document_type
     doc.status = "Uploaded"
+    if _has_field("OMC Service Document", "source"):
+        doc.source = kwargs.get("source") or "Service Upload"
     doc.visible_to_customer = 1
+    if _has_field("OMC Service Document", "is_archived"):
+        doc.is_archived = 0
     doc.uploaded_by = _current_user()
     doc.uploaded_on = frappe.utils.now_datetime()
     doc.remarks = remarks
@@ -153,10 +166,12 @@ def upload_service_document(**kwargs):
             "type": doc.document_type or "",
             "document_type": doc.document_type or "",
             "status": doc.status or "",
+            "source": getattr(doc, "source", None) or "Service Upload",
             "file_url": attachment or "",
             "attachment": attachment or "",
             "uploaded_on": str(doc.uploaded_on) if doc.uploaded_on else "",
             "uploaded_by": doc.uploaded_by or "",
             "remarks": doc.remarks or "",
+            "is_archived": int(getattr(doc, "is_archived", 0) or 0),
         },
     }
