@@ -86,7 +86,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
               setSheetState(() => saving = true);
               try {
-                await ref.read(tasksRepositoryProvider).createTask(
+                await ref
+                    .read(tasksRepositoryProvider)
+                    .createTask(
                       title: title,
                       priority: priority,
                       dueDate: dueDateController.text,
@@ -94,17 +96,18 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                       description: descriptionController.text,
                     );
                 ref.invalidate(tasksProvider);
-                if (!mounted) return;
+                if (!sheetContext.mounted) return;
                 Navigator.of(sheetContext).pop();
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(content: Text('Task created.')),
-                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Task created.')));
               } catch (error) {
                 final message = _backendErrorMessage(error);
                 if (!mounted) return;
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(content: Text(message)),
-                );
+                ScaffoldMessenger.of(
+                  this.context,
+                ).showSnackBar(SnackBar(content: Text(message)));
               } finally {
                 if (mounted) setSheetState(() => saving = false);
               }
@@ -125,27 +128,37 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     Text(
                       'Add Task',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     TextField(
                       controller: titleController,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'Task title'),
+                      decoration: const InputDecoration(
+                        labelText: 'Task title',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: priority,
+                      initialValue: priority,
                       decoration: const InputDecoration(labelText: 'Priority'),
                       items: const [
                         DropdownMenuItem(value: 'Low', child: Text('Low')),
-                        DropdownMenuItem(value: 'Normal', child: Text('Normal')),
+                        DropdownMenuItem(
+                          value: 'Normal',
+                          child: Text('Normal'),
+                        ),
                         DropdownMenuItem(value: 'High', child: Text('High')),
-                        DropdownMenuItem(value: 'Urgent', child: Text('Urgent')),
+                        DropdownMenuItem(
+                          value: 'Urgent',
+                          child: Text('Urgent'),
+                        ),
                       ],
                       onChanged: (value) {
-                        if (value != null) setSheetState(() => priority = value);
+                        if (value != null) {
+                          setSheetState(() => priority = value);
+                        }
                       },
                     ),
                     const SizedBox(height: 10),
@@ -163,14 +176,18 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                       controller: assignedController,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'Assigned to'),
+                      decoration: const InputDecoration(
+                        labelText: 'Assigned to',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: descriptionController,
                       minLines: 2,
                       maxLines: 4,
-                      decoration: const InputDecoration(labelText: 'Description'),
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                      ),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -181,7 +198,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.add_rounded),
                         label: Text(saving ? 'Saving...' : 'Create task'),
@@ -240,7 +259,9 @@ class _TasksContent extends StatelessWidget {
           icon: Icons.task_alt_rounded,
           title: 'Tasks',
           subtitle: 'Track assigned work, due dates and priorities.',
-          metaLabel: tasks.isEmpty ? 'Empty' : '${filtered.length}/${tasks.length}',
+          metaLabel: tasks.isEmpty
+              ? 'Empty'
+              : '${filtered.length}/${tasks.length}',
           actionLabel: 'Add task',
           onAction: onAddTask,
         ),
@@ -256,7 +277,8 @@ class _TasksContent extends StatelessWidget {
           PremiumEmptyState(
             icon: Icons.task_alt_rounded,
             title: 'No tasks yet',
-            message: 'Add the first work item or pull down to refresh backend data.',
+            message:
+                'Add the first work item or pull down to refresh backend data.',
             actionLabel: 'Add task',
             onAction: onAddTask,
           )
@@ -277,23 +299,26 @@ class _TasksContent extends StatelessWidget {
 
   List<TaskItem> _filteredTasks() {
     final cleanQuery = query.trim().toLowerCase();
-    return tasks.where((task) {
-      if (statusFilter != 'All' && task.status.toLowerCase() != statusFilter.toLowerCase()) {
-        return false;
-      }
-      if (cleanQuery.isEmpty) return true;
-      final haystack = [
-        task.title,
-        task.id,
-        task.status,
-        task.priority,
-        task.assignedTo,
-        task.customerProfile,
-        task.serviceRequest,
-        task.supportTicket,
-      ].whereType<String>().join(' ').toLowerCase();
-      return haystack.contains(cleanQuery);
-    }).toList(growable: false);
+    return tasks
+        .where((task) {
+          if (statusFilter != 'All' &&
+              task.status.toLowerCase() != statusFilter.toLowerCase()) {
+            return false;
+          }
+          if (cleanQuery.isEmpty) return true;
+          final haystack = [
+            task.title,
+            task.id,
+            task.status,
+            task.priority,
+            task.assignedTo,
+            task.customerProfile,
+            task.serviceRequest,
+            task.supportTicket,
+          ].whereType<String>().join(' ').toLowerCase();
+          return haystack.contains(cleanQuery);
+        })
+        .toList(growable: false);
   }
 }
 
@@ -424,7 +449,9 @@ class _TaskCard extends StatelessWidget {
       icon: Icons.task_alt_rounded,
       title: task.title,
       subtitle: task.id,
-      trailing: PremiumInfoChip(label: task.priority.isEmpty ? 'Normal' : task.priority),
+      trailing: PremiumInfoChip(
+        label: task.priority.isEmpty ? 'Normal' : task.priority,
+      ),
       onTap: () {
         context.push('/tasks/${Uri.encodeComponent(task.id)}');
       },
@@ -438,7 +465,10 @@ class _TaskCard extends StatelessWidget {
         if (task.assignedTo.isNotEmpty)
           PremiumInfoChip(icon: Icons.person_rounded, label: task.assignedTo),
         if (task.serviceRequest != null)
-          PremiumInfoChip(icon: Icons.assignment_rounded, label: task.serviceRequest!),
+          PremiumInfoChip(
+            icon: Icons.assignment_rounded,
+            label: task.serviceRequest!,
+          ),
       ],
     );
   }

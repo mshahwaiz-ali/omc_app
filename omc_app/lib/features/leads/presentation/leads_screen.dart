@@ -81,7 +81,9 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
 
               setSheetState(() => saving = true);
               try {
-                await ref.read(leadsRepositoryProvider).createLead(
+                await ref
+                    .read(leadsRepositoryProvider)
+                    .createLead(
                       title: title,
                       customerName: nameController.text,
                       phone: phoneController.text,
@@ -91,19 +93,21 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                       notes: notesController.text,
                     );
                 ref.invalidate(leadsProvider);
-                if (!mounted) return;
+                if (!sheetContext.mounted) return;
                 Navigator.of(sheetContext).pop();
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(content: Text('Lead created.')),
-                );
+                ScaffoldMessenger.of(
+                  sheetContext,
+                ).showSnackBar(const SnackBar(content: Text('Lead created.')));
               } catch (error) {
                 final message = _backendErrorMessage(error);
-                if (!mounted) return;
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(content: Text(message)),
-                );
+                if (!sheetContext.mounted) return;
+                ScaffoldMessenger.of(
+                  sheetContext,
+                ).showSnackBar(SnackBar(content: Text(message)));
               } finally {
-                if (mounted) setSheetState(() => saving = false);
+                if (context.mounted) {
+                  setSheetState(() => saving = false);
+                }
               }
             }
 
@@ -122,20 +126,24 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                     Text(
                       'Add Lead',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     TextField(
                       controller: titleController,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'Lead title'),
+                      decoration: const InputDecoration(
+                        labelText: 'Lead title',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: nameController,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'Contact name'),
+                      decoration: const InputDecoration(
+                        labelText: 'Contact name',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -155,7 +163,9 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                     TextField(
                       controller: serviceController,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'Service interest'),
+                      decoration: const InputDecoration(
+                        labelText: 'Service interest',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -179,7 +189,9 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.add_rounded),
                         label: Text(saving ? 'Saving...' : 'Create lead'),
@@ -272,7 +284,9 @@ class _LeadsContent extends StatelessWidget {
           icon: Icons.trending_up_rounded,
           title: 'Leads',
           subtitle: 'Review opportunities, contacts and follow-up sources.',
-          metaLabel: leads.isEmpty ? 'Empty' : '${filtered.length}/${leads.length}',
+          metaLabel: leads.isEmpty
+              ? 'Empty'
+              : '${filtered.length}/${leads.length}',
           actionLabel: 'Add lead',
           onAction: onAddLead,
         ),
@@ -288,7 +302,8 @@ class _LeadsContent extends StatelessWidget {
           PremiumEmptyState(
             icon: Icons.trending_up_rounded,
             title: 'No leads yet',
-            message: 'Add the first opportunity or pull down to refresh backend data.',
+            message:
+                'Add the first opportunity or pull down to refresh backend data.',
             actionLabel: 'Add lead',
             onAction: onAddLead,
           )
@@ -309,20 +324,22 @@ class _LeadsContent extends StatelessWidget {
 
   List<LeadItem> _filteredLeads() {
     final cleanQuery = query.trim().toLowerCase();
-    return leads.where((lead) {
-      if (statusFilter != null && lead.status != statusFilter) return false;
-      if (cleanQuery.isEmpty) return true;
-      final haystack = [
-        lead.title,
-        lead.customerName,
-        lead.phone,
-        lead.email,
-        lead.source,
-        lead.serviceInterest,
-        lead.assignedTo,
-      ].whereType<String>().join(' ').toLowerCase();
-      return haystack.contains(cleanQuery);
-    }).toList(growable: false);
+    return leads
+        .where((lead) {
+          if (statusFilter != null && lead.status != statusFilter) return false;
+          if (cleanQuery.isEmpty) return true;
+          final haystack = [
+            lead.title,
+            lead.customerName,
+            lead.phone,
+            lead.email,
+            lead.source,
+            lead.serviceInterest,
+            lead.assignedTo,
+          ].whereType<String>().join(' ').toLowerCase();
+          return haystack.contains(cleanQuery);
+        })
+        .toList(growable: false);
   }
 }
 
@@ -403,7 +420,9 @@ class _LeadFilters extends StatelessWidget {
                 selected: statusFilter == null,
                 onTap: () => onStatusChanged(null),
               ),
-              for (final status in LeadStatus.values.where((item) => item != LeadStatus.unknown))
+              for (final status in LeadStatus.values.where(
+                (item) => item != LeadStatus.unknown,
+              ))
                 _FilterChip(
                   label: _leadStatusLabel(status),
                   selected: statusFilter == status,
@@ -418,7 +437,11 @@ class _LeadFilters extends StatelessWidget {
 }
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -428,7 +451,11 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => onTap()),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+      ),
     );
   }
 }
@@ -482,9 +509,15 @@ class _LeadCard extends StatelessWidget {
         if (lead.source != null)
           PremiumInfoChip(icon: Icons.campaign_rounded, label: lead.source!),
         if (lead.serviceInterest != null)
-          PremiumInfoChip(icon: Icons.design_services_rounded, label: lead.serviceInterest!),
+          PremiumInfoChip(
+            icon: Icons.design_services_rounded,
+            label: lead.serviceInterest!,
+          ),
         if (lead.createdAtLabel != null)
-          PremiumInfoChip(icon: Icons.schedule_rounded, label: lead.createdAtLabel!),
+          PremiumInfoChip(
+            icon: Icons.schedule_rounded,
+            label: lead.createdAtLabel!,
+          ),
       ],
     );
   }
