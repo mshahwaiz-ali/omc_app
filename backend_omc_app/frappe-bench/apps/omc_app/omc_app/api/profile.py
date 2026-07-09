@@ -3,6 +3,8 @@ import re
 import frappe
 from frappe.utils.file_manager import save_file
 
+from omc_app.api import access
+
 
 ALLOWED_PROFILE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 PROFILE_IMAGE_CONTENT_TYPES = {
@@ -22,6 +24,9 @@ def _current_user():
 def _get_customer_profile_for_user(user=None):
     user = user or _current_user()
     if not user or user == "Guest":
+        return None
+
+    if access.is_internal_user(user):
         return None
 
     profile_name = frappe.db.get_value("OMC Customer Profile", {"user": user}, "name")
@@ -50,6 +55,50 @@ def _get_user_image_url(user=None):
         return ""
 
     return frappe.db.get_value("User", user, "user_image") or ""
+
+
+def _internal_role_label(user):
+    roles = set(frappe.get_roles(user) or [])
+    if "OMC Admin" in roles or "System Manager" in roles or user == "Administrator":
+        return "OMC Admin"
+    if "OMC Manager" in roles:
+        return "OMC Manager"
+    if "OMC Customer Support" in roles:
+        return "OMC Customer Support"
+    return "Internal"
+
+
+def _internal_profile_payload(user):
+    full_name = frappe.db.get_value("User", user, "full_name") or user
+    role_label = _internal_role_label(user)
+    capabilities = access.get_mobile_capabilities(user=user)
+
+    return {
+        "full_name": full_name,
+        "display_name": full_name,
+        "email": user,
+        "user": user,
+        "phone": "",
+        "whatsapp_no": "",
+        "avatar_url": _get_user_image_url(user),
+        "user_image": _get_user_image_url(user),
+        "customer_id": "",
+        "customer_status": "Active",
+        "approval_status": "Internal",
+        "customer_type": role_label,
+        "company_name": "OMC HOUSE",
+        "cnic": "",
+        "ntn": "",
+        "register_as": "",
+        "address": "",
+        "education": "",
+        "experience": "",
+        "remarks": "",
+        "access_state": "internal",
+        "can_access_internal_workspace": True,
+        "capabilities": capabilities,
+        **capabilities,
+    }
 
 
 def _profile_payload(profile, user):
@@ -100,6 +149,9 @@ def get_profile():
     user = _current_user()
     if user == "Guest":
         return _profile_payload(None, user)
+
+    if access.is_internal_user(user):
+        return _internal_profile_payload(user)
 
     profile = _get_customer_profile_for_user(user)
     return _profile_payload(profile, user)
@@ -185,6 +237,6 @@ def upload_profile_image():
         "user_image": file_url,
         "customer_id": profile.name if profile else "",
         "file_name": file_doc.name,
-        "profile": _profile_payload(profile, user),
+        "profile": _internal_profile_payload(user) if access.is_internal_user(user) else _profile_payload(profile, user),
         "message": "Profile image updated.",
     }
