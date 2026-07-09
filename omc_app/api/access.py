@@ -66,8 +66,9 @@ def _normalize_user_roles(user_id):
         existing.add(INTERNAL_SUPPORT_ROLE)
 
     user_doc.roles = [row for row in user_doc.roles if row.role not in LEGACY_ROLES]
+    final_roles = {row.role for row in user_doc.roles}
 
-    user_doc.user_type = "System User" if existing.intersection(INTERNAL_ROLES) else "Website User"
+    user_doc.user_type = "System User" if final_roles.intersection(INTERNAL_ROLES) else "Website User"
     user_doc.save(ignore_permissions=True)
     frappe.clear_cache(user=user_id)
 
@@ -123,7 +124,7 @@ def sign_up(**kwargs):
 
     Register-as/customer-type values stay as profile metadata. They never become
     permission roles. The only client role assigned by public signup is
-    OMC Customer.
+    OMC Customer, and existing internal users keep their internal roles.
     """
     result = mobile.sign_up(**kwargs)
     email = ((result.get("user") or {}).get("email") or kwargs.get("email") or kwargs.get("user") or "").strip().lower()
@@ -131,10 +132,14 @@ def sign_up(**kwargs):
     if email and frappe.db.exists("User", email):
         user_doc = frappe.get_doc("User", email)
         existing = {row.role for row in (user_doc.roles or [])}
-        if frappe.db.exists("Role", CUSTOMER_ROLE) and CUSTOMER_ROLE not in existing:
+        is_internal_account = bool(existing.intersection(INTERNAL_ROLES))
+
+        if not is_internal_account and frappe.db.exists("Role", CUSTOMER_ROLE) and CUSTOMER_ROLE not in existing:
             user_doc.append("roles", {"role": CUSTOMER_ROLE})
-        user_doc.roles = [row for row in user_doc.roles if row.role not in LEGACY_ROLES and row.role not in INTERNAL_ROLES]
-        user_doc.user_type = "Website User"
+
+        user_doc.roles = [row for row in user_doc.roles if row.role not in LEGACY_ROLES]
+        final_roles = {row.role for row in user_doc.roles}
+        user_doc.user_type = "System User" if final_roles.intersection(INTERNAL_ROLES) else "Website User"
         user_doc.save(ignore_permissions=True)
         frappe.clear_cache(user=email)
         frappe.db.commit()
