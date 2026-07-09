@@ -90,12 +90,14 @@ class ApiConfig {
   static const String cancelServiceRequestMethod =
       'omc_app.api.secured_mobile.cancel_service_request';
 
-  static const String documentsMethod = 'omc_app.api.mobile.get_documents';
-  static const String documentDetailMethod = 'omc_app.api.mobile.get_document';
+  static const String documentsMethod =
+      'omc_app.api.customer_documents.get_documents';
+  static const String documentDetailMethod =
+      'omc_app.api.customer_documents.get_document';
   static const String uploadServiceDocumentMethod =
       'omc_app.api.document_upload.upload_service_document';
   static const String updateServiceDocumentStatusMethod =
-      'omc_app.api.secured_mobile.update_service_document_status';
+      'omc_app.api.customer_documents.update_service_document_status';
 
   static const String paymentsMethod = 'omc_app.api.payments.get_payments';
   static const String paymentDetailMethod = 'omc_app.api.payments.get_payment';
@@ -179,42 +181,12 @@ class ApiConfig {
       'omc_app.api.expense.get_expense_budgets';
   static const String saveExpenseBudgetMethod =
       'omc_app.api.expense.save_expense_budget';
-  static const String generateExpenseReportMethod =
-      'omc_app.api.expense.generate_expense_report';
-  static const String shareExpenseReportWithConsultantMethod =
-      'omc_app.api.expense.share_expense_report_with_consultant';
-  static const String uploadExpenseReceiptMethod =
-      'omc_app.api.expense.upload_expense_receipt';
-
-  static const String internalWorkspaceSummaryMethod =
-      'omc_app.api.mobile.get_internal_workspace_summary';
-  static const String internalServiceCasesMethod =
-      'omc_app.api.internal_workspace.get_service_cases';
-  static const String createServiceRequestForCustomerMethod =
-      'omc_app.api.internal_workspace.create_service_request_for_customer';
-
-  static const String leadsMethod = 'omc_app.api.mobile.get_leads';
-  static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
-
-  static const String customersMethod = 'omc_app.api.mobile.get_customers';
-  static const String customerDetailMethod = 'omc_app.api.mobile.get_customer';
-
-  static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
-  static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
-
-  static const String serviceRequestUploadDoctype = 'OMC Service Request';
-
-  static const String documentUploadDoctype = 'OMC Service Document';
-
-  static const String paymentUploadDoctype = 'OMC Service Payment';
-
-  static const String supportTicketUploadDoctype = 'OMC Support Ticket';
-
-  static const String expenseReceiptUploadDoctype = 'OMC Expense Entry';
-
-  static const String uploadFileMethod = 'upload_file';
 
   static String _withoutTrailingSlash(String value) {
-    return value.trim().replaceFirst(RegExp(r'/+$'), '');
+    var text = value.trim();
+    while (text.endsWith('/')) {
+      text = text.substring(0, text.length - 1);
+    }
+    return text;
   }
 }
