@@ -14,6 +14,13 @@ class DocumentItem {
     this.serviceReference,
     this.serviceTitle,
     this.serviceStatus,
+    this.customerProfile,
+    this.customerName,
+    this.customerEmail,
+    this.customerPhone,
+    this.customerNtn,
+    this.customerCnic,
+    this.companyName,
     this.source,
     this.remarks,
     this.isArchived = false,
@@ -32,6 +39,13 @@ class DocumentItem {
   final String? serviceReference;
   final String? serviceTitle;
   final String? serviceStatus;
+  final String? customerProfile;
+  final String? customerName;
+  final String? customerEmail;
+  final String? customerPhone;
+  final String? customerNtn;
+  final String? customerCnic;
+  final String? companyName;
   final String? source;
   final String? remarks;
   final bool isArchived;
@@ -63,6 +77,19 @@ class DocumentItem {
 
     final cleanTitle = title.trim();
     return cleanTitle.isEmpty ? '-' : cleanTitle;
+  }
+
+  String get displayCustomerName {
+    final company = companyName?.trim();
+    if (company != null && company.isNotEmpty) return company;
+
+    final customer = customerName?.trim();
+    if (customer != null && customer.isNotEmpty) return customer;
+
+    final profile = customerProfile?.trim();
+    if (profile != null && profile.isNotEmpty) return profile;
+
+    return 'Customer';
   }
 
   String get statusLabel {
