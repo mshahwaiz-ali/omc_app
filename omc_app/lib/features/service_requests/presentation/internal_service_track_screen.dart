@@ -13,6 +13,109 @@ import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
 import 'my_services_screen.dart';
 
+
+enum _InternalCaseFilter {
+  active('Active', Icons.timeline_rounded),
+  open('Open', Icons.pending_actions_rounded),
+  inReview('In Review', Icons.fact_check_outlined),
+  inProgress('In Progress', Icons.sync_rounded),
+  closed('Closed', Icons.check_circle_rounded),
+  cancelled('Cancelled', Icons.cancel_rounded),
+  all('All', Icons.format_list_bulleted_rounded);
+
+  const _InternalCaseFilter(this.label, this.icon);
+
+  final String label;
+  final IconData icon;
+
+  bool matches(ServiceCase serviceCase) {
+    final status = serviceCase.status.trim().toLowerCase();
+
+    switch (this) {
+      case _InternalCaseFilter.active:
+        return !_isDone(serviceCase) && !_isCancelled(serviceCase);
+      case _InternalCaseFilter.open:
+        return !_isDone(serviceCase) &&
+            !_isCancelled(serviceCase) &&
+            (status.contains('open') ||
+                status.contains('new') ||
+                status.contains('submitted') ||
+                status.contains('pending') ||
+                status.isEmpty);
+      case _InternalCaseFilter.inReview:
+        return !_isDone(serviceCase) &&
+            !_isCancelled(serviceCase) &&
+            (status.contains('review') ||
+                status.contains('document') ||
+                status.contains('verification'));
+      case _InternalCaseFilter.inProgress:
+        return !_isDone(serviceCase) &&
+            !_isCancelled(serviceCase) &&
+            (status.contains('progress') ||
+                status.contains('processing') ||
+                status.contains('working'));
+      case _InternalCaseFilter.closed:
+        return _isDone(serviceCase);
+      case _InternalCaseFilter.cancelled:
+        return _isCancelled(serviceCase);
+      case _InternalCaseFilter.all:
+        return true;
+    }
+  }
+
+  int count(List<ServiceCase> cases) => cases.where(matches).length;
+}
+
+class _InternalCaseFilterBar extends StatelessWidget {
+  const _InternalCaseFilterBar({
+    required this.cases,
+    required this.selectedFilter,
+    required this.onSelected,
+  });
+
+  final List<ServiceCase> cases;
+  final _InternalCaseFilter selectedFilter;
+  final ValueChanged<_InternalCaseFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            for (final filter in _InternalCaseFilter.values) ...[
+              ChoiceChip(
+                avatar: Icon(filter.icon, size: 16),
+                label: Text('${filter.label} ${filter.count(cases)}'),
+                selected: selectedFilter == filter,
+                onSelected: (_) => onSelected(filter),
+                selectedColor: AppTheme.primaryRed.withValues(alpha: 0.12),
+                side: BorderSide(
+                  color: selectedFilter == filter
+                      ? AppTheme.primaryRed.withValues(alpha: 0.28)
+                      : Colors.black.withValues(alpha: 0.08),
+                ),
+                labelStyle: TextStyle(
+                  color: selectedFilter == filter
+                      ? AppTheme.primaryRed
+                      : AppTheme.textSecondary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
 class InternalServiceTrackScreen extends ConsumerStatefulWidget {
   const InternalServiceTrackScreen({super.key});
 
@@ -24,6 +127,7 @@ class InternalServiceTrackScreen extends ConsumerStatefulWidget {
 class _InternalServiceTrackScreenState
     extends ConsumerState<InternalServiceTrackScreen> {
   String? _selectedCustomerKey;
+  _InternalCaseFilter _selectedFilter = _InternalCaseFilter.active;
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +145,8 @@ class _InternalServiceTrackScreenState
             onAction: () => ref.invalidate(serviceCasesProvider),
           ),
           data: (cases) {
-            final groups = _CustomerCaseGroup.fromCases(cases);
+            final visibleCases = cases.where(_selectedFilter.matches).toList(growable: false);
+            final groups = _CustomerCaseGroup.fromCases(visibleCases);
             final selectedGroup = _selectedGroup(groups, _selectedCustomerKey);
 
             return RefreshIndicator(
@@ -55,16 +160,25 @@ class _InternalServiceTrackScreenState
                     title: 'Track',
                     subtitle:
                         'Select a customer first, then view only that customer’s service requests.',
-                    metaLabel: '${cases.length} total',
+                    metaLabel: '${visibleCases.length} shown',
                   ),
                   const SizedBox(height: 16),
                   _TopStats(cases: cases),
                   const SizedBox(height: 12),
+                  _InternalCaseFilterBar(
+                    cases: cases,
+                    selectedFilter: _selectedFilter,
+                    onSelected: (filter) => setState(() {
+                      _selectedFilter = filter;
+                      _selectedCustomerKey = null;
+                    }),
+                  ),
+                  const SizedBox(height: 12),
                   if (groups.isEmpty)
-                    const PremiumEmptyState(
+                    PremiumEmptyState(
                       icon: Icons.assignment_outlined,
                       title: 'No service requests',
-                      message: 'Customer service requests will appear here.',
+                      message: 'No ${_selectedFilter.label.toLowerCase()} service requests found in this queue.',
                     )
                   else ...[
                     _CustomerSelectorCard(

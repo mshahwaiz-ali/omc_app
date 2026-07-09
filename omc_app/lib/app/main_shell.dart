@@ -167,7 +167,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         capabilities: capabilities,
         unreadNotifications: unreadNotifications,
         isGuest: authState.status == AuthStatus.guest,
-        canAccessInternalWorkspace: capabilities.canAccessInternalWorkspace && mobileConfig.features.internalWorkspaceEnabled,
+        canAccessInternalWorkspace: capabilities.canAccessInternalWorkspace || capabilities.isInternal,
         onOpenInternalWorkspace: () => context.push('/internal-workspace'),
         onLogout: authState.status == AuthStatus.guest ? () => context.go('/login') : _logout,
       ),

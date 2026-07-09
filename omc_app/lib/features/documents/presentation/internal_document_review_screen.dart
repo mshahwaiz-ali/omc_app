@@ -34,7 +34,7 @@ class InternalDocumentReviewScreen extends ConsumerStatefulWidget {
 
 class _InternalDocumentReviewScreenState
     extends ConsumerState<InternalDocumentReviewScreen> {
-  _ReviewFilter _selectedFilter = _ReviewFilter.all;
+  _ReviewFilter _selectedFilter = _ReviewFilter.needsReview;
   late Future<List<DocumentItem>> _documentsFuture;
   String? _selectedServiceReference;
   String? _busyDocumentId;
