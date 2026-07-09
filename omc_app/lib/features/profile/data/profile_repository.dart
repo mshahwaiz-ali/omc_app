@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -71,7 +72,9 @@ class ProfileRepository {
     Uint8List? fileBytes,
     required String fileName,
   }) async {
-    if ((fileBytes == null || fileBytes.isEmpty) &&
+    final resolvedBytes = fileBytes ?? await _readFileBytes(filePath);
+
+    if ((resolvedBytes == null || resolvedBytes.isEmpty) &&
         (filePath == null || filePath.trim().isEmpty)) {
       throw ApiError(
         message: 'Selected profile photo could not be read. Please choose it again.',
@@ -80,8 +83,8 @@ class ProfileRepository {
     }
 
     final response = await _frappeClient.uploadFile(
-      filePath: filePath,
-      fileBytes: fileBytes,
+      filePath: resolvedBytes == null ? filePath : null,
+      fileBytes: resolvedBytes,
       fileName: fileName,
       method: ApiConfig.uploadProfileImageMethod,
       isPrivate: false,
@@ -92,6 +95,17 @@ class ProfileRepository {
     return _nullableString(payload['avatar_url']) ??
         _nullableString(payload['profile_image']) ??
         _nullableString(payload['user_image']);
+  }
+
+  Future<Uint8List?> _readFileBytes(String? filePath) async {
+    final cleanPath = filePath?.trim();
+    if (cleanPath == null || cleanPath.isEmpty) return null;
+
+    try {
+      return await XFile(cleanPath).readAsBytes();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<bool> requestProfileUpdate(Map<String, dynamic> payload) async {
