@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "field:title",
  "creation": "2026-07-07 00:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -8,8 +9,13 @@
  "field_order": [
   "title",
   "transaction_type",
-  "is_active",
-  "sort_order"
+  "icon",
+  "color",
+  "is_default",
+  "is_tax_relevant",
+  "business_default",
+  "sort_order",
+  "enabled"
  ],
  "fields": [
   {
@@ -30,11 +36,35 @@
    "reqd": 1
   },
   {
-   "default": "1",
-   "fieldname": "is_active",
+   "default": "category",
+   "fieldname": "icon",
+   "fieldtype": "Data",
+   "label": "Flutter Icon Key"
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Data",
+   "label": "Color Token / Hex"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "label": "Default Category"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_tax_relevant",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "Is Active"
+   "label": "Suggested Tax Category"
+  },
+  {
+   "default": "0",
+   "fieldname": "business_default",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Business Default"
   },
   {
    "default": "0",
@@ -42,11 +72,18 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Sort Order"
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-07 00:00:00.000000",
+ "modified": "2026-07-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Expense Category",
