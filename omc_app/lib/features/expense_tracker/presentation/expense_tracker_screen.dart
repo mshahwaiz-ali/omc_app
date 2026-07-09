@@ -6,89 +6,121 @@ import 'package:intl/intl.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_empty_state.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
+import '../../profile/data/profile_repository.dart';
 import '../data/expense_tracker_repository.dart';
 import '../domain/expense_transaction.dart';
 
-final expenseTransactionsProvider =
-    AsyncNotifierProvider<
-      ExpenseTransactionsController,
-      List<ExpenseTransaction>
-    >(ExpenseTransactionsController.new);
+final expenseTrackerConfigProvider = FutureProvider<ExpenseTrackerConfig>((ref) {
+  return ref.watch(expenseTrackerRepositoryProvider).fetchConfig();
+});
 
-class ExpenseTransactionsController
-    extends AsyncNotifier<List<ExpenseTransaction>> {
+final expenseTransactionsProvider =
+    AsyncNotifierProvider<ExpenseTransactionsController, List<ExpenseTransaction>>(
+  ExpenseTransactionsController.new,
+);
+
+class ExpenseTransactionsController extends AsyncNotifier<List<ExpenseTransaction>> {
   late final ExpenseTrackerRepository _repository;
 
   @override
   Future<List<ExpenseTransaction>> build() async {
     _repository = ref.read(expenseTrackerRepositoryProvider);
-    final transactions = await _repository.readTransactions();
-    return _sort(transactions);
+    return _sort(await _repository.readTransactions());
   }
 
-  Future<void> reload() async {
+  Future<void> reloadLocal() async {
     state = const AsyncLoading();
-
     try {
-      final transactions = await _repository.readTransactions();
-      state = AsyncData(_sort(transactions));
+      state = AsyncData(_sort(await _repository.readTransactions()));
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
     }
   }
 
-  Future<void> add(ExpenseTransaction transaction) async {
+  Future<void> loadSynced() async {
+    state = const AsyncLoading();
+    try {
+      final remote = await _repository.fetchSyncedTransactions();
+      await _repository.saveTransactions(remote);
+      state = AsyncData(_sort(remote));
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+    }
+  }
+
+  Future<void> add(ExpenseTransaction transaction, {required bool sync}) async {
     final current = state.value ?? const <ExpenseTransaction>[];
-    final next = _sort([transaction, ...current]);
+    var nextTransaction = transaction;
+
+    if (sync) {
+      final synced = await _repository.createSyncedTransaction(transaction);
+      if (synced != null) nextTransaction = synced.copyWith(synced: true);
+    }
+
+    final next = _sort([nextTransaction, ...current]);
+    state = AsyncData(next);
+    await _repository.saveTransactions(next);
+  }
+
+  Future<void> update(ExpenseTransaction transaction, {required bool sync}) async {
+    final current = state.value ?? const <ExpenseTransaction>[];
+    var nextTransaction = transaction;
+
+    if (sync) {
+      final synced = await _repository.updateSyncedTransaction(transaction);
+      if (synced != null) nextTransaction = synced.copyWith(synced: true);
+    }
+
+    final next = _sort(
+      current
+          .map((item) => item.id == transaction.id ? nextTransaction : item)
+          .toList(growable: false),
+    );
+    state = AsyncData(next);
+    await _repository.saveTransactions(next);
+  }
+
+  Future<void> bulkSync() async {
+    final current = state.value ?? const <ExpenseTransaction>[];
+    if (current.isEmpty) return;
+
+    state = const AsyncLoading();
+    try {
+      final synced = await _repository.bulkSyncTransactions(current);
+      await _repository.saveTransactions(synced);
+      state = AsyncData(_sort(synced));
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+    }
+  }
+
+  Future<void> remove(String id, {required bool sync}) async {
+    final current = state.value ?? const <ExpenseTransaction>[];
+    final next = current.where((item) => item.id != id).toList(growable: false);
+
+    if (sync) await _repository.deleteSyncedTransaction(id);
 
     state = AsyncData(next);
-
-    try {
-      await _repository.saveTransactions(next);
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
-    }
+    await _repository.saveTransactions(next);
   }
 
   Future<void> replaceAll(List<ExpenseTransaction> transactions) async {
     final next = _sort(transactions);
-
     state = AsyncData(next);
-
-    try {
-      await _repository.saveTransactions(next);
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
-    }
-  }
-
-  Future<void> remove(String id) async {
-    final current = state.value ?? const <ExpenseTransaction>[];
-    final next = current.where((item) => item.id != id).toList(growable: false);
-
-    state = AsyncData(next);
-
-    try {
-      await _repository.saveTransactions(next);
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
-    }
+    await _repository.saveTransactions(next);
   }
 
   Future<void> clearAll() async {
     state = const AsyncData([]);
-
-    try {
-      await _repository.clearTransactions();
-    } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
-    }
+    await _repository.clearTransactions();
   }
 
   List<ExpenseTransaction> _sort(List<ExpenseTransaction> transactions) {
-    final sorted = [...transactions];
+    final sorted = [...transactions.where((item) => !item.isArchived)];
     sorted.sort((a, b) => b.date.compareTo(a.date));
     return sorted;
   }
@@ -99,75 +131,178 @@ class ExpenseTrackerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileSummaryProvider).maybeWhen(
+          data: (profile) => profile,
+          orElse: () => null,
+        );
+    final authState = ref.watch(authControllerProvider);
+    final capabilities = profile?.capabilities ?? authState.capabilities;
+    final accessMode = _resolveAccessMode(capabilities);
+    final config = ref.watch(expenseTrackerConfigProvider).value ??
+        ExpenseTrackerConfig.fallback();
     final transactionsAsync = ref.watch(expenseTransactionsProvider);
+    final shouldSync = accessMode == ExpenseTrackerAccessMode.approvedSync;
+
+    if (accessMode == ExpenseTrackerAccessMode.internalHidden) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Tax-Ready Expense Tracker')),
+        body: const SafeArea(
+          child: PremiumEmptyState(
+            icon: Icons.admin_panel_settings_outlined,
+            title: 'Customer tracker hidden',
+            message:
+                'Internal users use Desk for customer review. Personal customer tracker is hidden by default.',
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Expense Tracker'),
+        title: const Text('Tax-Ready Expense Tracker'),
         centerTitle: false,
         elevation: 0,
         actions: [
           IconButton(
-            tooltip: 'Refresh',
-            onPressed: () =>
-                ref.read(expenseTransactionsProvider.notifier).reload(),
-            icon: const Icon(Icons.refresh_rounded),
+            tooltip: shouldSync ? 'Load cloud data' : 'Refresh local data',
+            onPressed: () {
+              if (shouldSync) {
+                ref.read(expenseTransactionsProvider.notifier).loadSynced();
+              } else {
+                ref.read(expenseTransactionsProvider.notifier).reloadLocal();
+              }
+            },
+            icon: Icon(shouldSync ? Icons.cloud_sync_outlined : Icons.refresh_rounded),
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'export') {
-                _showExportDialog(context, transactionsAsync.value ?? const []);
-              }
-
-              if (value == 'import') {
-                _showImportDialog(context, ref);
-              }
-
-              if (value == 'clear') {
-                _confirmClearAll(context, ref);
-              }
+              final transactions = transactionsAsync.value ?? const <ExpenseTransaction>[];
+              if (value == 'export') _showExportDialog(context, transactions);
+              if (value == 'import') _showImportDialog(context, ref);
+              if (value == 'sync') ref.read(expenseTransactionsProvider.notifier).bulkSync();
+              if (value == 'clear') _confirmClearAll(context, ref);
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'export', child: Text('Export backup JSON')),
-              PopupMenuItem(value: 'import', child: Text('Import backup JSON')),
-              PopupMenuItem(value: 'clear', child: Text('Clear local data')),
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'export', child: Text('Export backup JSON')),
+              if (!shouldSync)
+                const PopupMenuItem(value: 'import', child: Text('Import backup JSON')),
+              if (shouldSync)
+                const PopupMenuItem(value: 'sync', child: Text('Sync local entries now')),
+              const PopupMenuItem(value: 'clear', child: Text('Clear local data')),
             ],
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddTransactionSheet(context, ref),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add'),
+      floatingActionButton: Builder(
+        builder: (context) {
+          final count = transactionsAsync.value?.length ?? 0;
+          final limitReached = accessMode == ExpenseTrackerAccessMode.guestLocal &&
+              count >= config.guestLimit;
+          return FloatingActionButton.extended(
+            onPressed: limitReached
+                ? () => _showLimitDialog(context, config.guestLimit)
+                : () => _showTransactionSheet(
+                      context,
+                      ref,
+                      accessMode: accessMode,
+                      config: config,
+                      sync: shouldSync,
+                    ),
+            icon: Icon(limitReached ? Icons.lock_outline_rounded : Icons.add_rounded),
+            label: Text(limitReached ? 'Limit reached' : 'Add'),
+          );
+        },
       ),
       body: SafeArea(
         top: false,
         child: transactionsAsync.when(
-          loading: () => const _ExpenseTrackerLoadingView(),
+          loading: () => const _TrackerLoadingView(),
           error: (_, _) => PremiumEmptyState(
             icon: Icons.account_balance_wallet_outlined,
-            title: 'Tracker unavailable',
-            message: 'Local expense data could not be loaded.',
+            title: shouldSync ? 'Sync unavailable' : 'Tracker unavailable',
+            message: shouldSync
+                ? 'Cloud data could not be loaded. Your local backup remains safe.'
+                : 'Local expense data could not be loaded.',
             actionLabel: 'Retry',
-            onAction: () =>
-                ref.read(expenseTransactionsProvider.notifier).reload(),
+            onAction: () => shouldSync
+                ? ref.read(expenseTransactionsProvider.notifier).loadSynced()
+                : ref.read(expenseTransactionsProvider.notifier).reloadLocal(),
           ),
           data: (transactions) => _ExpenseTrackerBody(
+            accessMode: accessMode,
+            config: config,
             transactions: transactions,
-            onDelete: (id) => _confirmDeleteTransaction(context, ref, id),
+            onQuickAdd: (category) => _showTransactionSheet(
+              context,
+              ref,
+              accessMode: accessMode,
+              config: config,
+              sync: shouldSync,
+              initialCategory: category,
+            ),
+            onSync: shouldSync
+                ? () => ref.read(expenseTransactionsProvider.notifier).bulkSync()
+                : null,
+            onEdit: (transaction) => _showTransactionSheet(
+              context,
+              ref,
+              accessMode: accessMode,
+              config: config,
+              sync: shouldSync,
+              transaction: transaction,
+            ),
+            onDelete: (id) => _confirmDeleteTransaction(
+              context,
+              ref,
+              id,
+              sync: shouldSync,
+            ),
           ),
         ),
       ),
     );
   }
 
-  void _showExportDialog(
+  ExpenseTrackerAccessMode _resolveAccessMode(AuthCapabilities capabilities) {
+    if (capabilities.isInternal) return ExpenseTrackerAccessMode.internalHidden;
+    if (capabilities.isApproved) return ExpenseTrackerAccessMode.approvedSync;
+    if (capabilities.isPending) return ExpenseTrackerAccessMode.pendingLocal;
+    return ExpenseTrackerAccessMode.guestLocal;
+  }
+
+  void _showTransactionSheet(
     BuildContext context,
-    List<ExpenseTransaction> transactions,
-  ) {
-    final encoded = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(transactions.map((transaction) => transaction.toJson()).toList());
+    WidgetRef ref, {
+    required ExpenseTrackerAccessMode accessMode,
+    required ExpenseTrackerConfig config,
+    required bool sync,
+    ExpenseTrackerCategory? initialCategory,
+    ExpenseTransaction? transaction,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _TransactionSheet(
+        transaction: transaction,
+        categories: config.categories,
+        initialCategory: initialCategory,
+        receiptEnabled: accessMode == ExpenseTrackerAccessMode.approvedSync,
+        onSave: (next) {
+          final controller = ref.read(expenseTransactionsProvider.notifier);
+          if (transaction == null) {
+            controller.add(next, sync: sync);
+          } else {
+            controller.update(next, sync: sync);
+          }
+        },
+      ),
+    );
+  }
+
+  void _showExportDialog(BuildContext context, List<ExpenseTransaction> transactions) {
+    final encoded = const JsonEncoder.withIndent('  ')
+        .convert(transactions.map((transaction) => transaction.toJson()).toList());
 
     showDialog<void>(
       context: context,
@@ -199,9 +334,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             controller: controller,
             minLines: 8,
             maxLines: 12,
-            decoration: const InputDecoration(
-              hintText: 'Paste exported JSON here...',
-            ),
+            decoration: const InputDecoration(hintText: 'Paste exported JSON here...'),
           ),
         ),
         actions: [
@@ -213,38 +346,20 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             onPressed: () {
               try {
                 final decoded = jsonDecode(controller.text.trim());
-                if (decoded is! List) {
-                  throw const FormatException('Backup must be a JSON list.');
-                }
-
+                if (decoded is! List) throw const FormatException('Backup must be a list.');
                 final transactions = decoded
                     .whereType<Map>()
-                    .map(
-                      (item) => ExpenseTransaction.fromJson(
-                        Map<String, dynamic>.from(item),
-                      ),
-                    )
+                    .map((item) => ExpenseTransaction.fromJson(Map<String, dynamic>.from(item)))
                     .where((item) => item.id.isNotEmpty && item.amount > 0)
                     .toList(growable: false);
-
-                ref
-                    .read(expenseTransactionsProvider.notifier)
-                    .replaceAll(transactions);
-
+                ref.read(expenseTransactionsProvider.notifier).replaceAll(transactions);
                 Navigator.of(dialogContext).pop();
-
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Imported ${transactions.length} transactions.',
-                    ),
-                  ),
+                  SnackBar(content: Text('Imported ${transactions.length} transactions.')),
                 );
               } catch (_) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Invalid backup JSON. Please check format.'),
-                  ),
+                  const SnackBar(content: Text('Invalid backup JSON. Please check format.')),
                 );
               }
             },
@@ -255,31 +370,19 @@ class ExpenseTrackerScreen extends ConsumerWidget {
     ).whenComplete(controller.dispose);
   }
 
-  void _showAddTransactionSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => _AddTransactionSheet(
-        onSave: (transaction) {
-          ref.read(expenseTransactionsProvider.notifier).add(transaction);
-        },
-      ),
-    );
-  }
-
   Future<void> _confirmDeleteTransaction(
     BuildContext context,
     WidgetRef ref,
-    String id,
-  ) async {
+    String id, {
+    required bool sync,
+  }) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete transaction?'),
-        content: const Text(
-          'This transaction will be removed from the local tracker.',
-        ),
+        title: const Text('Archive transaction?'),
+        content: Text(sync
+            ? 'This transaction will be archived in your OMC account.'
+            : 'This transaction will be removed from the local tracker.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -287,25 +390,23 @@ class ExpenseTrackerScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: const Text('Archive'),
           ),
         ],
       ),
     );
 
-    if (shouldDelete != true) return;
-
-    ref.read(expenseTransactionsProvider.notifier).remove(id);
+    if (shouldDelete == true) {
+      ref.read(expenseTransactionsProvider.notifier).remove(id, sync: sync);
+    }
   }
 
   Future<void> _confirmClearAll(BuildContext context, WidgetRef ref) async {
     final shouldClear = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Clear tracker?'),
-        content: const Text(
-          'All local expense tracker transactions will be removed from this device.',
-        ),
+        title: const Text('Clear local tracker?'),
+        content: const Text('Only local cache is cleared. Cloud records are not deleted.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -319,130 +420,32 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       ),
     );
 
-    if (shouldClear != true) return;
-
-    ref.read(expenseTransactionsProvider.notifier).clearAll();
+    if (shouldClear == true) {
+      ref.read(expenseTransactionsProvider.notifier).clearAll();
+    }
   }
-}
 
-class _ExpenseTrackerLoadingView extends StatelessWidget {
-  const _ExpenseTrackerLoadingView();
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
-
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 128),
-      children: [
-        PremiumCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _TrackerLoadingBlock(
-                width: 130,
-                height: 14,
-                radius: 999,
-                color: color,
-              ),
-              const SizedBox(height: 12),
-              _TrackerLoadingBlock(
-                width: 210,
-                height: 30,
-                radius: 999,
-                color: color,
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: _TrackerLoadingBlock(
-                      width: double.infinity,
-                      height: 58,
-                      radius: 20,
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _TrackerLoadingBlock(
-                      width: double.infinity,
-                      height: 58,
-                      radius: 20,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+  void _showLimitDialog(BuildContext context, int limit) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create account to keep tracking'),
+        content: Text(
+          'Guest lite mode supports $limit local entries. Create an OMC account to unlock cloud sync, reports, receipts and tax-ready summaries.',
         ),
-        const SizedBox(height: 16),
-        for (var index = 0; index < 5; index++) ...[
-          PremiumCard(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                _TrackerLoadingBlock(
-                  width: 46,
-                  height: 46,
-                  radius: 16,
-                  color: color,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _TrackerLoadingBlock(
-                        width: double.infinity,
-                        height: 14,
-                        radius: 999,
-                        color: color,
-                      ),
-                      const SizedBox(height: 10),
-                      _TrackerLoadingBlock(
-                        width: 150,
-                        height: 11,
-                        radius: 999,
-                        color: color,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Later'),
           ),
-          if (index != 4) const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              Navigator.of(context).pushNamed('/signup');
+            },
+            child: const Text('Create account'),
+          ),
         ],
-      ],
-    );
-  }
-}
-
-class _TrackerLoadingBlock extends StatelessWidget {
-  const _TrackerLoadingBlock({
-    required this.width,
-    required this.height,
-    required this.radius,
-    required this.color,
-  });
-
-  final double width;
-  final double height;
-  final double radius;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }
@@ -450,12 +453,22 @@ class _TrackerLoadingBlock extends StatelessWidget {
 
 class _ExpenseTrackerBody extends StatefulWidget {
   const _ExpenseTrackerBody({
+    required this.accessMode,
+    required this.config,
     required this.transactions,
+    required this.onQuickAdd,
+    required this.onEdit,
     required this.onDelete,
+    this.onSync,
   });
 
+  final ExpenseTrackerAccessMode accessMode;
+  final ExpenseTrackerConfig config;
   final List<ExpenseTransaction> transactions;
+  final ValueChanged<ExpenseTrackerCategory> onQuickAdd;
+  final ValueChanged<ExpenseTransaction> onEdit;
   final ValueChanged<String> onDelete;
+  final VoidCallback? onSync;
 
   @override
   State<_ExpenseTrackerBody> createState() => _ExpenseTrackerBodyState();
@@ -469,32 +482,41 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
     final filteredTransactions = _filterTransactions(widget.transactions);
     final allStats = _TrackerStats.fromTransactions(widget.transactions);
     final filteredStats = _TrackerStats.fromTransactions(filteredTransactions);
+    final visibleCategories = widget.config.categories
+        .where((item) => item.isExpense || item.isIncome)
+        .toList(growable: false);
 
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 128),
       children: [
-        const _StorageModeBanner(mode: ExpenseTrackerStorageMode.localOnly),
+        _AccessBanner(
+          mode: widget.accessMode,
+          count: widget.transactions.length,
+          guestLimit: widget.config.guestLimit,
+          onSync: widget.onSync,
+        ),
         const SizedBox(height: 16),
         _HeroSummaryCard(stats: allStats),
         const SizedBox(height: 16),
-        _FilterChips(
-          selected: _filter,
-          onChanged: (filter) => setState(() => _filter = filter),
+        _QuickAddPanel(
+          categories: visibleCategories.take(10).toList(growable: false),
+          onSelected: widget.onQuickAdd,
         ),
         const SizedBox(height: 16),
+        _TaxReadyCard(stats: allStats),
+        const SizedBox(height: 16),
+        _ServiceSuggestionCard(stats: allStats),
+        const SizedBox(height: 16),
+        _FilterChips(selected: _filter, onChanged: (filter) => setState(() => _filter = filter)),
+        const SizedBox(height: 16),
         _MonthSummaryCard(title: _filter.label, stats: filteredStats),
-        const SizedBox(height: 16),
-        _AccountSummaryCard(transactions: filteredTransactions),
-        const SizedBox(height: 16),
-        _MonthlyReportCard(transactions: widget.transactions),
         const SizedBox(height: 16),
         _CategorySummaryCard(transactions: filteredTransactions),
         const SizedBox(height: 16),
         const _TrackerSectionHeader(
           title: 'Transactions',
-          subtitle:
-              'Recent income and expense activity for the selected period.',
+          subtitle: 'Recent income, expense and tax-ready activity.',
           icon: Icons.receipt_long_outlined,
         ),
         const SizedBox(height: 12),
@@ -502,8 +524,7 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
           const PremiumEmptyState(
             icon: Icons.receipt_long_outlined,
             title: 'No transactions yet',
-            message:
-                'Add income or expenses to start tracking your monthly cashflow.',
+            message: 'Add income or expenses to start building your monthly tax-ready summary.',
           )
         else if (filteredTransactions.isEmpty)
           PremiumEmptyState(
@@ -512,11 +533,12 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
             message: 'Try another period or add a transaction for this range.',
           )
         else
-          for (final transaction in filteredTransactions.take(25))
+          for (final transaction in filteredTransactions.take(40))
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _TransactionTile(
                 transaction: transaction,
+                onEdit: () => widget.onEdit(transaction),
                 onDelete: () => widget.onDelete(transaction.id),
               ),
             ),
@@ -524,24 +546,16 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
     );
   }
 
-  List<ExpenseTransaction> _filterTransactions(
-    List<ExpenseTransaction> transactions,
-  ) {
+  List<ExpenseTransaction> _filterTransactions(List<ExpenseTransaction> transactions) {
     final now = DateTime.now();
-
-    return transactions
-        .where((item) {
-          if (_filter == _TrackerFilter.all) return true;
-
-          if (_filter == _TrackerFilter.thisMonth) {
-            return item.date.year == now.year && item.date.month == now.month;
-          }
-
-          final lastMonth = DateTime(now.year, now.month - 1);
-          return item.date.year == lastMonth.year &&
-              item.date.month == lastMonth.month;
-        })
-        .toList(growable: false);
+    return transactions.where((item) {
+      if (_filter == _TrackerFilter.all) return true;
+      if (_filter == _TrackerFilter.thisMonth) {
+        return item.date.year == now.year && item.date.month == now.month;
+      }
+      final lastMonth = DateTime(now.year, now.month - 1);
+      return item.date.year == lastMonth.year && item.date.month == lastMonth.month;
+    }).toList(growable: false);
   }
 }
 
@@ -551,31 +565,7 @@ enum _TrackerFilter {
   all('All');
 
   const _TrackerFilter(this.label);
-
   final String label;
-}
-
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({required this.selected, required this.onChanged});
-
-  final _TrackerFilter selected;
-  final ValueChanged<_TrackerFilter> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SegmentedButton<_TrackerFilter>(
-      segments: _TrackerFilter.values
-          .map(
-            (filter) => ButtonSegment<_TrackerFilter>(
-              value: filter,
-              label: Text(filter.label),
-            ),
-          )
-          .toList(growable: false),
-      selected: {selected},
-      onSelectionChanged: (selection) => onChanged(selection.first),
-    );
-  }
 }
 
 class _TrackerStats {
@@ -583,88 +573,132 @@ class _TrackerStats {
     required this.income,
     required this.expenses,
     required this.transactionCount,
+    required this.taxRelevantTotal,
+    required this.businessTotal,
+    required this.receiptsAttached,
+    required this.recurringCount,
   });
 
   final double income;
   final double expenses;
   final int transactionCount;
+  final double taxRelevantTotal;
+  final double businessTotal;
+  final int receiptsAttached;
+  final int recurringCount;
 
   double get balance => income - expenses;
 
-  factory _TrackerStats.fromTransactions(
-    List<ExpenseTransaction> transactions,
-  ) {
-    final income = transactions
-        .where((item) => item.isIncome)
-        .fold<double>(0, (sum, item) => sum + item.amount);
+  int get readinessScore {
+    if (transactionCount == 0) return 0;
+    var score = 20;
+    if (taxRelevantTotal > 0) score += 25;
+    if (businessTotal > 0) score += 15;
+    if (receiptsAttached > 0) score += 20;
+    if (income > 0) score += 10;
+    if (recurringCount > 0) score += 10;
+    return score.clamp(0, 100);
+  }
 
-    final expenses = transactions
-        .where((item) => item.isExpense)
-        .fold<double>(0, (sum, item) => sum + item.amount);
+  String get readinessLabel {
+    if (readinessScore >= 80) return 'Ready for review';
+    if (readinessScore >= 60) return 'Good';
+    if (readinessScore >= 35) return 'Improving';
+    return 'Low';
+  }
+
+  factory _TrackerStats.fromTransactions(List<ExpenseTransaction> transactions) {
+    double income = 0;
+    double expenses = 0;
+    double taxRelevantTotal = 0;
+    double businessTotal = 0;
+    var receiptsAttached = 0;
+    var recurringCount = 0;
+
+    for (final item in transactions) {
+      if (item.isIncome) {
+        income += item.amount;
+      } else {
+        expenses += item.amount;
+        if (item.taxRelevant) taxRelevantTotal += item.amount;
+        if (item.businessRelated) businessTotal += item.amount;
+      }
+      if ((item.receiptFile ?? '').trim().isNotEmpty) receiptsAttached += 1;
+      if (item.recurring) recurringCount += 1;
+    }
 
     return _TrackerStats(
       income: income,
       expenses: expenses,
       transactionCount: transactions.length,
+      taxRelevantTotal: taxRelevantTotal,
+      businessTotal: businessTotal,
+      receiptsAttached: receiptsAttached,
+      recurringCount: recurringCount,
     );
   }
 }
 
-class _StorageModeBanner extends StatelessWidget {
-  const _StorageModeBanner({required this.mode});
+class _AccessBanner extends StatelessWidget {
+  const _AccessBanner({
+    required this.mode,
+    required this.count,
+    required this.guestLimit,
+    this.onSync,
+  });
 
-  final ExpenseTrackerStorageMode mode;
+  final ExpenseTrackerAccessMode mode;
+  final int count;
+  final int guestLimit;
+  final VoidCallback? onSync;
 
   @override
   Widget build(BuildContext context) {
-    final isLocalOnly = mode == ExpenseTrackerStorageMode.localOnly;
+    final data = switch (mode) {
+      ExpenseTrackerAccessMode.guestLocal => (
+          Icons.phone_iphone_rounded,
+          'Local Lite Mode',
+          '$count/$guestLimit entries used. Create an OMC account for sync, backup, receipts and tax-ready summaries.',
+        ),
+      ExpenseTrackerAccessMode.pendingLocal => (
+          Icons.hourglass_top_rounded,
+          'Local tracker unlocked',
+          'Sync will activate after your profile is approved. Your local entries stay safe on this device.',
+        ),
+      ExpenseTrackerAccessMode.approvedSync => (
+          Icons.cloud_sync_outlined,
+          'Approved cloud tracker',
+          'Sync entries to OMC Desk, upload receipts, prepare reports and share summaries with consultants.',
+        ),
+      _ => (
+          Icons.lock_outline_rounded,
+          'Tracker unavailable',
+          'This account cannot use the customer tracker.',
+        ),
+    };
 
     return PremiumCard(
       padding: const EdgeInsets.all(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              ),
-            ),
-            child: Icon(
-              isLocalOnly
-                  ? Icons.phone_iphone_rounded
-                  : Icons.cloud_sync_outlined,
-              color: AppTheme.primaryRed,
-              size: 22,
-            ),
-          ),
+          _IconBox(icon: data.$1),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  mode.label,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                Text(data.$2, style: _titleStyle(size: 15)),
                 const SizedBox(height: 5),
-                Text(
-                  mode.description,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
+                Text(data.$3, style: _bodyStyle()),
+                if (mode == ExpenseTrackerAccessMode.approvedSync && onSync != null) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: onSync,
+                    icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                    label: const Text('Sync local entries'),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -676,7 +710,6 @@ class _StorageModeBanner extends StatelessWidget {
 
 class _HeroSummaryCard extends StatelessWidget {
   const _HeroSummaryCard({required this.stats});
-
   final _TrackerStats stats;
 
   @override
@@ -685,54 +718,172 @@ class _HeroSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Current balance',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text('Current month balance', style: _bodyStyle()),
           const SizedBox(height: 8),
-          Text(
-            _money(stats.balance),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          Text(_money(stats.balance), maxLines: 1, overflow: TextOverflow.ellipsis, style: _titleStyle(size: 30)),
+          const SizedBox(height: 12),
+          Text(_insightText(stats), style: _bodyStyle()),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: _MiniStat(
-                  label: 'Income',
-                  value: _money(stats.income),
-                  icon: Icons.south_west_rounded,
+              Expanded(child: _MiniStat(label: 'Income', value: _money(stats.income), icon: Icons.south_west_rounded)),
+              const SizedBox(width: 12),
+              Expanded(child: _MiniStat(label: 'Expenses', value: _money(stats.expenses), icon: Icons.north_east_rounded)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _insightText(_TrackerStats stats) {
+    if (stats.taxRelevantTotal > 0) return '${_money(stats.taxRelevantTotal)} marked tax-relevant.';
+    if (stats.businessTotal > 0) return '${_money(stats.businessTotal)} tracked as business expense.';
+    if (stats.transactionCount == 0) return 'Add your first expense in two taps.';
+    return '${stats.transactionCount} entries tracked this month.';
+  }
+}
+
+class _QuickAddPanel extends StatelessWidget {
+  const _QuickAddPanel({required this.categories, required this.onSelected});
+
+  final List<ExpenseTrackerCategory> categories;
+  final ValueChanged<ExpenseTrackerCategory> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _TrackerSectionHeader(
+            title: 'Quick add',
+            subtitle: 'Choose a category, enter amount, save.',
+            icon: Icons.bolt_rounded,
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: categories
+                .map((category) => ActionChip(
+                      avatar: Icon(_iconForCategory(category.title), size: 18, color: AppTheme.primaryRed),
+                      label: Text(category.title),
+                      onPressed: () => onSelected(category),
+                      side: BorderSide(color: AppTheme.primaryRed.withValues(alpha: 0.18)),
+                      backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.05),
+                      labelStyle: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800),
+                    ))
+                .toList(growable: false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxReadyCard extends StatelessWidget {
+  const _TaxReadyCard({required this.stats});
+  final _TrackerStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = stats.readinessScore;
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _TrackerSectionHeader(
+            title: 'Tax readiness',
+            subtitle: 'Based on tags, receipts, business expenses and income entries.',
+            icon: Icons.verified_outlined,
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              SizedBox(
+                width: 76,
+                height: 76,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(value: score / 100, strokeWidth: 8),
+                    Text('$score%', style: _titleStyle(size: 17)),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
-                child: _MiniStat(
-                  label: 'Expenses',
-                  value: _money(stats.expenses),
-                  icon: Icons.north_east_rounded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(stats.readinessLabel, style: _titleStyle(size: 17)),
+                    const SizedBox(height: 4),
+                    Text('Tax total ${_money(stats.taxRelevantTotal)} · Business ${_money(stats.businessTotal)} · Receipts ${stats.receiptsAttached}', style: _bodyStyle()),
+                  ],
                 ),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ServiceSuggestionCard extends StatelessWidget {
+  const _ServiceSuggestionCard({required this.stats});
+  final _TrackerStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final (title, message, icon) = stats.businessTotal > 0
+        ? ('Bookkeeping support', 'You are tracking business expenses. OMC can organize these into monthly books.', Icons.business_center_outlined)
+        : stats.taxRelevantTotal > 0
+            ? ('Tax filing preparation', 'Your tax-ready expense summary is building. Start tax filing with OMC when ready.', Icons.fact_check_outlined)
+            : ('Build your tax record', 'Mark useful expenses as tax-relevant and attach receipts for better filing readiness.', Icons.lightbulb_outline_rounded);
+
+    return PremiumCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _IconBox(icon: icon),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: _titleStyle(size: 16)),
+                const SizedBox(height: 5),
+                Text(message, style: _bodyStyle()),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({required this.selected, required this.onChanged});
+  final _TrackerFilter selected;
+  final ValueChanged<_TrackerFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<_TrackerFilter>(
+      segments: _TrackerFilter.values
+          .map((filter) => ButtonSegment<_TrackerFilter>(value: filter, label: Text(filter.label)))
+          .toList(growable: false),
+      selected: {selected},
+      onSelectionChanged: (selection) => onChanged(selection.first),
     );
   }
 }
 
 class _MonthSummaryCard extends StatelessWidget {
   const _MonthSummaryCard({required this.title, required this.stats});
-
   final String title;
   final _TrackerStats stats;
 
@@ -742,530 +893,36 @@ class _MonthSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          Text(title, style: _titleStyle(size: 18)),
           const SizedBox(height: 12),
-          _SummaryRow(
-            label: 'Monthly income',
-            value: stats.income,
-            icon: Icons.trending_up_rounded,
-          ),
+          _SummaryRow(label: 'Income', value: stats.income, icon: Icons.trending_up_rounded),
           const Divider(height: 24),
-          _SummaryRow(
-            label: 'Monthly expenses',
-            value: stats.expenses,
-            icon: Icons.trending_down_rounded,
-          ),
+          _SummaryRow(label: 'Expenses', value: stats.expenses, icon: Icons.trending_down_rounded),
           const Divider(height: 24),
-          _SummaryRow(
-            label: 'Transactions',
-            valueLabel: '${stats.transactionCount}',
-            icon: Icons.receipt_long_outlined,
-          ),
+          _SummaryRow(label: 'Net balance', value: stats.balance, icon: Icons.account_balance_wallet_outlined),
+          const Divider(height: 24),
+          _SummaryRow(label: 'Transactions', valueLabel: '${stats.transactionCount}', icon: Icons.receipt_long_outlined),
         ],
       ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 18),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
-    required this.label,
-    required this.icon,
-    this.value,
-    this.valueLabel,
-  });
-
-  final String label;
-  final double? value;
-  final String? valueLabel;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppTheme.primaryRed, size: 18),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        Flexible(
-          child: Text(
-            valueLabel ?? _money(value ?? 0),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TrackerSectionHeader extends StatelessWidget {
-  const _TrackerSectionHeader({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            ),
-          ),
-          child: Icon(icon, color: AppTheme.primaryRed, size: 20),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AccountSummaryCard extends StatelessWidget {
-  const _AccountSummaryCard({required this.transactions});
-
-  final List<ExpenseTransaction> transactions;
-
-  @override
-  Widget build(BuildContext context) {
-    if (transactions.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final balances = <String, double>{};
-
-    for (final transaction in transactions) {
-      final signedAmount = transaction.isIncome
-          ? transaction.amount
-          : -transaction.amount;
-
-      balances.update(
-        transaction.account,
-        (value) => value + signedAmount,
-        ifAbsent: () => signedAmount,
-      );
-    }
-
-    final rows = balances.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _TrackerSectionHeader(
-            title: 'Account balances',
-            subtitle: 'Net balance grouped by account.',
-            icon: Icons.account_balance_wallet_outlined,
-          ),
-          const SizedBox(height: 12),
-          for (final row in rows.take(6))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppTheme.primaryRed.withValues(
-                      alpha: 0.08,
-                    ),
-                    child: const Icon(
-                      Icons.account_balance_wallet_outlined,
-                      color: AppTheme.primaryRed,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      row.key,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Flexible(
-                    child: Text(
-                      _money(row.value),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MonthlyReportCard extends StatelessWidget {
-  const _MonthlyReportCard({required this.transactions});
-
-  final List<ExpenseTransaction> transactions;
-
-  @override
-  Widget build(BuildContext context) {
-    if (transactions.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final rows = _buildRows(transactions);
-    if (rows.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final maxAmount = rows
-        .map((row) => row.income > row.expenses ? row.income : row.expenses)
-        .fold<double>(0, (max, value) => value > max ? value : max);
-
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _TrackerSectionHeader(
-            title: 'Monthly report',
-            subtitle: 'Income versus expenses by month.',
-            icon: Icons.bar_chart_rounded,
-          ),
-          const SizedBox(height: 12),
-          for (final row in rows.take(6))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _MonthlyReportRow(
-                row: row,
-                maxAmount: maxAmount <= 0 ? 1 : maxAmount,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  List<_MonthlyReportRowData> _buildRows(
-    List<ExpenseTransaction> transactions,
-  ) {
-    final buckets = <String, _MutableMonthlyTotals>{};
-
-    for (final transaction in transactions) {
-      final key =
-          '${transaction.date.year}-${transaction.date.month.toString().padLeft(2, '0')}';
-
-      final bucket = buckets.putIfAbsent(
-        key,
-        () => _MutableMonthlyTotals(
-          year: transaction.date.year,
-          month: transaction.date.month,
-        ),
-      );
-
-      if (transaction.isIncome) {
-        bucket.income += transaction.amount;
-      } else {
-        bucket.expenses += transaction.amount;
-      }
-    }
-
-    final rows = buckets.values
-        .map(
-          (bucket) => _MonthlyReportRowData(
-            year: bucket.year,
-            month: bucket.month,
-            label: DateFormat(
-              'MMM yyyy',
-            ).format(DateTime(bucket.year, bucket.month)),
-            income: bucket.income,
-            expenses: bucket.expenses,
-          ),
-        )
-        .toList(growable: false);
-
-    rows.sort((a, b) => b.sortKey.compareTo(a.sortKey));
-    return rows;
-  }
-}
-
-class _MutableMonthlyTotals {
-  _MutableMonthlyTotals({required this.year, required this.month});
-
-  final int year;
-  final int month;
-  double income = 0;
-  double expenses = 0;
-}
-
-class _MonthlyReportRowData {
-  const _MonthlyReportRowData({
-    required this.year,
-    required this.month,
-    required this.label,
-    required this.income,
-    required this.expenses,
-  });
-
-  final int year;
-  final int month;
-  final String label;
-  final double income;
-  final double expenses;
-
-  int get sortKey => year * 100 + month;
-}
-
-class _MonthlyReportRow extends StatelessWidget {
-  const _MonthlyReportRow({required this.row, required this.maxAmount});
-
-  final _MonthlyReportRowData row;
-  final double maxAmount;
-
-  @override
-  Widget build(BuildContext context) {
-    final incomeRatio = (row.income / maxAmount).clamp(0.0, 1.0);
-    final expenseRatio = (row.expenses / maxAmount).clamp(0.0, 1.0);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          row.label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _ReportBar(label: 'Income', value: row.income, ratio: incomeRatio),
-        const SizedBox(height: 8),
-        _ReportBar(label: 'Expenses', value: row.expenses, ratio: expenseRatio),
-      ],
-    );
-  }
-}
-
-class _ReportBar extends StatelessWidget {
-  const _ReportBar({
-    required this.label,
-    required this.value,
-    required this.ratio,
-  });
-
-  final String label;
-  final double value;
-  final double ratio;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 72,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        Expanded(
-          child: LinearProgressIndicator(
-            value: ratio,
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(999),
-          ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 92,
-          child: Text(
-            _money(value),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.end,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
 
 class _CategorySummaryCard extends StatelessWidget {
   const _CategorySummaryCard({required this.transactions});
-
   final List<ExpenseTransaction> transactions;
 
   @override
   Widget build(BuildContext context) {
-    final expenses = transactions
-        .where((item) => item.isExpense)
-        .toList(growable: false);
-
-    if (expenses.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    final expenses = transactions.where((item) => item.isExpense).toList(growable: false);
+    if (expenses.isEmpty) return const SizedBox.shrink();
 
     final totals = <String, double>{};
     for (final transaction in expenses) {
-      totals.update(
-        transaction.category,
-        (value) => value + transaction.amount,
-        ifAbsent: () => transaction.amount,
-      );
+      totals.update(transaction.category, (value) => value + transaction.amount, ifAbsent: () => transaction.amount);
     }
-
-    final rows = totals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    final totalExpense = expenses.fold<double>(
-      0,
-      (sum, item) => sum + item.amount,
-    );
+    final rows = totals.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final totalExpense = expenses.fold<double>(0, (sum, item) => sum + item.amount);
 
     return PremiumCard(
       child: Column(
@@ -1292,138 +949,43 @@ class _CategorySummaryCard extends StatelessWidget {
   }
 }
 
-class _CategoryRow extends StatelessWidget {
-  const _CategoryRow({
-    required this.label,
-    required this.amount,
-    required this.percentage,
-  });
-
-  final String label;
-  final double amount;
-  final double percentage;
-
-  @override
-  Widget build(BuildContext context) {
-    final percentLabel = '${(percentage * 100).round()}%';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            Flexible(
-              child: Text(
-                '${_money(amount)} · $percentLabel',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: percentage.clamp(0, 1),
-          minHeight: 6,
-          borderRadius: BorderRadius.circular(999),
-        ),
-      ],
-    );
-  }
-}
-
 class _TransactionTile extends StatelessWidget {
-  const _TransactionTile({required this.transaction, required this.onDelete});
-
+  const _TransactionTile({required this.transaction, required this.onEdit, required this.onDelete});
   final ExpenseTransaction transaction;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final isIncome = transaction.isIncome;
-
     return PremiumCard(
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-              ),
-            ),
-            child: Icon(
-              isIncome ? Icons.south_west_rounded : Icons.north_east_rounded,
-              color: AppTheme.primaryRed,
-              size: 22,
-            ),
-          ),
+          _IconBox(icon: isIncome ? Icons.south_west_rounded : _iconForCategory(transaction.category)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  transaction.category,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                Text(transaction.merchant?.trim().isNotEmpty == true ? transaction.merchant!.trim() : transaction.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: _titleStyle(size: 15)),
                 const SizedBox(height: 4),
-                Text(
-                  '${transaction.account} · ${transaction.paymentMethod}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('dd MMM yyyy').format(transaction.date),
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text('${DateFormat('dd MMM yyyy').format(transaction.date)} · ${transaction.account} · ${transaction.paymentMethod}', maxLines: 1, overflow: TextOverflow.ellipsis, style: _bodyStyle()),
                 if ((transaction.note ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    transaction.note!.trim(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text(transaction.note!.trim(), maxLines: 2, overflow: TextOverflow.ellipsis, style: _bodyStyle()),
                 ],
+                const SizedBox(height: 7),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (transaction.taxRelevant) const _MiniChip(label: 'Tax'),
+                    if (transaction.businessRelated) const _MiniChip(label: 'Business'),
+                    if (transaction.recurring) const _MiniChip(label: 'Recurring'),
+                    if ((transaction.receiptFile ?? '').trim().isNotEmpty) const _MiniChip(label: 'Receipt'),
+                    if (transaction.synced) const _MiniChip(label: 'Synced'),
+                  ],
+                ),
               ],
             ),
           ),
@@ -1433,24 +995,14 @@ class _TransactionTile extends StatelessWidget {
             children: [
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 118),
-                child: Text(
-                  '${isIncome ? '+' : '-'}${_money(transaction.amount)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: isIncome
-                        ? Colors.green.shade700
-                        : Colors.red.shade700,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                child: Text('${isIncome ? '+' : '-'}${_money(transaction.amount)}', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: TextStyle(color: isIncome ? Colors.green.shade700 : Colors.red.shade700, fontWeight: FontWeight.w900)),
               ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                tooltip: 'Delete',
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline_rounded),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(visualDensity: VisualDensity.compact, tooltip: 'Edit', onPressed: onEdit, icon: const Icon(Icons.edit_outlined)),
+                  IconButton(visualDensity: VisualDensity.compact, tooltip: 'Archive', onPressed: onDelete, icon: const Icon(Icons.archive_outlined)),
+                ],
               ),
             ],
           ),
@@ -1460,84 +1012,62 @@ class _TransactionTile extends StatelessWidget {
   }
 }
 
-class _DatePickerTile extends StatelessWidget {
-  const _DatePickerTile({required this.date, required this.onTap});
+class _TransactionSheet extends StatefulWidget {
+  const _TransactionSheet({
+    required this.categories,
+    required this.receiptEnabled,
+    required this.onSave,
+    this.transaction,
+    this.initialCategory,
+  });
 
-  final DateTime date;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: InputDecorator(
-        decoration: const InputDecoration(
-          labelText: 'Date',
-          prefixIcon: Icon(Icons.calendar_month_outlined),
-        ),
-        child: Text(
-          DateFormat('dd MMM yyyy').format(date),
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickChips extends StatelessWidget {
-  const _QuickChips({required this.values, required this.onSelected});
-
-  final List<String> values;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: values
-          .map(
-            (value) => ActionChip(
-              label: Text(value),
-              onPressed: () => onSelected(value),
-              side: BorderSide(
-                color: AppTheme.primaryRed.withValues(alpha: 0.18),
-              ),
-              backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.05),
-              labelStyle: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          )
-          .toList(growable: false),
-    );
-  }
-}
-
-class _AddTransactionSheet extends StatefulWidget {
-  const _AddTransactionSheet({required this.onSave});
-
+  final List<ExpenseTrackerCategory> categories;
+  final bool receiptEnabled;
   final ValueChanged<ExpenseTransaction> onSave;
+  final ExpenseTransaction? transaction;
+  final ExpenseTrackerCategory? initialCategory;
 
   @override
-  State<_AddTransactionSheet> createState() => _AddTransactionSheetState();
+  State<_TransactionSheet> createState() => _TransactionSheetState();
 }
 
-class _AddTransactionSheetState extends State<_AddTransactionSheet> {
+class _TransactionSheetState extends State<_TransactionSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
-  final _categoryController = TextEditingController();
-  final _accountController = TextEditingController(text: 'Cash');
-  final _paymentMethodController = TextEditingController(text: 'Cash');
-  final _noteController = TextEditingController();
+  late final TextEditingController _amountController;
+  late final TextEditingController _categoryController;
+  late final TextEditingController _accountController;
+  late final TextEditingController _paymentMethodController;
+  late final TextEditingController _merchantController;
+  late final TextEditingController _noteController;
+  late final TextEditingController _receiptController;
 
-  ExpenseTransactionType _type = ExpenseTransactionType.expense;
-  DateTime _selectedDate = DateTime.now();
+  late ExpenseTransactionType _type;
+  late DateTime _selectedDate;
+  bool _advanced = false;
+  bool _taxRelevant = false;
+  bool _businessRelated = false;
+  bool _recurring = false;
+  bool _reimbursable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.transaction;
+    final initialCategory = widget.initialCategory;
+    _type = existing?.type ?? initialCategory?.type ?? ExpenseTransactionType.expense;
+    _selectedDate = existing?.date ?? DateTime.now();
+    _amountController = TextEditingController(text: existing == null ? '' : existing.amount.toStringAsFixed(0));
+    _categoryController = TextEditingController(text: existing?.category ?? initialCategory?.title ?? '');
+    _accountController = TextEditingController(text: existing?.account ?? 'Cash');
+    _paymentMethodController = TextEditingController(text: existing?.paymentMethod ?? 'Cash');
+    _merchantController = TextEditingController(text: existing?.merchant ?? '');
+    _noteController = TextEditingController(text: existing?.note ?? '');
+    _receiptController = TextEditingController(text: existing?.receiptFile ?? '');
+    _taxRelevant = existing?.taxRelevant ?? initialCategory?.isTaxRelevant ?? false;
+    _businessRelated = existing?.businessRelated ?? initialCategory?.businessDefault ?? false;
+    _recurring = existing?.recurring ?? false;
+    _reimbursable = existing?.reimbursable ?? false;
+  }
 
   @override
   void dispose() {
@@ -1545,13 +1075,16 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
     _categoryController.dispose();
     _accountController.dispose();
     _paymentMethodController.dispose();
+    _merchantController.dispose();
     _noteController.dispose();
+    _receiptController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final quickCategories = widget.categories.where((item) => item.type == _type).take(8).toList(growable: false);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 16, 20, bottomInset + 20),
@@ -1562,163 +1095,88 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.add_card_rounded,
-                    color: AppTheme.primaryRed,
-                    size: 24,
-                  ),
-                ),
+                _IconBox(icon: widget.transaction == null ? Icons.add_card_rounded : Icons.edit_outlined),
                 const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Add transaction',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
+                Expanded(child: Text(widget.transaction == null ? 'Add transaction' : 'Edit transaction', style: _titleStyle(size: 22))),
               ],
             ),
             const SizedBox(height: 16),
             SegmentedButton<ExpenseTransactionType>(
               segments: const [
-                ButtonSegment(
-                  value: ExpenseTransactionType.expense,
-                  label: Text('Expense'),
-                  icon: Icon(Icons.north_east_rounded),
-                ),
-                ButtonSegment(
-                  value: ExpenseTransactionType.income,
-                  label: Text('Income'),
-                  icon: Icon(Icons.south_west_rounded),
-                ),
+                ButtonSegment(value: ExpenseTransactionType.expense, label: Text('Expense'), icon: Icon(Icons.north_east_rounded)),
+                ButtonSegment(value: ExpenseTransactionType.income, label: Text('Income'), icon: Icon(Icons.south_west_rounded)),
               ],
               selected: {_type},
-              onSelectionChanged: (selection) {
-                setState(() => _type = selection.first);
-              },
+              onSelectionChanged: (selection) => setState(() => _type = selection.first),
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                prefixIcon: Icon(Icons.payments_outlined),
-              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Amount', prefixIcon: Icon(Icons.payments_outlined)),
               validator: (value) {
-                final amount = double.tryParse(
-                  value?.replaceAll(',', '').trim() ?? '',
-                );
-                if (amount == null || amount <= 0) {
-                  return 'Enter a valid amount.';
-                }
+                final amount = double.tryParse(value?.replaceAll(',', '').trim() ?? '');
+                if (amount == null || amount <= 0) return 'Enter a valid amount.';
                 return null;
               },
             ),
             const SizedBox(height: 14),
-            _QuickChips(
-              values: _type == ExpenseTransactionType.income
-                  ? const ['Salary', 'Bonus', 'Refund', 'Business']
-                  : const ['Food', 'Fuel', 'Rent', 'Bills', 'Shopping'],
-              onSelected: (value) => _categoryController.text = value,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: quickCategories
+                  .map((category) => ActionChip(
+                        label: Text(category.title),
+                        onPressed: () {
+                          setState(() {
+                            _categoryController.text = category.title;
+                            _taxRelevant = category.isTaxRelevant;
+                            _businessRelated = category.businessDefault;
+                          });
+                        },
+                      ))
+                  .toList(growable: false),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _categoryController,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
-                labelText: _type == ExpenseTransactionType.income
-                    ? 'Income category'
-                    : 'Expense category',
-                hintText: _type == ExpenseTransactionType.income
-                    ? 'Salary, bonus, refund...'
-                    : 'Food, fuel, rent, bills...',
+                labelText: _type == ExpenseTransactionType.income ? 'Income category' : 'Expense category',
                 prefixIcon: const Icon(Icons.category_outlined),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Category is required.';
-                }
-                return null;
-              },
+              validator: (value) => value == null || value.trim().isEmpty ? 'Category is required.' : null,
             ),
-            const SizedBox(height: 14),
-            _QuickChips(
-              values: const ['Cash', 'Bank', 'Easypaisa', 'JazzCash'],
-              onSelected: (value) => _accountController.text = value,
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _accountController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Account',
-                hintText: 'Cash, Bank, Easypaisa...',
-                prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Account is required.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
-            _QuickChips(
-              values: const ['Cash', 'Card', 'Bank Transfer', 'Wallet'],
-              onSelected: (value) => _paymentMethodController.text = value,
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _paymentMethodController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Payment method',
-                hintText: 'Cash, card, bank transfer...',
-                prefixIcon: Icon(Icons.credit_card_rounded),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Payment method is required.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
-            _DatePickerTile(date: _selectedDate, onTap: _pickDate),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _noteController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Note optional',
-                prefixIcon: Icon(Icons.notes_outlined),
-              ),
+            const SizedBox(height: 12),
+            ExpansionTile(
+              initiallyExpanded: _advanced,
+              onExpansionChanged: (value) => setState(() => _advanced = value),
+              tilePadding: EdgeInsets.zero,
+              title: Text('Advanced details', style: _titleStyle(size: 15)),
+              children: [
+                const SizedBox(height: 8),
+                TextFormField(controller: _accountController, decoration: const InputDecoration(labelText: 'Account', prefixIcon: Icon(Icons.account_balance_wallet_outlined))),
+                const SizedBox(height: 12),
+                TextFormField(controller: _paymentMethodController, decoration: const InputDecoration(labelText: 'Payment method', prefixIcon: Icon(Icons.credit_card_rounded))),
+                const SizedBox(height: 12),
+                _DatePickerTile(date: _selectedDate, onTap: _pickDate),
+                const SizedBox(height: 12),
+                TextFormField(controller: _merchantController, decoration: const InputDecoration(labelText: 'Merchant optional', prefixIcon: Icon(Icons.storefront_outlined))),
+                const SizedBox(height: 12),
+                TextFormField(controller: _noteController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Note optional', prefixIcon: Icon(Icons.notes_outlined))),
+                if (widget.receiptEnabled) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(controller: _receiptController, decoration: const InputDecoration(labelText: 'Receipt file URL optional', prefixIcon: Icon(Icons.attach_file_rounded))),
+                ],
+                const SizedBox(height: 10),
+                SwitchListTile.adaptive(value: _taxRelevant, onChanged: (value) => setState(() => _taxRelevant = value), title: const Text('Useful for tax')),
+                SwitchListTile.adaptive(value: _businessRelated, onChanged: (value) => setState(() => _businessRelated = value), title: const Text('Business expense')),
+                SwitchListTile.adaptive(value: _recurring, onChanged: (value) => setState(() => _recurring = value), title: const Text('Recurring')),
+                SwitchListTile.adaptive(value: _reimbursable, onChanged: (value) => setState(() => _reimbursable = value), title: const Text('Reimbursable')),
+              ],
             ),
             const SizedBox(height: 18),
-            AppButton(
-              label: 'Save transaction',
-              icon: Icons.check_rounded,
-              onPressed: _save,
-            ),
+            AppButton(label: widget.transaction == null ? 'Save transaction' : 'Update transaction', icon: Icons.check_rounded, onPressed: _save),
             const SizedBox(height: 4),
           ],
         ),
@@ -1733,37 +1191,32 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
       firstDate: DateTime(DateTime.now().year - 5),
       lastDate: DateTime.now(),
     );
-
     if (pickedDate == null) return;
-
-    setState(() {
-      _selectedDate = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        DateTime.now().hour,
-        DateTime.now().minute,
-      );
-    });
+    setState(() => _selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day));
   }
 
   void _save() {
     final formState = _formKey.currentState;
-    if (formState == null || !formState.validate()) {
-      return;
-    }
+    if (formState == null || !formState.validate()) return;
 
+    final existing = widget.transaction;
     final transaction = ExpenseTransaction(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: existing?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       type: _type,
       amount: double.parse(_amountController.text.replaceAll(',', '').trim()),
       category: _categoryController.text.trim(),
-      account: _accountController.text.trim(),
-      paymentMethod: _paymentMethodController.text.trim(),
+      account: _accountController.text.trim().isEmpty ? 'Cash' : _accountController.text.trim(),
+      paymentMethod: _paymentMethodController.text.trim().isEmpty ? 'Cash' : _paymentMethodController.text.trim(),
+      merchant: _merchantController.text.trim().isEmpty ? null : _merchantController.text.trim(),
       date: _selectedDate,
-      note: _noteController.text.trim().isEmpty
-          ? null
-          : _noteController.text.trim(),
+      note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      taxRelevant: _taxRelevant,
+      businessRelated: _businessRelated,
+      recurring: _recurring,
+      reimbursable: _reimbursable,
+      receiptFile: _receiptController.text.trim().isEmpty ? null : _receiptController.text.trim(),
+      createdFromGuest: existing?.createdFromGuest ?? false,
+      synced: existing?.synced ?? false,
     );
 
     widget.onSave(transaction);
@@ -1771,10 +1224,223 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
   }
 }
 
+class _DatePickerTile extends StatelessWidget {
+  const _DatePickerTile({required this.date, required this.onTap});
+  final DateTime date;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: InputDecorator(
+        decoration: const InputDecoration(labelText: 'Date', prefixIcon: Icon(Icons.calendar_month_outlined)),
+        child: Text(DateFormat('dd MMM yyyy').format(date), style: _titleStyle(size: 14)),
+      ),
+    );
+  }
+}
+
+class _TrackerSectionHeader extends StatelessWidget {
+  const _TrackerSectionHeader({required this.title, required this.subtitle, required this.icon});
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _IconBox(icon: icon),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: _titleStyle(size: 18)),
+              const SizedBox(height: 3),
+              Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: _bodyStyle()),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value, required this.icon});
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _IconBox(icon: icon, size: 32),
+          const SizedBox(height: 10),
+          Text(label, style: _bodyStyle()),
+          const SizedBox(height: 4),
+          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: _titleStyle(size: 14)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({required this.label, required this.icon, this.value, this.valueLabel});
+  final String label;
+  final double? value;
+  final String? valueLabel;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _IconBox(icon: icon, size: 32),
+        const SizedBox(width: 10),
+        Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: _bodyStyle())),
+        Flexible(child: Text(valueLabel ?? _money(value ?? 0), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: _titleStyle(size: 14))),
+      ],
+    );
+  }
+}
+
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({required this.label, required this.amount, required this.percentage});
+  final String label;
+  final double amount;
+  final double percentage;
+
+  @override
+  Widget build(BuildContext context) {
+    final percentLabel = '${(percentage * 100).round()}%';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: _bodyStyle())),
+            Flexible(child: Text('${_money(amount)} · $percentLabel', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: _titleStyle(size: 13))),
+          ],
+        ),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(value: percentage.clamp(0, 1), minHeight: 6, borderRadius: BorderRadius.circular(999)),
+      ],
+    );
+  }
+}
+
+class _MiniChip extends StatelessWidget {
+  const _MiniChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
+      ),
+      child: Text(label, style: const TextStyle(color: AppTheme.primaryRed, fontSize: 11, fontWeight: FontWeight.w900)),
+    );
+  }
+}
+
+class _IconBox extends StatelessWidget {
+  const _IconBox({required this.icon, this.size = 42});
+  final IconData icon;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(size >= 40 ? 15 : 12),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
+      ),
+      child: Icon(icon, color: AppTheme.primaryRed, size: size >= 40 ? 22 : 18),
+    );
+  }
+}
+
+class _TrackerLoadingView extends StatelessWidget {
+  const _TrackerLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 128),
+      children: [
+        for (var index = 0; index < 5; index++) ...[
+          PremiumCard(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(width: 46, height: 46, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(16))),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(width: double.infinity, height: 14, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(999))),
+                      const SizedBox(height: 10),
+                      Container(width: 150, height: 11, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(999))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (index != 4) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+TextStyle _titleStyle({required double size}) {
+  return TextStyle(color: AppTheme.textPrimary, fontSize: size, fontWeight: FontWeight.w900);
+}
+
+TextStyle _bodyStyle() {
+  return const TextStyle(color: AppTheme.textSecondary, fontSize: 12, height: 1.35, fontWeight: FontWeight.w600);
+}
+
+IconData _iconForCategory(String value) {
+  final text = value.toLowerCase();
+  if (text.contains('food')) return Icons.restaurant_outlined;
+  if (text.contains('fuel')) return Icons.local_gas_station_outlined;
+  if (text.contains('bill') || text.contains('util')) return Icons.receipt_long_outlined;
+  if (text.contains('rent')) return Icons.home_work_outlined;
+  if (text.contains('shop')) return Icons.shopping_bag_outlined;
+  if (text.contains('transport')) return Icons.directions_car_outlined;
+  if (text.contains('health')) return Icons.health_and_safety_outlined;
+  if (text.contains('education')) return Icons.school_outlined;
+  if (text.contains('business')) return Icons.business_center_outlined;
+  if (text.contains('tax') || text.contains('legal')) return Icons.gavel_outlined;
+  if (text.contains('salary') || text.contains('income')) return Icons.payments_outlined;
+  return Icons.category_outlined;
+}
+
 String _money(double value) {
-  return NumberFormat.currency(
-    locale: 'en_PK',
-    symbol: 'PKR ',
-    decimalDigits: 0,
-  ).format(value);
+  return NumberFormat.currency(locale: 'en_PK', symbol: 'PKR ', decimalDigits: 0).format(value);
 }
