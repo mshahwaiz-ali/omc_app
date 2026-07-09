@@ -1,6 +1,7 @@
 import re
 
 import frappe
+from frappe.utils.file_manager import save_file
 
 
 ALLOWED_PROFILE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
@@ -43,33 +44,23 @@ def _get_customer_profile_for_user(user=None):
     return profile
 
 
-def _get_profile_image_url(profile=None, user=None):
+def _get_user_image_url(user=None):
     user = user or _current_user()
-    profile_image = ""
+    if not user or user == "Guest" or not frappe.db.exists("User", user):
+        return ""
 
-    if profile:
-        try:
-            profile_image = profile.get("profile_image") or ""
-        except Exception:
-            profile_image = ""
-
-    user_image = ""
-    if user and user != "Guest" and frappe.db.exists("User", user):
-        user_image = frappe.db.get_value("User", user, "user_image") or ""
-
-    return profile_image or user_image or ""
+    return frappe.db.get_value("User", user, "user_image") or ""
 
 
 def _profile_payload(profile, user):
-    avatar_url = _get_profile_image_url(profile, user)
+    user_image = _get_user_image_url(user)
     if not profile:
         return {
             "full_name": "",
             "email": user if user and user != "Guest" else "",
             "phone": "",
-            "avatar_url": avatar_url,
-            "profile_image": avatar_url,
-            "user_image": avatar_url,
+            "avatar_url": user_image,
+            "user_image": user_image,
             "customer_id": "",
             "customer_status": "Guest" if user == "Guest" else "",
             "approval_status": "",
@@ -83,9 +74,8 @@ def _profile_payload(profile, user):
         "user": user or "",
         "phone": profile.phone or "",
         "whatsapp_no": profile.get("whatsapp_no") or "",
-        "avatar_url": avatar_url,
-        "profile_image": avatar_url,
-        "user_image": avatar_url,
+        "avatar_url": user_image,
+        "user_image": user_image,
         "customer_id": profile.name,
         "customer_status": profile.customer_status or "",
         "approval_status": profile.approval_status or "",
@@ -158,22 +148,6 @@ def _read_uploaded_file():
     return filename, content
 
 
-def _save_profile_file(filename, content, profile):
-    file_doc = frappe.get_doc(
-        {
-            "doctype": "File",
-            "file_name": filename,
-            "attached_to_doctype": "OMC Customer Profile",
-            "attached_to_name": profile.name,
-            "attached_to_field": "profile_image" if profile.meta.has_field("profile_image") else None,
-            "is_private": 0,
-            "content": content,
-        }
-    )
-    file_doc.insert(ignore_permissions=True)
-    return file_doc
-
-
 @frappe.whitelist()
 def upload_profile_image():
     user = _current_user()
@@ -184,22 +158,23 @@ def upload_profile_image():
         frappe.throw("Logged-in user account was not found.", frappe.PermissionError)
 
     filename, content = _read_uploaded_file()
-    profile = _get_customer_profile_for_user(user)
-    if not profile:
-        frappe.throw("Customer profile was not found for this account.")
+    file_doc = save_file(
+        filename,
+        content,
+        "User",
+        user,
+        is_private=0,
+    )
 
-    file_doc = _save_profile_file(filename, content, profile)
     file_url = file_doc.file_url or ""
     if not file_url:
         frappe.throw("Profile image was uploaded but no file URL was generated.")
 
-    if profile.meta.has_field("profile_image"):
-        profile.profile_image = file_url
-        profile.save(ignore_permissions=True)
-
     user_doc = frappe.get_doc("User", user)
     user_doc.user_image = file_url
     user_doc.save(ignore_permissions=True)
+
+    profile = _get_customer_profile_for_user(user)
 
     frappe.db.commit()
     frappe.clear_cache(user=user)
@@ -207,9 +182,8 @@ def upload_profile_image():
     return {
         "updated": True,
         "avatar_url": file_url,
-        "profile_image": file_url,
         "user_image": file_url,
-        "customer_id": profile.name,
+        "customer_id": profile.name if profile else "",
         "file_name": file_doc.name,
         "profile": _profile_payload(profile, user),
         "message": "Profile image updated.",
