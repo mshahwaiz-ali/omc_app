@@ -1,6 +1,7 @@
 import frappe
 
-from omc_app.api.mobile import _current_user, _get_mobile_capabilities
+from omc_app.api.mobile import _current_user
+from omc_app.api.access_v2 import _capabilities as _get_mobile_capabilities
 
 
 CUSTOMER_FALLBACK_QUICK_ACTIONS = [
@@ -88,6 +89,21 @@ CUSTOMER_FALLBACK_QUICK_ACTIONS = [
         "sort_order": 60,
         "access_level": "Public",
         "required_capability": "",
+        "badge_type": "None",
+        "style": "Normal",
+        "placement": "home_primary",
+        "layout_size": "small",
+        "group": "Finance",
+    },
+    {
+        "title": "Budgets",
+        "subtitle": "Monthly",
+        "icon_key": "payments",
+        "target_type": "Route",
+        "target_value": "/expense-budget",
+        "sort_order": 70,
+        "access_level": "Approved Customer",
+        "required_capability": "can_view_customer_dashboard",
         "badge_type": "None",
         "style": "Normal",
         "placement": "home_primary",
