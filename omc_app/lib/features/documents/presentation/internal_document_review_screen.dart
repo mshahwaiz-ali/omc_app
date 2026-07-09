@@ -425,7 +425,7 @@ class _ServiceSelectorCard extends StatelessWidget {
     return PremiumCard(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       child: DropdownButtonFormField<String>(
-        value: selectedReference,
+        initialValue: selectedReference,
         isExpanded: true,
         decoration: const InputDecoration(
           labelText: 'Service request',

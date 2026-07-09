@@ -333,6 +333,13 @@ class ServiceCaseRepository {
       timeline: _timeline(timelineSource),
       progressPercent: _nullableIntValue(json['progress_percent']),
       currentStage: _nullableString(json['current_stage'] ?? json['stage']),
+      customerProfile: _nullableString(json['customer_profile']),
+      customerName: _nullableString(json['customer_name'] ?? json['full_name']),
+      customerEmail: _nullableString(json['contact_email'] ?? json['email']),
+      customerPhone: _nullableString(json['contact_phone'] ?? json['phone']),
+      customerNtn: _nullableString(json['ntn'] ?? json['customer_ntn']),
+      customerCnic: _nullableString(json['cnic'] ?? json['customer_cnic']),
+      companyName: _nullableString(json['company_name']),
       customerActionRequired: _boolValue(json['customer_action_required']),
       requiredDocumentsCount: _nullableIntValue(
         json['required_documents_count'],

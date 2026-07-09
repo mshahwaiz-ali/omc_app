@@ -20,6 +20,13 @@ class ServiceCase {
     this.timeline = const [],
     this._progressPercent,
     this.currentStage,
+    this.customerProfile,
+    this.customerName,
+    this.customerEmail,
+    this.customerPhone,
+    this.customerNtn,
+    this.customerCnic,
+    this.companyName,
     this.customerActionRequired = false,
     this.requiredDocumentsCount,
     this.submittedDocumentsCount,
@@ -48,6 +55,13 @@ class ServiceCase {
   final List<ServiceCaseTimelineStep> timeline;
   final int? _progressPercent;
   final String? currentStage;
+  final String? customerProfile;
+  final String? customerName;
+  final String? customerEmail;
+  final String? customerPhone;
+  final String? customerNtn;
+  final String? customerCnic;
+  final String? companyName;
   final bool customerActionRequired;
   final int? requiredDocumentsCount;
   final int? submittedDocumentsCount;
@@ -212,6 +226,22 @@ class ServiceCase {
 
     final cleanId = id.trim();
     return cleanId.isEmpty ? '-' : cleanId;
+  }
+
+  String get displayCustomerName {
+    final company = companyName?.trim();
+    if (company != null && company.isNotEmpty) return company;
+
+    final name = customerName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+
+    final email = customerEmail?.trim();
+    if (email != null && email.isNotEmpty) return email;
+
+    final profile = customerProfile?.trim();
+    if (profile != null && profile.isNotEmpty) return profile;
+
+    return 'Customer';
   }
 
   bool get isClosed {

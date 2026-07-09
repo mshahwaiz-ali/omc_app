@@ -14,6 +14,7 @@ import '../features/home/data/home_dashboard_repository.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
+import '../features/service_requests/presentation/internal_service_track_screen.dart';
 import '../features/service_requests/presentation/my_services_screen.dart';
 import 'theme.dart';
 
@@ -123,6 +124,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final profile = profileSummary.maybeWhen(data: (profile) => profile, orElse: () => null);
     final capabilities = profile?.capabilities ?? authState.capabilities;
     final unreadNotifications = ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final canUseInternalTrack = capabilities.canAccessInternalWorkspace || capabilities.isInternal;
     final canUseInternalDocs = capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace || capabilities.isInternal;
 
     final screens = [
@@ -133,7 +135,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenNotifications: () => context.push('/notifications'),
       ),
       const ServiceCatalogueScreen(),
-      const MyServicesScreen(),
+      canUseInternalTrack ? const InternalServiceTrackScreen() : const MyServicesScreen(),
       canUseInternalDocs ? const InternalDocumentReviewScreen() : const DocumentsScreen(),
       _MoreScreen(
         onOpenDashboard: () => _openWhenAllowed(
