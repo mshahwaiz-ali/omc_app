@@ -9,6 +9,7 @@ import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/documents/presentation/documents_screen.dart';
+import '../features/documents/presentation/internal_document_review_screen.dart';
 import '../features/home/data/home_dashboard_repository.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/profile/data/profile_repository.dart';
@@ -72,7 +73,11 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   bool _canOpenDocuments(AuthCapabilities capabilities) {
-    return capabilities.canViewDocuments || capabilities.canReviewDocuments || capabilities.isApproved;
+    return capabilities.canViewDocuments ||
+        capabilities.canReviewDocuments ||
+        capabilities.isApproved ||
+        capabilities.isInternal ||
+        capabilities.canAccessInternalWorkspace;
   }
 
   void _openWhenAllowed({
@@ -118,6 +123,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final profile = profileSummary.maybeWhen(data: (profile) => profile, orElse: () => null);
     final capabilities = profile?.capabilities ?? authState.capabilities;
     final unreadNotifications = ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final canUseInternalDocs = capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace || capabilities.isInternal;
 
     final screens = [
       HomeScreen(
@@ -128,7 +134,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       ),
       const ServiceCatalogueScreen(),
       const MyServicesScreen(),
-      const DocumentsScreen(),
+      canUseInternalDocs ? const InternalDocumentReviewScreen() : const DocumentsScreen(),
       _MoreScreen(
         onOpenDashboard: () => _openWhenAllowed(
           allowed: capabilities.canViewCustomerDashboard || capabilities.canAccessInternalWorkspace,
