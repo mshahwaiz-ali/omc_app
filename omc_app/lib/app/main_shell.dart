@@ -179,7 +179,10 @@ class _MainShellState extends ConsumerState<MainShell> {
         ),
         onOpenPayments: () => _openWhenAllowed(
           allowed:
-              capabilities.canViewPayments || capabilities.canReviewPayments,
+              capabilities.canViewPayments ||
+              capabilities.canReviewPayments ||
+              capabilities.isApproved ||
+              capabilities.isInternal,
           path: '/payments',
           capabilities: capabilities,
         ),
@@ -198,6 +201,8 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenNotifications: () => _openWhenAllowed(
           allowed:
               capabilities.canViewCustomerNotifications ||
+              capabilities.isApproved ||
+              capabilities.isInternal ||
               capabilities.canAccessInternalWorkspace,
           path: '/notifications',
           capabilities: capabilities,

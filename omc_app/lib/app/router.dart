@@ -465,11 +465,16 @@ bool _canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location == '/payments' || location.startsWith('/payments/')) {
-    return capabilities.canViewPayments || capabilities.canReviewPayments;
+    return capabilities.canViewPayments ||
+        capabilities.canReviewPayments ||
+        capabilities.isApproved ||
+        capabilities.isInternal;
   }
 
   if (location == '/notifications' || location.startsWith('/notifications/')) {
     return capabilities.canViewCustomerNotifications ||
+        capabilities.isApproved ||
+        capabilities.isInternal ||
         capabilities.canAccessInternalWorkspace;
   }
 

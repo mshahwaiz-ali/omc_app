@@ -6,7 +6,6 @@ import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../support/data/support_repository.dart';
 import '../data/profile_repository.dart';
@@ -667,15 +666,143 @@ class _ProfileHeroCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              if (status != null) PremiumInfoChip(label: status!),
-              PremiumInfoChip(label: customerType),
-              PremiumInfoChip(label: approvalStatus),
+              if (_cleanProfileChipLabel(status) != null)
+                _ProfileStatusChip(label: _cleanProfileChipLabel(status)!),
+              _ProfileStatusChip(label: customerType),
+              _ProfileStatusChip(label: approvalStatus),
             ],
           ),
         ],
       ),
     );
   }
+}
+
+
+class _ProfileStatusChip extends StatelessWidget {
+  const _ProfileStatusChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _profileChipStyle(label);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: style.background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: style.border),
+      ),
+      child: Text(
+        label.trim(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: style.foreground,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.05,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileChipStyle {
+  const _ProfileChipStyle({
+    required this.foreground,
+    required this.background,
+    required this.border,
+  });
+
+  final Color foreground;
+  final Color background;
+  final Color border;
+}
+
+String? _cleanProfileChipLabel(String? value) {
+  final text = value?.trim();
+  if (text == null || text.isEmpty) return null;
+  return text;
+}
+
+_ProfileChipStyle _profileChipStyle(String rawLabel) {
+  final label = rawLabel.trim().toLowerCase();
+
+  if (label.contains('reject') ||
+      label.contains('suspend') ||
+      label.contains('block') ||
+      label.contains('inactive') ||
+      label.contains('disabled') ||
+      label.contains('failed')) {
+    return const _ProfileChipStyle(
+      foreground: Color(0xFFB42318),
+      background: Color(0xFFFFF1F0),
+      border: Color(0xFFFFD5D2),
+    );
+  }
+
+  if (label.contains('pending') ||
+      label.contains('review') ||
+      label.contains('sync') ||
+      label.contains('draft') ||
+      label.contains('waiting') ||
+      label.contains('late')) {
+    return const _ProfileChipStyle(
+      foreground: Color(0xFFB54708),
+      background: Color(0xFFFFF7E6),
+      border: Color(0xFFFFE1A6),
+    );
+  }
+
+  if (label.contains('approved') ||
+      label.contains('active') ||
+      label.contains('verified') ||
+      label.contains('complete') ||
+      label.contains('success')) {
+    return const _ProfileChipStyle(
+      foreground: Color(0xFF067647),
+      background: Color(0xFFEAF8F0),
+      border: Color(0xFFBFE8D0),
+    );
+  }
+
+  if (label.contains('customer') ||
+      label.contains('client') ||
+      label.contains('individual')) {
+    return const _ProfileChipStyle(
+      foreground: Color(0xFF175CD3),
+      background: Color(0xFFEFF6FF),
+      border: Color(0xFFB8D7FF),
+    );
+  }
+
+  if (label.contains('company') ||
+      label.contains('business') ||
+      label.contains('corporate') ||
+      label.contains('organization')) {
+    return const _ProfileChipStyle(
+      foreground: Color(0xFF53389E),
+      background: Color(0xFFF4F0FF),
+      border: Color(0xFFD8CCFF),
+    );
+  }
+
+  if (label.contains('guest') || label.contains('unknown')) {
+    return const _ProfileChipStyle(
+      foreground: Color(0xFF475467),
+      background: Color(0xFFF2F4F7),
+      border: Color(0xFFD0D5DD),
+    );
+  }
+
+  return const _ProfileChipStyle(
+    foreground: Color(0xFF344054),
+    background: Color(0xFFF8FAFC),
+    border: Color(0xFFE2E8F0),
+  );
 }
 
 
