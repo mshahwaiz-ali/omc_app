@@ -236,7 +236,7 @@ class _InternalDashboardBody extends StatelessWidget {
     final visibleCases = queue.cases.take(3).toList(growable: false);
     final documentsWaiting = queue.cases.fold<int>(
       0,
-      (total, item) => total + item.pendingDocuments + item.uploadedDocuments,
+      (total, item) => total + item.uploadedDocuments,
     );
     final actionRows = _internalAttentionRows(
       workspaceSummary,
@@ -269,7 +269,7 @@ class _InternalDashboardBody extends StatelessWidget {
                       ? '${queue.cases.length} service cases need follow-up'
                       : 'Operations queue is clear',
           subtitle: documentsWaiting > 0
-              ? 'Open the review queue and clear uploaded or pending documents.'
+              ? 'Open the review queue and clear uploaded customer documents.'
               : workspaceSummary.pendingPayments > 0
                   ? 'Payment receipts are waiting for internal verification.'
                   : queue.cases.isNotEmpty
