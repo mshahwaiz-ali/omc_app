@@ -1,8 +1,1 @@
-import frappe
-from frappe.model.document import Document
-
-
-class OMCExpenseCategory(Document):
-    def validate(self):
-        if self.transaction_type not in {"Income", "Expense"}:
-            frappe.throw("Transaction Type must be Income or Expense")
+from omc_app.omc_app.doctype.omc_expense_category.omc_expense_category import *  # noqa: F401,F403
