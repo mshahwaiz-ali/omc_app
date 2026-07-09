@@ -8,18 +8,10 @@ import '../../auth/application/auth_controller.dart';
 import '../data/expense_tracker_repository.dart';
 import '../domain/expense_transaction.dart';
 
-final expenseBudgetMonthProvider = StateProvider<DateTime>((ref) {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month);
-});
-
 final expenseBudgetsProvider = FutureProvider<List<ExpenseBudgetItem>>((ref) async {
-  final month = ref.watch(expenseBudgetMonthProvider);
   final repository = ref.watch(expenseTrackerRepositoryProvider);
   final rows = await repository.fetchBudgets();
-  return rows.map(ExpenseBudgetItem.fromJson).where((item) {
-    return item.month.year == month.year && item.month.month == month.month;
-  }).toList(growable: false);
+  return rows.map(ExpenseBudgetItem.fromJson).toList(growable: false);
 });
 
 final expenseBudgetEntriesProvider = FutureProvider<List<ExpenseTransaction>>((ref) async {
@@ -56,13 +48,26 @@ class ExpenseBudgetItem {
   }
 }
 
-class ExpenseBudgetScreen extends ConsumerWidget {
+class ExpenseBudgetScreen extends ConsumerStatefulWidget {
   const ExpenseBudgetScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ExpenseBudgetScreen> createState() => _ExpenseBudgetScreenState();
+}
+
+class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
+  late DateTime _month;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final capabilities = ref.watch(authControllerProvider).capabilities;
-    final month = ref.watch(expenseBudgetMonthProvider);
     final budgetsAsync = ref.watch(expenseBudgetsProvider);
     final entriesAsync = ref.watch(expenseBudgetEntriesProvider);
 
@@ -85,30 +90,28 @@ class ExpenseBudgetScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Refresh',
-            onPressed: () {
-              ref.invalidate(expenseBudgetsProvider);
-              ref.invalidate(expenseBudgetEntriesProvider);
-            },
+            onPressed: _refresh,
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showBudgetSheet(context, ref, month: month),
+        onPressed: () => _showBudgetSheet(month: _month),
         icon: const Icon(Icons.add_rounded),
         label: const Text('Set budget'),
       ),
       body: SafeArea(
         child: RefreshIndicator.adaptive(
-          onRefresh: () async {
-            ref.invalidate(expenseBudgetsProvider);
-            ref.invalidate(expenseBudgetEntriesProvider);
-          },
+          onRefresh: () async => _refresh(),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 128),
             children: [
-              _BudgetMonthHeader(month: month),
+              _BudgetMonthHeader(
+                month: _month,
+                onPrevious: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
+                onNext: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
+              ),
               const SizedBox(height: 16),
               budgetsAsync.when(
                 loading: () => const _BudgetLoadingCard(),
@@ -117,21 +120,27 @@ class ExpenseBudgetScreen extends ConsumerWidget {
                   title: 'Budgets unavailable',
                   message: 'Could not load synced budget settings right now.',
                 ),
-                data: (budgets) => entriesAsync.when(
-                  loading: () => const _BudgetLoadingCard(),
-                  error: (_, _) => _BudgetList(
-                    budgets: budgets,
-                    entries: const [],
-                    month: month,
-                    onEdit: (budget) => _showBudgetSheet(context, ref, month: month, budget: budget),
-                  ),
-                  data: (entries) => _BudgetList(
-                    budgets: budgets,
-                    entries: entries,
-                    month: month,
-                    onEdit: (budget) => _showBudgetSheet(context, ref, month: month, budget: budget),
-                  ),
-                ),
+                data: (budgets) {
+                  final monthBudgets = budgets.where((item) {
+                    return item.month.year == _month.year && item.month.month == _month.month;
+                  }).toList(growable: false);
+
+                  return entriesAsync.when(
+                    loading: () => const _BudgetLoadingCard(),
+                    error: (_, _) => _BudgetList(
+                      budgets: monthBudgets,
+                      entries: const [],
+                      month: _month,
+                      onEdit: (budget) => _showBudgetSheet(month: _month, budget: budget),
+                    ),
+                    data: (entries) => _BudgetList(
+                      budgets: monthBudgets,
+                      entries: entries,
+                      month: _month,
+                      onEdit: (budget) => _showBudgetSheet(month: _month, budget: budget),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -140,15 +149,24 @@ class ExpenseBudgetScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showBudgetSheet(
-    BuildContext context,
-    WidgetRef ref, {
+  void _refresh() {
+    ref.invalidate(expenseBudgetsProvider);
+    ref.invalidate(expenseBudgetEntriesProvider);
+  }
+
+  Future<void> _showBudgetSheet({
     required DateTime month,
     ExpenseBudgetItem? budget,
   }) async {
-    final categoryController = TextEditingController(text: budget?.category == 'Overall' ? '' : budget?.category ?? '');
-    final amountController = TextEditingController(text: budget == null || budget.limitAmount <= 0 ? '' : budget.limitAmount.toStringAsFixed(0));
-    final thresholdController = TextEditingController(text: (budget?.alertThreshold ?? 80).toStringAsFixed(0));
+    final categoryController = TextEditingController(
+      text: budget?.category == 'Overall' ? '' : budget?.category ?? '',
+    );
+    final amountController = TextEditingController(
+      text: budget == null || budget.limitAmount <= 0 ? '' : budget.limitAmount.toStringAsFixed(0),
+    );
+    final thresholdController = TextEditingController(
+      text: (budget?.alertThreshold ?? 80).toStringAsFixed(0),
+    );
 
     await showModalBottomSheet<void>(
       context: context,
@@ -164,12 +182,12 @@ class ExpenseBudgetScreen extends ConsumerWidget {
             children: [
               Text(
                 budget == null ? 'Set monthly budget' : 'Update monthly budget',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
               Text(
                 'Leave category blank for an overall monthly budget.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
+                style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 18),
               TextField(
@@ -209,7 +227,7 @@ class ExpenseBudgetScreen extends ConsumerWidget {
                     final amount = double.tryParse(amountController.text.trim()) ?? 0;
                     final threshold = double.tryParse(thresholdController.text.trim()) ?? 80;
                     if (amount <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
                         const SnackBar(content: Text('Enter a valid budget amount.')),
                       );
                       return;
@@ -224,8 +242,9 @@ class ExpenseBudgetScreen extends ConsumerWidget {
                       'active': 1,
                     });
 
-                    ref.invalidate(expenseBudgetsProvider);
-                    if (context.mounted) Navigator.of(sheetContext).pop();
+                    if (!sheetContext.mounted) return;
+                    _refresh();
+                    Navigator.of(sheetContext).pop();
                   },
                   icon: const Icon(Icons.check_rounded),
                   label: const Text('Save budget'),
@@ -243,13 +262,19 @@ class ExpenseBudgetScreen extends ConsumerWidget {
   }
 }
 
-class _BudgetMonthHeader extends ConsumerWidget {
-  const _BudgetMonthHeader({required this.month});
+class _BudgetMonthHeader extends StatelessWidget {
+  const _BudgetMonthHeader({
+    required this.month,
+    required this.onPrevious,
+    required this.onNext,
+  });
 
   final DateTime month;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -266,13 +291,16 @@ class _BudgetMonthHeader extends ConsumerWidget {
       child: Row(
         children: [
           IconButton.filledTonal(
-            onPressed: () => ref.read(expenseBudgetMonthProvider.notifier).state = DateTime(month.year, month.month - 1),
+            onPressed: onPrevious,
             icon: const Icon(Icons.chevron_left_rounded),
           ),
           Expanded(
             child: Column(
               children: [
-                const Text('Budget month', style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w700)),
+                const Text(
+                  'Budget month',
+                  style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   DateFormat('MMMM yyyy').format(month),
@@ -282,7 +310,7 @@ class _BudgetMonthHeader extends ConsumerWidget {
             ),
           ),
           IconButton.filledTonal(
-            onPressed: () => ref.read(expenseBudgetMonthProvider.notifier).state = DateTime(month.year, month.month + 1),
+            onPressed: onNext,
             icon: const Icon(Icons.chevron_right_rounded),
           ),
         ],
@@ -371,7 +399,11 @@ class _BudgetCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: (isOverLimit || isNearLimit) ? AppTheme.primaryRed.withValues(alpha: 0.26) : Colors.black.withValues(alpha: 0.05)),
+          border: Border.all(
+            color: (isOverLimit || isNearLimit)
+                ? AppTheme.primaryRed.withValues(alpha: 0.26)
+                : Colors.black.withValues(alpha: 0.05),
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
