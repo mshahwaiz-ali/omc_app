@@ -38,71 +38,6 @@ class DocumentsScreen extends ConsumerWidget {
   }
 }
 
-class _DocumentsErrorView extends StatelessWidget {
-  const _DocumentsErrorView({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 48, 20, 28),
-      children: [
-        PremiumCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: [
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.cloud_off_outlined,
-                  color: AppTheme.primaryRed,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Documents unavailable',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.15,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 String _documentsErrorMessage(Object error) {
   if (error is ApiError && error.message.trim().isNotEmpty) {
     return error.message.trim();
@@ -115,10 +50,10 @@ String _documentsErrorMessage(Object error) {
 }
 
 enum _DocumentFilter {
-  all('All'),
-  missing('Missing'),
-  review('Review'),
-  approved('Approved');
+  active('Active'),
+  needsAction('Needs Action'),
+  approved('Approved'),
+  archived('Archived');
 
   const _DocumentFilter(this.label);
 
@@ -135,7 +70,7 @@ class _DocumentsList extends StatefulWidget {
 }
 
 class _DocumentsListState extends State<_DocumentsList> {
-  _DocumentFilter _selectedFilter = _DocumentFilter.all;
+  _DocumentFilter _selectedFilter = _DocumentFilter.active;
 
   @override
   Widget build(BuildContext context) {
@@ -167,57 +102,36 @@ class _DocumentsListState extends State<_DocumentsList> {
 
   List<DocumentItem> _filteredDocuments(List<DocumentItem> documents) {
     switch (_selectedFilter) {
-      case _DocumentFilter.all:
-        return documents;
-      case _DocumentFilter.missing:
+      case _DocumentFilter.active:
+        return documents.where((item) => item.isActive).toList(growable: false);
+      case _DocumentFilter.needsAction:
         return documents
-            .where(
-              (item) =>
-                  item.status == DocumentStatus.missing ||
-                  item.status == DocumentStatus.rejected,
-            )
-            .toList(growable: false);
-      case _DocumentFilter.review:
-        return documents
-            .where(
-              (item) =>
-                  item.status == DocumentStatus.uploaded ||
-                  item.status == DocumentStatus.pendingReview,
-            )
+            .where((item) => item.requiresAction)
             .toList(growable: false);
       case _DocumentFilter.approved:
+        return documents.where((item) => item.isApproved).toList(growable: false);
+      case _DocumentFilter.archived:
         return documents
-            .where((item) => item.status == DocumentStatus.approved)
+            .where((item) => item.isArchived)
             .toList(growable: false);
     }
   }
 
   List<_DocumentSectionData> _documentSections(List<DocumentItem> documents) {
-    final missing = documents
-        .where(
-          (item) =>
-              item.status == DocumentStatus.missing ||
-              item.status == DocumentStatus.rejected,
-        )
+    final actionNeeded = documents
+        .where((item) => item.requiresAction)
         .toList(growable: false);
-    final submitted = documents
-        .where(
-          (item) =>
-              item.status == DocumentStatus.uploaded ||
-              item.status == DocumentStatus.pendingReview,
-        )
-        .toList(growable: false);
-    final approved = documents
-        .where((item) => item.status == DocumentStatus.approved)
-        .toList(growable: false);
+    final submitted = documents.where((item) => item.isUnderReview).toList(growable: false);
+    final approved = documents.where((item) => item.isApproved).toList(growable: false);
+    final archived = documents.where((item) => item.isArchived).toList(growable: false);
 
     return [
-      if (missing.isNotEmpty)
+      if (actionNeeded.isNotEmpty)
         _DocumentSectionData(
           title: 'Action needed',
           subtitle: 'Missing or rejected documents to upload again.',
           icon: Icons.priority_high_rounded,
-          documents: missing,
+          documents: actionNeeded,
         ),
       if (submitted.isNotEmpty)
         _DocumentSectionData(
@@ -229,9 +143,16 @@ class _DocumentsListState extends State<_DocumentsList> {
       if (approved.isNotEmpty)
         _DocumentSectionData(
           title: 'Approved',
-          subtitle: 'Documents verified by OMC.',
+          subtitle: 'Documents verified by OMC for active services.',
           icon: Icons.verified_rounded,
           documents: approved,
+        ),
+      if (archived.isNotEmpty)
+        _DocumentSectionData(
+          title: 'Archived',
+          subtitle: 'Documents from completed or cancelled services.',
+          icon: Icons.archive_rounded,
+          documents: archived,
         ),
     ];
   }
@@ -259,7 +180,7 @@ class _DocumentFilterBar extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Filter documents',
+                  'My Documents',
                   style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 15,
@@ -302,28 +223,14 @@ class _DocumentFilterBar extends StatelessWidget {
 
   int _countFor(_DocumentFilter filter) {
     switch (filter) {
-      case _DocumentFilter.all:
-        return documents.length;
-      case _DocumentFilter.missing:
-        return documents
-            .where(
-              (item) =>
-                  item.status == DocumentStatus.missing ||
-                  item.status == DocumentStatus.rejected,
-            )
-            .length;
-      case _DocumentFilter.review:
-        return documents
-            .where(
-              (item) =>
-                  item.status == DocumentStatus.uploaded ||
-                  item.status == DocumentStatus.pendingReview,
-            )
-            .length;
+      case _DocumentFilter.active:
+        return documents.where((item) => item.isActive).length;
+      case _DocumentFilter.needsAction:
+        return documents.where((item) => item.requiresAction).length;
       case _DocumentFilter.approved:
-        return documents
-            .where((item) => item.status == DocumentStatus.approved)
-            .length;
+        return documents.where((item) => item.isApproved).length;
+      case _DocumentFilter.archived:
+        return documents.where((item) => item.isArchived).length;
     }
   }
 }
@@ -369,14 +276,20 @@ class _DocumentsFilteredEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArchived = filter == _DocumentFilter.archived;
+
     return PremiumCard(
       padding: const EdgeInsets.all(22),
       child: Column(
         children: [
-          Icon(Icons.filter_alt_off_rounded, color: AppTheme.primaryRed, size: 34),
+          Icon(
+            isArchived ? Icons.archive_outlined : Icons.filter_alt_off_rounded,
+            color: AppTheme.primaryRed,
+            size: 34,
+          ),
           const SizedBox(height: 10),
           Text(
-            'No ${filter.label.toLowerCase()} documents',
+            isArchived ? 'No archived documents' : 'No ${filter.label.toLowerCase()} documents',
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppTheme.textPrimary,
@@ -385,10 +298,12 @@ class _DocumentsFilteredEmptyState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Try another document filter.',
+          Text(
+            isArchived
+                ? 'Completed and cancelled service documents will appear here.'
+                : 'Try another document filter.',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -484,25 +399,20 @@ class _DocumentsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final missingCount = documents
-        .where((item) => item.status == DocumentStatus.missing)
-        .length;
-    final approvedCount = documents
-        .where((item) => item.status == DocumentStatus.approved)
-        .length;
-    final reviewCount = documents
-        .where((item) => item.status == DocumentStatus.pendingReview)
-        .length;
+    final activeCount = documents.where((item) => item.isActive).length;
+    final actionCount = documents.where((item) => item.requiresAction).length;
+    final approvedCount = documents.where((item) => item.isApproved).length;
+    final archivedCount = documents.where((item) => item.isArchived).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PremiumListHeader(
           icon: Icons.folder_copy_outlined,
-          title: 'Documents',
+          title: 'My Documents',
           subtitle:
-              'Track required, submitted and reviewed documents for OMC services.',
-          metaLabel: '${documents.length} total',
+              'Active service documents stay visible. Completed service documents move to archive.',
+          metaLabel: '$activeCount active',
         ),
         if (documents.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -511,24 +421,16 @@ class _DocumentsHeader extends StatelessWidget {
               Expanded(
                 child: _DocumentStatTile(
                   icon: Icons.folder_copy_outlined,
-                  label: 'Total',
-                  value: documents.length.toString(),
+                  label: 'Active',
+                  value: activeCount.toString(),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _DocumentStatTile(
-                  icon: Icons.upload_file_rounded,
-                  label: 'Missing',
-                  value: missingCount.toString(),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _DocumentStatTile(
-                  icon: Icons.hourglass_top_rounded,
-                  label: 'Review',
-                  value: reviewCount.toString(),
+                  icon: Icons.priority_high_rounded,
+                  label: 'Action',
+                  value: actionCount.toString(),
                 ),
               ),
               const SizedBox(width: 10),
@@ -537,6 +439,14 @@ class _DocumentsHeader extends StatelessWidget {
                   icon: Icons.verified_rounded,
                   label: 'Approved',
                   value: approvedCount.toString(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DocumentStatTile(
+                  icon: Icons.archive_rounded,
+                  label: 'Archive',
+                  value: archivedCount.toString(),
                 ),
               ),
             ],
@@ -614,7 +524,7 @@ class _DocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(document.status);
+    final statusColor = _statusColor(document);
 
     return InkWell(
       borderRadius: BorderRadius.circular(22),
@@ -633,11 +543,7 @@ class _DocumentCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: statusColor.withValues(alpha: 0.10)),
               ),
-              child: Icon(
-                _statusIcon(document.status),
-                color: statusColor,
-                size: 22,
-              ),
+              child: Icon(_statusIcon(document), color: statusColor, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -675,18 +581,16 @@ class _DocumentCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      PremiumInfoChip(
-                        label: document.status.label,
-                        color: statusColor,
-                      ),
-                      if (document.serviceReference != null)
-                        PremiumInfoChip(label: document.serviceReference!),
+                      PremiumInfoChip(label: document.statusLabel, color: statusColor),
+                      if (document.serviceStatus != null)
+                        PremiumInfoChip(label: document.serviceStatus!),
                       if (document.updatedAtLabel != null)
-                        PremiumInfoChip(label: document.updatedAtLabel!),
+                        PremiumInfoChip(label: 'Uploaded ${document.updatedAtLabel!}'),
+                      if (document.archivedOnLabel != null)
+                        PremiumInfoChip(label: 'Archived ${document.archivedOnLabel!}'),
                     ],
                   ),
-                  if (document.fileName != null ||
-                      document.fileUrl != null) ...[
+                  if (document.fileName != null || document.fileUrl != null) ...[
                     const SizedBox(height: 10),
                     Text(
                       document.fileName ?? 'File link available',
@@ -734,8 +638,10 @@ class _DocumentCard extends StatelessWidget {
     );
   }
 
-  Color _statusColor(DocumentStatus status) {
-    switch (status) {
+  Color _statusColor(DocumentItem document) {
+    if (document.isArchived) return Colors.blueGrey.shade700;
+
+    switch (document.status) {
       case DocumentStatus.approved:
         return Colors.green.shade700;
       case DocumentStatus.rejected:
@@ -748,8 +654,10 @@ class _DocumentCard extends StatelessWidget {
     }
   }
 
-  IconData _statusIcon(DocumentStatus status) {
-    switch (status) {
+  IconData _statusIcon(DocumentItem document) {
+    if (document.isArchived) return Icons.archive_rounded;
+
+    switch (document.status) {
       case DocumentStatus.approved:
         return Icons.verified_rounded;
       case DocumentStatus.rejected:
@@ -797,7 +705,7 @@ class _EmptyDocumentsView extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               const Text(
-                'No documents yet',
+                'No active documents yet',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -810,7 +718,7 @@ class _EmptyDocumentsView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Required and submitted documents will appear here when records are available.',
+                'Required and submitted documents will appear here when active service records are available.',
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -825,6 +733,91 @@ class _EmptyDocumentsView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DocumentsErrorView extends StatelessWidget {
+  const _DocumentsErrorView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 48, 20, 28),
+      children: [
+        PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.cloud_off_outlined,
+                  color: AppTheme.primaryRed,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Documents unavailable',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.15,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DocumentsLoadingView extends StatelessWidget {
+  const _DocumentsLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 164),
+      itemBuilder: (context, index) => PremiumCard(
+        padding: const EdgeInsets.all(16),
+        child: _DocumentsLoadingRow(
+          color: Colors.black.withValues(alpha: 0.055 + (index % 2) * 0.015),
+        ),
+      ),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemCount: 7,
     );
   }
 }
@@ -887,30 +880,6 @@ class _DocumentsLoadingBlock extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(radius),
       ),
-    );
-  }
-}
-
-class _DocumentsLoadingView extends StatelessWidget {
-  const _DocumentsLoadingView();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
-      itemBuilder: (context, index) {
-        if (index == 0) return const _DocumentsHeader(documents: []);
-
-        return PremiumCard(
-          padding: const EdgeInsets.all(18),
-          child: _DocumentsLoadingRow(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          ),
-        );
-      },
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemCount: 4,
     );
   }
 }
