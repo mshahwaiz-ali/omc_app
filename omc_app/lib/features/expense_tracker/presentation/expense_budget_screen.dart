@@ -1,0 +1,470 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import '../../../app/theme.dart';
+import '../../../core/widgets/premium_empty_state.dart';
+import '../../auth/application/auth_controller.dart';
+import '../data/expense_tracker_repository.dart';
+import '../domain/expense_transaction.dart';
+
+final expenseBudgetMonthProvider = StateProvider<DateTime>((ref) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month);
+});
+
+final expenseBudgetsProvider = FutureProvider<List<ExpenseBudgetItem>>((ref) async {
+  final month = ref.watch(expenseBudgetMonthProvider);
+  final repository = ref.watch(expenseTrackerRepositoryProvider);
+  final rows = await repository.fetchBudgets();
+  return rows.map(ExpenseBudgetItem.fromJson).where((item) {
+    return item.month.year == month.year && item.month.month == month.month;
+  }).toList(growable: false);
+});
+
+final expenseBudgetEntriesProvider = FutureProvider<List<ExpenseTransaction>>((ref) async {
+  final repository = ref.watch(expenseTrackerRepositoryProvider);
+  return repository.fetchSyncedTransactions();
+});
+
+class ExpenseBudgetItem {
+  const ExpenseBudgetItem({
+    required this.name,
+    required this.category,
+    required this.month,
+    required this.limitAmount,
+    required this.alertThreshold,
+    required this.active,
+  });
+
+  final String name;
+  final String category;
+  final DateTime month;
+  final double limitAmount;
+  final double alertThreshold;
+  final bool active;
+
+  factory ExpenseBudgetItem.fromJson(Map<String, dynamic> json) {
+    return ExpenseBudgetItem(
+      name: json['name']?.toString() ?? '',
+      category: json['category']?.toString() ?? 'Overall',
+      month: DateTime.tryParse(json['month']?.toString() ?? '') ?? DateTime.now(),
+      limitAmount: double.tryParse(json['limit_amount']?.toString() ?? '') ?? 0,
+      alertThreshold: double.tryParse(json['alert_threshold']?.toString() ?? '') ?? 80,
+      active: _boolValue(json['active'], true),
+    );
+  }
+}
+
+class ExpenseBudgetScreen extends ConsumerWidget {
+  const ExpenseBudgetScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final month = ref.watch(expenseBudgetMonthProvider);
+    final budgetsAsync = ref.watch(expenseBudgetsProvider);
+    final entriesAsync = ref.watch(expenseBudgetEntriesProvider);
+
+    if (!capabilities.isApproved) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Monthly Budgets')),
+        body: const SafeArea(
+          child: PremiumEmptyState(
+            icon: Icons.lock_outline_rounded,
+            title: 'Approved account required',
+            message: 'Monthly budgets sync with your OMC account and are available after customer approval.',
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Monthly Budgets'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: () {
+              ref.invalidate(expenseBudgetsProvider);
+              ref.invalidate(expenseBudgetEntriesProvider);
+            },
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showBudgetSheet(context, ref, month: month),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Set budget'),
+      ),
+      body: SafeArea(
+        child: RefreshIndicator.adaptive(
+          onRefresh: () async {
+            ref.invalidate(expenseBudgetsProvider);
+            ref.invalidate(expenseBudgetEntriesProvider);
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 128),
+            children: [
+              _BudgetMonthHeader(month: month),
+              const SizedBox(height: 16),
+              budgetsAsync.when(
+                loading: () => const _BudgetLoadingCard(),
+                error: (_, _) => const PremiumEmptyState(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Budgets unavailable',
+                  message: 'Could not load synced budget settings right now.',
+                ),
+                data: (budgets) => entriesAsync.when(
+                  loading: () => const _BudgetLoadingCard(),
+                  error: (_, _) => _BudgetList(
+                    budgets: budgets,
+                    entries: const [],
+                    month: month,
+                    onEdit: (budget) => _showBudgetSheet(context, ref, month: month, budget: budget),
+                  ),
+                  data: (entries) => _BudgetList(
+                    budgets: budgets,
+                    entries: entries,
+                    month: month,
+                    onEdit: (budget) => _showBudgetSheet(context, ref, month: month, budget: budget),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showBudgetSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    required DateTime month,
+    ExpenseBudgetItem? budget,
+  }) async {
+    final categoryController = TextEditingController(text: budget?.category == 'Overall' ? '' : budget?.category ?? '');
+    final amountController = TextEditingController(text: budget == null || budget.limitAmount <= 0 ? '' : budget.limitAmount.toStringAsFixed(0));
+    final thresholdController = TextEditingController(text: (budget?.alertThreshold ?? 80).toStringAsFixed(0));
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.viewInsetsOf(sheetContext).bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                budget == null ? 'Set monthly budget' : 'Update monthly budget',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Leave category blank for an overall monthly budget.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: categoryController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  hintText: 'Example: Fuel, Food, Business',
+                  prefixIcon: Icon(Icons.category_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Budget limit',
+                  prefixText: 'PKR ',
+                  prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: thresholdController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Warning threshold',
+                  suffixText: '%',
+                  prefixIcon: Icon(Icons.warning_amber_rounded),
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    final amount = double.tryParse(amountController.text.trim()) ?? 0;
+                    final threshold = double.tryParse(thresholdController.text.trim()) ?? 80;
+                    if (amount <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Enter a valid budget amount.')),
+                      );
+                      return;
+                    }
+
+                    await ref.read(expenseTrackerRepositoryProvider).saveBudget({
+                      if (budget != null && budget.name.isNotEmpty) 'name': budget.name,
+                      'category': categoryController.text.trim().isEmpty ? null : categoryController.text.trim(),
+                      'month': DateFormat('yyyy-MM-dd').format(month),
+                      'limit_amount': amount,
+                      'alert_threshold': threshold.clamp(1, 100),
+                      'active': 1,
+                    });
+
+                    ref.invalidate(expenseBudgetsProvider);
+                    if (context.mounted) Navigator.of(sheetContext).pop();
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Save budget'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    categoryController.dispose();
+    amountController.dispose();
+    thresholdController.dispose();
+  }
+}
+
+class _BudgetMonthHeader extends ConsumerWidget {
+  const _BudgetMonthHeader({required this.month});
+
+  final DateTime month;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton.filledTonal(
+            onPressed: () => ref.read(expenseBudgetMonthProvider.notifier).state = DateTime(month.year, month.month - 1),
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                const Text('Budget month', style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('MMMM yyyy').format(month),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+          ),
+          IconButton.filledTonal(
+            onPressed: () => ref.read(expenseBudgetMonthProvider.notifier).state = DateTime(month.year, month.month + 1),
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BudgetList extends StatelessWidget {
+  const _BudgetList({
+    required this.budgets,
+    required this.entries,
+    required this.month,
+    required this.onEdit,
+  });
+
+  final List<ExpenseBudgetItem> budgets;
+  final List<ExpenseTransaction> entries;
+  final DateTime month;
+  final ValueChanged<ExpenseBudgetItem> onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    if (budgets.isEmpty) {
+      return const PremiumEmptyState(
+        icon: Icons.savings_outlined,
+        title: 'No budget set yet',
+        message: 'Add an overall or category budget to track spending against your monthly limit.',
+      );
+    }
+
+    final visibleEntries = entries.where((item) {
+      return item.isExpense && item.date.year == month.year && item.date.month == month.month;
+    }).toList(growable: false);
+
+    return Column(
+      children: [
+        for (final budget in budgets.where((item) => item.active))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _BudgetCard(
+              budget: budget,
+              spent: _spentForBudget(budget, visibleEntries),
+              onTap: () => onEdit(budget),
+            ),
+          ),
+      ],
+    );
+  }
+
+  double _spentForBudget(ExpenseBudgetItem budget, List<ExpenseTransaction> entries) {
+    final category = budget.category.trim().toLowerCase();
+    final matching = category.isEmpty || category == 'overall'
+        ? entries
+        : entries.where((item) => item.category.trim().toLowerCase() == category);
+    return matching.fold<double>(0, (sum, item) => sum + item.amount);
+  }
+}
+
+class _BudgetCard extends StatelessWidget {
+  const _BudgetCard({
+    required this.budget,
+    required this.spent,
+    required this.onTap,
+  });
+
+  final ExpenseBudgetItem budget;
+  final double spent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final formatter = NumberFormat.currency(symbol: 'PKR ', decimalDigits: 0);
+    final ratio = budget.limitAmount <= 0 ? 0.0 : (spent / budget.limitAmount).clamp(0.0, 1.25);
+    final alertRatio = (budget.alertThreshold / 100).clamp(0.01, 1.0);
+    final isOverLimit = spent > budget.limitAmount;
+    final isNearLimit = !isOverLimit && ratio >= alertRatio;
+    final remaining = budget.limitAmount - spent;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: (isOverLimit || isNearLimit) ? AppTheme.primaryRed.withValues(alpha: 0.26) : Colors.black.withValues(alpha: 0.05)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    isOverLimit ? Icons.error_outline_rounded : Icons.savings_outlined,
+                    color: AppTheme.primaryRed,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        budget.category.trim().isEmpty ? 'Overall budget' : budget.category,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${formatter.format(spent)} spent of ${formatter.format(budget.limitAmount)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.edit_outlined, size: 18, color: AppTheme.textSecondary),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: ratio.clamp(0.0, 1.0),
+                minHeight: 9,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              isOverLimit
+                  ? 'Over budget by ${formatter.format(remaining.abs())}'
+                  : isNearLimit
+                      ? 'Warning: ${budget.alertThreshold.toStringAsFixed(0)}% threshold reached'
+                      : '${formatter.format(remaining)} remaining',
+              style: TextStyle(
+                color: (isOverLimit || isNearLimit) ? AppTheme.primaryRed : AppTheme.textSecondary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BudgetLoadingCard extends StatelessWidget {
+  const _BudgetLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: const CircularProgressIndicator.adaptive(),
+    );
+  }
+}
+
+bool _boolValue(dynamic value, bool fallback) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final text = value?.toString().trim().toLowerCase();
+  if (text == 'true' || text == '1' || text == 'yes' || text == 'on') return true;
+  if (text == 'false' || text == '0' || text == 'no' || text == 'off') return false;
+  return fallback;
+}
