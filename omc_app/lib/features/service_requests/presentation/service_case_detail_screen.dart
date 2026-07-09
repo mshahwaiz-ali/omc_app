@@ -78,6 +78,10 @@ class _ServiceCaseDetailScreenState
                       _QuickStatusGrid(serviceCase: serviceCase),
                       const SizedBox(height: 16),
                       _ProgressCard(serviceCase: serviceCase),
+                      if (_RecentActivityCard.hasActivity(serviceCase)) ...[
+                        const SizedBox(height: 16),
+                        _RecentActivityCard(serviceCase: serviceCase),
+                      ],
                       if (serviceCase.customerActionRequired) ...[
                         const SizedBox(height: 16),
                         _ActionRequiredCard(serviceCase: serviceCase),
@@ -909,7 +913,8 @@ class _ProgressCard extends StatelessWidget {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
     final progressPercent =
         (serviceCase.progressPercent ?? (progress * 100).round()).toString();
-    final steps = _timelineSteps(serviceCase);
+    final steps = _milestoneSteps(serviceCase);
+    final activeIndex = _activeTimelineIndex(steps);
 
     return PremiumCard(
       child: Column(
@@ -947,98 +952,461 @@ class _ProgressCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          for (final step in steps) _TimelineStep(step: step),
+          for (var index = 0; index < steps.length; index++)
+            _TimelineStep(
+              step: steps[index],
+              isActive: activeIndex == index,
+              isLast: index == steps.length - 1,
+            ),
         ],
       ),
     );
   }
 
-  List<ServiceCaseTimelineStep> _timelineSteps(ServiceCase serviceCase) {
-    if (serviceCase.timeline.isNotEmpty) return serviceCase.timeline;
-
+  List<ServiceCaseTimelineStep> _milestoneSteps(ServiceCase serviceCase) {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
+    final normalizedStatus = serviceCase.status.trim().toLowerCase();
+    final isCancelled =
+        normalizedStatus.contains('cancel') ||
+        normalizedStatus.contains('reject');
+    final isCompleted =
+        normalizedStatus.contains('complete') ||
+        normalizedStatus.contains('closed');
+
+    final requiredDocs = serviceCase.requiredDocumentTotal;
+    final approvedDocs = serviceCase.approvedDocumentTotal;
+    final missingDocs =
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
+    final activePayments = serviceCase.activePaymentTotal;
+    final paidPayments = serviceCase.approvedPaymentTotal;
+    final rejectedPayments = serviceCase.rejectedPaymentTotal;
+
+    final documentsDone = requiredDocs > 0
+        ? missingDocs == 0 && approvedDocs >= requiredDocs
+        : progress >= 0.35 || _statusAfterDocumentStage(normalizedStatus);
+
+    final paymentDone = activePayments > 0
+        ? paidPayments >= activePayments
+        : progress >= 0.60 || _statusAfterPaymentStage(normalizedStatus);
+
+    final processingDone = progress >= 0.75 || isCompleted;
+    final completedDone = isCompleted && !isCancelled;
+
     return [
       ServiceCaseTimelineStep(
         title: 'Request received',
-        subtitle: serviceCase.createdAtLabel,
-        isDone: progress >= 0.05,
+        subtitle: isCancelled
+            ? 'This request was received before cancellation.'
+            : serviceCase.createdAtLabel.trim().isNotEmpty &&
+                  serviceCase.createdAtLabel != '-'
+            ? serviceCase.createdAtLabel
+            : 'Your request has been received by OMC.',
+        isDone:
+            progress >= 0.05 || serviceCase.createdAtLabel.trim().isNotEmpty,
       ),
       ServiceCaseTimelineStep(
         title: 'Documents review',
-        subtitle: progress >= 0.35 ? 'In progress' : 'Pending',
-        isDone: progress >= 0.35,
+        subtitle: _documentsSubtitle(
+          requiredDocs: requiredDocs,
+          approvedDocs: approvedDocs,
+          missingDocs: missingDocs,
+          documentsDone: documentsDone,
+          status: normalizedStatus,
+        ),
+        isDone: documentsDone,
+      ),
+      ServiceCaseTimelineStep(
+        title: 'Payment review',
+        subtitle: _paymentSubtitle(
+          activePayments: activePayments,
+          paidPayments: paidPayments,
+          rejectedPayments: rejectedPayments,
+          paymentDone: paymentDone,
+          status: normalizedStatus,
+        ),
+        isDone: paymentDone,
       ),
       ServiceCaseTimelineStep(
         title: 'OMC processing',
-        subtitle: progress >= 0.65 ? 'In progress' : 'Pending',
-        isDone: progress >= 0.65,
+        subtitle: processingDone
+            ? 'OMC processing is in progress.'
+            : serviceCase.nextStep ??
+                  'OMC team will update this request shortly.',
+        isDone: processingDone,
       ),
       ServiceCaseTimelineStep(
         title: 'Completed',
-        subtitle: progress >= 1 ? serviceCase.updatedAtLabel : 'Pending',
-        isDone: progress >= 1,
+        subtitle: completedDone
+            ? serviceCase.updatedAtLabel
+            : isCancelled
+            ? 'This request was cancelled.'
+            : 'Pending completion.',
+        isDone: completedDone,
       ),
     ];
+  }
+
+  String _documentsSubtitle({
+    required int requiredDocs,
+    required int approvedDocs,
+    required int missingDocs,
+    required bool documentsDone,
+    required String status,
+  }) {
+    if (requiredDocs > 0) {
+      if (missingDocs > 0) {
+        return '$missingDocs document(s) still needed.';
+      }
+      if (documentsDone) {
+        return '$approvedDocs/$requiredDocs document(s) approved.';
+      }
+      return '$approvedDocs/$requiredDocs document(s) approved so far.';
+    }
+
+    if (_statusAfterDocumentStage(status)) {
+      return 'Document requirements have been reviewed.';
+    }
+
+    return 'OMC will confirm document requirements.';
+  }
+
+  String _paymentSubtitle({
+    required int activePayments,
+    required int paidPayments,
+    required int rejectedPayments,
+    required bool paymentDone,
+    required String status,
+  }) {
+    if (rejectedPayments > 0) {
+      return '$rejectedPayments payment receipt(s) need correction.';
+    }
+
+    if (activePayments > 0) {
+      if (paymentDone) {
+        return '$paidPayments/$activePayments payment(s) approved.';
+      }
+      return '$paidPayments/$activePayments payment(s) approved so far.';
+    }
+
+    if (status.contains('waiting for payment')) {
+      return 'Payment is pending.';
+    }
+    if (_statusAfterPaymentStage(status)) {
+      return 'Payment stage has been reviewed.';
+    }
+
+    return 'No payment has been opened yet.';
+  }
+
+  bool _statusAfterDocumentStage(String status) {
+    return status.contains('payment') ||
+        status.contains('in progress') ||
+        status.contains('under review') ||
+        status.contains('complete') ||
+        status.contains('closed');
+  }
+
+  bool _statusAfterPaymentStage(String status) {
+    return status.contains('in progress') ||
+        status.contains('under review') ||
+        status.contains('complete') ||
+        status.contains('closed');
+  }
+
+  int _activeTimelineIndex(List<ServiceCaseTimelineStep> steps) {
+    if (steps.isEmpty) return -1;
+
+    for (var index = 0; index < steps.length; index++) {
+      if (!steps[index].isDone) return index;
+    }
+
+    return steps.length - 1;
   }
 }
 
 class _TimelineStep extends StatelessWidget {
-  const _TimelineStep({required this.step});
+  const _TimelineStep({
+    required this.step,
+    required this.isActive,
+    required this.isLast,
+  });
 
   final ServiceCaseTimelineStep step;
+  final bool isActive;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    final color = step.isDone ? AppTheme.primaryRed : AppTheme.textSecondary;
+    final isFilled = step.isDone || isActive;
+    final titleColor = isFilled ? AppTheme.textPrimary : AppTheme.textSecondary;
+    final dotColor = step.isDone
+        ? AppTheme.primaryRed
+        : isActive
+        ? Colors.white
+        : AppTheme.primaryRed.withValues(alpha: 0.08);
+    final borderColor = isFilled
+        ? AppTheme.primaryRed
+        : AppTheme.primaryRed.withValues(alpha: 0.18);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+    return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: step.isDone
-                  ? AppTheme.primaryRed
-                  : AppTheme.primaryRed.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              step.isDone ? Icons.check_rounded : Icons.circle_outlined,
-              size: 16,
-              color: step.isDone ? Colors.white : AppTheme.primaryRed,
+          SizedBox(
+            width: 28,
+            child: Column(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: isActive ? 27 : 24,
+                  height: isActive ? 27 : 24,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: borderColor,
+                      width: isActive ? 2 : 1.4,
+                    ),
+                    boxShadow: isActive
+                        ? [
+                            BoxShadow(
+                              color: AppTheme.primaryRed.withValues(
+                                alpha: 0.18,
+                              ),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      step.isDone
+                          ? Icons.check_rounded
+                          : isActive
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.circle_outlined,
+                      size: step.isDone ? 15 : 13,
+                      color: step.isDone || isActive
+                          ? AppTheme.primaryRed
+                          : AppTheme.primaryRed.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: step.isDone
+                            ? AppTheme.primaryRed
+                            : AppTheme.primaryRed.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  step.title,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 18),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 0, 0, 0),
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(
+                      color: isActive
+                          ? AppTheme.primaryRed.withValues(alpha: 0.16)
+                          : Colors.transparent,
+                      width: 3,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  step.subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      step.title,
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 13.5,
+                        height: 1.2,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      step.subtitle,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12.2,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class _RecentActivityCard extends StatelessWidget {
+  const _RecentActivityCard({required this.serviceCase});
+
+  final ServiceCase serviceCase;
+
+  static bool hasActivity(ServiceCase serviceCase) {
+    return _activitySteps(serviceCase).isNotEmpty;
+  }
+
+  static List<ServiceCaseTimelineStep> _activitySteps(ServiceCase serviceCase) {
+    final fixedTitles = {
+      'request received',
+      'documents review',
+      'payment review',
+      'omc processing',
+      'completed',
+      'expected completion',
+    };
+
+    return serviceCase.timeline
+        .where((step) {
+          final title = step.title.trim();
+          if (title.isEmpty) return false;
+          return !fixedTitles.contains(title.toLowerCase());
+        })
+        .toList(growable: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activity = _activitySteps(serviceCase);
+    if (activity.isEmpty) return const SizedBox.shrink();
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Recent activity',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Latest customer and OMC updates for this request.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12.5,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          for (var index = 0; index < activity.length; index++)
+            _ActivityRow(
+              step: activity[index],
+              isLast: index == activity.length - 1,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({required this.step, required this.isLast});
+
+  final ServiceCaseTimelineStep step;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.10),
+              ),
+            ),
+            child: Icon(
+              _activityIcon(step.title),
+              color: AppTheme.primaryRed,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    step.title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w900,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    step.subtitle,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12.2,
+                      height: 1.3,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _activityIcon(String title) {
+    final normalized = title.trim().toLowerCase();
+
+    if (normalized.contains('document')) return Icons.description_outlined;
+    if (normalized.contains('payment') || normalized.contains('receipt')) {
+      return Icons.receipt_long_outlined;
+    }
+    if (normalized.contains('message') || normalized.contains('comment')) {
+      return Icons.chat_bubble_outline_rounded;
+    }
+    if (normalized.contains('created') || normalized.contains('received')) {
+      return Icons.flag_outlined;
+    }
+    if (normalized.contains('cancel')) return Icons.cancel_outlined;
+    if (normalized.contains('complete')) return Icons.check_circle_outline;
+
+    return Icons.update_rounded;
   }
 }
 
