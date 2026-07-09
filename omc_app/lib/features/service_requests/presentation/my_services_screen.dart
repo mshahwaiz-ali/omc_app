@@ -11,7 +11,7 @@ import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
 
-class MyServicesScreen extends ConsumerWidget {
+class MyServicesScreen extends ConsumerStatefulWidget {
   const MyServicesScreen({super.key});
 
   static ServiceCase? findCaseById(List<ServiceCase> cases, String caseId) {
@@ -25,7 +25,14 @@ class MyServicesScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyServicesScreen> createState() => _MyServicesScreenState();
+}
+
+class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
+  _ServiceCaseBucket _selectedBucket = _ServiceCaseBucket.active;
+
+  @override
+  Widget build(BuildContext context) {
     final casesAsync = ref.watch(serviceCasesProvider);
 
     return Scaffold(
@@ -43,26 +50,138 @@ class MyServicesScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(serviceCasesProvider),
             onStartRequest: () => context.go('/services'),
           ),
-          data: (cases) => cases.isEmpty
-              ? _EmptyServicesState(
-                  onStartRequest: () => context.go('/services'),
-                )
-              : ListView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                  children: [
-                    _HeaderCard(cases: cases),
-                    const SizedBox(height: 16),
-                    for (final serviceCase in cases)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _ServiceCaseCard(serviceCase: serviceCase),
-                      ),
-                  ],
+          data: (cases) {
+            if (cases.isEmpty) {
+              return _EmptyServicesState(
+                onStartRequest: () => context.go('/services'),
+              );
+            }
+
+            final visibleCases = cases
+                .where(_selectedBucket.matches)
+                .toList(growable: false);
+
+            return ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              children: [
+                _HeaderCard(cases: cases),
+                const SizedBox(height: 14),
+                _ServiceCaseBucketTabs(
+                  cases: cases,
+                  selectedBucket: _selectedBucket,
+                  onSelected: (bucket) => setState(() {
+                    _selectedBucket = bucket;
+                  }),
                 ),
+                const SizedBox(height: 16),
+                if (visibleCases.isEmpty)
+                  _EmptyBucketCard(bucket: _selectedBucket)
+                else
+                  for (final serviceCase in visibleCases)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _ServiceCaseCard(serviceCase: serviceCase),
+                    ),
+              ],
+            );
+          },
         ),
       ),
     );
+  }
+}
+
+enum _ServiceCaseBucket {
+  active,
+  needAction,
+  done,
+  cancelled;
+
+  String get label {
+    switch (this) {
+      case _ServiceCaseBucket.active:
+        return 'Active';
+      case _ServiceCaseBucket.needAction:
+        return 'Need action';
+      case _ServiceCaseBucket.done:
+        return 'Done';
+      case _ServiceCaseBucket.cancelled:
+        return 'Cancelled';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _ServiceCaseBucket.active:
+        return Icons.track_changes_rounded;
+      case _ServiceCaseBucket.needAction:
+        return Icons.priority_high_rounded;
+      case _ServiceCaseBucket.done:
+        return Icons.check_circle_rounded;
+      case _ServiceCaseBucket.cancelled:
+        return Icons.cancel_rounded;
+    }
+  }
+
+  String get emptyTitle {
+    switch (this) {
+      case _ServiceCaseBucket.active:
+        return 'No active requests';
+      case _ServiceCaseBucket.needAction:
+        return 'No action needed';
+      case _ServiceCaseBucket.done:
+        return 'No completed requests';
+      case _ServiceCaseBucket.cancelled:
+        return 'No cancelled requests';
+    }
+  }
+
+  String get emptyMessage {
+    switch (this) {
+      case _ServiceCaseBucket.active:
+        return 'Open and in-progress service requests will appear here.';
+      case _ServiceCaseBucket.needAction:
+        return 'Requests needing documents, payment or customer response will appear here.';
+      case _ServiceCaseBucket.done:
+        return 'Completed and closed service requests will appear here.';
+      case _ServiceCaseBucket.cancelled:
+        return 'Cancelled or rejected service requests will appear here.';
+    }
+  }
+
+  bool matches(ServiceCase serviceCase) {
+    final status = serviceCase.status.trim().toLowerCase();
+
+    final isCancelled = status.contains('cancel') || status.contains('reject');
+    final isDone =
+        !isCancelled &&
+        (status.contains('complete') || status.contains('closed'));
+    final needsAction =
+        !isCancelled &&
+        !isDone &&
+        (serviceCase.customerActionRequired ||
+            status.contains('waiting for document') ||
+            status.contains('waiting for payment') ||
+            status.contains('waiting for customer') ||
+            serviceCase.missingDocuments.isNotEmpty ||
+            serviceCase.rejectedDocumentTotal > 0 ||
+            serviceCase.rejectedPaymentTotal > 0);
+
+    switch (this) {
+      case _ServiceCaseBucket.cancelled:
+        return isCancelled;
+      case _ServiceCaseBucket.done:
+        return isDone;
+      case _ServiceCaseBucket.needAction:
+        return needsAction;
+      case _ServiceCaseBucket.active:
+        return !isCancelled && !isDone && !needsAction;
+    }
+  }
+
+  int count(List<ServiceCase> cases) {
+    return cases.where(matches).length;
   }
 }
 
@@ -395,15 +514,9 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeCount = cases
-        .where((item) => !item.status.toLowerCase().contains('complete'))
-        .length;
-    final completedCount = cases
-        .where((item) => item.status.toLowerCase().contains('complete'))
-        .length;
-    final missingDocsCount = cases
-        .where((item) => item.missingDocuments.isNotEmpty)
-        .length;
+    final activeCount = _ServiceCaseBucket.active.count(cases);
+    final completedCount = _ServiceCaseBucket.done.count(cases);
+    final needActionCount = _ServiceCaseBucket.needAction.count(cases);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,8 +540,8 @@ class _HeaderCard extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: _HeaderStat(
-                value: missingDocsCount.toString(),
-                label: 'Need docs',
+                value: needActionCount.toString(),
+                label: 'Need action',
               ),
             ),
             const SizedBox(width: 10),
@@ -493,13 +606,187 @@ class _HeaderStat extends StatelessWidget {
   }
 }
 
-class _ServiceCaseCard extends StatelessWidget {
+class _ServiceCaseBucketTabs extends StatelessWidget {
+  const _ServiceCaseBucketTabs({
+    required this.cases,
+    required this.selectedBucket,
+    required this.onSelected,
+  });
+
+  final List<ServiceCase> cases;
+  final _ServiceCaseBucket selectedBucket;
+  final ValueChanged<_ServiceCaseBucket> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          for (final bucket in _ServiceCaseBucket.values) ...[
+            _ServiceCaseBucketChip(
+              bucket: bucket,
+              count: bucket.count(cases),
+              selected: selectedBucket == bucket,
+              onTap: () => onSelected(bucket),
+            ),
+            if (bucket != _ServiceCaseBucket.values.last)
+              const SizedBox(width: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceCaseBucketChip extends StatelessWidget {
+  const _ServiceCaseBucketChip({
+    required this.bucket,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _ServiceCaseBucket bucket;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = selected
+        ? AppTheme.primaryRed.withValues(alpha: 0.10)
+        : Colors.white;
+    final borderColor = selected
+        ? AppTheme.primaryRed.withValues(alpha: 0.26)
+        : AppTheme.primaryRed.withValues(alpha: 0.08);
+    final textColor = selected ? AppTheme.primaryRed : AppTheme.textPrimary;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: borderColor),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                    blurRadius: 14,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(bucket.icon, size: 15, color: textColor),
+            const SizedBox(width: 6),
+            Text(
+              bucket.label,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.05,
+              ),
+            ),
+            const SizedBox(width: 7),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppTheme.primaryRed.withValues(alpha: 0.12)
+                    : AppTheme.primaryRed.withValues(alpha: 0.055),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyBucketCard extends StatelessWidget {
+  const _EmptyBucketCard({required this.bucket});
+
+  final _ServiceCaseBucket bucket;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Icon(bucket.icon, color: AppTheme.primaryRed, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bucket.emptyTitle,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  bucket.emptyMessage,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceCaseCard extends ConsumerWidget {
   const _ServiceCaseCard({required this.serviceCase});
 
   final ServiceCase serviceCase;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final progressPercent = (serviceCase.progress.clamp(0, 1) * 100)
         .round()
         .toString();
@@ -631,9 +918,71 @@ class _ServiceCaseCard extends StatelessWidget {
               ),
             ],
           ),
+          if (serviceCase.canCancel) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _confirmCancelRequest(context, ref),
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('Cancel request'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primaryRed,
+                  side: BorderSide(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.34),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _confirmCancelRequest(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel request?'),
+        content: Text(
+          'This will cancel ${serviceCase.displayReference}. You can still view its history after cancellation.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep request'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cancel request'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      final repository = ref.read(serviceCaseRepositoryProvider);
+      await repository.cancelServiceRequest(caseId: serviceCase.id);
+
+      ref.invalidate(serviceCasesProvider);
+      ref.invalidate(serviceCaseDetailProvider(serviceCase.id));
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Service request cancelled.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_cleanErrorMessage(error))));
+    }
   }
 }
 
