@@ -248,7 +248,12 @@ class AuthCapabilities {
       return AccountAccessState.approved;
     }
 
-    const pendingValues = {'pending', 'pending_review', 'pending review', 'under review'};
+    const pendingValues = {
+      'pending',
+      'pending_review',
+      'pending review',
+      'under review',
+    };
     if (pendingValues.contains(customerStatus) ||
         pendingValues.contains(approvalStatus)) {
       return AccountAccessState.pending;
