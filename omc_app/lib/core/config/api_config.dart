@@ -109,7 +109,7 @@ class ApiConfig {
   static const String reviewPaymentReceiptMethod =
       'omc_app.api.mobile.review_payment_receipt';
 
-  static const String profileMethod = 'omc_app.api.profile.get_profile';
+  static const String profileMethod = 'omc_app.api.access_v2.get_profile';
   static const String updateProfileMethod = 'omc_app.api.mobile.update_profile';
   static const String updateContactMethod =
       'omc_app.api.mobile.update_contact_info';
