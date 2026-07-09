@@ -92,9 +92,8 @@ class ProfileRepository {
 
     final message = response['message'];
     final payload = message is Map<String, dynamic> ? message : response;
-    return _nullableString(payload['avatar_url']) ??
-        _nullableString(payload['profile_image']) ??
-        _nullableString(payload['user_image']);
+    final uploadedUrl = _avatarUrlFromPayload(payload);
+    return uploadedUrl == null ? null : _withAvatarCacheBust(uploadedUrl);
   }
 
   Future<Uint8List?> _readFileBytes(String? filePath) async {
@@ -155,6 +154,7 @@ class ProfileRepository {
       envelope: envelope,
       profile: profile,
     );
+    final avatarUrl = _avatarUrlFromPayload(profile) ?? _avatarUrlFromPayload(envelope);
 
     return ProfileSummary(
       displayName:
@@ -176,9 +176,7 @@ class ProfileRepository {
         profile['company_name'] ?? profile['company'],
       ),
       approvalStatus: _nullableString(profile['approval_status']),
-      avatarUrl: _nullableString(
-        profile['avatar_url'] ?? profile['profile_image'] ?? profile['user_image'],
-      ),
+      avatarUrl: avatarUrl == null ? null : _withAvatarCacheBust(avatarUrl),
       status:
           _nullableString(profile['customer_status'] ?? profile['status']) ??
           fallback.status,
@@ -192,6 +190,24 @@ class ProfileRepository {
           ),
       capabilities: capabilities,
     );
+  }
+
+  String? _avatarUrlFromPayload(Map<String, dynamic> payload) {
+    return _nullableString(
+      payload['avatar_url'] ??
+          payload['profile_image'] ??
+          payload['user_image'] ??
+          payload['image'] ??
+          payload['photo'] ??
+          payload['file_url'],
+    );
+  }
+
+  String _withAvatarCacheBust(String value) {
+    final cleanValue = value.trim();
+    if (cleanValue.isEmpty) return cleanValue;
+    final separator = cleanValue.contains('?') ? '&' : '?';
+    return '$cleanValue${separator}avatar_ts=${DateTime.now().millisecondsSinceEpoch}';
   }
 
   AuthCapabilities _capabilitiesFromResponse({
