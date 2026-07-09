@@ -108,6 +108,8 @@ class ApiConfig {
   static const String updateProfileMethod = 'omc_app.api.mobile.update_profile';
   static const String updateContactMethod =
       'omc_app.api.mobile.update_contact_info';
+  static const String uploadProfileImageMethod =
+      'omc_app.api.mobile.upload_profile_image';
 
   static const String knowledgeMethod = 'omc_app.api.mobile.get_knowledge';
   static const String knowledgeDetailMethod =

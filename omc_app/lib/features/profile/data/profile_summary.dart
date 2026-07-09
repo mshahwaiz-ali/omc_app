@@ -11,6 +11,7 @@ class ProfileSummary {
     this.companyName,
     this.approvalStatus,
     this.status,
+    this.avatarUrl,
     this.canAccessInternalWorkspace = false,
     this.capabilities = AuthCapabilities.guest,
   });
@@ -24,6 +25,7 @@ class ProfileSummary {
   final String? companyName;
   final String? approvalStatus;
   final String? status;
+  final String? avatarUrl;
   final bool canAccessInternalWorkspace;
   final AuthCapabilities capabilities;
 

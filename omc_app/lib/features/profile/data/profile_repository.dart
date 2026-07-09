@@ -64,6 +64,24 @@ class ProfileRepository {
     }
   }
 
+  Future<String?> uploadProfileImage({
+    required String filePath,
+    required String fileName,
+  }) async {
+    final response = await _frappeClient.uploadFile(
+      filePath: filePath,
+      fileName: fileName,
+      method: ApiConfig.uploadProfileImageMethod,
+      isPrivate: false,
+    );
+
+    final message = response['message'];
+    final payload = message is Map<String, dynamic> ? message : response;
+    return _nullableString(payload['avatar_url']) ??
+        _nullableString(payload['profile_image']) ??
+        _nullableString(payload['user_image']);
+  }
+
   Future<bool> requestProfileUpdate(Map<String, dynamic> payload) async {
     if (payload.isEmpty) return false;
 
@@ -132,6 +150,9 @@ class ProfileRepository {
         profile['company_name'] ?? profile['company'],
       ),
       approvalStatus: _nullableString(profile['approval_status']),
+      avatarUrl: _nullableString(
+        profile['avatar_url'] ?? profile['profile_image'] ?? profile['user_image'],
+      ),
       status:
           _nullableString(profile['customer_status'] ?? profile['status']) ??
           fallback.status,

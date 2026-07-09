@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -193,6 +195,8 @@ class _ProfileUnavailableView extends StatelessWidget {
           status: 'Limited profile',
           customerType: fallbackProfile.customerType ?? 'OMC Customer',
           approvalStatus: fallbackProfile.approvalStatus ?? 'Pending sync',
+          avatarUrl: fallbackProfile.avatarUrl,
+          onChangePhoto: null,
         ),
         const SizedBox(height: 20),
         PremiumCard(
@@ -276,6 +280,8 @@ class _ProfileContent extends StatelessWidget {
           status: profile.status,
           customerType: profile.customerType ?? 'OMC Customer',
           approvalStatus: profile.approvalStatus ?? 'Synced',
+          avatarUrl: profile.avatarUrl,
+          onChangePhoto: () => _changeProfilePhoto(context, ref),
         ),
         const SizedBox(height: 20),
         _ProfileSection(
@@ -352,6 +358,45 @@ class _ProfileContent extends StatelessWidget {
         const _ProfileFootnote(),
       ],
     );
+  }
+
+  Future<void> _changeProfilePhoto(BuildContext context, WidgetRef ref) async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 88,
+      );
+
+      if (image == null) return;
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uploading profile photo...')),
+      );
+
+      await ref.read(profileRepositoryProvider).uploadProfileImage(
+            filePath: image.path,
+            fileName: image.name,
+          );
+
+      ref.invalidate(profileSummaryProvider);
+      await ref.read(profileSummaryProvider.future);
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update profile photo. Please try again.'),
+        ),
+      );
+    }
   }
 
   Future<void> _submitProfileUpdateRequest(
@@ -567,6 +612,8 @@ class _ProfileHeroCard extends StatelessWidget {
     required this.customerType,
     required this.approvalStatus,
     this.status,
+    this.avatarUrl,
+    this.onChangePhoto,
   });
 
   final String initials;
@@ -575,6 +622,8 @@ class _ProfileHeroCard extends StatelessWidget {
   final String customerType;
   final String approvalStatus;
   final String? status;
+  final String? avatarUrl;
+  final VoidCallback? onChangePhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -582,29 +631,10 @@ class _ProfileHeroCard extends StatelessWidget {
       padding: const EdgeInsets.all(22),
       child: Column(
         children: [
-          Container(
-            width: 78,
-            height: 78,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.20),
-                  blurRadius: 24,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+          _ProfileAvatar(
+            initials: initials,
+            avatarUrl: avatarUrl,
+            onChangePhoto: onChangePhoto,
           ),
           const SizedBox(height: 16),
           Text(
@@ -647,6 +677,108 @@ class _ProfileHeroCard extends StatelessWidget {
     );
   }
 }
+
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.initials,
+    required this.avatarUrl,
+    required this.onChangePhoto,
+  });
+
+  final String initials;
+  final String? avatarUrl;
+  final VoidCallback? onChangePhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    final cleanAvatarUrl = avatarUrl?.trim();
+    final hasImage = cleanAvatarUrl != null && cleanAvatarUrl.isNotEmpty;
+    final imageUrl = hasImage ? _absoluteProfileImageUrl(cleanAvatarUrl) : null;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 86,
+          height: 86,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryRed,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryRed.withValues(alpha: 0.20),
+                blurRadius: 24,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          alignment: Alignment.center,
+          child: imageUrl == null
+              ? Text(
+                  initials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                  ),
+                )
+              : Image.network(
+                  imageUrl,
+                  width: 86,
+                  height: 86,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Text(
+                    initials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+        ),
+        if (onChangePhoto != null)
+          Positioned(
+            right: -4,
+            bottom: -4,
+            child: Material(
+              color: AppTheme.textPrimary,
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                onTap: onChangePhoto,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white, width: 3),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: Colors.white,
+                    size: 17,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+String _absoluteProfileImageUrl(String value) {
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+
+  final baseUrl = ApiConfig.baseUrl;
+  if (value.startsWith('/')) return '$baseUrl$value';
+
+  return '$baseUrl/$value';
+}
+
 
 class _ProfileSection extends StatelessWidget {
   const _ProfileSection({
