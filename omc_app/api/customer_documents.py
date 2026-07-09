@@ -68,17 +68,48 @@ def _service_case_map(service_request_names):
         filters={"name": ["in", service_request_names]},
         fields=[
             "name",
+            "title",
             "status",
             "service_title",
             "service",
             "customer_profile",
+            "customer_name",
+            "requested_by",
+            "contact_email",
+            "contact_phone",
         ],
     )
 
     return {row.name: row for row in rows}
 
 
-def _document_dict(doc, service_case=None, capabilities=None):
+def _customer_profile_map(customer_profile_names):
+    profile_names = [name for name in customer_profile_names if name]
+    if not profile_names:
+        return {}
+
+    fields = [
+        "name",
+        "full_name",
+        "email",
+        "phone",
+        "whatsapp_no",
+        "cnic",
+        "ntn",
+        "company_name",
+        "customer_type",
+    ]
+
+    rows = frappe.get_all(
+        "OMC Customer Profile",
+        filters={"name": ["in", profile_names]},
+        fields=fields,
+    )
+
+    return {row.name: row for row in rows}
+
+
+def _document_dict(doc, service_case=None, customer_profile=None, capabilities=None):
     service_status = (getattr(service_case, "status", None) or "").strip()
     derived_archive_reason = ARCHIVE_SERVICE_STATUSES.get(service_status, "")
     is_archived = int(getattr(doc, "is_archived", 0) or 0)
@@ -93,6 +124,28 @@ def _document_dict(doc, service_case=None, capabilities=None):
         or ""
     )
 
+    profile_name = (
+        getattr(doc, "customer_profile", None)
+        or getattr(service_case, "customer_profile", None)
+        or ""
+    )
+    customer_name = (
+        getattr(service_case, "customer_name", None)
+        or getattr(customer_profile, "full_name", None)
+        or ""
+    )
+    contact_email = (
+        getattr(service_case, "contact_email", None)
+        or getattr(customer_profile, "email", None)
+        or ""
+    )
+    contact_phone = (
+        getattr(service_case, "contact_phone", None)
+        or getattr(customer_profile, "phone", None)
+        or getattr(customer_profile, "whatsapp_no", None)
+        or ""
+    )
+
     review_remarks = getattr(doc, "review_remarks", None) or ""
     remarks = review_remarks or getattr(doc, "remarks", None) or ""
 
@@ -101,8 +154,18 @@ def _document_dict(doc, service_case=None, capabilities=None):
         "name": doc.name,
         "case_id": doc.service_request,
         "service_reference": doc.service_request,
+        "request_title": getattr(service_case, "title", None) or "",
         "service_title": service_title,
         "service_status": service_status,
+        "customer_profile": profile_name,
+        "customer_name": customer_name,
+        "contact_email": contact_email,
+        "contact_phone": contact_phone,
+        "requested_by": getattr(service_case, "requested_by", None) or "",
+        "ntn": getattr(customer_profile, "ntn", None) or "",
+        "cnic": getattr(customer_profile, "cnic", None) or "",
+        "company_name": getattr(customer_profile, "company_name", None) or "",
+        "customer_type": getattr(customer_profile, "customer_type", None) or "",
         "title": doc.document_title or "",
         "document_title": doc.document_title or "",
         "type": doc.document_type or "",
@@ -260,12 +323,23 @@ def get_documents(show_archived=None, queue=None, customer=None, service_request
     )
 
     service_cases = _service_case_map({doc.service_request for doc in docs})
+    customer_profiles = _customer_profile_map(
+        {
+            getattr(doc, "customer_profile", None)
+            or getattr(service_cases.get(doc.service_request), "customer_profile", None)
+            for doc in docs
+        }
+    )
 
     return {
         "documents": [
             _document_dict(
                 doc,
                 service_case=service_cases.get(doc.service_request),
+                customer_profile=customer_profiles.get(
+                    getattr(doc, "customer_profile", None)
+                    or getattr(service_cases.get(doc.service_request), "customer_profile", None)
+                ),
                 capabilities=capabilities,
             )
             for doc in docs
@@ -294,7 +368,13 @@ def get_document(document_id=None):
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
         frappe.throw("You do not have permission to access this document", frappe.PermissionError)
 
-    return _document_dict(doc, service_case=service_case, capabilities=capabilities)
+    customer_profiles = _customer_profile_map([getattr(service_case, "customer_profile", None)])
+    return _document_dict(
+        doc,
+        service_case=service_case,
+        customer_profile=customer_profiles.get(getattr(service_case, "customer_profile", None)),
+        capabilities=capabilities,
+    )
 
 
 @frappe.whitelist()
