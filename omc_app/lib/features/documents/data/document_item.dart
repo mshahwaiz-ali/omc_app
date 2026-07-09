@@ -12,7 +12,13 @@ class DocumentItem {
     this.downloadUrl,
     this.updatedAtLabel,
     this.serviceReference,
+    this.serviceTitle,
+    this.serviceStatus,
+    this.source,
     this.remarks,
+    this.isArchived = false,
+    this.archivedOnLabel,
+    this.archiveReason,
   });
 
   final String id;
@@ -24,11 +30,27 @@ class DocumentItem {
   final String? downloadUrl;
   final String? updatedAtLabel;
   final String? serviceReference;
+  final String? serviceTitle;
+  final String? serviceStatus;
+  final String? source;
   final String? remarks;
+  final bool isArchived;
+  final String? archivedOnLabel;
+  final String? archiveReason;
   final DocumentStatus status;
 
   bool get requiresAction =>
-      status == DocumentStatus.missing || status == DocumentStatus.rejected;
+      !isArchived &&
+      (status == DocumentStatus.missing || status == DocumentStatus.rejected);
+
+  bool get isApproved => !isArchived && status == DocumentStatus.approved;
+
+  bool get isUnderReview =>
+      !isArchived &&
+      (status == DocumentStatus.uploaded ||
+          status == DocumentStatus.pendingReview);
+
+  bool get isActive => !isArchived;
 
   bool get hasFile {
     final candidates = [fileUrl, previewUrl, downloadUrl, fileName];
@@ -41,6 +63,16 @@ class DocumentItem {
 
     final cleanTitle = title.trim();
     return cleanTitle.isEmpty ? '-' : cleanTitle;
+  }
+
+  String get statusLabel {
+    if (isArchived) {
+      final reason = archiveReason?.trim();
+      if (reason != null && reason.isNotEmpty) return 'Archived · $reason';
+      return 'Archived';
+    }
+
+    return status.label;
   }
 }
 
