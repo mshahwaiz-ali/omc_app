@@ -33,8 +33,35 @@ class DocumentsRepository {
 
   final FrappeClient _frappeClient;
 
-  Future<List<DocumentItem>> fetchDocuments() async {
-    final response = await _frappeClient.getMethod(ApiConfig.documentsMethod);
+  Future<List<DocumentItem>> fetchDocuments({
+    bool? showArchived,
+    String? queue,
+    String? customer,
+    String? serviceRequest,
+    String? status,
+  }) async {
+    final queryParameters = <String, dynamic>{};
+
+    if (showArchived != null) {
+      queryParameters['show_archived'] = showArchived ? '1' : '0';
+    }
+    if (queue != null && queue.trim().isNotEmpty) {
+      queryParameters['queue'] = queue.trim();
+    }
+    if (customer != null && customer.trim().isNotEmpty) {
+      queryParameters['customer'] = customer.trim();
+    }
+    if (serviceRequest != null && serviceRequest.trim().isNotEmpty) {
+      queryParameters['service_request'] = serviceRequest.trim();
+    }
+    if (status != null && status.trim().isNotEmpty) {
+      queryParameters['status'] = status.trim();
+    }
+
+    final response = await _frappeClient.getMethod(
+      ApiConfig.documentsMethod,
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
     return _mapDocumentsResponse(response);
   }
 
@@ -51,6 +78,31 @@ class DocumentsRepository {
     );
 
     return _mapDocumentDetailResponse(response);
+  }
+
+  Future<void> updateServiceDocumentStatus({
+    required String documentId,
+    required String status,
+    String? remarks,
+  }) async {
+    final cleanDocumentId = documentId.trim();
+    final cleanStatus = status.trim();
+
+    if (cleanDocumentId.isEmpty) {
+      throw const ApiError(message: 'Missing document reference.');
+    }
+    if (cleanStatus.isEmpty) {
+      throw const ApiError(message: 'Missing document status.');
+    }
+
+    await _frappeClient.postMethod(
+      ApiConfig.updateServiceDocumentStatusMethod,
+      data: {
+        'document_id': cleanDocumentId,
+        'status': cleanStatus,
+        if (remarks != null) 'remarks': remarks.trim(),
+      },
+    );
   }
 
   Future<List<Map<String, dynamic>>> uploadDocumentAttachments({
