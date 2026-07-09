@@ -43,6 +43,7 @@ dependencies:
   url_launcher: ^6.3.2
   file_picker: 10.3.10
   image_picker: ^1.2.3
+  cross_file: ^0.3.5
   flutter_svg: ^2.3.0
   cached_network_image: ^3.4.1
   fl_chart: ^1.2.0
@@ -92,7 +93,7 @@ flutter:
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
   # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
+  # list giving the file asset and other descriptors for the font. For
   # example:
   # fonts:
   #   - family: Schyler
@@ -118,17 +119,3 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/images/logo_symbol_transparent.png"
   web:
     generate: true
-    image_path: "assets/images/logo_symbol_transparent.png"
-    background_color: "#FFFFFF"
-    theme_color: "#8B1020"
-
-
-flutter_native_splash:
-  color: "#FFFFFF"
-  image: assets/images/logo_symbol_transparent.png
-  android: true
-  ios: false
-  web: false
-  android_12:
-    color: "#FFFFFF"
-    image: assets/images/logo_symbol_transparent.png
