@@ -67,6 +67,28 @@ def _extract_service_case_list(response):
     return None
 
 
+
+def _service_request_id(service_case):
+    """Resolve a stable OMC Service Request id from mobile case payloads."""
+    if not isinstance(service_case, dict):
+        return ""
+
+    for key in (
+        "name",
+        "id",
+        "reference",
+        "case_reference",
+        "case_id",
+        "service_request",
+        "request_id",
+    ):
+        value = service_case.get(key)
+        if value:
+            return str(value).strip()
+
+    return ""
+
+
 def _normalize_service_case(service_case, can_access_internal_workspace=None):
     _hydrate_service_case(service_case)
     _apply_service_case_capabilities(service_case, can_access_internal_workspace)
