@@ -11,6 +11,7 @@ import '../features/customers/presentation/customer_detail_screen.dart';
 import '../features/customers/presentation/customers_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
+import '../features/expense_tracker/presentation/expense_budget_screen.dart';
 import '../features/expense_tracker/presentation/expense_tracker_screen.dart';
 import '../features/internal_workspace/presentation/internal_operations_center_screen.dart';
 import '../features/internal_workspace/presentation/internal_service_cases_screen.dart';
@@ -184,6 +185,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/tax-calculator/history', name: 'tax-calculation-history', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const TaxCalculationHistoryScreen())),
       GoRoute(path: '/profile', name: 'profile', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const ProfileScreen())),
       GoRoute(path: '/expense-tracker', name: 'expense-tracker', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const ExpenseTrackerScreen())),
+      GoRoute(path: '/expense-budget', name: 'expense-budget', builder: (context, state) => _withShell(ShellNavScaffold.moreIndex, const ExpenseBudgetScreen())),
       GoRoute(
         path: '/support-tickets/:ticketId',
         name: 'support-ticket-detail',
@@ -276,6 +278,10 @@ bool _canAccessRoute(String location, AuthCapabilities capabilities) {
 
   if (location == '/expense-tracker') {
     return !capabilities.isInternal;
+  }
+
+  if (location == '/expense-budget') {
+    return capabilities.isApproved;
   }
 
   if (location == '/internal-workspace' || location.startsWith('/internal-workspace/')) {
