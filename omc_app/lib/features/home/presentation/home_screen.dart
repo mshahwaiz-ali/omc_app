@@ -950,7 +950,7 @@ class _BackendBannerCard extends StatelessWidget {
                   const SizedBox(height: 5),
                   Text(
                     banner.message,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: _TextStyles.cardSubtitle,
                   ),
@@ -992,7 +992,7 @@ class _MetricRail extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 4, 0, 0),
       sliver: SliverToBoxAdapter(
         child: SizedBox(
-          height: 92,
+          height: 96,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -1100,16 +1100,16 @@ class _QuickActionsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.fromLTRB(15, 17, 15, 13),
+      padding: const EdgeInsets.fromLTRB(14, 15, 14, 14),
       child: GridView.builder(
         itemCount: actions.length,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          mainAxisSpacing: 13,
-          crossAxisSpacing: 11,
-          childAspectRatio: 0.91,
+          mainAxisSpacing: 11,
+          crossAxisSpacing: 10,
+          childAspectRatio: 1.02,
         ),
         itemBuilder: (context, index) {
           final action = actions[index];
@@ -1151,16 +1151,16 @@ class _ActionTile extends StatelessWidget {
     final isHighlighted = action.style == MobileQuickActionStyle.highlighted;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: isUrgent
               ? AppTheme.primaryRed.withValues(alpha: 0.09)
               : isHighlighted
               ? AppTheme.primaryRed.withValues(alpha: 0.06)
               : const Color(0xFFF8F4F1),
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isUrgent || isHighlighted
                 ? AppTheme.primaryRed.withValues(alpha: 0.20)
@@ -1169,38 +1169,43 @@ class _ActionTile extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 34,
-                  height: 34,
-                  child: SvgPicture.asset(
-                    action.iconAsset,
-                    fit: BoxFit.contain,
-                    placeholderBuilder: (_) => Icon(
-                      _iconForAction(action.iconKey),
-                      color: AppTheme.primaryRed,
+            Positioned.fill(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: SvgPicture.asset(
+                        action.iconAsset,
+                        fit: BoxFit.contain,
+                        placeholderBuilder: (_) => Icon(
+                          _iconForAction(action.iconKey),
+                          color: AppTheme.primaryRed,
+                          size: 28,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      action.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: _TextStyles.actionTitle,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      action.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: _TextStyles.actionSubtitle,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 9),
-                Text(
-                  action.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: _TextStyles.actionTitle,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  action.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: _TextStyles.actionSubtitle,
-                ),
-              ],
+              ),
             ),
             if (badgeCount > 0)
               Positioned(
@@ -1455,13 +1460,13 @@ class _MetricChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 150,
-      padding: const EdgeInsets.all(14),
-      decoration: _softDecoration(23),
+      width: 132,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+      decoration: _softDecoration(21),
       child: Row(
         children: [
-          _IconBox(icon: item.icon, size: 38, iconSize: 19),
-          const SizedBox(width: 9),
+          _IconBox(icon: item.icon, size: 34, iconSize: 17),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1930,13 +1935,13 @@ abstract final class _TextStyles {
   );
   static const metricValue = TextStyle(
     color: AppTheme.textPrimary,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: FontWeight.w900,
     letterSpacing: -0.45,
   );
   static const metricLabel = TextStyle(
     color: AppTheme.textSecondary,
-    fontSize: 11.5,
+    fontSize: 10.5,
     fontWeight: FontWeight.w700,
   );
   static const actionTitle = TextStyle(
