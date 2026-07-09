@@ -1,99 +1,43 @@
 {
  "actions": [],
  "allow_rename": 0,
+ "autoname": "naming_series:",
  "creation": "2026-07-07 00:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": [
-  "customer_profile",
-  "transaction_type",
-  "amount",
-  "category",
-  "transaction_date",
-  "account",
-  "payment_method",
-  "note"
- ],
+ "field_order": ["naming_series", "user", "customer_profile", "transaction_type", "amount", "category", "transaction_date", "account", "payment_method", "merchant", "note", "tax_relevant", "business_related", "recurring", "reimbursable", "receipt_file", "source", "sync_id", "status", "created_from_guest"],
  "fields": [
-  {
-   "fieldname": "customer_profile",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Customer Profile",
-   "options": "OMC Customer Profile",
-   "reqd": 1
-  },
-  {
-   "default": "Expense",
-   "fieldname": "transaction_type",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Transaction Type",
-   "options": "Income\nExpense",
-   "reqd": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "amount",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Amount",
-   "reqd": 1
-  },
-  {
-   "fieldname": "category",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Category",
-   "reqd": 1
-  },
-  {
-   "fieldname": "transaction_date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "Transaction Date",
-   "reqd": 1
-  },
-  {
-   "default": "Cash",
-   "fieldname": "account",
-   "fieldtype": "Data",
-   "label": "Account"
-  },
-  {
-   "default": "Cash",
-   "fieldname": "payment_method",
-   "fieldtype": "Data",
-   "label": "Payment Method"
-  },
-  {
-   "fieldname": "note",
-   "fieldtype": "Small Text",
-   "label": "Note"
-  }
+  {"default": "OMC-EXP-.YY..MM..DD.-.#####", "fieldname": "naming_series", "fieldtype": "Select", "label": "Naming Series", "options": "OMC-EXP-.YY..MM..DD.-.#####", "reqd": 1},
+  {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "User", "options": "User"},
+  {"fieldname": "customer_profile", "fieldtype": "Link", "in_list_view": 1, "label": "Customer Profile", "options": "OMC Customer Profile", "reqd": 1},
+  {"default": "Expense", "fieldname": "transaction_type", "fieldtype": "Select", "in_list_view": 1, "label": "Transaction Type", "options": "Income\nExpense", "reqd": 1},
+  {"default": "0", "fieldname": "amount", "fieldtype": "Currency", "in_list_view": 1, "label": "Amount", "reqd": 1},
+  {"fieldname": "category", "fieldtype": "Link", "in_list_view": 1, "label": "Category", "options": "OMC Expense Category", "reqd": 1},
+  {"fieldname": "transaction_date", "fieldtype": "Date", "in_list_view": 1, "label": "Transaction Date", "reqd": 1},
+  {"default": "Cash", "fieldname": "account", "fieldtype": "Data", "label": "Account"},
+  {"default": "Cash", "fieldname": "payment_method", "fieldtype": "Select", "label": "Payment Method", "options": "Cash\nCard\nBank Transfer\nWallet"},
+  {"fieldname": "merchant", "fieldtype": "Data", "label": "Merchant"},
+  {"fieldname": "note", "fieldtype": "Small Text", "label": "Note"},
+  {"default": "0", "fieldname": "tax_relevant", "fieldtype": "Check", "in_list_view": 1, "label": "Useful for Tax"},
+  {"default": "0", "fieldname": "business_related", "fieldtype": "Check", "in_list_view": 1, "label": "Business Expense"},
+  {"default": "0", "fieldname": "recurring", "fieldtype": "Check", "label": "Recurring"},
+  {"default": "0", "fieldname": "reimbursable", "fieldtype": "Check", "label": "Reimbursable"},
+  {"fieldname": "receipt_file", "fieldtype": "Attach", "label": "Receipt File"},
+  {"default": "Mobile", "fieldname": "source", "fieldtype": "Select", "label": "Source", "options": "Mobile\nImport\nDesk"},
+  {"fieldname": "sync_id", "fieldtype": "Data", "label": "Mobile Sync ID", "search_index": 1},
+  {"default": "Active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Active\nArchived"},
+  {"default": "0", "fieldname": "created_from_guest", "fieldtype": "Check", "label": "Created From Guest"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-07 00:00:00.000000",
+ "modified": "2026-07-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Expense Entry",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  }
- ],
+ "permissions": [{"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}],
  "quick_entry": 0,
  "sort_field": "transaction_date",
  "sort_order": "DESC",
