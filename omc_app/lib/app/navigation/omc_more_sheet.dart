@@ -104,7 +104,13 @@ List<OmcSheetAction> _moreActions({
   required VoidCallback onOpenTasks,
   required VoidCallback onLogout,
 }) {
-  OmcSheetAction action(String label, IconData icon, VoidCallback onTap, {int badgeCount = 0, bool isDestructive = false}) {
+  OmcSheetAction action(
+    String label,
+    IconData icon,
+    VoidCallback onTap, {
+    int badgeCount = 0,
+    bool isDestructive = false,
+  }) {
     return OmcSheetAction(
       label: label,
       icon: icon,
@@ -184,14 +190,19 @@ class _MoreSheetContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.64),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 22),
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _MoreHeader(displayName: displayName, companyName: companyName, customerStatus: customerStatus, avatarUrl: avatarUrl),
+            _MoreHeader(
+              displayName: displayName,
+              companyName: companyName,
+              customerStatus: customerStatus,
+              avatarUrl: avatarUrl,
+            ),
             if (capabilities.isGuest || capabilities.isPending || capabilities.isRejected) ...[
               const SizedBox(height: 10),
               _AccessStatusNote(capabilities: capabilities),
@@ -202,12 +213,12 @@ class _MoreSheetContent extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: actions.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
+                crossAxisCount: 5,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 8,
                 childAspectRatio: 0.82,
               ),
-              itemBuilder: (context, index) => _SheetActionTile(action: actions[index]),
+              itemBuilder: (context, index) => _SheetActionButton(action: actions[index]),
             ),
           ],
         ),
@@ -315,7 +326,7 @@ class _AccessStatusNote extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _MiniIcon(icon: icon),
+          _IconBadge(icon: icon),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -378,8 +389,8 @@ String _initials(String? name) {
   return '${parts.first.characters.first}${parts.last.characters.first}'.toUpperCase();
 }
 
-class _SheetActionTile extends StatelessWidget {
-  const _SheetActionTile({required this.action});
+class _SheetActionButton extends StatelessWidget {
+  const _SheetActionButton({required this.action});
 
   final OmcSheetAction action;
 
@@ -387,25 +398,26 @@ class _SheetActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = action.isDestructive ? Colors.red.shade700 : AppTheme.primaryRed;
     return Material(
-      color: AppTheme.cardSoft.withValues(alpha: 0.48),
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: action.onTap,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  _MiniIcon(icon: action.icon, color: color),
+                  _IconBadge(icon: action.icon, color: color),
                   if (action.badgeCount > 0)
                     Positioned(top: -6, right: -8, child: _CompactBadge(count: action.badgeCount)),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 action.label,
                 textAlign: TextAlign.center,
@@ -413,9 +425,9 @@ class _SheetActionTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: action.isDestructive ? Colors.red.shade700 : AppTheme.textPrimary,
-                  fontSize: 11,
-                  height: 1.12,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 10.5,
+                  height: 1.08,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -426,8 +438,8 @@ class _SheetActionTile extends StatelessWidget {
   }
 }
 
-class _MiniIcon extends StatelessWidget {
-  const _MiniIcon({required this.icon, this.color = AppTheme.primaryRed});
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({required this.icon, this.color = AppTheme.primaryRed});
 
   final IconData icon;
   final Color color;
@@ -435,10 +447,10 @@ class _MiniIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.09), borderRadius: BorderRadius.circular(13)),
-      child: Icon(icon, color: color, size: 21),
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+      child: Icon(icon, color: color, size: 20),
     );
   }
 }
