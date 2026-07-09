@@ -49,6 +49,7 @@ def _document_fields():
         "reviewed_by",
         "reviewed_on",
         "review_remarks",
+        "visible_to_customer",
     ]
 
     for fieldname in optional_fields:
@@ -121,6 +122,7 @@ def _document_dict(doc, service_case=None, capabilities=None):
         "archived": is_archived,
         "archived_on": _format_datetime(getattr(doc, "archived_on", None)),
         "archive_reason": archive_reason,
+        "visible_to_customer": int(getattr(doc, "visible_to_customer", 1) or 0),
         "can_review_documents": bool((capabilities or {}).get("can_review_documents")),
     }
 
@@ -220,8 +222,12 @@ def get_documents(show_archived=None, queue=None, customer=None, service_request
 
     filters = {
         "service_request": ["in", service_request_names],
-        "visible_to_customer": 1,
     }
+
+    # Customer app view must never expose internal-only rows. Admin/review center
+    # intentionally sees every service document, including archived/history rows.
+    if not is_internal:
+        filters["visible_to_customer"] = 1
 
     if status:
         filters["status"] = status
@@ -235,12 +241,16 @@ def get_documents(show_archived=None, queue=None, customer=None, service_request
     queue_key = (queue or "").strip().lower()
     if queue_key in {"needs_review", "review"}:
         filters["status"] = ["in", ["Pending", "Uploaded"]]
+        if _has_field("OMC Service Document", "is_archived"):
+            filters["is_archived"] = 0
     elif queue_key == "rejected":
         filters["status"] = "Rejected"
     elif queue_key == "approved":
         filters["status"] = "Approved"
     elif queue_key == "missing":
         filters["status"] = "Pending"
+    elif queue_key == "archived" and _has_field("OMC Service Document", "is_archived"):
+        filters["is_archived"] = 1
 
     docs = frappe.get_all(
         "OMC Service Document",
@@ -272,10 +282,11 @@ def get_document(document_id=None):
         frappe.throw("Document not found", frappe.DoesNotExistError)
 
     doc = frappe.get_doc("OMC Service Document", document_id)
-    if not doc.visible_to_customer:
+    is_internal = _can_access_internal_workspace()
+
+    if not is_internal and not doc.visible_to_customer:
         frappe.throw("Document not found", frappe.DoesNotExistError)
 
-    is_internal = _can_access_internal_workspace()
     profile = None if is_internal else _assert_approved_customer()
     capabilities = _get_mobile_capabilities(profile=profile)
     service_case = frappe.get_doc("OMC Service Request", doc.service_request)
