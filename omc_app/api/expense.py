@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import frappe
 
@@ -7,6 +8,8 @@ from omc_app.api import mobile
 
 EXPENSE_TYPES = {"Income", "Expense"}
 DEFAULT_GUEST_LIMIT = 30
+DEFAULT_RECEIPT_MAX_SIZE_MB = 5
+DEFAULT_RECEIPT_EXTENSIONS = ".jpg,.jpeg,.png,.webp,.pdf"
 
 DEFAULT_EXPENSE_CATEGORIES = [
     {"name": "Food", "title": "Food", "transaction_type": "Expense", "icon": "restaurant", "sort_order": 10},
@@ -37,7 +40,85 @@ def _has_doctype(doctype):
         return False
 
 
+def _settings():
+    try:
+        if _has_doctype("OMC Mobile Settings"):
+            return frappe.get_single("OMC Mobile Settings")
+    except Exception:
+        return None
+    return None
+
+
+def _settings_bool(fieldname, default=True):
+    settings = _settings()
+    if not settings or not settings.meta.has_field(fieldname):
+        return bool(default)
+    value = settings.get(fieldname)
+    if value is None:
+        return bool(default)
+    return bool(int(value or 0))
+
+
+def _settings_int(fieldname, default):
+    settings = _settings()
+    if not settings or not settings.meta.has_field(fieldname):
+        return default
+    try:
+        value = int(settings.get(fieldname) or default)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def _settings_float(fieldname, default):
+    settings = _settings()
+    if not settings or not settings.meta.has_field(fieldname):
+        return default
+    try:
+        value = float(settings.get(fieldname) or default)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def _settings_text(fieldname, default=""):
+    settings = _settings()
+    if not settings or not settings.meta.has_field(fieldname):
+        return default
+    value = (settings.get(fieldname) or "").strip()
+    return value or default
+
+
+def _expense_enabled():
+    return _settings_bool("expense_tracker_enabled", True)
+
+
+def _assert_expense_enabled():
+    if not _expense_enabled():
+        frappe.throw("Expense tracker is currently disabled by OMC.", frappe.PermissionError)
+
+
+def _feature_available(fieldname, default=True):
+    if not _expense_enabled():
+        return False
+    return _settings_bool(fieldname, default)
+
+
+def _receipt_extensions():
+    raw = _settings_text("expense_receipt_allowed_extensions", DEFAULT_RECEIPT_EXTENSIONS)
+    extensions = []
+    for item in raw.replace("\n", ",").split(","):
+        ext = item.strip().lower()
+        if not ext:
+            continue
+        if not ext.startswith("."):
+            ext = f".{ext}"
+        extensions.append(ext)
+    return extensions or DEFAULT_RECEIPT_EXTENSIONS.split(",")
+
+
 def _profile():
+    _assert_expense_enabled()
     profile = mobile._assert_approved_customer()
     if not profile:
         frappe.throw("Approved customer login is required", frappe.PermissionError)
@@ -128,6 +209,12 @@ def _ensure_category(title, transaction_type):
     if frappe.db.exists("OMC Expense Category", title):
         return title
 
+    if not _settings_bool("expense_allow_custom_categories", True):
+        fallback = "Other Income" if transaction_type == "Income" else "Other"
+        if frappe.db.exists("OMC Expense Category", fallback):
+            return fallback
+        frappe.throw("This expense category is not enabled by OMC.")
+
     doc = frappe.new_doc("OMC Expense Category")
     doc.title = title
     doc.transaction_type = transaction_type
@@ -182,23 +269,30 @@ def _assert_entry_access(entry_name, profile=None):
 @frappe.whitelist(allow_guest=True)
 def get_expense_config():
     profile = _profile_optional()
-    categories = get_expense_categories().get("categories")
-    sync_available = bool(profile)
+    sync_available = bool(profile) and _expense_enabled()
+    categories = get_expense_categories().get("categories") if _expense_enabled() else []
     return {
-        "guest_limit": DEFAULT_GUEST_LIMIT,
+        "enabled": _expense_enabled(),
+        "guest_limit": _settings_int("expense_guest_transaction_limit", DEFAULT_GUEST_LIMIT),
         "sync_available": sync_available,
-        "receipt_upload_available": sync_available,
-        "report_available": sync_available,
-        "budget_available": sync_available,
-        "consultant_sharing_available": sync_available,
+        "receipt_upload_available": sync_available and _feature_available("expense_receipts_enabled", True),
+        "report_available": sync_available and _feature_available("expense_reports_enabled", True),
+        "budget_available": sync_available and _feature_available("expense_budgets_enabled", True),
+        "consultant_sharing_available": sync_available and _feature_available("expense_consultant_sharing_enabled", True),
+        "allow_custom_categories": _settings_bool("expense_allow_custom_categories", True),
+        "receipt_max_size_mb": _settings_float("expense_receipt_max_size_mb", DEFAULT_RECEIPT_MAX_SIZE_MB),
+        "receipt_allowed_extensions": _receipt_extensions(),
         "categories": categories,
     }
 
 
 @frappe.whitelist(allow_guest=True)
 def get_expense_categories():
+    if not _expense_enabled():
+        return {"categories": [], "fallback": False, "enabled": False}
+
     if not _has_doctype("OMC Expense Category"):
-        return {"categories": DEFAULT_EXPENSE_CATEGORIES, "fallback": True}
+        return {"categories": DEFAULT_EXPENSE_CATEGORIES, "fallback": True, "enabled": True}
 
     _seed_default_categories()
     rows = frappe.get_all(
@@ -212,6 +306,7 @@ def get_expense_categories():
     return {
         "categories": [_category_to_dict(row) for row in rows] or DEFAULT_EXPENSE_CATEGORIES,
         "fallback": not bool(rows),
+        "enabled": True,
     }
 
 
@@ -390,6 +485,9 @@ def delete_expense_entry(entry_id=None, name=None):
 @frappe.whitelist()
 def upload_expense_receipt(entry_id=None, file_url=None):
     profile = _profile()
+    if not _feature_available("expense_receipts_enabled", True):
+        frappe.throw("Expense receipt upload is disabled by OMC.", frappe.PermissionError)
+
     entry = _assert_entry_access(entry_id, profile=profile)
     if file_url:
         entry.receipt_file = file_url
@@ -397,13 +495,28 @@ def upload_expense_receipt(entry_id=None, file_url=None):
         uploaded = frappe.request.files.get("file")
         if not uploaded:
             frappe.throw("Missing receipt file")
+
+        filename = (uploaded.filename or "expense-receipt").strip()
+        extension = Path(filename).suffix.lower()
+        allowed_extensions = set(_receipt_extensions())
+        if extension not in allowed_extensions:
+            frappe.throw(
+                "Receipt file type is not allowed. Allowed: "
+                + ", ".join(sorted(allowed_extensions))
+            )
+
+        content = uploaded.stream.read()
+        max_size_mb = _settings_float("expense_receipt_max_size_mb", DEFAULT_RECEIPT_MAX_SIZE_MB)
+        if len(content) > int(max_size_mb * 1024 * 1024):
+            frappe.throw(f"Receipt file must be {max_size_mb:g} MB or smaller.")
+
         saved = frappe.get_doc(
             {
                 "doctype": "File",
-                "file_name": uploaded.filename,
+                "file_name": filename,
                 "attached_to_doctype": "OMC Expense Entry",
                 "attached_to_name": entry.name,
-                "content": uploaded.stream.read(),
+                "content": content,
                 "is_private": 1,
             }
         ).insert(ignore_permissions=True)
@@ -425,8 +538,10 @@ def get_expense_summary(month=None):
 @frappe.whitelist()
 def get_expense_budgets(month=None):
     profile = _profile()
+    if not _feature_available("expense_budgets_enabled", True):
+        return {"budgets": [], "fallback": False, "enabled": False}
     if not _has_doctype("OMC Expense Budget"):
-        return {"budgets": [], "fallback": True}
+        return {"budgets": [], "fallback": True, "enabled": True}
 
     filters = {"customer_profile": profile.name, "active": 1}
     if month:
@@ -438,12 +553,14 @@ def get_expense_budgets(month=None):
         fields=["name", "category", "month", "limit_amount", "alert_threshold", "active"],
         order_by="month desc, category asc",
     )
-    return {"budgets": rows, "fallback": False}
+    return {"budgets": rows, "fallback": False, "enabled": True}
 
 
 @frappe.whitelist()
 def save_expense_budget(**kwargs):
     profile = _profile()
+    if not _feature_available("expense_budgets_enabled", True):
+        frappe.throw("Expense budgets are disabled by OMC.", frappe.PermissionError)
     if not _has_doctype("OMC Expense Budget"):
         frappe.throw("Expense budgets are not enabled on this backend yet.")
 
@@ -471,6 +588,9 @@ def save_expense_budget(**kwargs):
 @frappe.whitelist()
 def generate_expense_report(month=None):
     profile = _profile()
+    if not _feature_available("expense_reports_enabled", True):
+        frappe.throw("Expense reports are disabled by OMC.", frappe.PermissionError)
+
     summary = get_expense_summary(month=month)
     return {
         "generated": True,
@@ -485,6 +605,9 @@ def generate_expense_report(month=None):
 @frappe.whitelist()
 def share_expense_report_with_consultant(month=None, note=None):
     profile = _profile()
+    if not _feature_available("expense_consultant_sharing_enabled", True):
+        frappe.throw("Consultant sharing is disabled by OMC.", frappe.PermissionError)
+
     summary = get_expense_summary(month=month)
     return {
         "shared": True,
