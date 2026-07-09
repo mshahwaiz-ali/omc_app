@@ -356,8 +356,9 @@ class _BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(symbol: 'PKR ', decimalDigits: 0);
-    final ratio = budget.limitAmount <= 0 ? 0.0 : (spent / budget.limitAmount).clamp(0.0, 1.25);
-    final alertRatio = (budget.alertThreshold / 100).clamp(0.01, 1.0);
+    final rawRatio = budget.limitAmount <= 0 ? 0.0 : spent / budget.limitAmount;
+    final ratio = rawRatio.clamp(0.0, 1.25).toDouble();
+    final alertRatio = (budget.alertThreshold / 100).clamp(0.01, 1.0).toDouble();
     final isOverLimit = spent > budget.limitAmount;
     final isNearLimit = !isOverLimit && ratio >= alertRatio;
     final remaining = budget.limitAmount - spent;
@@ -420,7 +421,7 @@ class _BudgetCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(999),
               child: LinearProgressIndicator(
-                value: ratio.clamp(0.0, 1.0),
+                value: ratio.clamp(0.0, 1.0).toDouble(),
                 minHeight: 9,
               ),
             ),
