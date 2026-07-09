@@ -9,5 +9,6 @@ omc_app.patches.create_omc_roles
 omc_app.patches.fix_omc_role_desk_access
 omc_app.patches.fix_omc_customer_user_type
 omc_app.patches.fix_omc_field_role_desk_access
+omc_app.patches.consolidate_omc_roles
 omc_app.patches.seed_tax_calculator_defaults
 omc_app.patches.remove_customer_profile_image_field
