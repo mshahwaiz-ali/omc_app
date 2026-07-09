@@ -68,26 +68,33 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
   @override
   Widget build(BuildContext context) {
     final capabilities = ref.watch(authControllerProvider).capabilities;
-    final budgetsAsync = ref.watch(expenseBudgetsProvider);
-    final entriesAsync = ref.watch(expenseBudgetEntriesProvider);
+    final canManageBudgets = capabilities.isApproved || capabilities.canAccessInternalWorkspace || capabilities.isInternal;
 
-    if (!capabilities.isApproved) {
+    if (!canManageBudgets) {
       return Scaffold(
         appBar: AppBar(title: const Text('Monthly Budgets')),
         body: const SafeArea(
           child: PremiumEmptyState(
             icon: Icons.lock_outline_rounded,
-            title: 'Approved account required',
-            message: 'Monthly budgets sync with your OMC account and are available after customer approval.',
+            title: 'Approved access required',
+            message: 'Monthly budgets are available for approved customers and OMC admin users only.',
           ),
         ),
       );
     }
 
+    final budgetsAsync = ref.watch(expenseBudgetsProvider);
+    final entriesAsync = ref.watch(expenseBudgetEntriesProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Monthly Budgets'),
         actions: [
+          IconButton(
+            tooltip: 'Add budget',
+            onPressed: () => _showBudgetSheet(month: _month),
+            icon: const Icon(Icons.add_rounded),
+          ),
           IconButton(
             tooltip: 'Refresh',
             onPressed: _refresh,
@@ -112,7 +119,16 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                 onPrevious: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
                 onNext: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: () => _showBudgetSheet(month: _month),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add budget'),
+                ),
+              ),
+              const SizedBox(height: 14),
               budgetsAsync.when(
                 loading: () => const _BudgetLoadingCard(),
                 error: (_, _) => const PremiumEmptyState(
@@ -131,12 +147,14 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                       budgets: monthBudgets,
                       entries: const [],
                       month: _month,
+                      onAdd: () => _showBudgetSheet(month: _month),
                       onEdit: (budget) => _showBudgetSheet(month: _month, budget: budget),
                     ),
                     data: (entries) => _BudgetList(
                       budgets: monthBudgets,
                       entries: entries,
                       month: _month,
+                      onAdd: () => _showBudgetSheet(month: _month),
                       onEdit: (budget) => _showBudgetSheet(month: _month, budget: budget),
                     ),
                   );
@@ -172,6 +190,10 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetContext) {
         final bottomInset = MediaQuery.viewInsetsOf(sheetContext).bottom;
         return Padding(
@@ -279,12 +301,12 @@ class _BudgetMonthHeader extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -324,22 +346,20 @@ class _BudgetList extends StatelessWidget {
     required this.budgets,
     required this.entries,
     required this.month,
+    required this.onAdd,
     required this.onEdit,
   });
 
   final List<ExpenseBudgetItem> budgets;
   final List<ExpenseTransaction> entries;
   final DateTime month;
+  final VoidCallback onAdd;
   final ValueChanged<ExpenseBudgetItem> onEdit;
 
   @override
   Widget build(BuildContext context) {
     if (budgets.isEmpty) {
-      return const PremiumEmptyState(
-        icon: Icons.savings_outlined,
-        title: 'No budget set yet',
-        message: 'Add an overall or category budget to track spending against your monthly limit.',
-      );
+      return _NoBudgetState(onAdd: onAdd);
     }
 
     final visibleEntries = entries.where((item) {
@@ -370,6 +390,54 @@ class _BudgetList extends StatelessWidget {
   }
 }
 
+class _NoBudgetState extends StatelessWidget {
+  const _NoBudgetState({required this.onAdd});
+
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 24, 18, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.savings_outlined, size: 34, color: AppTheme.primaryRed.withValues(alpha: 0.9)),
+          const SizedBox(height: 10),
+          Text(
+            'No budget set yet',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Add an overall or category budget to track spending against your monthly limit.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w600, height: 1.35),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Add budget'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BudgetCard extends StatelessWidget {
   const _BudgetCard({
     required this.budget,
@@ -393,12 +461,12 @@ class _BudgetCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: (isOverLimit || isNearLimit)
                 ? AppTheme.primaryRed.withValues(alpha: 0.26)
@@ -406,9 +474,9 @@ class _BudgetCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -422,7 +490,7 @@ class _BudgetCard extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     color: AppTheme.primaryRed.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     isOverLimit ? Icons.error_outline_rounded : Icons.savings_outlined,
@@ -486,7 +554,7 @@ class _BudgetLoadingCard extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: const CircularProgressIndicator.adaptive(),
     );
