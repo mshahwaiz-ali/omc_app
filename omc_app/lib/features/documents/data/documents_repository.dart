@@ -28,7 +28,8 @@ final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
 });
 
 class DocumentsRepository {
-  const DocumentsRepository({required this._frappeClient});
+  const DocumentsRepository({required FrappeClient frappeClient})
+    : _frappeClient = frappeClient;
 
   final FrappeClient _frappeClient;
 
@@ -108,6 +109,7 @@ class DocumentsRepository {
           'file_url': uploadedFileUrl,
           'attachment': uploadedFileUrl,
           'status': 'Uploaded',
+          'source': 'Service Upload',
         },
       );
 
@@ -195,13 +197,22 @@ class DocumentsRepository {
   }
 
   DocumentItem _mapDocument(Map<String, dynamic> json) {
+    final title = _stringValue(
+      json['title'] ?? json['document_title'] ?? json['document_name'],
+    );
+    final type = _nullableString(json['type'] ?? json['document_type']);
+    final serviceTitle = _nullableString(json['service_title']);
+    final serviceReference = _nullableString(
+      json['service_reference'] ?? json['case_reference'] ?? json['case_id'],
+    );
+
     return DocumentItem(
       id: _stringValue(json['id'] ?? json['name'] ?? json['document_id']),
-      title: _stringValue(
-        json['title'] ?? json['document_name'] ?? json['name'],
-      ),
-      subtitle: _nullableString(
-        json['subtitle'] ?? json['description'] ?? json['type'],
+      title: title,
+      subtitle: _documentSubtitle(
+        type: type,
+        serviceTitle: serviceTitle,
+        serviceReference: serviceReference,
       ),
       fileName: _nullableString(json['file_name'] ?? json['filename']),
       fileUrl: _nullableString(json['file_url'] ?? json['file'] ?? json['url']),
@@ -218,12 +229,33 @@ class DocumentsRepository {
             json['created_at'] ??
             json['uploaded_on'],
       ),
-      serviceReference: _nullableString(
-        json['service_reference'] ?? json['case_reference'] ?? json['case_id'],
+      serviceReference: serviceReference,
+      serviceTitle: serviceTitle,
+      serviceStatus: _nullableString(json['service_status']),
+      source: _nullableString(json['source']),
+      remarks: _nullableString(
+        json['review_remarks'] ?? json['remarks'] ?? json['notes'],
       ),
-      remarks: _nullableString(json['remarks'] ?? json['notes']),
+      isArchived: _boolValue(json['is_archived'] ?? json['archived']),
+      archivedOnLabel: _nullableString(json['archived_on']),
+      archiveReason: _nullableString(json['archive_reason']),
       status: _statusFromValue(json['status']),
     );
+  }
+
+  String? _documentSubtitle({
+    required String? type,
+    required String? serviceTitle,
+    required String? serviceReference,
+  }) {
+    final parts = [
+      type,
+      serviceTitle,
+      serviceReference,
+    ].where((value) => value != null && value.trim().isNotEmpty).toList();
+
+    if (parts.isEmpty) return null;
+    return parts.join(' · ');
   }
 
   DocumentStatus _statusFromValue(dynamic value) {
@@ -253,5 +285,13 @@ class DocumentsRepository {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) return null;
     return text;
+  }
+
+  bool _boolValue(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+
+    final text = value?.toString().trim().toLowerCase() ?? '';
+    return text == '1' || text == 'true' || text == 'yes';
   }
 }
