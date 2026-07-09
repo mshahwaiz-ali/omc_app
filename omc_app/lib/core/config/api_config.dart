@@ -80,7 +80,7 @@ class ApiConfig {
       'omc_app.api.service_templates.get_service_template';
 
   static const String serviceCasesMethod =
-      'omc_app.api.mobile.get_service_cases';
+      'omc_app.api.secured_mobile.get_service_cases';
   static const String serviceCaseDetailMethod =
       'omc_app.api.secured_mobile.get_service_case';
   static const String updateServiceCaseStatusMethod =
