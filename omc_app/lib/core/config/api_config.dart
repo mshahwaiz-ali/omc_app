@@ -25,6 +25,8 @@ class ApiConfig {
     return cleanUrl;
   }
 
+  static String get currentBaseUrl => baseUrl;
+
   static String get _defaultBaseUrlForEnvironment {
     switch (Env.current) {
       case AppEnvironment.development:
