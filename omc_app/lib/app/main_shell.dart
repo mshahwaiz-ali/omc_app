@@ -498,7 +498,14 @@ class _MoreHeaderAvatar extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: hasAvatar
-          ? Image.network(avatarUrl!, fit: BoxFit.cover, errorBuilder: (_, _, _) => _MoreAvatarFallback(initials: initials))
+          ? Image.network(
+              avatarUrl!,
+              width: 58,
+              height: 58,
+              fit: BoxFit.cover,
+              webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+              errorBuilder: (_, _, _) => _MoreAvatarFallback(initials: initials),
+            )
           : _MoreAvatarFallback(initials: initials),
     );
   }
