@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "user",
   "customer_profile",
   "transaction_type",
   "amount",
@@ -15,7 +16,17 @@
   "transaction_date",
   "account",
   "payment_method",
-  "note"
+  "merchant",
+  "note",
+  "tax_relevant",
+  "business_related",
+  "recurring",
+  "reimbursable",
+  "receipt_file",
+  "source",
+  "sync_id",
+  "status",
+  "created_from_guest"
  ],
  "fields": [
   {
@@ -25,6 +36,13 @@
    "label": "Naming Series",
    "options": "OMC-EXP-.YY..MM..DD.-.#####",
    "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User"
   },
   {
    "fieldname": "customer_profile",
@@ -53,9 +71,10 @@
   },
   {
    "fieldname": "category",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Category",
+   "options": "OMC Expense Category",
    "reqd": 1
   },
   {
@@ -74,18 +93,82 @@
   {
    "default": "Cash",
    "fieldname": "payment_method",
+   "fieldtype": "Select",
+   "label": "Payment Method",
+   "options": "Cash\nCard\nBank Transfer\nWallet"
+  },
+  {
+   "fieldname": "merchant",
    "fieldtype": "Data",
-   "label": "Payment Method"
+   "label": "Merchant"
   },
   {
    "fieldname": "note",
    "fieldtype": "Small Text",
    "label": "Note"
+  },
+  {
+   "default": "0",
+   "fieldname": "tax_relevant",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Useful for Tax"
+  },
+  {
+   "default": "0",
+   "fieldname": "business_related",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Business Expense"
+  },
+  {
+   "default": "0",
+   "fieldname": "recurring",
+   "fieldtype": "Check",
+   "label": "Recurring"
+  },
+  {
+   "default": "0",
+   "fieldname": "reimbursable",
+   "fieldtype": "Check",
+   "label": "Reimbursable"
+  },
+  {
+   "fieldname": "receipt_file",
+   "fieldtype": "Attach",
+   "label": "Receipt File"
+  },
+  {
+   "default": "Mobile",
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "Mobile\nImport\nDesk"
+  },
+  {
+   "fieldname": "sync_id",
+   "fieldtype": "Data",
+   "label": "Mobile Sync ID",
+   "search_index": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nArchived"
+  },
+  {
+   "default": "0",
+   "fieldname": "created_from_guest",
+   "fieldtype": "Check",
+   "label": "Created From Guest"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-07 00:00:00.000000",
+ "modified": "2026-07-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC Expense Entry",
