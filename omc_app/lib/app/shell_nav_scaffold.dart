@@ -105,11 +105,14 @@ class ShellNavScaffold extends ConsumerWidget {
     return capabilities.canTrackRequests ||
         capabilities.canViewCustomerDashboard ||
         capabilities.canAccessCustomerDashboard ||
+        capabilities.isApproved ||
         capabilities.canAccessInternalWorkspace;
   }
 
   bool _canOpenDocuments(AuthCapabilities capabilities) {
-    return capabilities.canViewDocuments || capabilities.canReviewDocuments;
+    return capabilities.canViewDocuments ||
+        capabilities.canReviewDocuments ||
+        capabilities.isApproved;
   }
 
   void _showLockedSnack(

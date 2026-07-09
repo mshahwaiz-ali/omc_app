@@ -457,11 +457,14 @@ bool _canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.canTrackRequests ||
         capabilities.canViewCustomerDashboard ||
         capabilities.canAccessCustomerDashboard ||
+        capabilities.isApproved ||
         capabilities.canAccessInternalWorkspace;
   }
 
   if (location == '/documents' || location.startsWith('/documents/')) {
-    return capabilities.canViewDocuments || capabilities.canReviewDocuments;
+    return capabilities.canViewDocuments ||
+        capabilities.canReviewDocuments ||
+        capabilities.isApproved;
   }
 
   if (location == '/payments' || location.startsWith('/payments/')) {
