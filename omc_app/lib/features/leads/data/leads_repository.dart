@@ -47,6 +47,50 @@ class LeadsRepository {
     }
   }
 
+  Future<LeadItem> createLead({
+    required String title,
+    String? customerName,
+    String? phone,
+    String? email,
+    String? source,
+    String? serviceInterest,
+    String? notes,
+  }) async {
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty) {
+      throw const ApiError(message: 'Lead title is required.');
+    }
+
+    try {
+      final response = await _frappeClient.postMethod(
+        ApiConfig.createLeadMethod,
+        data: {
+          'title': cleanTitle,
+          'lead_name': (customerName ?? cleanTitle).trim(),
+          'phone': phone?.trim() ?? '',
+          'email': email?.trim() ?? '',
+          'source': source?.trim().isNotEmpty == true ? source!.trim() : 'Mobile App',
+          'service_interest': serviceInterest?.trim() ?? '',
+          'notes': notes?.trim() ?? '',
+        },
+      );
+
+      final created = _mapLeadDetailResponse(response);
+      if (created == null) {
+        throw const ApiError(message: 'Lead was created but response was empty.');
+      }
+      return created;
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Lead could not be created right now.',
+        code: 'lead_create_failed',
+        details: error,
+      );
+    }
+  }
+
   Future<LeadItem?> fetchLeadDetail(String leadId) async {
     final cleanLeadId = leadId.trim();
     if (cleanLeadId.isEmpty) return null;
