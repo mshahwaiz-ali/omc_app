@@ -14,3 +14,4 @@ omc_app.patches.seed_tax_calculator_defaults
 omc_app.patches.remove_customer_profile_image_field
 omc_app.patches.finalize_omc_role_model
 omc_app.patches.add_service_document_archive_fields
+omc_app.patches.simplify_omc_roles_20260710
