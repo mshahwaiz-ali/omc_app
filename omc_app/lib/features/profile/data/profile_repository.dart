@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -65,11 +67,21 @@ class ProfileRepository {
   }
 
   Future<String?> uploadProfileImage({
-    required String filePath,
+    String? filePath,
+    Uint8List? fileBytes,
     required String fileName,
   }) async {
+    if ((fileBytes == null || fileBytes.isEmpty) &&
+        (filePath == null || filePath.trim().isEmpty)) {
+      throw ApiError(
+        message: 'Selected profile photo could not be read. Please choose it again.',
+        code: 'profile_image_unavailable',
+      );
+    }
+
     final response = await _frappeClient.uploadFile(
       filePath: filePath,
+      fileBytes: fileBytes,
       fileName: fileName,
       method: ApiConfig.uploadProfileImageMethod,
       isPrivate: false,
