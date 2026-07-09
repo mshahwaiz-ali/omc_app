@@ -1,13 +1,13 @@
 {
  "charts": [],
- "content": "[{\"id\": \"omc-app-title\", \"type\": \"header\", \"data\": {\"text\": \"<span class='h4'>OMC App</span>\", \"col\": 12}}, {\"id\": \"omc-app-card-0\", \"type\": \"card\", \"data\": {\"card_name\": \"Client Operations\", \"col\": 4}}, {\"id\": \"omc-app-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Services Setup\", \"col\": 4}}, {\"id\": \"omc-app-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"Customers & Support\", \"col\": 4}}, {\"id\": \"omc-app-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"Tax Calculator\", \"col\": 4}}, {\"id\": \"omc-app-card-4\", \"type\": \"card\", \"data\": {\"card_name\": \"CRM & Internal Work\", \"col\": 4}}, {\"id\": \"omc-app-card-5\", \"type\": \"card\", \"data\": {\"card_name\": \"Access Control\", \"col\": 4}}]",
- "creation": "2026-07-09 02:48:24.614662",
+ "content": "[{\"id\": \"omc-app-title\", \"type\": \"header\", \"data\": {\"text\": \"<span class='h4'>OMC App</span>\", \"col\": 12}}, {\"id\": \"omc-card-0\", \"type\": \"card\", \"data\": {\"card_name\": \"Daily Operations\", \"col\": 4}}, {\"id\": \"omc-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Service Setup\", \"col\": 4}}, {\"id\": \"omc-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"Customers & Support\", \"col\": 4}}, {\"id\": \"omc-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"Mobile Content\", \"col\": 4}}, {\"id\": \"omc-card-4\", \"type\": \"card\", \"data\": {\"card_name\": \"Tax Calculator\", \"col\": 4}}, {\"id\": \"omc-card-5\", \"type\": \"card\", \"data\": {\"card_name\": \"Finance & Internal\", \"col\": 4}}, {\"id\": \"omc-card-6\", \"type\": \"card\", \"data\": {\"card_name\": \"App Settings\", \"col\": 4}}]",
+ "creation": "2026-07-09 13:22:18.107735",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
  "hide_custom": 0,
- "icon": "organization",
+ "icon": "/assets/omc_app/images/logo_symbol_transparent.png",
  "idx": 0,
  "indicator_color": "blue",
  "is_hidden": 0,
@@ -16,7 +16,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Client Operations",
+   "label": "Daily Operations",
    "link_count": 0,
    "link_type": "DocType",
    "onboard": 0,
@@ -26,7 +26,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Service Requests",
-   "link_count": 1,
+   "link_count": 0,
    "link_to": "OMC Service Request",
    "link_type": "DocType",
    "onboard": 0,
@@ -35,18 +35,8 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Service Timelines",
-   "link_count": 6,
-   "link_to": "OMC Service Timeline",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Uploaded Documents",
-   "link_count": 3,
+   "link_count": 0,
    "link_to": "OMC Service Document",
    "link_type": "DocType",
    "onboard": 0,
@@ -56,7 +46,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Payments",
-   "link_count": 1,
+   "link_count": 0,
    "link_to": "OMC Service Payment",
    "link_type": "DocType",
    "onboard": 0,
@@ -65,7 +55,27 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Services Setup",
+   "label": "Service Timelines",
+   "link_count": 0,
+   "link_to": "OMC Service Timeline",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Stage Templates",
+   "link_count": 0,
+   "link_to": "OMC Service Stage Template",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Service Setup",
    "link_count": 0,
    "link_type": "DocType",
    "onboard": 0,
@@ -94,9 +104,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Mobile Settings",
+   "label": "Required Documents",
    "link_count": 0,
-   "link_to": "OMC Mobile Settings",
+   "link_to": "OMC Service Required Document",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -104,9 +114,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Branding Settings",
+   "label": "Service Form Fields",
    "link_count": 0,
-   "link_to": "OMC Branding Settings",
+   "link_to": "OMC Service Form Field",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -124,7 +134,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Customer Profiles",
-   "link_count": 2,
+   "link_count": 0,
    "link_to": "OMC Customer Profile",
    "link_type": "DocType",
    "onboard": 0,
@@ -144,7 +154,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Support Tickets",
-   "link_count": 2,
+   "link_count": 0,
    "link_to": "OMC Support Ticket",
    "link_type": "DocType",
    "onboard": 0,
@@ -153,9 +163,88 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Ticket Messages",
+   "link_count": 0,
+   "link_to": "OMC Support Ticket Message",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Notifications",
-   "link_count": 1,
+   "link_count": 0,
    "link_to": "OMC Notification",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Announcements",
+   "link_count": 0,
+   "link_to": "OMC Announcement",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mobile Content",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "App Banners",
+   "link_count": 0,
+   "link_to": "OMC App Banner",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "FAQs",
+   "link_count": 0,
+   "link_to": "OMC FAQ",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Knowledge Articles",
+   "link_count": 0,
+   "link_to": "OMC Knowledge Article",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mobile Quick Actions",
+   "link_count": 0,
+   "link_to": "OMC Mobile Quick Action",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Guest Sessions",
+   "link_count": 0,
+   "link_to": "OMC Guest Session",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -202,8 +291,18 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Tax Slabs",
+   "link_count": 0,
+   "link_to": "OMC Tax Slab",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Input Fields",
-   "link_count": 9,
+   "link_count": 0,
    "link_to": "OMC Tax Input Field",
    "link_type": "DocType",
    "onboard": 0,
@@ -215,6 +314,16 @@
    "label": "Adjustment Rules",
    "link_count": 0,
    "link_to": "OMC Tax Adjustment Rule",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Tax Alerts",
+   "link_count": 0,
+   "link_to": "OMC Tax Alert",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -242,11 +351,41 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "CRM & Internal Work",
+   "label": "Finance & Internal",
    "link_count": 0,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Payment Accounts",
+   "link_count": 0,
+   "link_to": "OMC Payment Account",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Expense Categories",
+   "link_count": 0,
+   "link_to": "OMC Expense Category",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Expense Entries",
+   "link_count": 0,
+   "link_to": "OMC Expense Entry",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -271,7 +410,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Access Control",
+   "label": "App Settings",
    "link_count": 0,
    "link_type": "DocType",
    "onboard": 0,
@@ -280,9 +419,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Users",
-   "link_count": 3,
-   "link_to": "User",
+   "label": "Branding Settings",
+   "link_count": 0,
+   "link_to": "OMC Branding Settings",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -290,45 +429,15 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Roles",
+   "label": "Mobile Settings",
    "link_count": 0,
-   "link_to": "Role",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Role Profiles",
-   "link_count": 0,
-   "link_to": "Role Profile",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Module Profiles",
-   "link_count": 0,
-   "link_to": "Module Profile",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "User Permissions",
-   "link_count": 0,
-   "link_to": "User Permission",
+   "link_to": "OMC Mobile Settings",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
   }
  ],
- "modified": "2026-07-09 02:52:06.344611",
+ "modified": "2026-07-09 15:15:45.177480",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC App",
@@ -339,16 +448,16 @@
   {
    "document_type": "OMC Service Request",
    "label": "Open Service Requests",
-   "quick_list_filter": "{\"status\":[\"!=\",\"Completed\"]}"
+   "quick_list_filter": "{\"status\": [\"!=\", \"Completed\"]}"
   },
   {
    "document_type": "OMC Support Ticket",
    "label": "Open Support Tickets",
-   "quick_list_filter": "{\"status\":[\"!=\",\"Closed\"]}"
+   "quick_list_filter": "{\"status\": [\"!=\", \"Closed\"]}"
   }
  ],
  "roles": [],
- "sequence_id": 1.0,
+ "sequence_id": 10.0,
  "shortcuts": [],
  "title": "OMC App"
 }

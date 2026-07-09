@@ -31,3 +31,114 @@
   display: flex !important;
   align-items: center !important;
 }
+
+/* OMC App Workspace polish */
+[data-page-route="Workspaces/OMC App"] .layout-main-section,
+[data-page-route="omc-app"] .layout-main-section {
+  background: transparent !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .workspace,
+[data-page-route="omc-app"] .workspace {
+  max-width: 1080px !important;
+  margin: 0 auto !important;
+  padding: 28px 28px 48px !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .workspace .widget,
+[data-page-route="omc-app"] .workspace .widget {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .workspace-section,
+[data-page-route="omc-app"] .workspace-section {
+  margin-bottom: 18px !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .workspace-section .section-head,
+[data-page-route="omc-app"] .workspace-section .section-head,
+[data-page-route="Workspaces/OMC App"] .workspace-section h4,
+[data-page-route="omc-app"] .workspace-section h4 {
+  margin: 22px 0 10px !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text-color) !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .shortcut-widget-box,
+[data-page-route="omc-app"] .shortcut-widget-box {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px 14px !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .shortcut-widget-box .widget.shortcut-widget-box,
+[data-page-route="omc-app"] .shortcut-widget-box .widget.shortcut-widget-box {
+  display: block !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .shortcut-widget-box .shortcut,
+[data-page-route="omc-app"] .shortcut-widget-box .shortcut,
+[data-page-route="Workspaces/OMC App"] .links-widget-box .link-item,
+[data-page-route="omc-app"] .links-widget-box .link-item {
+  min-height: 42px !important;
+  padding: 9px 12px !important;
+  border-radius: 12px !important;
+  transition: background 0.15s ease, transform 0.15s ease !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .shortcut-widget-box .shortcut:hover,
+[data-page-route="omc-app"] .shortcut-widget-box .shortcut:hover,
+[data-page-route="Workspaces/OMC App"] .links-widget-box .link-item:hover,
+[data-page-route="omc-app"] .links-widget-box .link-item:hover {
+  background: var(--fg-hover-color) !important;
+  transform: translateY(-1px) !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .links-widget-box,
+[data-page-route="omc-app"] .links-widget-box {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  column-gap: 28px !important;
+  row-gap: 8px !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .links-widget-box .link-item,
+[data-page-route="omc-app"] .links-widget-box .link-item {
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+[data-page-route="Workspaces/OMC App"] .link-item .indicator-pill,
+[data-page-route="omc-app"] .link-item .indicator-pill,
+[data-page-route="Workspaces/OMC App"] .count,
+[data-page-route="omc-app"] .count {
+  margin-left: 6px !important;
+  transform: scale(0.92) !important;
+}
+
+@media (max-width: 1100px) {
+  [data-page-route="Workspaces/OMC App"] .links-widget-box,
+  [data-page-route="omc-app"] .links-widget-box,
+  [data-page-route="Workspaces/OMC App"] .shortcut-widget-box,
+  [data-page-route="omc-app"] .shortcut-widget-box {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  [data-page-route="Workspaces/OMC App"] .workspace,
+  [data-page-route="omc-app"] .workspace {
+    padding: 18px 14px 36px !important;
+  }
+
+  [data-page-route="Workspaces/OMC App"] .links-widget-box,
+  [data-page-route="omc-app"] .links-widget-box,
+  [data-page-route="Workspaces/OMC App"] .shortcut-widget-box,
+  [data-page-route="omc-app"] .shortcut-widget-box {
+    grid-template-columns: 1fr !important;
+  }
+}
