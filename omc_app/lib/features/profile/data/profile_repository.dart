@@ -92,7 +92,7 @@ class ProfileRepository {
 
     final message = response['message'];
     final payload = message is Map<String, dynamic> ? message : response;
-    final uploadedUrl = _avatarUrlFromPayload(payload);
+    final uploadedUrl = _userImageUrlFromPayload(payload);
     return uploadedUrl == null ? null : _withAvatarCacheBust(uploadedUrl);
   }
 
@@ -154,7 +154,8 @@ class ProfileRepository {
       envelope: envelope,
       profile: profile,
     );
-    final avatarUrl = _avatarUrlFromPayload(profile) ?? _avatarUrlFromPayload(envelope);
+    final avatarUrl =
+        _userImageUrlFromPayload(profile) ?? _userImageUrlFromPayload(envelope);
 
     return ProfileSummary(
       displayName:
@@ -192,14 +193,9 @@ class ProfileRepository {
     );
   }
 
-  String? _avatarUrlFromPayload(Map<String, dynamic> payload) {
+  String? _userImageUrlFromPayload(Map<String, dynamic> payload) {
     return _nullableString(
-      payload['avatar_url'] ??
-          payload['profile_image'] ??
-          payload['user_image'] ??
-          payload['image'] ??
-          payload['photo'] ??
-          payload['file_url'],
+      payload['user_image'] ?? payload['avatar_url'] ?? payload['file_url'],
     );
   }
 
