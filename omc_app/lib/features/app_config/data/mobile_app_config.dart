@@ -73,7 +73,7 @@ class MobileFeatureConfig {
     this.taxCalculatorEnabled = false,
     this.supportEnabled = true,
     this.subscriptionsEnabled = false,
-    this.internalWorkspaceEnabled = false,
+    this.internalWorkspaceEnabled = true,
   });
 
   final bool guestModeEnabled;
@@ -98,7 +98,7 @@ class MobileFeatureConfig {
       subscriptionsEnabled: _boolValue(json['subscriptions_enabled'], false),
       internalWorkspaceEnabled: _boolValue(
         json['internal_workspace_enabled'],
-        false,
+        true,
       ),
     );
   }
