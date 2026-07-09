@@ -11,7 +11,7 @@ from omc_app.api import mobile
 
 @frappe.whitelist()
 def get_service_cases():
-    """Return service case list with backend-owned tracking metadata."""
+    """Return service case list with the same tracking summary used by detail."""
 
     response = mobile.get_service_cases()
     cases = _extract_service_case_list(response)
@@ -50,68 +50,78 @@ def _extract_service_case_list(response):
 
 
 def _normalize_service_case_list_item(service_case, can_access_internal_workspace=False):
-    capabilities = mobile.get_mobile_capabilities()
-    case_id = service_case.get("name") or service_case.get("id") or service_case.get("case_id") or ""
-    status = service_case.get("status") or ""
-    progress = _service_case_progress(status)
-
-    service_case["id"] = case_id
-    service_case["reference"] = case_id
-    service_case["case_reference"] = case_id
-    service_case["progress"] = progress
-    service_case["progress_percent"] = int(progress * 100)
-    service_case["current_stage"] = status
-    service_case["next_step"] = _service_case_next_step(status)
-    service_case.setdefault("required_documents_count", 0)
-    service_case.setdefault("submitted_documents_count", 0)
-    service_case.setdefault("missing_documents_count", 0)
-    service_case.setdefault("payments_count", 0)
-    service_case.setdefault("paid_payments_count", 0)
-    service_case.setdefault("open_payments_count", 0)
-    service_case["customer_action_required"] = status.strip().lower() == "waiting for customer"
-    service_case["can_update_status"] = capabilities["can_update_service_status"]
-    service_case["can_review_documents"] = capabilities["can_review_documents"]
-    service_case["can_view_internal_notes"] = can_access_internal_workspace
-    service_case["can_cancel"] = _can_customer_cancel_service_case(case_id, status)
-
-
-@frappe.whitelist()
-def get_service_case(case_id=None, name=None, service_request=None, request_id=None):
-    """Return service case detail with backend-owned customer/admin gates."""
-
-    resolved_case_id = case_id or name or service_request or request_id
-    response = mobile.get_service_case(case_id=resolved_case_id)
-    service_case = response.get("case") if isinstance(response, dict) else None
-
-    if not isinstance(service_case, dict):
-        return response
-
-    _apply_service_case_capabilities(service_case)
+    case_id = _service_request_id(service_case)
+    _hydrate_service_case_list_item(service_case, case_id)
+    _apply_service_case_capabilities(service_case, can_access_internal_workspace)
     _normalize_service_case_documents(service_case)
     _normalize_service_case_payments(service_case)
     _apply_service_case_tracking_summary(service_case)
 
-    timeline = service_case.get("timeline")
-    if isinstance(timeline, list) and timeline:
-        _normalize_service_case_timeline(timeline)
-        return response
 
-    service_case["timeline"] = _fallback_service_case_timeline(service_case)
-    _normalize_service_case_timeline(service_case["timeline"])
-    return response
+def _hydrate_service_case_list_item(service_case, case_id):
+    if not case_id:
+        return
+
+    try:
+        request = frappe.db.get_value(
+            "OMC Service Request",
+            case_id,
+            [
+                "name",
+                "title",
+                "status",
+                "priority",
+                "service",
+                "service_title",
+                "description",
+                "creation",
+                "modified",
+                "submitted_on",
+                "expected_completion_date",
+            ],
+            as_dict=True,
+        )
+    except Exception:
+        request = None
+
+    if not request:
+        return
+
+    service_case["name"] = request.name
+    service_case["id"] = request.name
+    service_case["reference"] = request.name
+    service_case["case_reference"] = request.name
+    service_case["title"] = request.title or request.service_title or service_case.get("title") or "Service Request"
+    service_case["status"] = request.status or service_case.get("status") or ""
+    service_case["priority"] = request.priority or service_case.get("priority") or ""
+    service_case["service_id"] = request.service or service_case.get("service_id") or ""
+    service_case["service"] = request.service or service_case.get("service") or ""
+    service_case["service_title"] = request.service_title or service_case.get("service_title") or service_case.get("service") or ""
+    service_case["description"] = request.description or service_case.get("description") or ""
+    service_case["created_at"] = _format_mobile_date(request.creation) or service_case.get("created_at") or ""
+    service_case["submitted_on"] = _format_mobile_datetime(request.submitted_on or request.creation) or service_case.get("submitted_on") or ""
+    service_case["updated_at"] = _format_mobile_date(request.modified) or service_case.get("updated_at") or ""
+    service_case["expected_completion_date"] = str(request.expected_completion_date or service_case.get("expected_completion_date") or "")
 
 
-def _apply_service_case_capabilities(service_case):
+def _apply_service_case_capabilities(service_case, can_access_internal_workspace=None):
     """Keep internal-only fields and controls backend-driven."""
 
-    can_access_internal_workspace = mobile._can_access_internal_workspace()
-    capabilities = mobile.get_mobile_capabilities()
+    if can_access_internal_workspace is None:
+        can_access_internal_workspace = mobile._can_access_internal_workspace()
 
+    capabilities = mobile.get_mobile_capabilities()
+    case_id = _service_request_id(service_case)
+
+    service_case["id"] = case_id
+    service_case["reference"] = case_id
+    service_case["case_reference"] = case_id
+    service_case["current_stage"] = service_case.get("status") or ""
     service_case["can_update_status"] = capabilities["can_update_service_status"]
     service_case["can_review_documents"] = capabilities["can_review_documents"]
-    service_case["can_review_payments"] = capabilities["can_review_payments"]
+    service_case["can_review_payments"] = capabilities.get("can_review_payments", False)
     service_case["can_view_internal_notes"] = can_access_internal_workspace
-    service_case["can_cancel"] = _can_customer_cancel_service_case(_service_request_id(service_case), service_case.get("status"))
+    service_case["can_cancel"] = _can_customer_cancel_service_case(case_id, service_case.get("status"))
 
     if not can_access_internal_workspace:
         service_case["remarks"] = ""
@@ -143,9 +153,6 @@ def _normalize_service_case_documents(service_case):
         required_document_templates = service_case.get("required_documents") or []
 
     document_details = _merged_document_details(documents, required_document_templates)
-    if not document_details:
-        return
-
     required_documents = document_details
     submitted_documents = [doc for doc in document_details if _document_is_submitted(doc)]
     missing_documents = [doc for doc in document_details if _document_needs_upload(doc)]
@@ -168,9 +175,9 @@ def _normalize_service_case_documents(service_case):
 def _normalize_service_case_payments(service_case):
     service_request = _service_request_id(service_case)
     if not service_request:
+        _set_payment_defaults(service_case)
         return
 
-    payments = []
     try:
         payments = frappe.get_all(
             "OMC Service Payment",
@@ -208,6 +215,15 @@ def _normalize_service_case_payments(service_case):
     service_case["rejected_payments_count"] = len(rejected_payments)
 
 
+def _set_payment_defaults(service_case):
+    service_case.setdefault("payments", [])
+    service_case.setdefault("payment_details", [])
+    service_case.setdefault("payments_count", 0)
+    service_case.setdefault("paid_payments_count", 0)
+    service_case.setdefault("open_payments_count", 0)
+    service_case.setdefault("rejected_payments_count", 0)
+
+
 def _apply_service_case_tracking_summary(service_case):
     status = (service_case.get("status") or "").strip()
     normalized_status = status.lower()
@@ -221,6 +237,7 @@ def _apply_service_case_tracking_summary(service_case):
         customer_action_required = True
 
     service_case["customer_action_required"] = customer_action_required
+    service_case["current_stage"] = status
     service_case["next_step"] = _service_case_next_step(
         status,
         missing_documents=missing_documents,
@@ -234,12 +251,40 @@ def _apply_service_case_tracking_summary(service_case):
     service_case["progress_percent"] = int(round(progress * 100))
 
 
+@frappe.whitelist()
+def get_service_case(case_id=None, name=None, service_request=None, request_id=None):
+    """Return service case detail with backend-owned customer/admin gates."""
+
+    resolved_case_id = case_id or name or service_request or request_id
+    response = mobile.get_service_case(case_id=resolved_case_id)
+    service_case = response.get("case") if isinstance(response, dict) else None
+
+    if not isinstance(service_case, dict):
+        return response
+
+    _hydrate_service_case_list_item(service_case, resolved_case_id or _service_request_id(service_case))
+    _apply_service_case_capabilities(service_case)
+    _normalize_service_case_documents(service_case)
+    _normalize_service_case_payments(service_case)
+    _apply_service_case_tracking_summary(service_case)
+
+    timeline = service_case.get("timeline")
+    if isinstance(timeline, list) and timeline:
+        _normalize_service_case_timeline(timeline)
+        return response
+
+    service_case["timeline"] = _fallback_service_case_timeline(service_case)
+    _normalize_service_case_timeline(service_case["timeline"])
+    return response
+
+
 def _service_request_id(service_case):
     return (
         service_case.get("name")
         or service_case.get("id")
         or service_case.get("case_id")
         or service_case.get("reference")
+        or ""
     )
 
 
@@ -426,6 +471,19 @@ def _format_mobile_datetime(value):
         text = str(value).strip()
         if "." in text:
             text = text.split(".", 1)[0]
+        return text
+
+
+def _format_mobile_date(value):
+    if not value:
+        return ""
+
+    try:
+        return str(value.date())
+    except Exception:
+        text = str(value).strip()
+        if " " in text:
+            return text.split(" ", 1)[0]
         return text
 
 
@@ -649,7 +707,11 @@ def cancel_service_request(case_id=None, name=None, service_request=None, reques
     request = frappe.get_doc("OMC Service Request", resolved_case_id)
     user = frappe.session.user
 
-    if user != "Administrator" and request.requested_by != user and not mobile._can_access_internal_workspace():
+    can_access_internal_workspace = mobile._can_access_internal_workspace()
+    customer_profile = None if can_access_internal_workspace else mobile.get_current_customer_profile()
+    owns_request = customer_profile and request.customer_profile == customer_profile.name
+
+    if user != "Administrator" and not owns_request and not can_access_internal_workspace:
         frappe.throw("You cannot cancel this service request.")
 
     if not _can_customer_cancel_service_case(request.name, request.status):
