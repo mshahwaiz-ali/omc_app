@@ -954,16 +954,18 @@ class _HeroCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              OutlinedButton(
-                onPressed: onSecondary,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(54),
-                  foregroundColor: AppTheme.textPrimary,
-                  side: const BorderSide(color: AppTheme.border),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onSecondary,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(54),
+                    foregroundColor: AppTheme.textPrimary,
+                    side: const BorderSide(color: AppTheme.border),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                  child: const Text('Tax calculator'),
                 ),
-                child: const Text('Tax calculator'),
               ),
             ],
           ),
@@ -1678,7 +1680,7 @@ class _ServiceRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  '${(progress * 100).round()}%',
+                  '${(progress * 100).round()}',
                   style: const TextStyle(
                     fontSize: 12.5,
                     color: AppTheme.textMuted,
