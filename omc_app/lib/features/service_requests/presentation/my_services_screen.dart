@@ -6,7 +6,6 @@ import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
-import '../../../core/widgets/premium_list_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
@@ -674,7 +673,7 @@ class _FilterRow extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      count.toString(),
+                      '$count',
                       style: TextStyle(
                         color: selected ? style.color : AppTheme.textSecondary,
                         fontSize: 10.5,
@@ -1048,75 +1047,6 @@ class _LoadingBlock extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(radius),
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-    required this.onStartRequest,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-  final VoidCallback onStartRequest;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: PremiumCard(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off_rounded, size: 42, color: AppTheme.primaryRed),
-              const SizedBox(height: 12),
-              const Text(
-                'Service tracking unavailable',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onRetry,
-                      child: const Text('Retry'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: onStartRequest,
-                      child: const Text('Start request'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
