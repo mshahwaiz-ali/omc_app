@@ -158,6 +158,67 @@ def _service_payment_summary(service_name):
     return _payment_summary(filters)
 
 
+def _family_from_text(text):
+    normalized = (text or "").strip().lower()
+    if any(token in normalized for token in ("payment", "receipt", "invoice", "bill")):
+        return "Payments"
+    if any(token in normalized for token in ("document", "docs", "uploaded", "upload")):
+        return "Documents"
+    if any(token in normalized for token in ("track", "review", "progress", "status")):
+        return "Track"
+    if "lead" in normalized:
+        return "Leads"
+    if any(token in normalized for token in ("task", "todo", "action needed")):
+        return "Tasks"
+    if any(token in normalized for token in ("notification", "alert", "message")):
+        return "Notifications"
+    if any(token in normalized for token in ("tax", "gst", "ntn", "calculator")):
+        return "Tax"
+    return "Services"
+
+
+def _service_color_family(service_name):
+    if not service_name or not _doctype_exists("OMC Service"):
+        return ""
+
+    try:
+        service = frappe.db.get_value(
+            "OMC Service",
+            service_name,
+            ["color_family", "wizard_type", "title"],
+            as_dict=True,
+        )
+    except Exception:
+        service = None
+
+    if not service:
+        return ""
+
+    color_family = (service.get("color_family") or "").strip()
+    if color_family:
+        return color_family
+
+    wizard_type = (service.get("wizard_type") or "").strip()
+    if wizard_type:
+        return _family_from_text(wizard_type)
+
+    return _family_from_text(service.get("title") or service_name)
+
+
+def _activity_color_family(row):
+    raw_text = " ".join([
+        row.event_type or "",
+        row.title or "",
+        row.description or "",
+    ])
+    family = _family_from_text(raw_text)
+    if family != "Services":
+        return family
+
+    service_family = _service_color_family(row.service_request)
+    return service_family or family
+
+
 def _service_snapshots(profile=None, limit=3):
     filters = _service_scope(profile)
     filters["status"] = ["not in", CLOSED_SERVICE_STATUSES]
@@ -167,6 +228,7 @@ def _service_snapshots(profile=None, limit=3):
         filters=filters,
         fields=[
             "name",
+            "service",
             "title",
             "service_title",
             "status",
@@ -203,6 +265,8 @@ def _service_snapshots(profile=None, limit=3):
                 "priority": row.priority or "Medium",
                 "customer_profile": row.customer_profile or "",
                 "customer_name": row.customer_name or "",
+                "service": row.service or "",
+                "color_family": _service_color_family(row.service),
                 "documents": docs,
                 "payments": payments,
                 "document_summary": docs,
@@ -245,6 +309,7 @@ def _recent_activity(filters):
             "created_at_label": _format_datetime(row.event_time),
             "event_time": _format_datetime(row.event_time),
             "created_by": row.created_by or "",
+            "color_family": _activity_color_family(row),
         }
         for row in rows
     ]
@@ -369,24 +434,16 @@ def get_dashboard_data():
         "document_summary": document_summary,
         "payment_summary": payment_summary,
         "support_summary": _support_summary(profile),
-        "active_services": _service_snapshots(profile),
-        "service_snapshots": _service_snapshots(profile),
+        "active_services": _service_snapshots(profile=profile, limit=3),
+        "service_snapshots": _service_snapshots(profile=profile, limit=3),
         "recent_activity": _recent_activity(timeline_filters),
+        "next_action": None,
     }
 
     if is_internal:
-        operations_summary = _internal_operations_summary(summary)
-        summary["operations_summary"] = operations_summary
-        summary["priority_queue"] = _service_snapshots(None, limit=5)
-        summary["customer_health"] = {
-            "active_customers": operations_summary.get("active_customers", 0),
-            "open_services": summary.get("open_services", 0),
-            "pending_documents": summary.get("pending_documents", 0),
-            "payments_due": summary.get("payments_due", 0),
-            "waiting_customer": operations_summary.get("waiting_customer", 0),
-        }
+        summary["operations_summary"] = _internal_operations_summary(summary)
         summary["next_action"] = _next_action(summary, is_internal=True)
     else:
         summary["next_action"] = _next_action(summary, is_internal=False)
 
-    return summary
+    return {"message": summary}
