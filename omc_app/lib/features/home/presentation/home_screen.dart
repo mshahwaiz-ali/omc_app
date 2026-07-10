@@ -9,9 +9,9 @@ import '../../../core/config/api_config.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../content/data/app_content_repository.dart';
+import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
-import '../../profile/data/profile_repository.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({
@@ -31,13 +31,12 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
     final capabilities = authState.capabilities;
-    final profileSummary = ref.watch(profileSummaryProvider);
+    final profileAsync = ref.watch(profileSummaryProvider);
     final bannersAsync = ref.watch(appBannersProvider);
     final actionsAsync = ref.watch(mobileQuickActionsProvider);
 
     final canLoadDashboard =
-        capabilities.canViewCustomerDashboard ||
-        capabilities.canAccessInternalWorkspace;
+        capabilities.canViewCustomerDashboard || capabilities.canAccessInternalWorkspace;
     final dashboardAsync = canLoadDashboard
         ? ref.watch(homeDashboardSummaryProvider)
         : AsyncValue<HomeDashboardSummary>.data(
@@ -48,28 +47,22 @@ class HomeScreen extends ConsumerWidget {
 
     final summary = dashboardAsync.maybeWhen(
       data: (value) => value,
-      orElse: () => const HomeDashboardSummary.empty(
-        fallbackMessage: 'Dashboard summary is loading right now.',
-      ),
+      orElse: () => const HomeDashboardSummary.empty(),
     );
-    final displayName =
-        profileSummary.maybeWhen(
-          data: (profile) => profile?.displayName,
-          orElse: () => null,
-        ) ??
-        authState.displayName ??
-        _displayNameFromUserId(authState.userId);
-    final avatarUrl = profileSummary.maybeWhen(
-      data: (profile) => profile?.avatarUrl,
+    final profile = profileAsync.maybeWhen(
+      data: (value) => value,
       orElse: () => null,
     );
-    final isInternal = capabilities.canAccessInternalWorkspace;
-    final actions = _actionsForHome(
+    final displayName = profile?.displayName ??
+        authState.displayName ??
+        _displayNameFromUserId(authState.userId);
+    final avatarUrl = profile?.avatarUrl;
+    final actions = _homeActions(
       actionsAsync.maybeWhen(
         data: (value) => value,
         orElse: () => fallbackMobileQuickActions,
       ),
-      isInternal,
+      capabilities.canAccessInternalWorkspace,
     );
 
     return Scaffold(
@@ -99,22 +92,15 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               _SliverBlock(
-                top: 8,
-                child: _SearchBar(
-                  onTap: () => context.push('/services'),
-                ),
+                top: 10,
+                child: _SearchBar(onTap: () => context.push('/services')),
               ),
-              if (capabilities.isGuest ||
-                  capabilities.isPending ||
-                  capabilities.isRejected)
+              if (capabilities.isGuest || capabilities.isPending || capabilities.isRejected)
                 _SliverBlock(
                   top: 14,
                   child: _AccessBanner(
                     capabilities: capabilities,
-                    onPrimary: () => _goProfile(
-                      context,
-                      capabilities,
-                    ),
+                    onPrimary: () => _goProfile(context, capabilities),
                   ),
                 ),
               _SliverBlock(
@@ -138,9 +124,9 @@ class HomeScreen extends ConsumerWidget {
                   onSecondary: () {
                     if (onOpenCalculator != null) {
                       onOpenCalculator!();
-                    } else {
-                      context.push('/tax-calculator');
+                      return;
                     }
+                    context.push('/tax-calculator');
                   },
                 ),
               ),
@@ -152,11 +138,7 @@ class HomeScreen extends ConsumerWidget {
                     onTap: (banner) => _handleBannerTap(context, banner),
                   ),
                 ),
-              _SectionHeader(
-                title: 'Quick actions',
-                actionText: 'View all',
-                onAction: () => context.go('/more'),
-              ),
+              _SectionHeader(title: 'Quick actions', actionText: 'View all', onAction: () => context.go('/more')),
               _SliverBlock(
                 child: _QuickActionsRail(
                   actions: actions,
@@ -183,11 +165,7 @@ class HomeScreen extends ConsumerWidget {
                         requiredCapability: 'can_track_requests',
                       ),
               ),
-              _SliverBlock(
-                child: _MetricGrid(
-                  metrics: _buildMetrics(summary),
-                ),
-              ),
+              _SliverBlock(child: _MetricGrid(metrics: _buildMetrics(summary))),
               _SliverBlock(
                 top: 14,
                 child: _CompletionCard(
@@ -197,9 +175,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               _SectionHeader(
-                title: summary.serviceSnapshots.isEmpty
-                    ? 'Start with OMC'
-                    : 'Your services in progress',
+                title: summary.serviceSnapshots.isEmpty ? 'Start with OMC' : 'Your services in progress',
                 actionText: summary.serviceSnapshots.isEmpty ? null : 'View all',
                 onAction: summary.serviceSnapshots.isEmpty
                     ? null
@@ -214,8 +190,7 @@ class HomeScreen extends ConsumerWidget {
                 child: _ServiceProgressCard(
                   services: summary.serviceSnapshots,
                   emptyTitle: 'No active service yet',
-                  emptySubtitle:
-                      'Browse services or use the tax calculator to start.',
+                  emptySubtitle: 'Browse services or use the tax calculator to start.',
                   onOpen: (service) => _goAllowed(
                     context: context,
                     route: '/my-services/${Uri.encodeComponent(service.id)}',
@@ -238,9 +213,7 @@ class HomeScreen extends ConsumerWidget {
               _SliverBlock(
                 bottom: 34,
                 child: _ActivityTimelineCard(
-                  activities: summary.recentActivity.take(4).toList(
-                        growable: false,
-                      ),
+                  activities: summary.recentActivity.take(4).toList(growable: false),
                   onTrack: () => _goAllowed(
                     context: context,
                     route: '/my-services',
@@ -256,15 +229,10 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  List<MobileQuickAction> _actionsForHome(
-    List<MobileQuickAction> source,
-    bool isInternal,
-  ) {
+  List<MobileQuickAction> _homeActions(List<MobileQuickAction> source, bool isInternal) {
     final filtered = source
-        .where((action) => action.title.isNotEmpty)
-        .where(
-          (action) => isInternal || action.requiredCapability != 'can_manage_customers',
-        )
+        .where((action) => action.title.trim().isNotEmpty)
+        .where((action) => isInternal || action.requiredCapability != 'can_manage_customers')
         .toList(growable: false);
 
     filtered.sort((left, right) {
@@ -303,6 +271,26 @@ class HomeScreen extends ConsumerWidget {
         tint: const Color(0xFF9B6BFF),
       ),
     ];
+  }
+
+  bool _isAllowed(String capability, AuthCapabilities capabilities) {
+    return switch (capability) {
+      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
+      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
+      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
+      'can_review_documents' => capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace,
+      'can_review_payments' => capabilities.canReviewPayments || capabilities.canAccessInternalWorkspace,
+      'can_create_support_ticket' => capabilities.canCreateSupportTicket || capabilities.isApproved || capabilities.isInternal,
+      'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
+      'can_access_internal_workspace' => capabilities.canAccessInternalWorkspace,
+      _ => true,
+    };
+  }
+
+  bool _isActionAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
+    final required = action.requiredCapability?.trim();
+    if (required == null || required.isEmpty) return true;
+    return _isAllowed(required, capabilities);
   }
 
   void _handleQuickAction(
@@ -352,10 +340,6 @@ class HomeScreen extends ConsumerWidget {
           }
           return;
         }
-        if (key == 'notifications') {
-          context.push('/notifications');
-          return;
-        }
         context.go('/services');
         return;
       case MobileQuickActionTargetType.service:
@@ -372,21 +356,6 @@ class HomeScreen extends ConsumerWidget {
         }
         return;
     }
-  }
-
-  bool _isActionAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
-    final capability = action.requiredCapability?.trim();
-    if (capability == null || capability.isEmpty) return true;
-
-    return switch (capability) {
-      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
-      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
-      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
-      'can_create_support_ticket' => capabilities.canCreateSupportTicket || capabilities.isApproved || capabilities.isInternal,
-      'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
-      'can_access_internal_workspace' => capabilities.canAccessInternalWorkspace,
-      _ => true,
-    };
   }
 
   void _handleBannerTap(BuildContext context, AppBannerItem banner) {
@@ -416,33 +385,19 @@ class HomeScreen extends ConsumerWidget {
     required AuthCapabilities capabilities,
     required String requiredCapability,
   }) {
-    if (!_isCapabilityGranted(requiredCapability, capabilities)) {
+    if (!_isAllowed(requiredCapability, capabilities)) {
       _showLockedSnack(context, capabilities);
       return;
     }
     context.push(route);
   }
 
-  bool _isCapabilityGranted(String capability, AuthCapabilities capabilities) {
-    return switch (capability) {
-      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
-      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
-      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
-      'can_review_documents' => capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace,
-      'can_review_payments' => capabilities.canReviewPayments || capabilities.canAccessInternalWorkspace,
-      'can_create_support_ticket' => capabilities.canCreateSupportTicket || capabilities.isApproved || capabilities.isInternal,
-      'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
-      'can_access_internal_workspace' => capabilities.canAccessInternalWorkspace,
-      _ => true,
-    };
-  }
-
   void _goProfile(BuildContext context, AuthCapabilities capabilities) {
     if (capabilities.isGuest) {
       context.push('/signup');
-      return;
+    } else {
+      context.push('/profile');
     }
-    context.push('/profile');
   }
 
   void _openNotifications(
@@ -450,8 +405,7 @@ class HomeScreen extends ConsumerWidget {
     AuthCapabilities capabilities,
     VoidCallback? callback,
   ) {
-    final allowed =
-        capabilities.canViewCustomerNotifications ||
+    final allowed = capabilities.canViewCustomerNotifications ||
         capabilities.isApproved ||
         capabilities.isInternal ||
         capabilities.canAccessInternalWorkspace;
@@ -492,14 +446,13 @@ class HomeScreen extends ConsumerWidget {
 
   String _displayNameFromUserId(String? userId) {
     if (userId == null || userId.trim().isEmpty) return 'there';
-    final value = userId.trim();
-    final normalized = value.contains('@') ? value.split('@').first : value;
+    final normalized = userId.contains('@') ? userId.split('@').first : userId;
     return normalized
         .replaceAll(RegExp(r'[._-]+'), ' ')
         .trim()
         .split(' ')
         .where((part) => part.isNotEmpty)
-        .map((part) => part[0].toUpperCase() + part.substring(1))
+        .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
         .join(' ');
   }
 
@@ -514,11 +467,7 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _SliverBlock extends StatelessWidget {
-  const _SliverBlock({
-    required this.child,
-    this.top = 0,
-    this.bottom = 0,
-  });
+  const _SliverBlock({required this.child, this.top = 0, this.bottom = 0});
 
   final Widget child;
   final double top;
@@ -534,11 +483,7 @@ class _SliverBlock extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    this.actionText,
-    this.onAction,
-  });
+  const _SectionHeader({required this.title, this.actionText, this.onAction});
 
   final String title;
   final String? actionText;
@@ -566,7 +511,7 @@ class _SectionHeader extends StatelessWidget {
               onPressed: onAction,
               style: TextButton.styleFrom(
                 foregroundColor: AppTheme.primaryRed,
-                padding: const EdgeInsets.symmetric(horizontal: 0),
+                padding: EdgeInsets.zero,
               ),
               child: Text(actionText!),
             ),
@@ -592,7 +537,6 @@ class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = displayName.trim().isEmpty ? 'O' : displayName.trim()[0].toUpperCase();
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -603,9 +547,9 @@ class _HomeHeader extends StatelessWidget {
               const Text(
                 'Good morning,',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   color: AppTheme.textMuted,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 4),
@@ -614,11 +558,11 @@ class _HomeHeader extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 30,
-                  height: 1.08,
-                  color: AppTheme.textPrimary,
+                  fontSize: 29,
+                  height: 1.06,
+                  letterSpacing: -0.35,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: -0.4,
+                  color: AppTheme.textPrimary,
                 ),
               ),
             ],
@@ -631,21 +575,14 @@ class _HomeHeader extends StatelessWidget {
           onTap: onNotifications,
         ),
         const SizedBox(width: 10),
-        _AvatarBubble(
-          avatarUrl: avatarUrl,
-          fallbackText: initial,
-        ),
+        _AvatarBubble(avatarUrl: avatarUrl, fallbackText: initial),
       ],
     );
   }
 }
 
 class _IconBadgeButton extends StatelessWidget {
-  const _IconBadgeButton({
-    required this.icon,
-    required this.badgeCount,
-    required this.onTap,
-  });
+  const _IconBadgeButton({required this.icon, required this.badgeCount, required this.onTap});
 
   final IconData icon;
   final int badgeCount;
@@ -656,7 +593,6 @@ class _IconBadgeButton extends StatelessWidget {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
-      elevation: 0,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
@@ -671,13 +607,7 @@ class _IconBadgeButton extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Center(
-                child: Icon(
-                  icon,
-                  size: 23,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
+              Center(child: Icon(icon, color: AppTheme.textPrimary, size: 23)),
               if (badgeCount > 0)
                 Positioned(
                   top: 5,
@@ -697,8 +627,8 @@ class _IconBadgeButton extends StatelessWidget {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 9,
-                          fontWeight: FontWeight.w800,
                           height: 1,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -713,10 +643,7 @@ class _IconBadgeButton extends StatelessWidget {
 }
 
 class _AvatarBubble extends StatelessWidget {
-  const _AvatarBubble({
-    required this.avatarUrl,
-    required this.fallbackText,
-  });
+  const _AvatarBubble({required this.avatarUrl, required this.fallbackText});
 
   final String? avatarUrl;
   final String fallbackText;
@@ -724,7 +651,6 @@ class _AvatarBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAvatar = avatarUrl != null && avatarUrl!.trim().isNotEmpty;
-
     return Container(
       width: 50,
       height: 50,
@@ -799,11 +725,7 @@ class _SearchBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.search_rounded,
-                color: AppTheme.textMuted,
-                size: 24,
-              ),
+              const Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 24),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -815,7 +737,6 @@ class _SearchBar extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
               Container(
                 width: 34,
                 height: 34,
@@ -823,11 +744,7 @@ class _SearchBar extends StatelessWidget {
                   color: const Color(0xFFF7F7FB),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.tune_rounded,
-                  size: 19,
-                  color: AppTheme.textMuted,
-                ),
+                child: const Icon(Icons.tune_rounded, size: 19, color: AppTheme.textMuted),
               ),
             ],
           ),
@@ -838,46 +755,50 @@ class _SearchBar extends StatelessWidget {
 }
 
 class _AccessBanner extends StatelessWidget {
-  const _AccessBanner({
-    required this.capabilities,
-    required this.onPrimary,
-  });
+  const _AccessBanner({required this.capabilities, required this.onPrimary});
 
   final AuthCapabilities capabilities;
   final VoidCallback onPrimary;
 
   @override
   Widget build(BuildContext context) {
-    final (title, subtitle, tint, icon, buttonText) = switch (capabilities.accessState) {
-      AccountAccessState.guest => (
-          'Create your account',
-          'Unlock service requests, tracking, and saved progress.',
-          const Color(0xFF4F8DFD),
-          Icons.person_add_alt_1_rounded,
-          'Sign up',
-        ),
-      AccountAccessState.pending => (
-          'Your profile is under review',
-          'You can explore services while the team completes verification.',
-          const Color(0xFF4F8DFD),
-          Icons.verified_outlined,
-          'View status',
-        ),
-      AccountAccessState.rejected => (
-          'Approval needed',
-          'Contact support to review the current account access.',
-          const Color(0xFFE45858),
-          Icons.info_outline_rounded,
-          'Support',
-        ),
-      _ => (
-          'Access notice',
-          'Some features remain restricted on this account.',
-          const Color(0xFF4F8DFD),
-          Icons.info_outline_rounded,
-          'Continue',
-        ),
-    };
+    late final String title;
+    late final String subtitle;
+    late final Color tint;
+    late final IconData icon;
+    late final String buttonText;
+
+    switch (capabilities.accessState) {
+      case AccountAccessState.guest:
+        title = 'Create your account';
+        subtitle = 'Unlock service requests, tracking, and saved progress.';
+        tint = const Color(0xFF4F8DFD);
+        icon = Icons.person_add_alt_1_rounded;
+        buttonText = 'Sign up';
+        break;
+      case AccountAccessState.pending:
+        title = 'Your profile is under review';
+        subtitle = 'You can explore services while the team completes verification.';
+        tint = const Color(0xFF4F8DFD);
+        icon = Icons.verified_outlined;
+        buttonText = 'View status';
+        break;
+      case AccountAccessState.rejected:
+        title = 'Approval needed';
+        subtitle = 'Contact support to review the current account access.';
+        tint = const Color(0xFFE45858);
+        icon = Icons.info_outline_rounded;
+        buttonText = 'Support';
+        break;
+      case AccountAccessState.approved:
+      case AccountAccessState.internal:
+        title = 'Access notice';
+        subtitle = 'Some features remain restricted on this account.';
+        tint = const Color(0xFF4F8DFD);
+        icon = Icons.info_outline_rounded;
+        buttonText = 'Continue';
+        break;
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -958,12 +879,12 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = summary.nextAction?.type.replaceAll('_', ' ') ??
-        (capabilities.isGuest ? 'Guest mode' : 'Your command center');
-    final title = _heroTitle(summary, capabilities);
-    final subtitle = _heroSubtitle(summary, capabilities);
-    final buttonLabel = summary.nextAction?.buttonLabel ??
-        (capabilities.canTrackRequests ? 'Open tracker' : 'Explore services');
+    final heroLabel = _heroLabel(summary, capabilities);
+    final heroTitle = _heroTitle(summary, capabilities);
+    final heroSubtitle = _heroSubtitle(summary, capabilities);
+    final buttonLabel = summary.nextAction?.buttonLabel.trim().isNotEmpty == true
+        ? summary.nextAction!.buttonLabel
+        : (capabilities.canTrackRequests ? 'Open tracker' : 'Explore services');
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -988,20 +909,14 @@ class _HeroCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _HeroBadge(
-                label: label,
-                tint: const Color(0xFF4F8DFD),
-              ),
+              _HeroBadge(label: heroLabel, tint: const Color(0xFF4F8DFD)),
               const Spacer(),
-              _MiniStat(
-                label: 'Active',
-                value: summary.activeCases.toString(),
-              ),
+              _MiniStat(label: 'Active', value: summary.activeCases.toString()),
             ],
           ),
           const SizedBox(height: 16),
           Text(
-            title,
+            heroTitle,
             style: const TextStyle(
               fontSize: 24,
               height: 1.12,
@@ -1012,7 +927,7 @@ class _HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            subtitle,
+            heroSubtitle,
             style: const TextStyle(
               fontSize: 14.5,
               height: 1.45,
@@ -1026,19 +941,6 @@ class _HeroCard extends StatelessWidget {
               Expanded(
                 child: ElevatedButton(
                   onPressed: onPrimary,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    backgroundColor: AppTheme.primaryRed,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
                   child: Text(buttonLabel),
                 ),
               ),
@@ -1046,16 +948,11 @@ class _HeroCard extends StatelessWidget {
               OutlinedButton(
                 onPressed: onSecondary,
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
+                  minimumSize: const Size.fromHeight(54),
                   foregroundColor: AppTheme.textPrimary,
                   side: const BorderSide(color: AppTheme.border),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  textStyle: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                 ),
                 child: const Text('Tax calculator'),
               ),
@@ -1066,26 +963,28 @@ class _HeroCard extends StatelessWidget {
     );
   }
 
+  String _heroLabel(HomeDashboardSummary summary, AuthCapabilities capabilities) {
+    final nextActionType = summary.nextAction?.type.trim();
+    if (nextActionType != null && nextActionType.isNotEmpty) {
+      return nextActionType.replaceAll('_', ' ');
+    }
+    if (capabilities.isGuest) return 'guest mode';
+    if (capabilities.isPending) return 'profile review';
+    return 'command center';
+  }
+
   String _heroTitle(HomeDashboardSummary summary, AuthCapabilities capabilities) {
-    if (summary.nextAction?.title.trim().isNotEmpty == true) {
-      return summary.nextAction!.title;
-    }
-    if (capabilities.isGuest) {
-      return 'Welcome to OMC';
-    }
-    if (capabilities.isPending) {
-      return 'Your profile is being reviewed';
-    }
-    if (summary.serviceSnapshots.isNotEmpty) {
-      return 'Your work is moving';
-    }
+    final title = summary.nextAction?.title.trim();
+    if (title != null && title.isNotEmpty) return title;
+    if (capabilities.isGuest) return 'Welcome to OMC';
+    if (capabilities.isPending) return 'Your profile is being reviewed';
+    if (summary.serviceSnapshots.isNotEmpty) return 'Your work is moving';
     return 'Everything in one place';
   }
 
   String _heroSubtitle(HomeDashboardSummary summary, AuthCapabilities capabilities) {
-    if (summary.nextAction?.subtitle.trim().isNotEmpty == true) {
-      return summary.nextAction!.subtitle;
-    }
+    final subtitle = summary.nextAction?.subtitle.trim();
+    if (subtitle != null && subtitle.isNotEmpty) return subtitle;
     if (capabilities.isGuest) {
       return 'Browse services, understand the process, and create an account whenever you are ready.';
     }
@@ -1100,10 +999,7 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _HeroBadge extends StatelessWidget {
-  const _HeroBadge({
-    required this.label,
-    required this.tint,
-  });
+  const _HeroBadge({required this.label, required this.tint});
 
   final String label;
   final Color tint;
@@ -1122,7 +1018,6 @@ class _HeroBadge extends StatelessWidget {
           color: tint,
           fontSize: 12,
           fontWeight: FontWeight.w800,
-          letterSpacing: 0.1,
         ),
       ),
     );
@@ -1130,10 +1025,7 @@ class _HeroBadge extends StatelessWidget {
 }
 
 class _MiniStat extends StatelessWidget {
-  const _MiniStat({
-    required this.label,
-    required this.value,
-  });
+  const _MiniStat({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1174,10 +1066,7 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _BannerStrip extends StatelessWidget {
-  const _BannerStrip({
-    required this.banners,
-    required this.onTap,
-  });
+  const _BannerStrip({required this.banners, required this.onTap});
 
   final List<AppBannerItem> banners;
   final ValueChanged<AppBannerItem> onTap;
@@ -1255,9 +1144,7 @@ class _QuickActionsRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (actions.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (actions.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
       height: 120,
@@ -1284,7 +1171,6 @@ class _QuickActionsRail extends StatelessWidget {
   bool _isActionAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
     final capability = action.requiredCapability?.trim();
     if (capability == null || capability.isEmpty) return true;
-
     return switch (capability) {
       'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
       'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
@@ -1425,10 +1311,7 @@ class _MetricGrid extends StatelessWidget {
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
       ),
-      itemBuilder: (context, index) {
-        final metric = metrics[index];
-        return _MetricCard(metric: metric);
-      },
+      itemBuilder: (context, index) => _MetricCard(metric: metrics[index]),
     );
   }
 }
@@ -1443,6 +1326,7 @@ class _MetricCard extends StatelessWidget {
     final progressValue = metric.value <= 0
         ? 0.08
         : ((metric.value.clamp(0, 999) / 10).clamp(0.08, 0.95)).toDouble();
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1472,11 +1356,7 @@ class _MetricCard extends StatelessWidget {
                 child: Icon(metric.icon, color: metric.tint, size: 19),
               ),
               const Spacer(),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.textMuted.withValues(alpha: 0.7),
-                size: 20,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted, size: 20),
             ],
           ),
           const Spacer(),
@@ -1536,7 +1416,9 @@ class _CompletionCard extends StatelessWidget {
         : capabilities.isGuest
             ? 'Create your account to unlock syncing, tracking, and saved progress.'
             : 'Finish a few details to get smoother access across the app.';
-    final buttonLabel = isComplete ? 'Open profile' : (capabilities.isGuest ? 'Create account' : 'Complete now');
+    final buttonLabel = isComplete
+        ? 'Open profile'
+        : (capabilities.isGuest ? 'Create account' : 'Complete now');
     final tint = isComplete ? const Color(0xFF37B58D) : const Color(0xFF4F8DFD);
 
     return Container(
@@ -1641,10 +1523,7 @@ class _ServiceProgressCard extends StatelessWidget {
                 color: const Color(0xFFF7F7FB),
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(
-                Icons.folder_open_rounded,
-                color: AppTheme.textMuted,
-              ),
+              child: const Icon(Icons.folder_open_rounded, color: AppTheme.textMuted),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1672,10 +1551,7 @@ class _ServiceProgressCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            TextButton(
-              onPressed: onEmptyAction,
-              child: const Text('Browse'),
-            ),
+            TextButton(onPressed: onEmptyAction, child: const Text('Browse')),
           ],
         ),
       );
@@ -1722,7 +1598,7 @@ class _ServiceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusTint = _statusTint(service.status);
+    final tint = _statusTint(service.status);
     final progress = service.progress.clamp(0.0, 1.0).toDouble();
 
     return InkWell(
@@ -1737,14 +1613,10 @@ class _ServiceRow extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: statusTint.withValues(alpha: 0.10),
+                    color: tint.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(
-                    Icons.work_outline_rounded,
-                    color: statusTint,
-                    size: 22,
-                  ),
+                  child: Icon(Icons.work_outline_rounded, color: tint, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1763,7 +1635,9 @@ class _ServiceRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Applied by ${service.customerName.isNotEmpty ? service.customerName : 'your team'}',
+                        service.customerName.isNotEmpty
+                            ? 'Applied by ${service.customerName}'
+                            : 'Applied by your team',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -1776,7 +1650,7 @@ class _ServiceRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                _StatusChip(text: _statusLabel(service.status), tint: statusTint),
+                _StatusChip(text: _statusLabel(service.status), tint: tint),
               ],
             ),
             const SizedBox(height: 10),
@@ -1788,8 +1662,8 @@ class _ServiceRow extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 6,
-                      backgroundColor: statusTint.withValues(alpha: 0.10),
-                      valueColor: AlwaysStoppedAnimation<Color>(statusTint),
+                      backgroundColor: tint.withValues(alpha: 0.10),
+                      valueColor: AlwaysStoppedAnimation<Color>(tint),
                     ),
                   ),
                 ),
@@ -1836,16 +1710,12 @@ class _ServiceRow extends StatelessWidget {
 
   String _statusLabel(String status) {
     final value = status.trim();
-    if (value.isEmpty) return 'In progress';
-    return value;
+    return value.isEmpty ? 'In progress' : value;
   }
 }
 
 class _ActivityTimelineCard extends StatelessWidget {
-  const _ActivityTimelineCard({
-    required this.activities,
-    required this.onTrack,
-  });
+  const _ActivityTimelineCard({required this.activities, required this.onTrack});
 
   final List<HomeDashboardActivity> activities;
   final VoidCallback onTrack;
@@ -1908,10 +1778,7 @@ class _ActivityTimelineCard extends StatelessWidget {
 }
 
 class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({
-    required this.activity,
-    required this.showDivider,
-  });
+  const _ActivityRow({required this.activity, required this.showDivider});
 
   final HomeDashboardActivity activity;
   final bool showDivider;
@@ -1933,11 +1800,7 @@ class _ActivityRow extends StatelessWidget {
                   color: tint.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  _iconForActivity(activity.status),
-                  color: tint,
-                  size: 18,
-                ),
+                child: Icon(_iconForActivity(activity.status), color: tint, size: 18),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -2029,10 +1892,7 @@ class _ActivityRow extends StatelessWidget {
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.text,
-    required this.tint,
-  });
+  const _StatusChip({required this.text, required this.tint});
 
   final String text;
   final Color tint;
