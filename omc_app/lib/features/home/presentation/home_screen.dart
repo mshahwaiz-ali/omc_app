@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,21 +35,17 @@ class HomeScreen extends ConsumerWidget {
     final dashboardAsync = capabilities.canViewCustomerDashboard || capabilities.canAccessInternalWorkspace
         ? ref.watch(homeDashboardSummaryProvider)
         : AsyncValue<HomeDashboardSummary>.data(
-            HomeDashboardSummary.empty(
-              fallbackMessage: _accessMessage(capabilities),
-            ),
+            HomeDashboardSummary.empty(fallbackMessage: _accessMessage(capabilities)),
           );
 
     final profile = profileAsync.maybeWhen(data: (value) => value, orElse: () => null);
     final summary = dashboardAsync.maybeWhen(data: (value) => value, orElse: () => const HomeDashboardSummary.empty());
     final displayName = profile?.displayName ?? authState.displayName ?? _displayNameFromUserId(authState.userId);
     final avatarUrl = _resolveAvatarUrl(profile?.avatarUrl);
-
     final actions = _visibleActions(
       actionsAsync.maybeWhen(data: (value) => value, orElse: () => fallbackMobileQuickActions),
       capabilities.canAccessInternalWorkspace,
     );
-
     final showAccessBanner = capabilities.isGuest || capabilities.isPending || capabilities.isRejected;
 
     return Scaffold(
@@ -82,28 +77,19 @@ class HomeScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverToBoxAdapter(
-                      child: _SearchBar(onTap: () => context.push('/services')),
-                    ),
+                    sliver: SliverToBoxAdapter(child: _SearchBar(onTap: () => context.push('/services'))),
                   ),
                   if (showAccessBanner)
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                       sliver: SliverToBoxAdapter(
-                        child: _AccessBanner(
-                          capabilities: capabilities,
-                          onPrimary: () => _goProfile(context, capabilities),
-                        ),
+                        child: _AccessBanner(capabilities: capabilities, onPrimary: () => _goProfile(context, capabilities)),
                       ),
                     ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
                     sliver: SliverToBoxAdapter(
-                      child: _SectionTitle(
-                        title: 'Quick Actions',
-                        actionLabel: 'View all',
-                        onTap: () => context.go('/more'),
-                      ),
+                      child: _SectionTitle(title: 'Quick Actions', actionLabel: 'View all', onTap: () => context.go('/more')),
                     ),
                   ),
                   SliverPadding(
@@ -148,7 +134,7 @@ class HomeScreen extends ConsumerWidget {
                         crossAxisCount: 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 1.36,
+                        childAspectRatio: 1.34,
                       ),
                       delegate: SliverChildListDelegate.fixed(
                         _metricCards(summary).map((item) => _MetricCard(item: item)).toList(growable: false),
@@ -158,9 +144,7 @@ class HomeScreen extends ConsumerWidget {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
                     sliver: SliverToBoxAdapter(
-                      child: _ProfileCompletionCard(
-                        onOpen: () => _goProfile(context, capabilities),
-                      ),
+                      child: _ProfileCompletionCard(onOpen: () => _goProfile(context, capabilities)),
                     ),
                   ),
                   SliverPadding(
@@ -486,27 +470,13 @@ class _TopHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                greeting,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textMuted,
-                ),
-              ),
+              Text(greeting, style: const TextStyle(fontSize: 13, height: 1.2, fontWeight: FontWeight.w600, color: AppTheme.textMuted)),
               const SizedBox(height: 3),
               Text(
                 displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 26,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: -0.45,
-                ),
+                style: const TextStyle(fontSize: 26, height: 1.05, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.45),
               ),
             ],
           ),
@@ -531,35 +501,23 @@ class _HeaderIconButton extends StatelessWidget {
     return Material(
       color: Colors.white,
       shape: const CircleBorder(),
-      elevation: 0,
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            const SizedBox(
-              width: 46,
-              height: 46,
-              child: Icon(Icons.notifications_none_rounded, size: 22, color: AppTheme.textPrimary),
-            ),
+            const SizedBox(width: 46, height: 46, child: Icon(Icons.notifications_none_rounded, size: 22, color: AppTheme.textPrimary)),
             if (unreadNotifications > 0)
               Positioned(
                 right: 6,
                 top: 7,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE11D48),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
+                  decoration: BoxDecoration(color: const Color(0xFFE11D48), borderRadius: BorderRadius.circular(999)),
                   child: Text(
                     unreadNotifications > 9 ? '9+' : unreadNotifications.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
@@ -592,10 +550,7 @@ class _AvatarBadge extends StatelessWidget {
             ? Container(
                 color: const Color(0xFFF3F4F6),
                 alignment: Alignment.center,
-                child: Text(
-                  initials,
-                  style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-                ),
+                child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
               )
             : Image.network(
                 avatarUrl!,
@@ -604,10 +559,7 @@ class _AvatarBadge extends StatelessWidget {
                   return Container(
                     color: const Color(0xFFF3F4F6),
                     alignment: Alignment.center,
-                    child: Text(
-                      initials,
-                      style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-                    ),
+                    child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
                   );
                 },
               ),
@@ -652,20 +604,13 @@ class _SearchBar extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Search services, documents, invoices...',
-                  style: TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 14, fontWeight: FontWeight.w500),
                 ),
               ),
               Container(
                 width: 34,
                 height: 34,
-                decoration: BoxDecoration(
-                  color: AppTheme.cardSoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: AppTheme.cardSoft, borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.tune_rounded, size: 18, color: AppTheme.textPrimary),
               ),
             ],
@@ -689,13 +634,7 @@ class _AccessBanner extends StatelessWidget {
         : capabilities.isRejected
             ? const Color(0xFFDC2626)
             : const Color(0xFF4F8DFD);
-
-    final title = capabilities.isRejected
-        ? 'Profile blocked'
-        : capabilities.isPending
-            ? 'Profile under review'
-            : 'Guest access';
-
+    final title = capabilities.isRejected ? 'Profile blocked' : capabilities.isPending ? 'Profile under review' : 'Guest access';
     final message = capabilities.isRejected
         ? 'Please contact OMC support for manual review.'
         : 'You can explore public services. Full access unlocks after approval.';
@@ -713,10 +652,7 @@ class _AccessBanner extends StatelessWidget {
           Container(
             width: 46,
             height: 46,
-            decoration: BoxDecoration(
-              color: tone.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-            ),
+            decoration: BoxDecoration(color: tone.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(16)),
             child: Icon(capabilities.isRejected ? Icons.block_rounded : Icons.verified_outlined, color: tone),
           ),
           const SizedBox(width: 14),
@@ -724,15 +660,9 @@ class _AccessBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                ),
+                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
                 const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondary, height: 1.35),
-                ),
+                Text(message, style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondary, height: 1.35)),
               ],
             ),
           ),
@@ -767,21 +697,13 @@ class _SectionTitle extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.textPrimary,
-              letterSpacing: -0.2,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.2),
           ),
         ),
         if (actionLabel != null)
           TextButton(
             onPressed: onTap,
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.primaryRed,
-              textStyle: const TextStyle(fontWeight: FontWeight.w800),
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.primaryRed, textStyle: const TextStyle(fontWeight: FontWeight.w800)),
             child: Text(actionLabel!),
           ),
       ],
@@ -804,8 +726,7 @@ class _QuickActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleActions = actions.take(5).toList(growable: false);
-
+    final visible = actions.take(5).toList(growable: false);
     return SizedBox(
       height: 112,
       child: Row(
@@ -813,19 +734,17 @@ class _QuickActionsRow extends StatelessWidget {
           for (var index = 0; index < 5; index++) ...[
             if (index > 0) const SizedBox(width: 8),
             Expanded(
-              child: index < visibleActions.length
+              child: index < visible.length
                   ? _ActionTile(
-                      action: visibleActions[index],
-                      allowed: _isAllowed(visibleActions[index], capabilities),
-                      onTap: () => onTap(visibleActions[index]),
+                      action: visible[index],
+                      allowed: _isAllowed(visible[index], capabilities),
+                      onTap: () => onTap(visible[index]),
                     )
                   : const SizedBox.shrink(),
             ),
           ],
           const SizedBox(width: 8),
-          Expanded(
-            child: _MoreTile(onTap: onMore),
-          ),
+          Expanded(child: _MoreTile(onTap: onMore)),
         ],
       ),
     );
@@ -836,8 +755,7 @@ class _QuickActionsRow extends StatelessWidget {
     if (required == null || required.isEmpty) return true;
     return switch (required) {
       'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
-      'can_track_requests' =>
-        capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
+      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
       'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
       'can_create_support_ticket' => capabilities.canCreateSupportTicket || capabilities.isApproved || capabilities.isInternal,
       'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
@@ -884,12 +802,8 @@ class _ActionTile extends StatelessWidget {
                 Container(
                   width: 34,
                   height: 34,
-                  decoration: BoxDecoration(
-                    color: palette.soft,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.all(7),
-                  child: SvgPicture.asset(action.iconAsset, fit: BoxFit.contain),
+                  decoration: BoxDecoration(color: palette.soft, borderRadius: BorderRadius.circular(12)),
+                  child: Icon(_iconForActionKey(action.iconKey), color: palette.accent, size: 18),
                 ),
                 const SizedBox(height: 8),
                 Expanded(
@@ -899,12 +813,7 @@ class _ActionTile extends StatelessWidget {
                       maxLines: 2,
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10.8,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textPrimary,
-                        height: 1.08,
-                      ),
+                      style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08),
                     ),
                   ),
                 ),
@@ -942,24 +851,13 @@ class _MoreTile extends StatelessWidget {
               Container(
                 width: 34,
                 height: 34,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FC),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: const Color(0xFFF5F7FC), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.more_horiz_rounded, size: 20, color: AppTheme.textPrimary),
               ),
               const SizedBox(height: 8),
               const Expanded(
                 child: Center(
-                  child: Text(
-                    'More',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 10.8,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
+                  child: Text('More', textAlign: TextAlign.center, style: TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
                 ),
               ),
             ],
@@ -1001,30 +899,8 @@ class _ProfileCompletionCard extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Positioned(
-                  left: 10,
-                  top: 9,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 11,
-                  bottom: 10,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ),
+                Positioned(left: 10, top: 9, child: Container(width: 14, height: 14, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(5)))),
+                Positioned(right: 11, bottom: 10, child: Container(width: 14, height: 14, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(5)))),
                 const Icon(Icons.verified_user_rounded, size: 28, color: Color(0xFF17B890)),
               ],
             ),
@@ -1034,15 +910,9 @@ class _ProfileCompletionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Complete your profile',
-                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-                ),
+                const Text('Complete your profile', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
                 const SizedBox(height: 4),
-                const Text(
-                  'Get full access to all features and sync your data across devices.',
-                  style: TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary),
-                ),
+                const Text('Get full access to all features and sync your data across devices.', style: TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary)),
                 const SizedBox(height: 12),
                 FilledButton(
                   style: FilledButton.styleFrom(
@@ -1066,13 +936,7 @@ class _ProfileCompletionCard extends StatelessWidget {
 }
 
 class _MetricItem {
-  const _MetricItem({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.accent,
-    required this.hint,
-  });
+  const _MetricItem({required this.label, required this.value, required this.icon, required this.accent, required this.hint});
 
   final String label;
   final int value;
@@ -1101,52 +965,19 @@ class _MetricCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: item.accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(item.icon, color: item.accent, size: 19),
-              ),
+              Container(width: 34, height: 34, decoration: BoxDecoration(color: item.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(13)), child: Icon(item.icon, color: item.accent, size: 19)),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                decoration: BoxDecoration(
-                  color: item.accent.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  item.hint,
-                  style: TextStyle(
-                    color: item.accent,
-                    fontSize: 9.8,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                decoration: BoxDecoration(color: item.accent.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(999)),
+                child: Text(item.hint, style: TextStyle(color: item.accent, fontSize: 9.8, fontWeight: FontWeight.w800)),
               ),
             ],
           ),
           const Spacer(),
-          Text(
-            item.value.toString(),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.textPrimary,
-              letterSpacing: -0.6,
-            ),
-          ),
+          Text(item.value.toString(), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.6)),
           const SizedBox(height: 2),
-          Text(
-            item.label,
-            style: const TextStyle(
-              fontSize: 12.4,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textSecondary,
-            ),
-          ),
+          Text(item.label, style: const TextStyle(fontSize: 12.4, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
           const SizedBox(height: 10),
           _TrendLine(color: item.accent),
         ],
@@ -1169,10 +1000,7 @@ class _TrendLine extends StatelessWidget {
         (index) => Container(
           width: 18 + (index.isEven ? 4 : 0),
           height: 3,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.20 + (index * 0.08)),
-            borderRadius: BorderRadius.circular(999),
-          ),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.20 + (index * 0.08)), borderRadius: BorderRadius.circular(999)),
         ),
       ),
     );
@@ -1200,30 +1028,13 @@ class _ServicesPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFDEEEF),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(Icons.inbox_outlined, color: AppTheme.primaryRed, size: 28),
-            ),
+            Container(width: 54, height: 54, decoration: BoxDecoration(color: const Color(0xFFFDEEEF), borderRadius: BorderRadius.circular(18)), child: const Icon(Icons.inbox_outlined, color: AppTheme.primaryRed, size: 28)),
             const SizedBox(height: 14),
-            const Text(
-              'No active service yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-            ),
+            const Text('No active service yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
             const SizedBox(height: 6),
-            const Text(
-              'Browse the catalogue and start from a clean flow instead of jumping through clutter.',
-              style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary),
-            ),
+            const Text('Browse the catalogue and start from a clean flow instead of jumping through clutter.', style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
             const SizedBox(height: 14),
-            FilledButton(
-              onPressed: onBrowse,
-              child: const Text('Browse services'),
-            ),
+            FilledButton(onPressed: onBrowse, child: const Text('Browse services')),
           ],
         ),
       );
@@ -1269,33 +1080,15 @@ class _ServiceCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(_statusIcon(service.status), color: color, size: 20),
-                  ),
+                  Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)), child: Icon(_statusIcon(service.status), color: color, size: 20)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          service.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-                        ),
+                        Text(service.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
                         const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600),
-                        ),
+                        Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -1316,10 +1109,7 @@ class _ServiceCard extends StatelessWidget {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Text(
-                    '$progress% complete',
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textSecondary),
-                  ),
+                  Text('$progress% complete', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textSecondary)),
                   const Spacer(),
                   const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
                 ],
@@ -1349,10 +1139,7 @@ class _ActivityPanel extends StatelessWidget {
           border: Border.all(color: AppTheme.border),
           boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
         ),
-        child: const Text(
-          'Recent activity will appear here once services start moving.',
-          style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary),
-        ),
+        child: const Text('Recent activity will appear here once services start moving.', style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
       );
     }
 
@@ -1380,12 +1167,7 @@ class _ActivityPanel extends StatelessWidget {
                 children: [
                   Icon(Icons.timeline_rounded, color: AppTheme.primaryRed, size: 18),
                   SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Open full tracking view',
-                      style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                    ),
-                  ),
+                  Expanded(child: Text('Open full tracking view', style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.textPrimary))),
                   Icon(Icons.chevron_right_rounded, color: AppTheme.primaryRed),
                 ],
               ),
@@ -1411,46 +1193,24 @@ class _ActivityRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
+          Container(width: 38, height: 38, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: color, size: 18)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  activity.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                ),
+                Text(activity.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
                 const SizedBox(height: 4),
-                Text(
-                  activity.subtitle,
-                  style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary),
-                ),
+                Text(activity.subtitle, style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
                 if ((activity.createdAtLabel ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text(
-                    activity.createdAtLabel!,
-                    style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
-                  ),
+                  Text(activity.createdAtLabel!, style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
                 ],
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
+          Container(width: 10, height: 10, margin: const EdgeInsets.only(top: 4), decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         ],
       ),
     );
@@ -1467,18 +1227,8 @@ class _ActionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w800)),
     );
   }
 }
@@ -1494,45 +1244,41 @@ class _ActionPalette {
 _ActionPalette _paletteForAction(MobileQuickAction action) {
   final key = action.iconKey.trim().toLowerCase();
   if (key.contains('document')) {
-    return const _ActionPalette(
-      accent: Color(0xFF4F8DFD),
-      soft: Color(0xFFF0F6FF),
-      border: Color(0xFFD9E7FF),
-    );
+    return const _ActionPalette(accent: Color(0xFF4F8DFD), soft: Color(0xFFF0F6FF), border: Color(0xFFD9E7FF));
   }
   if (key.contains('track')) {
-    return const _ActionPalette(
-      accent: Color(0xFF17B890),
-      soft: Color(0xFFF0FBF8),
-      border: Color(0xFFD7F4EC),
-    );
+    return const _ActionPalette(accent: Color(0xFF17B890), soft: Color(0xFFF0FBF8), border: Color(0xFFD7F4EC));
   }
   if (key.contains('calc')) {
-    return const _ActionPalette(
-      accent: Color(0xFFF59E0B),
-      soft: Color(0xFFFFF8EC),
-      border: Color(0xFFFFE6B7),
-    );
+    return const _ActionPalette(accent: Color(0xFFF59E0B), soft: Color(0xFFFFF8EC), border: Color(0xFFFFE6B7));
   }
   if (key.contains('support')) {
-    return const _ActionPalette(
-      accent: Color(0xFF8B5CF6),
-      soft: Color(0xFFF7F2FF),
-      border: Color(0xFFE5D9FF),
-    );
+    return const _ActionPalette(accent: Color(0xFF8B5CF6), soft: Color(0xFFF7F2FF), border: Color(0xFFE5D9FF));
   }
   if (key.contains('payment')) {
-    return const _ActionPalette(
-      accent: Color(0xFFEC4899),
-      soft: Color(0xFFFFF0F7),
-      border: Color(0xFFF9D7E8),
-    );
+    return const _ActionPalette(accent: Color(0xFFEC4899), soft: Color(0xFFFFF0F7), border: Color(0xFFF9D7E8));
   }
-  return const _ActionPalette(
-    accent: AppTheme.primaryRed,
-    soft: Color(0xFFFDEEEF),
-    border: Color(0xFFF7D4D9),
-  );
+  return const _ActionPalette(accent: AppTheme.primaryRed, soft: Color(0xFFFDEEEF), border: Color(0xFFF7D4D9));
+}
+
+IconData _iconForActionKey(String key) {
+  final normalized = key.trim().toLowerCase().replaceAll('_', '-').replaceAll(' ', '-');
+  return switch (normalized) {
+    'tax-return' => Icons.receipt_long_outlined,
+    'ntn' => Icons.badge_outlined,
+    'gst' => Icons.request_quote_outlined,
+    'documents' => Icons.description_outlined,
+    'track' => Icons.track_changes_rounded,
+    'calculator' => Icons.calculate_outlined,
+    'support' => Icons.support_agent_rounded,
+    'payments' => Icons.payments_outlined,
+    'message' => Icons.chat_bubble_outline_rounded,
+    'knowledge' => Icons.lightbulb_outline_rounded,
+    'services' => Icons.grid_view_rounded,
+    'notifications' => Icons.notifications_none_rounded,
+    'dashboard' => Icons.dashboard_outlined,
+    _ => Icons.apps_rounded,
+  };
 }
 
 Color _statusColor(String status) {
@@ -1568,9 +1314,7 @@ IconData _statusIcon(String status) {
 
 Color _activityColor(String? status) {
   final normalized = (status ?? '').trim().toLowerCase();
-  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) {
-    return const Color(0xFF10B981);
-  }
+  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return const Color(0xFF10B981);
   if (normalized.contains('review')) return const Color(0xFF4F8DFD);
   if (normalized.contains('required') || normalized.contains('information')) return const Color(0xFFF59E0B);
   if (normalized.contains('pending')) return const Color(0xFF8B5CF6);
