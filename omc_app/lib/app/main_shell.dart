@@ -9,7 +9,7 @@ import '../features/auth/application/auth_state.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/documents/presentation/internal_document_review_screen.dart';
 import '../features/home/data/home_dashboard_repository.dart';
-import '../features/home/presentation/home_screen_modern.dart';
+import '../features/home/presentation/home_screen.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_requests/presentation/internal_service_track_screen.dart';
@@ -57,27 +57,16 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   AuthCapabilities _currentCapabilities() {
-    final profile = ref
-        .read(profileSummaryProvider)
-        .maybeWhen(data: (profile) => profile, orElse: () => null);
-    return profile?.capabilities ??
-        ref.read(authControllerProvider).capabilities;
+    final profile = ref.read(profileSummaryProvider).maybeWhen(data: (profile) => profile, orElse: () => null);
+    return profile?.capabilities ?? ref.read(authControllerProvider).capabilities;
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {
-    return capabilities.canTrackRequests ||
-        capabilities.canViewCustomerDashboard ||
-        capabilities.canAccessCustomerDashboard ||
-        capabilities.isApproved ||
-        capabilities.canAccessInternalWorkspace;
+    return capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace;
   }
 
   bool _canOpenDocuments(AuthCapabilities capabilities) {
-    return capabilities.canViewDocuments ||
-        capabilities.canReviewDocuments ||
-        capabilities.isApproved ||
-        capabilities.isInternal ||
-        capabilities.canAccessInternalWorkspace;
+    return capabilities.canViewDocuments || capabilities.canReviewDocuments || capabilities.isApproved || capabilities.isInternal || capabilities.canAccessInternalWorkspace;
   }
 
   void _openWhenAllowed({
@@ -105,15 +94,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   String _lockedAccessMessage(AuthCapabilities capabilities) {
-    if (capabilities.isGuest) {
-      return 'Please sign in or create an account to use this service.';
-    }
-    if (capabilities.isPending) {
-      return 'Your account is under review. OMC team will verify your profile before enabling service access.';
-    }
-    if (capabilities.isRejected) {
-      return 'This account is not approved for this action. Please contact OMC support.';
-    }
+    if (capabilities.isGuest) return 'Please sign in or create an account to use this service.';
+    if (capabilities.isPending) return 'Your account is under review. OMC team will verify your profile before enabling service access.';
+    if (capabilities.isRejected) return 'This account is not approved for this action. Please contact OMC support.';
     return 'This account does not have access to that area.';
   }
 
@@ -138,10 +121,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         capabilities: capabilities,
       ),
       onOpenPayments: () => _openWhenAllowed(
-        allowed: capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
+        allowed: capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
         path: '/payments',
         capabilities: capabilities,
       ),
@@ -157,14 +137,10 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   void _showMoreSheet() {
     final authState = ref.read(authControllerProvider);
-    final profile = ref
-        .read(profileSummaryProvider)
-        .maybeWhen(data: (profile) => profile, orElse: () => null);
-    final mobileConfig =
-        ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
+    final profile = ref.read(profileSummaryProvider).maybeWhen(data: (profile) => profile, orElse: () => null);
+    final mobileConfig = ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final capabilities = profile?.capabilities ?? authState.capabilities;
-    final unreadNotifications =
-        ref.read(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final unreadNotifications = ref.read(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
 
     showOmcMoreSheet(
       context: context,
@@ -177,9 +153,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       customerStatus: profile?.status ?? authState.customerStatus,
       avatarUrl: profile?.avatarUrl,
       onOpenDashboard: () => _openWhenAllowed(
-        allowed: capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.canAccessInternalWorkspace,
+        allowed: capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.canAccessInternalWorkspace,
         path: '/dashboard',
         capabilities: capabilities,
       ),
@@ -189,18 +163,12 @@ class _MainShellState extends ConsumerState<MainShell> {
         capabilities: capabilities,
       ),
       onOpenPayments: () => _openWhenAllowed(
-        allowed: capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
+        allowed: capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
         path: '/payments',
         capabilities: capabilities,
       ),
       onOpenNotifications: () => _openWhenAllowed(
-        allowed: capabilities.canViewCustomerNotifications ||
-            capabilities.isApproved ||
-            capabilities.isInternal ||
-            capabilities.canAccessInternalWorkspace,
+        allowed: capabilities.canViewCustomerNotifications || capabilities.isApproved || capabilities.isInternal || capabilities.canAccessInternalWorkspace,
         path: '/notifications',
         capabilities: capabilities,
       ),
@@ -228,9 +196,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       onOpenCustomers: () => _openPath('/customers'),
       onOpenLeads: () => _openPath('/leads'),
       onOpenTasks: () => _openPath('/tasks'),
-      onLogout: authState.status == AuthStatus.guest
-          ? () => context.go('/login')
-          : _logout,
+      onLogout: authState.status == AuthStatus.guest ? () => context.go('/login') : _logout,
     );
   }
 
@@ -238,19 +204,11 @@ class _MainShellState extends ConsumerState<MainShell> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final profileSummary = ref.watch(profileSummaryProvider);
-    final profile = profileSummary.maybeWhen(
-      data: (profile) => profile,
-      orElse: () => null,
-    );
+    final profile = profileSummary.maybeWhen(data: (profile) => profile, orElse: () => null);
     final capabilities = profile?.capabilities ?? authState.capabilities;
-    final unreadNotifications =
-        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
-    final canUseInternalTrack =
-        capabilities.canAccessInternalWorkspace || capabilities.isInternal;
-    final canUseInternalDocs =
-        capabilities.canReviewDocuments ||
-        capabilities.canAccessInternalWorkspace ||
-        capabilities.isInternal;
+    final unreadNotifications = ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final canUseInternalTrack = capabilities.canAccessInternalWorkspace || capabilities.isInternal;
+    final canUseInternalDocs = capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace || capabilities.isInternal;
 
     final screens = [
       HomeScreen(
@@ -260,12 +218,8 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenNotifications: () => context.push('/notifications'),
       ),
       const ServiceCatalogueScreen(),
-      canUseInternalTrack
-          ? const InternalServiceTrackScreen()
-          : const MyServicesScreen(),
-      canUseInternalDocs
-          ? const InternalDocumentReviewScreen()
-          : const DocumentsScreen(),
+      canUseInternalTrack ? const InternalServiceTrackScreen() : const MyServicesScreen(),
+      canUseInternalDocs ? const InternalDocumentReviewScreen() : const DocumentsScreen(),
     ];
 
     return Scaffold(
