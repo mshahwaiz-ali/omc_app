@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -17,7 +16,6 @@ import '../data/service_item.dart';
 const Color _ink = Color(0xFF111827);
 const Color _slate = Color(0xFF64748B);
 const Color _surface = Color(0xFFF8FAFC);
-const Color _surfaceSoft = Color(0xFFEEF2F7);
 const Color _border = Color(0xFFE5E7EB);
 const Color _primary = Color(0xFF111827);
 const Color _primarySoft = Color(0xFFF3F4F6);
@@ -285,17 +283,6 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
     );
   }
 
-  void _scrollToServices() {
-    final context = _servicesSectionKey.currentContext;
-    if (context == null) return;
-    Scrollable.ensureVisible(
-      context,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
-      alignment: 0.02,
-    );
-  }
-
   void _openFilterSheet(BuildContext context, List<String> categories) {
     const statusOptions = [
       _allStatus,
@@ -485,6 +472,55 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
           behavior: SnackBarBehavior.floating,
         ),
       );
+  }
+}
+
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.filled = false,
+    super.key,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (filled) {
+      return FilledButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          backgroundColor: _primary,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(0, 54),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _ink,
+        side: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+        minimumSize: const Size(0, 54),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+      ),
+    );
   }
 }
 
@@ -780,17 +816,17 @@ class _StatusChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statuses = <String>[_allStatus, ..._ServiceStatus.values.map(serviceCatalogueStatusLabelFor)];
+    final statuses = <String>['All Services', ..._ServiceStatus.values.map(serviceCatalogueStatusLabelFor)];
     return SizedBox(
       height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: statuses.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (context, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final label = statuses[index];
           final selected = label == selectedStatus;
-          final count = label == _allStatus ? counts.values.fold<int>(0, (a, b) => a + b) : counts[_statusFromLabel(label)] ?? 0;
+          final count = label == 'All Services' ? counts.values.fold<int>(0, (a, b) => a + b) : counts[_statusFromLabel(label)] ?? 0;
           return ChoiceChip(
             label: Text('$label ($count)'),
             selected: selected,
@@ -815,13 +851,13 @@ class _CategoryChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = <String>[_allCategory, ...categories.where((item) => item != _allCategory)];
+    final items = <String>['All', ...categories.where((item) => item != 'All')];
     return SizedBox(
       height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (context, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final category = items[index];
           final selected = category == selectedCategory;
@@ -1192,6 +1228,23 @@ String serviceCatalogueDisplayName(AuthState authState) {
   }
 
   return authState.capabilities.isInternal ? 'Administrator' : 'My Services';
+}
+
+
+String _initials(String value) {
+  final cleaned = value.trim();
+  if (cleaned.isEmpty) return 'A';
+
+  final parts = cleaned.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  if (parts.isEmpty) {
+    final firstRune = cleaned.runes.isNotEmpty ? cleaned.runes.first : 65;
+    return String.fromCharCode(firstRune).toUpperCase();
+  }
+
+  final buffer = StringBuffer();
+  buffer.write(parts.first[0]);
+  if (parts.length > 1) buffer.write(parts.last[0]);
+  return buffer.toString().toUpperCase();
 }
 
 String serviceCatalogueErrorMessage(Object error) {

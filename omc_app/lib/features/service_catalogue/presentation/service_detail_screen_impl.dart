@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -54,15 +52,15 @@ class ServiceDetailScreen extends ConsumerWidget {
         ),
       ),
       data: (services) {
-        ServiceItem? service;
+        ServiceItem? matchedService;
         for (final item in services) {
           if (item.id == serviceId) {
-            service = item;
+            matchedService = item;
             break;
           }
         }
 
-        if (service == null) {
+        if (matchedService == null) {
           return Scaffold(
             appBar: const AppBackHeader(title: 'Service Details'),
             body: PremiumEmptyState(
@@ -75,6 +73,8 @@ class ServiceDetailScreen extends ConsumerWidget {
           );
         }
 
+        final service = matchedService!;
+        final service = matchedService!;
         final tone = serviceDetailTone(service);
         final wizardLabel = serviceCatalogueWizardBadgeLabel(service);
         final subtitle = (service.shortDescription ?? service.description ?? '').trim();
