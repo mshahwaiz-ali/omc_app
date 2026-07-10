@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
 import '../../support/application/support_launcher.dart';
@@ -133,7 +132,7 @@ class _InternalCaseFilterBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _InternalCaseFilter.values.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final filter = _InternalCaseFilter.values[index];
           final selected = filter == selectedFilter;
@@ -651,7 +650,7 @@ class _ErrorState extends StatelessWidget {
               const Icon(Icons.cloud_off_rounded, size: 42, color: AppTheme.primaryRed),
               const SizedBox(height: 12),
               const Text(
-                'Track queue unavailable',
+                'Service tracking unavailable',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.textPrimary,
@@ -737,13 +736,13 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
           nextStep.contains('pay') ||
           nextStep.contains('submit'));
 
-  final isInReview = !isCancelled && !isDone && !needsAction && (status.contains('review') || status.contains('document') || status.contains('verification'));
-  final isInProgress = !isCancelled && !isDone && !needsAction && !isInReview && (status.contains('progress') || status.contains('processing') || status.contains('working'));
+  final isInReview = !isCancelled && !isDone && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
+  final isInProgress = !isCancelled && !isDone && !needsAction && !isInReview && (status.contains('progress') || status.contains('working'));
   final isOpen = !isCancelled && !isDone && !needsAction && !isInReview && !isInProgress;
 
   return _ServiceCaseState(
     isCancelled: isCancelled,
-    isDone: isDone,
+    isClosed: isDone,
     needsAction: needsAction,
     isInReview: isInReview,
     isInProgress: isInProgress,
@@ -754,7 +753,7 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
 class _ServiceCaseState {
   const _ServiceCaseState({
     required this.isCancelled,
-    required this.isDone,
+    required this.isClosed,
     required this.needsAction,
     required this.isInReview,
     required this.isInProgress,
@@ -762,15 +761,15 @@ class _ServiceCaseState {
   });
 
   final bool isCancelled;
-  final bool isDone;
+  final bool isClosed;
   final bool needsAction;
   final bool isInReview;
   final bool isInProgress;
   final bool isOpen;
 }
 
-class _StatusPalette {
-  const _StatusPalette({
+class _Palette {
+  const _Palette({
     required this.label,
     required this.color,
     required this.icon,
@@ -781,28 +780,28 @@ class _StatusPalette {
   final IconData icon;
 }
 
-_StatusPalette _paletteFor(_ServiceCaseState state) {
+_Palette _paletteFor(_ServiceCaseState state) {
   if (state.isCancelled) {
-    return const _StatusPalette(label: 'Cancelled', color: Color(0xFFEF4444), icon: Icons.cancel_rounded);
+    return const _Palette(label: 'Cancelled', color: Color(0xFFEF4444), icon: Icons.cancel_rounded);
   }
-  if (state.isDone) {
-    return const _StatusPalette(label: 'Completed', color: Color(0xFF16A34A), icon: Icons.check_circle_rounded);
+  if (state.isClosed) {
+    return const _Palette(label: 'Completed', color: Color(0xFF16A34A), icon: Icons.check_circle_rounded);
   }
   if (state.needsAction) {
-    return const _StatusPalette(label: 'Action needed', color: Color(0xFFF59E0B), icon: Icons.priority_high_rounded);
+    return const _Palette(label: 'Action needed', color: Color(0xFFF59E0B), icon: Icons.priority_high_rounded);
   }
   if (state.isInReview) {
-    return const _StatusPalette(label: 'In Review', color: Color(0xFF14B8A6), icon: Icons.fact_check_outlined);
+    return const _Palette(label: 'In Review', color: Color(0xFF14B8A6), icon: Icons.fact_check_outlined);
   }
   if (state.isInProgress) {
-    return const _StatusPalette(label: 'In Progress', color: Color(0xFF2563EB), icon: Icons.sync_rounded);
+    return const _Palette(label: 'In Progress', color: Color(0xFF2563EB), icon: Icons.sync_rounded);
   }
-  return const _StatusPalette(label: 'Open', color: AppTheme.primaryRed, icon: Icons.timeline_rounded);
+  return const _Palette(label: 'Open', color: AppTheme.primaryRed, icon: Icons.timeline_rounded);
 }
 
 Color _filterColor(_InternalCaseFilter filter) {
   switch (filter) {
-    case _InternalCaseFilter.active:
+    case _InternalCaseFilter.all:
       return AppTheme.primaryRed;
     case _InternalCaseFilter.open:
       return const Color(0xFF2563EB);
@@ -814,7 +813,5 @@ Color _filterColor(_InternalCaseFilter filter) {
       return const Color(0xFF16A34A);
     case _InternalCaseFilter.cancelled:
       return const Color(0xFFEF4444);
-    case _InternalCaseFilter.all:
-      return AppTheme.primaryRed;
   }
 }
