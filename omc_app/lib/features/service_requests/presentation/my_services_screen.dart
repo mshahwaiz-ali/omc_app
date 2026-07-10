@@ -7,6 +7,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
@@ -36,7 +37,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
     final casesAsync = ref.watch(serviceCasesProvider);
     final authState = ref.watch(authControllerProvider);
     final capabilities = authState.capabilities;
-    final displayName = authState.displayName ?? _displayNameFromUserId(authState.userId ?? '');
+    final displayName = authState.displayName ?? _displayNameFromUserId(authState.userId);
 
     return Scaffold(
       body: SafeArea(
@@ -80,7 +81,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                   const SizedBox(height: 16),
                   _StatusBanner(
                     data: banner,
-                    onPrimary: () => _handleBannerAction(context, banner),
+                    onPrimary: () => context.go(banner.actionRoute),
                   ),
                   const SizedBox(height: 16),
                   _FilterRow(
@@ -291,26 +292,13 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
     });
   }
 
-  void _handleBannerAction(BuildContext context, _BannerData banner) {
-    context.go(banner.actionRoute);
-  }
-
   _ServiceCaseState _stateFor(ServiceCase serviceCase) {
     final status = serviceCase.status.trim().toLowerCase();
     final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
 
-    final isBlocked = status.contains('cancel') ||
-        status.contains('reject') ||
-        status.contains('declin') ||
-        status.contains('blocked');
-
-    final isClosed = !isBlocked &&
-        (status.contains('complete') ||
-            status.contains('closed') ||
-            status.contains('done') ||
-            status.contains('resolved'));
-
-    final needsAction = !isBlocked &&
+    final isCancelled = status.contains('cancel') || status.contains('reject') || status.contains('declin') || status.contains('blocked');
+    final isClosed = !isCancelled && (status.contains('complete') || status.contains('closed') || status.contains('done') || status.contains('resolved'));
+    final needsAction = !isCancelled &&
         !isClosed &&
         (serviceCase.customerActionRequired ||
             serviceCase.missingDocuments.isNotEmpty ||
@@ -325,32 +313,25 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             nextStep.contains('upload') ||
             nextStep.contains('pay') ||
             nextStep.contains('submit'));
-
-    final isUnderReview = !isBlocked &&
-        !isClosed &&
-        !needsAction &&
-        (status.contains('review') ||
-            status.contains('processing') ||
-            status.contains('pending') ||
-            status.contains('documents under review') ||
-            status.contains('payment under review'));
-
-    final isOpen = !isBlocked && !isClosed && !needsAction && !isUnderReview;
+    final isInReview = !isCancelled && !isClosed && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
+    final isInProgress = !isCancelled && !isClosed && !needsAction && !isInReview && (status.contains('progress') || status.contains('processing') || status.contains('working'));
+    final isOpen = !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
 
     return _ServiceCaseState(
-      isBlocked: isBlocked,
+      isCancelled: isCancelled,
       isClosed: isClosed,
       needsAction: needsAction,
-      isUnderReview: isUnderReview,
+      isInReview: isInReview,
+      isInProgress: isInProgress,
       isOpen: isOpen,
     );
   }
 
   int _stateRank(_ServiceCaseState state) {
-    if (state.isBlocked) return 4;
+    if (state.isCancelled) return 4;
     if (state.needsAction) return 3;
-    if (state.isUnderReview) return 2;
-    if (state.isOpen) return 1;
+    if (state.isInReview) return 2;
+    if (state.isInProgress || state.isOpen) return 1;
     return 0;
   }
 }
@@ -533,11 +514,7 @@ class _StatusBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: data.border),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 22, offset: const Offset(0, 10)),
         ],
       ),
       child: Row(
@@ -612,7 +589,7 @@ class _FilterRow extends StatelessWidget {
     final filters = <_ServiceCaseFilter>[
       _ServiceCaseFilter.all,
       _ServiceCaseFilter.open,
-      _ServiceCaseFilter.underReview,
+      _ServiceCaseFilter.inReview,
       _ServiceCaseFilter.actionNeeded,
       _ServiceCaseFilter.completed,
     ];
@@ -628,7 +605,7 @@ class _FilterRow extends StatelessWidget {
           final filter = filters[index];
           final selected = selectedFilter == filter;
           final count = filter.count(cases);
-          final style = _filterStyle(filter);
+          final color = _filterColor(filter);
 
           return InkWell(
             borderRadius: BorderRadius.circular(16),
@@ -637,30 +614,21 @@ class _FilterRow extends StatelessWidget {
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: selected ? style.color.withValues(alpha: 0.12) : Colors.white,
+                color: selected ? color.withValues(alpha: 0.12) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: selected ? style.color.withValues(alpha: 0.30) : Colors.black.withValues(alpha: 0.06),
+                  color: selected ? color.withValues(alpha: 0.30) : Colors.black.withValues(alpha: 0.06),
                 ),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: style.color.withValues(alpha: 0.08),
-                          blurRadius: 14,
-                          offset: const Offset(0, 8),
-                        ),
-                      ]
-                    : null,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(width: 9, height: 9, decoration: BoxDecoration(color: style.color, shape: BoxShape.circle)),
+                  Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                   const SizedBox(width: 8),
                   Text(
                     filter.label,
                     style: TextStyle(
-                      color: selected ? style.color : AppTheme.textPrimary,
+                      color: selected ? color : AppTheme.textPrimary,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w900,
                     ),
@@ -669,13 +637,13 @@ class _FilterRow extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: style.color.withValues(alpha: selected ? 0.14 : 0.07),
+                      color: color.withValues(alpha: selected ? 0.14 : 0.07),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       '$count',
                       style: TextStyle(
-                        color: selected ? style.color : AppTheme.textSecondary,
+                        color: selected ? color : AppTheme.textSecondary,
                         fontSize: 10.5,
                         height: 1,
                         fontWeight: FontWeight.w900,
@@ -738,7 +706,7 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = _ServiceCaseState.from(serviceCase);
+    final state = _stateFor(serviceCase);
     final palette = _paletteFor(state);
     final progressPercent = serviceCase.progressPercent ?? (serviceCase.progress.clamp(0, 1) * 100).round();
 
@@ -938,8 +906,7 @@ class _ActivityCard extends StatelessWidget {
         children: [
           for (var i = 0; i < cases.length; i++) ...[
             _ActivityRow(serviceCase: cases[i]),
-            if (i != cases.length - 1)
-              const Divider(height: 1, indent: 74, endIndent: 16),
+            if (i != cases.length - 1) const Divider(height: 1, indent: 74, endIndent: 16),
           ],
         ],
       ),
@@ -954,11 +921,9 @@ class _ActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = _ServiceCaseState.from(serviceCase);
+    final state = _stateFor(serviceCase);
     final palette = _paletteFor(state);
-    final subtitle = serviceCase.nextStep?.trim().isNotEmpty == true
-        ? serviceCase.nextStep!
-        : serviceCase.actionRequiredLabel;
+    final subtitle = serviceCase.nextStep?.trim().isNotEmpty == true ? serviceCase.nextStep! : serviceCase.actionRequiredLabel;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1047,6 +1012,75 @@ class _LoadingBlock extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+    required this.onStartRequest,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onStartRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: PremiumCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 42, color: AppTheme.primaryRed),
+              const SizedBox(height: 12),
+              const Text(
+                'Service tracking unavailable',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onRetry,
+                      child: const Text('Retry'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onStartRequest,
+                      child: const Text('Start request'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1313,35 +1347,35 @@ class _BannerData {
 class _Counts {
   const _Counts({
     required this.open,
-    required this.underReview,
+    required this.inReview,
     required this.actionNeeded,
     required this.completed,
-    required this.blocked,
+    required this.cancelled,
   });
 
   final int open;
-  final int underReview;
+  final int inReview;
   final int actionNeeded;
   final int completed;
-  final int blocked;
+  final int cancelled;
 
   factory _Counts.fromCases(List<ServiceCase> cases) {
     var open = 0;
-    var underReview = 0;
+    var inReview = 0;
     var actionNeeded = 0;
     var completed = 0;
-    var blocked = 0;
+    var cancelled = 0;
 
     for (final serviceCase in cases) {
-      final state = _ServiceCaseState.from(serviceCase);
-      if (state.isBlocked) {
-        blocked += 1;
+      final state = _stateFor(serviceCase);
+      if (state.isCancelled) {
+        cancelled += 1;
       } else if (state.isClosed) {
         completed += 1;
       } else if (state.needsAction) {
         actionNeeded += 1;
-      } else if (state.isUnderReview) {
-        underReview += 1;
+      } else if (state.isInReview) {
+        inReview += 1;
       } else {
         open += 1;
       }
@@ -1349,96 +1383,82 @@ class _Counts {
 
     return _Counts(
       open: open,
-      underReview: underReview,
+      inReview: inReview,
       actionNeeded: actionNeeded,
       completed: completed,
-      blocked: blocked,
+      cancelled: cancelled,
     );
   }
 
   int valueFor(_ServiceCaseFilter filter) {
     switch (filter) {
       case _ServiceCaseFilter.all:
-        return open + underReview + actionNeeded + completed + blocked;
+        return open + inReview + actionNeeded + completed + cancelled;
       case _ServiceCaseFilter.open:
         return open;
-      case _ServiceCaseFilter.underReview:
-        return underReview;
+      case _ServiceCaseFilter.inReview:
+        return inReview;
       case _ServiceCaseFilter.actionNeeded:
         return actionNeeded;
       case _ServiceCaseFilter.completed:
         return completed;
-      case _ServiceCaseFilter.blocked:
-        return blocked;
+      case _ServiceCaseFilter.cancelled:
+        return cancelled;
     }
   }
 }
 
 class _ServiceCaseState {
   const _ServiceCaseState({
-    required this.isBlocked,
+    required this.isCancelled,
     required this.isClosed,
     required this.needsAction,
-    required this.isUnderReview,
+    required this.isInReview,
+    required this.isInProgress,
     required this.isOpen,
   });
 
-  final bool isBlocked;
+  final bool isCancelled;
   final bool isClosed;
   final bool needsAction;
-  final bool isUnderReview;
+  final bool isInReview;
+  final bool isInProgress;
   final bool isOpen;
+}
 
-  static _ServiceCaseState from(ServiceCase serviceCase) {
-    final status = serviceCase.status.trim().toLowerCase();
-    final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
+_ServiceCaseState _stateFor(ServiceCase serviceCase) {
+  final status = serviceCase.status.trim().toLowerCase();
+  final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
 
-    final isBlocked = status.contains('cancel') ||
-        status.contains('reject') ||
-        status.contains('declin') ||
-        status.contains('blocked');
+  final isCancelled = status.contains('cancel') || status.contains('reject') || status.contains('declin') || status.contains('blocked');
+  final isClosed = !isCancelled && (status.contains('complete') || status.contains('closed') || status.contains('done') || status.contains('resolved'));
+  final needsAction = !isCancelled &&
+      !isClosed &&
+      (serviceCase.customerActionRequired ||
+          serviceCase.missingDocuments.isNotEmpty ||
+          (serviceCase.missingDocumentsCount ?? 0) > 0 ||
+          serviceCase.rejectedDocumentTotal > 0 ||
+          serviceCase.rejectedPaymentTotal > 0 ||
+          serviceCase.paymentDetails.any((payment) => payment.needsCustomerAction) ||
+          status.contains('waiting for document') ||
+          status.contains('waiting for payment') ||
+          status.contains('waiting for customer') ||
+          status.contains('action required') ||
+          nextStep.contains('upload') ||
+          nextStep.contains('pay') ||
+          nextStep.contains('submit'));
+  final isInReview = !isCancelled && !isClosed && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
+  final isInProgress = !isCancelled && !isClosed && !needsAction && !isInReview && (status.contains('progress') || status.contains('working'));
+  final isOpen = !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
 
-    final isClosed = !isBlocked &&
-        (status.contains('complete') ||
-            status.contains('closed') ||
-            status.contains('done') ||
-            status.contains('resolved'));
-
-    final needsAction = !isBlocked &&
-        !isClosed &&
-        (serviceCase.customerActionRequired ||
-            serviceCase.missingDocuments.isNotEmpty ||
-            (serviceCase.missingDocumentsCount ?? 0) > 0 ||
-            serviceCase.rejectedDocumentTotal > 0 ||
-            serviceCase.rejectedPaymentTotal > 0 ||
-            serviceCase.paymentDetails.any((payment) => payment.needsCustomerAction) ||
-            status.contains('waiting for document') ||
-            status.contains('waiting for payment') ||
-            status.contains('waiting for customer') ||
-            status.contains('action required') ||
-            nextStep.contains('upload') ||
-            nextStep.contains('pay') ||
-            nextStep.contains('submit'));
-
-    final isUnderReview = !isBlocked &&
-        !isClosed &&
-        !needsAction &&
-        (status.contains('review') ||
-            status.contains('processing') ||
-            status.contains('pending') ||
-            status.contains('documents under review') ||
-            status.contains('payment under review'));
-
-    final isOpen = !isBlocked && !isClosed && !needsAction && !isUnderReview;
-
-    return _ServiceCaseState(
-      isBlocked: isBlocked,
-      isClosed: isClosed,
-      needsAction: needsAction,
-      isUnderReview: isUnderReview,
-      isOpen: isOpen,
-    );
-  }
+  return _ServiceCaseState(
+    isCancelled: isCancelled,
+    isClosed: isClosed,
+    needsAction: needsAction,
+    isInReview: isInReview,
+    isInProgress: isInProgress,
+    isOpen: isOpen,
+  );
 }
 
 class _Palette {
@@ -1454,8 +1474,8 @@ class _Palette {
 }
 
 _Palette _paletteFor(_ServiceCaseState state) {
-  if (state.isBlocked) {
-    return const _Palette(label: 'Blocked', color: Color(0xFFEF4444), icon: Icons.block_rounded);
+  if (state.isCancelled) {
+    return const _Palette(label: 'Cancelled', color: Color(0xFFEF4444), icon: Icons.cancel_rounded);
   }
   if (state.isClosed) {
     return const _Palette(label: 'Completed', color: Color(0xFF16A34A), icon: Icons.check_circle_rounded);
@@ -1463,19 +1483,39 @@ _Palette _paletteFor(_ServiceCaseState state) {
   if (state.needsAction) {
     return const _Palette(label: 'Action needed', color: Color(0xFFF59E0B), icon: Icons.priority_high_rounded);
   }
-  if (state.isUnderReview) {
-    return const _Palette(label: 'Under review', color: Color(0xFF14B8A6), icon: Icons.visibility_rounded);
+  if (state.isInReview) {
+    return const _Palette(label: 'In Review', color: Color(0xFF14B8A6), icon: Icons.fact_check_outlined);
   }
-  return const _Palette(label: 'Open', color: Color(0xFF2563EB), icon: Icons.radio_button_checked_rounded);
+  if (state.isInProgress) {
+    return const _Palette(label: 'In Progress', color: Color(0xFF2563EB), icon: Icons.sync_rounded);
+  }
+  return const _Palette(label: 'Open', color: AppTheme.primaryRed, icon: Icons.timeline_rounded);
+}
+
+Color _filterColor(_ServiceCaseFilter filter) {
+  switch (filter) {
+    case _ServiceCaseFilter.all:
+      return AppTheme.primaryRed;
+    case _ServiceCaseFilter.open:
+      return const Color(0xFF2563EB);
+    case _ServiceCaseFilter.inReview:
+      return const Color(0xFF14B8A6);
+    case _ServiceCaseFilter.actionNeeded:
+      return const Color(0xFFF59E0B);
+    case _ServiceCaseFilter.completed:
+      return const Color(0xFF16A34A);
+    case _ServiceCaseFilter.cancelled:
+      return const Color(0xFFEF4444);
+  }
 }
 
 enum _ServiceCaseFilter {
   all,
   open,
-  underReview,
+  inReview,
   actionNeeded,
   completed,
-  blocked;
+  cancelled;
 
   String get label {
     switch (this) {
@@ -1483,32 +1523,32 @@ enum _ServiceCaseFilter {
         return 'All Services';
       case _ServiceCaseFilter.open:
         return 'Open';
-      case _ServiceCaseFilter.underReview:
-        return 'Under Review';
+      case _ServiceCaseFilter.inReview:
+        return 'In Review';
       case _ServiceCaseFilter.actionNeeded:
         return 'Action Needed';
       case _ServiceCaseFilter.completed:
         return 'Completed';
-      case _ServiceCaseFilter.blocked:
-        return 'Blocked';
+      case _ServiceCaseFilter.cancelled:
+        return 'Cancelled';
     }
   }
 
   bool matches(ServiceCase serviceCase) {
-    final state = _ServiceCaseState.from(serviceCase);
+    final state = _stateFor(serviceCase);
     switch (this) {
       case _ServiceCaseFilter.all:
         return true;
       case _ServiceCaseFilter.open:
         return state.isOpen;
-      case _ServiceCaseFilter.underReview:
-        return state.isUnderReview;
+      case _ServiceCaseFilter.inReview:
+        return state.isInReview;
       case _ServiceCaseFilter.actionNeeded:
         return state.needsAction;
       case _ServiceCaseFilter.completed:
         return state.isClosed;
-      case _ServiceCaseFilter.blocked:
-        return state.isBlocked;
+      case _ServiceCaseFilter.cancelled:
+        return state.isCancelled;
     }
   }
 
@@ -1547,13 +1587,14 @@ String _displayNameFromUserId(String userId) {
   if (cleaned.isEmpty) return 'Ali Raza';
 
   final localPart = cleaned.contains('@') ? cleaned.split('@').first : cleaned;
-  final pieces = localPart
-      .split(RegExp(r'[._\-\s]+'))
-      .where((piece) => piece.trim().isNotEmpty)
-      .toList(growable: false);
-
+  final pieces = localPart.split(RegExp(r'[._\-\s]+')).where((piece) => piece.trim().isNotEmpty).toList(growable: false);
   if (pieces.isEmpty) return localPart;
   return pieces.map(_titleCase).join(' ');
+}
+
+String _titleCase(String value) {
+  if (value.isEmpty) return value;
+  return '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
 }
 
 String _initials(String name) {
@@ -1561,15 +1602,9 @@ String _initials(String name) {
   if (parts.isEmpty) return 'OM';
   if (parts.length == 1) {
     final value = parts.first;
-    if (value.length >= 2) return value.substring(0, 2).toUpperCase();
-    return value.substring(0, 1).toUpperCase();
+    return value.length >= 2 ? value.substring(0, 2).toUpperCase() : value.substring(0, 1).toUpperCase();
   }
   return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
-}
-
-String _titleCase(String value) {
-  if (value.isEmpty) return value;
-  return '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
 }
 
 String _cleanErrorMessage(Object error) {
@@ -1579,29 +1614,10 @@ String _cleanErrorMessage(Object error) {
 
   final message = error.toString().replaceFirst('ApiError:', '').trim();
   if (message.isNotEmpty) return message;
-
   return 'Service tracking is unavailable right now. Please try again.';
-}
-
-_Style _filterStyle(_ServiceCaseFilter filter) {
-  switch (filter) {
-    case _ServiceCaseFilter.all:
-      return const _Style(color: AppTheme.primaryRed);
-    case _ServiceCaseFilter.open:
-      return const _Style(color: Color(0xFF2563EB));
-    case _ServiceCaseFilter.underReview:
-      return const _Style(color: Color(0xFF14B8A6));
-    case _ServiceCaseFilter.actionNeeded:
-      return const _Style(color: Color(0xFFF59E0B));
-    case _ServiceCaseFilter.completed:
-      return const _Style(color: Color(0xFF16A34A));
-    case _ServiceCaseFilter.blocked:
-      return const _Style(color: Color(0xFFEF4444));
-  }
 }
 
 class _Style {
   const _Style({required this.color});
-
   final Color color;
 }
