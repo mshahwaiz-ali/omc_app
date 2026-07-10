@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
+import '../../../core/widgets/premium_list_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
@@ -14,21 +15,12 @@ import '../data/service_case_repository.dart';
 class MyServicesScreen extends ConsumerStatefulWidget {
   const MyServicesScreen({super.key});
 
-  static ServiceCase? findCaseById(List<ServiceCase> cases, String caseId) {
-    for (final serviceCase in cases) {
-      if (serviceCase.id == caseId || serviceCase.reference == caseId) {
-        return serviceCase;
-      }
-    }
-    return null;
-  }
-
   @override
   ConsumerState<MyServicesScreen> createState() => _MyServicesScreenState();
 }
 
 class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
-  final _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   _ServiceCaseFilter _selectedFilter = _ServiceCaseFilter.all;
   _SortOption _sortOption = _SortOption.recent;
@@ -45,14 +37,14 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
     final casesAsync = ref.watch(serviceCasesProvider);
     final authState = ref.watch(authControllerProvider);
     final capabilities = authState.capabilities;
-    final displayName = authState.displayName ?? _displayNameFromUserId(authState.userId);
+    final displayName = authState.displayName ?? _displayNameFromUserId(authState.userId ?? '');
 
     return Scaffold(
       body: SafeArea(
         top: true,
         child: casesAsync.when(
           loading: () => const _LoadingState(),
-          error: (error, stackTrace) => _ErrorState(
+          error: (error, _) => _ErrorState(
             message: _cleanErrorMessage(error),
             onRetry: () => ref.invalidate(serviceCasesProvider),
             onStartRequest: () => context.go('/services'),
@@ -62,11 +54,11 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
               return _EmptyState(onStartRequest: () => context.go('/services'));
             }
 
-            final visibleCases = _applyFilters(cases);
-            final sortedCases = _applySort(visibleCases);
+            final filtered = _applyFilters(cases);
+            final sorted = _applySort(filtered);
             final counts = _Counts.fromCases(cases);
             final banner = _BannerData.from(capabilities, counts);
-            final recentCases = _applySort(cases).take(3).toList(growable: false);
+            final activityCases = _applySort(cases).take(3).toList(growable: false);
 
             return RefreshIndicator(
               onRefresh: () async => ref.invalidate(serviceCasesProvider),
@@ -92,7 +84,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                     onPrimary: () => _handleBannerAction(context, banner),
                   ),
                   const SizedBox(height: 16),
-                  _StatusFilterRow(
+                  _FilterRow(
                     cases: cases,
                     selectedFilter: _selectedFilter,
                     onSelected: (filter) => setState(() => _selectedFilter = filter),
@@ -101,15 +93,15 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                   _SectionHeader(
                     title: 'My Services (${cases.length})',
                     actionLabel: 'Sort by: ${_sortOption.label}',
-                    onTap: () => _openSortMenu(context),
+                    onTap: () => _openSortSheet(context),
                   ),
                   const SizedBox(height: 10),
-                  if (sortedCases.isEmpty)
+                  if (sorted.isEmpty)
                     _FilterEmptyState(filter: _selectedFilter, onClear: _resetFilters)
                   else
-                    for (var index = 0; index < sortedCases.length; index++) ...[
-                      _ServiceCard(serviceCase: sortedCases[index]),
-                      if (index != sortedCases.length - 1) const SizedBox(height: 12),
+                    for (var i = 0; i < sorted.length; i++) ...[
+                      _ServiceCard(serviceCase: sorted[i]),
+                      if (i != sorted.length - 1) const SizedBox(height: 12),
                     ],
                   const SizedBox(height: 22),
                   _SectionHeader(
@@ -118,7 +110,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                     onTap: () => context.go('/my-services'),
                   ),
                   const SizedBox(height: 10),
-                  _ActivityCard(cases: recentCases),
+                  _ActivityCard(cases: activityCases),
                 ],
               ),
             );
@@ -130,12 +122,10 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
 
   List<ServiceCase> _applyFilters(List<ServiceCase> cases) {
     return cases.where((serviceCase) {
-      final matchesFilter = _selectedFilter.matches(serviceCase);
-      if (!matchesFilter) return false;
-
+      if (!_selectedFilter.matches(serviceCase)) return false;
       if (_query.isEmpty) return true;
 
-      final searchableText = <String>[
+      final searchable = <String>[
         serviceCase.title,
         serviceCase.category,
         serviceCase.status,
@@ -149,7 +139,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
         serviceCase.actionRequiredLabel,
       ].join(' ').toLowerCase();
 
-      return searchableText.contains(_query);
+      return searchable.contains(_query);
     }).toList(growable: false);
   }
 
@@ -170,7 +160,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
     }
   }
 
-  void _openSortMenu(BuildContext context) {
+  void _openSortSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -184,16 +174,14 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Sort services',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
+                const Text(
+                  'Sort services',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -248,7 +236,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 for (final filter in _ServiceCaseFilter.values) ...[
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -298,26 +286,14 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
   void _resetFilters() {
     setState(() {
       _selectedFilter = _ServiceCaseFilter.all;
+      _sortOption = _SortOption.recent;
       _query = '';
       _searchController.clear();
-      _sortOption = _SortOption.recent;
     });
   }
 
   void _handleBannerAction(BuildContext context, _BannerData banner) {
-    switch (banner.actionRoute) {
-      case '/profile':
-        context.go('/profile');
-        return;
-      case '/documents':
-        context.go('/documents');
-        return;
-      case '/my-services':
-        context.go('/my-services');
-        return;
-      default:
-        context.go('/services');
-    }
+    context.go(banner.actionRoute);
   }
 
   _ServiceCaseState _stateFor(ServiceCase serviceCase) {
@@ -482,13 +458,6 @@ class _Header extends StatelessWidget {
       ],
     );
   }
-
-  String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning,';
-    if (hour < 17) return 'Good afternoon,';
-    return 'Good evening,';
-  }
 }
 
 class _SearchAndFilterRow extends StatelessWidget {
@@ -573,7 +542,6 @@ class _StatusBanner extends StatelessWidget {
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 58,
@@ -629,8 +597,8 @@ class _StatusBanner extends StatelessWidget {
   }
 }
 
-class _StatusFilterRow extends StatelessWidget {
-  const _StatusFilterRow({
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
     required this.cases,
     required this.selectedFilter,
     required this.onSelected,
@@ -642,7 +610,7 @@ class _StatusFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleFilters = const [
+    final filters = <_ServiceCaseFilter>[
       _ServiceCaseFilter.all,
       _ServiceCaseFilter.open,
       _ServiceCaseFilter.underReview,
@@ -655,108 +623,71 @@ class _StatusFilterRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: visibleFilters.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
-          final filter = visibleFilters[index];
-          final selected = filter == selectedFilter;
+          final filter = filters[index];
+          final selected = selectedFilter == filter;
           final count = filter.count(cases);
+          final style = _filterStyle(filter);
 
-          return _FilterChip(
-            filter: filter,
-            selected: selected,
-            count: count,
+          return InkWell(
+            borderRadius: BorderRadius.circular(16),
             onTap: () => onSelected(filter),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: selected ? style.color.withValues(alpha: 0.12) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected ? style.color.withValues(alpha: 0.30) : Colors.black.withValues(alpha: 0.06),
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: style.color.withValues(alpha: 0.08),
+                          blurRadius: 14,
+                          offset: const Offset(0, 8),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 9, height: 9, decoration: BoxDecoration(color: style.color, shape: BoxShape.circle)),
+                  const SizedBox(width: 8),
+                  Text(
+                    filter.label,
+                    style: TextStyle(
+                      color: selected ? style.color : AppTheme.textPrimary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: style.color.withValues(alpha: selected ? 0.14 : 0.07),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      count.toString(),
+                      style: TextStyle(
+                        color: selected ? style.color : AppTheme.textSecondary,
+                        fontSize: 10.5,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.filter,
-    required this.selected,
-    required this.count,
-    required this.onTap,
-  });
-
-  final _ServiceCaseFilter filter;
-  final bool selected;
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = _filterStyle(filter);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? style.color.withValues(alpha: 0.12) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? style.color.withValues(alpha: 0.30) : Colors.black.withValues(alpha: 0.06),
-            ),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: style.color.withValues(alpha: 0.08),
-                      blurRadius: 14,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: style.color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                filter.label,
-                style: TextStyle(
-                  color: selected ? style.color : AppTheme.textPrimary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.05,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: style.color.withValues(alpha: selected ? 0.14 : 0.07),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  count.toString(),
-                  style: TextStyle(
-                    color: selected ? style.color : AppTheme.textSecondary,
-                    fontSize: 10.5,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -921,7 +852,7 @@ class _ServiceCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '${progressPercent}%',
+                      '$progressPercent%',
                       style: TextStyle(
                         color: palette.color,
                         fontSize: 12.5,
@@ -949,19 +880,10 @@ class _ServiceCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              PremiumInfoChip(
-                icon: Icons.description_outlined,
-                label: serviceCase.documentSummaryLabel,
-              ),
-              PremiumInfoChip(
-                icon: Icons.payments_outlined,
-                label: serviceCase.paymentSummaryLabel,
-              ),
+              PremiumInfoChip(icon: Icons.description_outlined, label: serviceCase.documentSummaryLabel),
+              PremiumInfoChip(icon: Icons.payments_outlined, label: serviceCase.paymentSummaryLabel),
               if (serviceCase.reference != null && serviceCase.reference!.trim().isNotEmpty)
-                PremiumInfoChip(
-                  icon: Icons.confirmation_number_outlined,
-                  label: serviceCase.reference!,
-                ),
+                PremiumInfoChip(icon: Icons.confirmation_number_outlined, label: serviceCase.reference!),
             ],
           ),
         ],
@@ -988,11 +910,7 @@ class _StatusPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
+          Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 6),
           Text(
             label,
@@ -1019,9 +937,9 @@ class _ActivityCard extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          for (var index = 0; index < cases.length; index++) ...[
-            _ActivityRow(serviceCase: cases[index]),
-            if (index != cases.length - 1)
+          for (var i = 0; i < cases.length; i++) ...[
+            _ActivityRow(serviceCase: cases[i]),
+            if (i != cases.length - 1)
               const Divider(height: 1, indent: 74, endIndent: 16),
           ],
         ],
@@ -1101,13 +1019,9 @@ class _LoadingState extends StatelessWidget {
         const SizedBox(height: 22),
         _LoadingBlock(width: double.infinity, height: 176, radius: 24, color: color),
         const SizedBox(height: 16),
-        Row(
-          children: const [
-            Expanded(child: _LoadingBlock(width: double.infinity, height: 46, radius: 16, color: Colors.transparent)),
-          ],
-        ),
+        _LoadingBlock(width: double.infinity, height: 46, radius: 16, color: color),
         const SizedBox(height: 12),
-        _LoadingBlock(width: double.infinity, height: 120, radius: 22, color: Colors.transparent),
+        _LoadingBlock(width: double.infinity, height: 120, radius: 22, color: color),
       ],
     );
   }
@@ -1400,7 +1314,7 @@ class _BannerData {
   final Color tint;
   final Color border;
 
-  factory _BannerData.from(dynamic capabilities, _Counts counts) {
+  factory _BannerData.from(AuthCapabilities capabilities, _Counts counts) {
     if (capabilities.isGuest) {
       return const _BannerData(
         title: 'Sign in to track your services',
@@ -1624,15 +1538,6 @@ _Palette _paletteFor(_ServiceCaseState state) {
   }
   return const _Palette(label: 'Open', color: Color(0xFF2563EB), icon: Icons.radio_button_checked_rounded);
 }
-
-const List<_ServiceCaseFilter> _allFilters = [
-  _ServiceCaseFilter.all,
-  _ServiceCaseFilter.open,
-  _ServiceCaseFilter.underReview,
-  _ServiceCaseFilter.actionNeeded,
-  _ServiceCaseFilter.completed,
-  _ServiceCaseFilter.blocked,
-];
 
 enum _ServiceCaseFilter {
   all,
