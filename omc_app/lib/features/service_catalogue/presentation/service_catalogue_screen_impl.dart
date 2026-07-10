@@ -24,8 +24,6 @@ const Color _success = Color(0xFF0F9D8E);
 const Color _review = Color(0xFF6D28D9);
 const Color _attention = Color(0xFFF59E0B);
 const Color _done = Color(0xFF16A34A);
-const Color _roseSoft = Color(0xFFFFF1F3);
-const Color _roseBorder = Color(0xFFF6CDD6);
 
 class ServiceCatalogueScreen extends ConsumerStatefulWidget {
   const ServiceCatalogueScreen({super.key});
@@ -69,11 +67,12 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
           onAction: () => ref.invalidate(serviceCatalogueProvider),
         ),
         data: (services) {
-          final categories = <String>{
+          final categoryValues = <String>{
             for (final service in services)
               if (service.category.trim().isNotEmpty) service.category.trim(),
           }.toList()
             ..sort();
+          final categories = <String>[_allCategory, ...categoryValues];
           final filteredServices = _filterServices(services);
           final statusCounts = _buildStatusCounts(services);
 
@@ -98,6 +97,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                 ),
                 const SizedBox(height: 18),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     const Expanded(
                       child: Column(
@@ -193,7 +193,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                 const SizedBox(height: 16),
                 _StatusBanner(
                   authState: authState,
-                  onActionTap: () => context.go(_bannerRouteFor(authState)),
+                  onActionTap: () => context.go(bannerRouteFor(authState)),
                 ),
                 const SizedBox(height: 16),
                 _SummaryGrid(
@@ -805,6 +805,7 @@ class _SummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = (MediaQuery.of(context).size.width - 50) / 2;
     return Wrap(
       spacing: 10,
       runSpacing: 10,
@@ -814,7 +815,7 @@ class _SummaryGrid extends StatelessWidget {
         _SummaryTile(icon: Icons.schedule_outlined, label: 'Under Review', value: underReviewServices.toString(), subtitle: 'Awaiting review', tint: _review),
         _SummaryTile(icon: Icons.priority_high_rounded, label: 'Action Needed', value: actionNeededServices.toString(), subtitle: 'Needs attention', tint: _attention),
         _SummaryTile(icon: Icons.verified_outlined, label: 'Completed', value: completedServices.toString(), subtitle: 'This month', tint: _done),
-      ].map((tile) => SizedBox(width: (MediaQuery.of(context).size.width - 50) / 2, child: tile)).toList(growable: false),
+      ].map((tile) => SizedBox(width: width, child: tile)).toList(growable: false),
     );
   }
 }
@@ -1329,96 +1330,35 @@ class _ServiceDashboardCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
-                  onPressed: onRequest,
-                  icon: Icon(
-                    wizardLabel == null ? Icons.add_rounded : Icons.auto_awesome_rounded,
-                    size: 18,
-                  ),
-                  label: Text(wizardLabel == null ? 'Request' : 'Start wizard'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
+                child: OutlinedButton.icon(
+                  onPressed: onWhatsApp,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                  label: const Text('Message'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _ink,
+                    side: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+                    minimumSize: const Size.fromHeight(46),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              IconButton.filledTonal(
-                tooltip: 'WhatsApp support',
-                onPressed: onWhatsApp,
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onRequest,
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                  label: const Text('Start wizard'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(46),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgressStrip extends StatelessWidget {
-  const _ProgressStrip({required this.value, required this.color});
-
-  final double value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        height: 7,
-        color: _border.withValues(alpha: 0.85),
-        child: FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: value.clamp(0.0, 1.0),
-          child: Container(color: color),
-        ),
       ),
     );
   }
@@ -1437,26 +1377,64 @@ class _WizardBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.14)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.auto_awesome_rounded, color: color, size: 13),
-          const SizedBox(width: 5),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.05,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.05,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressStrip extends StatelessWidget {
+  const _ProgressStrip({required this.value, required this.color});
+
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: LinearProgressIndicator(
+        minHeight: 8,
+        value: value.clamp(0, 1),
+        backgroundColor: _surfaceSoft,
+        valueColor: AlwaysStoppedAnimation<Color>(color),
       ),
     );
   }
@@ -1472,8 +1450,9 @@ class _RequirementRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: _primary.withValues(alpha: 0.035),
+        color: _surface,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1481,11 +1460,11 @@ class _RequirementRow extends StatelessWidget {
           Container(
             width: 18,
             height: 18,
-            decoration: BoxDecoration(
-              color: _primary.withValues(alpha: 0.08),
+            decoration: const BoxDecoration(
+              color: _primarySoft,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_rounded, color: _primary, size: 13),
+            child: const Icon(Icons.check_rounded, color: _ink, size: 13),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1524,24 +1503,97 @@ class _ServiceListEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumEmptyState(
-      icon: icon,
-      title: title,
-      message: message,
-      actionLabel: actionLabel,
-      onAction: onAction,
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: _primarySoft,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, color: _ink, size: 26),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _slate,
+              fontSize: 13,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 14),
+            FilledButton(
+              onPressed: onAction,
+              child: Text(actionLabel!),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
 
-class _ServiceTone {
-  const _ServiceTone({required this.icon, required this.color});
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.filled = false,
+  });
 
+  final String label;
   final IconData icon;
-  final Color color;
+  final VoidCallback onPressed;
+  final bool filled;
 
-  Color get soft => color.withValues(alpha: 0.09);
-  Color get border => color.withValues(alpha: 0.16);
+  @override
+  Widget build(BuildContext context) {
+    if (filled) {
+      return FilledButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          backgroundColor: _primary,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(0, 54),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _ink,
+        side: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+        minimumSize: const Size(0, 54),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
 }
 
 class _BannerData {
@@ -1566,195 +1618,65 @@ class _BannerData {
   final IconData icon;
 }
 
-class _ServiceStatus {
-  const _ServiceStatus._(this.value);
-  final int value;
+enum _ServiceStatus { open, underReview, actionNeeded, completed }
 
-  static const open = _ServiceStatus._(0);
-  static const underReview = _ServiceStatus._(1);
-  static const actionNeeded = _ServiceStatus._(2);
-  static const completed = _ServiceStatus._(3);
-}
+class _ServiceTone {
+  const _ServiceTone({required this.icon, required this.color});
 
-String serviceCatalogueDisplayName(AuthState authState) {
-  final displayName = authState.displayName?.trim();
-  if (displayName != null && displayName.isNotEmpty) return displayName;
+  final IconData icon;
+  final Color color;
 
-  final companyName = authState.companyName?.trim();
-  if (companyName != null && companyName.isNotEmpty) return companyName;
-
-  final userId = authState.userId?.trim();
-  if (userId != null && userId.isNotEmpty) {
-    final localPart = userId.contains('@') ? userId.split('@').first : userId;
-    final pieces = localPart
-        .split(RegExp(r'[._-]+'))
-        .where((item) => item.trim().isNotEmpty)
-        .map(serviceCatalogueTitleCase)
-        .toList(growable: false);
-    if (pieces.isNotEmpty) return pieces.join(' ');
-    return localPart;
-  }
-
-  return authState.capabilities.isInternal ? 'Administrator' : 'My Services';
-}
-
-String serviceCatalogueErrorMessage(Object error) {
-  if (error is ApiError) return error.message;
-  return 'Unable to load services right now. Please try again.';
-}
-
-String serviceCatalogueTitleCase(String value) {
-  return value
-      .split(RegExp(r'\s+'))
-      .where((word) => word.isNotEmpty)
-      .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
-      .join(' ');
-}
-
-String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {
-  final raw = service.wizardType?.trim();
-  if (raw == null || raw.isEmpty) {
-    return service.hasBackendTemplate ? 'Service Wizard' : null;
-  }
-  switch (raw.toLowerCase()) {
-    case 'tax':
-      return 'Tax Wizard';
-    case 'gst':
-      return 'GST Wizard';
-    case 'business':
-      return 'Business Wizard';
-    default:
-      return '${serviceCatalogueTitleCase(raw)} Wizard';
-  }
-}
-
-_ServiceTone serviceCatalogueTone(ServiceItem service) {
-  final source = '${service.category} ${service.title} ${service.wizardType ?? ''}'.toLowerCase();
-  if (source.contains('visa')) {
-    return const _ServiceTone(icon: Icons.flight_takeoff_rounded, color: Color(0xFF0F766E));
-  }
-  if (source.contains('tax') || source.contains('ntn') || source.contains('gst')) {
-    return const _ServiceTone(icon: Icons.receipt_long_outlined, color: Color(0xFF8B5CF6));
-  }
-  if (source.contains('business') || source.contains('setup')) {
-    return const _ServiceTone(icon: Icons.apartment_outlined, color: Color(0xFFDB2777));
-  }
-  if (source.contains('document')) {
-    return const _ServiceTone(icon: Icons.description_outlined, color: Color(0xFF0F9D8E));
-  }
-  if (source.contains('payment') || source.contains('receipt') || source.contains('invoice')) {
-    return const _ServiceTone(icon: Icons.payments_outlined, color: Color(0xFFF97316));
-  }
-  if (source.contains('hr') || source.contains('employee')) {
-    return const _ServiceTone(icon: Icons.groups_rounded, color: Color(0xFF14B8A6));
-  }
-  if (source.contains('lead')) {
-    return const _ServiceTone(icon: Icons.record_voice_over_rounded, color: Color(0xFF7C3AED));
-  }
-  if (source.contains('task') || source.contains('todo')) {
-    return const _ServiceTone(icon: Icons.task_alt_rounded, color: Color(0xFFF59E0B));
-  }
-  if (source.contains('support') || source.contains('case') || source.contains('request')) {
-    return const _ServiceTone(icon: Icons.support_agent_rounded, color: Color(0xFF334155));
-  }
-  return const _ServiceTone(icon: Icons.workspace_premium_outlined, color: _ink);
-}
-
-String serviceCatalogueStatusLabelFor(_ServiceStatus status) {
-  switch (status.value) {
-    case 0:
-      return 'Open';
-    case 1:
-      return 'Under Review';
-    case 2:
-      return 'Action Needed';
-    default:
-      return 'Completed';
-  }
-}
-
-Color serviceCatalogueStatusColor(_ServiceStatus status) {
-  switch (status.value) {
-    case 0:
-      return _primary;
-    case 1:
-      return _review;
-    case 2:
-      return _attention;
-    default:
-      return _done;
-  }
-}
-
-double serviceCatalogueStatusProgress(_ServiceStatus status, int seed) {
-  switch (seed % 5) {
-    case 0:
-      return 0.45;
-    case 1:
-      return 0.65;
-    case 2:
-      return 0.20;
-    case 3:
-      return 0.80;
-    default:
-      return status.value == 3 ? 1.0 : 0.55;
-  }
-}
-
-_ServiceStatus serviceStatusForIndex(int index) {
-  if (index == 1) return _ServiceStatus.underReview;
-  if (index == 2) return _ServiceStatus.actionNeeded;
-  if (index >= 3) return _ServiceStatus.completed;
-  return _ServiceStatus.open;
+  Color get soft => color.withValues(alpha: 0.09);
+  Color get border => color.withValues(alpha: 0.16);
 }
 
 _BannerData bannerFor(AuthState authState) {
   if (authState.capabilities.isGuest) {
     return const _BannerData(
-      title: 'Guest access active',
-      message: 'Create your account to unlock service requests, document uploads and live progress tracking.',
-      actionLabel: 'Create Account',
+      title: 'Guest access',
+      message: 'Create an account to request services, track progress and receive updates.',
+      actionLabel: 'Sign up',
       background: _surface,
       border: _border,
       iconBackground: _primarySoft,
       iconColor: _primary,
-      icon: Icons.shield_outlined,
+      icon: Icons.person_add_alt_1_rounded,
     );
   }
   if (authState.capabilities.isPending) {
     return const _BannerData(
-      title: 'Your profile is under review',
-      message: 'You have limited access. Complete your profile for full access to all services.',
-      actionLabel: 'Complete Profile',
-      background: _surface,
-      border: _border,
-      iconBackground: _primarySoft,
-      iconColor: _primary,
-      icon: Icons.verified_user_outlined,
+      title: 'Profile under review',
+      message: 'Your account is being verified. Service access unlocks after approval.',
+      actionLabel: 'View profile',
+      background: Color(0xFFEEF2FF),
+      border: Color(0xFFD6DBFF),
+      iconBackground: Color(0xFFE0E7FF),
+      iconColor: Color(0xFF4338CA),
+      icon: Icons.hourglass_bottom_rounded,
     );
   }
   if (authState.capabilities.isRejected) {
     return const _BannerData(
       title: 'Access restricted',
-      message: 'This account is not approved for service requests. Contact support to continue.',
-      actionLabel: 'Contact Support',
+      message: 'This account is not approved for service access. Contact OMC support.',
+      actionLabel: 'Support',
       background: _roseSoft,
       border: _roseBorder,
-      iconBackground: Color(0xFFFCE7EC),
-      iconColor: Color(0xFFDB2777),
-      icon: Icons.block_outlined,
+      iconBackground: Color(0xFFFFD8E0),
+      iconColor: Color(0xFFBE123C),
+      icon: Icons.block_rounded,
     );
   }
   if (authState.capabilities.isInternal) {
     return const _BannerData(
-      title: 'Internal workspace connected',
-      message: 'Open review queues, service statuses and customer activity from one page.',
-      actionLabel: 'Open Workspace',
+      title: 'Internal workspace',
+      message: 'Track requests, review documents and handle service operations.',
+      actionLabel: 'Open workspace',
       background: _surface,
       border: _border,
       iconBackground: _primarySoft,
       iconColor: _primary,
-      icon: Icons.apartment_outlined,
+      icon: Icons.admin_panel_settings_outlined,
     );
   }
   return const _BannerData(
@@ -1819,8 +1741,129 @@ String initials(String value) {
   }
   final buffer = StringBuffer();
   buffer.write(parts.first[0]);
-  if (parts.length > 1) {
-    buffer.write(parts.last[0]);
-  }
+  if (parts.length > 1) buffer.write(parts.last[0]);
   return buffer.toString().toUpperCase();
+}
+
+String serviceCatalogueDisplayName(AuthState authState) {
+  final displayName = authState.displayName?.trim();
+  if (displayName != null && displayName.isNotEmpty) return displayName;
+
+  final companyName = authState.companyName?.trim();
+  if (companyName != null && companyName.isNotEmpty) return companyName;
+
+  final userId = authState.userId?.trim();
+  if (userId != null && userId.isNotEmpty) {
+    final localPart = userId.contains('@') ? userId.split('@').first : userId;
+    final pieces = localPart
+        .split(RegExp(r'[._-]+'))
+        .where((item) => item.trim().isNotEmpty)
+        .map(_titleCase)
+        .toList(growable: false);
+    if (pieces.isNotEmpty) return pieces.join(' ');
+    return localPart;
+  }
+
+  return authState.capabilities.isInternal ? 'Administrator' : 'My Services';
+}
+
+String serviceCatalogueErrorMessage(Object error) {
+  final message = error.toString();
+  if (message.contains('SocketException')) {
+    return 'Check your connection and try again.';
+  }
+  if (message.contains('404')) {
+    return 'The catalogue endpoint was not found.';
+  }
+  if (message.contains('500')) {
+    return 'The server returned an error while loading services.';
+  }
+  return 'Unable to load the service catalogue right now.';
+}
+
+_ServiceStatus serviceStatusForIndex(int index) {
+  if (index == 1) return _ServiceStatus.underReview;
+  if (index == 2) return _ServiceStatus.actionNeeded;
+  if (index >= 3) return _ServiceStatus.completed;
+  return _ServiceStatus.open;
+}
+
+String serviceCatalogueStatusLabelFor(_ServiceStatus status) {
+  switch (status) {
+    case _ServiceStatus.open:
+      return 'Open';
+    case _ServiceStatus.underReview:
+      return 'Under Review';
+    case _ServiceStatus.actionNeeded:
+      return 'Action Needed';
+    case _ServiceStatus.completed:
+      return 'Completed';
+  }
+}
+
+Color serviceCatalogueStatusColor(_ServiceStatus status) {
+  switch (status) {
+    case _ServiceStatus.open:
+      return _primary;
+    case _ServiceStatus.underReview:
+      return _review;
+    case _ServiceStatus.actionNeeded:
+      return _attention;
+    case _ServiceStatus.completed:
+      return _done;
+  }
+}
+
+double serviceCatalogueStatusProgress(_ServiceStatus status, int seed) {
+  switch (seed % 5) {
+    case 0:
+      return 0.45;
+    case 1:
+      return 0.65;
+    case 2:
+      return 0.20;
+    case 3:
+      return 0.80;
+    default:
+      return status == _ServiceStatus.completed ? 1.0 : 0.55;
+  }
+}
+
+_ServiceTone serviceCatalogueTone(ServiceItem service) {
+  final source = '${service.category} ${service.title} ${service.wizardType ?? ''}'.toLowerCase();
+  if (source.contains('visa')) return const _ServiceTone(icon: Icons.flight_takeoff_rounded, color: Color(0xFF0F766E));
+  if (source.contains('tax') || source.contains('ntn') || source.contains('gst')) return const _ServiceTone(icon: Icons.receipt_long_outlined, color: Color(0xFF8B5CF6));
+  if (source.contains('business') || source.contains('setup')) return const _ServiceTone(icon: Icons.apartment_outlined, color: Color(0xFFDB2777));
+  if (source.contains('document')) return const _ServiceTone(icon: Icons.description_outlined, color: Color(0xFF0F9D8E));
+  if (source.contains('payment') || source.contains('receipt') || source.contains('invoice')) return const _ServiceTone(icon: Icons.payments_outlined, color: Color(0xFFF97316));
+  if (source.contains('hr') || source.contains('employee')) return const _ServiceTone(icon: Icons.groups_rounded, color: Color(0xFF14B8A6));
+  if (source.contains('lead')) return const _ServiceTone(icon: Icons.record_voice_over_rounded, color: Color(0xFF7C3AED));
+  if (source.contains('task') || source.contains('todo')) return const _ServiceTone(icon: Icons.task_alt_rounded, color: Color(0xFFF59E0B));
+  if (source.contains('support') || source.contains('case') || source.contains('request')) return const _ServiceTone(icon: Icons.support_agent_rounded, color: Color(0xFF334155));
+  return const _ServiceTone(icon: Icons.workspace_premium_outlined, color: _ink);
+}
+
+String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {
+  final raw = service.wizardType?.trim();
+  if (raw == null || raw.isEmpty) {
+    return service.hasBackendTemplate ? 'Service Wizard' : null;
+  }
+  switch (raw.toLowerCase()) {
+    case 'tax':
+      return 'Tax Wizard';
+    case 'gst':
+      return 'GST Wizard';
+    case 'business':
+      return 'Business Wizard';
+    default:
+      return '${_titleCase(raw)} Wizard';
+  }
+}
+
+String _titleCase(String value) {
+  return value
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+      .join(' ');
 }
