@@ -457,6 +457,26 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+class _HomeMode {
+  const _HomeMode._(this.value);
+
+  final String value;
+
+  static const internal = _HomeMode._('internal');
+  static const customer = _HomeMode._('customer');
+  static const guest = _HomeMode._('guest');
+
+  bool get isInternal => identical(this, internal);
+  bool get isCustomer => identical(this, customer);
+  bool get isGuest => identical(this, guest);
+
+  static _HomeMode fromCapabilities(AuthCapabilities capabilities) {
+    if (capabilities.isInternal || capabilities.canAccessInternalWorkspace) return internal;
+    if (capabilities.isGuest || capabilities.isPending || capabilities.isRejected) return guest;
+    return customer;
+  }
+}
+
 class _Backdrop extends StatelessWidget {
   const _Backdrop();
 
@@ -476,8 +496,8 @@ class _Backdrop extends StatelessWidget {
   }
 }
 
-class _TopHeader extends StatelessWidget {
-  const _TopHeader({
+class _Header extends StatelessWidget {
+  const _Header({
     required this.displayName,
     required this.avatarUrl,
     required this.unreadNotifications,
@@ -503,25 +523,14 @@ class _TopHeader extends StatelessWidget {
             children: [
               Text(
                 greeting,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textMuted,
-                ),
+                style: const TextStyle(fontSize: 13, height: 1.2, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
               ),
               const SizedBox(height: 3),
               Text(
                 displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 26,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: -0.45,
-                ),
+                style: const TextStyle(fontSize: 26, height: 1.05, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.45),
               ),
             ],
           ),
@@ -786,7 +795,7 @@ class _QuickActionsRow extends StatelessWidget {
     final visible = actions.take(5).toList(growable: false);
 
     return SizedBox(
-      height: 86,
+      height: 88,
       child: Row(
         children: [
           for (var index = 0; index < 5; index++) ...[
@@ -795,7 +804,7 @@ class _QuickActionsRow extends StatelessWidget {
               child: index < visible.length
                   ? _ActionTile(
                       action: visible[index],
-                      allowed: _isAllowed(visible[index], capabilities),
+                      locked: !_isAllowed(visible[index], capabilities),
                       onTap: () => onTap(visible[index]),
                     )
                   : const SizedBox.shrink(),
@@ -815,19 +824,22 @@ class _QuickActionsRow extends StatelessWidget {
       'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
       'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
       'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
-      'can_create_support_ticket' => capabilities.canCreateSupportTicket || capabilities.isApproved || capabilities.isInternal,
+      'can_review_documents' => capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace,
+      'can_review_payments' => capabilities.canReviewPayments || capabilities.canAccessInternalWorkspace,
+      'can_manage_customers' => capabilities.canManageCustomers || capabilities.canAccessInternalWorkspace,
+      'can_manage_leads' => capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
+      'can_manage_tasks' => capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
       'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
-      'can_access_internal_workspace' => capabilities.canAccessInternalWorkspace,
       _ => true,
     };
   }
 }
 
 class _ActionTile extends StatelessWidget {
-  const _ActionTile({required this.action, required this.allowed, required this.onTap});
+  const _ActionTile({required this.action, required this.locked, required this.onTap});
 
   final MobileQuickAction action;
-  final bool allowed;
+  final bool locked;
   final VoidCallback onTap;
 
   @override
@@ -835,7 +847,7 @@ class _ActionTile extends StatelessWidget {
     final palette = _paletteForAction(action);
 
     return Opacity(
-      opacity: allowed ? 1 : 0.56,
+      opacity: locked ? 0.62 : 1,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -843,33 +855,38 @@ class _ActionTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: Stack(
               children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: palette.soft,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(_iconForActionKey(action.iconKey), color: palette.accent, size: 18),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(color: palette.soft, borderRadius: BorderRadius.circular(12)),
+                      child: Icon(_iconForActionKey(action.iconKey), color: palette.accent, size: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      action.title,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: Text(
-                    action.title,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10.8,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
-                      height: 1.08,
+                if (locked)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 4, offset: Offset(0, 2))]),
+                      child: const Icon(Icons.lock_rounded, size: 10, color: AppTheme.textMuted),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -906,550 +923,11 @@ class _MoreTile extends StatelessWidget {
                 child: Text(
                   'More',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10.8,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                    height: 1.08,
-                  ),
+                  style: TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileCompletionCard extends StatelessWidget {
-  const _ProfileCompletionCard({required this.onOpen});
-
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFEFFBF4), Color(0xFFD7FBEA)],
-              ),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  left: 10,
-                  top: 9,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 11,
-                  bottom: 10,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ),
-                const Icon(Icons.verified_user_rounded, size: 28, color: _kPaymentsGreen),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Complete your profile', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
-                const SizedBox(height: 4),
-                const Text('Get full access to all features and sync your data across devices.', style: TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary)),
-                const SizedBox(height: 12),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kPaymentsGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                    minimumSize: const Size(0, 0),
-                  ),
-                  onPressed: onOpen,
-                  child: const Text('Complete Now'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.close_rounded, size: 18, color: AppTheme.textMuted),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricItem {
-  const _MetricItem({required this.label, required this.value, required this.icon, required this.accent, required this.soft, required this.hint});
-
-  final String label;
-  final int value;
-  final IconData icon;
-  final Color accent;
-  final Color soft;
-  final String hint;
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.item});
-
-  final _MetricItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: item.soft,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(item.icon, color: item.accent, size: 19),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                decoration: BoxDecoration(
-                  color: item.accent.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  item.hint,
-                  style: TextStyle(
-                    color: item.accent,
-                    fontSize: 9.8,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            item.value.toString(),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.textPrimary,
-              letterSpacing: -0.6,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            item.label,
-            style: const TextStyle(
-              fontSize: 12.4,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _TrendLine(color: item.accent),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrendLine extends StatelessWidget {
-  const _TrendLine({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(
-        5,
-        (index) => Container(
-          width: 18 + (index.isEven ? 4 : 0),
-          height: 3,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.20 + (index * 0.08)), borderRadius: BorderRadius.circular(999)),
-        ),
-      ),
-    );
-  }
-}
-
-class _ServicesPanel extends StatelessWidget {
-  const _ServicesPanel({required this.services, required this.onOpen, required this.onBrowse});
-
-  final List<HomeDashboardServiceSnapshot> services;
-  final ValueChanged<HomeDashboardServiceSnapshot> onOpen;
-  final VoidCallback? onBrowse;
-
-  @override
-  Widget build(BuildContext context) {
-    if (services.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.border),
-          boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: _kServicesRoseSoft,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(Icons.inbox_outlined, color: _kServicesRose, size: 28),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'No active service yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Browse the catalogue and start from a clean flow instead of jumping through clutter.',
-              style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 14),
-            FilledButton(
-              onPressed: onBrowse,
-              child: const Text('Browse services'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        for (var index = 0; index < services.take(3).length; index++) ...[
-          if (index > 0) const SizedBox(height: 12),
-          _ServiceCard(service: services[index], onTap: () => onOpen(services[index])),
-        ],
-      ],
-    );
-  }
-}
-
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({required this.service, required this.onTap});
-
-  final HomeDashboardServiceSnapshot service;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final family = _paletteForFamily(service.colorFamily ?? _inferFamily('${service.title} ${service.status}'));
-    final progressColor = _progressColor(service.progress, service.status);
-    final statusTone = _statusTone(service.status);
-    final progress = (service.progress * 100).round().clamp(0, 100);
-    final subtitle = service.customerName.trim().isNotEmpty ? service.customerName : 'Ongoing case';
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppTheme.border),
-            boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: family.soft,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(_statusIcon(service.status), color: family.accent, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          service.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _ActionPill(label: _statusLabel(service.status), color: statusTone),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _ProgressBar(progress: service.progress, color: progressColor),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text(
-                    '$progress% complete',
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textSecondary),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.chevron_right_rounded, color: family.accent),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.progress, required this.color});
-
-  final double progress;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Container(
-            height: 8,
-            decoration: BoxDecoration(color: AppTheme.cardSoft, borderRadius: BorderRadius.circular(999)),
-            child: Stack(
-              children: [
-                FractionallySizedBox(
-                  widthFactor: progress.clamp(0, 1),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          _progressStartColor(progress),
-                          _progressEndColor(progress),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ActivityPanel extends StatelessWidget {
-  const _ActivityPanel({required this.activities, required this.onTrack});
-
-  final List<HomeDashboardActivity> activities;
-  final VoidCallback onTrack;
-
-  @override
-  Widget build(BuildContext context) {
-    if (activities.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.border),
-          boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-        ),
-        child: const Text(
-          'Recent activity will appear here once services start moving.',
-          style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-      ),
-      child: Column(
-        children: [
-          for (var index = 0; index < activities.length; index++) ...[
-            if (index > 0) const Divider(height: 1, thickness: 1, color: AppTheme.border),
-            _ActivityRow(activity: activities[index]),
-          ],
-          const Divider(height: 1, thickness: 1, color: AppTheme.border),
-          InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: onTrack,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Icon(Icons.timeline_rounded, color: _kTaxBlue, size: 18),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Open full tracking view',
-                      style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: _kTaxBlue),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.activity});
-
-  final HomeDashboardActivity activity;
-
-  @override
-  Widget build(BuildContext context) {
-    final family = _paletteForFamily(activity.colorFamily ?? _inferFamily('${activity.title} ${activity.status ?? ''} ${activity.subtitle}'));
-    final rightDot = _activityTone(activity.status, family.accent);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: family.soft,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(_activityIcon(activity.status), color: family.accent, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  activity.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  activity.subtitle,
-                  style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary),
-                ),
-                if ((activity.createdAtLabel ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    activity.createdAtLabel!,
-                    style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(color: rightDot, shape: BoxShape.circle),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionPill extends StatelessWidget {
-  const _ActionPill({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -1458,37 +936,20 @@ class _ActionPill extends StatelessWidget {
 
 class _ColorPalette {
   const _ColorPalette({required this.accent, required this.soft});
-
   final Color accent;
   final Color soft;
 }
 
-_ColorPalette _paletteForFamily(String? family) {
-  final normalized = family?.trim().toLowerCase() ?? '';
-  if (normalized.contains('payment')) {
-    return const _ColorPalette(accent: _kPaymentsGreen, soft: _kPaymentsGreenSoft);
-  }
-  if (normalized.contains('document')) {
-    return const _ColorPalette(accent: _kDocumentsIndigo, soft: _kDocumentsIndigoSoft);
-  }
-  if (normalized.contains('track')) {
-    return const _ColorPalette(accent: _kTrackTeal, soft: _kTrackTealSoft);
-  }
-  if (normalized.contains('lead')) {
-    return const _ColorPalette(accent: _kLeadsPurple, soft: _kLeadsPurpleSoft);
-  }
-  if (normalized.contains('task')) {
-    return const _ColorPalette(accent: _kTasksOrange, soft: _kTasksOrangeSoft);
-  }
-  if (normalized.contains('notification')) {
-    return const _ColorPalette(accent: _kNotificationsSlate, soft: _kNotificationsSlateSoft);
-  }
-  if (normalized.contains('service')) {
-    return const _ColorPalette(accent: _kServicesRose, soft: _kServicesRoseSoft);
-  }
-  if (normalized.contains('tax') || normalized.contains('gst') || normalized.contains('calculator') || normalized.contains('ntn')) {
-    return const _ColorPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
-  }
+_ColorPalette _paletteForAction(MobileQuickAction action) {
+  final key = '${action.iconKey} ${action.title}'.toLowerCase();
+  if (key.contains('payment') || key.contains('receipt')) return const _ColorPalette(accent: _kPaymentsGreen, soft: _kPaymentsGreenSoft);
+  if (key.contains('document')) return const _ColorPalette(accent: _kDocumentsIndigo, soft: _kDocumentsIndigoSoft);
+  if (key.contains('track') || key.contains('review')) return const _ColorPalette(accent: _kTrackTeal, soft: _kTrackTealSoft);
+  if (key.contains('lead')) return const _ColorPalette(accent: _kLeadsPurple, soft: _kLeadsPurpleSoft);
+  if (key.contains('task')) return const _ColorPalette(accent: _kTasksOrange, soft: _kTasksOrangeSoft);
+  if (key.contains('notification')) return const _ColorPalette(accent: _kNotificationsSlate, soft: _kNotificationsSlateSoft);
+  if (key.contains('service')) return const _ColorPalette(accent: _kServicesRose, soft: _kServicesRoseSoft);
+  if (key.contains('tax') || key.contains('gst') || key.contains('calculator') || key.contains('ntn')) return const _ColorPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
   return const _ColorPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
 }
 
@@ -1528,9 +989,7 @@ Color _progressEndColor(double progress) {
 
 Color _progressColor(double progress, String status) {
   final normalized = status.trim().toLowerCase();
-  if (normalized.contains('rejected') || normalized.contains('cancelled') || normalized.contains('blocked')) {
-    return const Color(0xFFDC2626);
-  }
+  if (normalized.contains('rejected') || normalized.contains('cancelled') || normalized.contains('blocked')) return const Color(0xFFDC2626);
   if (normalized.contains('completed')) return const Color(0xFF16A34A);
   if (progress <= 0.35) return const Color(0xFF8B5A2B);
   if (progress <= 0.7) return const Color(0xFFF59E0B);
@@ -1539,27 +998,13 @@ Color _progressColor(double progress, String status) {
 
 String _inferFamily(String text) {
   final normalized = text.toLowerCase();
-  if (normalized.contains('payment') || normalized.contains('receipt') || normalized.contains('invoice') || normalized.contains('bill')) {
-    return 'Payments';
-  }
-  if (normalized.contains('document') || normalized.contains('doc ') || normalized.contains('docs') || normalized.contains('uploaded')) {
-    return 'Documents';
-  }
-  if (normalized.contains('track') || normalized.contains('review') || normalized.contains('progress') || normalized.contains('status')) {
-    return 'Track';
-  }
-  if (normalized.contains('lead')) {
-    return 'Leads';
-  }
-  if (normalized.contains('task') || normalized.contains('todo') || normalized.contains('action needed')) {
-    return 'Tasks';
-  }
-  if (normalized.contains('notification') || normalized.contains('alert') || normalized.contains('message')) {
-    return 'Notifications';
-  }
-  if (normalized.contains('tax') || normalized.contains('gst') || normalized.contains('ntn') || normalized.contains('calculator')) {
-    return 'Tax';
-  }
+  if (normalized.contains('payment') || normalized.contains('receipt') || normalized.contains('invoice') || normalized.contains('bill')) return 'Payments';
+  if (normalized.contains('document') || normalized.contains('doc ') || normalized.contains('docs') || normalized.contains('uploaded')) return 'Documents';
+  if (normalized.contains('track') || normalized.contains('review') || normalized.contains('progress') || normalized.contains('status')) return 'Track';
+  if (normalized.contains('lead')) return 'Leads';
+  if (normalized.contains('task') || normalized.contains('todo') || normalized.contains('action needed')) return 'Tasks';
+  if (normalized.contains('notification') || normalized.contains('alert') || normalized.contains('message')) return 'Notifications';
+  if (normalized.contains('tax') || normalized.contains('gst') || normalized.contains('ntn') || normalized.contains('calculator')) return 'Tax';
   return 'Services';
 }
 
@@ -1585,8 +1030,15 @@ IconData _iconForActionKey(String key) {
   };
 }
 
-Color _activityDotColor(HomeDashboardActivity activity) =>
-    _activityTone(activity.status, _paletteForFamily(activity.colorFamily ?? _inferFamily('${activity.title} ${activity.subtitle}')).accent);
+IconData _activityIcon(String? status) {
+  final normalized = (status ?? '').trim().toLowerCase();
+  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return Icons.check_circle_rounded;
+  if (normalized.contains('review')) return Icons.visibility_rounded;
+  if (normalized.contains('required') || normalized.contains('information')) return Icons.priority_high_rounded;
+  if (normalized.contains('pending')) return Icons.hourglass_top_rounded;
+  if (normalized.contains('rejected') || normalized.contains('blocked')) return Icons.block_rounded;
+  return Icons.circle_rounded;
+}
 
 IconData _statusIcon(String status) {
   final normalized = status.trim().toLowerCase();
