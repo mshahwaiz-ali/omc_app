@@ -94,15 +94,15 @@ enum _InternalCaseFilter {
 
     switch (this) {
       case _InternalCaseFilter.active:
-        return !state.isDone && !state.isCancelled;
+        return !state.isClosed && !state.isCancelled;
       case _InternalCaseFilter.open:
-        return !state.isDone && !state.isCancelled && state.isOpen;
+        return !state.isClosed && !state.isCancelled && state.isOpen;
       case _InternalCaseFilter.inReview:
-        return !state.isDone && !state.isCancelled && state.isInReview;
+        return !state.isClosed && !state.isCancelled && state.isInReview;
       case _InternalCaseFilter.inProgress:
-        return !state.isDone && !state.isCancelled && state.isInProgress;
+        return !state.isClosed && !state.isCancelled && state.isInProgress;
       case _InternalCaseFilter.closed:
-        return state.isDone;
+        return state.isClosed;
       case _InternalCaseFilter.cancelled:
         return state.isCancelled;
       case _InternalCaseFilter.all:
@@ -381,7 +381,7 @@ class _InternalServiceCaseCard extends StatelessWidget {
 class _StatusIcon extends StatelessWidget {
   const _StatusIcon({required this.palette});
 
-  final _StatusPalette palette;
+  final _Palette palette;
 
   @override
   Widget build(BuildContext context) {
@@ -718,10 +718,10 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
   final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
 
   final isCancelled = _isCancelled(serviceCase);
-  final isDone = _isDone(serviceCase);
+  final isClosed = _isDone(serviceCase);
 
   final needsAction = !isCancelled &&
-      !isDone &&
+      !isClosed &&
       (serviceCase.customerActionRequired ||
           serviceCase.missingDocuments.isNotEmpty ||
           (serviceCase.missingDocumentsCount ?? 0) > 0 ||
@@ -736,13 +736,13 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
           nextStep.contains('pay') ||
           nextStep.contains('submit'));
 
-  final isInReview = !isCancelled && !isDone && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
-  final isInProgress = !isCancelled && !isDone && !needsAction && !isInReview && (status.contains('progress') || status.contains('working'));
-  final isOpen = !isCancelled && !isDone && !needsAction && !isInReview && !isInProgress;
+  final isInReview = !isCancelled && !isClosed && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
+  final isInProgress = !isCancelled && !isClosed && !needsAction && !isInReview && (status.contains('progress') || status.contains('working'));
+  final isOpen = !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
 
   return _ServiceCaseState(
     isCancelled: isCancelled,
-    isClosed: isDone,
+    isClosed: isClosed,
     needsAction: needsAction,
     isInReview: isInReview,
     isInProgress: isInProgress,
@@ -801,7 +801,7 @@ _Palette _paletteFor(_ServiceCaseState state) {
 
 Color _filterColor(_InternalCaseFilter filter) {
   switch (filter) {
-    case _InternalCaseFilter.all:
+    case _InternalCaseFilter.active:
       return AppTheme.primaryRed;
     case _InternalCaseFilter.open:
       return const Color(0xFF2563EB);
@@ -813,5 +813,7 @@ Color _filterColor(_InternalCaseFilter filter) {
       return const Color(0xFF16A34A);
     case _InternalCaseFilter.cancelled:
       return const Color(0xFFEF4444);
+    case _InternalCaseFilter.all:
+      return AppTheme.primaryRed;
   }
 }
