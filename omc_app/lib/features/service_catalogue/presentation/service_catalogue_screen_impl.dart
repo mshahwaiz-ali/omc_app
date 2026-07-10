@@ -1215,6 +1215,21 @@ _ServiceStatus serviceStatusForIndex(int index) {
   return _ServiceStatus.open;
 }
 
+_ServiceStatus _statusFromLabel(String label) {
+  switch (label.toLowerCase()) {
+    case 'open':
+      return _ServiceStatus.open;
+    case 'under review':
+      return _ServiceStatus.underReview;
+    case 'action needed':
+      return _ServiceStatus.actionNeeded;
+    case 'completed':
+      return _ServiceStatus.completed;
+    default:
+      return _ServiceStatus.open;
+  }
+}
+
 String serviceCatalogueStatusLabelFor(_ServiceStatus status) {
   switch (status) {
     case _ServiceStatus.open:
