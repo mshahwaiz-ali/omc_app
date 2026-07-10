@@ -429,12 +429,15 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
   }
 
   List<ServiceItem> _filterServices(List<ServiceItem> services) {
-    return services.where((service) {
+    return services.asMap().entries.where((entry) {
+      final index = entry.key;
+      final service = entry.value;
+
       if (_selectedCategory != _allCategory && service.category.trim() != _selectedCategory) {
         return false;
       }
 
-      final status = serviceStatusForIndex(services.indexOf(service));
+      final status = serviceStatusForIndex(index);
       if (_selectedStatus != _allStatus && serviceCatalogueStatusLabelFor(status) != _selectedStatus) {
         return false;
       }
@@ -454,7 +457,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
       ].join(' ').toLowerCase();
 
       return haystack.contains(_query);
-    }).toList(growable: false);
+    }).map((entry) => entry.value).toList(growable: false);
   }
 
   Map<_ServiceStatus, int> _buildStatusCounts(List<ServiceItem> services) {
@@ -552,11 +555,7 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        _HeaderActionButton(
-          icon: Icons.notifications_none_rounded,
-          badgeCount: unreadCount,
-          onTap: onNotificationsTap,
-        ),
+        _HeaderActionButton(icon: Icons.notifications_none_rounded, badgeCount: unreadCount, onTap: onNotificationsTap),
         const SizedBox(width: 10),
         _ProfileAvatar(name: displayName, onTap: onProfileTap),
       ],
