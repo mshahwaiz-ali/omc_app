@@ -122,8 +122,9 @@ class HomeScreen extends ConsumerWidget {
                     onOpenServices?.call();
                   },
                   onSecondary: () {
-                    if (onOpenCalculator != null) {
-                      onOpenCalculator!();
+                    final callback = onOpenCalculator;
+                    if (callback != null) {
+                      callback();
                       return;
                     }
                     context.push('/tax-calculator');
@@ -138,7 +139,11 @@ class HomeScreen extends ConsumerWidget {
                     onTap: (banner) => _handleBannerTap(context, banner),
                   ),
                 ),
-              _SectionHeader(title: 'Quick actions', actionText: 'View all', onAction: () => context.go('/more')),
+              _SectionHeader(
+                title: 'Quick actions',
+                actionText: 'View all',
+                onAction: () => context.go('/more'),
+              ),
               _SliverBlock(
                 child: _QuickActionsRail(
                   actions: actions,
@@ -317,24 +322,27 @@ class HomeScreen extends ConsumerWidget {
       case MobileQuickActionTargetType.feature:
         final key = action.targetValue.trim().toLowerCase();
         if (key == 'calculator') {
-          if (onOpenCalculator != null) {
-            onOpenCalculator!();
+          final callback = onOpenCalculator;
+          if (callback != null) {
+            callback();
           } else {
             context.push('/tax-calculator');
           }
           return;
         }
         if (key == 'services') {
-          if (onOpenServices != null) {
-            onOpenServices!();
+          final callback = onOpenServices;
+          if (callback != null) {
+            callback();
           } else {
             context.go('/services');
           }
           return;
         }
         if (key == 'support') {
-          if (onOpenSupport != null) {
-            onOpenSupport!();
+          final callback = onOpenSupport;
+          if (callback != null) {
+            callback();
           } else {
             context.go('/support');
           }
@@ -343,8 +351,9 @@ class HomeScreen extends ConsumerWidget {
         context.go('/services');
         return;
       case MobileQuickActionTargetType.service:
-        if (onOpenServices != null) {
-          onOpenServices!();
+        final callback = onOpenServices;
+        if (callback != null) {
+          callback();
         } else {
           context.go('/services');
         }
@@ -665,7 +674,7 @@ class _AvatarBubble extends StatelessWidget {
             ? Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _AvatarFallback(text: fallbackText),
+                errorBuilder: (context, error, stackTrace) => _AvatarFallback(text: fallbackText),
               )
             : _AvatarFallback(text: fallbackText),
       ),
@@ -1153,7 +1162,7 @@ class _QuickActionsRail extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: EdgeInsets.zero,
         itemCount: actions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final action = actions[index];
           final tint = _tintForAction(action);
