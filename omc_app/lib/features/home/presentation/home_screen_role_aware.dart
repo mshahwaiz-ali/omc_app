@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
@@ -50,7 +51,7 @@ class HomeScreen extends ConsumerWidget {
     final quickActionsAsync = ref.watch(mobileQuickActionsProvider);
 
     final mode = _HomeMode.fromCapabilities(capabilities);
-    final dashboardAsync = mode == _HomeMode.internal || mode == _HomeMode.customer
+    final dashboardAsync = mode.isInternal || mode.isCustomer
         ? ref.watch(homeDashboardSummaryProvider)
         : const AsyncValue<HomeDashboardSummary>.data(HomeDashboardSummary.empty());
 
@@ -61,13 +62,12 @@ class HomeScreen extends ConsumerWidget {
     final profile = profileAsync.maybeWhen(data: (value) => value, orElse: () => null);
     final displayName = profile?.displayName ?? authState.displayName ?? _displayNameFromUserId(authState.userId);
     final avatarUrl = _resolveAvatarUrl(profile?.avatarUrl);
-    final showBanner = mode != _HomeMode.internal;
 
-    final quickActions = mode == _HomeMode.internal
+    final quickActions = mode.isInternal
         ? _internalQuickActions(
             quickActionsAsync.maybeWhen(data: (value) => value, orElse: () => const []),
           )
-        : _customerQuickActions(mode);
+        : _customerQuickActions();
 
     return Scaffold(
       body: Stack(
@@ -98,23 +98,21 @@ class HomeScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverToBoxAdapter(child: _SearchBar(onTap: () => context.push('/services'))),
-                  ),
-                  if (showBanner)
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                      sliver: SliverToBoxAdapter(
-                        child: _BannerCard(mode: mode, onPrimary: () => _bannerAction(context, capabilities, mode)),
-                      ),
+                    sliver: SliverToBoxAdapter(
+                      child: _SearchBar(onTap: () => context.push('/services')),
                     ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverToBoxAdapter(
+                      child: _BannerCard(mode: mode, onPrimary: () => _bannerAction(context, capabilities, mode)),
+                    ),
+                  ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
                     sliver: SliverToBoxAdapter(
-                      child: _SectionTitle(
-                        title: 'Quick Actions',
-                        actionLabel: 'View all',
-                        onTap: () => context.go('/more'),
-                      ),
+                      child: _SectionTitle(title: 'Quick Actions', actionLabel: 'View all', onTap: () => context.go('/more')),
                     ),
                   ),
                   SliverPadding(
@@ -139,27 +137,18 @@ class HomeScreen extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(16, 22, 16, 8),
                     sliver: SliverToBoxAdapter(
                       child: _SectionTitle(
-                        title: mode == _HomeMode.internal ? 'Operations Summary' : 'Today\'s Summary',
-                        actionLabel: mode == _HomeMode.internal ? 'Open queue' : 'View all',
-                        onTap: mode == _HomeMode.internal
-                            ? () => context.go('/internal-workspace')
-                            : summary.serviceSnapshots.isEmpty
-                                ? null
-                                : () => _goAllowed(
-                                    context: context,
-                                    route: '/my-services',
-                                    capabilities: capabilities,
-                                    requiredCapability: 'can_track_requests',
-                                  ),
+                        title: mode.isInternal ? 'Operations Summary' : 'Today\'s Summary',
+                        actionLabel: mode.isInternal ? 'Open queue' : 'View all',
+                        onTap: mode.isInternal ? () => context.go('/internal-workspace') : null,
                       ),
                     ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverToBoxAdapter(
-                      child: mode == _HomeMode.internal
+                      child: mode.isInternal
                           ? _InternalSummaryGrid(summary: summary)
-                          : _CustomerSummaryGrid(summary: summary, locked: mode != _HomeMode.customer),
+                          : _CustomerSummaryGrid(summary: summary, guestMode: mode.isGuest),
                     ),
                   ),
                   SliverPadding(
@@ -172,39 +161,23 @@ class HomeScreen extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(16, 22, 16, 8),
                     sliver: SliverToBoxAdapter(
                       child: _SectionTitle(
-                        title: mode == _HomeMode.internal ? 'Review Queue' : 'Your Services in Progress',
-                        actionLabel: mode == _HomeMode.internal ? 'Workspace' : 'View all',
-                        onTap: mode == _HomeMode.internal
-                            ? () => context.go('/internal-workspace')
-                            : summary.serviceSnapshots.isEmpty
-                                ? null
-                                : () => _goAllowed(
-                                    context: context,
-                                    route: '/my-services',
-                                    capabilities: capabilities,
-                                    requiredCapability: 'can_track_requests',
-                                  ),
+                        title: mode.isInternal ? 'Review Queue' : 'Your Services in Progress',
+                        actionLabel: mode.isInternal ? 'Workspace' : 'View all',
+                        onTap: mode.isInternal ? () => context.go('/internal-workspace') : () => _goAllowed(context, '/my-services', capabilities, 'can_track_requests'),
                       ),
                     ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverToBoxAdapter(
-                      child: mode == _HomeMode.internal
-                          ? _InternalServicePanel(
-                              summary: summary,
-                              onOpenCase: (caseId) => context.push('/internal-workspace/service-cases/$caseId'),
+                      child: mode.isInternal
+                          ? _ServiceList(
+                              items: summary.serviceSnapshots,
+                              onTap: (id) => context.push('/internal-workspace/service-cases/$id'),
                             )
-                          : _CustomerServicePanel(
-                              mode: mode,
-                              summary: summary,
-                              onOpen: (serviceId) => _goAllowed(
-                                context: context,
-                                route: '/my-services/${Uri.encodeComponent(serviceId)}',
-                                capabilities: capabilities,
-                                requiredCapability: 'can_track_requests',
-                              ),
-                              onBrowse: onOpenServices,
+                          : _ServiceList(
+                              items: summary.serviceSnapshots,
+                              onTap: (id) => _goAllowed(context, '/my-services/${Uri.encodeComponent(id)}', capabilities, 'can_track_requests'),
                             ),
                     ),
                   ),
@@ -213,35 +186,15 @@ class HomeScreen extends ConsumerWidget {
                     sliver: SliverToBoxAdapter(
                       child: _SectionTitle(
                         title: 'Recent Activity',
-                        actionLabel: mode == _HomeMode.internal ? 'Open queue' : 'Track',
-                        onTap: mode == _HomeMode.internal
-                            ? () => context.go('/internal-workspace')
-                            : () => _goAllowed(
-                                context: context,
-                                route: '/my-services',
-                                capabilities: capabilities,
-                                requiredCapability: 'can_track_requests',
-                              ),
+                        actionLabel: mode.isInternal ? 'Open queue' : 'Track',
+                        onTap: mode.isInternal ? () => context.go('/internal-workspace') : () => _goAllowed(context, '/my-services', capabilities, 'can_track_requests'),
                       ),
                     ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
                     sliver: SliverToBoxAdapter(
-                      child: mode == _HomeMode.internal
-                          ? _ActivityPanel(
-                              activities: summary.recentActivity.take(5).toList(growable: false),
-                              onTrack: () => context.go('/internal-workspace'),
-                            )
-                          : _ActivityPanel(
-                              activities: summary.recentActivity.take(5).toList(growable: false),
-                              onTrack: () => _goAllowed(
-                                context: context,
-                                route: '/my-services',
-                                capabilities: capabilities,
-                                requiredCapability: 'can_track_requests',
-                              ),
-                            ),
+                      child: _ActivityList(activities: summary.recentActivity.take(5).toList(growable: false)),
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -256,117 +209,24 @@ class HomeScreen extends ConsumerWidget {
 
   List<MobileQuickAction> _internalQuickActions(List<MobileQuickAction> backendActions) {
     final fallback = <MobileQuickAction>[
-      const MobileQuickAction(
-        id: 'internal-docs',
-        title: 'Review Docs',
-        subtitle: 'Queue',
-        iconKey: 'documents',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/internal-workspace/documents',
-        requiredCapability: 'can_review_documents',
-        sortOrder: 10,
-      ),
-      const MobileQuickAction(
-        id: 'internal-payments',
-        title: 'Review Payments',
-        subtitle: 'Queue',
-        iconKey: 'payments',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/internal-workspace/payments',
-        requiredCapability: 'can_review_payments',
-        sortOrder: 20,
-      ),
-      const MobileQuickAction(
-        id: 'internal-customers',
-        title: 'Customers',
-        subtitle: 'Workspace',
-        iconKey: 'dashboard',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/internal-workspace/customers',
-        requiredCapability: 'can_manage_customers',
-        sortOrder: 30,
-      ),
-      const MobileQuickAction(
-        id: 'internal-leads',
-        title: 'Leads',
-        subtitle: 'Pipeline',
-        iconKey: 'leads',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/leads',
-        requiredCapability: 'can_manage_leads',
-        sortOrder: 40,
-      ),
-      const MobileQuickAction(
-        id: 'internal-tasks',
-        title: 'Tasks',
-        subtitle: 'Today',
-        iconKey: 'tasks',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/tasks',
-        requiredCapability: 'can_manage_tasks',
-        sortOrder: 50,
-      ),
+      const MobileQuickAction(id: 'internal-docs', title: 'Review Docs', subtitle: 'Queue', iconKey: 'documents', targetType: MobileQuickActionTargetType.route, targetValue: '/internal-workspace/documents', requiredCapability: 'can_review_documents', sortOrder: 10),
+      const MobileQuickAction(id: 'internal-payments', title: 'Review Payments', subtitle: 'Queue', iconKey: 'payments', targetType: MobileQuickActionTargetType.route, targetValue: '/internal-workspace/payments', requiredCapability: 'can_review_payments', sortOrder: 20),
+      const MobileQuickAction(id: 'internal-customers', title: 'Customers', subtitle: 'Workspace', iconKey: 'dashboard', targetType: MobileQuickActionTargetType.route, targetValue: '/internal-workspace/customers', requiredCapability: 'can_manage_customers', sortOrder: 30),
+      const MobileQuickAction(id: 'internal-leads', title: 'Leads', subtitle: 'Pipeline', iconKey: 'leads', targetType: MobileQuickActionTargetType.route, targetValue: '/leads', requiredCapability: 'can_manage_leads', sortOrder: 40),
+      const MobileQuickAction(id: 'internal-tasks', title: 'Tasks', subtitle: 'Today', iconKey: 'tasks', targetType: MobileQuickActionTargetType.route, targetValue: '/tasks', requiredCapability: 'can_manage_tasks', sortOrder: 50),
     ];
-
-    final merged = <MobileQuickAction>[...backendActions, ...fallback];
-    merged.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final merged = <MobileQuickAction>[...backendActions, ...fallback]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return merged.take(5).toList(growable: false);
   }
 
-  List<MobileQuickAction> _customerQuickActions(_HomeMode mode) {
-    final list = <MobileQuickAction>[
-      const MobileQuickAction(
-        id: 'public-services',
-        title: 'Services',
-        subtitle: 'Browse',
-        iconKey: 'services',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/services',
-        sortOrder: 10,
-      ),
-      const MobileQuickAction(
-        id: 'customer-docs',
-        title: 'Documents',
-        subtitle: 'Upload',
-        iconKey: 'documents',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/documents',
-        requiredCapability: 'can_view_documents',
-        sortOrder: 20,
-      ),
-      const MobileQuickAction(
-        id: 'customer-payments',
-        title: 'Payments',
-        subtitle: 'Pay now',
-        iconKey: 'payments',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/payments',
-        requiredCapability: 'can_view_payments',
-        sortOrder: 30,
-      ),
-      const MobileQuickAction(
-        id: 'customer-track',
-        title: 'Track',
-        subtitle: 'Requests',
-        iconKey: 'track',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/my-services',
-        requiredCapability: 'can_track_requests',
-        sortOrder: 40,
-      ),
-      const MobileQuickAction(
-        id: 'tax-calculator',
-        title: 'Tax Calc',
-        subtitle: 'Estimate',
-        iconKey: 'calculator',
-        targetType: MobileQuickActionTargetType.feature,
-        targetValue: 'calculator',
-        requiredCapability: 'can_use_tax_calculator',
-        sortOrder: 50,
-      ),
+  List<MobileQuickAction> _customerQuickActions() {
+    return const [
+      MobileQuickAction(id: 'public-services', title: 'Services', subtitle: 'Browse', iconKey: 'services', targetType: MobileQuickActionTargetType.route, targetValue: '/services', sortOrder: 10),
+      MobileQuickAction(id: 'customer-docs', title: 'Documents', subtitle: 'Upload', iconKey: 'documents', targetType: MobileQuickActionTargetType.route, targetValue: '/documents', requiredCapability: 'can_view_documents', sortOrder: 20),
+      MobileQuickAction(id: 'customer-payments', title: 'Payments', subtitle: 'Pay now', iconKey: 'payments', targetType: MobileQuickActionTargetType.route, targetValue: '/payments', requiredCapability: 'can_view_payments', sortOrder: 30),
+      MobileQuickAction(id: 'customer-track', title: 'Track', subtitle: 'Requests', iconKey: 'track', targetType: MobileQuickActionTargetType.route, targetValue: '/my-services', requiredCapability: 'can_track_requests', sortOrder: 40),
+      MobileQuickAction(id: 'tax-calculator', title: 'Tax Calc', subtitle: 'Estimate', iconKey: 'calculator', targetType: MobileQuickActionTargetType.feature, targetValue: 'calculator', requiredCapability: 'can_use_tax_calculator', sortOrder: 50),
     ];
-
-    return list;
   }
 
   void _handleQuickAction(
@@ -377,9 +237,8 @@ class HomeScreen extends ConsumerWidget {
     VoidCallback? onOpenCalculator,
     VoidCallback? onOpenSupport,
   }) {
-    final allowed = _isActionAllowed(action, capabilities);
-    if (!allowed) {
-      _showAccessSnack(context, capabilities);
+    if (!_isActionAllowed(action, capabilities)) {
+      _showLockedSnack(context, capabilities);
       return;
     }
 
@@ -423,7 +282,8 @@ class HomeScreen extends ConsumerWidget {
         }
         return;
       case MobileQuickActionTargetType.externalUrl:
-        context.go('/services');
+        final uri = Uri.tryParse(action.targetValue);
+        if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
         return;
     }
   }
@@ -431,7 +291,6 @@ class HomeScreen extends ConsumerWidget {
   bool _isActionAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
     final required = action.requiredCapability?.trim();
     if (required == null || required.isEmpty) return true;
-
     return switch (required) {
       'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
       'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
@@ -449,10 +308,9 @@ class HomeScreen extends ConsumerWidget {
   void _openNotifications(BuildContext context, AuthCapabilities capabilities, VoidCallback? callback) {
     final allowed = capabilities.canViewCustomerNotifications || capabilities.isApproved || capabilities.isInternal || capabilities.canAccessInternalWorkspace || capabilities.isGuest;
     if (!allowed) {
-      _showAccessSnack(context, capabilities);
+      _showLockedSnack(context, capabilities);
       return;
     }
-
     if (callback != null) {
       callback();
     } else {
@@ -460,20 +318,15 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  void _goAllowed({
-    required BuildContext context,
-    required String route,
-    required AuthCapabilities capabilities,
-    required String requiredCapability,
-  }) {
-    if (!_isSimpleAllowed(requiredCapability, capabilities)) {
-      _showAccessSnack(context, capabilities);
+  void _goAllowed(BuildContext context, String route, AuthCapabilities capabilities, String capability) {
+    if (!_isAllowed(capability, capabilities)) {
+      _showLockedSnack(context, capabilities);
       return;
     }
     context.push(route);
   }
 
-  bool _isSimpleAllowed(String capability, AuthCapabilities capabilities) {
+  bool _isAllowed(String capability, AuthCapabilities capabilities) {
     return switch (capability) {
       'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
       'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
@@ -488,39 +341,28 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _ctaAction(BuildContext context, _HomeMode mode, AuthCapabilities capabilities) {
-    if (mode == _HomeMode.internal) {
+    if (mode.isInternal) {
       context.go('/internal-workspace');
-      return;
-    }
-
-    if (capabilities.isGuest) {
+    } else if (capabilities.isGuest) {
       context.push('/signup');
-      return;
+    } else {
+      context.push('/profile');
     }
-
-    context.push('/profile');
   }
 
   void _bannerAction(BuildContext context, AuthCapabilities capabilities, _HomeMode mode) {
-    if (mode == _HomeMode.internal) {
+    if (mode.isInternal) {
       context.go('/internal-workspace');
-      return;
-    }
-
-    if (capabilities.isGuest) {
+    } else if (capabilities.isGuest) {
       context.push('/signup');
-      return;
-    }
-
-    if (capabilities.isPending) {
+    } else if (capabilities.isPending) {
       context.go('/under-review');
-      return;
+    } else {
+      context.push('/profile');
     }
-
-    context.push('/profile');
   }
 
-  void _showAccessSnack(BuildContext context, AuthCapabilities capabilities) {
+  void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
     final message = capabilities.isGuest
         ? 'Some actions are locked for guests. Create an account to unlock them.'
         : capabilities.isPending
@@ -531,24 +373,13 @@ class HomeScreen extends ConsumerWidget {
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(message),
-        ),
-      );
+      ..showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, content: Text(message)));
   }
 
   String _displayNameFromUserId(String? userId) {
     if (userId == null || userId.trim().isEmpty) return 'there';
     final base = userId.contains('@') ? userId.split('@').first : userId;
-    return base
-        .replaceAll(RegExp(r'[._-]+'), ' ')
-        .trim()
-        .split(' ')
-        .where((part) => part.isNotEmpty)
-        .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
-        .join(' ');
+    return base.replaceAll(RegExp(r'[._-]+'), ' ').trim().split(' ').where((part) => part.isNotEmpty).map((part) => '${part[0].toUpperCase()}${part.substring(1)}').join(' ');
   }
 
   String? _resolveAvatarUrl(String? value) {
@@ -561,13 +392,10 @@ class HomeScreen extends ConsumerWidget {
 
 class _HomeMode {
   const _HomeMode._(this.value);
-
   final String value;
-
   static const internal = _HomeMode._('internal');
   static const customer = _HomeMode._('customer');
   static const guest = _HomeMode._('guest');
-
   bool get isInternal => identical(this, internal);
   bool get isCustomer => identical(this, customer);
   bool get isGuest => identical(this, guest);
@@ -584,28 +412,21 @@ class _Backdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFF9FBFE), Color(0xFFF5F7FC), Color(0xFFF8F9FC)],
-          ),
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFF9FBFE), Color(0xFFF5F7FC), Color(0xFFF8F9FC)],
         ),
       ),
+      child: SizedBox.expand(),
     );
   }
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.displayName,
-    required this.avatarUrl,
-    required this.unreadNotifications,
-    required this.onNotifications,
-  });
-
+  const _Header({required this.displayName, required this.avatarUrl, required this.unreadNotifications, required this.onNotifications});
   final String displayName;
   final String? avatarUrl;
   final int unreadNotifications;
@@ -615,25 +436,15 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final hour = DateTime.now().hour;
     final greeting = hour < 12 ? 'Good morning,' : hour < 17 ? 'Good afternoon,' : 'Good evening,';
-
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                greeting,
-                style: const TextStyle(fontSize: 13, height: 1.2, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
-              ),
+              Text(greeting, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textMuted)),
               const SizedBox(height: 3),
-              Text(
-                displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 26, height: 1.05, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.45),
-              ),
+              Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.45)),
             ],
           ),
         ),
@@ -648,7 +459,6 @@ class _Header extends StatelessWidget {
 
 class _HeaderIconButton extends StatelessWidget {
   const _HeaderIconButton({required this.unreadNotifications, required this.onTap});
-
   final int unreadNotifications;
   final VoidCallback onTap;
 
@@ -661,13 +471,8 @@ class _HeaderIconButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Stack(
-          clipBehavior: Clip.none,
           children: [
-            const SizedBox(
-              width: 46,
-              height: 46,
-              child: Icon(Icons.notifications_none_rounded, size: 22, color: AppTheme.textPrimary),
-            ),
+            const SizedBox(width: 46, height: 46, child: Icon(Icons.notifications_none_rounded, size: 22, color: AppTheme.textPrimary)),
             if (unreadNotifications > 0)
               Positioned(
                 right: 6,
@@ -675,10 +480,7 @@ class _HeaderIconButton extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(color: _servicesRose, borderRadius: BorderRadius.circular(999)),
-                  child: Text(
-                    unreadNotifications > 9 ? '9+' : unreadNotifications.toString(),
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
-                  ),
+                  child: Text(unreadNotifications > 9 ? '9+' : unreadNotifications.toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
                 ),
               ),
           ],
@@ -690,7 +492,6 @@ class _HeaderIconButton extends StatelessWidget {
 
 class _AvatarBadge extends StatelessWidget {
   const _AvatarBadge({required this.avatarUrl, required this.name});
-
   final String? avatarUrl;
   final String name;
 
@@ -700,28 +501,14 @@ class _AvatarBadge extends StatelessWidget {
     return Container(
       width: 46,
       height: 46,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 6))],
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 6))]),
       child: ClipOval(
         child: avatarUrl == null
-            ? Container(
-                color: const Color(0xFFF3F4F6),
-                alignment: Alignment.center,
-                child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
-              )
+            ? Container(color: const Color(0xFFF3F4F6), alignment: Alignment.center, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary)))
             : Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: const Color(0xFFF3F4F6),
-                    alignment: Alignment.center,
-                    child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
-                  );
-                },
+                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFF3F4F6), alignment: Alignment.center, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary))),
               ),
       ),
     );
@@ -737,7 +524,6 @@ class _AvatarBadge extends StatelessWidget {
 
 class _SearchBar extends StatelessWidget {
   const _SearchBar({required this.onTap});
-
   final VoidCallback onTap;
 
   @override
@@ -758,21 +544,11 @@ class _SearchBar extends StatelessWidget {
             boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))],
           ),
           child: Row(
-            children: [
-              const Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 22),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Search services, documents, invoices...',
-                  style: TextStyle(color: AppTheme.textMuted, fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-              ),
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(color: _neutralSoft, borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.tune_rounded, size: 18, color: AppTheme.textPrimary),
-              ),
+            children: const [
+              Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 22),
+              SizedBox(width: 12),
+              Expanded(child: Text('Search services, documents, invoices...', style: TextStyle(color: AppTheme.textMuted, fontSize: 14, fontWeight: FontWeight.w500))),
+              _FilterChip(),
             ],
           ),
         ),
@@ -781,67 +557,50 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
+class _FilterChip extends StatelessWidget {
+  const _FilterChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 34,
+      height: 34,
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: _neutralSoft, borderRadius: BorderRadius.circular(12)),
+        child: const Icon(Icons.tune_rounded, size: 18, color: AppTheme.textPrimary),
+      ),
+    );
+  }
+}
+
 class _BannerCard extends StatelessWidget {
   const _BannerCard({required this.mode, required this.onPrimary});
-
   final _HomeMode mode;
   final VoidCallback onPrimary;
 
   @override
   Widget build(BuildContext context) {
-    final tone = mode == _HomeMode.guest
-        ? _tasksOrange
-        : mode == _HomeMode.internal
-            ? _leadsPurple
-            : _taxBlue;
-    final title = mode == _HomeMode.guest
-        ? 'Guest access'
-        : mode == _HomeMode.internal
-            ? 'Internal workspace'
-            : 'Profile under review';
-    final message = mode == _HomeMode.guest
+    final tone = mode.isGuest ? _tasksOrange : mode.isInternal ? _leadsPurple : _taxBlue;
+    final title = mode.isGuest ? 'Guest access' : mode.isInternal ? 'Internal workspace' : 'Profile under review';
+    final message = mode.isGuest
         ? 'Browse public services now. Sign up to unlock tracking, documents, payments, and case history.'
-        : mode == _HomeMode.internal
+        : mode.isInternal
             ? 'Operations mode. Review documents, payments, leads, and tasks from one place.'
             : 'Your account is active. Complete your profile to unlock the full dashboard.';
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))]),
       child: Row(
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(color: tone.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(16)),
-            child: Icon(mode == _HomeMode.internal ? Icons.admin_panel_settings_rounded : Icons.verified_outlined, color: tone),
-          ),
+          Container(width: 46, height: 46, decoration: BoxDecoration(color: tone.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(16)), child: Icon(mode.isInternal ? Icons.admin_panel_settings_rounded : Icons.verified_outlined, color: tone)),
           const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-                const SizedBox(height: 4),
-                Text(message, style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondary, height: 1.35)),
-              ],
-            ),
-          ),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)), const SizedBox(height: 4), Text(message, style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondary, height: 1.35))])),
           const SizedBox(width: 10),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: tone,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              minimumSize: const Size(0, 0),
-            ),
+            style: FilledButton.styleFrom(backgroundColor: tone, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), minimumSize: const Size(0, 0)),
             onPressed: onPrimary,
-            child: Text(mode == _HomeMode.guest ? 'Sign up' : 'View Status'),
+            child: Text(mode.isGuest ? 'Sign up' : 'View Status'),
           ),
         ],
       ),
@@ -851,7 +610,6 @@ class _BannerCard extends StatelessWidget {
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.title, this.actionLabel, this.onTap});
-
   final String title;
   final String? actionLabel;
   final VoidCallback? onTap;
@@ -860,34 +618,16 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.2),
-          ),
-        ),
+        Expanded(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.2))),
         if (actionLabel != null)
-          TextButton(
-            onPressed: onTap,
-            style: TextButton.styleFrom(
-              foregroundColor: _taxBlue,
-              textStyle: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            child: Text(actionLabel!),
-          ),
+          TextButton(onPressed: onTap, style: TextButton.styleFrom(foregroundColor: _taxBlue, textStyle: const TextStyle(fontWeight: FontWeight.w800)), child: Text(actionLabel!)),
       ],
     );
   }
 }
 
 class _QuickActionsRow extends StatelessWidget {
-  const _QuickActionsRow({
-    required this.actions,
-    required this.capabilities,
-    required this.onTap,
-    required this.onMore,
-  });
-
+  const _QuickActionsRow({required this.actions, required this.capabilities, required this.onTap, required this.onMore});
   final List<MobileQuickAction> actions;
   final AuthCapabilities capabilities;
   final ValueChanged<MobileQuickAction> onTap;
@@ -896,7 +636,6 @@ class _QuickActionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible = actions.take(5).toList(growable: false);
-
     return SizedBox(
       height: 88,
       child: Row(
@@ -905,11 +644,7 @@ class _QuickActionsRow extends StatelessWidget {
             if (index > 0) const SizedBox(width: 10),
             Expanded(
               child: index < visible.length
-                  ? _ActionTile(
-                      action: visible[index],
-                      locked: !_isAllowed(visible[index], capabilities),
-                      onTap: () => onTap(visible[index]),
-                    )
+                  ? _ActionTile(action: visible[index], locked: !_isAllowed(visible[index], capabilities), onTap: () => onTap(visible[index]))
                   : const SizedBox.shrink(),
             ),
           ],
@@ -940,7 +675,6 @@ class _QuickActionsRow extends StatelessWidget {
 
 class _ActionTile extends StatelessWidget {
   const _ActionTile({required this.action, required this.locked, required this.onTap});
-
   final MobileQuickAction action;
   final bool locked;
   final VoidCallback onTap;
@@ -948,7 +682,6 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _paletteForAction(action);
-
     return Opacity(
       opacity: locked ? 0.62 : 1,
       child: Material(
@@ -963,32 +696,16 @@ class _ActionTile extends StatelessWidget {
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(color: palette.soft, borderRadius: BorderRadius.circular(12)),
-                      child: Icon(_iconForActionKey(action.iconKey), color: palette.accent, size: 18),
-                    ),
+                    Container(width: 34, height: 34, decoration: BoxDecoration(color: palette.soft, borderRadius: BorderRadius.circular(12)), child: Icon(_iconForActionKey(action.iconKey), color: palette.accent, size: 18)),
                     const SizedBox(height: 8),
-                    Text(
-                      action.title,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08),
-                    ),
+                    Text(action.title, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08)),
                   ],
                 ),
                 if (locked)
                   Positioned(
                     right: 0,
                     top: 0,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 4, offset: Offset(0, 2))]),
-                      child: const Icon(Icons.lock_rounded, size: 10, color: AppTheme.textMuted),
-                    ),
+                    child: Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 4, offset: Offset(0, 2))]), child: const Icon(Icons.lock_rounded, size: 10, color: AppTheme.textMuted)),
                   ),
               ],
             ),
@@ -1001,7 +718,6 @@ class _ActionTile extends StatelessWidget {
 
 class _MoreTile extends StatelessWidget {
   const _MoreTile({required this.onTap});
-
   final VoidCallback onTap;
 
   @override
@@ -1016,19 +732,9 @@ class _MoreTile extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 34,
-                height: 34,
-                child: Icon(Icons.more_horiz_rounded, size: 20, color: AppTheme.textPrimary),
-              ),
+              SizedBox(width: 34, height: 34, child: Icon(Icons.more_horiz_rounded, size: 20, color: AppTheme.textPrimary)),
               SizedBox(height: 8),
-              Flexible(
-                child: Text(
-                  'More',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08),
-                ),
-              ),
+              Text('More', textAlign: TextAlign.center, style: TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08)),
             ],
           ),
         ),
@@ -1039,201 +745,36 @@ class _MoreTile extends StatelessWidget {
 
 class _CTASection extends StatelessWidget {
   const _CTASection({required this.mode, required this.onOpen});
-
   final _HomeMode mode;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final title = mode == _HomeMode.guest
-        ? 'Create your account'
-        : mode == _HomeMode.internal
-            ? 'Open internal workspace'
-            : 'Complete your profile';
-    final subtitle = mode == _HomeMode.guest
+    final title = mode.isGuest ? 'Create your account' : mode.isInternal ? 'Open internal workspace' : 'Complete your profile';
+    final subtitle = mode.isGuest
         ? 'Unlock documents, tracking, receipts, and case history.'
-        : mode == _HomeMode.internal
+        : mode.isInternal
             ? 'Jump into leads, tasks, document review, and payments.'
             : 'Get full access to all features and sync your data across devices.';
-    final button = mode == _HomeMode.guest ? 'Sign up now' : mode == _HomeMode.internal ? 'Open workspace' : 'Complete now';
-    final iconColor = mode == _HomeMode.guest ? _taxBlue : mode == _HomeMode.internal ? _leadsPurple : _paymentsGreen;
+    final button = mode.isGuest ? 'Sign up now' : mode.isInternal ? 'Open workspace' : 'Complete now';
+    final iconColor = mode.isGuest ? _taxBlue : mode.isInternal ? _leadsPurple : _paymentsGreen;
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))]),
       child: Row(
         children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [iconColor.withValues(alpha: 0.14), iconColor.withValues(alpha: 0.06)],
-              ),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Icon(mode == _HomeMode.internal ? Icons.admin_panel_settings_rounded : Icons.verified_user_rounded, color: iconColor, size: 28),
-          ),
+          Container(width: 58, height: 58, decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [iconColor.withValues(alpha: 0.14), iconColor.withValues(alpha: 0.06)]), borderRadius: BorderRadius.circular(18)), child: Icon(mode.isInternal ? Icons.admin_panel_settings_rounded : Icons.verified_user_rounded, color: iconColor, size: 28)),
           const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
-                const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary)),
-                const SizedBox(height: 12),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: iconColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                    minimumSize: const Size(0, 0),
-                  ),
-                  onPressed: onOpen,
-                  child: Text(button),
-                ),
-              ],
-            ),
-          ),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)), const SizedBox(height: 4), Text(subtitle, style: const TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary)), const SizedBox(height: 12), FilledButton(style: FilledButton.styleFrom(backgroundColor: iconColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11), minimumSize: const Size(0, 0)), onPressed: onOpen, child: Text(button))])),
         ],
       ),
     );
   }
 }
 
-class _InternalSummaryGrid extends StatelessWidget {
-  const _InternalSummaryGrid({required this.summary});
-
-  final HomeDashboardSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final ops = summary.operationsSummary;
-    final items = [
-      _StatItem('Open Leads', ops.openLeads, Icons.campaign_outlined, _leadsPurple, _leadsPurpleSoft),
-      _StatItem('Customers', ops.activeCustomers, Icons.people_alt_outlined, _taxBlue, _taxBlueSoft),
-      _StatItem('Tasks', ops.pendingTasks, Icons.task_alt_rounded, _tasksOrange, _tasksOrangeSoft),
-      _StatItem('Payments', ops.pendingPayments, Icons.payments_outlined, _paymentsGreen, _paymentsGreenSoft),
-    ];
-
-    return _StatsGrid(items: items);
-  }
-}
-
-class _CustomerSummaryGrid extends StatelessWidget {
-  const _CustomerSummaryGrid({required this.summary, required this.locked});
-
-  final HomeDashboardSummary summary;
-  final bool locked;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      _StatItem('Active Services', summary.activeCases, Icons.work_outline_rounded, _servicesRose, _servicesRoseSoft),
-      _StatItem('Documents', summary.pendingDocuments, Icons.description_outlined, _documentsIndigo, _documentsIndigoSoft),
-      _StatItem('Payments', summary.paymentsDue, Icons.payments_outlined, _paymentsGreen, _paymentsGreenSoft),
-      _StatItem('Notifications', summary.unreadNotifications, Icons.notifications_none_rounded, _neutralSlate, _neutralSoft),
-    ];
-
-    if (locked && summary.activeCases == 0 && summary.pendingDocuments == 0 && summary.paymentsDue == 0 && summary.unreadNotifications == 0) {
-      return _GuestSummaryState();
-    }
-
-    return _StatsGrid(items: items);
-  }
-}
-
-class _GuestSummaryState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Guest dashboard is limited', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
-          const SizedBox(height: 6),
-          const Text('Create an account to unlock case tracking, documents, payments, and live activity.', style: TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary)),
-          const SizedBox(height: 14),
-          Row(
-            children: const [
-              Expanded(child: _MiniPlaceholder(label: 'Services')),
-              SizedBox(width: 10),
-              Expanded(child: _MiniPlaceholder(label: 'Documents')),
-              SizedBox(width: 10),
-              Expanded(child: _MiniPlaceholder(label: 'Payments')),
-              SizedBox(width: 10),
-              Expanded(child: _MiniPlaceholder(label: 'Track')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniPlaceholder extends StatelessWidget {
-  const _MiniPlaceholder({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _neutralSoft,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: [
-          Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.lock_rounded, size: 14, color: AppTheme.textMuted)),
-          const SizedBox(height: 8),
-          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.items});
-
-  final List<_StatItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      itemCount: items.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.34,
-      ),
-      itemBuilder: (context, index) => _StatCard(item: items[index]),
-    );
-  }
-}
-
-class _StatItem {
-  const _StatItem(this.label, this.value, this.icon, this.accent, this.soft);
+class _MetricItem {
+  const _MetricItem(this.label, this.value, this.icon, this.accent, this.soft);
   final String label;
   final int value;
   final IconData icon;
@@ -1241,39 +782,75 @@ class _StatItem {
   final Color soft;
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.item});
-  final _StatItem item;
+class _InternalSummaryGrid extends StatelessWidget {
+  const _InternalSummaryGrid({required this.summary});
+  final HomeDashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final ops = summary.operationsSummary;
+    return _StatsGrid(items: [
+      _MetricItem('Open Leads', ops.openLeads, Icons.campaign_outlined, _leadsPurple, _leadsPurpleSoft),
+      _MetricItem('Customers', ops.activeCustomers, Icons.people_alt_outlined, _taxBlue, _taxBlueSoft),
+      _MetricItem('Tasks', ops.pendingTasks, Icons.task_alt_rounded, _tasksOrange, _tasksOrangeSoft),
+      _MetricItem('Payments', ops.pendingPayments, Icons.payments_outlined, _paymentsGreen, _paymentsGreenSoft),
+    ]);
+  }
+}
+
+class _CustomerSummaryGrid extends StatelessWidget {
+  const _CustomerSummaryGrid({required this.summary, required this.guestMode});
+  final HomeDashboardSummary summary;
+  final bool guestMode;
+
+  @override
+  Widget build(BuildContext context) {
+    if (guestMode && summary.activeCases == 0 && summary.pendingDocuments == 0 && summary.paymentsDue == 0 && summary.unreadNotifications == 0) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
+        child: const Text('Guest dashboard is limited. Create an account to unlock case tracking, documents, payments, and live activity.', style: TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary)),
+      );
+    }
+
+    return _StatsGrid(items: [
+      _MetricItem('Active Services', summary.activeCases, Icons.work_outline_rounded, _servicesRose, _servicesRoseSoft),
+      _MetricItem('Documents', summary.pendingDocuments, Icons.description_outlined, _documentsIndigo, _documentsIndigoSoft),
+      _MetricItem('Payments', summary.paymentsDue, Icons.payments_outlined, _paymentsGreen, _paymentsGreenSoft),
+      _MetricItem('Notifications', summary.unreadNotifications, Icons.notifications_none_rounded, _neutralSlate, _neutralSoft),
+    ]);
+  }
+}
+
+class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({required this.items});
+  final List<_MetricItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      itemCount: items.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.34),
+      itemBuilder: (_, index) => _MetricCard(item: items[index]),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.item});
+  final _MetricItem item;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(color: item.soft, borderRadius: BorderRadius.circular(13)),
-                child: Icon(item.icon, color: item.accent, size: 19),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                decoration: BoxDecoration(color: item.accent.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(999)),
-                child: Text('Live', style: TextStyle(color: item.accent, fontSize: 9.8, fontWeight: FontWeight.w800)),
-              ),
-            ],
-          ),
+          Row(children: [Container(width: 34, height: 34, decoration: BoxDecoration(color: item.soft, borderRadius: BorderRadius.circular(13)), child: Icon(item.icon, color: item.accent, size: 19)), const Spacer(), Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4), decoration: BoxDecoration(color: item.accent.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(999)), child: Text('Live', style: TextStyle(color: item.accent, fontSize: 9.8, fontWeight: FontWeight.w800)))]),
           const Spacer(),
           Text(item.value.toString(), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.6)),
           const SizedBox(height: 2),
@@ -1294,128 +871,41 @@ class _TrendLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(
-        5,
-        (index) => Container(
-          width: 18 + (index.isEven ? 4 : 0),
-          height: 3,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.20 + (index * 0.08)), borderRadius: BorderRadius.circular(999)),
-        ),
-      ),
+      children: List.generate(5, (index) => Container(width: 18 + (index.isEven ? 4 : 0), height: 3, decoration: BoxDecoration(color: color.withValues(alpha: 0.20 + (index * 0.08)), borderRadius: BorderRadius.circular(999)))),
     );
   }
 }
 
-class _CustomerServicePanel extends StatelessWidget {
-  const _CustomerServicePanel({
-    required this.mode,
-    required this.summary,
-    required this.onOpen,
-    required this.onBrowse,
-  });
-
-  final _HomeMode mode;
-  final HomeDashboardSummary summary;
-  final ValueChanged<String> onOpen;
-  final VoidCallback? onBrowse;
+class _ServiceList extends StatelessWidget {
+  const _ServiceList({required this.items, required this.onTap});
+  final List<HomeDashboardServiceSnapshot> items;
+  final ValueChanged<String> onTap;
 
   @override
   Widget build(BuildContext context) {
-    if (summary.serviceSnapshots.isEmpty) {
+    if (items.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.border),
-          boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(color: _servicesRoseSoft, borderRadius: BorderRadius.circular(18)),
-              child: const Icon(Icons.inbox_outlined, color: _servicesRose, size: 28),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              mode == _HomeMode.guest ? 'No live case yet' : 'No active service yet',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              mode == _HomeMode.guest
-                  ? 'Browse services now. Create an account to start a tracked request.'
-                  : 'Browse the catalogue and start a clean flow instead of jumping through clutter.',
-              style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 14),
-            FilledButton(
-              onPressed: onBrowse,
-              child: const Text('Browse services'),
-            ),
-          ],
-        ),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
+        child: const Text('No active service yet.', style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
       );
     }
 
-    return Column(
-      children: [
-        for (var index = 0; index < summary.serviceSnapshots.take(3).length; index++) ...[
-          if (index > 0) const SizedBox(height: 12),
-          _ServiceCard(service: summary.serviceSnapshots[index], onTap: () => onOpen(summary.serviceSnapshots[index].id)),
-        ],
-      ],
-    );
-  }
-}
-
-class _InternalServicePanel extends StatelessWidget {
-  const _InternalServicePanel({required this.summary, required this.onOpenCase});
-
-  final HomeDashboardSummary summary;
-  final ValueChanged<String> onOpenCase;
-
-  @override
-  Widget build(BuildContext context) {
-    if (summary.serviceSnapshots.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.border),
-          boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-        ),
-        child: const Text('No internal service queue is visible right now.', style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
-      );
-    }
-
-    return Column(
-      children: [
-        for (var index = 0; index < summary.serviceSnapshots.take(3).length; index++) ...[
-          if (index > 0) const SizedBox(height: 12),
-          _ServiceCard(service: summary.serviceSnapshots[index], onTap: () => onOpenCase(summary.serviceSnapshots[index].id)),
-        ],
-      ],
-    );
+    return Column(children: [for (var i = 0; i < items.take(3).length; i++) ...[if (i > 0) const SizedBox(height: 12), _ServiceCard(service: items[i], onTap: () => onTap(items[i].id))]]);
   }
 }
 
 class _ServiceCard extends StatelessWidget {
   const _ServiceCard({required this.service, required this.onTap});
-
   final HomeDashboardServiceSnapshot service;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final family = _paletteForFamily(service.colorFamily ?? _inferFamily('${service.title} ${service.status}'));
-    final progressColor = _progressColor(service.progress, service.status);
-    final statusTone = _statusTone(service.status);
     final progress = (service.progress * 100).round().clamp(0, 100);
+    final statusTone = _statusTone(service.status);
+    final progressColor = _progressColor(service.progress, service.status);
     final subtitle = service.customerName.trim().isNotEmpty ? service.customerName : 'Ongoing case';
 
     return Material(
@@ -1425,47 +915,14 @@ class _ServiceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppTheme.border),
-            boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-          ),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
           child: Column(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(color: family.soft, borderRadius: BorderRadius.circular(14)),
-                    child: Icon(_statusIcon(service.status), color: family.accent, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(service.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
-                        const SizedBox(height: 2),
-                        Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _ActionPill(label: _statusLabel(service.status), color: statusTone),
-                ],
-              ),
+              Row(children: [Container(width: 40, height: 40, decoration: BoxDecoration(color: family.soft, borderRadius: BorderRadius.circular(14)), child: Icon(_statusIcon(service.status), color: family.accent, size: 20)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(service.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)), const SizedBox(height: 2), Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600))])), const SizedBox(width: 8), _ActionPill(label: _statusLabel(service.status), color: statusTone)]),
               const SizedBox(height: 14),
               _ProgressBar(progress: service.progress, color: progressColor),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text('$progress% complete', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textSecondary)),
-                  const Spacer(),
-                  Icon(Icons.chevron_right_rounded, color: family.accent),
-                ],
-              ),
+              Row(children: [Text('$progress% complete', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textSecondary)), const Spacer(), Icon(Icons.chevron_right_rounded, color: family.accent)]),
             ],
           ),
         ),
@@ -1476,7 +933,6 @@ class _ServiceCard extends StatelessWidget {
 
 class _ProgressBar extends StatelessWidget {
   const _ProgressBar({required this.progress, required this.color});
-
   final double progress;
   final Color color;
 
@@ -1487,126 +943,63 @@ class _ProgressBar extends StatelessWidget {
       child: Container(
         height: 8,
         decoration: BoxDecoration(color: AppTheme.cardSoft, borderRadius: BorderRadius.circular(999)),
-        child: Stack(
-          children: [
-            FractionallySizedBox(
-              widthFactor: progress.clamp(0, 1),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [_progressStartColor(progress), _progressEndColor(progress)],
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: FractionallySizedBox(
+          widthFactor: progress.clamp(0, 1),
+          child: Container(
+            decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [_progressStartColor(progress), _progressEndColor(progress)])),
+          ),
         ),
       ),
     );
   }
 }
 
-class _ActivityPanel extends StatelessWidget {
-  const _ActivityPanel({required this.activities, required this.onTrack});
-
+class _ActivityList extends StatelessWidget {
+  const _ActivityList({required this.activities});
   final List<HomeDashboardActivity> activities;
-  final VoidCallback onTrack;
 
   @override
   Widget build(BuildContext context) {
     if (activities.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.border),
-          boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-        ),
-        child: const Text('Recent activity will appear here once services start moving.', style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
+        child: const Text('Recent activity will appear here.', style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
       );
     }
 
     return Container(
       padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
       child: Column(
         children: [
-          for (var index = 0; index < activities.length; index++) ...[
-            if (index > 0) const Divider(height: 1, thickness: 1, color: AppTheme.border),
-            _ActivityRow(activity: activities[index]),
-          ],
-          const Divider(height: 1, thickness: 1, color: AppTheme.border),
-          InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: onTrack,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Icon(Icons.timeline_rounded, color: _taxBlue, size: 18),
-                  SizedBox(width: 10),
-                  Expanded(child: Text('Open full tracking view', style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.textPrimary))),
-                  Icon(Icons.chevron_right_rounded, color: _taxBlue),
-                ],
-              ),
-            ),
-          ),
+          for (var i = 0; i < activities.length; i++) ...[if (i > 0) const Divider(height: 1, thickness: 1, color: AppTheme.border), _ActivityItem(activity: activities[i])],
         ],
       ),
     );
   }
 }
 
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.activity});
-
+class _ActivityItem extends StatelessWidget {
+  const _ActivityItem({required this.activity});
   final HomeDashboardActivity activity;
 
   @override
   Widget build(BuildContext context) {
     final family = _paletteForFamily(activity.colorFamily ?? _inferFamily('${activity.title} ${activity.status ?? ''} ${activity.subtitle}'));
-    final rightDot = _activityTone(activity.status, family.accent);
+    final dot = _activityTone(activity.status, family.accent);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(color: family.soft, borderRadius: BorderRadius.circular(14)),
-            child: Icon(_activityIcon(activity.status), color: family.accent, size: 18),
-          ),
+          Container(width: 38, height: 38, decoration: BoxDecoration(color: family.soft, borderRadius: BorderRadius.circular(14)), child: Icon(_activityIcon(activity.status), color: family.accent, size: 18)),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(activity.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-                const SizedBox(height: 4),
-                Text(activity.subtitle, style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
-                if ((activity.createdAtLabel ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(activity.createdAtLabel!, style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
-                ],
-              ],
-            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(activity.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)), const SizedBox(height: 4), Text(activity.subtitle, style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)), if ((activity.createdAtLabel ?? '').trim().isNotEmpty) ...[const SizedBox(height: 6), Text(activity.createdAtLabel!, style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted, fontWeight: FontWeight.w600))]]),
           ),
           const SizedBox(width: 8),
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(color: rightDot, shape: BoxShape.circle),
-          ),
+          Container(width: 10, height: 10, margin: const EdgeInsets.only(top: 4), decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
         ],
       ),
     );
@@ -1620,11 +1013,7 @@ class _ActionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w800)),
-    );
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(999)), child: Text(label, style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w800)));
   }
 }
 
@@ -1632,6 +1021,19 @@ class _ColorPalette {
   const _ColorPalette({required this.accent, required this.soft});
   final Color accent;
   final Color soft;
+}
+
+_ColorPalette _paletteForAction(MobileQuickAction action) {
+  final key = '${action.iconKey} ${action.title}'.toLowerCase();
+  if (key.contains('payment') || key.contains('receipt')) return const _ColorPalette(accent: _paymentsGreen, soft: _paymentsGreenSoft);
+  if (key.contains('document')) return const _ColorPalette(accent: _documentsIndigo, soft: _documentsIndigoSoft);
+  if (key.contains('track') || key.contains('review')) return const _ColorPalette(accent: _trackTeal, soft: _trackTealSoft);
+  if (key.contains('lead')) return const _ColorPalette(accent: _leadsPurple, soft: _leadsPurpleSoft);
+  if (key.contains('task')) return const _ColorPalette(accent: _tasksOrange, soft: _tasksOrangeSoft);
+  if (key.contains('notification')) return const _ColorPalette(accent: _neutralSlate, soft: _neutralSoft);
+  if (key.contains('service')) return const _ColorPalette(accent: _servicesRose, soft: _servicesRoseSoft);
+  if (key.contains('tax') || key.contains('gst') || key.contains('calculator') || key.contains('ntn')) return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
+  return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
 }
 
 _ColorPalette _paletteForFamily(String? family) {
