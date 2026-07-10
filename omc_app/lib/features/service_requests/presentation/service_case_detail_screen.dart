@@ -1398,7 +1398,7 @@ class _ActivityRow extends StatelessWidget {
       return Icons.receipt_long_outlined;
     }
     if (normalized.contains('message') || normalized.contains('comment')) {
-      return Icons.chat_bubble_outline_rounded;
+      return Icons.support_agent_rounded;
     }
     if (normalized.contains('created') || normalized.contains('received')) {
       return Icons.flag_outlined;
@@ -2037,7 +2037,7 @@ class _CaseActionsCard extends StatelessWidget {
           ],
           OutlinedButton.icon(
             onPressed: () => SupportLauncher.openWhatsApp(context),
-            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            icon: const Icon(Icons.support_agent_rounded),
             label: const Text('Ask OMC support'),
           ),
         ],
@@ -2134,7 +2134,7 @@ class _SupportCard extends StatelessWidget {
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () => SupportLauncher.openWhatsApp(context),
-            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            icon: const Icon(Icons.support_agent_rounded),
             label: const Text('Ask support'),
           ),
         ],

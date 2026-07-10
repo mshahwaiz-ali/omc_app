@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../profile/data/profile_repository.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
 
@@ -35,8 +38,15 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
   Widget build(BuildContext context) {
     final casesAsync = ref.watch(serviceCasesProvider);
     final authState = ref.watch(authControllerProvider);
+    final profile = ref
+        .watch(profileSummaryProvider)
+        .maybeWhen(data: (profile) => profile, orElse: () => null);
     final capabilities = authState.capabilities;
-    final displayName = authState.displayName ?? _displayNameFromUserId(authState.userId ?? '');
+    final displayName =
+        profile?.displayName ??
+        authState.displayName ??
+        _displayNameFromUserId(authState.userId ?? '');
+    final avatarUrl = profile?.avatarUrl ?? authState.avatarUrl;
 
     return Scaffold(
       body: SafeArea(
@@ -57,16 +67,21 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             final sorted = _applySort(filtered);
             final counts = _Counts.fromCases(cases);
             final banner = _BannerData.from(capabilities, counts);
-            final activityCases = _applySort(cases).take(3).toList(growable: false);
+            final activityCases = _applySort(
+              cases,
+            ).take(3).toList(growable: false);
 
             return RefreshIndicator(
               onRefresh: () async => ref.invalidate(serviceCasesProvider),
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
                 children: [
                   _Header(
                     displayName: displayName,
+                    avatarUrl: avatarUrl,
                     actionNeededCount: counts.actionNeeded,
                     onNewService: () => context.go('/services'),
                   ),
@@ -74,7 +89,8 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                   _SearchAndFilterRow(
                     controller: _searchController,
                     query: _query,
-                    onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                    onChanged: (value) =>
+                        setState(() => _query = value.trim().toLowerCase()),
                     onFilterTap: () => _openFilterSheet(context, counts),
                   ),
                   const SizedBox(height: 16),
@@ -86,7 +102,8 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                   _FilterRow(
                     cases: cases,
                     selectedFilter: _selectedFilter,
-                    onSelected: (filter) => setState(() => _selectedFilter = filter),
+                    onSelected: (filter) =>
+                        setState(() => _selectedFilter = filter),
                   ),
                   const SizedBox(height: 18),
                   _SectionHeader(
@@ -96,7 +113,10 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                   ),
                   const SizedBox(height: 10),
                   if (sorted.isEmpty)
-                    _FilterEmptyState(filter: _selectedFilter, onClear: _resetFilters)
+                    _FilterEmptyState(
+                      filter: _selectedFilter,
+                      onClear: _resetFilters,
+                    )
                   else
                     for (var i = 0; i < sorted.length; i++) ...[
                       _ServiceCard(serviceCase: sorted[i]),
@@ -120,26 +140,28 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
   }
 
   List<ServiceCase> _applyFilters(List<ServiceCase> cases) {
-    return cases.where((serviceCase) {
-      if (!_selectedFilter.matches(serviceCase)) return false;
-      if (_query.isEmpty) return true;
+    return cases
+        .where((serviceCase) {
+          if (!_selectedFilter.matches(serviceCase)) return false;
+          if (_query.isEmpty) return true;
 
-      final searchable = <String>[
-        serviceCase.title,
-        serviceCase.category,
-        serviceCase.status,
-        serviceCase.reference ?? '',
-        serviceCase.createdAtLabel,
-        serviceCase.updatedAtLabel,
-        serviceCase.nextStep ?? '',
-        serviceCase.remarks ?? '',
-        serviceCase.documentSummaryLabel,
-        serviceCase.paymentSummaryLabel,
-        serviceCase.actionRequiredLabel,
-      ].join(' ').toLowerCase();
+          final searchable = <String>[
+            serviceCase.title,
+            serviceCase.category,
+            serviceCase.status,
+            serviceCase.reference ?? '',
+            serviceCase.createdAtLabel,
+            serviceCase.updatedAtLabel,
+            serviceCase.nextStep ?? '',
+            serviceCase.remarks ?? '',
+            serviceCase.documentSummaryLabel,
+            serviceCase.paymentSummaryLabel,
+            serviceCase.actionRequiredLabel,
+          ].join(' ').toLowerCase();
 
-      return searchable.contains(_query);
-    }).toList(growable: false);
+          return searchable.contains(_query);
+        })
+        .toList(growable: false);
   }
 
   List<ServiceCase> _applySort(List<ServiceCase> cases) {
@@ -152,7 +174,10 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
         sorted.sort((a, b) => b.progress.compareTo(a.progress));
         return sorted;
       case _SortOption.status:
-        sorted.sort((a, b) => _stateRank(_stateFor(b)).compareTo(_stateRank(_stateFor(a))));
+        sorted.sort(
+          (a, b) =>
+              _stateRank(_stateFor(b)).compareTo(_stateRank(_stateFor(a))),
+        );
         return sorted;
       case _SortOption.oldest:
         return sorted.reversed.toList(growable: false);
@@ -195,7 +220,10 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                       ),
                     ),
                     trailing: _sortOption == option
-                        ? const Icon(Icons.check_rounded, color: AppTheme.primaryRed)
+                        ? const Icon(
+                            Icons.check_rounded,
+                            color: OmcPremium.track,
+                          )
                         : null,
                     onTap: () {
                       setState(() => _sortOption = option);
@@ -255,7 +283,10 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                       ),
                     ),
                     trailing: _selectedFilter == filter
-                        ? const Icon(Icons.check_rounded, color: AppTheme.primaryRed)
+                        ? const Icon(
+                            Icons.check_rounded,
+                            color: OmcPremium.track,
+                          )
                         : null,
                     onTap: () {
                       setState(() => _selectedFilter = filter);
@@ -295,16 +326,28 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
     final status = serviceCase.status.trim().toLowerCase();
     final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
 
-    final isCancelled = status.contains('cancel') || status.contains('reject') || status.contains('declin') || status.contains('blocked');
-    final isClosed = !isCancelled && (status.contains('complete') || status.contains('closed') || status.contains('done') || status.contains('resolved'));
-    final needsAction = !isCancelled &&
+    final isCancelled =
+        status.contains('cancel') ||
+        status.contains('reject') ||
+        status.contains('declin') ||
+        status.contains('blocked');
+    final isClosed =
+        !isCancelled &&
+        (status.contains('complete') ||
+            status.contains('closed') ||
+            status.contains('done') ||
+            status.contains('resolved'));
+    final needsAction =
+        !isCancelled &&
         !isClosed &&
         (serviceCase.customerActionRequired ||
             serviceCase.missingDocuments.isNotEmpty ||
             (serviceCase.missingDocumentsCount ?? 0) > 0 ||
             serviceCase.rejectedDocumentTotal > 0 ||
             serviceCase.rejectedPaymentTotal > 0 ||
-            serviceCase.paymentDetails.any((payment) => payment.needsCustomerAction) ||
+            serviceCase.paymentDetails.any(
+              (payment) => payment.needsCustomerAction,
+            ) ||
             status.contains('waiting for document') ||
             status.contains('waiting for payment') ||
             status.contains('waiting for customer') ||
@@ -312,9 +355,27 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             nextStep.contains('upload') ||
             nextStep.contains('pay') ||
             nextStep.contains('submit'));
-    final isInReview = !isCancelled && !isClosed && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
-    final isInProgress = !isCancelled && !isClosed && !needsAction && !isInReview && (status.contains('progress') || status.contains('working'));
-    final isOpen = !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
+    final isInReview =
+        !isCancelled &&
+        !isClosed &&
+        !needsAction &&
+        (status.contains('review') ||
+            status.contains('processing') ||
+            status.contains('pending') ||
+            status.contains('documents under review') ||
+            status.contains('payment under review'));
+    final isInProgress =
+        !isCancelled &&
+        !isClosed &&
+        !needsAction &&
+        !isInReview &&
+        (status.contains('progress') || status.contains('working'));
+    final isOpen =
+        !isCancelled &&
+        !isClosed &&
+        !needsAction &&
+        !isInReview &&
+        !isInProgress;
 
     return _ServiceCaseState(
       isCancelled: isCancelled,
@@ -338,11 +399,13 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
 class _Header extends StatelessWidget {
   const _Header({
     required this.displayName,
+    required this.avatarUrl,
     required this.actionNeededCount,
     required this.onNewService,
   });
 
   final String displayName;
+  final String? avatarUrl;
   final int actionNeededCount;
   final VoidCallback onNewService;
 
@@ -385,7 +448,7 @@ class _Header extends StatelessWidget {
             const SizedBox(width: 10),
             _TopActionBadge(count: actionNeededCount),
             const SizedBox(width: 12),
-            _Avatar(name: displayName),
+            _Avatar(name: displayName, avatarUrl: avatarUrl),
           ],
         ),
         const SizedBox(height: 22),
@@ -425,11 +488,16 @@ class _Header extends StatelessWidget {
               icon: const Icon(Icons.add_rounded, size: 20),
               label: const Text('New Service'),
               style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primaryRed,
+                backgroundColor: OmcPremium.services,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
                 textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
               ),
             ),
           ],
@@ -486,9 +554,11 @@ class _SearchAndFilterRow extends StatelessWidget {
             label: const Text('Filter'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 17),
-              foregroundColor: AppTheme.primaryRed,
-              side: BorderSide(color: AppTheme.primaryRed.withValues(alpha: 0.16)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              foregroundColor: OmcPremium.track,
+              side: BorderSide(color: OmcPremium.track.withValues(alpha: 0.16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
               textStyle: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
@@ -513,7 +583,11 @@ class _StatusBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: data.border),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 22, offset: const Offset(0, 10)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
       child: Row(
@@ -561,7 +635,9 @@ class _StatusBanner extends StatelessWidget {
               backgroundColor: data.accent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               textStyle: const TextStyle(fontWeight: FontWeight.w800),
             ),
             child: Text(data.actionLabel),
@@ -616,13 +692,22 @@ class _FilterRow extends StatelessWidget {
                 color: selected ? color.withValues(alpha: 0.12) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: selected ? color.withValues(alpha: 0.30) : Colors.black.withValues(alpha: 0.06),
+                  color: selected
+                      ? color.withValues(alpha: 0.30)
+                      : Colors.black.withValues(alpha: 0.06),
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     filter.label,
@@ -634,7 +719,10 @@ class _FilterRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: selected ? 0.14 : 0.07),
                       borderRadius: BorderRadius.circular(999),
@@ -707,7 +795,9 @@ class _ServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = _stateFor(serviceCase);
     final palette = _paletteFor(state);
-    final progressPercent = serviceCase.progressPercent ?? (serviceCase.progress.clamp(0, 1) * 100).round();
+    final progressPercent =
+        serviceCase.progressPercent ??
+        (serviceCase.progress.clamp(0, 1) * 100).round();
 
     return PremiumCard(
       onTap: () => context.go('/my-services/${serviceCase.id}'),
@@ -722,11 +812,17 @@ class _ServiceCard extends StatelessWidget {
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: OmcPremium.services.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+                  border: Border.all(
+                    color: OmcPremium.services.withValues(alpha: 0.07),
+                  ),
                 ),
-                child: const Icon(Icons.folder_shared_rounded, color: AppTheme.primaryRed, size: 28),
+                child: const Icon(
+                  Icons.folder_shared_rounded,
+                  color: OmcPremium.services,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -773,7 +869,11 @@ class _ServiceCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade500),
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 14,
+                          color: Colors.grey.shade500,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -788,7 +888,11 @@ class _ServiceCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 22),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.grey.shade400,
+                          size: 22,
+                        ),
                       ],
                     ),
                   ],
@@ -846,10 +950,20 @@ class _ServiceCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              PremiumInfoChip(icon: Icons.description_outlined, label: serviceCase.documentSummaryLabel),
-              PremiumInfoChip(icon: Icons.payments_outlined, label: serviceCase.paymentSummaryLabel),
-              if (serviceCase.reference != null && serviceCase.reference!.trim().isNotEmpty)
-                PremiumInfoChip(icon: Icons.confirmation_number_outlined, label: serviceCase.reference!),
+              PremiumInfoChip(
+                icon: Icons.description_outlined,
+                label: serviceCase.documentSummaryLabel,
+              ),
+              PremiumInfoChip(
+                icon: Icons.payments_outlined,
+                label: serviceCase.paymentSummaryLabel,
+              ),
+              if (serviceCase.reference != null &&
+                  serviceCase.reference!.trim().isNotEmpty)
+                PremiumInfoChip(
+                  icon: Icons.confirmation_number_outlined,
+                  label: serviceCase.reference!,
+                ),
             ],
           ),
         ],
@@ -876,7 +990,11 @@ class _StatusPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
           const SizedBox(width: 6),
           Text(
             label,
@@ -905,7 +1023,8 @@ class _ActivityCard extends StatelessWidget {
         children: [
           for (var i = 0; i < cases.length; i++) ...[
             _ActivityRow(serviceCase: cases[i]),
-            if (i != cases.length - 1) const Divider(height: 1, indent: 74, endIndent: 16),
+            if (i != cases.length - 1)
+              const Divider(height: 1, indent: 74, endIndent: 16),
           ],
         ],
       ),
@@ -922,7 +1041,9 @@ class _ActivityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = _stateFor(serviceCase);
     final palette = _paletteFor(state);
-    final subtitle = serviceCase.nextStep?.trim().isNotEmpty == true ? serviceCase.nextStep! : serviceCase.actionRequiredLabel;
+    final subtitle = serviceCase.nextStep?.trim().isNotEmpty == true
+        ? serviceCase.nextStep!
+        : serviceCase.actionRequiredLabel;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -973,18 +1094,35 @@ class _LoadingState extends StatelessWidget {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
       children: [
         _LoadingBlock(width: 150, height: 18, radius: 999, color: color),
         const SizedBox(height: 8),
         _LoadingBlock(width: 210, height: 34, radius: 14, color: color),
         const SizedBox(height: 22),
-        _LoadingBlock(width: double.infinity, height: 176, radius: 24, color: color),
+        _LoadingBlock(
+          width: double.infinity,
+          height: 176,
+          radius: 24,
+          color: color,
+        ),
         const SizedBox(height: 16),
-        _LoadingBlock(width: double.infinity, height: 46, radius: 16, color: color),
+        _LoadingBlock(
+          width: double.infinity,
+          height: 46,
+          radius: 16,
+          color: color,
+        ),
         const SizedBox(height: 12),
-        _LoadingBlock(width: double.infinity, height: 120, radius: 22, color: color),
+        _LoadingBlock(
+          width: double.infinity,
+          height: 120,
+          radius: 22,
+          color: color,
+        ),
       ],
     );
   }
@@ -1037,7 +1175,11 @@ class _ErrorState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 42, color: AppTheme.primaryRed),
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 42,
+                color: OmcPremium.danger,
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Service tracking unavailable',
@@ -1100,7 +1242,11 @@ class _EmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.assignment_turned_in_outlined, size: 42, color: AppTheme.primaryRed),
+              const Icon(
+                Icons.assignment_turned_in_outlined,
+                size: 42,
+                color: OmcPremium.services,
+              ),
               const SizedBox(height: 12),
               const Text(
                 'No service requests yet',
@@ -1197,7 +1343,10 @@ class _TopActionBadge extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
           ),
-          child: const Icon(Icons.notifications_none_rounded, color: AppTheme.textPrimary),
+          child: const Icon(
+            Icons.notifications_none_rounded,
+            color: AppTheme.textPrimary,
+          ),
         ),
         if (badgeCount > 0)
           Positioned(
@@ -1206,7 +1355,7 @@ class _TopActionBadge extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed,
+                color: OmcPremium.services,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(color: Colors.white, width: 1.6),
               ),
@@ -1227,33 +1376,78 @@ class _TopActionBadge extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name});
+  const _Avatar({required this.name, required this.avatarUrl});
 
   final String name;
+  final String? avatarUrl;
 
   @override
   Widget build(BuildContext context) {
     final initials = _initials(name);
+    final cleanAvatarUrl = avatarUrl?.trim();
+    final imageUrl = cleanAvatarUrl == null || cleanAvatarUrl.isEmpty
+        ? null
+        : _absoluteAvatarUrl(cleanAvatarUrl);
+    final color = _serviceAvatarColor(name);
     return Container(
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.09),
+        color: imageUrl == null ? color.withValues(alpha: 0.10) : Colors.white,
         shape: BoxShape.circle,
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.14)),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
-      child: Center(
-        child: Text(
-          initials,
-          style: const TextStyle(
-            color: AppTheme.primaryRed,
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
+      clipBehavior: Clip.antiAlias,
+      child: imageUrl == null
+          ? Center(
+              child: Text(
+                initials,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            )
+          : Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Center(
+                child: Text(
+                  initials,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
     );
   }
+}
+
+String _absoluteAvatarUrl(String value) {
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  if (value.startsWith('/')) return '${ApiConfig.currentBaseUrl}$value';
+  return '${ApiConfig.currentBaseUrl}/$value';
+}
+
+Color _serviceAvatarColor(String name) {
+  const colors = [
+    OmcPremium.services,
+    OmcPremium.documents,
+    OmcPremium.payments,
+    OmcPremium.track,
+    OmcPremium.leads,
+    OmcPremium.tasks,
+  ];
+  final source = name.trim().isEmpty ? 'OMC' : name.trim();
+  final index =
+      source.codeUnits.fold<int>(0, (sum, unit) => sum + unit) % colors.length;
+  return colors[index];
 }
 
 class _BannerData {
@@ -1281,7 +1475,8 @@ class _BannerData {
     if (capabilities.isGuest) {
       return const _BannerData(
         title: 'Sign in to track your services',
-        subtitle: 'Guest access is limited. Create an account to submit requests and follow progress.',
+        subtitle:
+            'Guest access is limited. Create an account to submit requests and follow progress.',
         actionLabel: 'Sign in',
         actionRoute: '/profile',
         icon: Icons.lock_outline_rounded,
@@ -1294,11 +1489,12 @@ class _BannerData {
     if (capabilities.isPending) {
       return const _BannerData(
         title: 'Your profile is under review',
-        subtitle: 'You have limited access. Complete your profile for full access to all services.',
+        subtitle:
+            'You have limited access. Complete your profile for full access to all services.',
         actionLabel: 'Complete profile',
         actionRoute: '/profile',
         icon: Icons.verified_user_outlined,
-        accent: AppTheme.primaryRed,
+        accent: OmcPremium.services,
         tint: Color(0xFFFFF4F5),
         border: Color(0xFFFED7DC),
       );
@@ -1307,7 +1503,8 @@ class _BannerData {
     if (capabilities.isRejected) {
       return const _BannerData(
         title: 'Access needs attention',
-        subtitle: 'Your profile requires review before full service access can be restored.',
+        subtitle:
+            'Your profile requires review before full service access can be restored.',
         actionLabel: 'Contact support',
         actionRoute: '/services',
         icon: Icons.block_rounded,
@@ -1320,7 +1517,8 @@ class _BannerData {
     if (counts.actionNeeded > 0) {
       return const _BannerData(
         title: 'Action is needed on some requests',
-        subtitle: 'A few cases are waiting on documents or payment steps. Open the ones marked action needed.',
+        subtitle:
+            'A few cases are waiting on documents or payment steps. Open the ones marked action needed.',
         actionLabel: 'Open requests',
         actionRoute: '/my-services',
         icon: Icons.priority_high_rounded,
@@ -1429,16 +1627,28 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
   final status = serviceCase.status.trim().toLowerCase();
   final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
 
-  final isCancelled = status.contains('cancel') || status.contains('reject') || status.contains('declin') || status.contains('blocked');
-  final isClosed = !isCancelled && (status.contains('complete') || status.contains('closed') || status.contains('done') || status.contains('resolved'));
-  final needsAction = !isCancelled &&
+  final isCancelled =
+      status.contains('cancel') ||
+      status.contains('reject') ||
+      status.contains('declin') ||
+      status.contains('blocked');
+  final isClosed =
+      !isCancelled &&
+      (status.contains('complete') ||
+          status.contains('closed') ||
+          status.contains('done') ||
+          status.contains('resolved'));
+  final needsAction =
+      !isCancelled &&
       !isClosed &&
       (serviceCase.customerActionRequired ||
           serviceCase.missingDocuments.isNotEmpty ||
           (serviceCase.missingDocumentsCount ?? 0) > 0 ||
           serviceCase.rejectedDocumentTotal > 0 ||
           serviceCase.rejectedPaymentTotal > 0 ||
-          serviceCase.paymentDetails.any((payment) => payment.needsCustomerAction) ||
+          serviceCase.paymentDetails.any(
+            (payment) => payment.needsCustomerAction,
+          ) ||
           status.contains('waiting for document') ||
           status.contains('waiting for payment') ||
           status.contains('waiting for customer') ||
@@ -1446,9 +1656,23 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
           nextStep.contains('upload') ||
           nextStep.contains('pay') ||
           nextStep.contains('submit'));
-  final isInReview = !isCancelled && !isClosed && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
-  final isInProgress = !isCancelled && !isClosed && !needsAction && !isInReview && (status.contains('progress') || status.contains('working'));
-  final isOpen = !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
+  final isInReview =
+      !isCancelled &&
+      !isClosed &&
+      !needsAction &&
+      (status.contains('review') ||
+          status.contains('processing') ||
+          status.contains('pending') ||
+          status.contains('documents under review') ||
+          status.contains('payment under review'));
+  final isInProgress =
+      !isCancelled &&
+      !isClosed &&
+      !needsAction &&
+      !isInReview &&
+      (status.contains('progress') || status.contains('working'));
+  final isOpen =
+      !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
 
   return _ServiceCaseState(
     isCancelled: isCancelled,
@@ -1474,27 +1698,51 @@ class _Palette {
 
 _Palette _paletteFor(_ServiceCaseState state) {
   if (state.isCancelled) {
-    return const _Palette(label: 'Cancelled', color: Color(0xFFEF4444), icon: Icons.cancel_rounded);
+    return const _Palette(
+      label: 'Cancelled',
+      color: Color(0xFFEF4444),
+      icon: Icons.cancel_rounded,
+    );
   }
   if (state.isClosed) {
-    return const _Palette(label: 'Completed', color: Color(0xFF16A34A), icon: Icons.check_circle_rounded);
+    return const _Palette(
+      label: 'Completed',
+      color: Color(0xFF16A34A),
+      icon: Icons.check_circle_rounded,
+    );
   }
   if (state.needsAction) {
-    return const _Palette(label: 'Action needed', color: Color(0xFFF59E0B), icon: Icons.priority_high_rounded);
+    return const _Palette(
+      label: 'Action needed',
+      color: Color(0xFFF59E0B),
+      icon: Icons.priority_high_rounded,
+    );
   }
   if (state.isInReview) {
-    return const _Palette(label: 'In Review', color: Color(0xFF14B8A6), icon: Icons.fact_check_outlined);
+    return const _Palette(
+      label: 'In Review',
+      color: Color(0xFF14B8A6),
+      icon: Icons.fact_check_outlined,
+    );
   }
   if (state.isInProgress) {
-    return const _Palette(label: 'In Progress', color: Color(0xFF2563EB), icon: Icons.sync_rounded);
+    return const _Palette(
+      label: 'In Progress',
+      color: Color(0xFF2563EB),
+      icon: Icons.sync_rounded,
+    );
   }
-  return const _Palette(label: 'Open', color: AppTheme.primaryRed, icon: Icons.timeline_rounded);
+  return const _Palette(
+    label: 'Open',
+    color: OmcPremium.open,
+    icon: Icons.timeline_rounded,
+  );
 }
 
 Color _filterColor(_ServiceCaseFilter filter) {
   switch (filter) {
     case _ServiceCaseFilter.all:
-      return AppTheme.primaryRed;
+      return OmcPremium.services;
     case _ServiceCaseFilter.open:
       return const Color(0xFF2563EB);
     case _ServiceCaseFilter.inReview:
@@ -1586,7 +1834,10 @@ String _displayNameFromUserId(String userId) {
   if (cleaned.isEmpty) return 'Ali Raza';
 
   final localPart = cleaned.contains('@') ? cleaned.split('@').first : cleaned;
-  final pieces = localPart.split(RegExp(r'[._\-\s]+')).where((piece) => piece.trim().isNotEmpty).toList(growable: false);
+  final pieces = localPart
+      .split(RegExp(r'[._\-\s]+'))
+      .where((piece) => piece.trim().isNotEmpty)
+      .toList(growable: false);
   if (pieces.isEmpty) return localPart;
   return pieces.map(_titleCase).join(' ');
 }
@@ -1597,11 +1848,17 @@ String _titleCase(String value) {
 }
 
 String _initials(String name) {
-  final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList(growable: false);
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList(growable: false);
   if (parts.isEmpty) return 'OM';
   if (parts.length == 1) {
     final value = parts.first;
-    return value.length >= 2 ? value.substring(0, 2).toUpperCase() : value.substring(0, 1).toUpperCase();
+    return value.length >= 2
+        ? value.substring(0, 2).toUpperCase()
+        : value.substring(0, 1).toUpperCase();
   }
   return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
 }

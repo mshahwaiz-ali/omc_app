@@ -32,7 +32,8 @@ class SupportTicketDetailScreen extends ConsumerWidget {
             return PremiumEmptyState(
               icon: Icons.support_agent_outlined,
               title: 'Ticket unavailable',
-              message: 'Support ticket $ticketId could not be loaded right now.',
+              message:
+                  'Support ticket $ticketId could not be loaded right now.',
             );
           }
 
@@ -59,7 +60,8 @@ class _SupportTicketChatBody extends ConsumerStatefulWidget {
       _SupportTicketChatBodyState();
 }
 
-class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> {
+class _SupportTicketChatBodyState
+    extends ConsumerState<_SupportTicketChatBody> {
   final _replyController = TextEditingController();
   final _scrollController = ScrollController();
 
@@ -88,7 +90,9 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
             },
             child: ListView(
               controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
               children: [
                 _TicketInfoCard(ticket: ticket),
@@ -149,7 +153,9 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
       if (file == null) return;
 
       if (file.size <= 0) {
-        messenger.showSnackBar(const SnackBar(content: Text('Selected file is empty.')));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Selected file is empty.')),
+        );
         return;
       }
 
@@ -163,7 +169,11 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
       if ((file.path == null || file.path!.trim().isEmpty) &&
           (file.bytes == null || file.bytes!.isEmpty)) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Selected file data is unavailable. Choose it again.')),
+          const SnackBar(
+            content: Text(
+              'Selected file data is unavailable. Choose it again.',
+            ),
+          ),
         );
         return;
       }
@@ -179,7 +189,9 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
       });
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Attachment could not be selected right now.')),
+        const SnackBar(
+          content: Text('Attachment could not be selected right now.'),
+        ),
       );
     }
   }
@@ -198,7 +210,9 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
 
     if (message.isEmpty && attachment == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Write a message or attach a file first.')),
+        const SnackBar(
+          content: Text('Write a message or attach a file first.'),
+        ),
       );
       return;
     }
@@ -230,9 +244,7 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
 
       _replyController.clear();
       setState(() => _pickedAttachment = null);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Message sent.')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Message sent.')));
       ref.invalidate(supportTicketDetailProvider(ticket.id));
       ref.invalidate(supportTicketsProvider);
       _scrollToBottomSoon();
@@ -242,7 +254,11 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
     } catch (_) {
       if (!context.mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Message could not be sent right now. Please try again.')),
+        const SnackBar(
+          content: Text(
+            'Message could not be sent right now. Please try again.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isSendingReply = false);
@@ -256,11 +272,16 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
     setState(() => _isUpdatingStatus = true);
 
     try {
-      await repository.updateSupportTicketStatus(ticketId: ticket.id, status: status);
+      await repository.updateSupportTicketStatus(
+        ticketId: ticket.id,
+        status: status,
+      );
 
       if (!context.mounted) return;
 
-      messenger.showSnackBar(SnackBar(content: Text('Support ticket marked as $status.')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Support ticket marked as $status.')),
+      );
       ref.invalidate(supportTicketDetailProvider(ticket.id));
       ref.invalidate(supportTicketsProvider);
     } on ApiError catch (error) {
@@ -269,7 +290,11 @@ class _SupportTicketChatBodyState extends ConsumerState<_SupportTicketChatBody> 
     } catch (_) {
       if (!context.mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Support ticket status could not be updated right now.')),
+        const SnackBar(
+          content: Text(
+            'Support ticket status could not be updated right now.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
@@ -309,7 +334,10 @@ class _TicketInfoCard extends StatelessWidget {
                   color: AppTheme.primaryRed.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.support_agent_rounded, color: AppTheme.primaryRed),
+                child: const Icon(
+                  Icons.support_agent_rounded,
+                  color: AppTheme.primaryRed,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -348,9 +376,17 @@ class _TicketInfoCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _SmallPill(label: ticket.priority, icon: Icons.flag_outlined, color: Colors.blueGrey.shade700),
+              _SmallPill(
+                label: ticket.priority,
+                icon: Icons.flag_outlined,
+                color: Colors.blueGrey.shade700,
+              ),
               if (ticket.updatedAtLabel != null)
-                _SmallPill(label: ticket.updatedAtLabel!, icon: Icons.update_rounded, color: Colors.blueGrey.shade700),
+                _SmallPill(
+                  label: ticket.updatedAtLabel!,
+                  icon: Icons.update_rounded,
+                  color: Colors.blueGrey.shade700,
+                ),
               if (ticket.referenceServiceRequest != null)
                 ActionChip(
                   avatar: const Icon(Icons.assignment_outlined, size: 16),
@@ -385,7 +421,11 @@ class _ConversationHeader extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        _SmallPill(label: '$count', icon: Icons.chat_bubble_outline_rounded, color: Colors.blueGrey.shade700),
+        _SmallPill(
+          label: '$count',
+          icon: Icons.support_agent_rounded,
+          color: Colors.blueGrey.shade700,
+        ),
       ],
     );
   }
@@ -399,7 +439,9 @@ class _EmptyConversationBubble extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(18),
       ),
       child: const Text(
@@ -426,7 +468,9 @@ class _ChatBubble extends StatelessWidget {
     final maxWidth = MediaQuery.sizeOf(context).width * 0.78;
     final bubbleColor = isMine
         ? AppTheme.primaryRed.withValues(alpha: 0.09)
-        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.68);
+        : Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.68);
     final borderColor = isMine
         ? AppTheme.primaryRed.withValues(alpha: 0.12)
         : Theme.of(context).dividerColor.withValues(alpha: 0.55);
@@ -455,7 +499,9 @@ class _ChatBubble extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      message.isFromCustomer ? Icons.person_outline_rounded : Icons.support_agent_rounded,
+                      message.isFromCustomer
+                          ? Icons.person_outline_rounded
+                          : Icons.support_agent_rounded,
                       color: AppTheme.primaryRed,
                       size: 16,
                     ),
@@ -474,7 +520,8 @@ class _ChatBubble extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (message.message.trim().isNotEmpty && message.message != '-') ...[
+                if (message.message.trim().isNotEmpty &&
+                    message.message != '-') ...[
                   const SizedBox(height: 8),
                   Text(
                     message.message,
@@ -538,12 +585,18 @@ class _AttachmentTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.72),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
+          border: Border.all(
+            color: AppTheme.primaryRed.withValues(alpha: 0.10),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.attach_file_rounded, color: AppTheme.primaryRed, size: 18),
+            const Icon(
+              Icons.attach_file_rounded,
+              color: AppTheme.primaryRed,
+              size: 18,
+            ),
             const SizedBox(width: 8),
             Flexible(
               child: Column(
@@ -581,19 +634,25 @@ class _AttachmentTile extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final uri = Uri.tryParse(_absoluteUrl(rawUrl));
     if (uri == null) {
-      messenger.showSnackBar(const SnackBar(content: Text('Attachment link is invalid.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Attachment link is invalid.')),
+      );
       return;
     }
 
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened) {
-      messenger.showSnackBar(const SnackBar(content: Text('Attachment could not be opened.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Attachment could not be opened.')),
+      );
     }
   }
 
   String _absoluteUrl(String value) {
     final clean = value.trim();
-    if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return clean;
+    }
     if (clean.startsWith('/')) return '${ApiConfig.baseUrl}$clean';
     return clean;
   }
@@ -627,7 +686,11 @@ class _SupportChatComposer extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.5))),
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+            ),
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -673,8 +736,11 @@ class _SupportChatComposer extends StatelessWidget {
                         decoration: InputDecoration(
                           hintText: 'Write a message',
                           filled: true,
-                          prefixIcon: const Icon(Icons.chat_bubble_outline_rounded),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          prefixIcon: const Icon(Icons.support_agent_rounded),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(22),
                             borderSide: BorderSide.none,
@@ -693,7 +759,10 @@ class _SupportChatComposer extends StatelessWidget {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Icon(Icons.send_rounded),
                     ),
@@ -708,7 +777,10 @@ class _SupportChatComposer extends StatelessWidget {
 }
 
 class _PickedAttachmentPreview extends StatelessWidget {
-  const _PickedAttachmentPreview({required this.attachment, required this.onRemove});
+  const _PickedAttachmentPreview({
+    required this.attachment,
+    required this.onRemove,
+  });
 
   final _PickedSupportAttachment attachment;
   final VoidCallback? onRemove;
@@ -724,7 +796,11 @@ class _PickedAttachmentPreview extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.attach_file_rounded, color: AppTheme.primaryRed, size: 18),
+          const Icon(
+            Icons.attach_file_rounded,
+            color: AppTheme.primaryRed,
+            size: 18,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -757,7 +833,9 @@ class _PickedAttachmentPreview extends StatelessWidget {
   }
 
   String _sizeLabel(int bytes) {
-    if (bytes >= 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
     return '$bytes B';
   }
@@ -785,11 +863,41 @@ class _SupportAdminStatusBar extends StatelessWidget {
         spacing: 8,
         runSpacing: 8,
         children: [
-          _StatusActionButton(label: 'Progress', status: 'In Progress', icon: Icons.play_circle_outline_rounded, enabled: !isUpdating && !isClosed, onStatusSelected: onStatusSelected),
-          _StatusActionButton(label: 'Waiting', status: 'Waiting for Customer', icon: Icons.hourglass_bottom_rounded, enabled: !isUpdating && !isClosed, onStatusSelected: onStatusSelected),
-          _StatusActionButton(label: 'Resolved', status: 'Resolved', icon: Icons.verified_rounded, enabled: !isUpdating && !isClosed, onStatusSelected: onStatusSelected),
-          _StatusActionButton(label: 'Close', status: 'Closed', icon: Icons.lock_rounded, enabled: !isUpdating && !isClosed, onStatusSelected: onStatusSelected),
-          _StatusActionButton(label: 'Reopen', status: 'Open', icon: Icons.refresh_rounded, enabled: !isUpdating, onStatusSelected: onStatusSelected),
+          _StatusActionButton(
+            label: 'Progress',
+            status: 'In Progress',
+            icon: Icons.play_circle_outline_rounded,
+            enabled: !isUpdating && !isClosed,
+            onStatusSelected: onStatusSelected,
+          ),
+          _StatusActionButton(
+            label: 'Waiting',
+            status: 'Waiting for Customer',
+            icon: Icons.hourglass_bottom_rounded,
+            enabled: !isUpdating && !isClosed,
+            onStatusSelected: onStatusSelected,
+          ),
+          _StatusActionButton(
+            label: 'Resolved',
+            status: 'Resolved',
+            icon: Icons.verified_rounded,
+            enabled: !isUpdating && !isClosed,
+            onStatusSelected: onStatusSelected,
+          ),
+          _StatusActionButton(
+            label: 'Close',
+            status: 'Closed',
+            icon: Icons.lock_rounded,
+            enabled: !isUpdating && !isClosed,
+            onStatusSelected: onStatusSelected,
+          ),
+          _StatusActionButton(
+            label: 'Reopen',
+            status: 'Open',
+            icon: Icons.refresh_rounded,
+            enabled: !isUpdating,
+            onStatusSelected: onStatusSelected,
+          ),
         ],
       ),
     );
@@ -814,7 +922,9 @@ class _StatusActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: enabled && onStatusSelected != null ? () => onStatusSelected!(status) : null,
+      onPressed: enabled && onStatusSelected != null
+          ? () => onStatusSelected!(status)
+          : null,
       icon: Icon(icon, size: 17),
       label: Text(label),
     );
@@ -828,12 +938,20 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SmallPill(label: status, icon: Icons.support_agent_rounded, color: AppTheme.primaryRed);
+    return _SmallPill(
+      label: status,
+      icon: Icons.support_agent_rounded,
+      color: AppTheme.primaryRed,
+    );
   }
 }
 
 class _SmallPill extends StatelessWidget {
-  const _SmallPill({required this.label, required this.icon, required this.color});
+  const _SmallPill({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
 
   final String label;
   final IconData icon;
@@ -855,7 +973,11 @@ class _SmallPill extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w900),
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ],
         ),
@@ -879,11 +1001,26 @@ class _TicketDetailLoadingView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _TicketLoadingBlock(width: 52, height: 52, radius: 18, color: color),
+              _TicketLoadingBlock(
+                width: 52,
+                height: 52,
+                radius: 18,
+                color: color,
+              ),
               const SizedBox(height: 18),
-              _TicketLoadingBlock(width: double.infinity, height: 16, radius: 999, color: color),
+              _TicketLoadingBlock(
+                width: double.infinity,
+                height: 16,
+                radius: 999,
+                color: color,
+              ),
               const SizedBox(height: 10),
-              _TicketLoadingBlock(width: 220, height: 12, radius: 999, color: color),
+              _TicketLoadingBlock(
+                width: 220,
+                height: 12,
+                radius: 999,
+                color: color,
+              ),
             ],
           ),
         ),
@@ -894,7 +1031,12 @@ class _TicketDetailLoadingView extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 10),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: _TicketLoadingBlock(width: 260, height: 58, radius: 18, color: color),
+              child: _TicketLoadingBlock(
+                width: 260,
+                height: 58,
+                radius: 18,
+                color: color,
+              ),
             ),
           ),
         ),
@@ -921,7 +1063,10 @@ class _TicketLoadingBlock extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(radius)),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
+      ),
     );
   }
 }

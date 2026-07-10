@@ -53,19 +53,32 @@ class HomeScreen extends ConsumerWidget {
     final mode = _HomeMode.fromCapabilities(capabilities);
     final dashboardAsync = mode.isInternal || mode.isCustomer
         ? ref.watch(homeDashboardSummaryProvider)
-        : const AsyncValue<HomeDashboardSummary>.data(HomeDashboardSummary.empty());
+        : const AsyncValue<HomeDashboardSummary>.data(
+            HomeDashboardSummary.empty(),
+          );
 
     final summary = dashboardAsync.maybeWhen(
       data: (value) => value,
       orElse: () => const HomeDashboardSummary.empty(),
     );
-    final profile = profileAsync.maybeWhen(data: (value) => value, orElse: () => null);
-    final displayName = profile?.displayName ?? authState.displayName ?? _displayNameFromUserId(authState.userId);
-    final avatarUrl = _resolveAvatarUrl(profile?.avatarUrl);
+    final profile = profileAsync.maybeWhen(
+      data: (value) => value,
+      orElse: () => null,
+    );
+    final displayName =
+        profile?.displayName ??
+        authState.displayName ??
+        _displayNameFromUserId(authState.userId);
+    final avatarUrl = _resolveAvatarUrl(
+      profile?.avatarUrl ?? authState.avatarUrl,
+    );
 
     final quickActions = mode.isInternal
         ? _internalQuickActions(
-            quickActionsAsync.maybeWhen(data: (value) => value, orElse: () => const []),
+            quickActionsAsync.maybeWhen(
+              data: (value) => value,
+              orElse: () => const [],
+            ),
           )
         : _customerQuickActions();
 
@@ -81,7 +94,9 @@ class HomeScreen extends ConsumerWidget {
                 ref.invalidate(profileSummaryProvider);
               },
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
                 slivers: [
                   const SliverToBoxAdapter(child: SizedBox(height: 10)),
                   SliverPadding(
@@ -91,7 +106,11 @@ class HomeScreen extends ConsumerWidget {
                         displayName: displayName,
                         avatarUrl: avatarUrl,
                         unreadNotifications: summary.unreadNotifications,
-                        onNotifications: () => _openNotifications(context, capabilities, onOpenNotifications),
+                        onNotifications: () => _openNotifications(
+                          context,
+                          capabilities,
+                          onOpenNotifications,
+                        ),
                       ),
                     ),
                   ),
@@ -106,13 +125,21 @@ class HomeScreen extends ConsumerWidget {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverToBoxAdapter(
-                      child: _BannerCard(mode: mode, onPrimary: () => _bannerAction(context, capabilities, mode)),
+                      child: _BannerCard(
+                        mode: mode,
+                        onPrimary: () =>
+                            _bannerAction(context, capabilities, mode),
+                      ),
                     ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
                     sliver: SliverToBoxAdapter(
-                      child: _SectionTitle(title: 'Quick Actions', actionLabel: 'View all', onTap: () => context.go('/more')),
+                      child: _SectionTitle(
+                        title: 'Quick Actions',
+                        actionLabel: 'View all',
+                        onTap: () => context.go('/more'),
+                      ),
                     ),
                   ),
                   SliverPadding(
@@ -137,9 +164,15 @@ class HomeScreen extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(16, 22, 16, 8),
                     sliver: SliverToBoxAdapter(
                       child: _SectionTitle(
-                        title: mode.isInternal ? 'Operations Summary' : 'Today\'s Summary',
-                        actionLabel: mode.isInternal ? 'Open queue' : 'View all',
-                        onTap: mode.isInternal ? () => context.go('/internal-workspace') : null,
+                        title: mode.isInternal
+                            ? 'Operations Summary'
+                            : 'Today\'s Summary',
+                        actionLabel: mode.isInternal
+                            ? 'Open queue'
+                            : 'View all',
+                        onTap: mode.isInternal
+                            ? () => context.go('/internal-workspace')
+                            : null,
                       ),
                     ),
                   ),
@@ -148,22 +181,37 @@ class HomeScreen extends ConsumerWidget {
                     sliver: SliverToBoxAdapter(
                       child: mode.isInternal
                           ? _InternalSummaryGrid(summary: summary)
-                          : _CustomerSummaryGrid(summary: summary, guestMode: mode.isGuest),
+                          : _CustomerSummaryGrid(
+                              summary: summary,
+                              guestMode: mode.isGuest,
+                            ),
                     ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
                     sliver: SliverToBoxAdapter(
-                      child: _CTASection(mode: mode, onOpen: () => _ctaAction(context, mode, capabilities)),
+                      child: _CTASection(
+                        mode: mode,
+                        onOpen: () => _ctaAction(context, mode, capabilities),
+                      ),
                     ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 22, 16, 8),
                     sliver: SliverToBoxAdapter(
                       child: _SectionTitle(
-                        title: mode.isInternal ? 'Review Queue' : 'Your Services in Progress',
+                        title: mode.isInternal
+                            ? 'Review Queue'
+                            : 'Your Services in Progress',
                         actionLabel: mode.isInternal ? 'Workspace' : 'View all',
-                        onTap: mode.isInternal ? () => context.go('/internal-workspace') : () => _goAllowed(context, '/my-services', capabilities, 'can_track_requests'),
+                        onTap: mode.isInternal
+                            ? () => context.go('/internal-workspace')
+                            : () => _goAllowed(
+                                context,
+                                '/my-services',
+                                capabilities,
+                                'can_track_requests',
+                              ),
                       ),
                     ),
                   ),
@@ -173,11 +221,18 @@ class HomeScreen extends ConsumerWidget {
                       child: mode.isInternal
                           ? _ServiceList(
                               items: summary.serviceSnapshots,
-                              onTap: (id) => context.push('/internal-workspace/service-cases/$id'),
+                              onTap: (id) => context.push(
+                                '/internal-workspace/service-cases/$id',
+                              ),
                             )
                           : _ServiceList(
                               items: summary.serviceSnapshots,
-                              onTap: (id) => _goAllowed(context, '/my-services/${Uri.encodeComponent(id)}', capabilities, 'can_track_requests'),
+                              onTap: (id) => _goAllowed(
+                                context,
+                                '/my-services/${Uri.encodeComponent(id)}',
+                                capabilities,
+                                'can_track_requests',
+                              ),
                             ),
                     ),
                   ),
@@ -187,14 +242,25 @@ class HomeScreen extends ConsumerWidget {
                       child: _SectionTitle(
                         title: 'Recent Activity',
                         actionLabel: mode.isInternal ? 'Open queue' : 'Track',
-                        onTap: mode.isInternal ? () => context.go('/internal-workspace') : () => _goAllowed(context, '/my-services', capabilities, 'can_track_requests'),
+                        onTap: mode.isInternal
+                            ? () => context.go('/internal-workspace')
+                            : () => _goAllowed(
+                                context,
+                                '/my-services',
+                                capabilities,
+                                'can_track_requests',
+                              ),
                       ),
                     ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
                     sliver: SliverToBoxAdapter(
-                      child: _ActivityList(activities: summary.recentActivity.take(5).toList(growable: false)),
+                      child: _ActivityList(
+                        activities: summary.recentActivity
+                            .take(5)
+                            .toList(growable: false),
+                      ),
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -207,25 +273,117 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  List<MobileQuickAction> _internalQuickActions(List<MobileQuickAction> backendActions) {
+  List<MobileQuickAction> _internalQuickActions(
+    List<MobileQuickAction> backendActions,
+  ) {
     final fallback = <MobileQuickAction>[
-      const MobileQuickAction(id: 'internal-docs', title: 'Review Docs', subtitle: 'Queue', iconKey: 'documents', targetType: MobileQuickActionTargetType.route, targetValue: '/internal-workspace/documents', requiredCapability: 'can_review_documents', sortOrder: 10),
-      const MobileQuickAction(id: 'internal-payments', title: 'Review Payments', subtitle: 'Queue', iconKey: 'payments', targetType: MobileQuickActionTargetType.route, targetValue: '/internal-workspace/payments', requiredCapability: 'can_review_payments', sortOrder: 20),
-      const MobileQuickAction(id: 'internal-customers', title: 'Customers', subtitle: 'Workspace', iconKey: 'dashboard', targetType: MobileQuickActionTargetType.route, targetValue: '/internal-workspace/customers', requiredCapability: 'can_manage_customers', sortOrder: 30),
-      const MobileQuickAction(id: 'internal-leads', title: 'Leads', subtitle: 'Pipeline', iconKey: 'leads', targetType: MobileQuickActionTargetType.route, targetValue: '/leads', requiredCapability: 'can_manage_leads', sortOrder: 40),
-      const MobileQuickAction(id: 'internal-tasks', title: 'Tasks', subtitle: 'Today', iconKey: 'tasks', targetType: MobileQuickActionTargetType.route, targetValue: '/tasks', requiredCapability: 'can_manage_tasks', sortOrder: 50),
+      const MobileQuickAction(
+        id: 'internal-docs',
+        title: 'Review Docs',
+        subtitle: 'Queue',
+        iconKey: 'documents',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/internal-workspace/documents',
+        requiredCapability: 'can_review_documents',
+        sortOrder: 10,
+      ),
+      const MobileQuickAction(
+        id: 'internal-payments',
+        title: 'Review Payments',
+        subtitle: 'Queue',
+        iconKey: 'payments',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/internal-workspace/payments',
+        requiredCapability: 'can_review_payments',
+        sortOrder: 20,
+      ),
+      const MobileQuickAction(
+        id: 'internal-customers',
+        title: 'Customers',
+        subtitle: 'Workspace',
+        iconKey: 'dashboard',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/internal-workspace/customers',
+        requiredCapability: 'can_manage_customers',
+        sortOrder: 30,
+      ),
+      const MobileQuickAction(
+        id: 'internal-leads',
+        title: 'Leads',
+        subtitle: 'Pipeline',
+        iconKey: 'leads',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/leads',
+        requiredCapability: 'can_manage_leads',
+        sortOrder: 40,
+      ),
+      const MobileQuickAction(
+        id: 'internal-tasks',
+        title: 'Tasks',
+        subtitle: 'Today',
+        iconKey: 'tasks',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/tasks',
+        requiredCapability: 'can_manage_tasks',
+        sortOrder: 50,
+      ),
     ];
-    final merged = <MobileQuickAction>[...backendActions, ...fallback]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final merged = <MobileQuickAction>[...backendActions, ...fallback]
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return merged.take(5).toList(growable: false);
   }
 
   List<MobileQuickAction> _customerQuickActions() {
     return const [
-      MobileQuickAction(id: 'public-services', title: 'Services', subtitle: 'Browse', iconKey: 'services', targetType: MobileQuickActionTargetType.route, targetValue: '/services', sortOrder: 10),
-      MobileQuickAction(id: 'customer-docs', title: 'Documents', subtitle: 'Upload', iconKey: 'documents', targetType: MobileQuickActionTargetType.route, targetValue: '/documents', requiredCapability: 'can_view_documents', sortOrder: 20),
-      MobileQuickAction(id: 'customer-payments', title: 'Payments', subtitle: 'Pay now', iconKey: 'payments', targetType: MobileQuickActionTargetType.route, targetValue: '/payments', requiredCapability: 'can_view_payments', sortOrder: 30),
-      MobileQuickAction(id: 'customer-track', title: 'Track', subtitle: 'Requests', iconKey: 'track', targetType: MobileQuickActionTargetType.route, targetValue: '/my-services', requiredCapability: 'can_track_requests', sortOrder: 40),
-      MobileQuickAction(id: 'tax-calculator', title: 'Tax Calc', subtitle: 'Estimate', iconKey: 'calculator', targetType: MobileQuickActionTargetType.feature, targetValue: 'calculator', requiredCapability: 'can_use_tax_calculator', sortOrder: 50),
+      MobileQuickAction(
+        id: 'public-services',
+        title: 'Services',
+        subtitle: 'Browse',
+        iconKey: 'services',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/services',
+        sortOrder: 10,
+      ),
+      MobileQuickAction(
+        id: 'customer-docs',
+        title: 'Documents',
+        subtitle: 'Upload',
+        iconKey: 'documents',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/documents',
+        requiredCapability: 'can_view_documents',
+        sortOrder: 20,
+      ),
+      MobileQuickAction(
+        id: 'customer-payments',
+        title: 'Payments',
+        subtitle: 'Pay now',
+        iconKey: 'payments',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/payments',
+        requiredCapability: 'can_view_payments',
+        sortOrder: 30,
+      ),
+      MobileQuickAction(
+        id: 'customer-track',
+        title: 'Track',
+        subtitle: 'Requests',
+        iconKey: 'track',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/my-services',
+        requiredCapability: 'can_track_requests',
+        sortOrder: 40,
+      ),
+      MobileQuickAction(
+        id: 'tax-calculator',
+        title: 'Tax Calc',
+        subtitle: 'Estimate',
+        iconKey: 'calculator',
+        targetType: MobileQuickActionTargetType.feature,
+        targetValue: 'calculator',
+        requiredCapability: 'can_use_tax_calculator',
+        sortOrder: 50,
+      ),
     ];
   }
 
@@ -244,7 +402,9 @@ class HomeScreen extends ConsumerWidget {
 
     switch (action.targetType) {
       case MobileQuickActionTargetType.route:
-        context.push(action.targetValue.startsWith('/') ? action.targetValue : '/services');
+        context.push(
+          action.targetValue.startsWith('/') ? action.targetValue : '/services',
+        );
         return;
       case MobileQuickActionTargetType.feature:
         final key = action.targetValue.trim().toLowerCase();
@@ -288,25 +448,57 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  bool _isActionAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
+  bool _isActionAllowed(
+    MobileQuickAction action,
+    AuthCapabilities capabilities,
+  ) {
     final required = action.requiredCapability?.trim();
     if (required == null || required.isEmpty) return true;
     return switch (required) {
-      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
-      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
-      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
-      'can_review_documents' => capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace,
-      'can_review_payments' => capabilities.canReviewPayments || capabilities.canAccessInternalWorkspace,
-      'can_manage_customers' => capabilities.canManageCustomers || capabilities.canAccessInternalWorkspace,
-      'can_manage_leads' => capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
-      'can_manage_tasks' => capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
+      'can_view_documents' =>
+        capabilities.canViewDocuments ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
+      'can_track_requests' =>
+        capabilities.canTrackRequests ||
+            capabilities.canViewCustomerDashboard ||
+            capabilities.canAccessCustomerDashboard ||
+            capabilities.isApproved ||
+            capabilities.canAccessInternalWorkspace,
+      'can_view_payments' =>
+        capabilities.canViewPayments ||
+            capabilities.canReviewPayments ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
+      'can_review_documents' =>
+        capabilities.canReviewDocuments ||
+            capabilities.canAccessInternalWorkspace,
+      'can_review_payments' =>
+        capabilities.canReviewPayments ||
+            capabilities.canAccessInternalWorkspace,
+      'can_manage_customers' =>
+        capabilities.canManageCustomers ||
+            capabilities.canAccessInternalWorkspace,
+      'can_manage_leads' =>
+        capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
+      'can_manage_tasks' =>
+        capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
       'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
       _ => true,
     };
   }
 
-  void _openNotifications(BuildContext context, AuthCapabilities capabilities, VoidCallback? callback) {
-    final allowed = capabilities.canViewCustomerNotifications || capabilities.isApproved || capabilities.isInternal || capabilities.canAccessInternalWorkspace || capabilities.isGuest;
+  void _openNotifications(
+    BuildContext context,
+    AuthCapabilities capabilities,
+    VoidCallback? callback,
+  ) {
+    final allowed =
+        capabilities.canViewCustomerNotifications ||
+        capabilities.isApproved ||
+        capabilities.isInternal ||
+        capabilities.canAccessInternalWorkspace ||
+        capabilities.isGuest;
     if (!allowed) {
       _showLockedSnack(context, capabilities);
       return;
@@ -318,7 +510,12 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  void _goAllowed(BuildContext context, String route, AuthCapabilities capabilities, String capability) {
+  void _goAllowed(
+    BuildContext context,
+    String route,
+    AuthCapabilities capabilities,
+    String capability,
+  ) {
     if (!_isAllowed(capability, capabilities)) {
       _showLockedSnack(context, capabilities);
       return;
@@ -328,19 +525,43 @@ class HomeScreen extends ConsumerWidget {
 
   bool _isAllowed(String capability, AuthCapabilities capabilities) {
     return switch (capability) {
-      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
-      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
-      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
-      'can_review_documents' => capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace,
-      'can_review_payments' => capabilities.canReviewPayments || capabilities.canAccessInternalWorkspace,
-      'can_manage_customers' => capabilities.canManageCustomers || capabilities.canAccessInternalWorkspace,
-      'can_manage_leads' => capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
-      'can_manage_tasks' => capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
+      'can_view_documents' =>
+        capabilities.canViewDocuments ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
+      'can_track_requests' =>
+        capabilities.canTrackRequests ||
+            capabilities.canViewCustomerDashboard ||
+            capabilities.canAccessCustomerDashboard ||
+            capabilities.isApproved ||
+            capabilities.canAccessInternalWorkspace,
+      'can_view_payments' =>
+        capabilities.canViewPayments ||
+            capabilities.canReviewPayments ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
+      'can_review_documents' =>
+        capabilities.canReviewDocuments ||
+            capabilities.canAccessInternalWorkspace,
+      'can_review_payments' =>
+        capabilities.canReviewPayments ||
+            capabilities.canAccessInternalWorkspace,
+      'can_manage_customers' =>
+        capabilities.canManageCustomers ||
+            capabilities.canAccessInternalWorkspace,
+      'can_manage_leads' =>
+        capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
+      'can_manage_tasks' =>
+        capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
       _ => true,
     };
   }
 
-  void _ctaAction(BuildContext context, _HomeMode mode, AuthCapabilities capabilities) {
+  void _ctaAction(
+    BuildContext context,
+    _HomeMode mode,
+    AuthCapabilities capabilities,
+  ) {
     if (mode.isInternal) {
       context.go('/internal-workspace');
     } else if (capabilities.isGuest) {
@@ -350,7 +571,11 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  void _bannerAction(BuildContext context, AuthCapabilities capabilities, _HomeMode mode) {
+  void _bannerAction(
+    BuildContext context,
+    AuthCapabilities capabilities,
+    _HomeMode mode,
+  ) {
     if (mode.isInternal) {
       context.go('/internal-workspace');
     } else if (capabilities.isGuest) {
@@ -366,27 +591,37 @@ class HomeScreen extends ConsumerWidget {
     final message = capabilities.isGuest
         ? 'Some actions are locked for guests. Create an account to unlock them.'
         : capabilities.isPending
-            ? 'Your account is under review.'
-            : capabilities.isRejected
-                ? 'This action is unavailable for this account.'
-                : 'This action is not available right now.';
+        ? 'Your account is under review.'
+        : capabilities.isRejected
+        ? 'This action is unavailable for this account.'
+        : 'This action is not available right now.';
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, content: Text(message)));
+      ..showSnackBar(
+        SnackBar(behavior: SnackBarBehavior.floating, content: Text(message)),
+      );
   }
 
   String _displayNameFromUserId(String? userId) {
     if (userId == null || userId.trim().isEmpty) return 'there';
     final base = userId.contains('@') ? userId.split('@').first : userId;
-    return base.replaceAll(RegExp(r'[._-]+'), ' ').trim().split(' ').where((part) => part.isNotEmpty).map((part) => '${part[0].toUpperCase()}${part.substring(1)}').join(' ');
+    return base
+        .replaceAll(RegExp(r'[._-]+'), ' ')
+        .trim()
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+        .join(' ');
   }
 
   String? _resolveAvatarUrl(String? value) {
     final text = value?.trim();
     if (text == null || text.isEmpty) return null;
     if (text.startsWith('http://') || text.startsWith('https://')) return text;
-    return text.startsWith('/') ? '${ApiConfig.baseUrl}$text' : '${ApiConfig.baseUrl}/$text';
+    return text.startsWith('/')
+        ? '${ApiConfig.baseUrl}$text'
+        : '${ApiConfig.baseUrl}/$text';
   }
 }
 
@@ -401,8 +636,14 @@ class _HomeMode {
   bool get isGuest => identical(this, guest);
 
   static _HomeMode fromCapabilities(AuthCapabilities capabilities) {
-    if (capabilities.isInternal || capabilities.canAccessInternalWorkspace) return internal;
-    if (capabilities.isGuest || capabilities.isPending || capabilities.isRejected) return guest;
+    if (capabilities.isInternal || capabilities.canAccessInternalWorkspace) {
+      return internal;
+    }
+    if (capabilities.isGuest ||
+        capabilities.isPending ||
+        capabilities.isRejected) {
+      return guest;
+    }
     return customer;
   }
 }
@@ -426,7 +667,12 @@ class _Backdrop extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.displayName, required this.avatarUrl, required this.unreadNotifications, required this.onNotifications});
+  const _Header({
+    required this.displayName,
+    required this.avatarUrl,
+    required this.unreadNotifications,
+    required this.onNotifications,
+  });
   final String displayName;
   final String? avatarUrl;
   final int unreadNotifications;
@@ -435,21 +681,45 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hour = DateTime.now().hour;
-    final greeting = hour < 12 ? 'Good morning,' : hour < 17 ? 'Good afternoon,' : 'Good evening,';
+    final greeting = hour < 12
+        ? 'Good morning,'
+        : hour < 17
+        ? 'Good afternoon,'
+        : 'Good evening,';
     return Row(
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(greeting, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textMuted)),
+              Text(
+                greeting,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textMuted,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.45)),
+              Text(
+                displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.textPrimary,
+                  letterSpacing: -0.45,
+                ),
+              ),
             ],
           ),
         ),
         const SizedBox(width: 10),
-        _HeaderIconButton(unreadNotifications: unreadNotifications, onTap: onNotifications),
+        _HeaderIconButton(
+          unreadNotifications: unreadNotifications,
+          onTap: onNotifications,
+        ),
         const SizedBox(width: 10),
         _AvatarBadge(avatarUrl: avatarUrl, name: displayName),
       ],
@@ -458,7 +728,10 @@ class _Header extends StatelessWidget {
 }
 
 class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({required this.unreadNotifications, required this.onTap});
+  const _HeaderIconButton({
+    required this.unreadNotifications,
+    required this.onTap,
+  });
   final int unreadNotifications;
   final VoidCallback onTap;
 
@@ -472,15 +745,38 @@ class _HeaderIconButton extends StatelessWidget {
         onTap: onTap,
         child: Stack(
           children: [
-            const SizedBox(width: 46, height: 46, child: Icon(Icons.notifications_none_rounded, size: 22, color: AppTheme.textPrimary)),
+            const SizedBox(
+              width: 46,
+              height: 46,
+              child: Icon(
+                Icons.notifications_none_rounded,
+                size: 22,
+                color: AppTheme.textPrimary,
+              ),
+            ),
             if (unreadNotifications > 0)
               Positioned(
                 right: 6,
                 top: 7,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(color: _servicesRose, borderRadius: BorderRadius.circular(999)),
-                  child: Text(unreadNotifications > 9 ? '9+' : unreadNotifications.toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _servicesRose,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    unreadNotifications > 9
+                        ? '9+'
+                        : unreadNotifications.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -501,24 +797,75 @@ class _AvatarBadge extends StatelessWidget {
     return Container(
       width: 46,
       height: 46,
-      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 6))]),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
       child: ClipOval(
         child: avatarUrl == null
-            ? Container(color: const Color(0xFFF3F4F6), alignment: Alignment.center, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary)))
+            ? Container(
+                color: _avatarColor(name).withValues(alpha: 0.12),
+                alignment: Alignment.center,
+                child: Text(
+                  initials,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: _avatarColor(name),
+                  ),
+                ),
+              )
             : Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, error, stackTrace) => Container(color: const Color(0xFFF3F4F6), alignment: Alignment.center, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary))),
+                errorBuilder: (_, error, stackTrace) => Container(
+                  color: _avatarColor(name).withValues(alpha: 0.12),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: _avatarColor(name),
+                    ),
+                  ),
+                ),
               ),
       ),
     );
   }
 
   String _initials(String name) {
-    final parts = name.trim().split(' ').where((part) => part.isNotEmpty).toList(growable: false);
+    final parts = name
+        .trim()
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
     if (parts.isEmpty) return 'U';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
+  }
+
+  Color _avatarColor(String name) {
+    final colors = [
+      _servicesRose,
+      _documentsIndigo,
+      _paymentsGreen,
+      _trackTeal,
+      _leadsPurple,
+      _tasksOrange,
+    ];
+    final source = name.trim().isEmpty ? 'OMC' : name.trim();
+    final index =
+        source.codeUnits.fold<int>(0, (sum, unit) => sum + unit) %
+        colors.length;
+    return colors[index];
   }
 }
 
@@ -541,13 +888,28 @@ class _SearchBar extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: AppTheme.border),
-            boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))],
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A0F172A),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
           ),
           child: Row(
             children: const [
               Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 22),
               SizedBox(width: 12),
-              Expanded(child: Text('Search services, documents, invoices...', style: TextStyle(color: AppTheme.textMuted, fontSize: 14, fontWeight: FontWeight.w500))),
+              Expanded(
+                child: Text(
+                  'Search services, documents, invoices...',
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
               _FilterChip(),
             ],
           ),
@@ -566,8 +928,15 @@ class _FilterChip extends StatelessWidget {
       width: 34,
       height: 34,
       child: DecoratedBox(
-        decoration: BoxDecoration(color: _neutralSoft, borderRadius: BorderRadius.circular(12)),
-        child: const Icon(Icons.tune_rounded, size: 18, color: AppTheme.textPrimary),
+        decoration: BoxDecoration(
+          color: _neutralSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(
+          Icons.tune_rounded,
+          size: 18,
+          color: AppTheme.textPrimary,
+        ),
       ),
     );
   }
@@ -580,25 +949,85 @@ class _BannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = mode.isGuest ? _tasksOrange : mode.isInternal ? _leadsPurple : _taxBlue;
-    final title = mode.isGuest ? 'Guest access' : mode.isInternal ? 'Internal workspace' : 'Profile under review';
+    final tone = mode.isGuest
+        ? _tasksOrange
+        : mode.isInternal
+        ? _leadsPurple
+        : _taxBlue;
+    final title = mode.isGuest
+        ? 'Guest access'
+        : mode.isInternal
+        ? 'Internal workspace'
+        : 'Profile under review';
     final message = mode.isGuest
         ? 'Browse public services now. Sign up to unlock tracking, documents, payments, and case history.'
         : mode.isInternal
-            ? 'Operations mode. Review documents, payments, leads, and tasks from one place.'
-            : 'Your account is active. Complete your profile to unlock the full dashboard.';
+        ? 'Operations mode. Review documents, payments, leads, and tasks from one place.'
+        : 'Your account is active. Complete your profile to unlock the full dashboard.';
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          Container(width: 46, height: 46, decoration: BoxDecoration(color: tone.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(16)), child: Icon(mode.isInternal ? Icons.admin_panel_settings_rounded : Icons.verified_outlined, color: tone)),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: tone.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              mode.isInternal
+                  ? Icons.admin_panel_settings_rounded
+                  : Icons.verified_outlined,
+              color: tone,
+            ),
+          ),
           const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)), const SizedBox(height: 4), Text(message, style: const TextStyle(fontSize: 12.5, color: AppTheme.textSecondary, height: 1.35))])),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppTheme.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(width: 10),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: tone, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), minimumSize: const Size(0, 0)),
+            style: FilledButton.styleFrom(
+              backgroundColor: tone,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              minimumSize: const Size(0, 0),
+            ),
             onPressed: onPrimary,
             child: Text(mode.isGuest ? 'Sign up' : 'View Status'),
           ),
@@ -618,16 +1047,38 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.2))),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textPrimary,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
         if (actionLabel != null)
-          TextButton(onPressed: onTap, style: TextButton.styleFrom(foregroundColor: _taxBlue, textStyle: const TextStyle(fontWeight: FontWeight.w800)), child: Text(actionLabel!)),
+          TextButton(
+            onPressed: onTap,
+            style: TextButton.styleFrom(
+              foregroundColor: _taxBlue,
+              textStyle: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            child: Text(actionLabel!),
+          ),
       ],
     );
   }
 }
 
 class _QuickActionsRow extends StatelessWidget {
-  const _QuickActionsRow({required this.actions, required this.capabilities, required this.onTap, required this.onMore});
+  const _QuickActionsRow({
+    required this.actions,
+    required this.capabilities,
+    required this.onTap,
+    required this.onMore,
+  });
   final List<MobileQuickAction> actions;
   final AuthCapabilities capabilities;
   final ValueChanged<MobileQuickAction> onTap;
@@ -644,7 +1095,11 @@ class _QuickActionsRow extends StatelessWidget {
             if (index > 0) const SizedBox(width: 10),
             Expanded(
               child: index < visible.length
-                  ? _ActionTile(action: visible[index], locked: !_isAllowed(visible[index], capabilities), onTap: () => onTap(visible[index]))
+                  ? _ActionTile(
+                      action: visible[index],
+                      locked: !_isAllowed(visible[index], capabilities),
+                      onTap: () => onTap(visible[index]),
+                    )
                   : const SizedBox.shrink(),
             ),
           ],
@@ -659,14 +1114,34 @@ class _QuickActionsRow extends StatelessWidget {
     final required = action.requiredCapability?.trim();
     if (required == null || required.isEmpty) return true;
     return switch (required) {
-      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
-      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
-      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
-      'can_review_documents' => capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace,
-      'can_review_payments' => capabilities.canReviewPayments || capabilities.canAccessInternalWorkspace,
-      'can_manage_customers' => capabilities.canManageCustomers || capabilities.canAccessInternalWorkspace,
-      'can_manage_leads' => capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
-      'can_manage_tasks' => capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
+      'can_view_documents' =>
+        capabilities.canViewDocuments ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
+      'can_track_requests' =>
+        capabilities.canTrackRequests ||
+            capabilities.canViewCustomerDashboard ||
+            capabilities.canAccessCustomerDashboard ||
+            capabilities.isApproved ||
+            capabilities.canAccessInternalWorkspace,
+      'can_view_payments' =>
+        capabilities.canViewPayments ||
+            capabilities.canReviewPayments ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
+      'can_review_documents' =>
+        capabilities.canReviewDocuments ||
+            capabilities.canAccessInternalWorkspace,
+      'can_review_payments' =>
+        capabilities.canReviewPayments ||
+            capabilities.canAccessInternalWorkspace,
+      'can_manage_customers' =>
+        capabilities.canManageCustomers ||
+            capabilities.canAccessInternalWorkspace,
+      'can_manage_leads' =>
+        capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
+      'can_manage_tasks' =>
+        capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
       'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
       _ => true,
     };
@@ -674,7 +1149,11 @@ class _QuickActionsRow extends StatelessWidget {
 }
 
 class _ActionTile extends StatelessWidget {
-  const _ActionTile({required this.action, required this.locked, required this.onTap});
+  const _ActionTile({
+    required this.action,
+    required this.locked,
+    required this.onTap,
+  });
   final MobileQuickAction action;
   final bool locked;
   final VoidCallback onTap;
@@ -696,16 +1175,58 @@ class _ActionTile extends StatelessWidget {
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 34, height: 34, decoration: BoxDecoration(color: palette.soft, borderRadius: BorderRadius.circular(12)), child: Icon(_iconForActionKey(action.iconKey), color: palette.accent, size: 18)),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: palette.soft,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        _iconForActionKey(action.iconKey),
+                        color: palette.accent,
+                        size: 18,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text(action.title, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08)),
+                    Text(
+                      action.title,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10.8,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                        height: 1.08,
+                      ),
+                    ),
                   ],
                 ),
                 if (locked)
                   Positioned(
                     right: 0,
                     top: 0,
-                    child: Container(width: 18, height: 18, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 4, offset: Offset(0, 2))]), child: const Icon(Icons.lock_rounded, size: 10, color: AppTheme.textMuted)),
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x12000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.lock_rounded,
+                        size: 10,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -732,9 +1253,26 @@ class _MoreTile extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(width: 34, height: 34, child: Icon(Icons.more_horiz_rounded, size: 20, color: AppTheme.textPrimary)),
+              SizedBox(
+                width: 34,
+                height: 34,
+                child: Icon(
+                  Icons.more_horiz_rounded,
+                  size: 20,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
               SizedBox(height: 8),
-              Text('More', textAlign: TextAlign.center, style: TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, height: 1.08)),
+              Text(
+                'More',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10.8,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                  height: 1.08,
+                ),
+              ),
             ],
           ),
         ),
@@ -750,23 +1288,104 @@ class _CTASection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = mode.isGuest ? 'Create your account' : mode.isInternal ? 'Open internal workspace' : 'Complete your profile';
+    final title = mode.isGuest
+        ? 'Create your account'
+        : mode.isInternal
+        ? 'Open internal workspace'
+        : 'Complete your profile';
     final subtitle = mode.isGuest
         ? 'Unlock documents, tracking, receipts, and case history.'
         : mode.isInternal
-            ? 'Jump into leads, tasks, document review, and payments.'
-            : 'Get full access to all features and sync your data across devices.';
-    final button = mode.isGuest ? 'Sign up now' : mode.isInternal ? 'Open workspace' : 'Complete now';
-    final iconColor = mode.isGuest ? _taxBlue : mode.isInternal ? _leadsPurple : _paymentsGreen;
+        ? 'Jump into leads, tasks, document review, and payments.'
+        : 'Get full access to all features and sync your data across devices.';
+    final button = mode.isGuest
+        ? 'Sign up now'
+        : mode.isInternal
+        ? 'Open workspace'
+        : 'Complete now';
+    final iconColor = mode.isGuest
+        ? _taxBlue
+        : mode.isInternal
+        ? _leadsPurple
+        : _paymentsGreen;
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 18, offset: Offset(0, 8))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          Container(width: 58, height: 58, decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [iconColor.withValues(alpha: 0.14), iconColor.withValues(alpha: 0.06)]), borderRadius: BorderRadius.circular(18)), child: Icon(mode.isInternal ? Icons.admin_panel_settings_rounded : Icons.verified_user_rounded, color: iconColor, size: 28)),
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  iconColor.withValues(alpha: 0.14),
+                  iconColor.withValues(alpha: 0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(
+              mode.isInternal
+                  ? Icons.admin_panel_settings_rounded
+                  : Icons.verified_user_rounded,
+              color: iconColor,
+              size: 28,
+            ),
+          ),
           const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)), const SizedBox(height: 4), Text(subtitle, style: const TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary)), const SizedBox(height: 12), FilledButton(style: FilledButton.styleFrom(backgroundColor: iconColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11), minimumSize: const Size(0, 0)), onPressed: onOpen, child: Text(button))])),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12.4,
+                    height: 1.35,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: iconColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
+                    minimumSize: const Size(0, 0),
+                  ),
+                  onPressed: onOpen,
+                  child: Text(button),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -789,12 +1408,38 @@ class _InternalSummaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ops = summary.operationsSummary;
-    return _StatsGrid(items: [
-      _MetricItem('Open Leads', ops.openLeads, Icons.campaign_outlined, _leadsPurple, _leadsPurpleSoft),
-      _MetricItem('Customers', ops.activeCustomers, Icons.people_alt_outlined, _taxBlue, _taxBlueSoft),
-      _MetricItem('Tasks', ops.pendingTasks, Icons.task_alt_rounded, _tasksOrange, _tasksOrangeSoft),
-      _MetricItem('Payments', ops.pendingPayments, Icons.payments_outlined, _paymentsGreen, _paymentsGreenSoft),
-    ]);
+    return _StatsGrid(
+      items: [
+        _MetricItem(
+          'Open Leads',
+          ops.openLeads,
+          Icons.campaign_outlined,
+          _leadsPurple,
+          _leadsPurpleSoft,
+        ),
+        _MetricItem(
+          'Customers',
+          ops.activeCustomers,
+          Icons.people_alt_outlined,
+          _taxBlue,
+          _taxBlueSoft,
+        ),
+        _MetricItem(
+          'Tasks',
+          ops.pendingTasks,
+          Icons.task_alt_rounded,
+          _tasksOrange,
+          _tasksOrangeSoft,
+        ),
+        _MetricItem(
+          'Payments',
+          ops.pendingPayments,
+          Icons.payments_outlined,
+          _paymentsGreen,
+          _paymentsGreenSoft,
+        ),
+      ],
+    );
   }
 }
 
@@ -805,20 +1450,68 @@ class _CustomerSummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (guestMode && summary.activeCases == 0 && summary.pendingDocuments == 0 && summary.paymentsDue == 0 && summary.unreadNotifications == 0) {
+    if (guestMode &&
+        summary.activeCases == 0 &&
+        summary.pendingDocuments == 0 &&
+        summary.paymentsDue == 0 &&
+        summary.unreadNotifications == 0) {
       return Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
-        child: const Text('Guest dashboard is limited. Create an account to unlock case tracking, documents, payments, and live activity.', style: TextStyle(fontSize: 12.4, height: 1.35, color: AppTheme.textSecondary)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A0F172A),
+              blurRadius: 16,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: const Text(
+          'Guest dashboard is limited. Create an account to unlock case tracking, documents, payments, and live activity.',
+          style: TextStyle(
+            fontSize: 12.4,
+            height: 1.35,
+            color: AppTheme.textSecondary,
+          ),
+        ),
       );
     }
 
-    return _StatsGrid(items: [
-      _MetricItem('Active Services', summary.activeCases, Icons.work_outline_rounded, _servicesRose, _servicesRoseSoft),
-      _MetricItem('Documents', summary.pendingDocuments, Icons.description_outlined, _documentsIndigo, _documentsIndigoSoft),
-      _MetricItem('Payments', summary.paymentsDue, Icons.payments_outlined, _paymentsGreen, _paymentsGreenSoft),
-      _MetricItem('Notifications', summary.unreadNotifications, Icons.notifications_none_rounded, _neutralSlate, _neutralSoft),
-    ]);
+    return _StatsGrid(
+      items: [
+        _MetricItem(
+          'Active Services',
+          summary.activeCases,
+          Icons.work_outline_rounded,
+          _servicesRose,
+          _servicesRoseSoft,
+        ),
+        _MetricItem(
+          'Documents',
+          summary.pendingDocuments,
+          Icons.description_outlined,
+          _documentsIndigo,
+          _documentsIndigoSoft,
+        ),
+        _MetricItem(
+          'Payments',
+          summary.paymentsDue,
+          Icons.payments_outlined,
+          _paymentsGreen,
+          _paymentsGreenSoft,
+        ),
+        _MetricItem(
+          'Notifications',
+          summary.unreadNotifications,
+          Icons.notifications_none_rounded,
+          _neutralSlate,
+          _neutralSoft,
+        ),
+      ],
+    );
   }
 }
 
@@ -832,7 +1525,12 @@ class _StatsGrid extends StatelessWidget {
       itemCount: items.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.34),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.34,
+      ),
       itemBuilder: (_, index) => _MetricCard(item: items[index]),
     );
   }
@@ -846,15 +1544,69 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [Container(width: 34, height: 34, decoration: BoxDecoration(color: item.soft, borderRadius: BorderRadius.circular(13)), child: Icon(item.icon, color: item.accent, size: 19)), const Spacer(), Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4), decoration: BoxDecoration(color: item.accent.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(999)), child: Text('Live', style: TextStyle(color: item.accent, fontSize: 9.8, fontWeight: FontWeight.w800)))]),
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: item.soft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(item.icon, color: item.accent, size: 19),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                decoration: BoxDecoration(
+                  color: item.accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Live',
+                  style: TextStyle(
+                    color: item.accent,
+                    fontSize: 9.8,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const Spacer(),
-          Text(item.value.toString(), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: -0.6)),
+          Text(
+            item.value.toString(),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textPrimary,
+              letterSpacing: -0.6,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(item.label, style: const TextStyle(fontSize: 12.4, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
+          Text(
+            item.label,
+            style: const TextStyle(
+              fontSize: 12.4,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textSecondary,
+            ),
+          ),
           const SizedBox(height: 10),
           _TrendLine(color: item.accent),
         ],
@@ -871,7 +1623,17 @@ class _TrendLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(5, (index) => Container(width: 18 + (index.isEven ? 4 : 0), height: 3, decoration: BoxDecoration(color: color.withValues(alpha: 0.20 + (index * 0.08)), borderRadius: BorderRadius.circular(999)))),
+      children: List.generate(
+        5,
+        (index) => Container(
+          width: 18 + (index.isEven ? 4 : 0),
+          height: 3,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.20 + (index * 0.08)),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -886,12 +1648,37 @@ class _ServiceList extends StatelessWidget {
     if (items.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
-        child: const Text('No active service yet.', style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A0F172A),
+              blurRadius: 16,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: const Text(
+          'No active service yet.',
+          style: TextStyle(
+            fontSize: 12.5,
+            height: 1.35,
+            color: AppTheme.textSecondary,
+          ),
+        ),
       );
     }
 
-    return Column(children: [for (var i = 0; i < items.take(3).length; i++) ...[if (i > 0) const SizedBox(height: 12), _ServiceCard(service: items[i], onTap: () => onTap(items[i].id))]]);
+    return Column(
+      children: [
+        for (var i = 0; i < items.take(3).length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          _ServiceCard(service: items[i], onTap: () => onTap(items[i].id)),
+        ],
+      ],
+    );
   }
 }
 
@@ -902,11 +1689,15 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final family = _paletteForFamily(service.colorFamily ?? _inferFamily('${service.title} ${service.status}'));
+    final family = _paletteForFamily(
+      service.colorFamily ?? _inferFamily('${service.title} ${service.status}'),
+    );
     final progress = (service.progress * 100).round().clamp(0, 100);
     final statusTone = _statusTone(service.status);
     final progressColor = _progressColor(service.progress, service.status);
-    final subtitle = service.customerName.trim().isNotEmpty ? service.customerName : 'Ongoing case';
+    final subtitle = service.customerName.trim().isNotEmpty
+        ? service.customerName
+        : 'Ongoing case';
 
     return Material(
       color: Colors.transparent,
@@ -915,14 +1706,88 @@ class _ServiceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A0F172A),
+                blurRadius: 16,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
           child: Column(
             children: [
-              Row(children: [Container(width: 40, height: 40, decoration: BoxDecoration(color: family.soft, borderRadius: BorderRadius.circular(14)), child: Icon(_statusIcon(service.status), color: family.accent, size: 20)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(service.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)), const SizedBox(height: 2), Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600))])), const SizedBox(width: 8), _ActionPill(label: _statusLabel(service.status), color: statusTone)]),
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: family.soft,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      _statusIcon(service.status),
+                      color: family.accent,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          service.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w900,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _ActionPill(
+                    label: _statusLabel(service.status),
+                    color: statusTone,
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
               _ProgressBar(progress: service.progress, color: progressColor),
               const SizedBox(height: 10),
-              Row(children: [Text('$progress% complete', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textSecondary)), const Spacer(), Icon(Icons.chevron_right_rounded, color: family.accent)]),
+              Row(
+                children: [
+                  Text(
+                    '$progress% complete',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded, color: family.accent),
+                ],
+              ),
             ],
           ),
         ),
@@ -942,11 +1807,23 @@ class _ProgressBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: Container(
         height: 8,
-        decoration: BoxDecoration(color: AppTheme.cardSoft, borderRadius: BorderRadius.circular(999)),
+        decoration: BoxDecoration(
+          color: AppTheme.cardSoft,
+          borderRadius: BorderRadius.circular(999),
+        ),
         child: FractionallySizedBox(
           widthFactor: progress.clamp(0, 1),
           child: Container(
-            decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [_progressStartColor(progress), _progressEndColor(progress)])),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  _progressStartColor(progress),
+                  _progressEndColor(progress),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -963,17 +1840,50 @@ class _ActivityList extends StatelessWidget {
     if (activities.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
-        child: const Text('Recent activity will appear here.', style: TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A0F172A),
+              blurRadius: 16,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: const Text(
+          'Recent activity will appear here.',
+          style: TextStyle(
+            fontSize: 12.5,
+            height: 1.35,
+            color: AppTheme.textSecondary,
+          ),
+        ),
       );
     }
 
     return Container(
       padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppTheme.border), boxShadow: const [BoxShadow(color: Color(0x0A0F172A), blurRadius: 16, offset: Offset(0, 8))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
         children: [
-          for (var i = 0; i < activities.length; i++) ...[if (i > 0) const Divider(height: 1, thickness: 1, color: AppTheme.border), _ActivityItem(activity: activities[i])],
+          for (var i = 0; i < activities.length; i++) ...[
+            if (i > 0)
+              const Divider(height: 1, thickness: 1, color: AppTheme.border),
+            _ActivityItem(activity: activities[i]),
+          ],
         ],
       ),
     );
@@ -986,20 +1896,74 @@ class _ActivityItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final family = _paletteForFamily(activity.colorFamily ?? _inferFamily('${activity.title} ${activity.status ?? ''} ${activity.subtitle}'));
+    final family = _paletteForFamily(
+      activity.colorFamily ??
+          _inferFamily(
+            '${activity.title} ${activity.status ?? ''} ${activity.subtitle}',
+          ),
+    );
     final dot = _activityTone(activity.status, family.accent);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(width: 38, height: 38, decoration: BoxDecoration(color: family.soft, borderRadius: BorderRadius.circular(14)), child: Icon(_activityIcon(activity.status), color: family.accent, size: 18)),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: family.soft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              _activityIcon(activity.status),
+              color: family.accent,
+              size: 18,
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(activity.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)), const SizedBox(height: 4), Text(activity.subtitle, style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppTheme.textSecondary)), if ((activity.createdAtLabel ?? '').trim().isNotEmpty) ...[const SizedBox(height: 6), Text(activity.createdAtLabel!, style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted, fontWeight: FontWeight.w600))]]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activity.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  activity.subtitle,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                if ((activity.createdAtLabel ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    activity.createdAtLabel!,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppTheme.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
           const SizedBox(width: 8),
-          Container(width: 10, height: 10, margin: const EdgeInsets.only(top: 4), decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+          Container(
+            width: 10,
+            height: 10,
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+          ),
         ],
       ),
     );
@@ -1013,7 +1977,21 @@ class _ActionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(999)), child: Text(label, style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w800)));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
   }
 }
 
@@ -1025,27 +2003,77 @@ class _ColorPalette {
 
 _ColorPalette _paletteForAction(MobileQuickAction action) {
   final key = '${action.iconKey} ${action.title}'.toLowerCase();
-  if (key.contains('payment') || key.contains('receipt')) return const _ColorPalette(accent: _paymentsGreen, soft: _paymentsGreenSoft);
-  if (key.contains('document')) return const _ColorPalette(accent: _documentsIndigo, soft: _documentsIndigoSoft);
-  if (key.contains('track') || key.contains('review')) return const _ColorPalette(accent: _trackTeal, soft: _trackTealSoft);
-  if (key.contains('lead')) return const _ColorPalette(accent: _leadsPurple, soft: _leadsPurpleSoft);
-  if (key.contains('task')) return const _ColorPalette(accent: _tasksOrange, soft: _tasksOrangeSoft);
-  if (key.contains('notification')) return const _ColorPalette(accent: _neutralSlate, soft: _neutralSoft);
-  if (key.contains('service')) return const _ColorPalette(accent: _servicesRose, soft: _servicesRoseSoft);
-  if (key.contains('tax') || key.contains('gst') || key.contains('calculator') || key.contains('ntn')) return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
+  if (key.contains('payment') || key.contains('receipt')) {
+    return const _ColorPalette(
+      accent: _paymentsGreen,
+      soft: _paymentsGreenSoft,
+    );
+  }
+  if (key.contains('document')) {
+    return const _ColorPalette(
+      accent: _documentsIndigo,
+      soft: _documentsIndigoSoft,
+    );
+  }
+  if (key.contains('track') || key.contains('review')) {
+    return const _ColorPalette(accent: _trackTeal, soft: _trackTealSoft);
+  }
+  if (key.contains('lead')) {
+    return const _ColorPalette(accent: _leadsPurple, soft: _leadsPurpleSoft);
+  }
+  if (key.contains('task')) {
+    return const _ColorPalette(accent: _tasksOrange, soft: _tasksOrangeSoft);
+  }
+  if (key.contains('notification')) {
+    return const _ColorPalette(accent: _neutralSlate, soft: _neutralSoft);
+  }
+  if (key.contains('service')) {
+    return const _ColorPalette(accent: _servicesRose, soft: _servicesRoseSoft);
+  }
+  if (key.contains('tax') ||
+      key.contains('gst') ||
+      key.contains('calculator') ||
+      key.contains('ntn')) {
+    return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
+  }
   return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
 }
 
 _ColorPalette _paletteForFamily(String? family) {
   final normalized = family?.trim().toLowerCase() ?? '';
-  if (normalized.contains('payment')) return const _ColorPalette(accent: _paymentsGreen, soft: _paymentsGreenSoft);
-  if (normalized.contains('document')) return const _ColorPalette(accent: _documentsIndigo, soft: _documentsIndigoSoft);
-  if (normalized.contains('track')) return const _ColorPalette(accent: _trackTeal, soft: _trackTealSoft);
-  if (normalized.contains('lead')) return const _ColorPalette(accent: _leadsPurple, soft: _leadsPurpleSoft);
-  if (normalized.contains('task')) return const _ColorPalette(accent: _tasksOrange, soft: _tasksOrangeSoft);
-  if (normalized.contains('notification')) return const _ColorPalette(accent: _neutralSlate, soft: _neutralSoft);
-  if (normalized.contains('service')) return const _ColorPalette(accent: _servicesRose, soft: _servicesRoseSoft);
-  if (normalized.contains('tax') || normalized.contains('gst') || normalized.contains('calculator') || normalized.contains('ntn')) return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
+  if (normalized.contains('payment')) {
+    return const _ColorPalette(
+      accent: _paymentsGreen,
+      soft: _paymentsGreenSoft,
+    );
+  }
+  if (normalized.contains('document')) {
+    return const _ColorPalette(
+      accent: _documentsIndigo,
+      soft: _documentsIndigoSoft,
+    );
+  }
+  if (normalized.contains('track')) {
+    return const _ColorPalette(accent: _trackTeal, soft: _trackTealSoft);
+  }
+  if (normalized.contains('lead')) {
+    return const _ColorPalette(accent: _leadsPurple, soft: _leadsPurpleSoft);
+  }
+  if (normalized.contains('task')) {
+    return const _ColorPalette(accent: _tasksOrange, soft: _tasksOrangeSoft);
+  }
+  if (normalized.contains('notification')) {
+    return const _ColorPalette(accent: _neutralSlate, soft: _neutralSoft);
+  }
+  if (normalized.contains('service')) {
+    return const _ColorPalette(accent: _servicesRose, soft: _servicesRoseSoft);
+  }
+  if (normalized.contains('tax') ||
+      normalized.contains('gst') ||
+      normalized.contains('calculator') ||
+      normalized.contains('ntn')) {
+    return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
+  }
   return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
 }
 
@@ -1057,17 +2085,27 @@ Color _statusTone(String? status) {
   if (normalized.contains('completed')) return _paymentsGreen;
   if (normalized.contains('waiting')) return _leadsPurple;
   if (normalized.contains('pending')) return _tasksOrange;
-  if (normalized.contains('rejected') || normalized.contains('cancelled')) return const Color(0xFFDC2626);
+  if (normalized.contains('rejected') || normalized.contains('cancelled')) {
+    return const Color(0xFFDC2626);
+  }
   return _servicesRose;
 }
 
 Color _activityTone(String? status, Color fallback) {
   final normalized = (status ?? '').trim().toLowerCase();
-  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return _paymentsGreen;
+  if (normalized.contains('verified') ||
+      normalized.contains('approved') ||
+      normalized.contains('done')) {
+    return _paymentsGreen;
+  }
   if (normalized.contains('review')) return _taxBlue;
-  if (normalized.contains('required') || normalized.contains('information')) return _tasksOrange;
+  if (normalized.contains('required') || normalized.contains('information')) {
+    return _tasksOrange;
+  }
   if (normalized.contains('pending')) return _leadsPurple;
-  if (normalized.contains('rejected') || normalized.contains('blocked')) return const Color(0xFFDC2626);
+  if (normalized.contains('rejected') || normalized.contains('blocked')) {
+    return const Color(0xFFDC2626);
+  }
   return fallback;
 }
 
@@ -1085,7 +2123,11 @@ Color _progressEndColor(double progress) {
 
 Color _progressColor(double progress, String status) {
   final normalized = status.trim().toLowerCase();
-  if (normalized.contains('rejected') || normalized.contains('cancelled') || normalized.contains('blocked')) return const Color(0xFFDC2626);
+  if (normalized.contains('rejected') ||
+      normalized.contains('cancelled') ||
+      normalized.contains('blocked')) {
+    return const Color(0xFFDC2626);
+  }
   if (normalized.contains('completed')) return const Color(0xFF16A34A);
   if (progress <= 0.35) return const Color(0xFF8B5A2B);
   if (progress <= 0.7) return const Color(0xFFF59E0B);
@@ -1094,18 +2136,50 @@ Color _progressColor(double progress, String status) {
 
 String _inferFamily(String text) {
   final normalized = text.toLowerCase();
-  if (normalized.contains('payment') || normalized.contains('receipt') || normalized.contains('invoice') || normalized.contains('bill')) return 'Payments';
-  if (normalized.contains('document') || normalized.contains('doc ') || normalized.contains('docs') || normalized.contains('uploaded')) return 'Documents';
-  if (normalized.contains('track') || normalized.contains('review') || normalized.contains('progress') || normalized.contains('status')) return 'Track';
+  if (normalized.contains('payment') ||
+      normalized.contains('receipt') ||
+      normalized.contains('invoice') ||
+      normalized.contains('bill')) {
+    return 'Payments';
+  }
+  if (normalized.contains('document') ||
+      normalized.contains('doc ') ||
+      normalized.contains('docs') ||
+      normalized.contains('uploaded')) {
+    return 'Documents';
+  }
+  if (normalized.contains('track') ||
+      normalized.contains('review') ||
+      normalized.contains('progress') ||
+      normalized.contains('status')) {
+    return 'Track';
+  }
   if (normalized.contains('lead')) return 'Leads';
-  if (normalized.contains('task') || normalized.contains('todo') || normalized.contains('action needed')) return 'Tasks';
-  if (normalized.contains('notification') || normalized.contains('alert') || normalized.contains('message')) return 'Notifications';
-  if (normalized.contains('tax') || normalized.contains('gst') || normalized.contains('ntn') || normalized.contains('calculator')) return 'Tax';
+  if (normalized.contains('task') ||
+      normalized.contains('todo') ||
+      normalized.contains('action needed')) {
+    return 'Tasks';
+  }
+  if (normalized.contains('notification') ||
+      normalized.contains('alert') ||
+      normalized.contains('message')) {
+    return 'Notifications';
+  }
+  if (normalized.contains('tax') ||
+      normalized.contains('gst') ||
+      normalized.contains('ntn') ||
+      normalized.contains('calculator')) {
+    return 'Tax';
+  }
   return 'Services';
 }
 
 IconData _iconForActionKey(String key) {
-  final normalized = key.trim().toLowerCase().replaceAll('_', '-').replaceAll(' ', '-');
+  final normalized = key
+      .trim()
+      .toLowerCase()
+      .replaceAll('_', '-')
+      .replaceAll(' ', '-');
   return switch (normalized) {
     'tax-return' => Icons.receipt_long_outlined,
     'ntn' => Icons.badge_outlined,
@@ -1115,7 +2189,7 @@ IconData _iconForActionKey(String key) {
     'calculator' => Icons.calculate_outlined,
     'support' => Icons.support_agent_rounded,
     'payments' => Icons.payments_outlined,
-    'message' => Icons.chat_bubble_outline_rounded,
+    'message' => Icons.support_agent_rounded,
     'knowledge' => Icons.lightbulb_outline_rounded,
     'services' => Icons.grid_view_rounded,
     'notifications' => Icons.notifications_none_rounded,
@@ -1128,11 +2202,19 @@ IconData _iconForActionKey(String key) {
 
 IconData _activityIcon(String? status) {
   final normalized = (status ?? '').trim().toLowerCase();
-  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return Icons.check_circle_rounded;
+  if (normalized.contains('verified') ||
+      normalized.contains('approved') ||
+      normalized.contains('done')) {
+    return Icons.check_circle_rounded;
+  }
   if (normalized.contains('review')) return Icons.visibility_rounded;
-  if (normalized.contains('required') || normalized.contains('information')) return Icons.priority_high_rounded;
+  if (normalized.contains('required') || normalized.contains('information')) {
+    return Icons.priority_high_rounded;
+  }
   if (normalized.contains('pending')) return Icons.hourglass_top_rounded;
-  if (normalized.contains('rejected') || normalized.contains('blocked')) return Icons.block_rounded;
+  if (normalized.contains('rejected') || normalized.contains('blocked')) {
+    return Icons.block_rounded;
+  }
   return Icons.circle_rounded;
 }
 
@@ -1141,7 +2223,9 @@ IconData _statusIcon(String status) {
   if (normalized.contains('in progress')) return Icons.trending_up_rounded;
   if (normalized.contains('under review')) return Icons.visibility_outlined;
   if (normalized.contains('information')) return Icons.info_outline_rounded;
-  if (normalized.contains('completed')) return Icons.check_circle_outline_rounded;
+  if (normalized.contains('completed')) {
+    return Icons.check_circle_outline_rounded;
+  }
   if (normalized.contains('pending')) return Icons.hourglass_bottom_rounded;
   return Icons.work_outline_rounded;
 }

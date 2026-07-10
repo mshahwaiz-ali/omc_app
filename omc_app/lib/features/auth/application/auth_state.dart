@@ -161,7 +161,7 @@ class AuthCapabilities {
       canUseTaxCalculator: _boolValue(json['can_use_tax_calculator'], true),
       canCreateServiceRequest:
           _boolValue(json['can_create_service_request'], isApprovedCustomer) ||
-              isInternal,
+          isInternal,
       canUploadDocuments: _boolValue(
         json['can_upload_documents'],
         isApprovedCustomer,
@@ -307,6 +307,7 @@ class AuthState {
     this.companyName,
     this.customerStatus,
     this.approvalStatus,
+    this.avatarUrl,
     this.capabilities = AuthCapabilities.guest,
   });
 
@@ -319,6 +320,7 @@ class AuthState {
   final String? companyName;
   final String? customerStatus;
   final String? approvalStatus;
+  final String? avatarUrl;
   final AuthCapabilities capabilities;
 
   const AuthState.checking()
@@ -331,6 +333,7 @@ class AuthState {
       companyName = null,
       customerStatus = null,
       approvalStatus = null,
+      avatarUrl = null,
       capabilities = AuthCapabilities.guest;
 
   const AuthState.authenticating()
@@ -343,6 +346,7 @@ class AuthState {
       companyName = null,
       customerStatus = null,
       approvalStatus = null,
+      avatarUrl = null,
       capabilities = AuthCapabilities.guest;
 
   const AuthState.authenticated({
@@ -353,6 +357,7 @@ class AuthState {
     this.companyName,
     this.customerStatus,
     this.approvalStatus,
+    this.avatarUrl,
     this.capabilities = AuthCapabilities.guest,
   }) : status = AuthStatus.authenticated,
        message = null;
@@ -367,6 +372,7 @@ class AuthState {
       companyName = null,
       customerStatus = 'Guest',
       approvalStatus = null,
+      avatarUrl = null,
       capabilities = AuthCapabilities.guest;
 
   const AuthState.unauthenticated({this.message})
@@ -378,6 +384,7 @@ class AuthState {
       companyName = null,
       customerStatus = null,
       approvalStatus = null,
+      avatarUrl = null,
       capabilities = AuthCapabilities.guest;
 
   AuthState copyWith({
@@ -390,6 +397,7 @@ class AuthState {
     String? companyName,
     String? customerStatus,
     String? approvalStatus,
+    String? avatarUrl,
     AuthCapabilities? capabilities,
   }) {
     return AuthState(
@@ -403,6 +411,7 @@ class AuthState {
       companyName: companyName ?? this.companyName,
       customerStatus: customerStatus ?? this.customerStatus,
       approvalStatus: approvalStatus ?? this.approvalStatus,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       capabilities: capabilities ?? this.capabilities,
     );
   }

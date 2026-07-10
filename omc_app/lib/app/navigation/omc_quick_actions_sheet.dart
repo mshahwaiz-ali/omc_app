@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/omc_premium.dart';
 import '../../features/auth/application/auth_state.dart';
 import '../theme.dart';
 import 'omc_nav_models.dart';
@@ -10,10 +11,12 @@ Future<void> showOmcQuickActionsSheet({
   required VoidCallback onOpenServices,
   required VoidCallback onOpenDocuments,
   required VoidCallback onOpenPayments,
+  required VoidCallback onOpenTrack,
   required VoidCallback onOpenSupport,
   required VoidCallback onOpenTaxCalculator,
   required VoidCallback onOpenExpenseTracker,
   required VoidCallback onOpenProfile,
+  required VoidCallback onOpenKnowledge,
   required VoidCallback onOpenInternalWorkspace,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenTasks,
@@ -34,10 +37,12 @@ Future<void> showOmcQuickActionsSheet({
         onOpenServices: onOpenServices,
         onOpenDocuments: onOpenDocuments,
         onOpenPayments: onOpenPayments,
+        onOpenTrack: onOpenTrack,
         onOpenSupport: onOpenSupport,
         onOpenTaxCalculator: onOpenTaxCalculator,
         onOpenExpenseTracker: onOpenExpenseTracker,
         onOpenProfile: onOpenProfile,
+        onOpenKnowledge: onOpenKnowledge,
         onOpenInternalWorkspace: onOpenInternalWorkspace,
         onOpenCustomers: onOpenCustomers,
         onOpenTasks: onOpenTasks,
@@ -53,52 +58,66 @@ List<OmcSheetAction> _quickActions({
   required VoidCallback onOpenServices,
   required VoidCallback onOpenDocuments,
   required VoidCallback onOpenPayments,
+  required VoidCallback onOpenTrack,
   required VoidCallback onOpenSupport,
   required VoidCallback onOpenTaxCalculator,
   required VoidCallback onOpenExpenseTracker,
   required VoidCallback onOpenProfile,
+  required VoidCallback onOpenKnowledge,
   required VoidCallback onOpenInternalWorkspace,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenTasks,
 }) {
   OmcSheetAction action(String label, IconData icon, VoidCallback onTap) {
-    return OmcSheetAction(label: label, icon: icon, onTap: () => _closeThen(sheetContext, onTap));
+    return OmcSheetAction(
+      label: label,
+      icon: icon,
+      onTap: () => _closeThen(sheetContext, onTap),
+    );
   }
 
   if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
     return [
-      action('Workspace', Icons.admin_panel_settings_outlined, onOpenInternalWorkspace),
-      action('Cases', Icons.fact_check_outlined, onOpenServices),
+      action(
+        'Workspace',
+        Icons.admin_panel_settings_outlined,
+        onOpenInternalWorkspace,
+      ),
+      action('Review Docs', Icons.fact_check_outlined, onOpenDocuments),
+      action('Review Pay', Icons.receipt_long_outlined, onOpenPayments),
       action('Customers', Icons.groups_outlined, onOpenCustomers),
-      action('Docs', Icons.folder_copy_outlined, onOpenDocuments),
+      action('Cases', Icons.workspaces_outline, onOpenServices),
       action('Tasks', Icons.task_alt_outlined, onOpenTasks),
     ];
   }
 
   if (capabilities.isApproved) {
     return [
-      action('New Service', Icons.add_business_outlined, onOpenServices),
-      action('Upload Doc', Icons.upload_file_outlined, onOpenDocuments),
-      action('Receipt', Icons.receipt_long_outlined, onOpenPayments),
+      action('Apply', Icons.add_business_outlined, onOpenServices),
+      action('Documents', Icons.folder_copy_outlined, onOpenDocuments),
+      action('Payments', Icons.account_balance_wallet_outlined, onOpenPayments),
+      action('Track', Icons.timeline_rounded, onOpenTrack),
+      action('Tax Calc', Icons.calculate_outlined, onOpenTaxCalculator),
       action('Support', Icons.support_agent_outlined, onOpenSupport),
-      action('Expense', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
     ];
   }
 
   if (capabilities.isPending) {
     return [
+      action('Services', Icons.grid_view_rounded, onOpenServices),
       action('Tax', Icons.calculate_outlined, onOpenTaxCalculator),
-      action('Expense', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
+      action('Knowledge', Icons.menu_book_outlined, onOpenKnowledge),
       action('Support', Icons.support_agent_outlined, onOpenSupport),
       action('Status', Icons.verified_user_outlined, onOpenProfile),
     ];
   }
 
   return [
+    action('Services', Icons.grid_view_rounded, onOpenServices),
     action('Tax', Icons.calculate_outlined, onOpenTaxCalculator),
-    action('Expense', Icons.account_balance_wallet_outlined, onOpenExpenseTracker),
+    action('Knowledge', Icons.menu_book_outlined, onOpenKnowledge),
     action('Support', Icons.support_agent_outlined, onOpenSupport),
-    action('Create', Icons.person_add_alt_1_outlined, onOpenProfile),
+    action('Sign Up', Icons.person_add_alt_1_outlined, onOpenProfile),
   ];
 }
 
@@ -115,7 +134,9 @@ class _QuickActionsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.55),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
         child: Column(
@@ -151,7 +172,8 @@ class _QuickActionsContent extends StatelessWidget {
                 crossAxisSpacing: 8,
                 childAspectRatio: 0.82,
               ),
-              itemBuilder: (context, index) => _SheetActionButton(action: actions[index]),
+              itemBuilder: (context, index) =>
+                  _SheetActionButton(action: actions[index]),
             ),
           ],
         ),
@@ -167,7 +189,9 @@ class _SheetActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = action.isDestructive ? Colors.red.shade700 : AppTheme.primaryRed;
+    final color = action.isDestructive
+        ? OmcPremium.danger
+        : OmcPremium.moduleColor(action.label);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
@@ -184,7 +208,7 @@ class _SheetActionButton extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.08),
+                  color: color.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(action.icon, color: color, size: 20),
@@ -196,7 +220,9 @@ class _SheetActionButton extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: action.isDestructive ? Colors.red.shade700 : AppTheme.textPrimary,
+                  color: action.isDestructive
+                      ? OmcPremium.danger
+                      : AppTheme.textPrimary,
                   fontSize: 10.5,
                   height: 1.08,
                   fontWeight: FontWeight.w700,

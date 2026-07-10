@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
@@ -15,10 +16,12 @@ class InternalServiceTrackScreen extends ConsumerStatefulWidget {
   const InternalServiceTrackScreen({super.key});
 
   @override
-  ConsumerState<InternalServiceTrackScreen> createState() => _InternalServiceTrackScreenState();
+  ConsumerState<InternalServiceTrackScreen> createState() =>
+      _InternalServiceTrackScreenState();
 }
 
-class _InternalServiceTrackScreenState extends ConsumerState<InternalServiceTrackScreen> {
+class _InternalServiceTrackScreenState
+    extends ConsumerState<InternalServiceTrackScreen> {
   _InternalCaseFilter _selectedFilter = _InternalCaseFilter.active;
 
   @override
@@ -35,18 +38,23 @@ class _InternalServiceTrackScreenState extends ConsumerState<InternalServiceTrac
             onStartRequest: () => context.go('/services'),
           ),
           data: (cases) {
-            final visibleCases = cases.where(_selectedFilter.matches).toList(growable: false);
+            final visibleCases = cases
+                .where(_selectedFilter.matches)
+                .toList(growable: false);
 
             return RefreshIndicator(
               onRefresh: () async => ref.invalidate(serviceCasesProvider),
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                 children: [
                   const PremiumListHeader(
                     icon: Icons.track_changes_rounded,
                     title: 'Track',
-                    subtitle: 'Follow active services, documents, payments and completion status.',
+                    subtitle:
+                        'Follow active services, documents, payments and completion status.',
                   ),
                   const SizedBox(height: 16),
                   _TopStats(cases: cases),
@@ -54,7 +62,8 @@ class _InternalServiceTrackScreenState extends ConsumerState<InternalServiceTrac
                   _InternalCaseFilterBar(
                     cases: cases,
                     selectedFilter: _selectedFilter,
-                    onSelected: (filter) => setState(() => _selectedFilter = filter),
+                    onSelected: (filter) =>
+                        setState(() => _selectedFilter = filter),
                   ),
                   const SizedBox(height: 12),
                   if (visibleCases.isEmpty)
@@ -62,7 +71,8 @@ class _InternalServiceTrackScreenState extends ConsumerState<InternalServiceTrac
                   else ...[
                     for (var i = 0; i < visibleCases.length; i++) ...[
                       _InternalServiceCaseCard(serviceCase: visibleCases[i]),
-                      if (i != visibleCases.length - 1) const SizedBox(height: 12),
+                      if (i != visibleCases.length - 1)
+                        const SizedBox(height: 12),
                     ],
                   ],
                 ],
@@ -149,13 +159,19 @@ class _InternalCaseFilterBar extends StatelessWidget {
                 color: selected ? color.withValues(alpha: 0.12) : Colors.white,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: selected ? color.withValues(alpha: 0.28) : Colors.black.withValues(alpha: 0.08),
+                  color: selected
+                      ? color.withValues(alpha: 0.28)
+                      : Colors.black.withValues(alpha: 0.08),
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(filter.icon, size: 14.5, color: selected ? color : AppTheme.textSecondary),
+                  Icon(
+                    filter.icon,
+                    size: 14.5,
+                    color: selected ? color : AppTheme.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     filter.label,
@@ -167,7 +183,10 @@ class _InternalCaseFilterBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: selected ? 0.14 : 0.07),
                       borderRadius: BorderRadius.circular(999),
@@ -205,11 +224,17 @@ class _TopStats extends StatelessWidget {
 
     return Row(
       children: [
-        Expanded(child: _StatTile(value: '$active', label: 'Active')),
+        Expanded(
+          child: _StatTile(value: '$active', label: 'Active'),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _StatTile(value: '$action', label: 'Action')),
+        Expanded(
+          child: _StatTile(value: '$action', label: 'Action'),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _StatTile(value: '$closed', label: 'Closed')),
+        Expanded(
+          child: _StatTile(value: '$closed', label: 'Closed'),
+        ),
       ],
     );
   }
@@ -226,9 +251,9 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.045),
+        color: OmcPremium.track.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
+        border: Border.all(color: OmcPremium.track.withValues(alpha: 0.08)),
       ),
       child: Column(
         children: [
@@ -270,7 +295,9 @@ class _InternalServiceCaseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = _stateFor(serviceCase);
     final palette = _paletteFor(state);
-    final progressPercent = serviceCase.progressPercent ?? (serviceCase.progress.clamp(0, 1) * 100).round();
+    final progressPercent =
+        serviceCase.progressPercent ??
+        (serviceCase.progress.clamp(0, 1) * 100).round();
 
     return PremiumCard(
       onTap: () => context.go('/my-services/${serviceCase.id}'),
@@ -303,10 +330,20 @@ class _InternalServiceCaseCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        PremiumInfoChip(icon: Icons.category_outlined, label: serviceCase.category),
-                        _StatusBadge(label: palette.label, color: palette.color),
-                        if (serviceCase.reference != null && serviceCase.reference!.trim().isNotEmpty)
-                          PremiumInfoChip(icon: Icons.confirmation_number_outlined, label: serviceCase.reference!),
+                        PremiumInfoChip(
+                          icon: Icons.category_outlined,
+                          label: serviceCase.category,
+                        ),
+                        _StatusBadge(
+                          label: palette.label,
+                          color: palette.color,
+                        ),
+                        if (serviceCase.reference != null &&
+                            serviceCase.reference!.trim().isNotEmpty)
+                          PremiumInfoChip(
+                            icon: Icons.confirmation_number_outlined,
+                            label: serviceCase.reference!,
+                          ),
                       ],
                     ),
                   ],
@@ -368,7 +405,7 @@ class _InternalServiceCaseCard extends StatelessWidget {
               IconButton.filledTonal(
                 tooltip: 'Ask support',
                 onPressed: () => SupportLauncher.openWhatsApp(context),
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
+                icon: const Icon(Icons.support_agent_rounded),
               ),
             ],
           ),
@@ -416,7 +453,11 @@ class _StatusBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
           const SizedBox(width: 6),
           Text(
             label,
@@ -440,10 +481,19 @@ class _CompactDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <_DetailItem>[
-      if (serviceCase.nextStep != null && serviceCase.nextStep!.trim().isNotEmpty)
+      if (serviceCase.nextStep != null &&
+          serviceCase.nextStep!.trim().isNotEmpty)
         _DetailItem(Icons.flag_outlined, 'Next', serviceCase.nextStep!),
-      _DetailItem(Icons.description_outlined, 'Docs', serviceCase.documentSummaryLabel),
-      _DetailItem(Icons.payments_outlined, 'Payment', serviceCase.paymentSummaryLabel),
+      _DetailItem(
+        Icons.description_outlined,
+        'Docs',
+        serviceCase.documentSummaryLabel,
+      ),
+      _DetailItem(
+        Icons.payments_outlined,
+        'Payment',
+        serviceCase.paymentSummaryLabel,
+      ),
       _DetailItem(Icons.update_rounded, 'Updated', serviceCase.updatedAtLabel),
     ];
 
@@ -478,13 +528,13 @@ class _DetailRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.030),
+        color: OmcPremium.track.withValues(alpha: 0.030),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(item.icon, color: AppTheme.primaryRed, size: 16),
+          Icon(item.icon, color: OmcPremium.track, size: 16),
           const SizedBox(width: 8),
           Text(
             '${item.label}: ',
@@ -569,10 +619,10 @@ class _EmptyIcon extends StatelessWidget {
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        color: OmcPremium.track.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Icon(icon, color: AppTheme.primaryRed),
+      child: Icon(icon, color: OmcPremium.track),
     );
   }
 }
@@ -585,16 +635,33 @@ class _LoadingState extends StatelessWidget {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       children: [
         _LoadingBlock(width: 150, height: 18, radius: 999, color: color),
         const SizedBox(height: 10),
-        _LoadingBlock(width: double.infinity, height: 124, radius: 22, color: color),
+        _LoadingBlock(
+          width: double.infinity,
+          height: 124,
+          radius: 22,
+          color: color,
+        ),
         const SizedBox(height: 12),
-        _LoadingBlock(width: double.infinity, height: 46, radius: 999, color: color),
+        _LoadingBlock(
+          width: double.infinity,
+          height: 46,
+          radius: 999,
+          color: color,
+        ),
         const SizedBox(height: 12),
-        _LoadingBlock(width: double.infinity, height: 146, radius: 22, color: color),
+        _LoadingBlock(
+          width: double.infinity,
+          height: 146,
+          radius: 22,
+          color: color,
+        ),
       ],
     );
   }
@@ -647,7 +714,11 @@ class _ErrorState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 42, color: AppTheme.primaryRed),
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 42,
+                color: OmcPremium.danger,
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Service tracking unavailable',
@@ -700,17 +771,26 @@ String _cleanError(Object error) {
     return error.message.trim();
   }
   final text = error.toString().replaceFirst('ApiError:', '').trim();
-  return text.isEmpty ? 'Could not load service requests from the backend right now.' : text;
+  return text.isEmpty
+      ? 'Could not load service requests from the backend right now.'
+      : text;
 }
 
 bool _isCancelled(ServiceCase serviceCase) {
   final status = serviceCase.status.trim().toLowerCase();
-  return status.contains('cancel') || status.contains('reject') || status.contains('declin') || status.contains('blocked');
+  return status.contains('cancel') ||
+      status.contains('reject') ||
+      status.contains('declin') ||
+      status.contains('blocked');
 }
 
 bool _isDone(ServiceCase serviceCase) {
   final status = serviceCase.status.trim().toLowerCase();
-  return _isCancelled(serviceCase) || status.contains('complete') || status.contains('closed') || status.contains('done') || status.contains('resolved');
+  return _isCancelled(serviceCase) ||
+      status.contains('complete') ||
+      status.contains('closed') ||
+      status.contains('done') ||
+      status.contains('resolved');
 }
 
 _ServiceCaseState _stateFor(ServiceCase serviceCase) {
@@ -720,14 +800,17 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
   final isCancelled = _isCancelled(serviceCase);
   final isClosed = _isDone(serviceCase);
 
-  final needsAction = !isCancelled &&
+  final needsAction =
+      !isCancelled &&
       !isClosed &&
       (serviceCase.customerActionRequired ||
           serviceCase.missingDocuments.isNotEmpty ||
           (serviceCase.missingDocumentsCount ?? 0) > 0 ||
           serviceCase.rejectedDocumentTotal > 0 ||
           serviceCase.rejectedPaymentTotal > 0 ||
-          serviceCase.paymentDetails.any((payment) => payment.needsCustomerAction) ||
+          serviceCase.paymentDetails.any(
+            (payment) => payment.needsCustomerAction,
+          ) ||
           status.contains('waiting for document') ||
           status.contains('waiting for payment') ||
           status.contains('waiting for customer') ||
@@ -736,9 +819,23 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
           nextStep.contains('pay') ||
           nextStep.contains('submit'));
 
-  final isInReview = !isCancelled && !isClosed && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
-  final isInProgress = !isCancelled && !isClosed && !needsAction && !isInReview && (status.contains('progress') || status.contains('working'));
-  final isOpen = !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
+  final isInReview =
+      !isCancelled &&
+      !isClosed &&
+      !needsAction &&
+      (status.contains('review') ||
+          status.contains('processing') ||
+          status.contains('pending') ||
+          status.contains('documents under review') ||
+          status.contains('payment under review'));
+  final isInProgress =
+      !isCancelled &&
+      !isClosed &&
+      !needsAction &&
+      !isInReview &&
+      (status.contains('progress') || status.contains('working'));
+  final isOpen =
+      !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
 
   return _ServiceCaseState(
     isCancelled: isCancelled,
@@ -782,27 +879,51 @@ class _Palette {
 
 _Palette _paletteFor(_ServiceCaseState state) {
   if (state.isCancelled) {
-    return const _Palette(label: 'Cancelled', color: Color(0xFFEF4444), icon: Icons.cancel_rounded);
+    return const _Palette(
+      label: 'Cancelled',
+      color: Color(0xFFEF4444),
+      icon: Icons.cancel_rounded,
+    );
   }
   if (state.isClosed) {
-    return const _Palette(label: 'Completed', color: Color(0xFF16A34A), icon: Icons.check_circle_rounded);
+    return const _Palette(
+      label: 'Completed',
+      color: Color(0xFF16A34A),
+      icon: Icons.check_circle_rounded,
+    );
   }
   if (state.needsAction) {
-    return const _Palette(label: 'Action needed', color: Color(0xFFF59E0B), icon: Icons.priority_high_rounded);
+    return const _Palette(
+      label: 'Action needed',
+      color: Color(0xFFF59E0B),
+      icon: Icons.priority_high_rounded,
+    );
   }
   if (state.isInReview) {
-    return const _Palette(label: 'In Review', color: Color(0xFF14B8A6), icon: Icons.fact_check_outlined);
+    return const _Palette(
+      label: 'In Review',
+      color: Color(0xFF14B8A6),
+      icon: Icons.fact_check_outlined,
+    );
   }
   if (state.isInProgress) {
-    return const _Palette(label: 'In Progress', color: Color(0xFF2563EB), icon: Icons.sync_rounded);
+    return const _Palette(
+      label: 'In Progress',
+      color: Color(0xFF2563EB),
+      icon: Icons.sync_rounded,
+    );
   }
-  return const _Palette(label: 'Open', color: AppTheme.primaryRed, icon: Icons.timeline_rounded);
+  return const _Palette(
+    label: 'Open',
+    color: OmcPremium.open,
+    icon: Icons.timeline_rounded,
+  );
 }
 
 Color _filterColor(_InternalCaseFilter filter) {
   switch (filter) {
     case _InternalCaseFilter.active:
-      return AppTheme.primaryRed;
+      return OmcPremium.track;
     case _InternalCaseFilter.open:
       return const Color(0xFF2563EB);
     case _InternalCaseFilter.inReview:
@@ -814,6 +935,6 @@ Color _filterColor(_InternalCaseFilter filter) {
     case _InternalCaseFilter.cancelled:
       return const Color(0xFFEF4444);
     case _InternalCaseFilter.all:
-      return AppTheme.primaryRed;
+      return OmcPremium.track;
   }
 }

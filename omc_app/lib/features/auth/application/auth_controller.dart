@@ -69,6 +69,7 @@ class AuthController extends Notifier<AuthState> {
     String? companyName,
     String? customerStatus,
     String? approvalStatus,
+    String? avatarUrl,
   }) {
     if (state.status != AuthStatus.authenticated) return;
 
@@ -82,6 +83,7 @@ class AuthController extends Notifier<AuthState> {
       companyName: companyName,
       customerStatus: customerStatus,
       approvalStatus: approvalStatus,
+      avatarUrl: avatarUrl,
       capabilities: capabilities,
     );
 
@@ -94,6 +96,7 @@ class AuthController extends Notifier<AuthState> {
         nextState.companyName != state.companyName ||
         nextState.customerStatus != state.customerStatus ||
         nextState.approvalStatus != state.approvalStatus ||
+        nextState.avatarUrl != state.avatarUrl ||
         nextState.capabilities != state.capabilities;
 
     if (didChange) state = nextState;

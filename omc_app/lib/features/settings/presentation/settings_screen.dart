@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../app_config/data/mobile_app_config.dart';
@@ -578,7 +579,7 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? AppTheme.primaryRed : AppTheme.textPrimary;
+    final color = isDestructive ? OmcPremium.danger : AppTheme.textPrimary;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
       leading: _SmallIcon(icon: icon, isDestructive: isDestructive),
@@ -608,7 +609,7 @@ class _SwitchTile extends StatelessWidget {
       title: Text(title, style: _TextStyles.tileTitle),
       value: value,
       onChanged: onChanged,
-      activeThumbColor: AppTheme.primaryRed,
+      activeThumbColor: OmcPremium.track,
     );
   }
 }
@@ -732,11 +733,11 @@ class _LargeIcon extends StatelessWidget {
       width: 58,
       height: 58,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.10),
+        color: OmcPremium.system.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
+        border: Border.all(color: OmcPremium.system.withValues(alpha: 0.10)),
       ),
-      child: Icon(icon, color: AppTheme.primaryRed, size: 30),
+      child: Icon(icon, color: OmcPremium.system, size: 30),
     );
   }
 }
@@ -753,12 +754,14 @@ class _SmallIcon extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(
-          alpha: isDestructive ? 0.10 : 0.08,
-        ),
+        color: (isDestructive ? OmcPremium.danger : OmcPremium.system)
+            .withValues(alpha: isDestructive ? 0.10 : 0.08),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Icon(icon, color: AppTheme.primaryRed),
+      child: Icon(
+        icon,
+        color: isDestructive ? OmcPremium.danger : OmcPremium.system,
+      ),
     );
   }
 }
@@ -805,13 +808,13 @@ class _TextStyles {
   );
 
   static const trailing = TextStyle(
-    color: AppTheme.primaryRed,
+    color: OmcPremium.tax,
     fontSize: 12,
     fontWeight: FontWeight.w900,
   );
 
   static const badge = TextStyle(
-    color: AppTheme.primaryRed,
+    color: OmcPremium.success,
     fontSize: 12,
     fontWeight: FontWeight.w900,
   );

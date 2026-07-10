@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
 import '../../auth/application/auth_controller.dart';
@@ -217,6 +218,7 @@ class _SupportHeroCard extends StatelessWidget {
                 icon: Icons.support_agent_rounded,
                 size: 56,
                 iconSize: 30,
+                color: OmcPremium.track,
               ),
               const Spacer(),
               Container(
@@ -257,6 +259,7 @@ class _SupportHeroCard extends StatelessWidget {
                   label: 'Tickets',
                   value: 'Tracked',
                   icon: Icons.confirmation_number_outlined,
+                  color: OmcPremium.documents,
                 ),
               ),
               const SizedBox(width: 10),
@@ -265,6 +268,7 @@ class _SupportHeroCard extends StatelessWidget {
                   label: 'Channels',
                   value: '$channelCount options',
                   icon: Icons.forum_outlined,
+                  color: OmcPremium.track,
                 ),
               ),
             ],
@@ -280,24 +284,26 @@ class _SupportMetric extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
+    required this.color,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.035),
+        color: color.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+        border: Border.all(color: color.withValues(alpha: 0.08)),
       ),
       child: Row(
         children: [
-          _IconBox(icon: icon, size: 30, iconSize: 17),
+          _IconBox(icon: icon, size: 30, iconSize: 17, color: color),
           const SizedBox(width: 9),
           Expanded(
             child: Column(
@@ -584,7 +590,7 @@ class _SupportTicketTabs extends StatelessWidget {
       segments: [
         ButtonSegment<int>(
           value: 0,
-          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+          icon: const Icon(Icons.support_agent_rounded, size: 18),
           label: Text('Active ($activeCount)'),
         ),
         ButtonSegment<int>(
@@ -693,7 +699,12 @@ class _TopicRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             children: [
-              _IconBox(icon: _topicIcon(topic.iconKey), size: 40, iconSize: 20),
+              _IconBox(
+                icon: _topicIcon(topic.iconKey),
+                size: 40,
+                iconSize: 20,
+                color: _topicColor(topic.iconKey),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -707,9 +718,9 @@ class _TopicRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chat_rounded,
-                color: AppTheme.primaryRed,
+              Icon(
+                Icons.support_agent_rounded,
+                color: _topicColor(topic.iconKey),
                 size: 20,
               ),
             ],
@@ -729,7 +740,12 @@ class _TicketTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const _IconBox(icon: Icons.confirmation_number_outlined),
+      leading: _IconBox(
+        icon: ticket.isClosed
+            ? Icons.check_circle_outline_rounded
+            : Icons.confirmation_number_outlined,
+        color: ticket.isClosed ? OmcPremium.success : _priorityColor(ticket),
+      ),
       title: Text(ticket.subject.isEmpty ? ticket.id : ticket.subject),
       subtitle: Text(
         '${ticket.status.isEmpty ? 'Open' : ticket.status} • ${ticket.priority.isEmpty ? 'Medium' : ticket.priority}',
@@ -781,7 +797,12 @@ class _ChannelTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             children: [
-              _IconBox(icon: _channelIcon(channel), size: 42, iconSize: 22),
+              _IconBox(
+                icon: _channelIcon(channel),
+                size: 42,
+                iconSize: 22,
+                color: _channelColor(channel),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -823,7 +844,7 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _IconBox(icon: icon, size: 38, iconSize: 20),
+        _IconBox(icon: icon, size: 38, iconSize: 20, color: _infoColor(icon)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -866,7 +887,11 @@ class _LockedNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _InlineNote(icon: Icons.lock_outline_rounded, message: message);
+    return _InlineNote(
+      icon: Icons.lock_outline_rounded,
+      message: message,
+      color: OmcPremium.tasks,
+    );
   }
 }
 
@@ -880,7 +905,11 @@ class _EmptyTickets extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _InlineNote(icon: Icons.inbox_outlined, message: message);
+    return _InlineNote(
+      icon: Icons.inbox_outlined,
+      message: message,
+      color: OmcPremium.documents,
+    );
   }
 }
 
@@ -895,7 +924,11 @@ class _ErrorNote extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _InlineNote(icon: Icons.cloud_off_outlined, message: message),
+        _InlineNote(
+          icon: Icons.cloud_off_outlined,
+          message: message,
+          color: OmcPremium.danger,
+        ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
           onPressed: onRetry,
@@ -908,16 +941,21 @@ class _ErrorNote extends StatelessWidget {
 }
 
 class _InlineNote extends StatelessWidget {
-  const _InlineNote({required this.icon, required this.message});
+  const _InlineNote({
+    required this.icon,
+    required this.message,
+    required this.color,
+  });
 
   final IconData icon;
   final String message;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _IconBox(icon: icon, size: 36, iconSize: 19),
+        _IconBox(icon: icon, size: 36, iconSize: 19, color: color),
         const SizedBox(width: 12),
         Expanded(child: Text(message, style: _TextStyles.body)),
       ],
@@ -926,11 +964,17 @@ class _InlineNote extends StatelessWidget {
 }
 
 class _IconBox extends StatelessWidget {
-  const _IconBox({required this.icon, this.size = 40, this.iconSize = 21});
+  const _IconBox({
+    required this.icon,
+    this.size = 40,
+    this.iconSize = 21,
+    this.color = OmcPremium.system,
+  });
 
   final IconData icon;
   final double size;
   final double iconSize;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -938,10 +982,10 @@ class _IconBox extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(size * 0.36),
       ),
-      child: Icon(icon, color: AppTheme.primaryRed, size: iconSize),
+      child: Icon(icon, color: color, size: iconSize),
     );
   }
 }
@@ -1003,11 +1047,43 @@ IconData _topicIcon(String iconKey) {
   return Icons.help_outline_rounded;
 }
 
+Color _topicColor(String iconKey) {
+  final key = iconKey.toLowerCase();
+  if (key.contains('payment')) return OmcPremium.payments;
+  if (key.contains('technical')) return OmcPremium.track;
+  if (key.contains('sales')) return OmcPremium.services;
+  if (key.contains('pos')) return OmcPremium.leads;
+  if (key.contains('tax')) return OmcPremium.tax;
+  return OmcPremium.system;
+}
+
 IconData _channelIcon(SupportChannelConfig channel) {
   if (channel.isWhatsApp) return Icons.chat_rounded;
   if (channel.isPhone) return Icons.phone_outlined;
   if (channel.isEmail) return Icons.email_outlined;
   return Icons.support_agent_rounded;
+}
+
+Color _channelColor(SupportChannelConfig channel) {
+  if (channel.isWhatsApp) return OmcPremium.payments;
+  if (channel.isPhone) return OmcPremium.track;
+  if (channel.isEmail) return OmcPremium.services;
+  return OmcPremium.system;
+}
+
+Color _priorityColor(SupportTicket ticket) {
+  final priority = ticket.priority.trim().toLowerCase();
+  if (priority.contains('high') || priority.contains('urgent')) {
+    return OmcPremium.danger;
+  }
+  if (priority.contains('low')) return OmcPremium.track;
+  return OmcPremium.tasks;
+}
+
+Color _infoColor(IconData icon) {
+  if (icon == Icons.schedule_rounded) return OmcPremium.tasks;
+  if (icon == Icons.location_on_outlined) return OmcPremium.leads;
+  return OmcPremium.system;
 }
 
 String _channelActionLabel(SupportChannelConfig channel) {

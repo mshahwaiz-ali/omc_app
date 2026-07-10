@@ -30,10 +30,9 @@ class ShellNavScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileSummaryProvider).maybeWhen(
-          data: (profile) => profile,
-          orElse: () => null,
-        );
+    final profile = ref
+        .watch(profileSummaryProvider)
+        .maybeWhen(data: (profile) => profile, orElse: () => null);
     final authState = ref.watch(authControllerProvider);
     final capabilities = profile?.capabilities ?? authState.capabilities;
     final unreadNotifications =
@@ -46,7 +45,8 @@ class ShellNavScaffold extends ConsumerWidget {
         selectedIndex: selectedIndex,
         notificationBadgeCount: unreadNotifications,
         onTabSelected: (index) => _openTab(context, capabilities, index),
-        onQuickActions: () => _showQuickActionsSheet(context, ref, capabilities),
+        onQuickActions: () =>
+            _showQuickActionsSheet(context, ref, capabilities),
         onMore: () => _showMoreSheet(context, ref),
       ),
     );
@@ -61,11 +61,16 @@ class ShellNavScaffold extends ConsumerWidget {
       _showLockedSnack(context, capabilities);
       return;
     }
+    if (index == documentsIndex && !_canOpenDocuments(capabilities)) {
+      _showLockedSnack(context, capabilities);
+      return;
+    }
 
     final path = switch (index) {
       homeIndex => '/home',
       servicesIndex => '/services',
       trackIndex => '/my-services',
+      documentsIndex => '/documents',
       _ => '/home',
     };
 
@@ -89,17 +94,26 @@ class ShellNavScaffold extends ConsumerWidget {
       ),
       onOpenPayments: () => _openWhenAllowed(
         context: context,
-        allowed: capabilities.canViewPayments ||
+        allowed:
+            capabilities.canViewPayments ||
             capabilities.canReviewPayments ||
             capabilities.isApproved ||
             capabilities.isInternal,
         path: '/payments',
         capabilities: capabilities,
       ),
+      onOpenTrack: () => _openWhenAllowed(
+        context: context,
+        allowed: _canOpenTrack(capabilities),
+        path: '/my-services',
+        capabilities: capabilities,
+      ),
       onOpenSupport: () => context.go('/support'),
       onOpenTaxCalculator: () => context.go('/tax-calculator'),
       onOpenExpenseTracker: () => context.go('/expense-tracker'),
-      onOpenProfile: () => capabilities.isGuest ? context.go('/signup') : context.go('/profile'),
+      onOpenProfile: () =>
+          capabilities.isGuest ? context.go('/signup') : context.go('/profile'),
+      onOpenKnowledge: () => context.go('/knowledge'),
       onOpenInternalWorkspace: () => context.go('/internal-workspace'),
       onOpenCustomers: () => context.go('/customers'),
       onOpenTasks: () => context.go('/tasks'),
@@ -126,10 +140,11 @@ class ShellNavScaffold extends ConsumerWidget {
       displayName: profile?.displayName ?? authState.displayName,
       companyName: profile?.companyName ?? authState.companyName,
       customerStatus: profile?.status ?? authState.customerStatus,
-      avatarUrl: profile?.avatarUrl,
+      avatarUrl: profile?.avatarUrl ?? authState.avatarUrl,
       onOpenDashboard: () => _openWhenAllowed(
         context: context,
-        allowed: capabilities.canViewCustomerDashboard ||
+        allowed:
+            capabilities.canViewCustomerDashboard ||
             capabilities.canAccessCustomerDashboard ||
             capabilities.canAccessInternalWorkspace,
         path: '/dashboard',
@@ -143,7 +158,8 @@ class ShellNavScaffold extends ConsumerWidget {
       ),
       onOpenPayments: () => _openWhenAllowed(
         context: context,
-        allowed: capabilities.canViewPayments ||
+        allowed:
+            capabilities.canViewPayments ||
             capabilities.canReviewPayments ||
             capabilities.isApproved ||
             capabilities.isInternal,
@@ -152,7 +168,8 @@ class ShellNavScaffold extends ConsumerWidget {
       ),
       onOpenNotifications: () => _openWhenAllowed(
         context: context,
-        allowed: capabilities.canViewCustomerNotifications ||
+        allowed:
+            capabilities.canViewCustomerNotifications ||
             capabilities.isApproved ||
             capabilities.isInternal ||
             capabilities.canAccessInternalWorkspace,
@@ -182,7 +199,8 @@ class ShellNavScaffold extends ConsumerWidget {
         capabilities: capabilities,
       ),
       onOpenInternalWorkspace: () => context.go('/internal-workspace'),
-      onOpenInternalCases: () => context.go('/internal-workspace/service-cases'),
+      onOpenInternalCases: () =>
+          context.go('/internal-workspace/service-cases'),
       onOpenCustomers: () => context.go('/customers'),
       onOpenLeads: () => context.go('/leads'),
       onOpenTasks: () => context.go('/tasks'),
@@ -228,10 +246,7 @@ class ShellNavScaffold extends ConsumerWidget {
         capabilities.canAccessInternalWorkspace;
   }
 
-  void _showLockedSnack(
-    BuildContext context,
-    AuthCapabilities capabilities,
-  ) {
+  void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(

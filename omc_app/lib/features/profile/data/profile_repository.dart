@@ -35,6 +35,7 @@ final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
           companyName: profile.companyName,
           customerStatus: profile.status,
           approvalStatus: profile.approvalStatus,
+          avatarUrl: profile.avatarUrl,
           canAccessInternalWorkspace: profile.canAccessInternalWorkspace,
           capabilities: profile.capabilities,
         );
@@ -77,7 +78,8 @@ class ProfileRepository {
     if ((resolvedBytes == null || resolvedBytes.isEmpty) &&
         (filePath == null || filePath.trim().isEmpty)) {
       throw ApiError(
-        message: 'Selected profile photo could not be read. Please choose it again.',
+        message:
+            'Selected profile photo could not be read. Please choose it again.',
         code: 'profile_image_unavailable',
       );
     }

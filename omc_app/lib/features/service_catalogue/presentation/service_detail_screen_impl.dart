@@ -79,7 +79,7 @@ class ServiceDetailScreen extends ConsumerWidget {
               AppBackHeader(
                 title: 'Service Details',
                 subtitle: 'Review requirements and start request',
-                actionIcon: Icons.chat_bubble_outline_rounded,
+                actionIcon: Icons.support_agent_rounded,
                 actionTooltip: 'WhatsApp support',
                 onAction: () => SupportLauncher.openWhatsApp(context),
               ),
@@ -174,8 +174,10 @@ class ServiceDetailScreen extends ConsumerWidget {
                       _SupportCard(service: service, tone: tone),
                       const SizedBox(height: 18),
                       AppButton(
-                        label: _startRequestLabel(service),
-                        icon: wizardLabel != null
+                        label: _startRequestLabel(service, capabilities),
+                        icon: capabilities.isGuest
+                            ? Icons.person_add_alt_1_rounded
+                            : wizardLabel != null
                             ? Icons.auto_awesome_rounded
                             : Icons.add_rounded,
                         onPressed: () {
@@ -183,6 +185,10 @@ class ServiceDetailScreen extends ConsumerWidget {
                             context.push(
                               '/services/${Uri.encodeComponent(service.id)}/request',
                             );
+                          } else if (capabilities.isGuest) {
+                            context.push('/signup');
+                          } else if (capabilities.isPending) {
+                            context.go('/under-review');
                           } else {
                             _showLockedSnack(context, capabilities);
                           }
@@ -784,7 +790,12 @@ class _SupportCard extends StatelessWidget {
           IconButton.filledTonal(
             tooltip: 'WhatsApp support',
             onPressed: () => SupportLauncher.openWhatsApp(context),
-            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            style: IconButton.styleFrom(
+              backgroundColor: _primary.withValues(alpha: 0.08),
+              foregroundColor: _primary,
+              shape: const CircleBorder(),
+            ),
+            icon: const Icon(Icons.support_agent_rounded),
           ),
         ],
       ),
@@ -1143,7 +1154,9 @@ String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {
   }
 }
 
-String _startRequestLabel(ServiceItem service) {
+String _startRequestLabel(ServiceItem service, AuthCapabilities capabilities) {
+  if (capabilities.isGuest) return 'Sign up to request';
+  if (capabilities.isPending) return 'View approval status';
   return serviceCatalogueWizardBadgeLabel(service) != null
       ? 'Start wizard'
       : 'Request service';

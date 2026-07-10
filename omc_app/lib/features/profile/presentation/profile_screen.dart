@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../support/data/support_repository.dart';
@@ -267,9 +268,14 @@ class _ProfileContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initials = _initials(profile.displayName);
-    final isInternal = profile.canAccessInternalWorkspace || profile.capabilities.isInternal;
-    final typeLabel = isInternal ? (profile.customerType ?? 'Internal') : (profile.customerType ?? 'OMC Customer');
-    final approvalLabel = isInternal ? 'Internal' : (profile.approvalStatus ?? 'Synced');
+    final isInternal =
+        profile.canAccessInternalWorkspace || profile.capabilities.isInternal;
+    final typeLabel = isInternal
+        ? (profile.customerType ?? 'Internal')
+        : (profile.customerType ?? 'OMC Customer');
+    final approvalLabel = isInternal
+        ? 'Internal'
+        : (profile.approvalStatus ?? 'Synced');
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -305,7 +311,9 @@ class _ProfileContent extends StatelessWidget {
             ),
             const _DividerIndent(),
             _ProfileTile(
-              icon: isInternal ? Icons.admin_panel_settings_outlined : Icons.workspace_premium_outlined,
+              icon: isInternal
+                  ? Icons.admin_panel_settings_outlined
+                  : Icons.workspace_premium_outlined,
               label: isInternal ? 'Internal role' : 'Customer type',
               value: typeLabel,
             ),
@@ -413,18 +421,17 @@ class _ProfileContent extends StatelessWidget {
         const SnackBar(content: Text('Uploading profile photo...')),
       );
 
-      await ref.read(profileRepositoryProvider).uploadProfileImage(
-            filePath: image.path,
-            fileName: image.name,
-          );
+      await ref
+          .read(profileRepositoryProvider)
+          .uploadProfileImage(filePath: image.path, fileName: image.name);
 
       ref.invalidate(profileSummaryProvider);
       await ref.read(profileSummaryProvider.future);
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo updated.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1028,6 +1035,7 @@ class _ProfileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = _profileIconColor(icon);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
@@ -1036,10 +1044,10 @@ class _ProfileTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.06),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(15),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 21),
+            child: Icon(icon, color: color, size: 21),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1073,6 +1081,20 @@ class _ProfileTile extends StatelessWidget {
       ),
     );
   }
+}
+
+Color _profileIconColor(IconData icon) {
+  if (icon == Icons.email_outlined) return OmcPremium.services;
+  if (icon == Icons.phone_outlined) return OmcPremium.payments;
+  if (icon == Icons.workspace_premium_outlined ||
+      icon == Icons.admin_panel_settings_outlined) {
+    return OmcPremium.leads;
+  }
+  if (icon == Icons.badge_outlined) return OmcPremium.documents;
+  if (icon == Icons.business_outlined) return OmcPremium.track;
+  if (icon == Icons.confirmation_number_outlined) return OmcPremium.tasks;
+  if (icon == Icons.verified_user_outlined) return OmcPremium.success;
+  return OmcPremium.system;
 }
 
 class _DividerIndent extends StatelessWidget {

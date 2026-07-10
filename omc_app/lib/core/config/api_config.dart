@@ -120,6 +120,8 @@ class ApiConfig {
   static const String knowledgeDetailMethod =
       'omc_app.api.mobile.get_knowledge_article';
   static const String appBannersMethod = 'omc_app.api.mobile.get_app_banners';
+  static const String onboardingSlidesMethod =
+      'omc_app.api.mobile.get_onboarding_slides';
   static const String faqsMethod = 'omc_app.api.mobile.get_faqs';
 
   static const String notificationsMethod =

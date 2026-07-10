@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
@@ -109,7 +110,9 @@ class _DocumentsListState extends State<_DocumentsList> {
             .where((item) => item.requiresAction)
             .toList(growable: false);
       case _DocumentFilter.approved:
-        return documents.where((item) => item.isApproved).toList(growable: false);
+        return documents
+            .where((item) => item.isApproved)
+            .toList(growable: false);
       case _DocumentFilter.archived:
         return documents
             .where((item) => item.isArchived)
@@ -121,9 +124,15 @@ class _DocumentsListState extends State<_DocumentsList> {
     final actionNeeded = documents
         .where((item) => item.requiresAction)
         .toList(growable: false);
-    final submitted = documents.where((item) => item.isUnderReview).toList(growable: false);
-    final approved = documents.where((item) => item.isApproved).toList(growable: false);
-    final archived = documents.where((item) => item.isArchived).toList(growable: false);
+    final submitted = documents
+        .where((item) => item.isUnderReview)
+        .toList(growable: false);
+    final approved = documents
+        .where((item) => item.isApproved)
+        .toList(growable: false);
+    final archived = documents
+        .where((item) => item.isArchived)
+        .toList(growable: false);
 
     return [
       if (actionNeeded.isNotEmpty)
@@ -254,14 +263,14 @@ class _DocumentFilterChip extends StatelessWidget {
       label: Text('$label $count'),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: AppTheme.primaryRed.withValues(alpha: 0.12),
+      selectedColor: OmcPremium.documents.withValues(alpha: 0.12),
       side: BorderSide(
         color: selected
-            ? AppTheme.primaryRed.withValues(alpha: 0.28)
+            ? OmcPremium.documents.withValues(alpha: 0.28)
             : Colors.black.withValues(alpha: 0.08),
       ),
       labelStyle: TextStyle(
-        color: selected ? AppTheme.primaryRed : AppTheme.textSecondary,
+        color: selected ? OmcPremium.documents : AppTheme.textSecondary,
         fontWeight: FontWeight.w900,
         fontSize: 12,
       ),
@@ -284,12 +293,14 @@ class _DocumentsFilteredEmptyState extends StatelessWidget {
         children: [
           Icon(
             isArchived ? Icons.archive_outlined : Icons.filter_alt_off_rounded,
-            color: AppTheme.primaryRed,
+            color: OmcPremium.documents,
             size: 34,
           ),
           const SizedBox(height: 10),
           Text(
-            isArchived ? 'No archived documents' : 'No ${filter.label.toLowerCase()} documents',
+            isArchived
+                ? 'No archived documents'
+                : 'No ${filter.label.toLowerCase()} documents',
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppTheme.textPrimary,
@@ -345,10 +356,10 @@ class _DocumentSection extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.075),
+                color: OmcPremium.documents.withValues(alpha: 0.075),
                 borderRadius: BorderRadius.circular(13),
               ),
-              child: Icon(section.icon, color: AppTheme.primaryRed, size: 18),
+              child: Icon(section.icon, color: OmcPremium.documents, size: 18),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -480,13 +491,13 @@ class _DocumentStatTile extends StatelessWidget {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.065),
+              color: OmcPremium.documents.withValues(alpha: 0.065),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                color: OmcPremium.documents.withValues(alpha: 0.07),
               ),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 17),
+            child: Icon(icon, color: OmcPremium.documents, size: 17),
           ),
           const SizedBox(height: 8),
           Text(
@@ -581,16 +592,24 @@ class _DocumentCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      PremiumInfoChip(label: document.statusLabel, color: statusColor),
+                      PremiumInfoChip(
+                        label: document.statusLabel,
+                        color: statusColor,
+                      ),
                       if (document.serviceStatus != null)
                         PremiumInfoChip(label: document.serviceStatus!),
                       if (document.updatedAtLabel != null)
-                        PremiumInfoChip(label: 'Uploaded ${document.updatedAtLabel!}'),
+                        PremiumInfoChip(
+                          label: 'Uploaded ${document.updatedAtLabel!}',
+                        ),
                       if (document.archivedOnLabel != null)
-                        PremiumInfoChip(label: 'Archived ${document.archivedOnLabel!}'),
+                        PremiumInfoChip(
+                          label: 'Archived ${document.archivedOnLabel!}',
+                        ),
                     ],
                   ),
-                  if (document.fileName != null || document.fileUrl != null) ...[
+                  if (document.fileName != null ||
+                      document.fileUrl != null) ...[
                     const SizedBox(height: 10),
                     Text(
                       document.fileName ?? 'File link available',
@@ -620,7 +639,7 @@ class _DocumentCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: document.status == DocumentStatus.rejected
-                              ? Colors.red.shade800
+                              ? OmcPremium.danger
                               : AppTheme.textSecondary,
                           fontSize: 12,
                           height: 1.35,
@@ -639,18 +658,18 @@ class _DocumentCard extends StatelessWidget {
   }
 
   Color _statusColor(DocumentItem document) {
-    if (document.isArchived) return Colors.blueGrey.shade700;
+    if (document.isArchived) return OmcPremium.system;
 
     switch (document.status) {
       case DocumentStatus.approved:
-        return Colors.green.shade700;
+        return OmcPremium.success;
       case DocumentStatus.rejected:
       case DocumentStatus.missing:
-        return Colors.red.shade700;
+        return OmcPremium.danger;
       case DocumentStatus.pendingReview:
-        return Colors.orange.shade800;
+        return OmcPremium.action;
       case DocumentStatus.uploaded:
-        return AppTheme.primaryRed;
+        return OmcPremium.review;
     }
   }
 
@@ -691,15 +710,15 @@ class _EmptyDocumentsView extends StatelessWidget {
                 width: 62,
                 height: 62,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: OmcPremium.documents.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    color: OmcPremium.documents.withValues(alpha: 0.08),
                   ),
                 ),
                 child: const Icon(
                   Icons.folder_copy_outlined,
-                  color: AppTheme.primaryRed,
+                  color: OmcPremium.documents,
                   size: 32,
                 ),
               ),
@@ -756,15 +775,15 @@ class _DocumentsErrorView extends StatelessWidget {
                 width: 62,
                 height: 62,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: OmcPremium.documents.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    color: OmcPremium.documents.withValues(alpha: 0.08),
                   ),
                 ),
                 child: const Icon(
                   Icons.cloud_off_outlined,
-                  color: AppTheme.primaryRed,
+                  color: OmcPremium.documents,
                   size: 32,
                 ),
               ),

@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../home/data/home_dashboard_repository.dart';
+import '../../profile/data/profile_repository.dart';
 import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
@@ -23,6 +25,7 @@ const Color _success = Color(0xFF0F9D8E);
 const Color _review = Color(0xFF6D28D9);
 const Color _attention = Color(0xFFF59E0B);
 const Color _done = Color(0xFF16A34A);
+const Color _servicesRose = Color(0xFFE11D48);
 const Color _roseSoft = Color(0xFFFFF1F3);
 const Color _roseBorder = Color(0xFFF6CDD6);
 
@@ -56,8 +59,13 @@ class _ServiceCatalogueScreenState
   Widget build(BuildContext context) {
     final servicesAsync = ref.watch(serviceCatalogueProvider);
     final authState = ref.watch(authControllerProvider);
+    final profile = ref
+        .watch(profileSummaryProvider)
+        .maybeWhen(data: (profile) => profile, orElse: () => null);
     final capabilities = authState.capabilities;
-    final displayName = serviceCatalogueDisplayName(authState);
+    final displayName =
+        profile?.displayName ?? serviceCatalogueDisplayName(authState);
+    final avatarUrl = profile?.avatarUrl ?? authState.avatarUrl;
     final unreadNotifications =
         ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
 
@@ -90,6 +98,7 @@ class _ServiceCatalogueScreenState
               children: [
                 _Header(
                   displayName: displayName,
+                  avatarUrl: avatarUrl,
                   unreadCount: unreadNotifications,
                   authState: authState,
                   onNotificationsTap: () {
@@ -286,11 +295,16 @@ class _ServiceCatalogueScreenState
                         onTap: () => context.push(
                           '/services/${Uri.encodeComponent(service.id)}',
                         ),
+                        requestLabel: _requestLabelFor(capabilities),
                         onRequest: () {
                           if (capabilities.canCreateServiceRequest) {
                             context.push(
                               '/services/${Uri.encodeComponent(service.id)}/request',
                             );
+                          } else if (capabilities.isGuest) {
+                            context.push('/signup');
+                          } else if (capabilities.isPending) {
+                            context.go('/under-review');
                           } else {
                             _showLockedSnack(context, capabilities);
                           }
@@ -562,6 +576,7 @@ class _ActionButton extends StatelessWidget {
 class _Header extends StatelessWidget {
   const _Header({
     required this.displayName,
+    required this.avatarUrl,
     required this.unreadCount,
     required this.authState,
     required this.onNotificationsTap,
@@ -569,6 +584,7 @@ class _Header extends StatelessWidget {
   });
 
   final String displayName;
+  final String? avatarUrl;
   final int unreadCount;
   final AuthState authState;
   final VoidCallback onNotificationsTap;
@@ -632,7 +648,11 @@ class _Header extends StatelessWidget {
           onTap: onNotificationsTap,
         ),
         const SizedBox(width: 10),
-        _ProfileAvatar(name: displayName, onTap: onProfileTap),
+        _ProfileAvatar(
+          name: displayName,
+          avatarUrl: avatarUrl,
+          onTap: onProfileTap,
+        ),
       ],
     );
   }
@@ -700,16 +720,26 @@ class _HeaderActionButton extends StatelessWidget {
 }
 
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({required this.name, required this.onTap});
+  const _ProfileAvatar({
+    required this.name,
+    required this.avatarUrl,
+    required this.onTap,
+  });
 
   final String name;
+  final String? avatarUrl;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final initials = _initials(name);
+    final cleanAvatarUrl = avatarUrl?.trim();
+    final imageUrl = cleanAvatarUrl == null || cleanAvatarUrl.isEmpty
+        ? null
+        : _absoluteAvatarUrl(cleanAvatarUrl);
+    final color = _avatarColor(name);
     return Material(
-      color: _primary,
+      color: imageUrl == null ? color.withValues(alpha: 0.12) : Colors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -718,19 +748,60 @@ class _ProfileAvatar extends StatelessWidget {
           width: 52,
           height: 52,
           alignment: Alignment.center,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
-          child: Text(
-            initials,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-            ),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: color.withValues(alpha: 0.16)),
           ),
+          child: imageUrl == null
+              ? Text(
+                  initials,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                )
+              : Image.network(
+                  imageUrl,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Text(
+                    initials,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
         ),
       ),
     );
   }
+}
+
+String _absoluteAvatarUrl(String value) {
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  if (value.startsWith('/')) return '${ApiConfig.currentBaseUrl}$value';
+  return '${ApiConfig.currentBaseUrl}/$value';
+}
+
+Color _avatarColor(String name) {
+  const colors = [
+    _servicesRose,
+    Color(0xFF3B6DF6),
+    _success,
+    _review,
+    _attention,
+  ];
+  final source = name.trim().isEmpty ? 'OMC' : name.trim();
+  final index =
+      source.codeUnits.fold<int>(0, (sum, unit) => sum + unit) % colors.length;
+  return colors[index];
 }
 
 class _StatusBanner extends StatelessWidget {
@@ -1011,6 +1082,7 @@ class _ServiceDashboardCard extends StatelessWidget {
   const _ServiceDashboardCard({
     required this.service,
     required this.status,
+    required this.requestLabel,
     required this.onTap,
     required this.onRequest,
     required this.onWhatsApp,
@@ -1018,6 +1090,7 @@ class _ServiceDashboardCard extends StatelessWidget {
 
   final ServiceItem service;
   final _ServiceStatus status;
+  final String requestLabel;
   final VoidCallback onTap;
   final VoidCallback onRequest;
   final VoidCallback onWhatsApp;
@@ -1123,13 +1196,18 @@ class _ServiceDashboardCard extends StatelessWidget {
               Expanded(
                 child: FilledButton(
                   onPressed: onRequest,
-                  child: const Text('Start request'),
+                  child: Text(requestLabel),
                 ),
               ),
               const SizedBox(width: 10),
               IconButton.filledTonal(
                 onPressed: onWhatsApp,
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
+                style: IconButton.styleFrom(
+                  backgroundColor: _primary.withValues(alpha: 0.08),
+                  foregroundColor: _primary,
+                  shape: const CircleBorder(),
+                ),
+                icon: const Icon(Icons.support_agent_rounded),
               ),
             ],
           ),
@@ -1356,6 +1434,13 @@ String lockedAccessMessage(AuthCapabilities capabilities) {
     return 'This account is not approved for service access. Please contact OMC support.';
   }
   return 'This account does not have access to this area.';
+}
+
+String _requestLabelFor(AuthCapabilities capabilities) {
+  if (capabilities.canCreateServiceRequest) return 'Start request';
+  if (capabilities.isGuest) return 'Sign up';
+  if (capabilities.isPending) return 'View status';
+  return 'Locked';
 }
 
 bool _canTrackServices(AuthCapabilities capabilities) {

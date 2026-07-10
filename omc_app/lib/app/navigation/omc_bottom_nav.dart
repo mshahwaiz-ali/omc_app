@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/omc_premium.dart';
 import '../theme.dart';
 import 'omc_nav_models.dart';
 
@@ -111,7 +112,7 @@ class _CenterActionButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Material(
-        color: AppTheme.primaryRed,
+        color: OmcPremium.ink,
         borderRadius: BorderRadius.circular(22),
         elevation: 0,
         child: InkWell(
@@ -121,11 +122,11 @@ class _CenterActionButton extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed,
+              color: OmcPremium.ink,
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.26),
+                  color: OmcPremium.ink.withValues(alpha: 0.24),
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),
@@ -153,7 +154,7 @@ class _NavTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = selected ? item.activeIcon : item.icon;
-    final color = selected ? AppTheme.primaryRed : AppTheme.textMuted;
+    final color = selected ? OmcPremium.tax : AppTheme.textMuted;
 
     return Material(
       color: Colors.transparent,
@@ -166,7 +167,9 @@ class _NavTab extends StatelessWidget {
           height: 60,
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: selected ? AppTheme.primaryRed.withValues(alpha: 0.08) : Colors.transparent,
+            color: selected
+                ? OmcPremium.tax.withValues(alpha: 0.10)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
@@ -209,7 +212,7 @@ class _MoreTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppTheme.primaryRed : AppTheme.textMuted;
+    final color = selected ? OmcPremium.tax : AppTheme.textMuted;
 
     return Material(
       color: Colors.transparent,
@@ -222,7 +225,9 @@ class _MoreTab extends StatelessWidget {
           height: 60,
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: selected ? AppTheme.primaryRed.withValues(alpha: 0.08) : Colors.transparent,
+            color: selected
+                ? OmcPremium.tax.withValues(alpha: 0.10)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Center(
@@ -273,7 +278,7 @@ class _Badge extends StatelessWidget {
       height: 18,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed,
+        color: OmcPremium.services,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white, width: 2),
       ),

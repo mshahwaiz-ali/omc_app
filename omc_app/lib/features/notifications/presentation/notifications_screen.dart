@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../data/notification_item.dart';
@@ -80,26 +81,88 @@ class _NotificationsList extends StatelessWidget {
     final actionCount = notifications
         .where((item) => item.actionUrl != null && item.actionUrl!.isNotEmpty)
         .length;
+    final sections = _notificationSections(notifications);
 
-    return ListView.separated(
+    return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
-      itemCount: notifications.length + 1,
-      separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 18 : 12),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return _NotificationsHero(
-            totalCount: notifications.length,
-            unreadCount: unreadCount,
-            actionCount: actionCount,
-            onMarkAllRead: onMarkAllRead,
-          );
-        }
-
-        return _NotificationCard(notification: notifications[index - 1]);
-      },
+      children: [
+        _NotificationsHero(
+          totalCount: notifications.length,
+          unreadCount: unreadCount,
+          actionCount: actionCount,
+          onMarkAllRead: onMarkAllRead,
+        ),
+        const SizedBox(height: 20),
+        for (final section in sections) ...[
+          OmcSectionHeader(title: section.title, subtitle: section.subtitle),
+          const SizedBox(height: 10),
+          for (var index = 0; index < section.items.length; index++) ...[
+            _NotificationCard(notification: section.items[index]),
+            if (index != section.items.length - 1) const SizedBox(height: 12),
+          ],
+          if (section != sections.last) const SizedBox(height: 22),
+        ],
+      ],
     );
   }
+
+  List<_NotificationSectionData> _notificationSections(
+    List<NotificationItem> notifications,
+  ) {
+    final today = <NotificationItem>[];
+    final yesterday = <NotificationItem>[];
+    final earlier = <NotificationItem>[];
+
+    for (final notification in notifications) {
+      final label = (notification.createdAtLabel ?? '').toLowerCase();
+      if (label.contains('today') ||
+          label.contains('min ago') ||
+          label.contains('h ago') ||
+          label.contains('hour') ||
+          label.contains('just now')) {
+        today.add(notification);
+      } else if (label.contains('yesterday') || label.contains('1d ago')) {
+        yesterday.add(notification);
+      } else {
+        earlier.add(notification);
+      }
+    }
+
+    return [
+      if (today.isNotEmpty)
+        _NotificationSectionData(
+          title: 'Today',
+          subtitle: '${today.length} update${today.length == 1 ? '' : 's'}',
+          items: today,
+        ),
+      if (yesterday.isNotEmpty)
+        _NotificationSectionData(
+          title: 'Yesterday',
+          subtitle:
+              '${yesterday.length} update${yesterday.length == 1 ? '' : 's'}',
+          items: yesterday,
+        ),
+      if (earlier.isNotEmpty)
+        _NotificationSectionData(
+          title: 'Earlier',
+          subtitle: '${earlier.length} update${earlier.length == 1 ? '' : 's'}',
+          items: earlier,
+        ),
+    ];
+  }
+}
+
+class _NotificationSectionData {
+  const _NotificationSectionData({
+    required this.title,
+    required this.subtitle,
+    required this.items,
+  });
+
+  final String title;
+  final String subtitle;
+  final List<NotificationItem> items;
 }
 
 class _NotificationsHero extends StatelessWidget {
@@ -128,15 +191,15 @@ class _NotificationsHero extends StatelessWidget {
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                  color: OmcPremium.system.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                    color: OmcPremium.system.withValues(alpha: 0.10),
                   ),
                 ),
                 child: const Icon(
                   Icons.notifications_active_outlined,
-                  color: AppTheme.primaryRed,
+                  color: OmcPremium.system,
                   size: 30,
                 ),
               ),
@@ -244,7 +307,7 @@ class _NotificationCard extends StatelessWidget {
                         width: 11,
                         height: 11,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryRed,
+                          color: OmcPremium.services,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -320,13 +383,13 @@ class _NotificationCard extends StatelessWidget {
   Color _typeColor(AppNotificationType type) {
     switch (type) {
       case AppNotificationType.documentRequest:
-        return Colors.orange.shade800;
+        return OmcPremium.documents;
       case AppNotificationType.paymentAlert:
-        return Colors.green.shade700;
+        return OmcPremium.payments;
       case AppNotificationType.serviceUpdate:
-        return AppTheme.primaryRed;
+        return OmcPremium.services;
       case AppNotificationType.general:
-        return Colors.blueGrey.shade700;
+        return OmcPremium.system;
     }
   }
 
@@ -427,7 +490,7 @@ class _NotificationsStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isError ? Colors.red.shade700 : AppTheme.primaryRed;
+    final color = isError ? OmcPremium.danger : OmcPremium.system;
 
     return PremiumCard(
       padding: const EdgeInsets.all(22),
@@ -579,7 +642,7 @@ class _LoadingBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        color: OmcPremium.system.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -597,7 +660,7 @@ class _LoadingPill extends StatelessWidget {
       width: width,
       height: 30,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        color: OmcPremium.system.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(999),
       ),
     );
@@ -617,7 +680,7 @@ class _LoadingBar extends StatelessWidget {
       child: Container(
         height: height,
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.05),
+          color: OmcPremium.system.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(999),
         ),
       ),

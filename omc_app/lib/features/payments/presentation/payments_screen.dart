@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
@@ -91,34 +92,38 @@ class _PaymentsHeader extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _PaymentStatTile(
+                child: OmcMetricCard(
                   icon: Icons.receipt_long_outlined,
                   label: 'Total',
                   value: payments.length.toString(),
+                  color: OmcPremium.payments,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _PaymentStatTile(
+                child: OmcMetricCard(
                   icon: Icons.hourglass_top_rounded,
                   label: 'Pending',
                   value: pendingCount.toString(),
+                  color: OmcPremium.action,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _PaymentStatTile(
+                child: OmcMetricCard(
                   icon: Icons.warning_amber_rounded,
                   label: 'Overdue',
                   value: overdueCount.toString(),
+                  color: OmcPremium.danger,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _PaymentStatTile(
+                child: OmcMetricCard(
                   icon: Icons.verified_rounded,
                   label: 'Paid',
                   value: paidCount.toString(),
+                  color: OmcPremium.success,
                 ),
               ),
             ],
@@ -126,62 +131,6 @@ class _PaymentsHeader extends StatelessWidget {
         ],
         const SizedBox(height: 10),
       ],
-    );
-  }
-}
-
-class _PaymentStatTile extends StatelessWidget {
-  const _PaymentStatTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(11),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.07),
-              ),
-            ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 17),
-          ),
-          const SizedBox(height: 9),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -231,7 +180,7 @@ class _PaymentCard extends StatelessWidget {
                   Text(
                     payment.amountLabel,
                     style: const TextStyle(
-                      color: AppTheme.primaryRed,
+                      color: OmcPremium.payments,
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                     ),
@@ -279,12 +228,12 @@ class _PaymentCard extends StatelessWidget {
               width: 30,
               height: 30,
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.06),
+                color: OmcPremium.payments.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.chevron_right_rounded,
-                color: AppTheme.primaryRed,
+                color: OmcPremium.payments,
                 size: 20,
               ),
             ),
@@ -297,19 +246,19 @@ class _PaymentCard extends StatelessWidget {
   Color _statusColor(PaymentStatus status) {
     switch (status) {
       case PaymentStatus.receiptSubmitted:
-        return AppTheme.primaryRed;
+        return OmcPremium.review;
       case PaymentStatus.underReview:
-        return AppTheme.primaryRed;
+        return OmcPremium.review;
       case PaymentStatus.paid:
-        return Colors.green.shade700;
+        return OmcPremium.success;
       case PaymentStatus.rejected:
-        return Colors.red.shade700;
+        return OmcPremium.danger;
       case PaymentStatus.overdue:
-        return Colors.red.shade700;
+        return OmcPremium.danger;
       case PaymentStatus.cancelled:
-        return Colors.grey.shade700;
+        return OmcPremium.system;
       case PaymentStatus.pending:
-        return Colors.orange.shade800;
+        return OmcPremium.action;
     }
   }
 
@@ -352,12 +301,12 @@ class _EmptyPaymentsView extends StatelessWidget {
                 width: 62,
                 height: 62,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: OmcPremium.payments.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: const Icon(
                   Icons.account_balance_wallet_outlined,
-                  color: AppTheme.primaryRed,
+                  color: OmcPremium.payments,
                   size: 32,
                 ),
               ),
@@ -423,12 +372,12 @@ class _PaymentsErrorView extends StatelessWidget {
                 width: 62,
                 height: 62,
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.08),
+                  color: OmcPremium.danger.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Icon(
                   Icons.cloud_off_rounded,
-                  color: Colors.red,
+                  color: OmcPremium.danger,
                   size: 30,
                 ),
               ),

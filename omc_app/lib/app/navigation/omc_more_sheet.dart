@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/config/api_config.dart';
+import '../../core/widgets/omc_premium.dart';
 import '../../features/app_config/data/mobile_app_config.dart';
 import '../../features/auth/application/auth_state.dart';
 import '../theme.dart';
@@ -122,14 +123,23 @@ List<OmcSheetAction> _moreActions({
 
   if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
     return [
-      action('Workspace', Icons.admin_panel_settings_outlined, onOpenInternalWorkspace),
+      action(
+        'Workspace',
+        Icons.admin_panel_settings_outlined,
+        onOpenInternalWorkspace,
+      ),
       action('Cases', Icons.fact_check_outlined, onOpenInternalCases),
       action('Customers', Icons.groups_outlined, onOpenCustomers),
-      action('Docs', Icons.folder_copy_outlined, onOpenDocuments),
+      action('Review Docs', Icons.folder_copy_outlined, onOpenDocuments),
       action('Payments', Icons.receipt_long_outlined, onOpenPayments),
       action('Leads', Icons.person_search_outlined, onOpenLeads),
       action('Tasks', Icons.task_alt_outlined, onOpenTasks),
-      action('Alerts', Icons.notifications_none_rounded, onOpenNotifications, badgeCount: unreadNotifications),
+      action(
+        'Alerts',
+        Icons.notifications_none_rounded,
+        onOpenNotifications,
+        badgeCount: unreadNotifications,
+      ),
       action('Settings', Icons.settings_outlined, onOpenSettings),
       action('Logout', Icons.logout_rounded, onLogout, isDestructive: true),
     ];
@@ -140,13 +150,28 @@ List<OmcSheetAction> _moreActions({
     items.add(action('Dashboard', Icons.analytics_outlined, onOpenDashboard));
     items.add(action('Documents', Icons.folder_copy_outlined, onOpenDocuments));
     if (features.paymentsEnabled) {
-      items.add(action('Payments', Icons.receipt_long_outlined, onOpenPayments));
+      items.add(
+        action('Payments', Icons.receipt_long_outlined, onOpenPayments),
+      );
     }
-    items.add(action('Alerts', Icons.notifications_none_rounded, onOpenNotifications, badgeCount: unreadNotifications));
+    items.add(
+      action(
+        'Alerts',
+        Icons.notifications_none_rounded,
+        onOpenNotifications,
+        badgeCount: unreadNotifications,
+      ),
+    );
   }
   items.add(action('Tax', Icons.calculate_outlined, onOpenTaxCalculator));
   if (features.expenseTrackerEnabled && !capabilities.isInternal) {
-    items.add(action('Expense', Icons.account_balance_wallet_outlined, onOpenExpenseTracker));
+    items.add(
+      action(
+        'Expense',
+        Icons.account_balance_wallet_outlined,
+        onOpenExpenseTracker,
+      ),
+    );
     if (capabilities.isApproved) {
       items.add(action('Budget', Icons.savings_outlined, onOpenBudget));
     }
@@ -161,7 +186,14 @@ List<OmcSheetAction> _moreActions({
     items.add(action('Profile', Icons.person_outline_rounded, onOpenProfile));
     items.add(action('Settings', Icons.settings_outlined, onOpenSettings));
   }
-  items.add(action(isGuest ? 'Login' : 'Logout', isGuest ? Icons.login_rounded : Icons.logout_rounded, onLogout, isDestructive: !isGuest));
+  items.add(
+    action(
+      isGuest ? 'Login' : 'Logout',
+      isGuest ? Icons.login_rounded : Icons.logout_rounded,
+      onLogout,
+      isDestructive: !isGuest,
+    ),
+  );
   return items;
 }
 
@@ -190,7 +222,9 @@ class _MoreSheetContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.64),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
         child: Column(
@@ -203,11 +237,21 @@ class _MoreSheetContent extends StatelessWidget {
               customerStatus: customerStatus,
               avatarUrl: avatarUrl,
             ),
-            if (capabilities.isGuest || capabilities.isPending || capabilities.isRejected) ...[
+            if (capabilities.isGuest ||
+                capabilities.isPending ||
+                capabilities.isRejected) ...[
               const SizedBox(height: 10),
               _AccessStatusNote(capabilities: capabilities),
             ],
             const SizedBox(height: 14),
+            _MoreGroupLabel(
+              label:
+                  capabilities.canAccessInternalWorkspace ||
+                      capabilities.isInternal
+                  ? 'Operations'
+                  : 'Account & services',
+            ),
+            const SizedBox(height: 10),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -218,7 +262,8 @@ class _MoreSheetContent extends StatelessWidget {
                 crossAxisSpacing: 8,
                 childAspectRatio: 0.82,
               ),
-              itemBuilder: (context, index) => _SheetActionButton(action: actions[index]),
+              itemBuilder: (context, index) =>
+                  _SheetActionButton(action: actions[index]),
             ),
           ],
         ),
@@ -228,7 +273,12 @@ class _MoreSheetContent extends StatelessWidget {
 }
 
 class _MoreHeader extends StatelessWidget {
-  const _MoreHeader({this.displayName, this.companyName, this.customerStatus, this.avatarUrl});
+  const _MoreHeader({
+    this.displayName,
+    this.companyName,
+    this.customerStatus,
+    this.avatarUrl,
+  });
 
   final String? displayName;
   final String? companyName;
@@ -256,18 +306,22 @@ class _MoreHeader extends StatelessWidget {
     final resolvedAvatarUrl = cleanAvatarUrl == null || cleanAvatarUrl.isEmpty
         ? null
         : cleanAvatarUrl.startsWith('http')
-            ? cleanAvatarUrl
-            : '${ApiConfig.baseUrl}${cleanAvatarUrl.startsWith('/') ? '' : '/'}$cleanAvatarUrl';
+        ? cleanAvatarUrl
+        : '${ApiConfig.baseUrl}${cleanAvatarUrl.startsWith('/') ? '' : '/'}$cleanAvatarUrl';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.cardSoft.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        color: OmcPremium.canvas,
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppTheme.border),
+        boxShadow: OmcPremium.softShadow,
       ),
       child: Row(
         children: [
-          _MoreHeaderAvatar(avatarUrl: resolvedAvatarUrl, initials: _initials(displayName)),
+          _MoreHeaderAvatar(
+            avatarUrl: resolvedAvatarUrl,
+            initials: _initials(displayName),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -312,10 +366,26 @@ class _AccessStatusNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, title, message) = switch (capabilities.accessState) {
-      AccountAccessState.guest => (Icons.explore_outlined, 'Guest mode', 'Public tools are available. Protected workspace opens after login.'),
-      AccountAccessState.pending => (Icons.hourglass_top_rounded, 'Account under review', 'Local tools stay available. Sync activates after approval.'),
-      AccountAccessState.rejected => (Icons.block_rounded, 'Approval required', 'Protected services are unavailable. Contact support.'),
-      _ => (Icons.verified_user_outlined, 'Approved access', 'Protected services are enabled.'),
+      AccountAccessState.guest => (
+        Icons.explore_outlined,
+        'Guest mode',
+        'Public tools are available. Protected workspace opens after login.',
+      ),
+      AccountAccessState.pending => (
+        Icons.hourglass_top_rounded,
+        'Account under review',
+        'Local tools stay available. Sync activates after approval.',
+      ),
+      AccountAccessState.rejected => (
+        Icons.block_rounded,
+        'Approval required',
+        'Protected services are unavailable. Contact support.',
+      ),
+      _ => (
+        Icons.verified_user_outlined,
+        'Approved access',
+        'Protected services are enabled.',
+      ),
     };
     return Container(
       padding: const EdgeInsets.all(12),
@@ -332,9 +402,24 @@ class _AccessStatusNote extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w900)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(message, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11.5, height: 1.3, fontWeight: FontWeight.w600)),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -358,12 +443,18 @@ class _MoreHeaderAvatar extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed,
-        borderRadius: BorderRadius.circular(16),
+        color: OmcPremium.services.withValues(alpha: 0.10),
+        shape: BoxShape.circle,
       ),
       clipBehavior: Clip.antiAlias,
       child: hasAvatar
-          ? Image.network(cleanAvatarUrl, width: 48, height: 48, fit: BoxFit.cover, errorBuilder: (_, _, _) => _AvatarFallback(initials: initials))
+          ? Image.network(
+              cleanAvatarUrl,
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _AvatarFallback(initials: initials),
+            )
           : _AvatarFallback(initials: initials),
     );
   }
@@ -377,16 +468,30 @@ class _AvatarFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: OmcPremium.services,
+          fontSize: 15,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
 
 String _initials(String? name) {
-  final parts = (name ?? '').trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = (name ?? '')
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return 'OMC';
-  if (parts.length == 1) return parts.first.characters.take(2).toString().toUpperCase();
-  return '${parts.first.characters.first}${parts.last.characters.first}'.toUpperCase();
+  if (parts.length == 1) {
+    return parts.first.characters.take(2).toString().toUpperCase();
+  }
+  return '${parts.first.characters.first}${parts.last.characters.first}'
+      .toUpperCase();
 }
 
 class _SheetActionButton extends StatelessWidget {
@@ -396,7 +501,9 @@ class _SheetActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = action.isDestructive ? Colors.red.shade700 : AppTheme.primaryRed;
+    final color = action.isDestructive
+        ? OmcPremium.danger
+        : OmcPremium.moduleColor(action.label);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
@@ -414,7 +521,11 @@ class _SheetActionButton extends StatelessWidget {
                 children: [
                   _IconBadge(icon: action.icon, color: color),
                   if (action.badgeCount > 0)
-                    Positioned(top: -6, right: -8, child: _CompactBadge(count: action.badgeCount)),
+                    Positioned(
+                      top: -6,
+                      right: -8,
+                      child: _CompactBadge(count: action.badgeCount),
+                    ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -424,7 +535,9 @@ class _SheetActionButton extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: action.isDestructive ? Colors.red.shade700 : AppTheme.textPrimary,
+                  color: action.isDestructive
+                      ? OmcPremium.danger
+                      : AppTheme.textPrimary,
                   fontSize: 10.5,
                   height: 1.08,
                   fontWeight: FontWeight.w700,
@@ -439,7 +552,7 @@ class _SheetActionButton extends StatelessWidget {
 }
 
 class _IconBadge extends StatelessWidget {
-  const _IconBadge({required this.icon, this.color = AppTheme.primaryRed});
+  const _IconBadge({required this.icon, this.color = OmcPremium.services});
 
   final IconData icon;
   final Color color;
@@ -449,8 +562,29 @@ class _IconBadge extends StatelessWidget {
     return Container(
       width: 36,
       height: 36,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Icon(icon, color: color, size: 20),
+    );
+  }
+}
+
+class _MoreGroupLabel extends StatelessWidget {
+  const _MoreGroupLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        color: AppTheme.textPrimary,
+        fontSize: 13,
+        fontWeight: FontWeight.w900,
+      ),
     );
   }
 }
@@ -473,7 +607,15 @@ class _CompactBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child: Text(_label, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900, height: 1)),
+      child: Text(
+        _label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
     );
   }
 }

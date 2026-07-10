@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
@@ -81,7 +82,7 @@ class _DetailLoadingView extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 118,
-                    color: AppTheme.primaryRed.withValues(alpha: 0.045),
+                    color: OmcPremium.payments.withValues(alpha: 0.045),
                   ),
                 ),
                 Padding(
@@ -92,10 +93,10 @@ class _DetailLoadingView extends StatelessWidget {
                         width: 54,
                         height: 54,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                          color: OmcPremium.payments.withValues(alpha: 0.09),
                           borderRadius: BorderRadius.circular(19),
                           border: Border.all(
-                            color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                            color: OmcPremium.payments.withValues(alpha: 0.10),
                           ),
                         ),
                         child: const Center(
@@ -172,7 +173,7 @@ class _LoadingBar extends StatelessWidget {
       child: Container(
         height: 12,
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.07),
+          color: OmcPremium.payments.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(999),
         ),
       ),
@@ -208,7 +209,7 @@ class _PaymentHeroCard extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppTheme.primaryRed, AppTheme.darkRed],
+            colors: [OmcPremium.payments, Color(0xFF0B5F4A)],
           ),
           borderRadius: BorderRadius.circular(24),
         ),
@@ -329,13 +330,13 @@ class _PaymentStatTile extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.065),
+              color: OmcPremium.payments.withValues(alpha: 0.065),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                color: OmcPremium.payments.withValues(alpha: 0.07),
               ),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 18),
+            child: Icon(icon, color: OmcPremium.payments, size: 18),
           ),
           const SizedBox(height: 10),
           Text(
@@ -484,12 +485,12 @@ class _PaymentTimelinePlaceholder extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              color: OmcPremium.payments.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(15),
             ),
             child: const Icon(
               Icons.timeline_rounded,
-              color: AppTheme.primaryRed,
+              color: OmcPremium.payments,
             ),
           ),
           const SizedBox(width: 14),
