@@ -1,1 +1,1 @@
-export 'service_catalogue_screen_modern.dart';
+export 'service_catalogue_screen_impl.dart';
