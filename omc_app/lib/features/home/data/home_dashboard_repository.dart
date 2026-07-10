@@ -5,11 +5,11 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 
-final homeDashboardRepositoryProvider = Provider<HomeDashboardRepository>((
-  ref,
-) {
-  return HomeDashboardRepository(frappeClient: ref.watch(frappeClientProvider));
-});
+final homeDashboardRepositoryProvider = Provider<HomeDashboardRepository>(
+  (ref) {
+    return HomeDashboardRepository(frappeClient: ref.watch(frappeClientProvider));
+  },
+);
 
 final homeDashboardSummaryProvider = FutureProvider<HomeDashboardSummary>((
   ref,
@@ -158,6 +158,7 @@ class HomeDashboardServiceSnapshot {
     required this.documentSummary,
     required this.paymentSummary,
     required this.progress,
+    this.colorFamily,
   });
 
   final String id;
@@ -167,6 +168,7 @@ class HomeDashboardServiceSnapshot {
   final HomeDashboardDocumentSummary documentSummary;
   final HomeDashboardPaymentSummary paymentSummary;
   final double progress;
+  final String? colorFamily;
 }
 
 class HomeDashboardActivity {
@@ -175,12 +177,14 @@ class HomeDashboardActivity {
     required this.subtitle,
     this.status,
     this.createdAtLabel,
+    this.colorFamily,
   });
 
   final String title;
   final String subtitle;
   final String? status;
   final String? createdAtLabel;
+  final String? colorFamily;
 }
 
 class HomeDashboardRepository {
@@ -196,9 +200,6 @@ class HomeDashboardRepository {
 
       return _summaryFromResponse(response);
     } on ApiError catch (error) {
-      // Dashboard is supportive UI. Do not block Home if backend dashboard
-      // mapping/auth is not ready yet. Avoid showing password/login errors
-      // on the Home screen after the user has already entered the app.
       final statusCode = error.statusCode;
       final isAuthError = statusCode == 401 || statusCode == 403;
       final message = isAuthError
@@ -346,6 +347,12 @@ class HomeDashboardRepository {
               item['payment_summary'] ?? item['payments'],
             ),
             progress: progress,
+            colorFamily: _readNullableString(item, const [
+              'color_family',
+              'service_color_family',
+              'family',
+              'module',
+            ]),
           );
         })
         .where((item) => item.title.isNotEmpty || item.id.isNotEmpty)
@@ -378,6 +385,12 @@ class HomeDashboardRepository {
               'created',
               'modified',
               'event_time',
+            ]),
+            colorFamily: _readNullableString(item, const [
+              'color_family',
+              'service_color_family',
+              'family',
+              'module',
             ]),
           ),
         )
