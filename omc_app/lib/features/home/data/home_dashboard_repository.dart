@@ -30,6 +30,7 @@ class HomeDashboardSummary {
     this.documentSummary = const HomeDashboardDocumentSummary.empty(),
     this.paymentSummary = const HomeDashboardPaymentSummary.empty(),
     this.supportSummary = const HomeDashboardSupportSummary.empty(),
+    this.operationsSummary = const HomeDashboardOperationsSummary.empty(),
     this.nextAction,
     this.fallbackMessage,
   });
@@ -45,6 +46,7 @@ class HomeDashboardSummary {
       documentSummary = const HomeDashboardDocumentSummary.empty(),
       paymentSummary = const HomeDashboardPaymentSummary.empty(),
       supportSummary = const HomeDashboardSupportSummary.empty(),
+      operationsSummary = const HomeDashboardOperationsSummary.empty(),
       nextAction = null;
 
   final int activeCases;
@@ -57,6 +59,7 @@ class HomeDashboardSummary {
   final HomeDashboardDocumentSummary documentSummary;
   final HomeDashboardPaymentSummary paymentSummary;
   final HomeDashboardSupportSummary supportSummary;
+  final HomeDashboardOperationsSummary operationsSummary;
   final HomeDashboardNextAction? nextAction;
   final String? fallbackMessage;
 }
@@ -131,6 +134,35 @@ class HomeDashboardSupportSummary {
   final int open;
   final int waitingCustomer;
   final int total;
+}
+
+class HomeDashboardOperationsSummary {
+  const HomeDashboardOperationsSummary({
+    required this.openLeads,
+    required this.activeCustomers,
+    required this.pendingTasks,
+    required this.pendingPayments,
+    required this.documentsWaitingReview,
+    required this.activeServices,
+    required this.waitingCustomer,
+  });
+
+  const HomeDashboardOperationsSummary.empty()
+    : openLeads = 0,
+      activeCustomers = 0,
+      pendingTasks = 0,
+      pendingPayments = 0,
+      documentsWaitingReview = 0,
+      activeServices = 0,
+      waitingCustomer = 0;
+
+  final int openLeads;
+  final int activeCustomers;
+  final int pendingTasks;
+  final int pendingPayments;
+  final int documentsWaitingReview;
+  final int activeServices;
+  final int waitingCustomer;
 }
 
 class HomeDashboardNextAction {
@@ -265,6 +297,7 @@ class HomeDashboardRepository {
       documentSummary: documentSummary,
       paymentSummary: paymentSummary,
       supportSummary: _supportSummary(data['support_summary']),
+      operationsSummary: _operationsSummary(data['operations_summary']),
       nextAction: _nextAction(data['next_action']),
     );
   }
@@ -309,6 +342,22 @@ class HomeDashboardRepository {
       open: _readInt(value, const ['open']),
       waitingCustomer: _readInt(value, const ['waiting_customer']),
       total: _readInt(value, const ['total']),
+    );
+  }
+
+  HomeDashboardOperationsSummary _operationsSummary(dynamic value) {
+    if (value is! Map<String, dynamic>) {
+      return const HomeDashboardOperationsSummary.empty();
+    }
+
+    return HomeDashboardOperationsSummary(
+      openLeads: _readInt(value, const ['open_leads']),
+      activeCustomers: _readInt(value, const ['active_customers']),
+      pendingTasks: _readInt(value, const ['pending_tasks']),
+      pendingPayments: _readInt(value, const ['pending_payments']),
+      documentsWaitingReview: _readInt(value, const ['documents_waiting_review']),
+      activeServices: _readInt(value, const ['active_services']),
+      waitingCustomer: _readInt(value, const ['waiting_customer']),
     );
   }
 
