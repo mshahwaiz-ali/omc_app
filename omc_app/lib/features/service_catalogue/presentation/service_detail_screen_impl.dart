@@ -18,6 +18,7 @@ import '../data/service_item.dart';
 const Color _ink = Color(0xFF111827);
 const Color _slate = Color(0xFF64748B);
 const Color _surface = Color(0xFFF8FAFC);
+const Color _surfaceSoft = Color(0xFFEEF2F7);
 const Color _border = Color(0xFFE5E7EB);
 const Color _primary = Color(0xFF111827);
 const Color _primarySoft = Color(0xFFF3F4F6);
@@ -53,7 +54,14 @@ class ServiceDetailScreen extends ConsumerWidget {
         ),
       ),
       data: (services) {
-        final service = services.where((item) => item.id == serviceId).cast<ServiceItem?>().firstOrNull;
+        ServiceItem? service;
+        for (final item in services) {
+          if (item.id == serviceId) {
+            service = item;
+            break;
+          }
+        }
+
         if (service == null) {
           return Scaffold(
             appBar: const AppBackHeader(title: 'Service Details'),
@@ -99,9 +107,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              subtitle.isEmpty
-                                  ? 'OMC will share the service brief after review.'
-                                  : subtitle,
+                              subtitle.isEmpty ? 'OMC will share the service brief after review.' : subtitle,
                               style: const TextStyle(
                                 color: _slate,
                                 fontSize: 13.5,
@@ -187,9 +193,7 @@ class ServiceDetailScreen extends ConsumerWidget {
   }
 
   String _lockedAccessMessage(AuthCapabilities capabilities) {
-    if (capabilities.isGuest) {
-      return 'Please sign in or create an account to request this service.';
-    }
+    if (capabilities.isGuest) return 'Please sign in or create an account to request this service.';
     if (capabilities.isPending) {
       return 'Your account is under review. OMC team will verify your profile before enabling service access.';
     }
@@ -834,17 +838,72 @@ class _MiniNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: color,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w800,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock({
+    required this.width,
+    required this.height,
+    required this.borderRadius,
+    required this.color,
+  });
+
+  final double width;
+  final double height;
+  final double borderRadius;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+    );
+  }
+}
+
+class _WizardBadge extends StatelessWidget {
+  const _WizardBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.05,
         ),
       ),
     );
@@ -875,36 +934,45 @@ _Tone serviceDetailTone(ServiceItem service) {
   return const _Tone(icon: Icons.workspace_premium_outlined, color: _ink);
 }
 
+String serviceCatalogueErrorMessage(Object error) {
+  final message = error.toString();
+  if (message.contains('SocketException')) {
+    return 'Check your connection and try again.';
+  }
+  if (message.contains('404')) {
+    return 'The catalogue endpoint was not found.';
+  }
+  if (message.contains('500')) {
+    return 'The server returned an error while loading services.';
+  }
+  return 'Unable to load the service catalogue right now.';
+}
+
+String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {
+  final raw = service.wizardType?.trim();
+  if (raw == null || raw.isEmpty) {
+    return service.hasBackendTemplate ? 'Service Wizard' : null;
+  }
+  switch (raw.toLowerCase()) {
+    case 'tax':
+      return 'Tax Wizard';
+    case 'gst':
+      return 'GST Wizard';
+    case 'business':
+      return 'Business Wizard';
+    default:
+      return '${_titleCase(raw)} Wizard';
+  }
+}
+
 String _startRequestLabel(ServiceItem service) {
   return serviceCatalogueWizardBadgeLabel(service) != null ? 'Start wizard' : 'Request service';
 }
 
-class _LoadingBlock extends StatelessWidget {
-  const _LoadingBlock({
-    required this.width,
-    required this.height,
-    required this.borderRadius,
-    required this.color,
-  });
-
-  final double width;
-  final double height;
-  final double borderRadius;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
-    );
-  }
-}
-
-extension _FirstOrNullExtension<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
+String _titleCase(String value) {
+  return value
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+      .join(' ');
 }
