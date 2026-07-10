@@ -30,10 +30,12 @@ class ServiceCatalogueScreen extends ConsumerStatefulWidget {
   const ServiceCatalogueScreen({super.key});
 
   @override
-  ConsumerState<ServiceCatalogueScreen> createState() => _ServiceCatalogueScreenState();
+  ConsumerState<ServiceCatalogueScreen> createState() =>
+      _ServiceCatalogueScreenState();
 }
 
-class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen> {
+class _ServiceCatalogueScreenState
+    extends ConsumerState<ServiceCatalogueScreen> {
   static const String _allCategory = 'All';
   static const String _allStatus = 'All Services';
 
@@ -56,7 +58,8 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
     final authState = ref.watch(authControllerProvider);
     final capabilities = authState.capabilities;
     final displayName = serviceCatalogueDisplayName(authState);
-    final unreadNotifications = ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final unreadNotifications =
+        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
 
     return SafeArea(
       child: servicesAsync.when(
@@ -72,8 +75,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
           final categories = <String>{
             for (final service in services)
               if (service.category.trim().isNotEmpty) service.category.trim(),
-          }.toList()
-            ..sort();
+          }.toList()..sort();
 
           final filteredServices = _filterServices(services);
           final statusCounts = _buildStatusCounts(services);
@@ -81,7 +83,9 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(serviceCatalogueProvider),
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
                 _Header(
@@ -129,7 +133,8 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                        onChanged: (value) =>
+                            setState(() => _query = value.trim().toLowerCase()),
                         textInputAction: TextInputAction.search,
                         decoration: InputDecoration(
                           hintText: 'Search services, cases or requests...',
@@ -146,7 +151,10 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                                 ),
                           filled: true,
                           fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
                             borderSide: BorderSide(color: AppTheme.border),
@@ -157,7 +165,10 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(color: _primary, width: 1.2),
+                            borderSide: const BorderSide(
+                              color: _primary,
+                              width: 1.2,
+                            ),
                           ),
                         ),
                       ),
@@ -180,21 +191,26 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                 _SummaryGrid(
                   totalServices: services.length,
                   openServices: statusCounts[_ServiceStatus.open] ?? 0,
-                  underReviewServices: statusCounts[_ServiceStatus.underReview] ?? 0,
-                  actionNeededServices: statusCounts[_ServiceStatus.actionNeeded] ?? 0,
-                  completedServices: statusCounts[_ServiceStatus.completed] ?? 0,
+                  underReviewServices:
+                      statusCounts[_ServiceStatus.underReview] ?? 0,
+                  actionNeededServices:
+                      statusCounts[_ServiceStatus.actionNeeded] ?? 0,
+                  completedServices:
+                      statusCounts[_ServiceStatus.completed] ?? 0,
                 ),
                 const SizedBox(height: 14),
                 _StatusChipsRow(
                   counts: statusCounts,
                   selectedStatus: _selectedStatus,
-                  onSelected: (status) => setState(() => _selectedStatus = status),
+                  onSelected: (status) =>
+                      setState(() => _selectedStatus = status),
                 ),
                 const SizedBox(height: 12),
                 _CategoryChipsRow(
                   categories: categories,
                   selectedCategory: _selectedCategory,
-                  onSelected: (category) => setState(() => _selectedCategory = category),
+                  onSelected: (category) =>
+                      setState(() => _selectedCategory = category),
                 ),
                 const SizedBox(height: 16),
                 _TrackMyServicesCard(
@@ -236,13 +252,15 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                   const _ServiceListEmptyState(
                     icon: Icons.inventory_2_outlined,
                     title: 'No services configured',
-                    message: 'OMC has not published mobile services from the backend yet. Please retry after services are configured or contact support.',
+                    message:
+                        'OMC has not published mobile services from the backend yet. Please retry after services are configured or contact support.',
                   )
                 else if (filteredServices.isEmpty)
                   _ServiceListEmptyState(
                     icon: Icons.search_off_rounded,
                     title: 'No matching services',
-                    message: 'Try another search term, status filter or category.',
+                    message:
+                        'Try another search term, status filter or category.',
                     actionLabel: 'Clear filters',
                     onAction: () {
                       _searchController.clear();
@@ -257,16 +275,22 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                   ...filteredServices.asMap().entries.map((entry) {
                     final index = entry.key;
                     final service = entry.value;
-                    final status = serviceStatusForIndex(index);
+                    final status = _serviceStatusForIndex(index);
                     return Padding(
-                      padding: EdgeInsets.only(bottom: index == filteredServices.length - 1 ? 0 : 14),
+                      padding: EdgeInsets.only(
+                        bottom: index == filteredServices.length - 1 ? 0 : 14,
+                      ),
                       child: _ServiceDashboardCard(
                         service: service,
                         status: status,
-                        onTap: () => context.push('/services/${Uri.encodeComponent(service.id)}'),
+                        onTap: () => context.push(
+                          '/services/${Uri.encodeComponent(service.id)}',
+                        ),
                         onRequest: () {
                           if (capabilities.canCreateServiceRequest) {
-                            context.push('/services/${Uri.encodeComponent(service.id)}/request');
+                            context.push(
+                              '/services/${Uri.encodeComponent(service.id)}/request',
+                            );
                           } else {
                             _showLockedSnack(context, capabilities);
                           }
@@ -416,35 +440,42 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
   }
 
   List<ServiceItem> _filterServices(List<ServiceItem> services) {
-    return services.asMap().entries.where((entry) {
-      final index = entry.key;
-      final service = entry.value;
+    return services
+        .asMap()
+        .entries
+        .where((entry) {
+          final index = entry.key;
+          final service = entry.value;
 
-      if (_selectedCategory != _allCategory && service.category.trim() != _selectedCategory) {
-        return false;
-      }
+          if (_selectedCategory != _allCategory &&
+              service.category.trim() != _selectedCategory) {
+            return false;
+          }
 
-      final status = serviceStatusForIndex(index);
-      if (_selectedStatus != _allStatus && serviceCatalogueStatusLabelFor(status) != _selectedStatus) {
-        return false;
-      }
+          final status = _serviceStatusForIndex(index);
+          if (_selectedStatus != _allStatus &&
+              _serviceCatalogueStatusLabelFor(status) != _selectedStatus) {
+            return false;
+          }
 
-      if (_query.isEmpty) return true;
+          if (_query.isEmpty) return true;
 
-      final haystack = [
-        service.id,
-        service.title,
-        service.category,
-        service.description ?? '',
-        service.shortDescription ?? '',
-        service.feeLabel,
-        service.priceLabel,
-        service.completionTime,
-        service.wizardType ?? '',
-      ].join(' ').toLowerCase();
+          final haystack = [
+            service.id,
+            service.title,
+            service.category,
+            service.description ?? '',
+            service.shortDescription ?? '',
+            service.feeLabel,
+            service.priceLabel,
+            service.completionTime,
+            service.wizardType ?? '',
+          ].join(' ').toLowerCase();
 
-      return haystack.contains(_query);
-    }).map((entry) => entry.value).toList(growable: false);
+          return haystack.contains(_query);
+        })
+        .map((entry) => entry.value)
+        .toList(growable: false);
   }
 
   Map<_ServiceStatus, int> _buildStatusCounts(List<ServiceItem> services) {
@@ -456,7 +487,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
     };
 
     for (var i = 0; i < services.length; i++) {
-      final status = serviceStatusForIndex(i);
+      final status = _serviceStatusForIndex(i);
       counts[status] = (counts[status] ?? 0) + 1;
     }
 
@@ -474,7 +505,6 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
       );
   }
 }
-
 
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
@@ -502,8 +532,13 @@ class _ActionButton extends StatelessWidget {
           foregroundColor: Colors.white,
           minimumSize: const Size(0, 54),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       );
     }
@@ -544,8 +579,8 @@ class _Header extends StatelessWidget {
     final subtitle = authState.capabilities.isGuest
         ? 'Browse services and public tools'
         : authState.capabilities.isInternal
-            ? 'Internal workspace overview'
-            : 'Your account, services and updates';
+        ? 'Internal workspace overview'
+        : 'Your account, services and updates';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,7 +626,11 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        _HeaderActionButton(icon: Icons.notifications_none_rounded, badgeCount: unreadCount, onTap: onNotificationsTap),
+        _HeaderActionButton(
+          icon: Icons.notifications_none_rounded,
+          badgeCount: unreadCount,
+          onTap: onNotificationsTap,
+        ),
         const SizedBox(width: 10),
         _ProfileAvatar(name: displayName, onTap: onProfileTap),
       ],
@@ -600,7 +639,11 @@ class _Header extends StatelessWidget {
 }
 
 class _HeaderActionButton extends StatelessWidget {
-  const _HeaderActionButton({required this.icon, required this.badgeCount, required this.onTap});
+  const _HeaderActionButton({
+    required this.icon,
+    required this.badgeCount,
+    required this.onTap,
+  });
 
   final IconData icon;
   final int badgeCount;
@@ -698,7 +741,7 @@ class _StatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final banner = bannerFor(authState);
+    final banner = _bannerFor(authState);
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Row(
@@ -771,18 +814,42 @@ class _SummaryGrid extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
-        _MetricCard(label: 'Total', value: totalServices.toString(), color: _primary),
-        _MetricCard(label: 'Open', value: openServices.toString(), color: const Color(0xFF2563EB)),
-        _MetricCard(label: 'Review', value: underReviewServices.toString(), color: _review),
-        _MetricCard(label: 'Action', value: actionNeededServices.toString(), color: _attention),
-        _MetricCard(label: 'Done', value: completedServices.toString(), color: _done),
+        _MetricCard(
+          label: 'Total',
+          value: totalServices.toString(),
+          color: _primary,
+        ),
+        _MetricCard(
+          label: 'Open',
+          value: openServices.toString(),
+          color: const Color(0xFF2563EB),
+        ),
+        _MetricCard(
+          label: 'Review',
+          value: underReviewServices.toString(),
+          color: _review,
+        ),
+        _MetricCard(
+          label: 'Action',
+          value: actionNeededServices.toString(),
+          color: _attention,
+        ),
+        _MetricCard(
+          label: 'Done',
+          value: completedServices.toString(),
+          color: _done,
+        ),
       ],
     );
   }
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value, required this.color});
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final String value;
@@ -797,9 +864,23 @@ class _MetricCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w900)),
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
             const SizedBox(height: 3),
-            Text(label, style: const TextStyle(color: _slate, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: _slate,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),
@@ -808,7 +889,11 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _StatusChipsRow extends StatelessWidget {
-  const _StatusChipsRow({required this.counts, required this.selectedStatus, required this.onSelected});
+  const _StatusChipsRow({
+    required this.counts,
+    required this.selectedStatus,
+    required this.onSelected,
+  });
 
   final Map<_ServiceStatus, int> counts;
   final String selectedStatus;
@@ -816,7 +901,10 @@ class _StatusChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statuses = <String>['All Services', ..._ServiceStatus.values.map(serviceCatalogueStatusLabelFor)];
+    final statuses = <String>[
+      'All Services',
+      ..._ServiceStatus.values.map(_serviceCatalogueStatusLabelFor),
+    ];
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -826,12 +914,17 @@ class _StatusChipsRow extends StatelessWidget {
         itemBuilder: (context, index) {
           final label = statuses[index];
           final selected = label == selectedStatus;
-          final count = label == 'All Services' ? counts.values.fold<int>(0, (a, b) => a + b) : counts[_statusFromLabel(label)] ?? 0;
+          final count = label == 'All Services'
+              ? counts.values.fold<int>(0, (a, b) => a + b)
+              : counts[_statusFromLabel(label)] ?? 0;
           return ChoiceChip(
             label: Text('$label ($count)'),
             selected: selected,
             onSelected: (_) => onSelected(label),
-            labelStyle: TextStyle(color: selected ? Colors.white : _ink, fontWeight: FontWeight.w800),
+            labelStyle: TextStyle(
+              color: selected ? Colors.white : _ink,
+              fontWeight: FontWeight.w800,
+            ),
             selectedColor: _primary,
             backgroundColor: Colors.white,
             side: BorderSide(color: selected ? _primary : AppTheme.border),
@@ -843,7 +936,11 @@ class _StatusChipsRow extends StatelessWidget {
 }
 
 class _CategoryChipsRow extends StatelessWidget {
-  const _CategoryChipsRow({required this.categories, required this.selectedCategory, required this.onSelected});
+  const _CategoryChipsRow({
+    required this.categories,
+    required this.selectedCategory,
+    required this.onSelected,
+  });
 
   final List<String> categories;
   final String selectedCategory;
@@ -865,7 +962,10 @@ class _CategoryChipsRow extends StatelessWidget {
             label: Text(category),
             selected: selected,
             onSelected: (_) => onSelected(category),
-            labelStyle: TextStyle(color: selected ? Colors.white : _ink, fontWeight: FontWeight.w800),
+            labelStyle: TextStyle(
+              color: selected ? Colors.white : _ink,
+              fontWeight: FontWeight.w800,
+            ),
             selectedColor: _primary,
             backgroundColor: Colors.white,
             side: BorderSide(color: selected ? _primary : AppTheme.border),
@@ -893,7 +993,11 @@ class _TrackMyServicesCard extends StatelessWidget {
           Expanded(
             child: Text(
               'Track my services',
-              style: TextStyle(color: _ink, fontSize: 14.5, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                color: _ink,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           Icon(Icons.chevron_right_rounded, color: _slate),
@@ -920,8 +1024,8 @@ class _ServiceDashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = serviceCatalogueTone(service);
-    final statusLabel = serviceCatalogueStatusLabelFor(status);
+    final tone = _serviceCatalogueTone(service);
+    final statusLabel = _serviceCatalogueStatusLabelFor(status);
     final wizardLabel = serviceCatalogueWizardBadgeLabel(service);
 
     return PremiumCard(
@@ -947,14 +1051,33 @@ class _ServiceDashboardCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(service.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w900)),
+                    Text(
+                      service.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                     const SizedBox(height: 5),
-                    Text(service.category, style: const TextStyle(color: _slate, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                    Text(
+                      service.category,
+                      style: const TextStyle(
+                        color: _slate,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              _StatusBadge(label: statusLabel, color: serviceCatalogueStatusColor(status)),
+              _StatusBadge(
+                label: statusLabel,
+                color: _serviceCatalogueStatusColor(status),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -962,18 +1085,37 @@ class _ServiceDashboardCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              PremiumInfoChip(icon: Icons.payments_outlined, label: service.priceLabel, color: tone.color),
-              PremiumInfoChip(icon: Icons.schedule_rounded, label: service.completionTime, color: _review),
+              PremiumInfoChip(
+                icon: Icons.payments_outlined,
+                label: service.priceLabel,
+                color: tone.color,
+              ),
+              PremiumInfoChip(
+                icon: Icons.schedule_rounded,
+                label: service.completionTime,
+                color: _review,
+              ),
               if (wizardLabel != null)
-                PremiumInfoChip(icon: Icons.auto_awesome_rounded, label: wizardLabel, color: _success),
+                PremiumInfoChip(
+                  icon: Icons.auto_awesome_rounded,
+                  label: wizardLabel,
+                  color: _success,
+                ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            service.shortDescription ?? service.description ?? 'OMC will share the service brief after review.',
+            service.shortDescription ??
+                service.description ??
+                'OMC will share the service brief after review.',
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: _slate, fontSize: 13, height: 1.45, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: _slate,
+              fontSize: 13,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 14),
           Row(
@@ -998,7 +1140,13 @@ class _ServiceDashboardCard extends StatelessWidget {
 }
 
 class _ServiceListEmptyState extends StatelessWidget {
-  const _ServiceListEmptyState({required this.icon, required this.title, required this.message, this.actionLabel, this.onAction});
+  const _ServiceListEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final IconData icon;
   final String title;
@@ -1014,9 +1162,25 @@ class _ServiceListEmptyState extends StatelessWidget {
         children: [
           Icon(icon, size: 28, color: _primary),
           const SizedBox(height: 10),
-          Text(title, style: const TextStyle(color: _ink, fontSize: 15.5, fontWeight: FontWeight.w900)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text(message, textAlign: TextAlign.center, style: const TextStyle(color: _slate, fontSize: 13, height: 1.45, fontWeight: FontWeight.w600)),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _slate,
+              fontSize: 13,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 14),
             FilledButton(onPressed: onAction, child: Text(actionLabel!)),
@@ -1028,7 +1192,12 @@ class _ServiceListEmptyState extends StatelessWidget {
 }
 
 class _FilterPill extends StatelessWidget {
-  const _FilterPill({required this.label, required this.selected, required this.selectedColor, required this.onTap});
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.selectedColor,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -1041,7 +1210,10 @@ class _FilterPill extends StatelessWidget {
       label: Text(label),
       selected: selected,
       selectedColor: selectedColor,
-      labelStyle: TextStyle(color: selected ? Colors.white : _ink, fontWeight: FontWeight.w800),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : _ink,
+        fontWeight: FontWeight.w800,
+      ),
       backgroundColor: Colors.white,
       side: BorderSide(color: selected ? selectedColor : AppTheme.border),
       onSelected: (_) => onTap(),
@@ -1063,7 +1235,14 @@ class _StatusBadge extends StatelessWidget {
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w900)),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
@@ -1092,11 +1271,12 @@ class _BannerData {
 
 enum _ServiceStatus { open, underReview, actionNeeded, completed }
 
-_BannerData bannerFor(AuthState authState) {
+_BannerData _bannerFor(AuthState authState) {
   if (authState.capabilities.isGuest) {
     return const _BannerData(
       title: 'Guest access',
-      message: 'Create an account to request services, track progress and receive updates.',
+      message:
+          'Create an account to request services, track progress and receive updates.',
       actionLabel: 'Sign up',
       background: _surface,
       border: _border,
@@ -1108,7 +1288,8 @@ _BannerData bannerFor(AuthState authState) {
   if (authState.capabilities.isPending) {
     return const _BannerData(
       title: 'Profile under review',
-      message: 'Your account is being verified. Service access unlocks after approval.',
+      message:
+          'Your account is being verified. Service access unlocks after approval.',
       actionLabel: 'View profile',
       background: Color(0xFFEEF2FF),
       border: Color(0xFFD6DBFF),
@@ -1120,7 +1301,8 @@ _BannerData bannerFor(AuthState authState) {
   if (authState.capabilities.isRejected) {
     return const _BannerData(
       title: 'Access restricted',
-      message: 'This account is not approved for service access. Contact OMC support.',
+      message:
+          'This account is not approved for service access. Contact OMC support.',
       actionLabel: 'Support',
       background: _roseSoft,
       border: _roseBorder,
@@ -1132,7 +1314,8 @@ _BannerData bannerFor(AuthState authState) {
   if (authState.capabilities.isInternal) {
     return const _BannerData(
       title: 'Internal workspace',
-      message: 'Track requests, review documents and handle service operations.',
+      message:
+          'Track requests, review documents and handle service operations.',
       actionLabel: 'Open workspace',
       background: _surface,
       border: _border,
@@ -1143,7 +1326,8 @@ _BannerData bannerFor(AuthState authState) {
   }
   return const _BannerData(
     title: 'Service dashboard ready',
-    message: 'Track requests, upload documents and review progress without leaving this page.',
+    message:
+        'Track requests, upload documents and review progress without leaving this page.',
     actionLabel: 'Open My Services',
     background: _surface,
     border: _border,
@@ -1162,7 +1346,9 @@ String bannerRouteFor(AuthState authState) {
 }
 
 String lockedAccessMessage(AuthCapabilities capabilities) {
-  if (capabilities.isGuest) return 'Please sign in or create an account to continue.';
+  if (capabilities.isGuest) {
+    return 'Please sign in or create an account to continue.';
+  }
   if (capabilities.isPending) {
     return 'Your account is under review. OMC team will verify your profile before enabling service access.';
   }
@@ -1197,7 +1383,10 @@ String greetingLabel() {
 String initials(String value) {
   final cleaned = value.trim();
   if (cleaned.isEmpty) return 'A';
-  final parts = cleaned.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = cleaned
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
   if (parts.isEmpty) {
     final firstRune = cleaned.runes.isNotEmpty ? cleaned.runes.first : 65;
     return String.fromCharCode(firstRune).toUpperCase();
@@ -1230,12 +1419,14 @@ String serviceCatalogueDisplayName(AuthState authState) {
   return authState.capabilities.isInternal ? 'Administrator' : 'My Services';
 }
 
-
 String _initials(String value) {
   final cleaned = value.trim();
   if (cleaned.isEmpty) return 'A';
 
-  final parts = cleaned.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = cleaned
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
   if (parts.isEmpty) {
     final firstRune = cleaned.runes.isNotEmpty ? cleaned.runes.first : 65;
     return String.fromCharCode(firstRune).toUpperCase();
@@ -1261,7 +1452,7 @@ String serviceCatalogueErrorMessage(Object error) {
   return 'Unable to load the service catalogue right now.';
 }
 
-_ServiceStatus serviceStatusForIndex(int index) {
+_ServiceStatus _serviceStatusForIndex(int index) {
   if (index == 1) return _ServiceStatus.underReview;
   if (index == 2) return _ServiceStatus.actionNeeded;
   if (index >= 3) return _ServiceStatus.completed;
@@ -1283,7 +1474,7 @@ _ServiceStatus _statusFromLabel(String label) {
   }
 }
 
-String serviceCatalogueStatusLabelFor(_ServiceStatus status) {
+String _serviceCatalogueStatusLabelFor(_ServiceStatus status) {
   switch (status) {
     case _ServiceStatus.open:
       return 'Open';
@@ -1296,7 +1487,7 @@ String serviceCatalogueStatusLabelFor(_ServiceStatus status) {
   }
 }
 
-Color serviceCatalogueStatusColor(_ServiceStatus status) {
+Color _serviceCatalogueStatusColor(_ServiceStatus status) {
   switch (status) {
     case _ServiceStatus.open:
       return const Color(0xFF2563EB);
@@ -1309,33 +1500,74 @@ Color serviceCatalogueStatusColor(_ServiceStatus status) {
   }
 }
 
-double serviceCatalogueStatusProgress(_ServiceStatus status, int seed) {
-  switch (seed % 5) {
-    case 0:
-      return 0.45;
-    case 1:
-      return 0.65;
-    case 2:
-      return 0.20;
-    case 3:
-      return 0.80;
-    default:
-      return status == _ServiceStatus.completed ? 1.0 : 0.55;
+_ServiceTone _serviceCatalogueTone(ServiceItem service) {
+  final source =
+      '${service.category} ${service.title} ${service.wizardType ?? ''}'
+          .toLowerCase();
+  if (source.contains('visa')) {
+    return const _ServiceTone(
+      icon: Icons.flight_takeoff_rounded,
+      color: Color(0xFF0F766E),
+    );
   }
-}
-
-_ServiceTone serviceCatalogueTone(ServiceItem service) {
-  final source = '${service.category} ${service.title} ${service.wizardType ?? ''}'.toLowerCase();
-  if (source.contains('visa')) return const _ServiceTone(icon: Icons.flight_takeoff_rounded, color: Color(0xFF0F766E));
-  if (source.contains('tax') || source.contains('ntn') || source.contains('gst')) return const _ServiceTone(icon: Icons.receipt_long_outlined, color: Color(0xFF8B5CF6));
-  if (source.contains('business') || source.contains('setup')) return const _ServiceTone(icon: Icons.apartment_outlined, color: Color(0xFFDB2777));
-  if (source.contains('document')) return const _ServiceTone(icon: Icons.description_outlined, color: Color(0xFF0F9D8E));
-  if (source.contains('payment') || source.contains('receipt') || source.contains('invoice')) return const _ServiceTone(icon: Icons.payments_outlined, color: Color(0xFFF97316));
-  if (source.contains('hr') || source.contains('employee')) return const _ServiceTone(icon: Icons.groups_rounded, color: Color(0xFF14B8A6));
-  if (source.contains('lead')) return const _ServiceTone(icon: Icons.record_voice_over_rounded, color: Color(0xFF7C3AED));
-  if (source.contains('task') || source.contains('todo')) return const _ServiceTone(icon: Icons.task_alt_rounded, color: Color(0xFFF59E0B));
-  if (source.contains('support') || source.contains('case') || source.contains('request')) return const _ServiceTone(icon: Icons.support_agent_rounded, color: Color(0xFF334155));
-  return const _ServiceTone(icon: Icons.workspace_premium_outlined, color: _ink);
+  if (source.contains('tax') ||
+      source.contains('ntn') ||
+      source.contains('gst')) {
+    return const _ServiceTone(
+      icon: Icons.receipt_long_outlined,
+      color: Color(0xFF8B5CF6),
+    );
+  }
+  if (source.contains('business') || source.contains('setup')) {
+    return const _ServiceTone(
+      icon: Icons.apartment_outlined,
+      color: Color(0xFFDB2777),
+    );
+  }
+  if (source.contains('document')) {
+    return const _ServiceTone(
+      icon: Icons.description_outlined,
+      color: Color(0xFF0F9D8E),
+    );
+  }
+  if (source.contains('payment') ||
+      source.contains('receipt') ||
+      source.contains('invoice')) {
+    return const _ServiceTone(
+      icon: Icons.payments_outlined,
+      color: Color(0xFFF97316),
+    );
+  }
+  if (source.contains('hr') || source.contains('employee')) {
+    return const _ServiceTone(
+      icon: Icons.groups_rounded,
+      color: Color(0xFF14B8A6),
+    );
+  }
+  if (source.contains('lead')) {
+    return const _ServiceTone(
+      icon: Icons.record_voice_over_rounded,
+      color: Color(0xFF7C3AED),
+    );
+  }
+  if (source.contains('task') || source.contains('todo')) {
+    return const _ServiceTone(
+      icon: Icons.task_alt_rounded,
+      color: Color(0xFFF59E0B),
+    );
+  }
+  if (source.contains('support') ||
+      source.contains('case') ||
+      source.contains('request')) {
+    return const _ServiceTone(
+      icon: Icons.support_agent_rounded,
+      color: Color(0xFF334155),
+    );
+  }
+  return const _ServiceTone(
+    icon: Icons.workspace_premium_outlined,
+    color: _ink,
+  );
 }
 
 String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {
