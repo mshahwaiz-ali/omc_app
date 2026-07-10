@@ -43,46 +43,57 @@ class OmcBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
+
     return SafeArea(
       top: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding > 0 ? 8 : 12),
-        child: DecoratedBox(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding > 0 ? 10 : 14),
+        child: Container(
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            color: Colors.white.withValues(alpha: 0.98),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AppTheme.border),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 22,
+                blurRadius: 26,
                 offset: const Offset(0, 10),
               ),
             ],
           ),
-          child: Container(
-            height: 70,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.98),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.border, width: 1),
-            ),
-            child: Row(
-              children: [
-                Expanded(child: _NavTab(item: _items[0], selectedIndex: selectedIndex, onSelected: onTabSelected)),
-                Expanded(child: _NavTab(item: _items[1], selectedIndex: selectedIndex, onSelected: onTabSelected)),
-                _CenterActionButton(onTap: onQuickActions),
-                Expanded(child: _NavTab(item: _items[2], selectedIndex: selectedIndex, onSelected: onTabSelected)),
-                Expanded(
-                  child: _ActionTab(
-                    label: 'More',
-                    icon: Icons.more_horiz_rounded,
-                    badgeCount: notificationBadgeCount,
-                    isSelected: selectedIndex >= 3,
-                    onTap: onMore,
-                  ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _NavTab(
+                  item: _items[0],
+                  selected: selectedIndex == 0,
+                  onTap: () => onTabSelected(0),
                 ),
-              ],
-            ),
+              ),
+              Expanded(
+                child: _NavTab(
+                  item: _items[1],
+                  selected: selectedIndex == 1,
+                  onTap: () => onTabSelected(1),
+                ),
+              ),
+              _CenterActionButton(onTap: onQuickActions),
+              Expanded(
+                child: _NavTab(
+                  item: _items[2],
+                  selected: selectedIndex == 2,
+                  onTap: () => onTabSelected(2),
+                ),
+              ),
+              Expanded(
+                child: _MoreTab(
+                  selected: selectedIndex >= 3,
+                  badgeCount: notificationBadgeCount,
+                  onTap: onMore,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -98,19 +109,29 @@ class _CenterActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Material(
         color: AppTheme.primaryRed,
-        borderRadius: BorderRadius.circular(18),
-        elevation: 5,
-        shadowColor: AppTheme.primaryRed.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(22),
+        elevation: 0,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: const SizedBox(
-            width: 54,
-            height: 54,
-            child: Icon(Icons.add_rounded, color: Colors.white, size: 29),
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.26),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
           ),
         ),
       ),
@@ -121,86 +142,50 @@ class _CenterActionButton extends StatelessWidget {
 class _NavTab extends StatelessWidget {
   const _NavTab({
     required this.item,
-    required this.selectedIndex,
-    required this.onSelected,
+    required this.selected,
+    required this.onTap,
   });
 
   final OmcBottomNavItem item;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ActionTab(
-      label: item.label,
-      icon: selectedIndex == item.shellIndex ? item.activeIcon : item.icon,
-      isSelected: selectedIndex == item.shellIndex,
-      onTap: () => onSelected(item.shellIndex),
-    );
-  }
-}
-
-class _ActionTab extends StatelessWidget {
-  const _ActionTab({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.isSelected = false,
-    this.badgeCount = 0,
-  });
-
-  final String label;
-  final IconData icon;
+  final bool selected;
   final VoidCallback onTap;
-  final bool isSelected;
-  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? AppTheme.primaryRed : AppTheme.textSecondary;
+    final icon = selected ? item.activeIcon : item.icon;
+    final color = selected ? AppTheme.primaryRed : AppTheme.textMuted;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(22),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          height: 54,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
+          height: 60,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primaryRed.withValues(alpha: 0.08) : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
+            color: selected ? AppTheme.primaryRed.withValues(alpha: 0.08) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedSlide(
-                offset: isSelected ? const Offset(0, -0.04) : Offset.zero,
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 4),
+              AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOutCubic,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(icon, color: color, size: 21),
-                    if (badgeCount > 0)
-                      Positioned(top: -8, right: -12, child: _CompactBadge(count: badgeCount)),
-                  ],
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10.5,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                 ),
-              ),
-              const SizedBox(height: 4),
-              AnimatedOpacity(
-                opacity: isSelected ? 1 : 0.78,
-                duration: const Duration(milliseconds: 160),
                 child: Text(
-                  label,
+                  item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10.5,
-                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                  ),
                 ),
               ),
             ],
@@ -211,31 +196,96 @@ class _ActionTab extends StatelessWidget {
   }
 }
 
-class _CompactBadge extends StatelessWidget {
-  const _CompactBadge({required this.count});
+class _MoreTab extends StatelessWidget {
+  const _MoreTab({
+    required this.selected,
+    required this.badgeCount,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final int badgeCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppTheme.primaryRed : AppTheme.textMuted;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          height: 60,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.primaryRed.withValues(alpha: 0.08) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(Icons.more_horiz_rounded, color: color, size: 22),
+                    if (badgeCount > 0)
+                      Positioned(
+                        top: -7,
+                        right: -12,
+                        child: _Badge(count: badgeCount),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10.5,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                  ),
+                  child: const Text('More'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({required this.count});
 
   final int count;
-  String get _label => count > 99 ? '99+' : count.toString();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(minWidth: 18),
       height: 18,
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: AppTheme.primaryRed,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child: Text(
-        _label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 9,
-          fontWeight: FontWeight.w900,
-          height: 1,
+      child: Center(
+        child: Text(
+          count > 99 ? '99+' : count.toString(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
         ),
       ),
     );
