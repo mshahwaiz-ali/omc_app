@@ -1,3 +1,4 @@
+import 'package:characters/characters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -69,7 +70,7 @@ class _ServiceCatalogueScreenState
           final statusCounts = _buildStatusCounts(services);
           final filteredServices = _filterServices(services);
           final visibleServices = filteredServices;
-          final recentActivities = _buildActivities(services, displayName);
+          final recentActivities = _buildActivities(services);
 
           return ListView(
             physics: const BouncingScrollPhysics(),
@@ -621,7 +622,7 @@ class _ServiceCatalogueScreenState
     return counts;
   }
 
-  List<_ActivityItem> _buildActivities(List<ServiceItem> services, String name) {
+  List<_ActivityItem> _buildActivities(List<ServiceItem> services) {
     if (services.isEmpty) {
       return const [
         _ActivityItem(
@@ -2184,7 +2185,7 @@ class _ActivityItem {
   final String timeLabel;
 }
 
-String _greetingLabel() {
+String _greetingLabelTopLevel() {
   final hour = DateTime.now().hour;
   if (hour < 12) return 'Good morning,';
   if (hour < 17) return 'Good afternoon,';
@@ -2192,14 +2193,18 @@ String _greetingLabel() {
 }
 
 String _initials(String value) {
-  final parts = value.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = value
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return 'OM';
   if (parts.length == 1) {
     final first = parts.first;
-    return first.isEmpty ? 'OM' : first.characters.first.toUpperCase();
+    return first.isEmpty ? 'OM' : first.substring(0, 1).toUpperCase();
   }
-  final first = parts.first.characters.first.toUpperCase();
-  final second = parts[1].characters.first.toUpperCase();
+  final first = parts.first.substring(0, 1).toUpperCase();
+  final second = parts[1].substring(0, 1).toUpperCase();
   return '$first$second';
 }
 
