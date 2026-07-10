@@ -21,6 +21,7 @@ const Color _warning = Color(0xFFF59E0B);
 const Color _completed = Color(0xFF7C3AED);
 const Color _mutedRose = Color(0xFFF8E9EE);
 const Color _mutedRoseBorder = Color(0xFFEFCED7);
+const Color _infoBlue = Color(0xFF3B82F6);
 
 class ServiceCatalogueScreen extends ConsumerStatefulWidget {
   const ServiceCatalogueScreen({super.key});
@@ -77,7 +78,6 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
           final recentActivities = _buildActivities(services);
 
           return ListView(
-            key: _servicesSectionKey,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
             children: [
@@ -220,18 +220,25 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
               ),
               const SizedBox(height: 18),
               Row(
+                key: _servicesSectionKey,
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Text(
-                      'My Services (${filteredServices.length})',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      'My Services',
+                      style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.2,
                       ),
+                    ),
+                  ),
+                  Text(
+                    '(${filteredServices.length})',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -668,8 +675,8 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
     }
   }
 
-  double _statusProgress(_ServiceStatus status, int index) {
-    switch (index) {
+  double _statusProgress(_ServiceStatus status, int seed) {
+    switch (seed % 5) {
       case 0:
         return 0.45;
       case 1:
@@ -748,8 +755,6 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
         .join(' ');
   }
 }
-
-const Color _infoBlue = Color(0xFF3B82F6);
 
 enum _ServiceStatus { open, underReview, actionNeeded, completed }
 
@@ -2088,10 +2093,14 @@ String _initials(String value) {
   final cleaned = value.trim();
   if (cleaned.isEmpty) return 'A';
   final parts = cleaned.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
-  if (parts.isEmpty) return cleaned.characters.first.toUpperCase();
+  if (parts.isEmpty) {
+    final firstRune = cleaned.runes.isNotEmpty ? cleaned.runes.first : 65;
+    return String.fromCharCode(firstRune).toUpperCase();
+  }
   final buffer = StringBuffer();
   for (final part in parts.take(2)) {
-    buffer.write(part.characters.first.toUpperCase());
+    final firstRune = part.runes.isNotEmpty ? part.runes.first : 65;
+    buffer.write(String.fromCharCode(firstRune).toUpperCase());
   }
   return buffer.toString();
 }
