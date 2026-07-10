@@ -1634,16 +1634,16 @@ class _ColorPalette {
   final Color soft;
 }
 
-_ColorPalette _paletteForAction(MobileQuickAction action) {
-  final key = '${action.iconKey} ${action.title}'.toLowerCase();
-  if (key.contains('payment') || key.contains('receipt')) return const _ColorPalette(accent: _paymentsGreen, soft: _paymentsGreenSoft);
-  if (key.contains('document')) return const _ColorPalette(accent: _documentsIndigo, soft: _documentsIndigoSoft);
-  if (key.contains('track') || key.contains('review')) return const _ColorPalette(accent: _trackTeal, soft: _trackTealSoft);
-  if (key.contains('lead')) return const _ColorPalette(accent: _leadsPurple, soft: _leadsPurpleSoft);
-  if (key.contains('task')) return const _ColorPalette(accent: _tasksOrange, soft: _tasksOrangeSoft);
-  if (key.contains('notification')) return const _ColorPalette(accent: _neutralSlate, soft: _neutralSoft);
-  if (key.contains('service')) return const _ColorPalette(accent: _servicesRose, soft: _servicesRoseSoft);
-  if (key.contains('tax') || key.contains('gst') || key.contains('calculator') || key.contains('ntn')) return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
+_ColorPalette _paletteForFamily(String? family) {
+  final normalized = family?.trim().toLowerCase() ?? '';
+  if (normalized.contains('payment')) return const _ColorPalette(accent: _paymentsGreen, soft: _paymentsGreenSoft);
+  if (normalized.contains('document')) return const _ColorPalette(accent: _documentsIndigo, soft: _documentsIndigoSoft);
+  if (normalized.contains('track')) return const _ColorPalette(accent: _trackTeal, soft: _trackTealSoft);
+  if (normalized.contains('lead')) return const _ColorPalette(accent: _leadsPurple, soft: _leadsPurpleSoft);
+  if (normalized.contains('task')) return const _ColorPalette(accent: _tasksOrange, soft: _tasksOrangeSoft);
+  if (normalized.contains('notification')) return const _ColorPalette(accent: _neutralSlate, soft: _neutralSoft);
+  if (normalized.contains('service')) return const _ColorPalette(accent: _servicesRose, soft: _servicesRoseSoft);
+  if (normalized.contains('tax') || normalized.contains('gst') || normalized.contains('calculator') || normalized.contains('ntn')) return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
   return const _ColorPalette(accent: _taxBlue, soft: _taxBlueSoft);
 }
 
@@ -1693,7 +1693,7 @@ Color _progressColor(double progress, String status) {
 String _inferFamily(String text) {
   final normalized = text.toLowerCase();
   if (normalized.contains('payment') || normalized.contains('receipt') || normalized.contains('invoice') || normalized.contains('bill')) return 'Payments';
-  if (normalized.contains('document') || normalized.contains('docs') || normalized.contains('uploaded') || normalized.contains('upload')) return 'Documents';
+  if (normalized.contains('document') || normalized.contains('doc ') || normalized.contains('docs') || normalized.contains('uploaded')) return 'Documents';
   if (normalized.contains('track') || normalized.contains('review') || normalized.contains('progress') || normalized.contains('status')) return 'Track';
   if (normalized.contains('lead')) return 'Leads';
   if (normalized.contains('task') || normalized.contains('todo') || normalized.contains('action needed')) return 'Tasks';
@@ -1724,6 +1724,16 @@ IconData _iconForActionKey(String key) {
   };
 }
 
+IconData _activityIcon(String? status) {
+  final normalized = (status ?? '').trim().toLowerCase();
+  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return Icons.check_circle_rounded;
+  if (normalized.contains('review')) return Icons.visibility_rounded;
+  if (normalized.contains('required') || normalized.contains('information')) return Icons.priority_high_rounded;
+  if (normalized.contains('pending')) return Icons.hourglass_top_rounded;
+  if (normalized.contains('rejected') || normalized.contains('blocked')) return Icons.block_rounded;
+  return Icons.circle_rounded;
+}
+
 IconData _statusIcon(String status) {
   final normalized = status.trim().toLowerCase();
   if (normalized.contains('in progress')) return Icons.trending_up_rounded;
@@ -1731,7 +1741,6 @@ IconData _statusIcon(String status) {
   if (normalized.contains('information')) return Icons.info_outline_rounded;
   if (normalized.contains('completed')) return Icons.check_circle_outline_rounded;
   if (normalized.contains('pending')) return Icons.hourglass_bottom_rounded;
-  if (normalized.contains('rejected')) return Icons.block_rounded;
   return Icons.work_outline_rounded;
 }
 
