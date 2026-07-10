@@ -11,16 +11,23 @@ import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
 
-const Color _kBrandBlue = Color(0xFF2F6BFF);
-const Color _kBrandGreen = Color(0xFF17B890);
-const Color _kBrandOrange = Color(0xFFF59E0B);
-const Color _kBrandPurple = Color(0xFF8B5CF6);
-const Color _kBrandPink = Color(0xFFEC4899);
-const Color _kSoftBlue = Color(0xFFF0F6FF);
-const Color _kSoftGreen = Color(0xFFF0FBF8);
-const Color _kSoftOrange = Color(0xFFFFF8EC);
-const Color _kSoftPurple = Color(0xFFF7F2FF);
-const Color _kSoftPink = Color(0xFFFFF0F7);
+const Color _kTaxBlue = Color(0xFF2F6BFF);
+const Color _kPaymentsGreen = Color(0xFF17B890);
+const Color _kDocumentsIndigo = Color(0xFF5B7CFA);
+const Color _kServicesRose = Color(0xFFE11D48);
+const Color _kTrackTeal = Color(0xFF14B8A6);
+const Color _kLeadsPurple = Color(0xFF8B5CF6);
+const Color _kTasksOrange = Color(0xFFF59E0B);
+const Color _kNotificationsSlate = Color(0xFF64748B);
+
+const Color _kTaxBlueSoft = Color(0xFFF0F6FF);
+const Color _kPaymentsGreenSoft = Color(0xFFF0FBF8);
+const Color _kDocumentsIndigoSoft = Color(0xFFF2F5FF);
+const Color _kServicesRoseSoft = Color(0xFFFDEEEF);
+const Color _kTrackTealSoft = Color(0xFFEFFCF9);
+const Color _kLeadsPurpleSoft = Color(0xFFF7F2FF);
+const Color _kTasksOrangeSoft = Color(0xFFFFF8EC);
+const Color _kNotificationsSlateSoft = Color(0xFFF5F7FC);
 const Color _kNeutralSoft = Color(0xFFF5F7FC);
 
 class HomeScreen extends ConsumerWidget {
@@ -260,28 +267,32 @@ class HomeScreen extends ConsumerWidget {
         label: 'Active Services',
         value: summary.activeCases,
         icon: Icons.work_outline_rounded,
-        accent: _kBrandBlue,
+        accent: _kServicesRose,
+        soft: _kServicesRoseSoft,
         hint: 'Live cases',
       ),
       _MetricItem(
         label: 'Documents',
         value: summary.pendingDocuments,
         icon: Icons.description_outlined,
-        accent: _kBrandGreen,
+        accent: _kDocumentsIndigo,
+        soft: _kDocumentsIndigoSoft,
         hint: 'Pending review',
       ),
       _MetricItem(
         label: 'Payments Due',
         value: summary.paymentsDue,
         icon: Icons.payments_outlined,
-        accent: _kBrandOrange,
+        accent: _kPaymentsGreen,
+        soft: _kPaymentsGreenSoft,
         hint: 'Action needed',
       ),
       _MetricItem(
         label: 'Notifications',
         value: summary.unreadNotifications,
         icon: Icons.notifications_none_rounded,
-        accent: _kBrandPurple,
+        accent: _kNotificationsSlate,
+        soft: _kNotificationsSlateSoft,
         hint: 'Unread',
       ),
     ];
@@ -552,7 +563,7 @@ class _HeaderIconButton extends StatelessWidget {
                 top: 7,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(color: const Color(0xFFE11D48), borderRadius: BorderRadius.circular(999)),
+                  decoration: BoxDecoration(color: _kServicesRose, borderRadius: BorderRadius.circular(999)),
                   child: Text(
                     unreadNotifications > 9 ? '9+' : unreadNotifications.toString(),
                     style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
@@ -668,10 +679,10 @@ class _AccessBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = capabilities.isPending
-        ? _kBrandOrange
+        ? _kTasksOrange
         : capabilities.isRejected
-            ? const Color(0xFFDC2626)
-            : _kBrandBlue;
+            ? _kServicesRose
+            : _kTaxBlue;
     final title = capabilities.isRejected ? 'Profile blocked' : capabilities.isPending ? 'Profile under review' : 'Guest access';
     final message = capabilities.isRejected
         ? 'Please contact OMC support for manual review.'
@@ -747,7 +758,7 @@ class _SectionTitle extends StatelessWidget {
           TextButton(
             onPressed: onTap,
             style: TextButton.styleFrom(
-              foregroundColor: _kBrandBlue,
+              foregroundColor: _kTaxBlue,
               textStyle: const TextStyle(fontWeight: FontWeight.w800),
             ),
             child: Text(actionLabel!),
@@ -966,7 +977,7 @@ class _ProfileCompletionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(Icons.verified_user_rounded, size: 28, color: _kBrandGreen),
+                const Icon(Icons.verified_user_rounded, size: 28, color: _kPaymentsGreen),
               ],
             ),
           ),
@@ -981,7 +992,7 @@ class _ProfileCompletionCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: _kBrandGreen,
+                    backgroundColor: _kPaymentsGreen,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                     minimumSize: const Size(0, 0),
@@ -1001,12 +1012,13 @@ class _ProfileCompletionCard extends StatelessWidget {
 }
 
 class _MetricItem {
-  const _MetricItem({required this.label, required this.value, required this.icon, required this.accent, required this.hint});
+  const _MetricItem({required this.label, required this.value, required this.icon, required this.accent, required this.soft, required this.hint});
 
   final String label;
   final int value;
   final IconData icon;
   final Color accent;
+  final Color soft;
   final String hint;
 }
 
@@ -1034,7 +1046,7 @@ class _MetricCard extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: item.accent.withValues(alpha: 0.12),
+                  color: item.soft,
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(item.icon, color: item.accent, size: 19),
@@ -1130,10 +1142,10 @@ class _ServicesPanel extends StatelessWidget {
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: const Color(0xFFFDEEEF),
+                color: _kServicesRoseSoft,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(Icons.inbox_outlined, color: AppTheme.primaryRed, size: 28),
+              child: const Icon(Icons.inbox_outlined, color: _kServicesRose, size: 28),
             ),
             const SizedBox(height: 14),
             const Text(
@@ -1304,7 +1316,7 @@ class _ActivityPanel extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
-                  Icon(Icons.timeline_rounded, color: _kBrandBlue, size: 18),
+                  Icon(Icons.timeline_rounded, color: _kTaxBlue, size: 18),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1312,7 +1324,7 @@ class _ActivityPanel extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded, color: _kBrandBlue),
+                  Icon(Icons.chevron_right_rounded, color: _kTaxBlue),
                 ],
               ),
             ),
@@ -1418,28 +1430,37 @@ class _ActionPalette {
 
 _ActionPalette _paletteForAction(MobileQuickAction action) {
   final key = action.iconKey.trim().toLowerCase();
-  if (key.contains('document')) {
-    return const _ActionPalette(accent: _kBrandBlue, soft: _kSoftBlue);
+  final title = action.title.trim().toLowerCase();
+  final combined = '$key $title';
+
+  if (combined.contains('tax') || combined.contains('ntn') || combined.contains('gst') || combined.contains('calculator')) {
+    return const _ActionPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
   }
-  if (key.contains('track')) {
-    return const _ActionPalette(accent: _kBrandGreen, soft: _kSoftGreen);
+  if (combined.contains('payment') || combined.contains('receipt')) {
+    return const _ActionPalette(accent: _kPaymentsGreen, soft: _kPaymentsGreenSoft);
   }
-  if (key.contains('calc')) {
-    return const _ActionPalette(accent: _kBrandOrange, soft: _kSoftOrange);
+  if (combined.contains('document')) {
+    return const _ActionPalette(accent: _kDocumentsIndigo, soft: _kDocumentsIndigoSoft);
   }
-  if (key.contains('support')) {
-    return const _ActionPalette(accent: _kBrandPurple, soft: _kSoftPurple);
+  if (combined.contains('service') || combined.contains('case')) {
+    return const _ActionPalette(accent: _kServicesRose, soft: _kServicesRoseSoft);
   }
-  if (key.contains('payment')) {
-    return const _ActionPalette(accent: _kBrandPink, soft: _kSoftPink);
+  if (combined.contains('track') || combined.contains('review')) {
+    return const _ActionPalette(accent: _kTrackTeal, soft: _kTrackTealSoft);
   }
-  if (key.contains('gst')) {
-    return const _ActionPalette(accent: _kBrandGreen, soft: _kSoftGreen);
+  if (combined.contains('lead')) {
+    return const _ActionPalette(accent: _kLeadsPurple, soft: _kLeadsPurpleSoft);
   }
-  if (key.contains('ntn') || key.contains('tax') || key.contains('service')) {
-    return const _ActionPalette(accent: _kBrandBlue, soft: _kSoftBlue);
+  if (combined.contains('task')) {
+    return const _ActionPalette(accent: _kTasksOrange, soft: _kTasksOrangeSoft);
   }
-  return const _ActionPalette(accent: _kBrandBlue, soft: _kSoftBlue);
+  if (combined.contains('notification')) {
+    return const _ActionPalette(accent: _kNotificationsSlate, soft: _kNotificationsSlateSoft);
+  }
+  if (combined.contains('support')) {
+    return const _ActionPalette(accent: _kLeadsPurple, soft: _kLeadsPurpleSoft);
+  }
+  return const _ActionPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
 }
 
 IconData _iconForActionKey(String key) {
@@ -1466,12 +1487,12 @@ IconData _iconForActionKey(String key) {
 
 Color _statusColor(String status) {
   final normalized = status.trim().toLowerCase();
-  if (normalized.contains('in progress')) return _kBrandBlue;
-  if (normalized.contains('under review')) return _kBrandGreen;
-  if (normalized.contains('information')) return _kBrandOrange;
-  if (normalized.contains('completed')) return _kBrandGreen;
-  if (normalized.contains('pending')) return _kBrandPurple;
-  return _kBrandBlue;
+  if (normalized.contains('in progress')) return _kTaxBlue;
+  if (normalized.contains('under review')) return _kPaymentsGreen;
+  if (normalized.contains('information')) return _kTasksOrange;
+  if (normalized.contains('completed')) return _kPaymentsGreen;
+  if (normalized.contains('pending')) return _kLeadsPurple;
+  return _kServicesRose;
 }
 
 String _statusLabel(String status) {
@@ -1497,11 +1518,11 @@ IconData _statusIcon(String status) {
 
 Color _activityColor(String? status) {
   final normalized = (status ?? '').trim().toLowerCase();
-  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return _kBrandGreen;
-  if (normalized.contains('review')) return _kBrandBlue;
-  if (normalized.contains('required') || normalized.contains('information')) return _kBrandOrange;
-  if (normalized.contains('pending')) return _kBrandPurple;
-  return _kBrandBlue;
+  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return _kPaymentsGreen;
+  if (normalized.contains('review')) return _kTaxBlue;
+  if (normalized.contains('required') || normalized.contains('information')) return _kTasksOrange;
+  if (normalized.contains('pending')) return _kLeadsPurple;
+  return _kServicesRose;
 }
 
 IconData _activityIcon(String? status) {
