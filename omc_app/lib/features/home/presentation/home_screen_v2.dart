@@ -1186,7 +1186,9 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(service.status);
+    final family = _paletteForFamily(service.colorFamily ?? _inferFamily('${service.title} ${service.status}'));
+    final progressColor = _progressColor(service.progress, service.status);
+    final statusTone = _statusTone(service.status);
     final progress = (service.progress * 100).round().clamp(0, 100);
     final subtitle = service.customerName.trim().isNotEmpty ? service.customerName : 'Ongoing case';
 
@@ -1211,10 +1213,10 @@ class _ServiceCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
+                      color: family.soft,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(_statusIcon(service.status), color: color, size: 20),
+                    child: Icon(_statusIcon(service.status), color: family.accent, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1238,19 +1240,11 @@ class _ServiceCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _ActionPill(label: _statusLabel(service.status), color: color),
+                  _ActionPill(label: _statusLabel(service.status), color: statusTone),
                 ],
               ),
               const SizedBox(height: 14),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  minHeight: 8,
-                  value: service.progress.clamp(0, 1),
-                  backgroundColor: AppTheme.cardSoft,
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
-              ),
+              _ProgressBar(progress: service.progress, color: progressColor),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -1259,12 +1253,53 @@ class _ServiceCard extends StatelessWidget {
                     style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppTheme.textSecondary),
                   ),
                   const Spacer(),
-                  const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
+                  Icon(Icons.chevron_right_rounded, color: family.accent),
                 ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.progress, required this.color});
+
+  final double progress;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Container(
+            height: 8,
+            decoration: BoxDecoration(color: AppTheme.cardSoft, borderRadius: BorderRadius.circular(999)),
+            child: Stack(
+              children: [
+                FractionallySizedBox(
+                  widthFactor: progress.clamp(0, 1),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          _progressStartColor(progress),
+                          _progressEndColor(progress),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1342,8 +1377,8 @@ class _ActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _activityColor(activity.status);
-    final icon = _activityIcon(activity.status);
+    final family = _paletteForFamily(activity.colorFamily ?? _inferFamily('${activity.title} ${activity.status ?? ''} ${activity.subtitle}'));
+    final rightDot = _activityTone(activity.status, family.accent);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       child: Row(
@@ -1353,10 +1388,10 @@ class _ActivityRow extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: family.soft,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: color, size: 18),
+            child: Icon(_activityIcon(activity.status), color: family.accent, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1387,7 +1422,7 @@ class _ActivityRow extends StatelessWidget {
             width: 10,
             height: 10,
             margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: rightDot, shape: BoxShape.circle),
           ),
         ],
       ),
@@ -1421,46 +1456,111 @@ class _ActionPill extends StatelessWidget {
   }
 }
 
-class _ActionPalette {
-  const _ActionPalette({required this.accent, required this.soft});
+class _ColorPalette {
+  const _ColorPalette({required this.accent, required this.soft});
 
   final Color accent;
   final Color soft;
 }
 
-_ActionPalette _paletteForAction(MobileQuickAction action) {
-  final key = action.iconKey.trim().toLowerCase();
-  final title = action.title.trim().toLowerCase();
-  final combined = '$key $title';
+_ColorPalette _paletteForFamily(String? family) {
+  final normalized = family?.trim().toLowerCase() ?? '';
+  if (normalized.contains('payment')) {
+    return const _ColorPalette(accent: _kPaymentsGreen, soft: _kPaymentsGreenSoft);
+  }
+  if (normalized.contains('document')) {
+    return const _ColorPalette(accent: _kDocumentsIndigo, soft: _kDocumentsIndigoSoft);
+  }
+  if (normalized.contains('track')) {
+    return const _ColorPalette(accent: _kTrackTeal, soft: _kTrackTealSoft);
+  }
+  if (normalized.contains('lead')) {
+    return const _ColorPalette(accent: _kLeadsPurple, soft: _kLeadsPurpleSoft);
+  }
+  if (normalized.contains('task')) {
+    return const _ColorPalette(accent: _kTasksOrange, soft: _kTasksOrangeSoft);
+  }
+  if (normalized.contains('notification')) {
+    return const _ColorPalette(accent: _kNotificationsSlate, soft: _kNotificationsSlateSoft);
+  }
+  if (normalized.contains('service')) {
+    return const _ColorPalette(accent: _kServicesRose, soft: _kServicesRoseSoft);
+  }
+  if (normalized.contains('tax') || normalized.contains('gst') || normalized.contains('calculator') || normalized.contains('ntn')) {
+    return const _ColorPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
+  }
+  return const _ColorPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
+}
 
-  if (combined.contains('tax') || combined.contains('ntn') || combined.contains('gst') || combined.contains('calculator')) {
-    return const _ActionPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
+Color _statusTone(String? status) {
+  final normalized = (status ?? '').trim().toLowerCase();
+  if (normalized.contains('open')) return _kServicesRose;
+  if (normalized.contains('in progress')) return _kTaxBlue;
+  if (normalized.contains('under review')) return _kPaymentsGreen;
+  if (normalized.contains('completed')) return _kPaymentsGreen;
+  if (normalized.contains('waiting')) return _kLeadsPurple;
+  if (normalized.contains('pending')) return _kTasksOrange;
+  if (normalized.contains('rejected') || normalized.contains('cancelled')) return const Color(0xFFDC2626);
+  return _kServicesRose;
+}
+
+Color _activityTone(String? status, Color fallback) {
+  final normalized = (status ?? '').trim().toLowerCase();
+  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return _kPaymentsGreen;
+  if (normalized.contains('review')) return _kTaxBlue;
+  if (normalized.contains('required') || normalized.contains('information')) return _kTasksOrange;
+  if (normalized.contains('pending')) return _kLeadsPurple;
+  if (normalized.contains('rejected') || normalized.contains('blocked')) return const Color(0xFFDC2626);
+  return fallback;
+}
+
+Color _progressStartColor(double progress) {
+  if (progress <= 0.35) return const Color(0xFF8B5A2B);
+  if (progress <= 0.7) return const Color(0xFFD97706);
+  return const Color(0xFFF59E0B);
+}
+
+Color _progressEndColor(double progress) {
+  if (progress <= 0.35) return const Color(0xFFD97706);
+  if (progress <= 0.7) return const Color(0xFFF59E0B);
+  return const Color(0xFF16A34A);
+}
+
+Color _progressColor(double progress, String status) {
+  final normalized = status.trim().toLowerCase();
+  if (normalized.contains('rejected') || normalized.contains('cancelled') || normalized.contains('blocked')) {
+    return const Color(0xFFDC2626);
   }
-  if (combined.contains('payment') || combined.contains('receipt')) {
-    return const _ActionPalette(accent: _kPaymentsGreen, soft: _kPaymentsGreenSoft);
+  if (normalized.contains('completed')) return const Color(0xFF16A34A);
+  if (progress <= 0.35) return const Color(0xFF8B5A2B);
+  if (progress <= 0.7) return const Color(0xFFF59E0B);
+  return const Color(0xFF16A34A);
+}
+
+String _inferFamily(String text) {
+  final normalized = text.toLowerCase();
+  if (normalized.contains('payment') || normalized.contains('receipt') || normalized.contains('invoice') || normalized.contains('bill')) {
+    return 'Payments';
   }
-  if (combined.contains('document')) {
-    return const _ActionPalette(accent: _kDocumentsIndigo, soft: _kDocumentsIndigoSoft);
+  if (normalized.contains('document') || normalized.contains('doc ') || normalized.contains('docs') || normalized.contains('uploaded')) {
+    return 'Documents';
   }
-  if (combined.contains('service') || combined.contains('case')) {
-    return const _ActionPalette(accent: _kServicesRose, soft: _kServicesRoseSoft);
+  if (normalized.contains('track') || normalized.contains('review') || normalized.contains('progress') || normalized.contains('status')) {
+    return 'Track';
   }
-  if (combined.contains('track') || combined.contains('review')) {
-    return const _ActionPalette(accent: _kTrackTeal, soft: _kTrackTealSoft);
+  if (normalized.contains('lead')) {
+    return 'Leads';
   }
-  if (combined.contains('lead')) {
-    return const _ActionPalette(accent: _kLeadsPurple, soft: _kLeadsPurpleSoft);
+  if (normalized.contains('task') || normalized.contains('todo') || normalized.contains('action needed')) {
+    return 'Tasks';
   }
-  if (combined.contains('task')) {
-    return const _ActionPalette(accent: _kTasksOrange, soft: _kTasksOrangeSoft);
+  if (normalized.contains('notification') || normalized.contains('alert') || normalized.contains('message')) {
+    return 'Notifications';
   }
-  if (combined.contains('notification')) {
-    return const _ActionPalette(accent: _kNotificationsSlate, soft: _kNotificationsSlateSoft);
+  if (normalized.contains('tax') || normalized.contains('gst') || normalized.contains('ntn') || normalized.contains('calculator')) {
+    return 'Tax';
   }
-  if (combined.contains('support')) {
-    return const _ActionPalette(accent: _kLeadsPurple, soft: _kLeadsPurpleSoft);
-  }
-  return const _ActionPalette(accent: _kTaxBlue, soft: _kTaxBlueSoft);
+  return 'Services';
 }
 
 IconData _iconForActionKey(String key) {
@@ -1485,26 +1585,8 @@ IconData _iconForActionKey(String key) {
   };
 }
 
-Color _statusColor(String status) {
-  final normalized = status.trim().toLowerCase();
-  if (normalized.contains('in progress')) return _kTaxBlue;
-  if (normalized.contains('under review')) return _kPaymentsGreen;
-  if (normalized.contains('information')) return _kTasksOrange;
-  if (normalized.contains('completed')) return _kPaymentsGreen;
-  if (normalized.contains('pending')) return _kLeadsPurple;
-  return _kServicesRose;
-}
-
-String _statusLabel(String status) {
-  final normalized = status.trim().toLowerCase();
-  if (normalized.isEmpty) return 'Open';
-  if (normalized.contains('in progress')) return 'In Progress';
-  if (normalized.contains('under review')) return 'Review';
-  if (normalized.contains('information')) return 'Action';
-  if (normalized.contains('completed')) return 'Done';
-  if (normalized.contains('pending')) return 'Pending';
-  return status;
-}
+Color _activityDotColor(HomeDashboardActivity activity) =>
+    _activityTone(activity.status, _paletteForFamily(activity.colorFamily ?? _inferFamily('${activity.title} ${activity.subtitle}')).accent);
 
 IconData _statusIcon(String status) {
   final normalized = status.trim().toLowerCase();
@@ -1516,20 +1598,14 @@ IconData _statusIcon(String status) {
   return Icons.work_outline_rounded;
 }
 
-Color _activityColor(String? status) {
-  final normalized = (status ?? '').trim().toLowerCase();
-  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return _kPaymentsGreen;
-  if (normalized.contains('review')) return _kTaxBlue;
-  if (normalized.contains('required') || normalized.contains('information')) return _kTasksOrange;
-  if (normalized.contains('pending')) return _kLeadsPurple;
-  return _kServicesRose;
-}
-
-IconData _activityIcon(String? status) {
-  final normalized = (status ?? '').trim().toLowerCase();
-  if (normalized.contains('verified') || normalized.contains('approved') || normalized.contains('done')) return Icons.check_circle_rounded;
-  if (normalized.contains('review')) return Icons.visibility_rounded;
-  if (normalized.contains('required') || normalized.contains('information')) return Icons.priority_high_rounded;
-  if (normalized.contains('pending')) return Icons.hourglass_top_rounded;
-  return Icons.circle_rounded;
+String _statusLabel(String status) {
+  final normalized = status.trim().toLowerCase();
+  if (normalized.isEmpty) return 'Open';
+  if (normalized.contains('in progress')) return 'In Progress';
+  if (normalized.contains('under review')) return 'Review';
+  if (normalized.contains('information')) return 'Action';
+  if (normalized.contains('completed')) return 'Done';
+  if (normalized.contains('pending')) return 'Pending';
+  if (normalized.contains('rejected')) return 'Rejected';
+  return status;
 }
