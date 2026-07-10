@@ -9,7 +9,7 @@ import '../features/auth/application/auth_state.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/documents/presentation/internal_document_review_screen.dart';
 import '../features/home/data/home_dashboard_repository.dart';
-import '../features/home/presentation/home_screen.dart';
+import '../features/home/presentation/home_screen_modern.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_requests/presentation/internal_service_track_screen.dart';
