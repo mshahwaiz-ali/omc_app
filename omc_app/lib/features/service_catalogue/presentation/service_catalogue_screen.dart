@@ -1,4 +1,3 @@
-import 'package:characters/characters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,13 +22,12 @@ class ServiceCatalogueScreen extends ConsumerStatefulWidget {
       _ServiceCatalogueScreenState();
 }
 
-class _ServiceCatalogueScreenState
-    extends ConsumerState<ServiceCatalogueScreen> {
+class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen> {
   static const String _allCategory = 'All';
   static const String _allStatus = 'All Services';
 
-  final _searchController = TextEditingController();
-  final _servicesSectionKey = GlobalKey();
+  final TextEditingController _searchController = TextEditingController();
+  final GlobalKey _servicesSectionKey = GlobalKey();
 
   String _selectedCategory = _allCategory;
   String _selectedStatus = _allStatus;
@@ -61,15 +59,13 @@ class _ServiceCatalogueScreenState
         data: (services) {
           final categoryValues = services
               .map((service) => service.category.trim())
-              .where((category) => category.isNotEmpty)
+              .where((value) => value.isNotEmpty)
               .toSet()
               .toList()
             ..sort();
-
           final categories = <String>[_allCategory, ...categoryValues];
-          final statusCounts = _buildStatusCounts(services);
           final filteredServices = _filterServices(services);
-          final visibleServices = filteredServices;
+          final statusCounts = _buildStatusCounts(services);
           final recentActivities = _buildActivities(services);
 
           return ListView(
@@ -78,7 +74,9 @@ class _ServiceCatalogueScreenState
             children: [
               _ServicesHeroHeader(
                 displayName: displayName,
-                unreadCount: visibleServices.isEmpty ? 0 : visibleServices.length,
+                unreadCount: _canOpenNotifications(capabilities)
+                    ? (recentActivities.isEmpty ? 0 : recentActivities.length)
+                    : 0,
                 authState: authState,
                 onNotificationsTap: () {
                   if (_canOpenNotifications(capabilities)) {
@@ -130,7 +128,7 @@ class _ServiceCatalogueScreenState
                     label: 'New Service',
                     icon: Icons.add_rounded,
                     isExpanded: false,
-                    onPressed: () => _scrollToServices(),
+                    onPressed: _scrollToServices,
                   ),
                 ],
               ),
@@ -179,17 +177,14 @@ class _ServiceCatalogueScreenState
                 ],
               ),
               const SizedBox(height: 16),
-              _StatusBanner(authState: authState, onActionTap: () {
-                final route = _bannerRouteFor(authState);
-                if (route == null) {
-                  return;
-                }
-                context.go(route);
-              }),
+              _StatusBanner(
+                authState: authState,
+                onActionTap: () => context.go(_bannerRouteFor(authState)),
+              ),
               const SizedBox(height: 16),
               _SummaryTiles(
                 totalServices: services.length,
-                showingServices: visibleServices.length,
+                showingServices: filteredServices.length,
                 selectedCategory: _selectedCategory,
               ),
               const SizedBox(height: 14),
@@ -228,7 +223,7 @@ class _ServiceCatalogueScreenState
                 children: [
                   Expanded(
                     child: Text(
-                      'My Services (${visibleServices.length})',
+                      'My Services (${filteredServices.length})',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -240,9 +235,9 @@ class _ServiceCatalogueScreenState
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Row(
+                  const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Text(
                         'Sort by: ',
                         style: TextStyle(
@@ -277,7 +272,7 @@ class _ServiceCatalogueScreenState
                   message:
                       'OMC has not published mobile services from the backend yet. Please retry after services are configured or contact support.',
                 )
-              else if (visibleServices.isEmpty)
+              else if (filteredServices.isEmpty)
                 _ServiceListEmptyState(
                   icon: Icons.search_off_rounded,
                   title: 'No matching services',
@@ -294,13 +289,13 @@ class _ServiceCatalogueScreenState
                   },
                 )
               else
-                ...visibleServices.asMap().entries.map((entry) {
+                ...filteredServices.asMap().entries.map((entry) {
                   final index = entry.key;
                   final service = entry.value;
                   final status = _serviceStatusFor(service, index);
                   return Padding(
                     padding: EdgeInsets.only(
-                      bottom: index == visibleServices.length - 1 ? 0 : 14,
+                      bottom: index == filteredServices.length - 1 ? 0 : 14,
                     ),
                     child: _ServiceDashboardCard(
                       service: service,
@@ -366,18 +361,18 @@ class _ServiceCatalogueScreenState
 
   void _scrollToServices() {
     final context = _servicesSectionKey.currentContext;
-    if (context != null) {
-      Scrollable.ensureVisible(
-        context,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-        alignment: 0.02,
-      );
-    }
+    if (context == null) return;
+
+    Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+      alignment: 0.02,
+    );
   }
 
   void _openFilterSheet(BuildContext context, List<String> categories) {
-    final statusOptions = const [
+    const statusOptions = [
       _allStatus,
       'Open',
       'Under Review',
@@ -591,8 +586,8 @@ class _ServiceCatalogueScreenState
       final matchesCategory =
           _selectedCategory == _allCategory || service.category == _selectedCategory;
       final serviceStatus = _serviceStatusFor(service, services.indexOf(service));
-      final matchesStatus =
-          _selectedStatus == _allStatus || _statusLabelFor(serviceStatus) == _selectedStatus;
+      final matchesStatus = _selectedStatus == _allStatus ||
+          _statusLabelFor(serviceStatus) == _selectedStatus;
       final searchableText = [
         service.title,
         service.category,
@@ -662,88 +657,6 @@ class _ServiceCatalogueScreenState
         timeLabel: '1d ago',
       ),
     ];
-  }
-
-  _ServiceStatus _serviceStatusFor(ServiceItem service, int index) {
-    final text = [
-      service.id,
-      service.title,
-      service.category,
-      service.wizardType ?? '',
-      service.shortDescription ?? '',
-      service.description ?? '',
-    ].join(' ').toLowerCase();
-
-    if (text.contains('completed')) {
-      return _ServiceStatus.completed;
-    }
-    if (text.contains('review') || service.stages.isNotEmpty) {
-      return _ServiceStatus.underReview;
-    }
-    if (service.requiredDocuments.length >= 4 ||
-        text.contains('pending') ||
-        text.contains('missing')) {
-      return _ServiceStatus.actionNeeded;
-    }
-    if ((service.wizardType ?? '').trim().isNotEmpty) {
-      return _ServiceStatus.open;
-    }
-
-    switch (index % 4) {
-      case 0:
-        return _ServiceStatus.open;
-      case 1:
-        return _ServiceStatus.underReview;
-      case 2:
-        return _ServiceStatus.actionNeeded;
-      default:
-        return _ServiceStatus.completed;
-    }
-  }
-
-  String _statusLabelFor(_ServiceStatus status) {
-    switch (status) {
-      case _ServiceStatus.open:
-        return 'Open';
-      case _ServiceStatus.underReview:
-        return 'Under Review';
-      case _ServiceStatus.actionNeeded:
-        return 'Action Needed';
-      case _ServiceStatus.completed:
-        return 'Completed';
-    }
-  }
-
-  double _statusProgress(_ServiceStatus status) {
-    switch (status) {
-      case _ServiceStatus.open:
-        return 0.45;
-      case _ServiceStatus.underReview:
-        return 0.7;
-      case _ServiceStatus.actionNeeded:
-        return 0.28;
-      case _ServiceStatus.completed:
-        return 1.0;
-    }
-  }
-
-  Color _statusColor(_ServiceStatus status) {
-    switch (status) {
-      case _ServiceStatus.open:
-        return Colors.blue;
-      case _ServiceStatus.underReview:
-        return Colors.green;
-      case _ServiceStatus.actionNeeded:
-        return Colors.orange;
-      case _ServiceStatus.completed:
-        return Colors.purple;
-    }
-  }
-
-  String _safeDisplayName(AuthState authState) {
-    final raw = authState.displayName?.trim();
-    if (raw != null && raw.isNotEmpty) return raw;
-    return 'Boss';
   }
 }
 
@@ -994,21 +907,11 @@ class _ServicesHeroHeader extends StatelessWidget {
               onTap: onNotificationsTap,
             ),
             const SizedBox(width: 10),
-            _AvatarButton(
-              displayName: displayName,
-              onTap: onProfileTap,
-            ),
+            _AvatarButton(displayName: displayName, onTap: onProfileTap),
           ],
         ),
       ],
     );
-  }
-
-  String _greetingLabel() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning,';
-    if (hour < 17) return 'Good afternoon,';
-    return 'Good evening,';
   }
 }
 
@@ -1075,18 +978,13 @@ class _IconBadgeButton extends StatelessWidget {
 }
 
 class _AvatarButton extends StatelessWidget {
-  const _AvatarButton({
-    required this.displayName,
-    required this.onTap,
-  });
+  const _AvatarButton({required this.displayName, required this.onTap});
 
   final String displayName;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final initials = _initials(displayName);
-
     return Material(
       color: Colors.white,
       shape: const CircleBorder(),
@@ -1102,7 +1000,7 @@ class _AvatarButton extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: Text(
-            initials,
+            _initials(displayName),
             style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 15,
@@ -1427,12 +1325,12 @@ class _StatusChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      ('All Services', AppTheme.primaryRed, counts.values.fold<int>(0, (a, b) => a + b)),
-      ('Open', Colors.blue, counts[_ServiceStatus.open] ?? 0),
-      ('Under Review', Colors.green, counts[_ServiceStatus.underReview] ?? 0),
-      ('Action Needed', Colors.orange, counts[_ServiceStatus.actionNeeded] ?? 0),
-      ('Completed', Colors.purple, counts[_ServiceStatus.completed] ?? 0),
+    final items = <({String label, Color color, int count})>[
+      (label: _allStatus, color: AppTheme.primaryRed, count: counts.values.fold<int>(0, (a, b) => a + b)),
+      (label: 'Open', color: Colors.blue, count: counts[_ServiceStatus.open] ?? 0),
+      (label: 'Under Review', color: Colors.green, count: counts[_ServiceStatus.underReview] ?? 0),
+      (label: 'Action Needed', color: Colors.orange, count: counts[_ServiceStatus.actionNeeded] ?? 0),
+      (label: 'Completed', color: Colors.purple, count: counts[_ServiceStatus.completed] ?? 0),
     ];
 
     return SizedBox(
@@ -1440,15 +1338,15 @@ class _StatusChipsRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final item = items[index];
           return _FilterPill(
-            label: item.$1,
-            count: item.$3,
-            selected: selectedStatus == item.$1,
-            selectedColor: item.$2,
-            onTap: () => onSelected(item.$1),
+            label: item.label,
+            count: item.count,
+            selected: selectedStatus == item.label,
+            selectedColor: item.color,
+            onTap: () => onSelected(item.label),
           );
         },
       ),
@@ -1474,7 +1372,7 @@ class _CategoryChipsRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final category = categories[index];
           return _FilterPill(
@@ -1522,9 +1420,7 @@ class _FilterPill extends StatelessWidget {
             color: selected ? selectedColor : Colors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: selected
-                  ? selectedColor
-                  : Colors.black.withValues(alpha: 0.08),
+              color: selected ? selectedColor : Colors.black.withValues(alpha: 0.08),
             ),
             boxShadow: [
               BoxShadow(
@@ -1562,7 +1458,9 @@ class _FilterPill extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
-                    color: selected ? Colors.white.withValues(alpha: 0.18) : AppTheme.cardSoft,
+                    color: selected
+                        ? Colors.white.withValues(alpha: 0.18)
+                        : AppTheme.cardSoft,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -1672,8 +1570,7 @@ class _ServiceDashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visibleRequirements = service.requirements.take(3).toList();
-    final remainingRequirements =
-        service.requirements.length - visibleRequirements.length;
+    final remainingRequirements = service.requirements.length - visibleRequirements.length;
     final wizardLabel = _wizardBadgeLabel(service);
     final statusLabel = _statusLabelFor(status);
     final statusColor = _statusColor(status);
@@ -1699,11 +1596,7 @@ class _ServiceDashboardCard extends StatelessWidget {
                     color: AppTheme.primaryRed.withValues(alpha: 0.08),
                   ),
                 ),
-                child: Icon(
-                  icon,
-                  color: AppTheme.primaryRed,
-                  size: 24,
-                ),
+                child: Icon(icon, color: AppTheme.primaryRed, size: 24),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1820,9 +1713,9 @@ class _ServiceDashboardCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text(
+              const Text(
                 'Progress',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -1929,10 +1822,7 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _ProgressStrip extends StatelessWidget {
-  const _ProgressStrip({
-    required this.value,
-    required this.color,
-  });
+  const _ProgressStrip({required this.value, required this.color});
 
   final double value;
   final Color color;
@@ -2185,7 +2075,7 @@ class _ActivityItem {
   final String timeLabel;
 }
 
-String _greetingLabelTopLevel() {
+String _greetingLabel() {
   final hour = DateTime.now().hour;
   if (hour < 12) return 'Good morning,';
   if (hour < 17) return 'Good afternoon,';
@@ -2200,12 +2090,9 @@ String _initials(String value) {
       .toList();
   if (parts.isEmpty) return 'OM';
   if (parts.length == 1) {
-    final first = parts.first;
-    return first.isEmpty ? 'OM' : first.substring(0, 1).toUpperCase();
+    return parts.first.substring(0, 1).toUpperCase();
   }
-  final first = parts.first.substring(0, 1).toUpperCase();
-  final second = parts[1].substring(0, 1).toUpperCase();
-  return '$first$second';
+  return '${parts.first.substring(0, 1).toUpperCase()}${parts[1].substring(0, 1).toUpperCase()}';
 }
 
 IconData _serviceIcon(ServiceItem service) {
@@ -2250,6 +2137,86 @@ String _normalizedWizardType(ServiceItem service) {
   return service.wizardType?.trim().toLowerCase() ?? '';
 }
 
+_ServiceStatus _serviceStatusFor(ServiceItem service, int index) {
+  final text = [
+    service.id,
+    service.title,
+    service.category,
+    service.wizardType ?? '',
+    service.shortDescription ?? '',
+    service.description ?? '',
+  ].join(' ').toLowerCase();
+
+  if (text.contains('completed')) return _ServiceStatus.completed;
+  if (text.contains('review') || service.stages.isNotEmpty) {
+    return _ServiceStatus.underReview;
+  }
+  if (service.requiredDocuments.length >= 4 ||
+      text.contains('pending') ||
+      text.contains('missing')) {
+    return _ServiceStatus.actionNeeded;
+  }
+  if (service.wizardType != null && service.wizardType!.trim().isNotEmpty) {
+    return _ServiceStatus.open;
+  }
+
+  switch (index % 4) {
+    case 0:
+      return _ServiceStatus.open;
+    case 1:
+      return _ServiceStatus.underReview;
+    case 2:
+      return _ServiceStatus.actionNeeded;
+    default:
+      return _ServiceStatus.completed;
+  }
+}
+
+String _statusLabelFor(_ServiceStatus status) {
+  switch (status) {
+    case _ServiceStatus.open:
+      return 'Open';
+    case _ServiceStatus.underReview:
+      return 'Under Review';
+    case _ServiceStatus.actionNeeded:
+      return 'Action Needed';
+    case _ServiceStatus.completed:
+      return 'Completed';
+  }
+}
+
+Color _statusColor(_ServiceStatus status) {
+  switch (status) {
+    case _ServiceStatus.open:
+      return Colors.blue;
+    case _ServiceStatus.underReview:
+      return Colors.green;
+    case _ServiceStatus.actionNeeded:
+      return Colors.orange;
+    case _ServiceStatus.completed:
+      return Colors.purple;
+  }
+}
+
+double _statusProgress(_ServiceStatus status) {
+  switch (status) {
+    case _ServiceStatus.open:
+      return 0.45;
+    case _ServiceStatus.underReview:
+      return 0.7;
+    case _ServiceStatus.actionNeeded:
+      return 0.28;
+    case _ServiceStatus.completed:
+      return 1.0;
+  }
+}
+
+String _safeDisplayName(AuthState authState) {
+  final raw = authState.displayName?.trim();
+  if (raw != null && raw.isNotEmpty) return raw;
+  return 'Boss';
+}
+
 String _serviceCatalogueErrorMessage(Object error) {
   if (error is ApiError && error.message.trim().isNotEmpty) {
     return error.message.trim();
@@ -2259,4 +2226,12 @@ String _serviceCatalogueErrorMessage(Object error) {
   if (message.isNotEmpty) return message;
 
   return 'Service catalogue is unavailable right now. Please try again.';
+}
+
+String _bannerRouteFor(AuthState authState) {
+  if (authState.capabilities.isGuest) return '/signup';
+  if (authState.capabilities.isPending) return '/profile';
+  if (authState.capabilities.isRejected) return '/support';
+  if (authState.capabilities.isInternal) return '/internal-workspace';
+  return '/my-services';
 }
