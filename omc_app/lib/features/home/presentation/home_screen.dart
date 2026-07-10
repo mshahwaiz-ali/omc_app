@@ -6,13 +6,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../content/data/app_content_repository.dart';
-import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
+import '../../profile/data/profile_repository.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({
@@ -35,6 +34,7 @@ class HomeScreen extends ConsumerWidget {
     final profileSummary = ref.watch(profileSummaryProvider);
     final bannersAsync = ref.watch(appBannersProvider);
     final actionsAsync = ref.watch(mobileQuickActionsProvider);
+
     final canLoadDashboard =
         capabilities.canViewCustomerDashboard ||
         capabilities.canAccessInternalWorkspace;
@@ -59,6 +59,10 @@ class HomeScreen extends ConsumerWidget {
         ) ??
         authState.displayName ??
         _displayNameFromUserId(authState.userId);
+    final avatarUrl = profileSummary.maybeWhen(
+      data: (profile) => profile?.avatarUrl,
+      orElse: () => null,
+    );
     final isInternal = capabilities.canAccessInternalWorkspace;
     final actions = _actionsForHome(
       actionsAsync.maybeWhen(
@@ -80,426 +84,386 @@ class HomeScreen extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            slivers: isInternal
-                ? _internalSlivers(
+            slivers: [
+              _SliverBlock(
+                top: 18,
+                child: _HomeHeader(
+                  displayName: displayName,
+                  avatarUrl: avatarUrl,
+                  unreadNotifications: summary.unreadNotifications,
+                  onNotifications: () => _openNotifications(
                     context,
-                    displayName,
-                    summary,
-                    actions,
                     capabilities,
-                  )
-                : _customerSlivers(
-                    context,
-                    displayName,
-                    summary,
-                    actions,
-                    bannersAsync,
-                    capabilities,
+                    onOpenNotifications,
                   ),
+                ),
+              ),
+              _SliverBlock(
+                top: 8,
+                child: _SearchBar(
+                  onTap: () => context.push('/services'),
+                ),
+              ),
+              if (capabilities.isGuest ||
+                  capabilities.isPending ||
+                  capabilities.isRejected)
+                _SliverBlock(
+                  top: 14,
+                  child: _AccessBanner(
+                    capabilities: capabilities,
+                    onPrimary: () => _goProfile(
+                      context,
+                      capabilities,
+                    ),
+                  ),
+                ),
+              _SliverBlock(
+                top: 14,
+                child: _HeroCard(
+                  summary: summary,
+                  capabilities: capabilities,
+                  onPrimary: () {
+                    final route = summary.nextAction?.route;
+                    if (route != null && route.trim().isNotEmpty) {
+                      _goAllowed(
+                        context: context,
+                        route: route,
+                        capabilities: capabilities,
+                        requiredCapability: _routeCapability(route),
+                      );
+                      return;
+                    }
+                    onOpenServices?.call();
+                  },
+                  onSecondary: () {
+                    if (onOpenCalculator != null) {
+                      onOpenCalculator!();
+                    } else {
+                      context.push('/tax-calculator');
+                    }
+                  },
+                ),
+              ),
+              if (bannersAsync.hasValue && bannersAsync.value!.isNotEmpty)
+                _SliverBlock(
+                  top: 14,
+                  child: _BannerStrip(
+                    banners: bannersAsync.value!,
+                    onTap: (banner) => _handleBannerTap(context, banner),
+                  ),
+                ),
+              _SectionHeader(
+                title: 'Quick actions',
+                actionText: 'View all',
+                onAction: () => context.go('/more'),
+              ),
+              _SliverBlock(
+                child: _QuickActionsRail(
+                  actions: actions,
+                  capabilities: capabilities,
+                  onTap: (action) => _handleQuickAction(
+                    context,
+                    action,
+                    capabilities,
+                    onOpenServices: onOpenServices,
+                    onOpenCalculator: onOpenCalculator,
+                    onOpenSupport: onOpenSupport,
+                  ),
+                ),
+              ),
+              _SectionHeader(
+                title: 'Today at a glance',
+                actionText: summary.serviceSnapshots.isEmpty ? null : 'Track',
+                onAction: summary.serviceSnapshots.isEmpty
+                    ? null
+                    : () => _goAllowed(
+                        context: context,
+                        route: '/my-services',
+                        capabilities: capabilities,
+                        requiredCapability: 'can_track_requests',
+                      ),
+              ),
+              _SliverBlock(
+                child: _MetricGrid(
+                  metrics: _buildMetrics(summary),
+                ),
+              ),
+              _SliverBlock(
+                top: 14,
+                child: _CompletionCard(
+                  summary: summary,
+                  capabilities: capabilities,
+                  onPrimary: () => _goProfile(context, capabilities),
+                ),
+              ),
+              _SectionHeader(
+                title: summary.serviceSnapshots.isEmpty
+                    ? 'Start with OMC'
+                    : 'Your services in progress',
+                actionText: summary.serviceSnapshots.isEmpty ? null : 'View all',
+                onAction: summary.serviceSnapshots.isEmpty
+                    ? null
+                    : () => _goAllowed(
+                        context: context,
+                        route: '/my-services',
+                        capabilities: capabilities,
+                        requiredCapability: 'can_track_requests',
+                      ),
+              ),
+              _SliverBlock(
+                child: _ServiceProgressCard(
+                  services: summary.serviceSnapshots,
+                  emptyTitle: 'No active service yet',
+                  emptySubtitle:
+                      'Browse services or use the tax calculator to start.',
+                  onOpen: (service) => _goAllowed(
+                    context: context,
+                    route: '/my-services/${Uri.encodeComponent(service.id)}',
+                    capabilities: capabilities,
+                    requiredCapability: 'can_track_requests',
+                  ),
+                  onEmptyAction: onOpenServices,
+                ),
+              ),
+              _SectionHeader(
+                title: 'Recent activity',
+                actionText: 'Track',
+                onAction: () => _goAllowed(
+                  context: context,
+                  route: '/my-services',
+                  capabilities: capabilities,
+                  requiredCapability: 'can_track_requests',
+                ),
+              ),
+              _SliverBlock(
+                bottom: 34,
+                child: _ActivityTimelineCard(
+                  activities: summary.recentActivity.take(4).toList(
+                        growable: false,
+                      ),
+                  onTrack: () => _goAllowed(
+                    context: context,
+                    route: '/my-services',
+                    capabilities: capabilities,
+                    requiredCapability: 'can_track_requests',
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _customerSlivers(
-    BuildContext context,
-    String displayName,
-    HomeDashboardSummary summary,
-    List<MobileQuickAction> actions,
-    AsyncValue<List<AppBannerItem>> bannersAsync,
-    AuthCapabilities capabilities,
-  ) {
-    return [
-      _SliverBlock(
-        top: 18,
-        child: _HomeHeader(
-          title: _greeting(displayName),
-          subtitle: 'Your OMC command center',
-          badge: _accessLabel(capabilities),
-          unreadNotifications: summary.unreadNotifications,
-          onOpenNotifications: () => _openNotifications(context, capabilities),
-        ),
-      ),
-      if (capabilities.isGuest ||
-          capabilities.isPending ||
-          capabilities.isRejected)
-        _SliverBlock(child: _AccessBanner(capabilities: capabilities)),
-      _SliverBlock(
-        child: _HeroCard(
-          label:
-              summary.nextAction?.type.replaceAll('_', ' ') ??
-              _accessLabel(capabilities),
-          title: _customerHeroTitle(summary, capabilities),
-          subtitle: _customerHeroSubtitle(summary, capabilities),
-          buttonLabel:
-              summary.nextAction?.buttonLabel ??
-              _customerHeroButton(capabilities),
-          statValue: summary.activeCases.toString(),
-          statLabel: 'active',
-          onPressed: () {
-            final route = summary.nextAction?.route;
-            if (route != null && route.trim().isNotEmpty) {
-              _goWithCapability(
-                context,
-                route,
-                capabilities,
-                _routeCapability(route),
-              );
-            } else {
-              onOpenServices?.call();
-            }
-          },
-        ),
-      ),
-      _SliverBlock(
-        child: _ActionRequiredCard(
-          summary: summary,
-          onDocuments: () => _goWithCapability(
-            context,
-            '/documents',
-            capabilities,
-            'can_view_documents',
-          ),
-          onPayments: () => _goWithCapability(
-            context,
-            '/payments',
-            capabilities,
-            'can_view_payments',
-          ),
-          onSupport: () => _goWithCapability(
-            context,
-            '/support',
-            capabilities,
-            'can_create_support_ticket',
-          ),
-        ),
-      ),
-      _SliverBlock(
-        child: _BackendBannersSection(
-          bannersAsync: bannersAsync,
-          onTap: (banner) => _handleBannerTap(context, banner),
-        ),
-      ),
-      _MetricRail(items: _customerMetrics(summary)),
-      _Section(
-        title: 'Quick actions',
-        actionText: 'View all',
-        onAction: () => context.go('/more'),
-      ),
-      _SliverBlock(
-        child: _QuickActionsGrid(
-          actions: actions,
-          summary: summary,
-          onTap: (action) => _handleQuickAction(context, action, capabilities),
-        ),
-      ),
-      _Section(
-        title: summary.serviceSnapshots.isEmpty
-            ? 'Start with OMC'
-            : 'Service progress',
-        actionText: summary.serviceSnapshots.isEmpty ? null : 'Track',
-        onAction: summary.serviceSnapshots.isEmpty
-            ? null
-            : () => _goWithCapability(
-                context,
-                '/my-services',
-                capabilities,
-                'can_track_requests',
-              ),
-      ),
-      _SliverBlock(
-        child: _ServiceSnapshots(
-          services: summary.serviceSnapshots,
-          emptyTitle: 'No active service yet',
-          emptySubtitle: 'Browse services or use the tax calculator to start.',
-          onOpen: (service) => _goWithCapability(
-            context,
-            '/my-services/${Uri.encodeComponent(service.id)}',
-            capabilities,
-            'can_track_requests',
-          ),
-          onEmptyAction: onOpenServices,
-        ),
-      ),
-      if (summary.fallbackMessage != null)
-        _SliverBlock(child: _FallbackNote(message: summary.fallbackMessage!)),
-      _Section(
-        title: 'Recent activity',
-        actionText: 'Track',
-        onAction: () => _goWithCapability(
-          context,
-          '/my-services',
-          capabilities,
-          'can_track_requests',
-        ),
-      ),
-      _SliverBlock(
-        bottom: 34,
-        child: _RecentActivityCard(
-          activities: summary.recentActivity.take(3).toList(growable: false),
-          onTrack: () => _goWithCapability(
-            context,
-            '/my-services',
-            capabilities,
-            'can_track_requests',
-          ),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _internalSlivers(
-    BuildContext context,
-    String displayName,
-    HomeDashboardSummary summary,
-    List<MobileQuickAction> actions,
-    AuthCapabilities capabilities,
-  ) {
-    return [
-      _SliverBlock(
-        top: 18,
-        child: _HomeHeader(
-          title: 'Operations Center',
-          subtitle: displayName,
-          badge:
-              capabilities.canReviewDocuments || capabilities.canReviewPayments
-              ? 'Reviewer'
-              : 'Internal',
-          unreadNotifications: summary.unreadNotifications,
-          onOpenNotifications: () => _openNotifications(context, capabilities),
-        ),
-      ),
-      _SliverBlock(
-        child: _HeroCard(
-          label: 'internal',
-          title: summary.nextAction?.title ?? 'Operations queue is ready',
-          subtitle:
-              summary.nextAction?.subtitle ??
-              'Review services, documents, payments and customer queues.',
-          buttonLabel: summary.nextAction?.buttonLabel ?? 'Open workspace',
-          statValue: summary.pendingDocuments.toString(),
-          statLabel: 'docs',
-          onPressed: () =>
-              context.go(summary.nextAction?.route ?? '/internal-workspace'),
-        ),
-      ),
-      _Section(title: 'Operations KPIs'),
-      _SliverBlock(child: _InternalKpiGrid(summary: summary)),
-      _Section(
-        title: 'Priority queue',
-        actionText: 'Open all',
-        onAction: () => context.go('/internal-workspace/service-cases'),
-      ),
-      _SliverBlock(
-        child: _ServiceSnapshots(
-          services: summary.serviceSnapshots,
-          emptyTitle: 'No urgent service cases',
-          emptySubtitle: 'The visible internal queue is clear right now.',
-          internal: true,
-          onOpen: (service) => context.go(
-            '/internal-workspace/service-cases/${Uri.encodeComponent(service.id)}',
-          ),
-        ),
-      ),
-      _Section(title: 'Internal quick actions'),
-      _SliverBlock(
-        child: _QuickActionsGrid(
-          actions: actions,
-          summary: summary,
-          onTap: (action) => _handleQuickAction(context, action, capabilities),
-        ),
-      ),
-      if (summary.fallbackMessage != null)
-        _SliverBlock(child: _FallbackNote(message: summary.fallbackMessage!)),
-      _Section(title: 'Recent activity'),
-      _SliverBlock(
-        bottom: 34,
-        child: _RecentActivityCard(
-          activities: summary.recentActivity.take(4).toList(growable: false),
-          onTrack: () => context.go('/internal-workspace/service-cases'),
-        ),
-      ),
-    ];
-  }
-
   List<MobileQuickAction> _actionsForHome(
-    List<MobileQuickAction> actions,
+    List<MobileQuickAction> source,
     bool isInternal,
   ) {
-    final sorted = [...actions]
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    if (isInternal) {
-      final hasInternal = sorted.any(
-        (a) =>
-            a.targetValue.startsWith('/internal-workspace') ||
-            a.requiredCapability == 'can_access_internal_workspace',
-      );
-      return hasInternal ? sorted : _fallbackInternalActions;
-    }
-    return (sorted.isEmpty ? fallbackMobileQuickActions : sorted)
-        .take(6)
+    final filtered = source
+        .where((action) => action.title.isNotEmpty)
+        .where(
+          (action) => isInternal || action.requiredCapability != 'can_manage_customers',
+        )
         .toList(growable: false);
+
+    filtered.sort((left, right) {
+      final comparison = left.sortOrder.compareTo(right.sortOrder);
+      if (comparison != 0) return comparison;
+      return left.title.compareTo(right.title);
+    });
+
+    return filtered.take(6).toList(growable: false);
   }
 
-  void _openNotifications(BuildContext context, AuthCapabilities capabilities) {
-    if (_capabilityAllowed('can_view_customer_notifications', capabilities)) {
-      onOpenNotifications?.call();
-    } else {
-      _showLockedSnack(context, capabilities);
-    }
+  List<_HomeMetric> _buildMetrics(HomeDashboardSummary summary) {
+    return [
+      _HomeMetric(
+        label: 'Active services',
+        value: summary.activeCases,
+        icon: Icons.work_outline_rounded,
+        tint: const Color(0xFF4F8DFD),
+      ),
+      _HomeMetric(
+        label: 'Documents',
+        value: summary.pendingDocuments,
+        icon: Icons.description_outlined,
+        tint: const Color(0xFF37B58D),
+      ),
+      _HomeMetric(
+        label: 'Payments due',
+        value: summary.paymentsDue,
+        icon: Icons.payments_outlined,
+        tint: const Color(0xFFF59E0B),
+      ),
+      _HomeMetric(
+        label: 'Notifications',
+        value: summary.unreadNotifications,
+        icon: Icons.notifications_none_rounded,
+        tint: const Color(0xFF9B6BFF),
+      ),
+    ];
   }
 
   void _handleQuickAction(
     BuildContext context,
     MobileQuickAction action,
-    AuthCapabilities capabilities,
-  ) {
-    if (!_capabilityAllowed(action.requiredCapability, capabilities)) {
+    AuthCapabilities capabilities, {
+    VoidCallback? onOpenServices,
+    VoidCallback? onOpenCalculator,
+    VoidCallback? onOpenSupport,
+  }) {
+    if (!_isActionAllowed(action, capabilities)) {
       _showLockedSnack(context, capabilities);
       return;
     }
+
     switch (action.targetType) {
-      case MobileQuickActionTargetType.feature:
-        _handleFeatureTarget(context, action.targetValue, capabilities);
-        return;
       case MobileQuickActionTargetType.route:
-        final route = action.targetValue.trim();
-        route.isEmpty
-            ? onOpenServices?.call()
-            : context.go(route.startsWith('/') ? route : '/$route');
+        if (action.targetValue.startsWith('/')) {
+          context.push(action.targetValue);
+        } else {
+          context.go('/services');
+        }
+        return;
+      case MobileQuickActionTargetType.feature:
+        final key = action.targetValue.trim().toLowerCase();
+        if (key == 'calculator') {
+          if (onOpenCalculator != null) {
+            onOpenCalculator!();
+          } else {
+            context.push('/tax-calculator');
+          }
+          return;
+        }
+        if (key == 'services') {
+          if (onOpenServices != null) {
+            onOpenServices!();
+          } else {
+            context.go('/services');
+          }
+          return;
+        }
+        if (key == 'support') {
+          if (onOpenSupport != null) {
+            onOpenSupport!();
+          } else {
+            context.go('/support');
+          }
+          return;
+        }
+        if (key == 'notifications') {
+          context.push('/notifications');
+          return;
+        }
+        context.go('/services');
         return;
       case MobileQuickActionTargetType.service:
-        final serviceId = action.targetValue.trim();
-        serviceId.isEmpty
-            ? onOpenServices?.call()
-            : context.go('/services/${Uri.encodeComponent(serviceId)}');
+        if (onOpenServices != null) {
+          onOpenServices!();
+        } else {
+          context.go('/services');
+        }
         return;
       case MobileQuickActionTargetType.externalUrl:
-        final uri = _safeExternalUri(action.targetValue);
-        if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+        final uri = Uri.tryParse(action.targetValue);
+        if (uri != null) {
+          launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
         return;
     }
   }
 
-  void _handleFeatureTarget(
-    BuildContext context,
-    String target,
-    AuthCapabilities capabilities,
-  ) {
-    switch (target.trim().toLowerCase().replaceAll('_', '-')) {
-      case 'services':
-      case 'service':
-      case 'tax-return':
-      case 'ntn':
-      case 'gst':
-        onOpenServices?.call();
-        return;
-      case 'calculator':
-      case 'tax-calculator':
-        onOpenCalculator?.call();
-        return;
-      case 'support':
-        _capabilityAllowed('can_create_support_ticket', capabilities)
-            ? onOpenSupport?.call()
-            : _showLockedSnack(context, capabilities);
-        return;
-      case 'documents':
-        _goWithCapability(
-          context,
-          '/documents',
-          capabilities,
-          'can_view_documents',
-        );
-        return;
-      case 'payments':
-        _goWithCapability(
-          context,
-          '/payments',
-          capabilities,
-          'can_view_payments',
-        );
-        return;
-      case 'track':
-      case 'my-services':
-        _goWithCapability(
-          context,
-          '/my-services',
-          capabilities,
-          'can_track_requests',
-        );
-        return;
-      case 'knowledge':
-        context.go('/knowledge');
-        return;
-      case 'expense-tracker':
-      case 'expenses':
-        context.go('/expense-tracker');
-        return;
-      default:
-        onOpenServices?.call();
-    }
-  }
+  bool _isActionAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
+    final capability = action.requiredCapability?.trim();
+    if (capability == null || capability.isEmpty) return true;
 
-  void _goWithCapability(
-    BuildContext context,
-    String route,
-    AuthCapabilities capabilities,
-    String? capability,
-  ) {
-    if (!_capabilityAllowed(capability, capabilities)) {
-      _showLockedSnack(context, capabilities);
-      return;
-    }
-    context.go(route);
-  }
-
-  bool _capabilityAllowed(String? capability, AuthCapabilities capabilities) {
-    if (capability == null || capability.trim().isEmpty) return true;
-    return switch (capability.trim()) {
-      'can_create_service_request' => capabilities.canCreateServiceRequest,
-      'can_track_requests' =>
-        capabilities.canTrackRequests ||
-            capabilities.canAccessInternalWorkspace,
-      'can_view_documents' =>
-        capabilities.canViewDocuments || capabilities.canReviewDocuments,
-      'can_view_payments' =>
-        capabilities.canViewPayments || capabilities.canReviewPayments,
-      'can_create_support_ticket' => capabilities.canCreateSupportTicket,
-      'can_view_support_tickets' => capabilities.canViewSupportTickets,
+    return switch (capability) {
+      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
+      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
+      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
+      'can_create_support_ticket' => capabilities.canCreateSupportTicket || capabilities.isApproved || capabilities.isInternal,
       'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
-      'can_view_customer_notifications' =>
-        capabilities.canViewCustomerNotifications ||
-            capabilities.canAccessInternalWorkspace,
-      'can_access_internal_workspace' =>
-        capabilities.canAccessInternalWorkspace,
+      'can_access_internal_workspace' => capabilities.canAccessInternalWorkspace,
       _ => true,
     };
   }
 
   void _handleBannerTap(BuildContext context, AppBannerItem banner) {
-    final target = banner.actionUrl?.trim();
-    if (target == null || target.isEmpty) return;
-    if (target.startsWith('/')) {
-      context.go(target);
+    final actionUrl = banner.actionUrl?.trim();
+    if (actionUrl == null || actionUrl.isEmpty) return;
+
+    if (actionUrl.startsWith('/')) {
+      context.push(actionUrl);
       return;
     }
-    final uri = _safeExternalUri(target);
+
+    final uri = Uri.tryParse(actionUrl);
     if (uri != null) {
       launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(content: Text(target), behavior: SnackBarBehavior.floating),
-        );
+      return;
+    }
+
+    final fallback = Uri.tryParse('${ApiConfig.baseUrl}/$actionUrl');
+    if (fallback != null) {
+      launchUrl(fallback, mode: LaunchMode.externalApplication);
     }
   }
 
-  Uri? _safeExternalUri(String value) {
-    final uri = Uri.tryParse(value.trim());
-    if (uri == null || !uri.hasScheme || uri.host.trim().isEmpty) return null;
-    return uri.scheme == 'https' || uri.scheme == 'http' ? uri : null;
+  void _goAllowed({
+    required BuildContext context,
+    required String route,
+    required AuthCapabilities capabilities,
+    required String requiredCapability,
+  }) {
+    if (!_isCapabilityGranted(requiredCapability, capabilities)) {
+      _showLockedSnack(context, capabilities);
+      return;
+    }
+    context.push(route);
+  }
+
+  bool _isCapabilityGranted(String capability, AuthCapabilities capabilities) {
+    return switch (capability) {
+      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
+      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
+      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
+      'can_review_documents' => capabilities.canReviewDocuments || capabilities.canAccessInternalWorkspace,
+      'can_review_payments' => capabilities.canReviewPayments || capabilities.canAccessInternalWorkspace,
+      'can_create_support_ticket' => capabilities.canCreateSupportTicket || capabilities.isApproved || capabilities.isInternal,
+      'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
+      'can_access_internal_workspace' => capabilities.canAccessInternalWorkspace,
+      _ => true,
+    };
+  }
+
+  void _goProfile(BuildContext context, AuthCapabilities capabilities) {
+    if (capabilities.isGuest) {
+      context.push('/signup');
+      return;
+    }
+    context.push('/profile');
+  }
+
+  void _openNotifications(
+    BuildContext context,
+    AuthCapabilities capabilities,
+    VoidCallback? callback,
+  ) {
+    final allowed =
+        capabilities.canViewCustomerNotifications ||
+        capabilities.isApproved ||
+        capabilities.isInternal ||
+        capabilities.canAccessInternalWorkspace;
+    if (!allowed) {
+      _showLockedSnack(context, capabilities);
+      return;
+    }
+    if (callback != null) {
+      callback();
+    } else {
+      context.push('/notifications');
+    }
   }
 
   void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
@@ -527,181 +491,451 @@ class HomeScreen extends ConsumerWidget {
   }
 
   String _displayNameFromUserId(String? userId) {
-    final value = userId?.trim();
-    if (value == null || value.isEmpty) return 'OMC Customer';
-    final cleaned = value
-        .split('@')
-        .first
+    if (userId == null || userId.trim().isEmpty) return 'there';
+    final value = userId.trim();
+    final normalized = value.contains('@') ? value.split('@').first : value;
+    return normalized
         .replaceAll(RegExp(r'[._-]+'), ' ')
-        .trim();
-    if (cleaned.isEmpty) return value;
-    return cleaned
-        .split(RegExp(r'\s+'))
-        .map(
-          (word) => word.isEmpty
-              ? word
-              : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
-        )
+        .trim()
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map((part) => part[0].toUpperCase() + part.substring(1))
         .join(' ');
   }
 
-  String _greeting(String name) {
-    final hour = DateTime.now().hour;
-    final prefix = hour < 12
-        ? 'Good morning'
-        : hour < 17
-        ? 'Good afternoon'
-        : 'Good evening';
-    return '$prefix, $name';
+  String _routeCapability(String route) {
+    if (route.contains('/documents')) return 'can_view_documents';
+    if (route.contains('/payments')) return 'can_view_payments';
+    if (route.contains('/support')) return 'can_create_support_ticket';
+    if (route.contains('/my-services')) return 'can_track_requests';
+    if (route.contains('/tax-calculator')) return 'can_use_tax_calculator';
+    return '';
   }
+}
 
-  String _accessLabel(AuthCapabilities capabilities) {
-    if (capabilities.isGuest) return 'Guest';
-    if (capabilities.isPending) return 'Pending review';
-    if (capabilities.isRejected) return 'Approval required';
-    return 'Approved';
+class _SliverBlock extends StatelessWidget {
+  const _SliverBlock({
+    required this.child,
+    this.top = 0,
+    this.bottom = 0,
+  });
+
+  final Widget child;
+  final double top;
+  final double bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: EdgeInsets.fromLTRB(16, top, 16, bottom),
+      sliver: SliverToBoxAdapter(child: child),
+    );
   }
+}
 
-  String _customerHeroTitle(
-    HomeDashboardSummary summary,
-    AuthCapabilities capabilities,
-  ) {
-    final nextTitle = summary.nextAction?.title.trim();
-    if (nextTitle != null && nextTitle.isNotEmpty) return nextTitle;
-    if (capabilities.isGuest) return 'Start with OMC';
-    if (capabilities.isPending) return 'Profile under review';
-    return 'Your OMC workspace is active';
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    this.actionText,
+    this.onAction,
+  });
+
+  final String title;
+  final String? actionText;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SliverBlock(
+      top: 16,
+      bottom: 12,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+          if (actionText != null && onAction != null)
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryRed,
+                padding: const EdgeInsets.symmetric(horizontal: 0),
+              ),
+              child: Text(actionText!),
+            ),
+        ],
+      ),
+    );
   }
-
-  String _customerHeroSubtitle(
-    HomeDashboardSummary summary,
-    AuthCapabilities capabilities,
-  ) {
-    final nextSubtitle = summary.nextAction?.subtitle.trim();
-    if (nextSubtitle != null && nextSubtitle.isNotEmpty) {
-      return nextSubtitle;
-    }
-    if (capabilities.isGuest) {
-      return 'Browse services, use the tax calculator and create an account when ready.';
-    }
-    if (capabilities.isPending) {
-      return 'Sync, service requests and document uploads unlock after profile approval.';
-    }
-    return 'Track services, documents, payments and support from one place.';
-  }
-
-  String _customerHeroButton(AuthCapabilities capabilities) =>
-      capabilities.isGuest || capabilities.isPending
-      ? 'Browse services'
-      : 'Start request';
 }
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
-    required this.title,
-    required this.subtitle,
-    required this.badge,
+    required this.displayName,
+    required this.avatarUrl,
     required this.unreadNotifications,
-    required this.onOpenNotifications,
+    required this.onNotifications,
   });
 
-  final String title;
-  final String subtitle;
-  final String badge;
+  final String displayName;
+  final String? avatarUrl;
   final int unreadNotifications;
-  final VoidCallback onOpenNotifications;
+  final VoidCallback onNotifications;
 
   @override
   Widget build(BuildContext context) {
+    final initial = displayName.trim().isEmpty ? 'O' : displayName.trim()[0].toUpperCase();
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 54,
-          height: 54,
-          padding: const EdgeInsets.all(8),
-          decoration: _softDecoration(19),
-          child: Image.asset(
-            'assets/images/logo_symbol_transparent.png',
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) =>
-                const Icon(Icons.business_rounded, color: AppTheme.primaryRed),
-          ),
-        ),
-        const SizedBox(width: 15),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _TextStyles.eyebrow,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _TinyBadge(label: badge),
-                ],
+              const Text(
+                'Good morning,',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               Text(
-                title,
-                maxLines: 2,
+                displayName,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: _TextStyles.pageTitle,
+                style: const TextStyle(
+                  fontSize: 30,
+                  height: 1.08,
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                ),
               ),
             ],
           ),
         ),
-        _RoundIconButton(
+        const SizedBox(width: 12),
+        _IconBadgeButton(
           icon: Icons.notifications_none_rounded,
           badgeCount: unreadNotifications,
-          onTap: onOpenNotifications,
+          onTap: onNotifications,
+        ),
+        const SizedBox(width: 10),
+        _AvatarBubble(
+          avatarUrl: avatarUrl,
+          fallbackText: initial,
         ),
       ],
     );
   }
 }
 
-class _AccessBanner extends StatelessWidget {
-  const _AccessBanner({required this.capabilities});
+class _IconBadgeButton extends StatelessWidget {
+  const _IconBadgeButton({
+    required this.icon,
+    required this.badgeCount,
+    required this.onTap,
+  });
 
-  final AuthCapabilities capabilities;
+  final IconData icon;
+  final int badgeCount;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final title = capabilities.isGuest
-        ? 'Guest workspace'
-        : capabilities.isPending
-        ? 'Profile under review'
-        : 'Approval required';
-    final message = capabilities.isGuest
-        ? 'Local tools are available. Create an OMC account to unlock sync, requests and document uploads.'
-        : capabilities.isPending
-        ? 'OMC will enable protected customer features after verification.'
-        : 'Contact OMC support to review this account.';
-    return PremiumCard(
-      padding: const EdgeInsets.all(15),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(
+                child: Icon(
+                  icon,
+                  size: 23,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              if (badgeCount > 0)
+                Positioned(
+                  top: 5,
+                  right: 5,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 18),
+                    height: 18,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        badgeCount > 99 ? '99+' : badgeCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarBubble extends StatelessWidget {
+  const _AvatarBubble({
+    required this.avatarUrl,
+    required this.fallbackText,
+  });
+
+  final String? avatarUrl;
+  final String fallbackText;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAvatar = avatarUrl != null && avatarUrl!.trim().isNotEmpty;
+
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7FB),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: hasAvatar
+            ? Image.network(
+                avatarUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _AvatarFallback(text: fallbackText),
+              )
+            : _AvatarFallback(text: fallbackText),
+      ),
+    );
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF7F7FB),
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.w800,
+          fontSize: 18,
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          height: 58,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search_rounded,
+                color: AppTheme.textMuted,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Search services, documents, invoices...',
+                  style: TextStyle(
+                    color: Color(0xFF9AA0AA),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F7FB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  size: 19,
+                  color: AppTheme.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccessBanner extends StatelessWidget {
+  const _AccessBanner({
+    required this.capabilities,
+    required this.onPrimary,
+  });
+
+  final AuthCapabilities capabilities;
+  final VoidCallback onPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final (title, subtitle, tint, icon, buttonText) = switch (capabilities.accessState) {
+      AccountAccessState.guest => (
+          'Create your account',
+          'Unlock service requests, tracking, and saved progress.',
+          const Color(0xFF4F8DFD),
+          Icons.person_add_alt_1_rounded,
+          'Sign up',
+        ),
+      AccountAccessState.pending => (
+          'Your profile is under review',
+          'You can explore services while the team completes verification.',
+          const Color(0xFF4F8DFD),
+          Icons.verified_outlined,
+          'View status',
+        ),
+      AccountAccessState.rejected => (
+          'Approval needed',
+          'Contact support to review the current account access.',
+          const Color(0xFFE45858),
+          Icons.info_outline_rounded,
+          'Support',
+        ),
+      _ => (
+          'Access notice',
+          'Some features remain restricted on this account.',
+          const Color(0xFF4F8DFD),
+          Icons.info_outline_rounded,
+          'Continue',
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: tint.withValues(alpha: 0.18)),
+      ),
       child: Row(
         children: [
-          _IconBox(
-            icon: capabilities.isGuest
-                ? Icons.explore_outlined
-                : Icons.verified_user_outlined,
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, color: tint, size: 26),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: _TextStyles.cardTitle),
-                const SizedBox(height: 3),
-                Text(message, style: _TextStyles.cardSubtitle),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.35,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
+          ),
+          const SizedBox(width: 14),
+          TextButton(
+            onPressed: onPrimary,
+            style: TextButton.styleFrom(
+              foregroundColor: tint,
+              backgroundColor: Colors.white.withValues(alpha: 0.95),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: tint.withValues(alpha: 0.18)),
+              ),
+            ),
+            child: Text(buttonText),
           ),
         ],
       ),
@@ -711,411 +945,335 @@ class _AccessBanner extends StatelessWidget {
 
 class _HeroCard extends StatelessWidget {
   const _HeroCard({
+    required this.summary,
+    required this.capabilities,
+    required this.onPrimary,
+    required this.onSecondary,
+  });
+
+  final HomeDashboardSummary summary;
+  final AuthCapabilities capabilities;
+  final VoidCallback onPrimary;
+  final VoidCallback onSecondary;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = summary.nextAction?.type.replaceAll('_', ' ') ??
+        (capabilities.isGuest ? 'Guest mode' : 'Your command center');
+    final title = _heroTitle(summary, capabilities);
+    final subtitle = _heroSubtitle(summary, capabilities);
+    final buttonLabel = summary.nextAction?.buttonLabel ??
+        (capabilities.canTrackRequests ? 'Open tracker' : 'Explore services');
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFDFDFE), Color(0xFFF7F8FC)],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _HeroBadge(
+                label: label,
+                tint: const Color(0xFF4F8DFD),
+              ),
+              const Spacer(),
+              _MiniStat(
+                label: 'Active',
+                value: summary.activeCases.toString(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 24,
+              height: 1.12,
+              letterSpacing: -0.35,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 14.5,
+              height: 1.45,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onPrimary,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: AppTheme.primaryRed,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  child: Text(buttonLabel),
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: onSecondary,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  foregroundColor: AppTheme.textPrimary,
+                  side: const BorderSide(color: AppTheme.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: const Text('Tax calculator'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _heroTitle(HomeDashboardSummary summary, AuthCapabilities capabilities) {
+    if (summary.nextAction?.title.trim().isNotEmpty == true) {
+      return summary.nextAction!.title;
+    }
+    if (capabilities.isGuest) {
+      return 'Welcome to OMC';
+    }
+    if (capabilities.isPending) {
+      return 'Your profile is being reviewed';
+    }
+    if (summary.serviceSnapshots.isNotEmpty) {
+      return 'Your work is moving';
+    }
+    return 'Everything in one place';
+  }
+
+  String _heroSubtitle(HomeDashboardSummary summary, AuthCapabilities capabilities) {
+    if (summary.nextAction?.subtitle.trim().isNotEmpty == true) {
+      return summary.nextAction!.subtitle;
+    }
+    if (capabilities.isGuest) {
+      return 'Browse services, understand the process, and create an account whenever you are ready.';
+    }
+    if (capabilities.isPending) {
+      return 'Track progress, prepare documents, and keep momentum while approval is underway.';
+    }
+    if (summary.serviceSnapshots.isNotEmpty) {
+      return 'Follow active cases, review important alerts, and jump into the next action fast.';
+    }
+    return 'Services, documents, payments, support, and tracking designed as one clean workspace.';
+  }
+}
+
+class _HeroBadge extends StatelessWidget {
+  const _HeroBadge({
     required this.label,
-    required this.title,
-    required this.subtitle,
-    required this.buttonLabel,
-    required this.statValue,
-    required this.statLabel,
-    required this.onPressed,
+    required this.tint,
   });
 
   final String label;
-  final String title;
-  final String subtitle;
-  final String buttonLabel;
-  final String statValue;
-  final String statLabel;
-  final VoidCallback onPressed;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(31),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryRed.withValues(alpha: 0.21),
-            blurRadius: 34,
-            offset: const Offset(0, 19),
-          ),
-        ],
+        color: tint.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(31),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(23),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryRed,
-                Color(0xFFA3162A),
-                AppTheme.darkRed,
-              ],
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _HeroBadge(label: label),
-              const SizedBox(height: 20),
-              Text(title, style: _TextStyles.heroTitle),
-              const SizedBox(height: 10),
-              Text(subtitle, style: _TextStyles.heroSubtitle),
-              const SizedBox(height: 23),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: onPressed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppTheme.primaryRed,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(19),
-                          ),
-                        ),
-                        icon: const Icon(Icons.arrow_forward_rounded, size: 19),
-                        label: Text(
-                          buttonLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _HeroMiniStat(value: statValue, label: statLabel),
-                  ),
-                ],
-              ),
-            ],
-          ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: tint,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.1,
         ),
       ),
     );
   }
 }
 
-class _ActionRequiredCard extends StatelessWidget {
-  const _ActionRequiredCard({
-    required this.summary,
-    required this.onDocuments,
-    required this.onPayments,
-    required this.onSupport,
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
+    required this.label,
+    required this.value,
   });
 
-  final HomeDashboardSummary summary;
-  final VoidCallback onDocuments;
-  final VoidCallback onPayments;
-  final VoidCallback onSupport;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    final items = <_AttentionItem>[
-      if (summary.pendingDocuments > 0)
-        _AttentionItem(
-          Icons.upload_file_rounded,
-          '${summary.pendingDocuments} documents missing',
-          'Upload required files to keep service processing active.',
-          'Upload',
-          onDocuments,
-        ),
-      if (summary.paymentsDue > 0)
-        _AttentionItem(
-          Icons.receipt_long_rounded,
-          '${summary.paymentsDue} payments due',
-          'Review dues or upload receipts for verification.',
-          'Review',
-          onPayments,
-        ),
-      if (summary.paymentSummary.rejected > 0)
-        _AttentionItem(
-          Icons.warning_amber_rounded,
-          '${summary.paymentSummary.rejected} receipts rejected',
-          'Open payments and upload corrected receipts.',
-          'Fix',
-          onPayments,
-        ),
-      if (summary.supportSummary.waitingCustomer > 0)
-        _AttentionItem(
-          Icons.support_agent_rounded,
-          '${summary.supportSummary.waitingCustomer} support replies waiting',
-          'OMC needs your response on support tickets.',
-          'Reply',
-          onSupport,
-        ),
-    ];
-    if (items.isEmpty) return const SizedBox.shrink();
-    final item = items.first;
-    return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _IconBox(icon: item.icon),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Action required', style: _TextStyles.eyebrow),
-                const SizedBox(height: 4),
-                Text(item.title, style: _TextStyles.cardTitle),
-                const SizedBox(height: 4),
-                Text(item.subtitle, style: _TextStyles.cardSubtitle),
-              ],
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textPrimary,
             ),
           ),
-          TextButton(onPressed: item.onTap, child: Text(item.actionLabel)),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textMuted,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _BackendBannersSection extends StatelessWidget {
-  const _BackendBannersSection({
-    required this.bannersAsync,
+class _BannerStrip extends StatelessWidget {
+  const _BannerStrip({
+    required this.banners,
     required this.onTap,
   });
 
-  final AsyncValue<List<AppBannerItem>> bannersAsync;
+  final List<AppBannerItem> banners;
   final ValueChanged<AppBannerItem> onTap;
 
   @override
   Widget build(BuildContext context) {
-    return bannersAsync.maybeWhen(
-      data: (banners) {
-        final visible = [...banners]
-          ..sort((a, b) => b.priority.compareTo(a.priority));
-        if (visible.isEmpty) return const SizedBox.shrink();
-        return SizedBox(
-          height: 132,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: visible.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, index) => _BackendBannerCard(
-              banner: visible[index],
-              onTap: () => onTap(visible[index]),
-            ),
-          ),
-        );
-      },
-      orElse: () => const SizedBox.shrink(),
-    );
-  }
-}
-
-class _BackendBannerCard extends StatelessWidget {
-  const _BackendBannerCard({required this.banner, required this.onTap});
-
-  final AppBannerItem banner;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final imageUrl = _resolvedImageUrl(banner.imageUrl);
-    return SizedBox(
-      width: 286,
-      child: PremiumCard(
+    final banner = banners.first;
+    return GestureDetector(
+      onTap: () => onTap(banner),
+      child: Container(
         padding: const EdgeInsets.all(16),
-        onTap: banner.actionUrl == null ? null : onTap,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppTheme.border),
+        ),
         child: Row(
           children: [
-            imageUrl == null
-                ? const _IconBox(icon: Icons.campaign_rounded)
-                : _BannerImage(url: imageUrl),
-            const SizedBox(width: 13),
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F7FB),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.campaign_outlined, color: AppTheme.textMuted),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    banner.title.isEmpty ? 'OMC update' : banner.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: _TextStyles.cardTitle,
+                    banner.title,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 4),
                   Text(
                     banner.message,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: _TextStyles.cardSubtitle,
-                  ),
-                  if ((banner.actionLabel ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      banner.actionLabel!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _TextStyles.linkLabel,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      height: 1.35,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
+            const SizedBox(width: 10),
+            const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
           ],
         ),
       ),
     );
   }
-
-  String? _resolvedImageUrl(String? value) {
-    final text = value?.trim();
-    if (text == null || text.isEmpty) return null;
-    if (text.startsWith('http://') || text.startsWith('https://')) return text;
-    if (text.startsWith('/')) return '${ApiConfig.baseUrl}$text';
-    return null;
-  }
 }
 
-class _MetricRail extends StatelessWidget {
-  const _MetricRail({required this.items});
-
-  final List<_MetricItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 0, 0),
-      sliver: SliverToBoxAdapter(
-        child: SizedBox(
-          height: 96,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(right: 20),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, index) => _MetricChip(item: items[index]),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InternalKpiGrid extends StatelessWidget {
-  const _InternalKpiGrid({required this.summary});
-
-  final HomeDashboardSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      _MetricItem(
-        'Open services',
-        summary.activeCases.toString(),
-        Icons.assignment_rounded,
-        '/internal-workspace/service-cases',
-      ),
-      _MetricItem(
-        'Waiting customer',
-        summary.supportSummary.waitingCustomer.toString(),
-        Icons.hourglass_bottom_rounded,
-        '/internal-workspace/service-cases',
-      ),
-      _MetricItem(
-        'Documents review',
-        summary.documentSummary.uploaded.toString(),
-        Icons.folder_special_rounded,
-        '/internal-workspace/documents',
-      ),
-      _MetricItem(
-        'Payments review',
-        summary.paymentSummary.receiptUnderReview.toString(),
-        Icons.payments_rounded,
-        '/internal-workspace/payments',
-      ),
-      _MetricItem('Open leads', 'Open', Icons.leaderboard_rounded, '/leads'),
-      _MetricItem('Pending tasks', 'Tasks', Icons.task_alt_rounded, '/tasks'),
-      _MetricItem('Customers', 'Profiles', Icons.groups_rounded, '/customers'),
-    ];
-    return GridView.builder(
-      itemCount: items.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.78,
-      ),
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return PremiumCard(
-          padding: const EdgeInsets.all(14),
-          onTap: () => context.go(item.route ?? '/internal-workspace'),
-          child: Row(
-            children: [
-              _IconBox(icon: item.icon, size: 42),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(item.value, style: _TextStyles.metricValue),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: _TextStyles.metricLabel,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _QuickActionsGrid extends StatelessWidget {
-  const _QuickActionsGrid({
+class _QuickActionsRail extends StatelessWidget {
+  const _QuickActionsRail({
     required this.actions,
-    required this.summary,
+    required this.capabilities,
     required this.onTap,
   });
 
   final List<MobileQuickAction> actions;
-  final HomeDashboardSummary summary;
+  final AuthCapabilities capabilities;
   final ValueChanged<MobileQuickAction> onTap;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.fromLTRB(14, 15, 14, 14),
-      child: GridView.builder(
+    if (actions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      height: 120,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.zero,
         itemCount: actions.length,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 11,
-          crossAxisSpacing: 10,
-          childAspectRatio: 1.02,
-        ),
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final action = actions[index];
-          return _ActionTile(
+          final tint = _tintForAction(action);
+          return _QuickActionCard(
             action: action,
-            badgeCount: _badgeCount(action.badgeType),
+            tint: tint,
+            disabled: !_isActionAllowed(action, capabilities),
             onTap: () => onTap(action),
           );
         },
@@ -1123,123 +1281,339 @@ class _QuickActionsGrid extends StatelessWidget {
     );
   }
 
-  int _badgeCount(String badgeType) {
-    return switch (badgeType.trim().toLowerCase().replaceAll('_', '-')) {
-      'documents' => summary.pendingDocuments,
-      'payments' => summary.paymentsDue,
-      'support' => summary.supportSummary.waitingCustomer,
-      'notifications' => summary.unreadNotifications,
-      _ => 0,
+  bool _isActionAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
+    final capability = action.requiredCapability?.trim();
+    if (capability == null || capability.isEmpty) return true;
+
+    return switch (capability) {
+      'can_view_documents' => capabilities.canViewDocuments || capabilities.isApproved || capabilities.isInternal,
+      'can_track_requests' => capabilities.canTrackRequests || capabilities.canViewCustomerDashboard || capabilities.canAccessCustomerDashboard || capabilities.isApproved || capabilities.canAccessInternalWorkspace,
+      'can_view_payments' => capabilities.canViewPayments || capabilities.canReviewPayments || capabilities.isApproved || capabilities.isInternal,
+      'can_create_support_ticket' => capabilities.canCreateSupportTicket || capabilities.isApproved || capabilities.isInternal,
+      'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
+      'can_access_internal_workspace' => capabilities.canAccessInternalWorkspace,
+      _ => true,
     };
+  }
+
+  Color _tintForAction(MobileQuickAction action) {
+    switch (action.iconKey.toLowerCase()) {
+      case 'documents':
+      case 'track':
+        return const Color(0xFF4F8DFD);
+      case 'tax-return':
+      case 'gst':
+      case 'calculator':
+        return const Color(0xFFF59E0B);
+      case 'support':
+      case 'message':
+        return const Color(0xFF9B6BFF);
+      case 'notifications':
+        return const Color(0xFFE45858);
+      default:
+        return const Color(0xFF37B58D);
+    }
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
+class _QuickActionCard extends StatelessWidget {
+  const _QuickActionCard({
     required this.action,
-    required this.badgeCount,
+    required this.tint,
+    required this.disabled,
     required this.onTap,
   });
 
   final MobileQuickAction action;
-  final int badgeCount;
+  final Color tint;
+  final bool disabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isUrgent = action.style == MobileQuickActionStyle.urgent;
-    final isHighlighted = action.style == MobileQuickActionStyle.highlighted;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isUrgent
-              ? AppTheme.primaryRed.withValues(alpha: 0.09)
-              : isHighlighted
-              ? AppTheme.primaryRed.withValues(alpha: 0.06)
-              : const Color(0xFFF8F4F1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isUrgent || isHighlighted
-                ? AppTheme.primaryRed.withValues(alpha: 0.20)
-                : Colors.black.withValues(alpha: 0.04),
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: SvgPicture.asset(
-                        action.iconAsset,
-                        fit: BoxFit.contain,
-                        placeholderBuilder: (_) => Icon(
-                          _iconForAction(action.iconKey),
-                          color: AppTheme.primaryRed,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      action.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: _TextStyles.actionTitle,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      action.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: _TextStyles.actionSubtitle,
-                    ),
-                  ],
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedOpacity(
+          opacity: disabled ? 0.55 : 1,
+          duration: const Duration(milliseconds: 160),
+          child: Container(
+            width: 108,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppTheme.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.025),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
                 ),
-              ),
+              ],
             ),
-            if (badgeCount > 0)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: _CountBadge(count: badgeCount),
-              ),
-          ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: tint.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: SvgPicture.asset(
+                      action.iconAsset,
+                      width: 22,
+                      height: 22,
+                      colorFilter: ColorFilter.mode(tint, BlendMode.srcIn),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  action.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                    height: 1.15,
+                  ),
+                ),
+                if (action.subtitle.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    action.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
-
-  IconData _iconForAction(String key) => switch (key) {
-    'documents' => Icons.folder_copy_rounded,
-    'track' => Icons.timeline_rounded,
-    'calculator' => Icons.calculate_rounded,
-    'support' => Icons.support_agent_rounded,
-    'payments' => Icons.payments_rounded,
-    'knowledge' => Icons.menu_book_rounded,
-    'notifications' => Icons.notifications_rounded,
-    'dashboard' => Icons.dashboard_rounded,
-    _ => Icons.apps_rounded,
-  };
 }
 
-class _ServiceSnapshots extends StatelessWidget {
-  const _ServiceSnapshots({
+class _MetricGrid extends StatelessWidget {
+  const _MetricGrid({required this.metrics});
+
+  final List<_HomeMetric> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: metrics.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisExtent: 118,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+      ),
+      itemBuilder: (context, index) {
+        final metric = metrics[index];
+        return _MetricCard(metric: metric);
+      },
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.metric});
+
+  final _HomeMetric metric;
+
+  @override
+  Widget build(BuildContext context) {
+    final progressValue = metric.value <= 0
+        ? 0.08
+        : ((metric.value.clamp(0, 999) / 10).clamp(0.08, 0.95)).toDouble();
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: metric.tint.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(metric.icon, color: metric.tint, size: 19),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textMuted.withValues(alpha: 0.7),
+                size: 20,
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            metric.label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textMuted,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            metric.value.toString(),
+            style: const TextStyle(
+              fontSize: 28,
+              height: 1,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              minHeight: 5,
+              backgroundColor: metric.tint.withValues(alpha: 0.10),
+              valueColor: AlwaysStoppedAnimation<Color>(metric.tint),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompletionCard extends StatelessWidget {
+  const _CompletionCard({
+    required this.summary,
+    required this.capabilities,
+    required this.onPrimary,
+  });
+
+  final HomeDashboardSummary summary;
+  final AuthCapabilities capabilities;
+  final VoidCallback onPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final isComplete = summary.documentSummary.total > 0 &&
+        summary.documentSummary.missing == 0 &&
+        summary.paymentSummary.pending == 0;
+    final title = isComplete ? 'Profile and documents look good' : 'Complete your profile';
+    final subtitle = isComplete
+        ? 'Your workspace is synced and ready for the next step.'
+        : capabilities.isGuest
+            ? 'Create your account to unlock syncing, tracking, and saved progress.'
+            : 'Finish a few details to get smoother access across the app.';
+    final buttonLabel = isComplete ? 'Open profile' : (capabilities.isGuest ? 'Create account' : 'Complete now');
+    final tint = isComplete ? const Color(0xFF37B58D) : const Color(0xFF4F8DFD);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: tint.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(
+              isComplete ? Icons.verified_rounded : Icons.badge_outlined,
+              color: tint,
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.35,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          TextButton(
+            onPressed: onPrimary,
+            style: TextButton.styleFrom(
+              foregroundColor: tint,
+              backgroundColor: Colors.white.withValues(alpha: 0.95),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: tint.withValues(alpha: 0.18)),
+              ),
+            ),
+            child: Text(buttonLabel),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceProgressCard extends StatelessWidget {
+  const _ServiceProgressCard({
     required this.services,
     required this.emptyTitle,
     required this.emptySubtitle,
     required this.onOpen,
-    this.onEmptyAction,
-    this.internal = false,
+    required this.onEmptyAction,
   });
 
   final List<HomeDashboardServiceSnapshot> services;
@@ -1247,716 +1621,452 @@ class _ServiceSnapshots extends StatelessWidget {
   final String emptySubtitle;
   final ValueChanged<HomeDashboardServiceSnapshot> onOpen;
   final VoidCallback? onEmptyAction;
-  final bool internal;
 
   @override
   Widget build(BuildContext context) {
     if (services.isEmpty) {
-      return PremiumCard(
-        padding: const EdgeInsets.all(18),
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppTheme.border),
+        ),
         child: Row(
           children: [
-            const _IconBox(icon: Icons.inbox_rounded),
-            const SizedBox(width: 12),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F7FB),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(
+                Icons.folder_open_rounded,
+                color: AppTheme.textMuted,
+              ),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(emptyTitle, style: _TextStyles.cardTitle),
+                  Text(
+                    emptyTitle,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(emptySubtitle, style: _TextStyles.cardSubtitle),
+                  Text(
+                    emptySubtitle,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      height: 1.35,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),
-            if (onEmptyAction != null)
-              TextButton(onPressed: onEmptyAction, child: const Text('Browse')),
+            const SizedBox(width: 12),
+            TextButton(
+              onPressed: onEmptyAction,
+              child: const Text('Browse'),
+            ),
           ],
         ),
       );
     }
-    return Column(
-      children: services
-          .take(internal ? 5 : 3)
-          .map((service) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: PremiumCard(
-                padding: const EdgeInsets.all(16),
-                onTap: () => onOpen(service),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            service.title.isEmpty
-                                ? 'Service Request'
-                                : service.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _TextStyles.cardTitle,
-                          ),
-                        ),
-                        _StatusPill(
-                          label: service.status.isEmpty
-                              ? 'Open'
-                              : service.status,
-                        ),
-                      ],
-                    ),
-                    if (internal && service.customerName.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        service.customerName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _TextStyles.cardSubtitle,
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: LinearProgressIndicator(
-                        value: service.progress <= 0 ? 0.12 : service.progress,
-                        minHeight: 7,
-                        backgroundColor: AppTheme.primaryRed.withValues(
-                          alpha: 0.08,
-                        ),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppTheme.primaryRed.withValues(alpha: 0.74),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MiniHealth(
-                            label: 'Docs',
-                            value:
-                                '${service.documentSummary.approved}/${service.documentSummary.total} approved',
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _MiniHealth(
-                            label: 'Payments',
-                            value:
-                                '${service.paymentSummary.paid}/${service.paymentSummary.total} paid',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          })
-          .toList(growable: false),
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          for (var index = 0; index < services.length; index++)
+            _ServiceRow(
+              service: services[index],
+              onTap: () => onOpen(services[index]),
+              showDivider: index != services.length - 1,
+            ),
+        ],
+      ),
     );
   }
 }
 
-class _RecentActivityCard extends StatelessWidget {
-  const _RecentActivityCard({required this.activities, required this.onTrack});
+class _ServiceRow extends StatelessWidget {
+  const _ServiceRow({
+    required this.service,
+    required this.onTap,
+    required this.showDivider,
+  });
+
+  final HomeDashboardServiceSnapshot service;
+  final VoidCallback onTap;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusTint = _statusTint(service.status);
+    final progress = service.progress.clamp(0.0, 1.0).toDouble();
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: statusTint.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.work_outline_rounded,
+                    color: statusTint,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        service.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Applied by ${service.customerName.isNotEmpty ? service.customerName : 'your team'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppTheme.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _StatusChip(text: _statusLabel(service.status), tint: statusTint),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      backgroundColor: statusTint.withValues(alpha: 0.10),
+                      valueColor: AlwaysStoppedAnimation<Color>(statusTint),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  '${(progress * 100).round()}%',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppTheme.textMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
+              ],
+            ),
+            if (showDivider) ...[
+              const SizedBox(height: 14),
+              Divider(height: 1, color: AppTheme.border.withValues(alpha: 0.8)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _statusTint(String status) {
+    switch (status.trim().toLowerCase()) {
+      case 'under review':
+      case 'pending':
+      case 'information required':
+        return const Color(0xFFF59E0B);
+      case 'approved':
+      case 'completed':
+      case 'paid':
+        return const Color(0xFF37B58D);
+      case 'rejected':
+      case 'cancelled':
+        return const Color(0xFFE45858);
+      default:
+        return const Color(0xFF4F8DFD);
+    }
+  }
+
+  String _statusLabel(String status) {
+    final value = status.trim();
+    if (value.isEmpty) return 'In progress';
+    return value;
+  }
+}
+
+class _ActivityTimelineCard extends StatelessWidget {
+  const _ActivityTimelineCard({
+    required this.activities,
+    required this.onTrack,
+  });
 
   final List<HomeDashboardActivity> activities;
   final VoidCallback onTrack;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(17),
-      child: activities.isEmpty
-          ? Row(
-              children: const [
-                _IconBox(icon: Icons.history_rounded),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Updates will appear here when your workspace changes.',
-                    style: _TextStyles.cardSubtitle,
-                  ),
+    if (activities.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.timeline_rounded, color: AppTheme.textMuted),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'No recent activity yet.',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            )
-          : Column(
-              children: [
-                for (final activity in activities) ...[
-                  _ActivityRow(activity: activity),
-                  if (activity != activities.last) const Divider(height: 18),
-                ],
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: onTrack,
-                    child: const Text('Open timeline'),
-                  ),
-                ),
-              ],
+              ),
             ),
+            TextButton(onPressed: onTrack, child: const Text('Track')),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          for (var index = 0; index < activities.length; index++)
+            _ActivityRow(
+              activity: activities[index],
+              showDivider: index != activities.length - 1,
+            ),
+        ],
+      ),
     );
   }
 }
 
 class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.activity});
+  const _ActivityRow({
+    required this.activity,
+    required this.showDivider,
+  });
 
   final HomeDashboardActivity activity;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          margin: const EdgeInsets.only(top: 4),
-          width: 9,
-          height: 9,
-          decoration: const BoxDecoration(
-            color: AppTheme.primaryRed,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
+    final tint = _tintForActivity(activity.status);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                activity.title.isEmpty ? 'Update' : activity.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _TextStyles.actionTitle,
-              ),
-              if (activity.subtitle.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  activity.subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _TextStyles.cardSubtitle,
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: tint.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ],
-              if ((activity.createdAtLabel ?? '').isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(activity.createdAtLabel!, style: _TextStyles.metricLabel),
-              ],
+                child: Icon(
+                  _iconForActivity(activity.status),
+                  color: tint,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activity.title.isNotEmpty ? activity.title : activity.subtitle,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      activity.subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.8,
+                        height: 1.35,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (activity.createdAtLabel?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        activity.createdAtLabel!,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppTheme.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted.withValues(alpha: 0.8)),
             ],
           ),
-        ),
-      ],
+          if (showDivider) ...[
+            const SizedBox(height: 14),
+            Divider(height: 1, color: AppTheme.border.withValues(alpha: 0.8)),
+          ],
+        ],
+      ),
     );
+  }
+
+  Color _tintForActivity(String? status) {
+    switch ((status ?? '').trim().toLowerCase()) {
+      case 'verified':
+      case 'approved':
+      case 'completed':
+        return const Color(0xFF37B58D);
+      case 'under review':
+      case 'pending':
+        return const Color(0xFF4F8DFD);
+      case 'needs information':
+      case 'information required':
+        return const Color(0xFFF59E0B);
+      case 'rejected':
+        return const Color(0xFFE45858);
+      default:
+        return const Color(0xFF9B6BFF);
+    }
+  }
+
+  IconData _iconForActivity(String? status) {
+    switch ((status ?? '').trim().toLowerCase()) {
+      case 'verified':
+      case 'approved':
+      case 'completed':
+        return Icons.check_circle_outline_rounded;
+      case 'under review':
+      case 'pending':
+        return Icons.pending_actions_rounded;
+      case 'needs information':
+      case 'information required':
+        return Icons.info_outline_rounded;
+      case 'rejected':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.receipt_long_rounded;
+    }
   }
 }
 
-class _MetricChip extends StatelessWidget {
-  const _MetricChip({required this.item});
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
+    required this.text,
+    required this.tint,
+  });
 
-  final _MetricItem item;
+  final String text;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 132,
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-      decoration: _softDecoration(21),
-      child: Row(
-        children: [
-          _IconBox(icon: item.icon, size: 34, iconSize: 17),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(item.value, style: _TextStyles.metricValue),
-                const SizedBox(height: 5),
-                Text(
-                  item.label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _TextStyles.metricLabel,
-                ),
-              ],
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: tint,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title, this.actionText, this.onAction});
-  final String title;
-  final String? actionText;
-  final VoidCallback? onAction;
-  @override
-  Widget build(BuildContext context) => SliverPadding(
-    padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-    sliver: SliverToBoxAdapter(
-      child: Row(
-        children: [
-          Expanded(child: Text(title, style: _TextStyles.sectionTitle)),
-          if (actionText != null)
-            TextButton(onPressed: onAction, child: Text(actionText!)),
-        ],
-      ),
-    ),
-  );
-}
-
-class _SliverBlock extends StatelessWidget {
-  const _SliverBlock({required this.child, this.top = 16, this.bottom = 0});
-  final Widget child;
-  final double top;
-  final double bottom;
-  @override
-  Widget build(BuildContext context) => SliverPadding(
-    padding: EdgeInsets.fromLTRB(20, top, 20, bottom),
-    sliver: SliverToBoxAdapter(child: child),
-  );
-}
-
-class _BannerImage extends StatelessWidget {
-  const _BannerImage({required this.url});
-  final String url;
-  @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(16),
-    child: Image.network(
-      url,
-      width: 52,
-      height: 52,
-      fit: BoxFit.cover,
-      errorBuilder: (_, _, _) => const _IconBox(icon: Icons.campaign_rounded),
-    ),
-  );
-}
-
-class _HeroBadge extends StatelessWidget {
-  const _HeroBadge({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.13),
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.verified_rounded, color: Colors.white, size: 16),
-        const SizedBox(width: 7),
-        Text(label.toUpperCase(), style: _TextStyles.whiteBadge),
-      ],
-    ),
-  );
-}
-
-class _HeroMiniStat extends StatelessWidget {
-  const _HeroMiniStat({required this.value, required this.label});
-  final String value;
-  final String label;
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 48,
-    padding: const EdgeInsets.symmetric(horizontal: 13),
-    decoration: BoxDecoration(
-      color: Colors.black.withValues(alpha: 0.14),
-      borderRadius: BorderRadius.circular(19),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-    ),
-    child: Row(
-      children: [
-        const Icon(Icons.timeline_rounded, color: Colors.white, size: 18),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            '$value $label',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _TextStyles.whiteMini,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _MiniHealth extends StatelessWidget {
-  const _MiniHealth({required this.label, required this.value});
-  final String label;
-  final String value;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF9F3F0),
-      borderRadius: BorderRadius.circular(15),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _TextStyles.metricLabel),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: _TextStyles.actionTitle,
-        ),
-      ],
-    ),
-  );
-}
-
-class _FallbackNote extends StatelessWidget {
-  const _FallbackNote({required this.message});
-  final String message;
-  @override
-  Widget build(BuildContext context) => PremiumCard(
-    padding: const EdgeInsets.all(13),
-    child: Row(
-      children: [
-        const _IconBox(
-          icon: Icons.info_outline_rounded,
-          size: 30,
-          iconSize: 17,
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(message, style: _TextStyles.cardSubtitle)),
-      ],
-    ),
-  );
-}
-
-class _TinyBadge extends StatelessWidget {
-  const _TinyBadge({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: AppTheme.primaryRed.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Text(
-      label,
-      style: const TextStyle(
-        color: AppTheme.primaryRed,
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  );
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-    decoration: BoxDecoration(
-      color: AppTheme.primaryRed.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Text(
-      label,
-      style: const TextStyle(
-        color: AppTheme.primaryRed,
-        fontSize: 11,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  );
-}
-
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.count});
-  final int count;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-    decoration: BoxDecoration(
-      color: AppTheme.primaryRed,
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Text(
-      count > 99 ? '99+' : '$count',
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  );
-}
-
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({
+class _HomeMetric {
+  const _HomeMetric({
+    required this.label,
+    required this.value,
     required this.icon,
-    required this.badgeCount,
-    required this.onTap,
+    required this.tint,
   });
-  final IconData icon;
-  final int badgeCount;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(18),
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: _softDecoration(18),
-          child: Icon(icon, color: AppTheme.primaryRed),
-        ),
-        if (badgeCount > 0)
-          Positioned(right: -3, top: -3, child: _CountBadge(count: badgeCount)),
-      ],
-    ),
-  );
-}
 
-class _IconBox extends StatelessWidget {
-  const _IconBox({required this.icon, this.size = 44, this.iconSize = 22});
-  final IconData icon;
-  final double size;
-  final double iconSize;
-  @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: AppTheme.primaryRed.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(size * 0.36),
-    ),
-    child: Icon(icon, color: AppTheme.primaryRed, size: iconSize),
-  );
-}
-
-class _AttentionItem {
-  const _AttentionItem(
-    this.icon,
-    this.title,
-    this.subtitle,
-    this.actionLabel,
-    this.onTap,
-  );
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String actionLabel;
-  final VoidCallback onTap;
-}
-
-class _MetricItem {
-  const _MetricItem(this.label, this.value, this.icon, [this.route]);
   final String label;
-  final String value;
+  final int value;
   final IconData icon;
-  final String? route;
-}
-
-BoxDecoration _softDecoration(double radius) => BoxDecoration(
-  color: Colors.white,
-  borderRadius: BorderRadius.circular(radius),
-  border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
-  boxShadow: [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.045),
-      blurRadius: 24,
-      offset: const Offset(0, 13),
-    ),
-  ],
-);
-
-String? _routeCapability(String route) {
-  if (route.startsWith('/documents')) return 'can_view_documents';
-  if (route.startsWith('/payments')) return 'can_view_payments';
-  if (route.startsWith('/my-services')) return 'can_track_requests';
-  if (route.startsWith('/support')) return 'can_create_support_ticket';
-  return null;
-}
-
-List<_MetricItem> _customerMetrics(HomeDashboardSummary summary) => [
-  _MetricItem(
-    'Active services',
-    summary.activeCases.toString(),
-    Icons.assignment_turned_in_rounded,
-  ),
-  _MetricItem(
-    'Missing docs',
-    summary.pendingDocuments.toString(),
-    Icons.folder_copy_rounded,
-  ),
-  _MetricItem(
-    'Payments due',
-    summary.paymentsDue.toString(),
-    Icons.account_balance_wallet_rounded,
-  ),
-  _MetricItem(
-    'Support open',
-    summary.supportSummary.open.toString(),
-    Icons.support_agent_rounded,
-  ),
-];
-
-const List<MobileQuickAction> _fallbackInternalActions = [
-  MobileQuickAction(
-    id: 'internal-service-cases',
-    title: 'Cases',
-    subtitle: 'Services',
-    iconKey: 'dashboard',
-    targetType: MobileQuickActionTargetType.route,
-    targetValue: '/internal-workspace/service-cases',
-    requiredCapability: 'can_access_internal_workspace',
-    sortOrder: 10,
-  ),
-  MobileQuickAction(
-    id: 'internal-documents',
-    title: 'Documents',
-    subtitle: 'Review',
-    iconKey: 'documents',
-    targetType: MobileQuickActionTargetType.route,
-    targetValue: '/internal-workspace/documents',
-    requiredCapability: 'can_access_internal_workspace',
-    badgeType: 'documents',
-    sortOrder: 20,
-  ),
-  MobileQuickAction(
-    id: 'internal-payments',
-    title: 'Payments',
-    subtitle: 'Review',
-    iconKey: 'payments',
-    targetType: MobileQuickActionTargetType.route,
-    targetValue: '/internal-workspace/payments',
-    requiredCapability: 'can_access_internal_workspace',
-    badgeType: 'payments',
-    sortOrder: 30,
-  ),
-  MobileQuickAction(
-    id: 'internal-leads',
-    title: 'Leads',
-    subtitle: 'Pipeline',
-    iconKey: 'services',
-    targetType: MobileQuickActionTargetType.route,
-    targetValue: '/leads',
-    requiredCapability: 'can_access_internal_workspace',
-    sortOrder: 40,
-  ),
-  MobileQuickAction(
-    id: 'internal-tasks',
-    title: 'Tasks',
-    subtitle: 'Pending',
-    iconKey: 'track',
-    targetType: MobileQuickActionTargetType.route,
-    targetValue: '/tasks',
-    requiredCapability: 'can_access_internal_workspace',
-    sortOrder: 50,
-  ),
-  MobileQuickAction(
-    id: 'internal-customers',
-    title: 'Customers',
-    subtitle: 'Profiles',
-    iconKey: 'message',
-    targetType: MobileQuickActionTargetType.route,
-    targetValue: '/customers',
-    requiredCapability: 'can_access_internal_workspace',
-    sortOrder: 60,
-  ),
-];
-
-abstract final class _TextStyles {
-  static const eyebrow = TextStyle(
-    color: AppTheme.textSecondary,
-    fontSize: 12,
-    fontWeight: FontWeight.w800,
-    letterSpacing: 0.4,
-  );
-  static const pageTitle = TextStyle(
-    color: AppTheme.textPrimary,
-    fontSize: 22,
-    height: 1.05,
-    fontWeight: FontWeight.w900,
-    letterSpacing: -0.5,
-  );
-  static const heroTitle = TextStyle(
-    color: Colors.white,
-    fontSize: 25,
-    height: 1.06,
-    fontWeight: FontWeight.w900,
-    letterSpacing: -0.8,
-  );
-  static const heroSubtitle = TextStyle(
-    color: Colors.white70,
-    fontSize: 14,
-    height: 1.45,
-    fontWeight: FontWeight.w600,
-  );
-  static const whiteMini = TextStyle(
-    color: Colors.white,
-    fontSize: 12,
-    fontWeight: FontWeight.w800,
-  );
-  static const whiteBadge = TextStyle(
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: FontWeight.w900,
-    letterSpacing: 0.4,
-  );
-  static const sectionTitle = TextStyle(
-    color: AppTheme.textPrimary,
-    fontSize: 18,
-    fontWeight: FontWeight.w900,
-    letterSpacing: -0.35,
-  );
-  static const cardTitle = TextStyle(
-    color: AppTheme.textPrimary,
-    fontSize: 15,
-    fontWeight: FontWeight.w900,
-    letterSpacing: -0.15,
-  );
-  static const cardSubtitle = TextStyle(
-    color: AppTheme.textSecondary,
-    fontSize: 12.6,
-    height: 1.35,
-    fontWeight: FontWeight.w600,
-  );
-  static const metricValue = TextStyle(
-    color: AppTheme.textPrimary,
-    fontSize: 18,
-    fontWeight: FontWeight.w900,
-    letterSpacing: -0.45,
-  );
-  static const metricLabel = TextStyle(
-    color: AppTheme.textSecondary,
-    fontSize: 10.5,
-    fontWeight: FontWeight.w700,
-  );
-  static const actionTitle = TextStyle(
-    color: AppTheme.textPrimary,
-    fontSize: 12.5,
-    fontWeight: FontWeight.w900,
-  );
-  static const actionSubtitle = TextStyle(
-    color: AppTheme.textSecondary,
-    fontSize: 11,
-    fontWeight: FontWeight.w700,
-  );
-  static const linkLabel = TextStyle(
-    color: AppTheme.primaryRed,
-    fontSize: 12,
-    fontWeight: FontWeight.w900,
-  );
+  final Color tint;
 }
