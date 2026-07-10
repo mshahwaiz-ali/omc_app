@@ -23,6 +23,7 @@
   "is_featured",
   "support_message",
   "wizard_type",
+  "color_family",
   "wizard_config",
   "is_active"
  ],
@@ -121,6 +122,14 @@
    "fieldtype": "Select",
    "label": "Wizard Type",
    "options": "\nTax\nGST\nBusiness"
+  },
+  {
+   "default": "Tax",
+   "fieldname": "color_family",
+   "fieldtype": "Select",
+   "label": "Color Family",
+   "options": "\nTax\nPayments\nDocuments\nServices\nTrack\nLeads\nTasks\nNotifications",
+   "description": "Controls the accent family used by the app for this service."
   },
   {
    "fieldname": "wizard_config",
