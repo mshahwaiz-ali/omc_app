@@ -13,22 +13,25 @@ import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
 
-const Color _accent = Color(0xFF355CFF);
-const Color _accentSoft = Color(0xFFEAF0FF);
-const Color _accentTint = Color(0xFFF7F9FF);
-const Color _success = Color(0xFF10B981);
-const Color _teal = Color(0xFF0F9D8E);
-const Color _warning = Color(0xFFF59E0B);
-const Color _completed = Color(0xFF22C55E);
-const Color _mutedRose = Color(0xFFF8E9EE);
-const Color _mutedRoseBorder = Color(0xFFEFCED7);
+const Color _ink = Color(0xFF0F172A);
+const Color _slate = Color(0xFF64748B);
+const Color _surface = Color(0xFFF8FAFC);
+const Color _surfaceSoft = Color(0xFFEEF2F7);
+const Color _border = Color(0xFFE5E7EB);
+const Color _primary = Color(0xFF111827);
+const Color _primarySoft = Color(0xFFF3F4F6);
+const Color _success = Color(0xFF0F9D8E);
+const Color _review = Color(0xFF6D28D9);
+const Color _attention = Color(0xFFF59E0B);
+const Color _done = Color(0xFF16A34A);
+const Color _roseSoft = Color(0xFFFFF1F3);
+const Color _roseBorder = Color(0xFFF6CDD6);
 
 class ServiceCatalogueScreen extends ConsumerStatefulWidget {
   const ServiceCatalogueScreen({super.key});
 
   @override
-  ConsumerState<ServiceCatalogueScreen> createState() =>
-      _ServiceCatalogueScreenState();
+  ConsumerState<ServiceCatalogueScreen> createState() => _ServiceCatalogueScreenState();
 }
 
 class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen> {
@@ -109,7 +112,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: AppTheme.textPrimary,
+                            color: _ink,
                             fontSize: 34,
                             height: 1.02,
                             fontWeight: FontWeight.w900,
@@ -122,7 +125,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: _slate,
                             fontSize: 15,
                             height: 1.4,
                             fontWeight: FontWeight.w600,
@@ -166,10 +169,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                               ),
                         filled: true,
                         fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide(color: AppTheme.border),
@@ -180,7 +180,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
-                          borderSide: const BorderSide(color: _accent, width: 1.2),
+                          borderSide: const BorderSide(color: _primary, width: 1.2),
                         ),
                       ),
                     ),
@@ -200,7 +200,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                 onActionTap: () => context.go(_bannerRouteFor(authState)),
               ),
               const SizedBox(height: 16),
-              _SummaryTiles(
+              _SummaryGrid(
                 totalServices: services.length,
                 openServices: statusCounts[_ServiceStatus.open] ?? 0,
                 underReviewServices: statusCounts[_ServiceStatus.underReview] ?? 0,
@@ -237,7 +237,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                     child: Text(
                       'My Services',
                       style: TextStyle(
-                        color: AppTheme.textPrimary,
+                        color: _ink,
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.2,
@@ -247,7 +247,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                   Text(
                     '(${filteredServices.length})',
                     style: const TextStyle(
-                      color: AppTheme.textSecondary,
+                      color: _slate,
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -256,13 +256,13 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                   const Text(
                     'Sort by: Recent',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      color: _slate,
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(width: 2),
-                  const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
+                  const Icon(Icons.keyboard_arrow_down_rounded, color: _slate),
                 ],
               ),
               const SizedBox(height: 12),
@@ -300,14 +300,10 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                     child: _ServiceDashboardCard(
                       service: service,
                       status: status,
-                      onTap: () => context.push(
-                        '/services/${Uri.encodeComponent(service.id)}',
-                      ),
+                      onTap: () => context.push('/services/${Uri.encodeComponent(service.id)}'),
                       onRequest: () {
                         if (capabilities.canCreateServiceRequest) {
-                          context.push(
-                            '/services/${Uri.encodeComponent(service.id)}/request',
-                          );
+                          context.push('/services/${Uri.encodeComponent(service.id)}/request');
                           return;
                         }
                         _showLockedSnack(context, capabilities);
@@ -323,7 +319,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                     child: Text(
                       'Recent Activity',
                       style: TextStyle(
-                        color: AppTheme.textPrimary,
+                        color: _ink,
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.2,
@@ -341,7 +337,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                     icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                     label: const Text('View All'),
                     style: TextButton.styleFrom(
-                      foregroundColor: _accent,
+                      foregroundColor: _ink,
                       textStyle: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w900,
@@ -412,7 +408,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
               const Text(
                 'Filter services',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
+                  color: _ink,
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
                 ),
@@ -421,7 +417,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
               const Text(
                 'Narrow by status or category.',
                 style: TextStyle(
-                  color: AppTheme.textSecondary,
+                  color: _slate,
                   fontSize: 13,
                   height: 1.35,
                   fontWeight: FontWeight.w600,
@@ -431,7 +427,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
               const Text(
                 'Status',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
+                  color: _ink,
                   fontSize: 13,
                   fontWeight: FontWeight.w900,
                 ),
@@ -445,7 +441,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                     _FilterPill(
                       label: status,
                       selected: _selectedStatus == status,
-                      selectedColor: _accent,
+                      selectedColor: _primary,
                       onTap: () {
                         setState(() => _selectedStatus = status);
                         Navigator.of(sheetContext).pop();
@@ -457,7 +453,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
               const Text(
                 'Category',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
+                  color: _ink,
                   fontSize: 13,
                   fontWeight: FontWeight.w900,
                 ),
@@ -471,7 +467,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                     _FilterPill(
                       label: category,
                       selected: _selectedCategory == category,
-                      selectedColor: _accent,
+                      selectedColor: _primary,
                       onTap: () {
                         setState(() => _selectedCategory = category);
                         Navigator.of(sheetContext).pop();
@@ -499,7 +495,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                           borderRadius: BorderRadius.circular(16),
                         ),
                         side: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
-                        foregroundColor: AppTheme.textPrimary,
+                        foregroundColor: _ink,
                       ),
                       child: const Text('Clear all'),
                     ),
@@ -510,7 +506,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
                       onPressed: () => Navigator.of(sheetContext).pop(),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(50),
-                        backgroundColor: _accent,
+                        backgroundColor: _primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -575,10 +571,12 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
   }
 
   List<ServiceItem> _filterServices(List<ServiceItem> services) {
-    return services.where((service) {
+    final filtered = <ServiceItem>[];
+    for (var index = 0; index < services.length; index++) {
+      final service = services[index];
       final matchesCategory =
           _selectedCategory == _allCategory || service.category == _selectedCategory;
-      final serviceStatus = _serviceStatusFor(service, services.indexOf(service));
+      final serviceStatus = _serviceStatusFor(service, index);
       final matchesStatus = _selectedStatus == _allStatus ||
           _statusLabelFor(serviceStatus) == _selectedStatus;
       final searchableText = [
@@ -591,8 +589,11 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
         ...service.requirements,
       ].join(' ').toLowerCase();
       final matchesQuery = _query.isEmpty || searchableText.contains(_query);
-      return matchesCategory && matchesStatus && matchesQuery;
-    }).toList(growable: false);
+      if (matchesCategory && matchesStatus && matchesQuery) {
+        filtered.add(service);
+      }
+    }
+    return filtered;
   }
 
   Map<_ServiceStatus, int> _buildStatusCounts(List<ServiceItem> services) {
@@ -615,7 +616,7 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
       return const [
         _ActivityItem(
           icon: Icons.history_rounded,
-          color: _accent,
+          color: _primary,
           title: 'No service activity yet',
           subtitle: 'Activity will appear here once services are requested.',
           timeLabel: 'Just now',
@@ -637,14 +638,14 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
       ),
       _ActivityItem(
         icon: Icons.description_outlined,
-        color: _teal,
+        color: _review,
         title: 'Document uploaded',
         subtitle: 'For ${second.title}',
         timeLabel: '5h ago',
       ),
       _ActivityItem(
         icon: Icons.person_pin_outlined,
-        color: _warning,
+        color: _attention,
         title: 'Request assigned',
         subtitle: 'For ${third.title} by the support team',
         timeLabel: '1d ago',
@@ -676,13 +677,13 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
   Color _statusColor(_ServiceStatus status) {
     switch (status) {
       case _ServiceStatus.open:
-        return _accent;
+        return _primary;
       case _ServiceStatus.underReview:
-        return _teal;
+        return _review;
       case _ServiceStatus.actionNeeded:
-        return _warning;
+        return _attention;
       case _ServiceStatus.completed:
-        return _completed;
+        return _done;
     }
   }
 
@@ -702,68 +703,37 @@ class _ServiceCatalogueScreenState extends ConsumerState<ServiceCatalogueScreen>
   }
 
   _ServiceTone _serviceTone(ServiceItem service) {
-    final source = '${service.category} ${service.title} ${service.wizardType ?? ''}'
-        .toLowerCase();
+    final source = '${service.category} ${service.title} ${service.wizardType ?? ''}'.toLowerCase();
 
     if (source.contains('visa')) {
-      return const _ServiceTone(
-        icon: Icons.flight_takeoff_rounded,
-        color: Color(0xFF10B981),
-      );
+      return const _ServiceTone(icon: Icons.flight_takeoff_rounded, color: Color(0xFF0F9D8E));
     }
     if (source.contains('tax') || source.contains('ntn') || source.contains('gst')) {
-      return const _ServiceTone(
-        icon: Icons.receipt_long_outlined,
-        color: Color(0xFF2563EB),
-      );
+      return const _ServiceTone(icon: Icons.receipt_long_outlined, color: Color(0xFF4F46E5));
     }
     if (source.contains('business') || source.contains('setup')) {
-      return const _ServiceTone(
-        icon: Icons.apartment_outlined,
-        color: Color(0xFF7C3AED),
-      );
+      return const _ServiceTone(icon: Icons.apartment_outlined, color: Color(0xFF7C3AED));
     }
     if (source.contains('document')) {
-      return const _ServiceTone(
-        icon: Icons.description_outlined,
-        color: Color(0xFF6366F1),
-      );
+      return const _ServiceTone(icon: Icons.description_outlined, color: Color(0xFF6366F1));
     }
     if (source.contains('payment') || source.contains('receipt') || source.contains('invoice')) {
-      return const _ServiceTone(
-        icon: Icons.payments_outlined,
-        color: Color(0xFF0F9D8E),
-      );
+      return const _ServiceTone(icon: Icons.payments_outlined, color: Color(0xFF059669));
     }
     if (source.contains('hr') || source.contains('employee')) {
-      return const _ServiceTone(
-        icon: Icons.groups_rounded,
-        color: Color(0xFF14B8A6),
-      );
+      return const _ServiceTone(icon: Icons.groups_rounded, color: Color(0xFF14B8A6));
     }
     if (source.contains('lead')) {
-      return const _ServiceTone(
-        icon: Icons.record_voice_over_rounded,
-        color: Color(0xFF8B5CF6),
-      );
+      return const _ServiceTone(icon: Icons.record_voice_over_rounded, color: Color(0xFF8B5CF6));
     }
     if (source.contains('task') || source.contains('todo')) {
-      return const _ServiceTone(
-        icon: Icons.task_alt_rounded,
-        color: Color(0xFFF97316),
-      );
+      return const _ServiceTone(icon: Icons.task_alt_rounded, color: Color(0xFFF97316));
     }
     if (source.contains('support') || source.contains('case') || source.contains('request')) {
-      return const _ServiceTone(
-        icon: Icons.support_agent_rounded,
-        color: Color(0xFF355CFF),
-      );
+      return const _ServiceTone(icon: Icons.support_agent_rounded, color: Color(0xFF334155));
     }
 
-    return const _ServiceTone(
-      icon: Icons.workspace_premium_outlined,
-      color: Color(0xFF355CFF),
-    );
+    return const _ServiceTone(icon: Icons.workspace_premium_outlined, color: Color(0xFF334155));
   }
 
   String? _wizardBadgeLabel(ServiceItem service) {
@@ -860,7 +830,7 @@ class _ServicesHeroHeader extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: AppTheme.textSecondary,
+                  color: _slate,
                   fontSize: 14,
                   height: 1.1,
                   fontWeight: FontWeight.w600,
@@ -872,7 +842,7 @@ class _ServicesHeroHeader extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: AppTheme.textPrimary,
+                  color: _ink,
                   fontSize: 30,
                   height: 1.0,
                   fontWeight: FontWeight.w900,
@@ -933,10 +903,11 @@ class _IconBadgeButton extends StatelessWidget {
               width: 54,
               height: 54,
               decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppTheme.border),
               ),
-              child: Icon(icon, color: AppTheme.textPrimary, size: 25),
+              child: Icon(icon, color: _ink, size: 25),
             ),
           ),
         ),
@@ -948,7 +919,7 @@ class _IconBadgeButton extends StatelessWidget {
               constraints: const BoxConstraints(minWidth: 18),
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
-                color: _accent,
+                color: _primary,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(color: Colors.white, width: 1.6),
               ),
@@ -994,7 +965,7 @@ class _AvatarButton extends StatelessWidget {
           child: Text(
             _initials(displayName),
             style: const TextStyle(
-              color: AppTheme.textPrimary,
+              color: _ink,
               fontSize: 15,
               fontWeight: FontWeight.w900,
             ),
@@ -1043,7 +1014,7 @@ class _StatusBanner extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppTheme.textPrimary,
+                    color: _ink,
                     fontSize: 16.5,
                     height: 1.1,
                     fontWeight: FontWeight.w900,
@@ -1055,7 +1026,7 @@ class _StatusBanner extends StatelessWidget {
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: _slate,
                     fontSize: 13.5,
                     height: 1.38,
                     fontWeight: FontWeight.w600,
@@ -1071,7 +1042,7 @@ class _StatusBanner extends StatelessWidget {
               FilledButton(
                 onPressed: onActionTap,
                 style: FilledButton.styleFrom(
-                  backgroundColor: _accent,
+                  backgroundColor: _primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 46),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1090,7 +1061,7 @@ class _StatusBanner extends StatelessWidget {
                 const Text(
                   'Limited access',
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: _slate,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1133,10 +1104,10 @@ _StatusBannerData _bannerFor(AuthState authState) {
       message:
           'Create your account to unlock service requests, document uploads and live progress tracking.',
       actionLabel: 'Create Account',
-      background: _accentTint,
-      border: Color(0xFFE3E9FF),
-      iconBackground: _accentSoft,
-      iconColor: _accent,
+      background: Color(0xFFF7F8FB),
+      border: _border,
+      iconBackground: _primarySoft,
+      iconColor: _ink,
       icon: Icons.shield_outlined,
     );
   }
@@ -1147,10 +1118,10 @@ _StatusBannerData _bannerFor(AuthState authState) {
       message:
           'You have limited access. Complete your profile for full access to all services.',
       actionLabel: 'Complete Profile',
-      background: _accentTint,
-      border: Color(0xFFE3E9FF),
-      iconBackground: _accentSoft,
-      iconColor: _accent,
+      background: Color(0xFFF7F8FB),
+      border: _border,
+      iconBackground: _primarySoft,
+      iconColor: _ink,
       icon: Icons.verified_user_outlined,
     );
   }
@@ -1161,8 +1132,8 @@ _StatusBannerData _bannerFor(AuthState authState) {
       message:
           'This account is not approved for service requests. Contact support to continue.',
       actionLabel: 'Contact Support',
-      background: _mutedRose,
-      border: _mutedRoseBorder,
+      background: _roseSoft,
+      border: _roseBorder,
       iconBackground: Color(0xFFFCE7EC),
       iconColor: Color(0xFFDB2777),
       icon: Icons.block_outlined,
@@ -1175,10 +1146,10 @@ _StatusBannerData _bannerFor(AuthState authState) {
       message:
           'Open review queues, service statuses and customer activity from one page.',
       actionLabel: 'Open Workspace',
-      background: _accentTint,
-      border: Color(0xFFE3E9FF),
-      iconBackground: _accentSoft,
-      iconColor: _accent,
+      background: Color(0xFFF7F8FB),
+      border: _border,
+      iconBackground: _primarySoft,
+      iconColor: _ink,
       icon: Icons.apartment_outlined,
     );
   }
@@ -1188,16 +1159,16 @@ _StatusBannerData _bannerFor(AuthState authState) {
     message:
         'Track requests, upload documents and review progress without leaving this page.',
     actionLabel: 'Open My Services',
-    background: _accentTint,
-    border: Color(0xFFE3E9FF),
-    iconBackground: _accentSoft,
-    iconColor: _accent,
+    background: Color(0xFFF7F8FB),
+    border: _border,
+    iconBackground: _primarySoft,
+    iconColor: _ink,
     icon: Icons.workspace_premium_outlined,
   );
 }
 
-class _SummaryTiles extends StatelessWidget {
-  const _SummaryTiles({
+class _SummaryGrid extends StatelessWidget {
+  const _SummaryGrid({
     required this.totalServices,
     required this.openServices,
     required this.underReviewServices,
@@ -1213,56 +1184,41 @@ class _SummaryTiles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return GridView.count(
+      crossAxisCount: 2,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 2.3,
       children: [
-        Expanded(
-          child: _SummaryTile(
-            icon: Icons.folder_outlined,
-            label: 'Services',
-            value: totalServices.toString(),
-            subtitle: 'Total',
-            tint: _accent,
-          ),
+        _SummaryTile(
+          icon: Icons.folder_outlined,
+          label: 'Services',
+          value: totalServices.toString(),
+          subtitle: 'Total',
+          tint: _ink,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _SummaryTile(
-            icon: Icons.visibility_outlined,
-            label: 'Open',
-            value: openServices.toString(),
-            subtitle: 'Active cases',
-            tint: _accent,
-          ),
+        _SummaryTile(
+          icon: Icons.visibility_outlined,
+          label: 'Open',
+          value: openServices.toString(),
+          subtitle: 'Active cases',
+          tint: _primary,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _SummaryTile(
-            icon: Icons.schedule_outlined,
-            label: 'Under Review',
-            value: underReviewServices.toString(),
-            subtitle: 'Awaiting review',
-            tint: _teal,
-          ),
+        _SummaryTile(
+          icon: Icons.schedule_outlined,
+          label: 'Under Review',
+          value: underReviewServices.toString(),
+          subtitle: 'Awaiting review',
+          tint: _review,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _SummaryTile(
-            icon: Icons.priority_high_rounded,
-            label: 'Action Needed',
-            value: actionNeededServices.toString(),
-            subtitle: 'Needs attention',
-            tint: _warning,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _SummaryTile(
-            icon: Icons.verified_outlined,
-            label: 'Completed',
-            value: completedServices.toString(),
-            subtitle: 'This month',
-            tint: _completed,
-          ),
+        _SummaryTile(
+          icon: Icons.verified_outlined,
+          label: 'Completed',
+          value: completedServices.toString(),
+          subtitle: 'This month',
+          tint: _done,
         ),
       ],
     );
@@ -1290,6 +1246,7 @@ class _SummaryTile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             width: 34,
@@ -1307,20 +1264,20 @@ class _SummaryTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: AppTheme.textPrimary,
+              color: _ink,
               fontSize: 15,
               fontWeight: FontWeight.w900,
               height: 1.0,
               letterSpacing: -0.1,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: AppTheme.textSecondary,
+              color: _slate,
               fontSize: 11,
               fontWeight: FontWeight.w800,
               height: 1.1,
@@ -1360,25 +1317,13 @@ class _StatusChipsRow extends StatelessWidget {
     final items = <({String label, Color color, int count})>[
       (
         label: 'All Services',
-        color: _accent,
+        color: _primary,
         count: counts.values.fold<int>(0, (a, b) => a + b),
       ),
-      (label: 'Open', color: _accent, count: counts[_ServiceStatus.open] ?? 0),
-      (
-        label: 'Under Review',
-        color: _teal,
-        count: counts[_ServiceStatus.underReview] ?? 0,
-      ),
-      (
-        label: 'Action Needed',
-        color: _warning,
-        count: counts[_ServiceStatus.actionNeeded] ?? 0,
-      ),
-      (
-        label: 'Completed',
-        color: _completed,
-        count: counts[_ServiceStatus.completed] ?? 0,
-      ),
+      (label: 'Open', color: _primary, count: counts[_ServiceStatus.open] ?? 0),
+      (label: 'Under Review', color: _review, count: counts[_ServiceStatus.underReview] ?? 0),
+      (label: 'Action Needed', color: _attention, count: counts[_ServiceStatus.actionNeeded] ?? 0),
+      (label: 'Completed', color: _done, count: counts[_ServiceStatus.completed] ?? 0),
     ];
 
     return SizedBox(
@@ -1426,7 +1371,7 @@ class _CategoryChipsRow extends StatelessWidget {
           return _FilterPill(
             label: category,
             selected: selectedCategory == category,
-            selectedColor: _accent,
+            selectedColor: _primary,
             onTap: () => onSelected(category),
           );
         },
@@ -1492,7 +1437,7 @@ class _FilterPill extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? selectedColor : AppTheme.textPrimary,
+                  color: selected ? selectedColor : _ink,
                   fontSize: 12.8,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.08,
@@ -1509,7 +1454,7 @@ class _FilterPill extends StatelessWidget {
                   child: Text(
                     count.toString(),
                     style: TextStyle(
-                      color: selected ? selectedColor : AppTheme.textSecondary,
+                      color: selected ? selectedColor : _slate,
                       fontSize: 11.2,
                       fontWeight: FontWeight.w900,
                     ),
@@ -1540,10 +1485,10 @@ class _TrackMyServicesCard extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: _accentSoft,
+              color: _primarySoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.assignment_outlined, color: _accent, size: 23),
+            child: const Icon(Icons.assignment_outlined, color: _ink, size: 23),
           ),
           const SizedBox(width: 14),
           const Expanded(
@@ -1553,7 +1498,7 @@ class _TrackMyServicesCard extends StatelessWidget {
                 Text(
                   'Track My Services',
                   style: TextStyle(
-                    color: AppTheme.textPrimary,
+                    color: _ink,
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1562,7 +1507,7 @@ class _TrackMyServicesCard extends StatelessWidget {
                 Text(
                   'View active cases, missing documents and progress.',
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: _slate,
                     fontSize: 12,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
@@ -1576,12 +1521,12 @@ class _TrackMyServicesCard extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: _accent.withValues(alpha: 0.08),
+              color: _primary.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.chevron_right_rounded,
-              color: _accent,
+              color: _ink,
               size: 20,
             ),
           ),
@@ -1662,7 +1607,7 @@ class _ServiceDashboardCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: AppTheme.textPrimary,
+                        color: _ink,
                         fontSize: 18,
                         height: 1.16,
                         fontWeight: FontWeight.w900,
@@ -1676,7 +1621,7 @@ class _ServiceDashboardCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: AppTheme.textSecondary,
+                          color: _slate,
                           fontSize: 12.5,
                           height: 1.35,
                           fontWeight: FontWeight.w600,
@@ -1694,7 +1639,7 @@ class _ServiceDashboardCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   const Icon(
                     Icons.chevron_right_rounded,
-                    color: AppTheme.textSecondary,
+                    color: _slate,
                     size: 28,
                   ),
                 ],
@@ -1714,12 +1659,11 @@ class _ServiceDashboardCard extends StatelessWidget {
               PremiumInfoChip(
                 icon: Icons.schedule_rounded,
                 label: service.completionTime,
-                color: _teal,
+                color: _review,
               ),
             ],
           ),
-          if (service.governmentFeeLabel != null &&
-              service.governmentFeeLabel!.trim().isNotEmpty) ...[
+          if (service.governmentFeeLabel != null && service.governmentFeeLabel!.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -1738,7 +1682,7 @@ class _ServiceDashboardCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: AppTheme.textSecondary,
+                        color: _slate,
                         fontSize: 12,
                         height: 1.3,
                         fontWeight: FontWeight.w700,
@@ -1766,7 +1710,7 @@ class _ServiceDashboardCard extends StatelessWidget {
               const Text(
                 'Progress',
                 style: TextStyle(
-                  color: AppTheme.textSecondary,
+                  color: _slate,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1778,7 +1722,7 @@ class _ServiceDashboardCard extends StatelessWidget {
             const Text(
               'Requirements',
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: _ink,
                 fontSize: 14,
                 fontWeight: FontWeight.w900,
               ),
@@ -1819,7 +1763,7 @@ class _ServiceDashboardCard extends StatelessWidget {
                   ),
                   label: Text(wizardLabel == null ? 'Request' : 'Start wizard'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: _accent,
+                    backgroundColor: _primary,
                     foregroundColor: Colors.white,
                     minimumSize: const Size.fromHeight(52),
                     shape: RoundedRectangleBorder(
@@ -1857,7 +1801,7 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -1954,7 +1898,7 @@ class _RequirementRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: _accent.withValues(alpha: 0.035),
+        color: _primary.withValues(alpha: 0.035),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -1964,10 +1908,10 @@ class _RequirementRow extends StatelessWidget {
             width: 18,
             height: 18,
             decoration: BoxDecoration(
-              color: _accent.withValues(alpha: 0.08),
+              color: _primary.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_rounded, color: _accent, size: 13),
+            child: const Icon(Icons.check_rounded, color: _primary, size: 13),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1976,7 +1920,7 @@ class _RequirementRow extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: AppTheme.textSecondary,
+                color: _slate,
                 fontSize: 13,
                 height: 1.3,
                 fontWeight: FontWeight.w700,
@@ -2068,7 +2012,7 @@ class _ActivityRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppTheme.textPrimary,
+                    color: _ink,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w900,
                   ),
@@ -2079,7 +2023,7 @@ class _ActivityRow extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: _slate,
                     fontSize: 12.3,
                     height: 1.32,
                     fontWeight: FontWeight.w600,
@@ -2095,7 +2039,7 @@ class _ActivityRow extends StatelessWidget {
               Text(
                 item.timeLabel,
                 style: const TextStyle(
-                  color: AppTheme.textSecondary,
+                  color: _slate,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -2103,7 +2047,7 @@ class _ActivityRow extends StatelessWidget {
               const SizedBox(height: 10),
               const Icon(
                 Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
+                color: _slate,
                 size: 20,
               ),
             ],
@@ -2151,7 +2095,7 @@ class _ActionButton extends StatelessWidget {
         icon: Icon(icon, size: 18),
         label: Text(label),
         style: FilledButton.styleFrom(
-          backgroundColor: _accent,
+          backgroundColor: _primary,
           foregroundColor: Colors.white,
           minimumSize: const Size(0, 54),
           padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -2165,19 +2109,29 @@ class _ActionButton extends StatelessWidget {
       height: 54,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, size: 18, color: _accent),
+        icon: Icon(icon, size: 18, color: _primary),
         label: Text(label),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          side: BorderSide(color: _accent.withValues(alpha: 0.14)),
-          foregroundColor: _accent,
+          side: BorderSide(color: _primary.withValues(alpha: 0.14)),
+          foregroundColor: _primary,
           backgroundColor: Colors.white,
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
         ),
       ),
     );
   }
+}
+
+class _ServiceTone {
+  const _ServiceTone({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  Color get soft => color.withValues(alpha: 0.09);
+  Color get border => color.withValues(alpha: 0.16);
 }
 
 String _initials(String value) {
@@ -2194,74 +2148,4 @@ String _initials(String value) {
     buffer.write(parts.last[0]);
   }
   return buffer.toString().toUpperCase();
-}
-
-_StatusBannerData _bannerFor(AuthState authState) {
-  if (authState.capabilities.isGuest) {
-    return const _StatusBannerData(
-      title: 'Guest access active',
-      message:
-          'Create your account to unlock service requests, document uploads and live progress tracking.',
-      actionLabel: 'Create Account',
-      background: _accentTint,
-      border: Color(0xFFE3E9FF),
-      iconBackground: _accentSoft,
-      iconColor: _accent,
-      icon: Icons.shield_outlined,
-    );
-  }
-
-  if (authState.capabilities.isPending) {
-    return const _StatusBannerData(
-      title: 'Your profile is under review',
-      message:
-          'You have limited access. Complete your profile for full access to all services.',
-      actionLabel: 'Complete Profile',
-      background: _accentTint,
-      border: Color(0xFFE3E9FF),
-      iconBackground: _accentSoft,
-      iconColor: _accent,
-      icon: Icons.verified_user_outlined,
-    );
-  }
-
-  if (authState.capabilities.isRejected) {
-    return const _StatusBannerData(
-      title: 'Access restricted',
-      message:
-          'This account is not approved for service requests. Contact support to continue.',
-      actionLabel: 'Contact Support',
-      background: _mutedRose,
-      border: _mutedRoseBorder,
-      iconBackground: Color(0xFFFCE7EC),
-      iconColor: Color(0xFFDB2777),
-      icon: Icons.block_outlined,
-    );
-  }
-
-  if (authState.capabilities.isInternal) {
-    return const _StatusBannerData(
-      title: 'Internal workspace connected',
-      message:
-          'Open review queues, service statuses and customer activity from one page.',
-      actionLabel: 'Open Workspace',
-      background: _accentTint,
-      border: Color(0xFFE3E9FF),
-      iconBackground: _accentSoft,
-      iconColor: _accent,
-      icon: Icons.apartment_outlined,
-    );
-  }
-
-  return const _StatusBannerData(
-    title: 'Service dashboard ready',
-    message:
-        'Track requests, upload documents and review progress without leaving this page.',
-    actionLabel: 'Open My Services',
-    background: _accentTint,
-    border: Color(0xFFE3E9FF),
-    iconBackground: _accentSoft,
-    iconColor: _accent,
-    icon: Icons.workspace_premium_outlined,
-  );
 }
