@@ -8,7 +8,6 @@ import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
-import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
 
@@ -37,7 +36,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
     final casesAsync = ref.watch(serviceCasesProvider);
     final authState = ref.watch(authControllerProvider);
     final capabilities = authState.capabilities;
-    final displayName = authState.displayName ?? _displayNameFromUserId(authState.userId);
+    final displayName = authState.displayName ?? _displayNameFromUserId(authState.userId ?? '');
 
     return Scaffold(
       body: SafeArea(
@@ -314,7 +313,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             nextStep.contains('pay') ||
             nextStep.contains('submit'));
     final isInReview = !isCancelled && !isClosed && !needsAction && (status.contains('review') || status.contains('processing') || status.contains('pending') || status.contains('documents under review') || status.contains('payment under review'));
-    final isInProgress = !isCancelled && !isClosed && !needsAction && !isInReview && (status.contains('progress') || status.contains('processing') || status.contains('working'));
+    final isInProgress = !isCancelled && !isClosed && !needsAction && !isInReview && (status.contains('progress') || status.contains('working'));
     final isOpen = !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
 
     return _ServiceCaseState(
@@ -600,7 +599,7 @@ class _FilterRow extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final filter = filters[index];
           final selected = selectedFilter == filter;
@@ -1615,9 +1614,4 @@ String _cleanErrorMessage(Object error) {
   final message = error.toString().replaceFirst('ApiError:', '').trim();
   if (message.isNotEmpty) return message;
   return 'Service tracking is unavailable right now. Please try again.';
-}
-
-class _Style {
-  const _Style({required this.color});
-  final Color color;
 }
