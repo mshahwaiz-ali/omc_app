@@ -6,7 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
-import '../../../core/widgets/premium_list_header.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
@@ -28,53 +28,97 @@ class MyServicesScreen extends ConsumerStatefulWidget {
 }
 
 class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
-  _ServiceCaseFilter _selectedFilter = _ServiceCaseFilter.active;
+  final _searchController = TextEditingController();
+
+  _ServiceCaseFilter _selectedFilter = _ServiceCaseFilter.all;
+  _SortOption _sortOption = _SortOption.recent;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final casesAsync = ref.watch(serviceCasesProvider);
+    final authState = ref.watch(authControllerProvider);
+    final capabilities = authState.capabilities;
+    final displayName = authState.displayName ?? _displayNameFromUserId(authState.userId);
 
     return Scaffold(
       body: SafeArea(
         top: true,
         child: casesAsync.when(
-          loading: () => const _ServiceLoadingView(),
-          error: (error, stackTrace) => _LoadErrorState(
+          loading: () => const _LoadingState(),
+          error: (error, stackTrace) => _ErrorState(
             message: _cleanErrorMessage(error),
             onRetry: () => ref.invalidate(serviceCasesProvider),
             onStartRequest: () => context.go('/services'),
           ),
           data: (cases) {
             if (cases.isEmpty) {
-              return _EmptyServicesState(onStartRequest: () => context.go('/services'));
+              return _EmptyState(onStartRequest: () => context.go('/services'));
             }
 
-            final visibleCases = cases.where(_selectedFilter.matches).toList(growable: false);
+            final visibleCases = _applyFilters(cases);
+            final sortedCases = _applySort(visibleCases);
+            final counts = _Counts.fromCases(cases);
+            final banner = _BannerData.from(capabilities, counts);
+            final recentCases = _applySort(cases).take(3).toList(growable: false);
 
             return RefreshIndicator(
               onRefresh: () async => ref.invalidate(serviceCasesProvider),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 112),
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
                 children: [
-                  _HeaderCard(cases: cases),
-                  const SizedBox(height: 12),
-                  _ServiceCaseFilterTabs(
+                  _Header(
+                    displayName: displayName,
+                    actionNeededCount: counts.actionNeeded,
+                    onNewService: () => context.go('/services'),
+                  ),
+                  const SizedBox(height: 18),
+                  _SearchAndFilterRow(
+                    controller: _searchController,
+                    query: _query,
+                    onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                    onFilterTap: () => _openFilterSheet(context, counts),
+                  ),
+                  const SizedBox(height: 16),
+                  _StatusBanner(
+                    data: banner,
+                    onPrimary: () => _handleBannerAction(context, banner),
+                  ),
+                  const SizedBox(height: 16),
+                  _StatusFilterRow(
                     cases: cases,
                     selectedFilter: _selectedFilter,
                     onSelected: (filter) => setState(() => _selectedFilter = filter),
                   ),
-                  const SizedBox(height: 12),
-                  _FilterSummary(filter: _selectedFilter, count: visibleCases.length),
+                  const SizedBox(height: 18),
+                  _SectionHeader(
+                    title: 'My Services (${cases.length})',
+                    actionLabel: 'Sort by: ${_sortOption.label}',
+                    onTap: () => _openSortMenu(context),
+                  ),
                   const SizedBox(height: 10),
-                  if (visibleCases.isEmpty)
-                    _EmptyFilterCard(filter: _selectedFilter)
+                  if (sortedCases.isEmpty)
+                    _FilterEmptyState(filter: _selectedFilter, onClear: _resetFilters)
                   else
-                    for (final serviceCase in visibleCases)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ServiceCaseCard(serviceCase: serviceCase),
-                      ),
+                    for (var index = 0; index < sortedCases.length; index++) ...[
+                      _ServiceCard(serviceCase: sortedCases[index]),
+                      if (index != sortedCases.length - 1) const SizedBox(height: 12),
+                    ],
+                  const SizedBox(height: 22),
+                  _SectionHeader(
+                    title: 'Recent Activity',
+                    actionLabel: 'View all',
+                    onTap: () => context.go('/my-services'),
+                  ),
+                  const SizedBox(height: 10),
+                  _ActivityCard(cases: recentCases),
                 ],
               ),
             );
@@ -83,136 +127,215 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
       ),
     );
   }
-}
 
-enum _ServiceCaseFilter {
-  active,
-  open,
-  needsAction,
-  closed,
-  cancelled,
-  all;
+  List<ServiceCase> _applyFilters(List<ServiceCase> cases) {
+    return cases.where((serviceCase) {
+      final matchesFilter = _selectedFilter.matches(serviceCase);
+      if (!matchesFilter) return false;
 
-  String get label {
-    switch (this) {
-      case _ServiceCaseFilter.active:
-        return 'Active';
-      case _ServiceCaseFilter.open:
-        return 'Open';
-      case _ServiceCaseFilter.needsAction:
-        return 'Needs action';
-      case _ServiceCaseFilter.closed:
-        return 'Closed';
-      case _ServiceCaseFilter.cancelled:
-        return 'Cancelled';
-      case _ServiceCaseFilter.all:
-        return 'All';
+      if (_query.isEmpty) return true;
+
+      final searchableText = <String>[
+        serviceCase.title,
+        serviceCase.category,
+        serviceCase.status,
+        serviceCase.reference ?? '',
+        serviceCase.createdAtLabel,
+        serviceCase.updatedAtLabel,
+        serviceCase.nextStep ?? '',
+        serviceCase.remarks ?? '',
+        serviceCase.documentSummaryLabel,
+        serviceCase.paymentSummaryLabel,
+        serviceCase.actionRequiredLabel,
+      ].join(' ').toLowerCase();
+
+      return searchableText.contains(_query);
+    }).toList(growable: false);
+  }
+
+  List<ServiceCase> _applySort(List<ServiceCase> cases) {
+    final sorted = cases.toList(growable: false);
+
+    switch (_sortOption) {
+      case _SortOption.recent:
+        return sorted;
+      case _SortOption.progress:
+        sorted.sort((a, b) => b.progress.compareTo(a.progress));
+        return sorted;
+      case _SortOption.status:
+        sorted.sort((a, b) => _stateRank(_stateFor(b)).compareTo(_stateRank(_stateFor(a))));
+        return sorted;
+      case _SortOption.oldest:
+        return sorted.reversed.toList(growable: false);
     }
   }
 
-  IconData get icon {
-    switch (this) {
-      case _ServiceCaseFilter.active:
-        return Icons.timeline_rounded;
-      case _ServiceCaseFilter.open:
-        return Icons.pending_actions_rounded;
-      case _ServiceCaseFilter.needsAction:
-        return Icons.priority_high_rounded;
-      case _ServiceCaseFilter.closed:
-        return Icons.check_circle_rounded;
-      case _ServiceCaseFilter.cancelled:
-        return Icons.cancel_rounded;
-      case _ServiceCaseFilter.all:
-        return Icons.format_list_bulleted_rounded;
+  void _openSortMenu(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Sort services',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                for (final option in _SortOption.values) ...[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      option.label,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    trailing: _sortOption == option
+                        ? const Icon(Icons.check_rounded, color: AppTheme.primaryRed)
+                        : null,
+                    onTap: () {
+                      setState(() => _sortOption = option);
+                      Navigator.of(sheetContext).pop();
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openFilterSheet(BuildContext context, _Counts counts) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Filter services',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                for (final filter in _ServiceCaseFilter.values) ...[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      filter.label,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${counts.valueFor(filter)} service(s)',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    trailing: _selectedFilter == filter
+                        ? const Icon(Icons.check_rounded, color: AppTheme.primaryRed)
+                        : null,
+                    onTap: () {
+                      setState(() => _selectedFilter = filter);
+                      Navigator.of(sheetContext).pop();
+                    },
+                  ),
+                ],
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      _resetFilters();
+                    },
+                    child: const Text('Reset filters'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _selectedFilter = _ServiceCaseFilter.all;
+      _query = '';
+      _searchController.clear();
+      _sortOption = _SortOption.recent;
+    });
+  }
+
+  void _handleBannerAction(BuildContext context, _BannerData banner) {
+    switch (banner.actionRoute) {
+      case '/profile':
+        context.go('/profile');
+        return;
+      case '/documents':
+        context.go('/documents');
+        return;
+      case '/my-services':
+        context.go('/my-services');
+        return;
+      default:
+        context.go('/services');
     }
   }
 
-  String get emptyTitle {
-    switch (this) {
-      case _ServiceCaseFilter.active:
-        return 'No active service requests';
-      case _ServiceCaseFilter.open:
-        return 'No open service requests';
-      case _ServiceCaseFilter.needsAction:
-        return 'No action needed';
-      case _ServiceCaseFilter.closed:
-        return 'No closed service requests';
-      case _ServiceCaseFilter.cancelled:
-        return 'No cancelled service requests';
-      case _ServiceCaseFilter.all:
-        return 'No service requests';
-    }
-  }
-
-  String get emptyMessage {
-    switch (this) {
-      case _ServiceCaseFilter.active:
-        return 'Live, open and in-progress requests will appear here.';
-      case _ServiceCaseFilter.open:
-        return 'New, submitted, pending and review-stage requests will appear here.';
-      case _ServiceCaseFilter.needsAction:
-        return 'Requests needing documents, payment or a customer response will appear here.';
-      case _ServiceCaseFilter.closed:
-        return 'Completed and closed requests will appear here for history.';
-      case _ServiceCaseFilter.cancelled:
-        return 'Cancelled or rejected requests will appear here.';
-      case _ServiceCaseFilter.all:
-        return 'Start a service request from the catalogue to begin tracking.';
-    }
-  }
-
-  bool matches(ServiceCase serviceCase) {
-    final state = _ServiceCaseState.from(serviceCase);
-    switch (this) {
-      case _ServiceCaseFilter.active:
-        return state.isActive;
-      case _ServiceCaseFilter.open:
-        return state.isOpen;
-      case _ServiceCaseFilter.needsAction:
-        return state.needsAction;
-      case _ServiceCaseFilter.closed:
-        return state.isClosed;
-      case _ServiceCaseFilter.cancelled:
-        return state.isCancelled;
-      case _ServiceCaseFilter.all:
-        return true;
-    }
-  }
-
-  int count(List<ServiceCase> cases) => cases.where(matches).length;
-}
-
-class _ServiceCaseState {
-  const _ServiceCaseState({
-    required this.isClosed,
-    required this.isCancelled,
-    required this.needsAction,
-    required this.isOpen,
-  });
-
-  final bool isClosed;
-  final bool isCancelled;
-  final bool needsAction;
-  final bool isOpen;
-
-  bool get isActive => !isClosed && !isCancelled;
-
-  static _ServiceCaseState from(ServiceCase serviceCase) {
+  _ServiceCaseState _stateFor(ServiceCase serviceCase) {
     final status = serviceCase.status.trim().toLowerCase();
     final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
 
-    final isCancelled = status.contains('cancel') ||
+    final isBlocked = status.contains('cancel') ||
         status.contains('reject') ||
-        status.contains('declined');
+        status.contains('declin') ||
+        status.contains('blocked');
 
-    final isClosed = !isCancelled &&
+    final isClosed = !isBlocked &&
         (status.contains('complete') ||
-            status.contains('completed') ||
             status.contains('closed') ||
             status.contains('done') ||
             status.contains('resolved'));
 
-    final needsAction = !isCancelled &&
+    final needsAction = !isBlocked &&
         !isClosed &&
         (serviceCase.customerActionRequired ||
             serviceCase.missingDocuments.isNotEmpty ||
@@ -228,99 +351,277 @@ class _ServiceCaseState {
             nextStep.contains('pay') ||
             nextStep.contains('submit'));
 
-    final isOpen = !isCancelled &&
+    final isUnderReview = !isBlocked &&
         !isClosed &&
-        (status.contains('open') ||
-            status.contains('new') ||
-            status.contains('draft') ||
-            status.contains('submitted') ||
-            status.contains('pending') ||
-            status.contains('review') ||
-            status.contains('progress') ||
+        !needsAction &&
+        (status.contains('review') ||
             status.contains('processing') ||
-            status.contains('waiting') ||
-            status.isEmpty ||
-            !needsAction);
+            status.contains('pending') ||
+            status.contains('documents under review') ||
+            status.contains('payment under review'));
+
+    final isOpen = !isBlocked && !isClosed && !needsAction && !isUnderReview;
 
     return _ServiceCaseState(
+      isBlocked: isBlocked,
       isClosed: isClosed,
-      isCancelled: isCancelled,
       needsAction: needsAction,
+      isUnderReview: isUnderReview,
       isOpen: isOpen,
     );
   }
+
+  int _stateRank(_ServiceCaseState state) {
+    if (state.isBlocked) return 4;
+    if (state.needsAction) return 3;
+    if (state.isUnderReview) return 2;
+    if (state.isOpen) return 1;
+    return 0;
+  }
 }
 
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({required this.cases});
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.displayName,
+    required this.actionNeededCount,
+    required this.onNewService,
+  });
 
-  final List<ServiceCase> cases;
+  final String displayName;
+  final int actionNeededCount;
+  final VoidCallback onNewService;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PremiumListHeader(
-          icon: Icons.track_changes_rounded,
-          title: 'Track requests',
-          subtitle: 'Follow active services, documents, payments and completion status.',
-          metaLabel: '${_ServiceCaseFilter.active.count(cases)} active',
-        ),
-        const SizedBox(height: 12),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _HeaderStat(value: _ServiceCaseFilter.active.count(cases).toString(), label: 'Active')),
-            const SizedBox(width: 8),
-            Expanded(child: _HeaderStat(value: _ServiceCaseFilter.needsAction.count(cases).toString(), label: 'Action')),
-            const SizedBox(width: 8),
-            Expanded(child: _HeaderStat(value: _ServiceCaseFilter.closed.count(cases).toString(), label: 'Closed')),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _greeting(),
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 28,
+                      height: 1.05,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _TopActionBadge(count: actionNeededCount),
+            const SizedBox(width: 12),
+            _Avatar(name: displayName),
           ],
+        ),
+        const SizedBox(height: 22),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Services',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 34,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.65,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Manage and track all your services & requests',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 15,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: onNewService,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: const Text('New Service'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning,';
+    if (hour < 17) return 'Good afternoon,';
+    return 'Good evening,';
+  }
+}
+
+class _SearchAndFilterRow extends StatelessWidget {
+  const _SearchAndFilterRow({
+    required this.controller,
+    required this.query,
+    required this.onChanged,
+    required this.onFilterTap,
+  });
+
+  final TextEditingController controller;
+  final String query;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onFilterTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            onChanged: onChanged,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Search services, cases or requests...',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      onPressed: () {
+                        controller.clear();
+                        onChanged('');
+                      },
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 98,
+          child: OutlinedButton.icon(
+            onPressed: onFilterTap,
+            icon: const Icon(Icons.tune_rounded, size: 18),
+            label: const Text('Filter'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 17),
+              foregroundColor: AppTheme.primaryRed,
+              side: BorderSide(color: AppTheme.primaryRed.withValues(alpha: 0.16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              textStyle: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-class _HeaderStat extends StatelessWidget {
-  const _HeaderStat({required this.value, required this.label});
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({required this.data, required this.onPrimary});
 
-  final String value;
-  final String label;
+  final _BannerData data;
+  final VoidCallback onPrimary;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
+        color: data.tint,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: data.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 16,
-              height: 1.05,
-              fontWeight: FontWeight.w900,
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: data.accent.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(data.icon, color: data.accent, size: 30),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data.title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  data.subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10.5,
-              height: 1.15,
-              fontWeight: FontWeight.w800,
+          const SizedBox(width: 10),
+          FilledButton(
+            onPressed: onPrimary,
+            style: FilledButton.styleFrom(
+              backgroundColor: data.accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              textStyle: const TextStyle(fontWeight: FontWeight.w800),
             ),
+            child: Text(data.actionLabel),
           ),
         ],
       ),
@@ -328,8 +629,8 @@ class _HeaderStat extends StatelessWidget {
   }
 }
 
-class _ServiceCaseFilterTabs extends StatelessWidget {
-  const _ServiceCaseFilterTabs({
+class _StatusFilterRow extends StatelessWidget {
+  const _StatusFilterRow({
     required this.cases,
     required this.selectedFilter,
     required this.onSelected,
@@ -341,86 +642,116 @@ class _ServiceCaseFilterTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: [
-          for (final filter in _ServiceCaseFilter.values) ...[
-            _ServiceCaseFilterChip(
-              filter: filter,
-              count: filter.count(cases),
-              selected: selectedFilter == filter,
-              onTap: () => onSelected(filter),
-            ),
-            if (filter != _ServiceCaseFilter.values.last) const SizedBox(width: 8),
-          ],
-        ],
+    final visibleFilters = const [
+      _ServiceCaseFilter.all,
+      _ServiceCaseFilter.open,
+      _ServiceCaseFilter.underReview,
+      _ServiceCaseFilter.actionNeeded,
+      _ServiceCaseFilter.completed,
+    ];
+
+    return SizedBox(
+      height: 46,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: visibleFilters.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final filter = visibleFilters[index];
+          final selected = filter == selectedFilter;
+          final count = filter.count(cases);
+
+          return _FilterChip(
+            filter: filter,
+            selected: selected,
+            count: count,
+            onTap: () => onSelected(filter),
+          );
+        },
       ),
     );
   }
 }
 
-class _ServiceCaseFilterChip extends StatelessWidget {
-  const _ServiceCaseFilterChip({
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
     required this.filter,
-    required this.count,
     required this.selected,
+    required this.count,
     required this.onTap,
   });
 
   final _ServiceCaseFilter filter;
-  final int count;
   final bool selected;
+  final int count;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final textColor = selected ? AppTheme.primaryRed : AppTheme.textPrimary;
+    final style = _filterStyle(filter);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? AppTheme.primaryRed.withValues(alpha: 0.10) : Colors.white,
-            borderRadius: BorderRadius.circular(999),
+            color: selected ? style.color.withValues(alpha: 0.12) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? AppTheme.primaryRed.withValues(alpha: 0.28) : AppTheme.primaryRed.withValues(alpha: 0.08),
+              color: selected ? style.color.withValues(alpha: 0.30) : Colors.black.withValues(alpha: 0.06),
             ),
             boxShadow: selected
-                ? [BoxShadow(color: AppTheme.primaryRed.withValues(alpha: 0.07), blurRadius: 14, offset: const Offset(0, 8))]
+                ? [
+                    BoxShadow(
+                      color: style.color.withValues(alpha: 0.08),
+                      blurRadius: 14,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
                 : null,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(filter.icon, size: 14.5, color: textColor),
-              const SizedBox(width: 6),
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: style.color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(
                 filter.label,
                 style: TextStyle(
-                  color: textColor,
-                  fontSize: 12,
+                  color: selected ? style.color : AppTheme.textPrimary,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.05,
                 ),
               ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: selected ? 0.13 : 0.055),
+                  color: style.color.withValues(alpha: selected ? 0.14 : 0.07),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   count.toString(),
-                  style: TextStyle(color: textColor, fontSize: 10.5, height: 1, fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    color: selected ? style.color : AppTheme.textSecondary,
+                    fontSize: 10.5,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
             ],
@@ -431,360 +762,389 @@ class _ServiceCaseFilterChip extends StatelessWidget {
   }
 }
 
-class _FilterSummary extends StatelessWidget {
-  const _FilterSummary({required this.filter, required this.count});
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.actionLabel,
+    required this.onTap,
+  });
 
-  final _ServiceCaseFilter filter;
-  final int count;
+  final String title;
+  final String actionLabel;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 2, right: 2),
-      child: Row(
-        children: [
-          Icon(filter.icon, size: 15, color: AppTheme.textSecondary),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              '${filter.label} requests',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w900),
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.15,
             ),
           ),
-          Text(
-            '$count found',
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        TextButton(
+          onPressed: onTap,
+          style: TextButton.styleFrom(
+            foregroundColor: AppTheme.textSecondary,
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
           ),
-        ],
-      ),
+          child: Text(actionLabel),
+        ),
+      ],
     );
   }
 }
 
-class _ServiceCaseCard extends ConsumerWidget {
-  const _ServiceCaseCard({required this.serviceCase});
+class _ServiceCard extends StatelessWidget {
+  const _ServiceCard({required this.serviceCase});
 
   final ServiceCase serviceCase;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final progressPercent = serviceCase.progressPercent ?? (serviceCase.progress.clamp(0, 1) * 100).round();
+  Widget build(BuildContext context) {
     final state = _ServiceCaseState.from(serviceCase);
+    final palette = _paletteFor(state);
+    final progressPercent = serviceCase.progressPercent ?? (serviceCase.progress.clamp(0, 1) * 100).round();
 
     return PremiumCard(
       onTap: () => context.go('/my-services/${serviceCase.id}'),
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StatusIcon(status: serviceCase.status),
-              const SizedBox(width: 11),
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+                ),
+                child: const Icon(Icons.folder_shared_rounded, color: AppTheme.primaryRed, size: 28),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      serviceCase.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 15.5,
-                        height: 1.22,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.12,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Wrap(
-                      spacing: 7,
-                      runSpacing: 7,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        PremiumInfoChip(icon: Icons.category_outlined, label: serviceCase.category),
-                        ServiceCaseStatusBadge(status: serviceCase.status),
-                        if (state.needsAction)
-                          const PremiumInfoChip(icon: Icons.priority_high_rounded, label: 'Action required', color: AppTheme.primaryRed),
-                        if (serviceCase.reference != null)
-                          PremiumInfoChip(icon: Icons.confirmation_number_outlined, label: serviceCase.reference!),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                serviceCase.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 15.5,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.15,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                serviceCase.category,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _StatusPill(label: palette.label, color: palette.color),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade500),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Requested on ${serviceCase.createdAtLabel}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 22),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
             ],
           ),
-          const SizedBox(height: 13),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(11),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 11),
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.035),
-              borderRadius: BorderRadius.circular(17),
+              color: palette.color.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: LinearProgressIndicator(
-                      value: serviceCase.progress.clamp(0, 1),
-                      minHeight: 7,
-                      backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
-                    ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: serviceCase.progress.clamp(0, 1),
+                    minHeight: 8,
+                    backgroundColor: palette.color.withValues(alpha: 0.10),
+                    valueColor: AlwaysStoppedAnimation<Color>(palette.color),
                   ),
                 ),
-                const SizedBox(width: 11),
-                Text(
-                  '$progressPercent%',
-                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.w900),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text(
+                      '${progressPercent}%',
+                      style: TextStyle(
+                        color: palette.color,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      serviceCase.actionRequiredLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          _CompactDetailGrid(serviceCase: serviceCase),
-          const SizedBox(height: 11),
-          Row(
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => context.go('/my-services/${serviceCase.id}'),
-                  icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('View details'),
+              PremiumInfoChip(
+                icon: Icons.description_outlined,
+                label: serviceCase.documentSummaryLabel,
+              ),
+              PremiumInfoChip(
+                icon: Icons.payments_outlined,
+                label: serviceCase.paymentSummaryLabel,
+              ),
+              if (serviceCase.reference != null && serviceCase.reference!.trim().isNotEmpty)
+                PremiumInfoChip(
+                  icon: Icons.confirmation_number_outlined,
+                  label: serviceCase.reference!,
                 ),
-              ),
-              const SizedBox(width: 9),
-              IconButton.filledTonal(
-                tooltip: 'Ask support',
-                onPressed: () => SupportLauncher.openWhatsApp(context),
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
-              ),
             ],
           ),
-          if (serviceCase.canCancel && state.isActive) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _confirmCancelRequest(context, ref),
-                icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Cancel request'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primaryRed,
-                  side: BorderSide(color: AppTheme.primaryRed.withValues(alpha: 0.34)),
-                ),
-              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w900,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityCard extends StatelessWidget {
+  const _ActivityCard({required this.cases});
+
+  final List<ServiceCase> cases;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var index = 0; index < cases.length; index++) ...[
+            _ActivityRow(serviceCase: cases[index]),
+            if (index != cases.length - 1)
+              const Divider(height: 1, indent: 74, endIndent: 16),
           ],
         ],
       ),
     );
   }
-
-  Future<void> _confirmCancelRequest(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancel request?'),
-        content: Text('This will cancel ${serviceCase.displayReference}. You can still view its history after cancellation.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Keep request')),
-          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Cancel request')),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !context.mounted) return;
-
-    try {
-      final repository = ref.read(serviceCaseRepositoryProvider);
-      await repository.cancelServiceRequest(caseId: serviceCase.id);
-      ref.invalidate(serviceCasesProvider);
-      ref.invalidate(serviceCaseDetailProvider(serviceCase.id));
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Service request cancelled.')));
-    } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_cleanErrorMessage(error))));
-    }
-  }
 }
 
-class _CompactDetailGrid extends StatelessWidget {
-  const _CompactDetailGrid({required this.serviceCase});
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({required this.serviceCase});
 
   final ServiceCase serviceCase;
 
   @override
   Widget build(BuildContext context) {
-    final items = <_DetailItem>[
-      if (serviceCase.nextStep != null && serviceCase.nextStep!.trim().isNotEmpty)
-        _DetailItem(Icons.flag_outlined, 'Next', serviceCase.nextStep!),
-      _DetailItem(Icons.description_outlined, 'Docs', serviceCase.documentSummaryLabel),
-      _DetailItem(Icons.payments_outlined, 'Payment', serviceCase.paymentSummaryLabel),
-      _DetailItem(Icons.update_rounded, 'Updated', serviceCase.updatedAtLabel),
-    ];
+    final state = _ServiceCaseState.from(serviceCase);
+    final palette = _paletteFor(state);
+    final subtitle = serviceCase.nextStep?.trim().isNotEmpty == true
+        ? serviceCase.nextStep!
+        : serviceCase.actionRequiredLabel;
 
-    return Column(
-      children: [
-        for (final item in items)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 7),
-            child: _DetailRow(item: item),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      onTap: () => context.go('/my-services/${serviceCase.id}'),
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: palette.color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(palette.icon, color: palette.color, size: 22),
+      ),
+      title: Text(
+        serviceCase.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 14.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          '$subtitle • ${serviceCase.updatedAtLabel}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+            height: 1.3,
+            fontWeight: FontWeight.w600,
           ),
+        ),
+      ),
+      trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+    );
+  }
+}
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+      children: [
+        _LoadingBlock(width: 150, height: 18, radius: 999, color: color),
+        const SizedBox(height: 8),
+        _LoadingBlock(width: 210, height: 34, radius: 14, color: color),
+        const SizedBox(height: 22),
+        _LoadingBlock(width: double.infinity, height: 176, radius: 24, color: color),
+        const SizedBox(height: 16),
+        Row(
+          children: const [
+            Expanded(child: _LoadingBlock(width: double.infinity, height: 46, radius: 16, color: Colors.transparent)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _LoadingBlock(width: double.infinity, height: 120, radius: 22, color: Colors.transparent),
       ],
     );
   }
 }
 
-class _DetailItem {
-  const _DetailItem(this.icon, this.label, this.value);
-  final IconData icon;
-  final String label;
-  final String value;
-}
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock({
+    required this.width,
+    required this.height,
+    required this.radius,
+    required this.color,
+  });
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.item});
-
-  final _DetailItem item;
+  final double width;
+  final double height;
+  final double radius;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    if (item.value.trim().isEmpty) return const SizedBox.shrink();
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      width: width,
+      height: height,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.030),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(item.icon, color: AppTheme.primaryRed, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            '${item.label}: ',
-            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12.5, height: 1.32, fontWeight: FontWeight.w900),
-          ),
-          Expanded(
-            child: Text(
-              item.value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12.5, height: 1.32, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }
 }
 
-class _StatusIcon extends StatelessWidget {
-  const _StatusIcon({required this.status});
-
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = serviceCaseStatusStyle(status);
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
-      ),
-      child: Icon(style.icon, color: AppTheme.primaryRed, size: 22),
-    );
-  }
-}
-
-class _EmptyFilterCard extends StatelessWidget {
-  const _EmptyFilterCard({required this.filter});
-
-  final _ServiceCaseFilter filter;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          _EmptyIcon(icon: filter.icon),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  filter.emptyTitle,
-                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  filter.emptyMessage,
-                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyServicesState extends StatelessWidget {
-  const _EmptyServicesState({required this.onStartRequest});
-
-  final VoidCallback onStartRequest;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: PremiumCard(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const _EmptyIcon(icon: Icons.assignment_add),
-              const SizedBox(height: 13),
-              const Text(
-                'No service requests yet',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Start a guided request from the catalogue. Tracking appears here after submission.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.35, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 15),
-              FilledButton.icon(onPressed: onStartRequest, icon: const Icon(Icons.add_rounded), label: const Text('Start a request')),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadErrorState extends StatelessWidget {
-  const _LoadErrorState({required this.message, required this.onRetry, required this.onStartRequest});
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+    required this.onStartRequest,
+  });
 
   final String message;
   final VoidCallback onRetry;
@@ -800,25 +1160,44 @@ class _LoadErrorState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const _EmptyIcon(icon: Icons.cloud_off_rounded),
-              const SizedBox(height: 13),
+              const Icon(Icons.cloud_off_rounded, size: 42, color: AppTheme.primaryRed),
+              const SizedBox(height: 12),
               const Text(
                 'Service tracking unavailable',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 8),
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.35, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded), label: const Text('Retry'))),
-                  const SizedBox(width: 9),
-                  Expanded(child: OutlinedButton.icon(onPressed: onStartRequest, icon: const Icon(Icons.add_rounded), label: const Text('New request'))),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onRetry,
+                      child: const Text('Retry'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onStartRequest,
+                      child: const Text('Start request'),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -829,47 +1208,92 @@ class _LoadErrorState extends StatelessWidget {
   }
 }
 
-class _ServiceLoadingView extends StatelessWidget {
-  const _ServiceLoadingView();
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onStartRequest});
+
+  final VoidCallback onStartRequest;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 112),
-      children: const [
-        _LoadingHero(),
-        SizedBox(height: 12),
-        _ServiceLoadingCard(),
-        SizedBox(height: 10),
-        _ServiceLoadingCard(),
-        SizedBox(height: 10),
-        _ServiceLoadingCard(),
-      ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: PremiumCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.assignment_turned_in_outlined, size: 42, color: AppTheme.primaryRed),
+              const SizedBox(height: 12),
+              const Text(
+                'No service requests yet',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Start a guided request from the catalogue. Tracking appears here after submission.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onStartRequest,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Start a request'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _LoadingHero extends StatelessWidget {
-  const _LoadingHero();
+class _FilterEmptyState extends StatelessWidget {
+  const _FilterEmptyState({required this.filter, required this.onClear});
+
+  final _ServiceCaseFilter filter;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
       padding: const EdgeInsets.all(18),
-      child: Row(
-        children: const [
-          _EmptyIcon(icon: Icons.assignment_rounded),
-          SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Loading services', style: TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w900)),
-                SizedBox(height: 5),
-                Text('Fetching active cases, progress and request history.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w600)),
-              ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'No matching services',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
             ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Nothing matched the ${filter.label.toLowerCase()} filter or search term.',
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.tonal(
+            onPressed: onClear,
+            child: const Text('Clear filters'),
           ),
         ],
       ),
@@ -877,103 +1301,440 @@ class _LoadingHero extends StatelessWidget {
   }
 }
 
-class _ServiceLoadingCard extends StatelessWidget {
-  const _ServiceLoadingCard();
+class _TopActionBadge extends StatelessWidget {
+  const _TopActionBadge({required this.count});
+
+  final int count;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(15),
-      child: Row(
-        children: const [
-          _LoadingBlock(width: 44, height: 44, radius: 17),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _LoadingBlock(widthFactor: 0.76, height: 10, radius: 99),
-                SizedBox(height: 9),
-                _LoadingBlock(widthFactor: 0.52, height: 10, radius: 99),
-              ],
+    final badgeCount = count.clamp(0, 99);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+          ),
+          child: const Icon(Icons.notifications_none_rounded, color: AppTheme.textPrimary),
+        ),
+        if (badgeCount > 0)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white, width: 1.6),
+              ),
+              child: Text(
+                badgeCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-class _LoadingBlock extends StatelessWidget {
-  const _LoadingBlock({this.width, this.widthFactor, required this.height, required this.radius});
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.name});
 
-  final double? width;
-  final double? widthFactor;
-  final double height;
-  final double radius;
+  final String name;
 
   @override
   Widget build(BuildContext context) {
-    final block = Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.065),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-    );
-
-    if (widthFactor == null) return block;
-    return FractionallySizedBox(widthFactor: widthFactor, alignment: Alignment.centerLeft, child: block);
-  }
-}
-
-class _EmptyIcon extends StatelessWidget {
-  const _EmptyIcon({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
+    final initials = _initials(name);
     return Container(
-      width: 50,
-      height: 50,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
+        color: AppTheme.primaryRed.withValues(alpha: 0.09),
+        shape: BoxShape.circle,
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.14)),
       ),
-      child: Icon(icon, color: AppTheme.primaryRed, size: 25),
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: AppTheme.primaryRed,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
     );
   }
 }
 
-class ServiceCaseStatusBadge extends StatelessWidget {
-  const ServiceCaseStatusBadge({super.key, required this.status});
+class _BannerData {
+  const _BannerData({
+    required this.title,
+    required this.subtitle,
+    required this.actionLabel,
+    required this.actionRoute,
+    required this.icon,
+    required this.accent,
+    required this.tint,
+    required this.border,
+  });
 
-  final String status;
+  final String title;
+  final String subtitle;
+  final String actionLabel;
+  final String actionRoute;
+  final IconData icon;
+  final Color accent;
+  final Color tint;
+  final Color border;
 
-  @override
-  Widget build(BuildContext context) {
-    final style = serviceCaseStatusStyle(status);
-    return PremiumInfoChip(icon: style.icon, label: style.label, color: AppTheme.primaryRed);
+  factory _BannerData.from(dynamic capabilities, _Counts counts) {
+    if (capabilities.isGuest) {
+      return const _BannerData(
+        title: 'Sign in to track your services',
+        subtitle: 'Guest access is limited. Create an account to submit requests and follow progress.',
+        actionLabel: 'Sign in',
+        actionRoute: '/profile',
+        icon: Icons.lock_outline_rounded,
+        accent: Color(0xFF8B5CF6),
+        tint: Color(0xFFF7F0FF),
+        border: Color(0xFFE9D5FF),
+      );
+    }
+
+    if (capabilities.isPending) {
+      return const _BannerData(
+        title: 'Your profile is under review',
+        subtitle: 'You have limited access. Complete your profile for full access to all services.',
+        actionLabel: 'Complete profile',
+        actionRoute: '/profile',
+        icon: Icons.verified_user_outlined,
+        accent: AppTheme.primaryRed,
+        tint: Color(0xFFFFF4F5),
+        border: Color(0xFFFED7DC),
+      );
+    }
+
+    if (capabilities.isRejected) {
+      return const _BannerData(
+        title: 'Access needs attention',
+        subtitle: 'Your profile requires review before full service access can be restored.',
+        actionLabel: 'Contact support',
+        actionRoute: '/services',
+        icon: Icons.block_rounded,
+        accent: Color(0xFFEF4444),
+        tint: Color(0xFFFFF4F4),
+        border: Color(0xFFFECACA),
+      );
+    }
+
+    if (counts.actionNeeded > 0) {
+      return const _BannerData(
+        title: 'Action is needed on some requests',
+        subtitle: 'A few cases are waiting on documents or payment steps. Open the ones marked action needed.',
+        actionLabel: 'Open requests',
+        actionRoute: '/my-services',
+        icon: Icons.priority_high_rounded,
+        accent: Color(0xFFF59E0B),
+        tint: Color(0xFFFFFAED),
+        border: Color(0xFFFDE68A),
+      );
+    }
+
+    return const _BannerData(
+      title: 'Your services are moving',
+      subtitle: 'Track progress, documents and updates from one place.',
+      actionLabel: 'Browse services',
+      actionRoute: '/services',
+      icon: Icons.timeline_rounded,
+      accent: Color(0xFF14B8A6),
+      tint: Color(0xFFF0FFFD),
+      border: Color(0xFFA7F3D0),
+    );
   }
 }
 
-ServiceCaseStatusStyle serviceCaseStatusStyle(String status) {
-  final normalized = status.trim().toLowerCase();
-  return ServiceCaseStatusStyle(
-    icon: normalized.contains('complete') || normalized.contains('closed') || normalized.contains('done')
-        ? Icons.check_circle_rounded
-        : normalized.contains('cancel') || normalized.contains('reject')
-            ? Icons.cancel_rounded
-            : normalized.contains('document')
-                ? Icons.description_outlined
-                : normalized.contains('payment')
-                    ? Icons.payments_outlined
-                    : Icons.pending_actions_rounded,
-    label: status.trim().isEmpty ? 'Open' : status.trim(),
-  );
+class _Counts {
+  const _Counts({
+    required this.open,
+    required this.underReview,
+    required this.actionNeeded,
+    required this.completed,
+    required this.blocked,
+  });
+
+  final int open;
+  final int underReview;
+  final int actionNeeded;
+  final int completed;
+  final int blocked;
+
+  factory _Counts.fromCases(List<ServiceCase> cases) {
+    var open = 0;
+    var underReview = 0;
+    var actionNeeded = 0;
+    var completed = 0;
+    var blocked = 0;
+
+    for (final serviceCase in cases) {
+      final state = _ServiceCaseState.from(serviceCase);
+      if (state.isBlocked) {
+        blocked += 1;
+      } else if (state.isClosed) {
+        completed += 1;
+      } else if (state.needsAction) {
+        actionNeeded += 1;
+      } else if (state.isUnderReview) {
+        underReview += 1;
+      } else {
+        open += 1;
+      }
+    }
+
+    return _Counts(
+      open: open,
+      underReview: underReview,
+      actionNeeded: actionNeeded,
+      completed: completed,
+      blocked: blocked,
+    );
+  }
+
+  int valueFor(_ServiceCaseFilter filter) {
+    switch (filter) {
+      case _ServiceCaseFilter.all:
+        return open + underReview + actionNeeded + completed + blocked;
+      case _ServiceCaseFilter.open:
+        return open;
+      case _ServiceCaseFilter.underReview:
+        return underReview;
+      case _ServiceCaseFilter.actionNeeded:
+        return actionNeeded;
+      case _ServiceCaseFilter.completed:
+        return completed;
+      case _ServiceCaseFilter.blocked:
+        return blocked;
+    }
+  }
+}
+
+class _ServiceCaseState {
+  const _ServiceCaseState({
+    required this.isBlocked,
+    required this.isClosed,
+    required this.needsAction,
+    required this.isUnderReview,
+    required this.isOpen,
+  });
+
+  final bool isBlocked;
+  final bool isClosed;
+  final bool needsAction;
+  final bool isUnderReview;
+  final bool isOpen;
+
+  static _ServiceCaseState from(ServiceCase serviceCase) {
+    final status = serviceCase.status.trim().toLowerCase();
+    final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
+
+    final isBlocked = status.contains('cancel') ||
+        status.contains('reject') ||
+        status.contains('declin') ||
+        status.contains('blocked');
+
+    final isClosed = !isBlocked &&
+        (status.contains('complete') ||
+            status.contains('closed') ||
+            status.contains('done') ||
+            status.contains('resolved'));
+
+    final needsAction = !isBlocked &&
+        !isClosed &&
+        (serviceCase.customerActionRequired ||
+            serviceCase.missingDocuments.isNotEmpty ||
+            (serviceCase.missingDocumentsCount ?? 0) > 0 ||
+            serviceCase.rejectedDocumentTotal > 0 ||
+            serviceCase.rejectedPaymentTotal > 0 ||
+            serviceCase.paymentDetails.any((payment) => payment.needsCustomerAction) ||
+            status.contains('waiting for document') ||
+            status.contains('waiting for payment') ||
+            status.contains('waiting for customer') ||
+            status.contains('action required') ||
+            nextStep.contains('upload') ||
+            nextStep.contains('pay') ||
+            nextStep.contains('submit'));
+
+    final isUnderReview = !isBlocked &&
+        !isClosed &&
+        !needsAction &&
+        (status.contains('review') ||
+            status.contains('processing') ||
+            status.contains('pending') ||
+            status.contains('documents under review') ||
+            status.contains('payment under review'));
+
+    final isOpen = !isBlocked && !isClosed && !needsAction && !isUnderReview;
+
+    return _ServiceCaseState(
+      isBlocked: isBlocked,
+      isClosed: isClosed,
+      needsAction: needsAction,
+      isUnderReview: isUnderReview,
+      isOpen: isOpen,
+    );
+  }
+}
+
+class _Palette {
+  const _Palette({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final IconData icon;
+}
+
+_Palette _paletteFor(_ServiceCaseState state) {
+  if (state.isBlocked) {
+    return const _Palette(label: 'Blocked', color: Color(0xFFEF4444), icon: Icons.block_rounded);
+  }
+  if (state.isClosed) {
+    return const _Palette(label: 'Completed', color: Color(0xFF16A34A), icon: Icons.check_circle_rounded);
+  }
+  if (state.needsAction) {
+    return const _Palette(label: 'Action needed', color: Color(0xFFF59E0B), icon: Icons.priority_high_rounded);
+  }
+  if (state.isUnderReview) {
+    return const _Palette(label: 'Under review', color: Color(0xFF14B8A6), icon: Icons.visibility_rounded);
+  }
+  return const _Palette(label: 'Open', color: Color(0xFF2563EB), icon: Icons.radio_button_checked_rounded);
+}
+
+const List<_ServiceCaseFilter> _allFilters = [
+  _ServiceCaseFilter.all,
+  _ServiceCaseFilter.open,
+  _ServiceCaseFilter.underReview,
+  _ServiceCaseFilter.actionNeeded,
+  _ServiceCaseFilter.completed,
+  _ServiceCaseFilter.blocked,
+];
+
+enum _ServiceCaseFilter {
+  all,
+  open,
+  underReview,
+  actionNeeded,
+  completed,
+  blocked;
+
+  String get label {
+    switch (this) {
+      case _ServiceCaseFilter.all:
+        return 'All Services';
+      case _ServiceCaseFilter.open:
+        return 'Open';
+      case _ServiceCaseFilter.underReview:
+        return 'Under Review';
+      case _ServiceCaseFilter.actionNeeded:
+        return 'Action Needed';
+      case _ServiceCaseFilter.completed:
+        return 'Completed';
+      case _ServiceCaseFilter.blocked:
+        return 'Blocked';
+    }
+  }
+
+  bool matches(ServiceCase serviceCase) {
+    final state = _ServiceCaseState.from(serviceCase);
+    switch (this) {
+      case _ServiceCaseFilter.all:
+        return true;
+      case _ServiceCaseFilter.open:
+        return state.isOpen;
+      case _ServiceCaseFilter.underReview:
+        return state.isUnderReview;
+      case _ServiceCaseFilter.actionNeeded:
+        return state.needsAction;
+      case _ServiceCaseFilter.completed:
+        return state.isClosed;
+      case _ServiceCaseFilter.blocked:
+        return state.isBlocked;
+    }
+  }
+
+  int count(List<ServiceCase> cases) => cases.where(matches).length;
+}
+
+enum _SortOption {
+  recent,
+  progress,
+  status,
+  oldest;
+
+  String get label {
+    switch (this) {
+      case _SortOption.recent:
+        return 'Recent';
+      case _SortOption.progress:
+        return 'Progress';
+      case _SortOption.status:
+        return 'Status';
+      case _SortOption.oldest:
+        return 'Oldest';
+    }
+  }
+}
+
+String _greeting() {
+  final hour = DateTime.now().hour;
+  if (hour < 12) return 'Good morning,';
+  if (hour < 17) return 'Good afternoon,';
+  return 'Good evening,';
+}
+
+String _displayNameFromUserId(String userId) {
+  final cleaned = userId.trim();
+  if (cleaned.isEmpty) return 'Ali Raza';
+
+  final localPart = cleaned.contains('@') ? cleaned.split('@').first : cleaned;
+  final pieces = localPart
+      .split(RegExp(r'[._\-\s]+'))
+      .where((piece) => piece.trim().isNotEmpty)
+      .toList(growable: false);
+
+  if (pieces.isEmpty) return localPart;
+  return pieces.map(_titleCase).join(' ');
+}
+
+String _initials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList(growable: false);
+  if (parts.isEmpty) return 'OM';
+  if (parts.length == 1) {
+    final value = parts.first;
+    if (value.length >= 2) return value.substring(0, 2).toUpperCase();
+    return value.substring(0, 1).toUpperCase();
+  }
+  return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
+}
+
+String _titleCase(String value) {
+  if (value.isEmpty) return value;
+  return '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
 }
 
 String _cleanErrorMessage(Object error) {
@@ -981,9 +1742,31 @@ String _cleanErrorMessage(Object error) {
     return error.message.trim();
   }
 
-  final rawMessage = error.toString().replaceFirst('ApiError:', '').trim();
-  if (rawMessage.isEmpty) {
-    return 'Service tracking is unavailable right now. Submitted requests are still sent to OMC.';
+  final message = error.toString().replaceFirst('ApiError:', '').trim();
+  if (message.isNotEmpty) return message;
+
+  return 'Service tracking is unavailable right now. Please try again.';
+}
+
+_Style _filterStyle(_ServiceCaseFilter filter) {
+  switch (filter) {
+    case _ServiceCaseFilter.all:
+      return const _Style(color: AppTheme.primaryRed);
+    case _ServiceCaseFilter.open:
+      return const _Style(color: Color(0xFF2563EB));
+    case _ServiceCaseFilter.underReview:
+      return const _Style(color: Color(0xFF14B8A6));
+    case _ServiceCaseFilter.actionNeeded:
+      return const _Style(color: Color(0xFFF59E0B));
+    case _ServiceCaseFilter.completed:
+      return const _Style(color: Color(0xFF16A34A));
+    case _ServiceCaseFilter.blocked:
+      return const _Style(color: Color(0xFFEF4444));
   }
-  return rawMessage;
+}
+
+class _Style {
+  const _Style({required this.color});
+
+  final Color color;
 }
