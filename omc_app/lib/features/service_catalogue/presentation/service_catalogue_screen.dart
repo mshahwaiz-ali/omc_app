@@ -913,6 +913,13 @@ class _ServicesHeroHeader extends StatelessWidget {
       ],
     );
   }
+
+  String _greetingLabel() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning,';
+    if (hour < 17) return 'Good afternoon,';
+    return 'Good evening,';
+  }
 }
 
 class _IconBadgeButton extends StatelessWidget {
@@ -1326,7 +1333,7 @@ class _StatusChipsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <({String label, Color color, int count})>[
-      (label: _allStatus, color: AppTheme.primaryRed, count: counts.values.fold<int>(0, (a, b) => a + b)),
+      (label: 'All Services', color: AppTheme.primaryRed, count: counts.values.fold<int>(0, (a, b) => a + b)),
       (label: 'Open', color: Colors.blue, count: counts[_ServiceStatus.open] ?? 0),
       (label: 'Under Review', color: Colors.green, count: counts[_ServiceStatus.underReview] ?? 0),
       (label: 'Action Needed', color: Colors.orange, count: counts[_ServiceStatus.actionNeeded] ?? 0),
@@ -2228,6 +2235,7 @@ String _serviceCatalogueErrorMessage(Object error) {
   return 'Service catalogue is unavailable right now. Please try again.';
 }
 
+// ignore: unused_element
 String _bannerRouteFor(AuthState authState) {
   if (authState.capabilities.isGuest) return '/signup';
   if (authState.capabilities.isPending) return '/profile';
