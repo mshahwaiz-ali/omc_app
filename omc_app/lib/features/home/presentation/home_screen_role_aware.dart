@@ -508,7 +508,7 @@ class _AvatarBadge extends StatelessWidget {
             : Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFF3F4F6), alignment: Alignment.center, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary))),
+                errorBuilder: (_, error, stackTrace) => Container(color: const Color(0xFFF3F4F6), alignment: Alignment.center, child: Text(initials, style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.textPrimary))),
               ),
       ),
     );
