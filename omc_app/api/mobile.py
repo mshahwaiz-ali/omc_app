@@ -2841,6 +2841,8 @@ def get_mobile_app_config():
             "full_logo": _settings_text(branding_settings, "full_logo"),
             "logo_symbol": _settings_text(branding_settings, "logo_symbol"),
             "login_logo": _settings_text(branding_settings, "login_logo"),
+            "primary_color_family": (_get_single_settings("OMC Mobile Settings").get("primary_color_family") or "navy"),
+            "primaryColorFamily": (_get_single_settings("OMC Mobile Settings").get("primary_color_family") or "navy"),
         },
         "legal": {
             "privacy_policy_url": _settings_text(mobile_settings, "privacy_policy_url"),

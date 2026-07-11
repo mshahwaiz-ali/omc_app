@@ -26,6 +26,8 @@
   "minimum_app_version",
   "force_update",
   "maintenance_mode",
+  "appearance_section",
+  "primary_color_family",
   "legal_section",
   "privacy_policy_url",
   "privacy_policy_text",
@@ -171,6 +173,20 @@
    "fieldname": "maintenance_mode",
    "fieldtype": "Check",
    "label": "Maintenance Mode"
+  },
+  {
+   "fieldname": "appearance_section",
+   "fieldtype": "Section Break",
+   "label": "App Appearance"
+  },
+  {
+   "default": "navy",
+   "description": "Controls the global mobile app colour used for navigation and primary branded actions.",
+   "fieldname": "primary_color_family",
+   "fieldtype": "Select",
+   "label": "Primary Color Family",
+   "options": "navy\nblue\nteal\nindigo\nslate\nburgundy\nomc_red",
+   "reqd": 1
   },
   {
    "fieldname": "legal_section",
