@@ -2180,6 +2180,57 @@ def get_app_banners():
 
 
 @frappe.whitelist(allow_guest=True)
+def get_onboarding_slides():
+    slides = []
+
+    if not _has_doctype("OMC Onboarding Slide"):
+        return {"slides": slides}
+
+    for row in frappe.get_all(
+        "OMC Onboarding Slide",
+        filters={"enabled": 1, "audience": ["in", ["Public", "All"]]},
+        fields=[
+            "name",
+            "slide_id",
+            "title",
+            "subtitle",
+            "description",
+            "image",
+            "icon_key",
+            "accent_color",
+            "benefits",
+            "primary_cta_label",
+            "primary_cta_route",
+            "secondary_cta_label",
+            "secondary_cta_route",
+            "sort_order",
+        ],
+        order_by="sort_order asc, modified desc",
+        limit_page_length=10,
+    ):
+        slides.append(
+            {
+                "id": row.slide_id or row.name,
+                "name": row.name,
+                "title": row.title or "",
+                "subtitle": row.subtitle or "",
+                "description": row.description or "",
+                "image": row.image or "",
+                "image_url": _public_file_url(row.image),
+                "icon_key": row.icon_key or "",
+                "accent_color": row.accent_color or "#C81D32",
+                "benefits": row.benefits or "",
+                "primary_cta_label": row.primary_cta_label or "",
+                "primary_cta_route": row.primary_cta_route or "",
+                "secondary_cta_label": row.secondary_cta_label or "",
+                "secondary_cta_route": row.secondary_cta_route or "",
+            }
+        )
+
+    return {"slides": slides}
+
+
+@frappe.whitelist(allow_guest=True)
 def get_faqs(category=None):
     if not _has_doctype("OMC FAQ"):
         return {"faqs": []}
