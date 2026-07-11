@@ -12,6 +12,7 @@ import '../../profile/data/profile_repository.dart';
 import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
+import 'service_visual_registry.dart';
 
 const Color _ink = Color(0xFF111827);
 const Color _slate = Color(0xFF64748B);
@@ -1790,73 +1791,8 @@ Color _serviceCatalogueStatusColor(_ServiceStatus status) {
 }
 
 _ServiceTone _serviceCatalogueTone(ServiceItem service) {
-  final source =
-      '${service.category} ${service.title} ${service.wizardType ?? ''}'
-          .toLowerCase();
-  if (source.contains('visa')) {
-    return const _ServiceTone(
-      icon: Icons.flight_takeoff_rounded,
-      color: Color(0xFF0F766E),
-    );
-  }
-  if (source.contains('tax') ||
-      source.contains('ntn') ||
-      source.contains('gst')) {
-    return const _ServiceTone(
-      icon: Icons.receipt_long_outlined,
-      color: Color(0xFF8B5CF6),
-    );
-  }
-  if (source.contains('business') || source.contains('setup')) {
-    return const _ServiceTone(
-      icon: Icons.apartment_outlined,
-      color: Color(0xFFDB2777),
-    );
-  }
-  if (source.contains('document')) {
-    return const _ServiceTone(
-      icon: Icons.description_outlined,
-      color: Color(0xFF0F9D8E),
-    );
-  }
-  if (source.contains('payment') ||
-      source.contains('receipt') ||
-      source.contains('invoice')) {
-    return const _ServiceTone(
-      icon: Icons.payments_outlined,
-      color: Color(0xFFF97316),
-    );
-  }
-  if (source.contains('hr') || source.contains('employee')) {
-    return const _ServiceTone(
-      icon: Icons.groups_rounded,
-      color: Color(0xFF14B8A6),
-    );
-  }
-  if (source.contains('lead')) {
-    return const _ServiceTone(
-      icon: Icons.record_voice_over_rounded,
-      color: Color(0xFF7C3AED),
-    );
-  }
-  if (source.contains('task') || source.contains('todo')) {
-    return const _ServiceTone(
-      icon: Icons.task_alt_rounded,
-      color: Color(0xFFF59E0B),
-    );
-  }
-  if (source.contains('support') ||
-      source.contains('case') ||
-      source.contains('request')) {
-    return const _ServiceTone(
-      icon: Icons.support_agent_rounded,
-      color: Color(0xFF334155),
-    );
-  }
-  return const _ServiceTone(
-    icon: Icons.workspace_premium_outlined,
-    color: _ink,
-  );
+  final visual = serviceVisualFor(service);
+  return _ServiceTone(icon: visual.icon, color: visual.color);
 }
 
 String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {

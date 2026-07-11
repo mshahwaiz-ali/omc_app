@@ -7,10 +7,13 @@ class ServiceItem {
     required this.id,
     required this.title,
     required this.category,
+    this.categoryId,
     required this.feeLabel,
     required this.completionTime,
     this.basePrice,
     this.currency,
+    this.iconKey,
+    this.colorFamily,
     required this.requirements,
     this.governmentFeeLabel,
     this.description,
@@ -28,11 +31,14 @@ class ServiceItem {
   final String id;
   final String title;
   final String category;
+  final String? categoryId;
   final String feeLabel;
   final String? governmentFeeLabel;
   final String completionTime;
   final double? basePrice;
   final String? currency;
+  final String? iconKey;
+  final String? colorFamily;
   final List<String> requirements;
   final String? description;
   final String? shortDescription;
@@ -72,9 +78,18 @@ class ServiceItem {
       ]),
       category: _readString(json, [
         'category',
+        'category_title',
+        'categoryTitle',
+        'service_category_title',
         'service_category',
         'service_group',
         'group',
+      ]),
+      categoryId: _readNullableString(json, [
+        'category_id',
+        'categoryId',
+        'service_category_id',
+        'serviceCategoryId',
       ]),
       feeLabel: _readString(json, [
         'feeLabel',
@@ -99,6 +114,12 @@ class ServiceItem {
         'currency',
         'currency_code',
         'currencyCode',
+      ]),
+      iconKey: _readNullableString(json, ['icon', 'icon_key', 'iconKey']),
+      colorFamily: _readNullableString(json, [
+        'color_family',
+        'colorFamily',
+        'accent_family',
       ]),
       completionTime: _readString(json, [
         'completionTime',
@@ -189,7 +210,8 @@ class ServiceItem {
     }
 
     if (value is Map<String, dynamic>) {
-      final wrapped = value['items'] ??
+      final wrapped =
+          value['items'] ??
           value['list'] ??
           value['values'] ??
           value['rows'] ??
@@ -203,7 +225,9 @@ class ServiceItem {
     }
 
     if (value is Map) {
-      final normalized = value.map((key, value) => MapEntry(key.toString(), value));
+      final normalized = value.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       return _stringListFromValue(normalized);
     }
 
@@ -238,7 +262,9 @@ class ServiceItem {
     if (value is List) {
       return value
           .whereType<Map>()
-          .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+          .map(
+            (item) => item.map((key, value) => MapEntry(key.toString(), value)),
+          )
           .toList(growable: false);
     }
 
@@ -272,7 +298,9 @@ class ServiceItem {
     }
 
     if (item is Map) {
-      final normalized = item.map((key, value) => MapEntry(key.toString(), value));
+      final normalized = item.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       return _readString(normalized, [
         'title',
         'label',

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/app_back_header.dart';
-import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -12,6 +11,7 @@ import '../../auth/application/auth_state.dart';
 import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
+import 'service_visual_registry.dart';
 
 const Color _ink = Color(0xFF111827);
 const Color _slate = Color(0xFF64748B);
@@ -173,32 +173,48 @@ class ServiceDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       _SupportCard(service: service, tone: tone),
                       const SizedBox(height: 18),
-                      AppButton(
-                        label: _startRequestLabel(service, capabilities),
-                        icon: capabilities.isGuest
-                            ? Icons.person_add_alt_1_rounded
-                            : wizardLabel != null
-                            ? Icons.auto_awesome_rounded
-                            : Icons.add_rounded,
-                        onPressed: () {
-                          if (capabilities.canCreateServiceRequest) {
-                            context.push(
-                              '/services/${Uri.encodeComponent(service.id)}/request',
-                            );
-                          } else if (capabilities.isGuest) {
-                            context.push('/signup');
-                          } else if (capabilities.isPending) {
-                            context.go('/under-review');
-                          } else {
-                            _showLockedSnack(context, capabilities);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: () => SupportLauncher.openWhatsApp(context),
-                        icon: const Icon(Icons.support_agent_rounded),
-                        label: const Text('Ask OMC support'),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                          onPressed: () {
+                            if (capabilities.canCreateServiceRequest) {
+                              context.push(
+                                '/services/${Uri.encodeComponent(service.id)}/request',
+                              );
+                            } else if (capabilities.isGuest) {
+                              context.push('/signup');
+                            } else if (capabilities.isPending) {
+                              context.go('/under-review');
+                            } else {
+                              _showLockedSnack(context, capabilities);
+                            }
+                          },
+                          icon: Icon(
+                            capabilities.isGuest
+                                ? Icons.person_add_alt_1_rounded
+                                : wizardLabel != null
+                                ? Icons.arrow_forward_rounded
+                                : Icons.add_rounded,
+                            size: 19,
+                          ),
+                          label: Text(
+                            _startRequestLabel(service, capabilities),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -417,11 +433,7 @@ class _HeroCard extends StatelessWidget {
                         letterSpacing: -0.05,
                       ),
                     ),
-                    if (wizardLabel != null) ...[
-                      const SizedBox(height: 7),
-                      _WizardBadge(label: wizardLabel!, color: tone.color),
-                    ],
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 7),
                     Text(
                       service.title,
                       maxLines: 2,
@@ -434,6 +446,10 @@ class _HeroCard extends StatelessWidget {
                         letterSpacing: -0.4,
                       ),
                     ),
+                    if (wizardLabel != null) ...[
+                      const SizedBox(height: 9),
+                      _WizardBadge(label: wizardLabel!, color: tone.color),
+                    ],
                   ],
                 ),
               ),
@@ -1066,61 +1082,8 @@ class _Tone {
 }
 
 _Tone _serviceDetailTone(ServiceItem service) {
-  final source =
-      '${service.category} ${service.title} ${service.wizardType ?? ''}'
-          .toLowerCase();
-  if (source.contains('visa')) {
-    return const _Tone(
-      icon: Icons.flight_takeoff_rounded,
-      color: Color(0xFF0F766E),
-    );
-  }
-  if (source.contains('tax') ||
-      source.contains('ntn') ||
-      source.contains('gst')) {
-    return const _Tone(
-      icon: Icons.receipt_long_outlined,
-      color: Color(0xFF8B5CF6),
-    );
-  }
-  if (source.contains('business') || source.contains('setup')) {
-    return const _Tone(
-      icon: Icons.apartment_outlined,
-      color: Color(0xFFDB2777),
-    );
-  }
-  if (source.contains('document')) {
-    return const _Tone(
-      icon: Icons.description_outlined,
-      color: Color(0xFF0F9D8E),
-    );
-  }
-  if (source.contains('payment') ||
-      source.contains('receipt') ||
-      source.contains('invoice')) {
-    return const _Tone(icon: Icons.payments_outlined, color: Color(0xFFF97316));
-  }
-  if (source.contains('hr') || source.contains('employee')) {
-    return const _Tone(icon: Icons.groups_rounded, color: Color(0xFF14B8A6));
-  }
-  if (source.contains('lead')) {
-    return const _Tone(
-      icon: Icons.record_voice_over_rounded,
-      color: Color(0xFF7C3AED),
-    );
-  }
-  if (source.contains('task') || source.contains('todo')) {
-    return const _Tone(icon: Icons.task_alt_rounded, color: Color(0xFFF59E0B));
-  }
-  if (source.contains('support') ||
-      source.contains('case') ||
-      source.contains('request')) {
-    return const _Tone(
-      icon: Icons.support_agent_rounded,
-      color: Color(0xFF334155),
-    );
-  }
-  return const _Tone(icon: Icons.workspace_premium_outlined, color: _ink);
+  final visual = serviceVisualFor(service);
+  return _Tone(icon: visual.icon, color: visual.color);
 }
 
 String serviceCatalogueErrorMessage(Object error) {
