@@ -5,11 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_identity_header.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../home/data/home_dashboard_repository.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
@@ -47,6 +49,8 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
         authState.displayName ??
         _displayNameFromUserId(authState.userId ?? '');
     final avatarUrl = profile?.avatarUrl ?? authState.avatarUrl;
+    final unreadNotifications =
+        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
 
     return Scaffold(
       body: SafeArea(
@@ -83,11 +87,12 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                 ),
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
                 children: [
-                  _Header(
+                  OmcIdentityHeader(
                     displayName: displayName,
-                    avatarUrl: avatarUrl,
-                    actionNeededCount: counts.actionNeeded,
-                    onNewService: () => context.go('/services'),
+                    avatarUrl: ApiConfig.resolveFileUrl(avatarUrl),
+                    unreadNotifications: unreadNotifications,
+                    onNotifications: () => context.push('/notifications'),
+                    onAvatar: () => context.push('/profile'),
                   ),
                   const SizedBox(height: 18),
                   _SearchAndFilterRow(
