@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/widgets/omc_identity_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../profile/data/profile_repository.dart';
@@ -102,7 +103,7 @@ class HomeScreen extends ConsumerWidget {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverToBoxAdapter(
-                      child: _Header(
+                      child: OmcIdentityHeader(
                         displayName: displayName,
                         avatarUrl: avatarUrl,
                         unreadNotifications: summary.unreadNotifications,
@@ -111,6 +112,7 @@ class HomeScreen extends ConsumerWidget {
                           capabilities,
                           onOpenNotifications,
                         ),
+                        onAvatar: () => context.push('/profile'),
                       ),
                     ),
                   ),
