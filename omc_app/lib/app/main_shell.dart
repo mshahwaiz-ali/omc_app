@@ -45,6 +45,16 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   void _selectTab(int index) {
     final capabilities = _currentCapabilities();
+    if (_isInternal(capabilities)) {
+      final path = switch (index) {
+        0 => '/internal-workspace',
+        1 => '/customers',
+        2 => '/internal-workspace/service-cases',
+        _ => '/internal-workspace',
+      };
+      context.go(path);
+      return;
+    }
     if (index == 2 && !_canOpenTrack(capabilities)) {
       _showLockedSnack(capabilities);
       return;
@@ -62,6 +72,10 @@ class _MainShellState extends ConsumerState<MainShell> {
         .maybeWhen(data: (profile) => profile, orElse: () => null);
     return profile?.capabilities ??
         ref.read(authControllerProvider).capabilities;
+  }
+
+  bool _isInternal(AuthCapabilities capabilities) {
+    return capabilities.canAccessInternalWorkspace || capabilities.isInternal;
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {
@@ -288,6 +302,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         onTabSelected: _selectTab,
         onQuickActions: _showQuickActionsSheet,
         onMore: _showMoreSheet,
+        isInternal: _isInternal(capabilities),
       ),
     );
   }
