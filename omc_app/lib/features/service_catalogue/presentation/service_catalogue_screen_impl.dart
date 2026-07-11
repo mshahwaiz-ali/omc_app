@@ -581,6 +581,8 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+// Retained while older catalogue layouts are migrated to OmcIdentityHeader.
+// ignore: unused_element
 class _Header extends StatelessWidget {
   const _Header({
     required this.displayName,
