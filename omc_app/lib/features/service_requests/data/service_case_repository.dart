@@ -340,6 +340,7 @@ class ServiceCaseRepository {
       customerNtn: _nullableString(json['ntn'] ?? json['customer_ntn']),
       customerCnic: _nullableString(json['cnic'] ?? json['customer_cnic']),
       companyName: _nullableString(json['company_name']),
+      priority: _nullableString(json['priority']),
       customerActionRequired: _boolValue(json['customer_action_required']),
       requiredDocumentsCount: _nullableIntValue(
         json['required_documents_count'],
