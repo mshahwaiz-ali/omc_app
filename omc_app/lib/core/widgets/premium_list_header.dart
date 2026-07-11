@@ -6,6 +6,7 @@ class PremiumListHeader extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.metaLabel,
+    this.accentColor,
     super.key,
   });
 
@@ -13,11 +14,12 @@ class PremiumListHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   final String? metaLabel;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
+    final accent = accentColor ?? theme.colorScheme.primary;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
