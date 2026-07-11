@@ -677,7 +677,15 @@ class _LeadsHeader extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _HeaderBackButton(onPressed: () => context.pop()),
+            _HeaderBackButton(
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/more');
+                }
+              },
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Padding(

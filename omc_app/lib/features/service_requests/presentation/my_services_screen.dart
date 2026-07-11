@@ -92,7 +92,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                       if (context.canPop()) {
                         context.pop();
                       } else {
-                        context.go('/');
+                        context.go('/home');
                       }
                     },
                     onNotifications: () => context.push('/notifications'),

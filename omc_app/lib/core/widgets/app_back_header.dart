@@ -11,7 +11,7 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
     this.actionIcon,
     this.actionTooltip,
     this.onAction,
-    this.fallbackRoute = '/home',
+    this.fallbackRoute,
   });
 
   final String title;
@@ -19,20 +19,23 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
   final IconData? actionIcon;
   final String? actionTooltip;
   final VoidCallback? onAction;
-  final String fallbackRoute;
+  final String? fallbackRoute;
 
   @override
   Size get preferredSize => Size.fromHeight(subtitle == null ? 76 : 90);
 
   @override
   Widget build(BuildContext context) {
-    final canPop = GoRouter.of(context).canPop();
+    final router = GoRouter.of(context);
+    final canPop = router.canPop();
+    final resolvedFallbackRoute =
+        fallbackRoute ?? _fallbackRouteFor(router.state.uri.path);
 
     void goBack() {
       if (canPop) {
         context.pop();
       } else {
-        context.go(fallbackRoute);
+        context.go(resolvedFallbackRoute);
       }
     }
 
@@ -58,8 +61,8 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                     onTap: goBack,
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      width: 44,
-                      height: 44,
+                      width: 46,
+                      height: 46,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: const Color(0xFFE2E6ED)),
@@ -72,7 +75,7 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                         ],
                       ),
                       child: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
+                        Icons.arrow_back_rounded,
                         size: 18,
                         color: AppTheme.textPrimary,
                       ),
@@ -148,4 +151,66 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
       ),
     );
   }
+}
+
+String _fallbackRouteFor(String location) {
+  final path = location.trim();
+
+  if (path.startsWith('/tasks/')) {
+    return '/tasks';
+  }
+
+  if (path.startsWith('/leads/')) {
+    return '/leads';
+  }
+
+  if (path.startsWith('/customers/')) {
+    return '/customers';
+  }
+
+  if (path.startsWith('/payments/')) {
+    return '/payments';
+  }
+
+  if (path.startsWith('/documents/')) {
+    return '/documents';
+  }
+
+  if (path.startsWith('/notifications/')) {
+    return '/notifications';
+  }
+
+  if (path.startsWith('/knowledge/')) {
+    return '/knowledge';
+  }
+
+  if (path.startsWith('/support-tickets/')) {
+    return '/support';
+  }
+
+  if (path.startsWith('/my-services/')) {
+    return '/my-services';
+  }
+
+  if (path.startsWith('/internal-workspace/service-cases/')) {
+    return '/internal-workspace/service-cases';
+  }
+
+  if (path.startsWith('/internal-workspace/operations')) {
+    return '/internal-workspace';
+  }
+
+  if (path.startsWith('/services/')) {
+    return '/services';
+  }
+
+  if (path.startsWith('/tax-calculator/')) {
+    return '/tax-calculator';
+  }
+
+  if (path.startsWith('/expense-budget')) {
+    return '/expense-tracker';
+  }
+
+  return '/home';
 }
