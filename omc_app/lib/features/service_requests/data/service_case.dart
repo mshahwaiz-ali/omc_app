@@ -27,6 +27,7 @@ class ServiceCase {
     this.customerNtn,
     this.customerCnic,
     this.companyName,
+    this.priority,
     this.customerActionRequired = false,
     this.requiredDocumentsCount,
     this.submittedDocumentsCount,
@@ -62,6 +63,7 @@ class ServiceCase {
   final String? customerNtn;
   final String? customerCnic;
   final String? companyName;
+  final String? priority;
   final bool customerActionRequired;
   final int? requiredDocumentsCount;
   final int? submittedDocumentsCount;
