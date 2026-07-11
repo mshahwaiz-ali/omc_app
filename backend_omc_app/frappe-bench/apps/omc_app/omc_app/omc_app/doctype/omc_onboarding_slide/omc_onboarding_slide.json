@@ -1,0 +1,149 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:slide_id",
+ "creation": "2026-07-11 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "slide_id",
+  "enabled",
+  "audience",
+  "title",
+  "subtitle",
+  "description",
+  "image",
+  "icon_key",
+  "accent_color",
+  "benefits",
+  "cta_section",
+  "primary_cta_label",
+  "primary_cta_route",
+  "secondary_cta_label",
+  "secondary_cta_route",
+  "sort_order"
+ ],
+ "fields": [
+  {
+   "fieldname": "slide_id",
+   "fieldtype": "Data",
+   "label": "Slide ID",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "default": "Public",
+   "fieldname": "audience",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Audience",
+   "options": "Public\nCustomer\nInternal\nAll",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "subtitle",
+   "fieldtype": "Small Text",
+   "label": "Subtitle"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
+  },
+  {
+   "fieldname": "icon_key",
+   "fieldtype": "Data",
+   "label": "Icon Key"
+  },
+  {
+   "default": "#C81D32",
+   "fieldname": "accent_color",
+   "fieldtype": "Data",
+   "label": "Accent Color"
+  },
+  {
+   "description": "One benefit per line. The mobile app displays up to four.",
+   "fieldname": "benefits",
+   "fieldtype": "Small Text",
+   "label": "Benefits"
+  },
+  {
+   "fieldname": "cta_section",
+   "fieldtype": "Section Break",
+   "label": "CTA"
+  },
+  {
+   "fieldname": "primary_cta_label",
+   "fieldtype": "Data",
+   "label": "Primary CTA Label"
+  },
+  {
+   "fieldname": "primary_cta_route",
+   "fieldtype": "Data",
+   "label": "Primary CTA Route"
+  },
+  {
+   "fieldname": "secondary_cta_label",
+   "fieldtype": "Data",
+   "label": "Secondary CTA Label"
+  },
+  {
+   "fieldname": "secondary_cta_route",
+   "fieldtype": "Data",
+   "label": "Secondary CTA Route"
+  },
+  {
+   "default": "0",
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Sort Order"
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-11 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Onboarding Slide",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "sort_order",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}
