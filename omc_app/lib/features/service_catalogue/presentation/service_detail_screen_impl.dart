@@ -6,6 +6,9 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
+import '../../app_config/data/mobile_app_config.dart';
+import '../../app_config/data/mobile_app_config_repository.dart';
+import '../../app_config/presentation/app_brand_registry.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../support/application/support_launcher.dart';
@@ -29,6 +32,14 @@ class ServiceDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final servicesAsync = ref.watch(serviceCatalogueProvider);
     final capabilities = ref.watch(authControllerProvider).capabilities;
+    final mobileConfig =
+        ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
+    final primaryColor = appPrimaryColorFor(
+      mobileConfig.branding.primaryColorFamily,
+    );
+    final primaryForeground = appPrimaryForegroundFor(
+      mobileConfig.branding.primaryColorFamily,
+    );
 
     return servicesAsync.when(
       loading: () => const Scaffold(
@@ -178,8 +189,8 @@ class ServiceDetailScreen extends ConsumerWidget {
                         height: 52,
                         child: FilledButton.icon(
                           style: FilledButton.styleFrom(
-                            backgroundColor: _primary,
-                            foregroundColor: Colors.white,
+                            backgroundColor: primaryColor,
+                            foregroundColor: primaryForeground,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),

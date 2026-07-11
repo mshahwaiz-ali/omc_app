@@ -11,6 +11,7 @@ class OmcBottomNav extends StatelessWidget {
     required this.onTabSelected,
     required this.onQuickActions,
     required this.onMore,
+    required this.primaryColor,
     this.isInternal = false,
     super.key,
   });
@@ -20,6 +21,7 @@ class OmcBottomNav extends StatelessWidget {
   final ValueChanged<int> onTabSelected;
   final VoidCallback onQuickActions;
   final VoidCallback onMore;
+  final Color primaryColor;
   final bool isInternal;
 
   static const List<OmcBottomNavItem> _customerItems = [
@@ -93,6 +95,7 @@ class OmcBottomNav extends StatelessWidget {
                 child: _NavTab(
                   item: items[0],
                   selected: selectedIndex == 0,
+                  primaryColor: primaryColor,
                   onTap: () => onTabSelected(0),
                 ),
               ),
@@ -100,17 +103,20 @@ class OmcBottomNav extends StatelessWidget {
                 child: _NavTab(
                   item: items[1],
                   selected: selectedIndex == 1,
+                  primaryColor: primaryColor,
                   onTap: () => onTabSelected(1),
                 ),
               ),
               _CenterActionButton(
                 onTap: onQuickActions,
                 isInternal: isInternal,
+                primaryColor: primaryColor,
               ),
               Expanded(
                 child: _NavTab(
                   item: items[2],
                   selected: selectedIndex == 2,
+                  primaryColor: primaryColor,
                   onTap: () => onTabSelected(2),
                 ),
               ),
@@ -118,6 +124,7 @@ class OmcBottomNav extends StatelessWidget {
                 child: _MoreTab(
                   selected: selectedIndex >= 3,
                   badgeCount: notificationBadgeCount,
+                  primaryColor: primaryColor,
                   onTap: onMore,
                 ),
               ),
@@ -130,10 +137,15 @@ class OmcBottomNav extends StatelessWidget {
 }
 
 class _CenterActionButton extends StatelessWidget {
-  const _CenterActionButton({required this.onTap, required this.isInternal});
+  const _CenterActionButton({
+    required this.onTap,
+    required this.isInternal,
+    required this.primaryColor,
+  });
 
   final VoidCallback onTap;
   final bool isInternal;
+  final Color primaryColor;
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +155,7 @@ class _CenterActionButton extends StatelessWidget {
         button: true,
         label: isInternal ? 'Open admin quick actions' : 'Open quick actions',
         child: Material(
-          color: OmcPremium.ink,
+          color: primaryColor,
           borderRadius: BorderRadius.circular(18),
           child: InkWell(
             onTap: onTap,
@@ -152,11 +164,11 @@ class _CenterActionButton extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: OmcPremium.ink,
+                color: primaryColor,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: OmcPremium.ink.withValues(alpha: 0.20),
+                    color: primaryColor.withValues(alpha: 0.20),
                     blurRadius: 14,
                     offset: const Offset(0, 5),
                   ),
@@ -175,17 +187,19 @@ class _NavTab extends StatelessWidget {
   const _NavTab({
     required this.item,
     required this.selected,
+    required this.primaryColor,
     required this.onTap,
   });
 
   final OmcBottomNavItem item;
   final bool selected;
+  final Color primaryColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final icon = selected ? item.activeIcon : item.icon;
-    final color = selected ? OmcPremium.tax : AppTheme.textMuted;
+    final color = selected ? primaryColor : AppTheme.textMuted;
 
     return Material(
       color: Colors.transparent,
@@ -199,7 +213,7 @@ class _NavTab extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: selected
-                ? OmcPremium.tax.withValues(alpha: 0.08)
+                ? primaryColor.withValues(alpha: 0.08)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
@@ -235,16 +249,18 @@ class _MoreTab extends StatelessWidget {
   const _MoreTab({
     required this.selected,
     required this.badgeCount,
+    required this.primaryColor,
     required this.onTap,
   });
 
   final bool selected;
   final int badgeCount;
+  final Color primaryColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? OmcPremium.tax : AppTheme.textMuted;
+    final color = selected ? primaryColor : AppTheme.textMuted;
 
     return Material(
       color: Colors.transparent,
@@ -257,7 +273,7 @@ class _MoreTab extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: selected
-                ? OmcPremium.tax.withValues(alpha: 0.08)
+                ? primaryColor.withValues(alpha: 0.08)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),

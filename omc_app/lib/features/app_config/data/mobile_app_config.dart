@@ -22,6 +22,7 @@ class MobileAppConfig {
       branding: const MobileBrandingConfig(
         companyName: 'OMC House',
         tagline: 'Business, tax and compliance support',
+        primaryColorFamily: 'navy',
       ),
       legal: MobileLegalConfig.fallback,
       isFallback: true,
@@ -119,10 +120,12 @@ class MobileBrandingConfig {
   const MobileBrandingConfig({
     required this.companyName,
     required this.tagline,
+    this.primaryColorFamily = 'navy',
   });
 
   final String companyName;
   final String tagline;
+  final String primaryColorFamily;
 
   factory MobileBrandingConfig.fromJson(Map<String, dynamic> json) {
     return MobileBrandingConfig(
@@ -130,10 +133,18 @@ class MobileBrandingConfig {
           ? _stringValue(json['company_name'])
           : 'OMC House',
       tagline: _stringValue(json['tagline']),
+      primaryColorFamily: _primaryColorFamilyValue(
+        json['primary_color_family'] ?? json['primaryColorFamily'],
+      ),
     );
   }
 
   static String _stringValue(dynamic value) => value?.toString().trim() ?? '';
+
+  static String _primaryColorFamilyValue(dynamic value) {
+    final family = _stringValue(value).toLowerCase();
+    return family.isEmpty ? 'navy' : family;
+  }
 }
 
 class MobileLegalConfig {

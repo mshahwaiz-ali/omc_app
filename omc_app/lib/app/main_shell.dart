@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
+import '../features/app_config/presentation/app_brand_registry.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/documents/presentation/documents_screen.dart';
@@ -272,6 +273,11 @@ class _MainShellState extends ConsumerState<MainShell> {
     final capabilities = profile?.capabilities ?? authState.capabilities;
     final unreadNotifications =
         ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final mobileConfig =
+        ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
+    final primaryColor = appPrimaryColorFor(
+      mobileConfig.branding.primaryColorFamily,
+    );
     final canUseInternalTrack =
         capabilities.canAccessInternalWorkspace || capabilities.isInternal;
     final canUseInternalDocs =
@@ -301,6 +307,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       bottomNavigationBar: OmcBottomNav(
         selectedIndex: _currentIndex,
         notificationBadgeCount: unreadNotifications,
+        primaryColor: primaryColor,
         onTabSelected: _selectTab,
         onQuickActions: _showQuickActionsSheet,
         onMore: _showMoreSheet,

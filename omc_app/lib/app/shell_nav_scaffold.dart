@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
+import '../features/app_config/presentation/app_brand_registry.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/home/data/home_dashboard_repository.dart';
@@ -37,6 +38,11 @@ class ShellNavScaffold extends ConsumerWidget {
     final capabilities = profile?.capabilities ?? authState.capabilities;
     final unreadNotifications =
         ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final mobileConfig =
+        ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
+    final primaryColor = appPrimaryColorFor(
+      mobileConfig.branding.primaryColorFamily,
+    );
     final isInternal = _isInternal(capabilities);
 
     return Scaffold(
@@ -45,6 +51,7 @@ class ShellNavScaffold extends ConsumerWidget {
       bottomNavigationBar: OmcBottomNav(
         selectedIndex: selectedIndex,
         notificationBadgeCount: unreadNotifications,
+        primaryColor: primaryColor,
         onTabSelected: (index) => _openTab(context, capabilities, index),
         onQuickActions: () =>
             _showQuickActionsSheet(context, ref, capabilities),
