@@ -134,6 +134,7 @@ List<OmcSheetAction> _moreActions({
       action('Payments', Icons.receipt_long_outlined, onOpenPayments),
       action('Leads', Icons.person_search_outlined, onOpenLeads),
       action('Tasks', Icons.task_alt_outlined, onOpenTasks),
+      action('Support', Icons.support_agent_outlined, onOpenSupport),
       action(
         'Alerts',
         Icons.notifications_none_rounded,
@@ -257,10 +258,10 @@ class _MoreSheetContent extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: actions.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 5,
+                crossAxisCount: 4,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 8,
-                childAspectRatio: 0.82,
+                childAspectRatio: 0.86,
               ),
               itemBuilder: (context, index) =>
                   _SheetActionButton(action: actions[index]),

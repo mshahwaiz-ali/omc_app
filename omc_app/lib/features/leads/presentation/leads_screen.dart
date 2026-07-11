@@ -8,7 +8,9 @@ import '../data/leads_repository.dart';
 import '../domain/lead_item.dart';
 
 class LeadsScreen extends ConsumerStatefulWidget {
-  const LeadsScreen({super.key});
+  const LeadsScreen({this.openCreateOnLoad = false, super.key});
+
+  final bool openCreateOnLoad;
 
   @override
   ConsumerState<LeadsScreen> createState() => _LeadsScreenState();
@@ -17,6 +19,16 @@ class LeadsScreen extends ConsumerStatefulWidget {
 class _LeadsScreenState extends ConsumerState<LeadsScreen> {
   String _query = '';
   LeadStatus? _statusFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openCreateOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showCreateLeadSheet();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

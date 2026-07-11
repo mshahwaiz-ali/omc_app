@@ -174,6 +174,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       onOpenInternalWorkspace: () => _openPath('/internal-workspace'),
       onOpenCustomers: () => _openPath('/customers'),
       onOpenTasks: () => _openPath('/tasks'),
+      onCreateLead: () => _openPath('/leads?action=create'),
+      onCreateTask: () => _openPath('/tasks?action=create'),
     );
   }
 

@@ -211,8 +211,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/leads',
         name: 'leads',
-        builder: (context, state) =>
-            _withShell(ShellNavScaffold.moreIndex, const LeadsScreen()),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          LeadsScreen(
+            openCreateOnLoad: state.uri.queryParameters['action'] == 'create',
+          ),
+        ),
       ),
       GoRoute(
         path: '/customers',
@@ -223,8 +227,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/tasks',
         name: 'tasks',
-        builder: (context, state) =>
-            _withShell(ShellNavScaffold.moreIndex, const TasksScreen()),
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          TasksScreen(
+            openCreateOnLoad: state.uri.queryParameters['action'] == 'create',
+          ),
+        ),
       ),
       GoRoute(
         path: '/leads/:leadId',

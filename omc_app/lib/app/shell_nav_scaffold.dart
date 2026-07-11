@@ -65,10 +65,10 @@ class ShellNavScaffold extends ConsumerWidget {
   ) {
     if (_isInternal(capabilities)) {
       final path = switch (index) {
-        homeIndex => '/internal-workspace',
-        servicesIndex => '/customers',
+        homeIndex => '/home',
+        servicesIndex => '/services',
         trackIndex => '/internal-workspace/service-cases',
-        _ => '/internal-workspace',
+        _ => '/home',
       };
       context.go(path);
       return;
@@ -134,6 +134,8 @@ class ShellNavScaffold extends ConsumerWidget {
       onOpenInternalWorkspace: () => context.go('/internal-workspace'),
       onOpenCustomers: () => context.go('/customers'),
       onOpenTasks: () => context.go('/tasks'),
+      onCreateLead: () => context.push('/leads?action=create'),
+      onCreateTask: () => context.push('/tasks?action=create'),
     );
   }
 

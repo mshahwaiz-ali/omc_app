@@ -11,7 +11,9 @@ import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
-  const TasksScreen({super.key});
+  const TasksScreen({this.openCreateOnLoad = false, super.key});
+
+  final bool openCreateOnLoad;
 
   @override
   ConsumerState<TasksScreen> createState() => _TasksScreenState();
@@ -20,6 +22,16 @@ class TasksScreen extends ConsumerStatefulWidget {
 class _TasksScreenState extends ConsumerState<TasksScreen> {
   String _query = '';
   String _statusFilter = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openCreateOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showCreateTaskSheet();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -20,6 +20,8 @@ Future<void> showOmcQuickActionsSheet({
   required VoidCallback onOpenInternalWorkspace,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenTasks,
+  required VoidCallback onCreateLead,
+  required VoidCallback onCreateTask,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -46,6 +48,8 @@ Future<void> showOmcQuickActionsSheet({
         onOpenInternalWorkspace: onOpenInternalWorkspace,
         onOpenCustomers: onOpenCustomers,
         onOpenTasks: onOpenTasks,
+        onCreateLead: onCreateLead,
+        onCreateTask: onCreateTask,
       );
       return _QuickActionsContent(actions: actions);
     },
@@ -67,6 +71,8 @@ List<OmcSheetAction> _quickActions({
   required VoidCallback onOpenInternalWorkspace,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenTasks,
+  required VoidCallback onCreateLead,
+  required VoidCallback onCreateTask,
 }) {
   OmcSheetAction action(String label, IconData icon, VoidCallback onTap) {
     return OmcSheetAction(
@@ -78,16 +84,12 @@ List<OmcSheetAction> _quickActions({
 
   if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
     return [
-      action(
-        'Workspace',
-        Icons.admin_panel_settings_outlined,
-        onOpenInternalWorkspace,
-      ),
-      action('Review Docs', Icons.fact_check_outlined, onOpenDocuments),
-      action('Review Pay', Icons.receipt_long_outlined, onOpenPayments),
-      action('Customers', Icons.groups_outlined, onOpenCustomers),
-      action('Cases', Icons.workspaces_outline, onOpenServices),
-      action('Tasks', Icons.task_alt_outlined, onOpenTasks),
+      action('New Lead', Icons.person_add_alt_1_rounded, onCreateLead),
+      action('Assign Task', Icons.playlist_add_check_rounded, onCreateTask),
+      action('Start Request', Icons.add_business_rounded, onOpenServices),
+      action('Review Payments', Icons.receipt_long_outlined, onOpenPayments),
+      action('Review Documents', Icons.fact_check_outlined, onOpenDocuments),
+      action('Customers', Icons.person_search_rounded, onOpenCustomers),
     ];
   }
 
@@ -154,7 +156,7 @@ class _QuickActionsContent extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Fast shortcuts based on your current access.',
+              'Start common work without searching through the app.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12.5,
@@ -167,10 +169,10 @@ class _QuickActionsContent extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: actions.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 5,
+                crossAxisCount: 3,
                 mainAxisSpacing: 12,
-                crossAxisSpacing: 8,
-                childAspectRatio: 0.82,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.10,
               ),
               itemBuilder: (context, index) =>
                   _SheetActionButton(action: actions[index]),

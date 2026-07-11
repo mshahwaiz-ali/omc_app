@@ -45,15 +45,15 @@ class OmcBottomNav extends StatelessWidget {
 
   static const List<OmcBottomNavItem> _adminItems = [
     OmcBottomNavItem(
-      label: 'Workspace',
-      icon: Icons.dashboard_customize_outlined,
-      activeIcon: Icons.dashboard_customize_rounded,
+      label: 'Home',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
       shellIndex: 0,
     ),
     OmcBottomNavItem(
-      label: 'Customers',
-      icon: Icons.groups_outlined,
-      activeIcon: Icons.groups_rounded,
+      label: 'Services',
+      icon: Icons.grid_view_outlined,
+      activeIcon: Icons.grid_view_rounded,
       shellIndex: 1,
     ),
     OmcBottomNavItem(
@@ -162,11 +162,7 @@ class _CenterActionButton extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(
-                isInternal ? Icons.bolt_rounded : Icons.add_rounded,
-                color: Colors.white,
-                size: 27,
-              ),
+              child: Icon(Icons.add_rounded, color: Colors.white, size: 27),
             ),
           ),
         ),
