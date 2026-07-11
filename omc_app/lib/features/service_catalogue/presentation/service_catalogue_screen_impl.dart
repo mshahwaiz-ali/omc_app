@@ -89,7 +89,11 @@ class _ServiceCatalogueScreenState
           final statusCounts = _buildStatusCounts(services);
 
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(serviceCatalogueProvider),
+            onRefresh: () async {
+              ref.invalidate(serviceCatalogueProvider);
+              ref.invalidate(profileSummaryProvider);
+              await ref.read(profileSummaryProvider.future);
+            },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
@@ -740,7 +744,7 @@ class _ProfileAvatar extends StatelessWidget {
     final cleanAvatarUrl = avatarUrl?.trim();
     final imageUrl = cleanAvatarUrl == null || cleanAvatarUrl.isEmpty
         ? null
-        : _absoluteAvatarUrl(cleanAvatarUrl);
+        : ApiConfig.resolveFileUrl(cleanAvatarUrl);
     final color = _avatarColor(name);
     return Material(
       color: imageUrl == null ? color.withValues(alpha: 0.12) : Colors.white,
@@ -784,14 +788,6 @@ class _ProfileAvatar extends StatelessWidget {
       ),
     );
   }
-}
-
-String _absoluteAvatarUrl(String value) {
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value;
-  }
-  if (value.startsWith('/')) return '${ApiConfig.currentBaseUrl}$value';
-  return '${ApiConfig.currentBaseUrl}/$value';
 }
 
 Color _avatarColor(String name) {
