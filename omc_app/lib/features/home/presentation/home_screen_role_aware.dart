@@ -127,11 +127,42 @@ class HomeScreen extends ConsumerWidget {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverToBoxAdapter(
-                      child: _BannerCard(
-                        mode: mode,
-                        onPrimary: () =>
-                            _bannerAction(context, capabilities, mode),
-                      ),
+                      child:
+                          mode.isCustomer && summary.serviceSnapshots.isNotEmpty
+                          ? _CustomerServiceFocusCard(
+                              service: summary.serviceSnapshots.first,
+                              nextAction: summary.nextAction,
+                              onOpenService: () => _goAllowed(
+                                context,
+                                '/my-services/${Uri.encodeComponent(summary.serviceSnapshots.first.id)}',
+                                capabilities,
+                                'can_track_requests',
+                              ),
+                              onPrimaryAction: () {
+                                final action = summary.nextAction;
+                                if (action != null &&
+                                    action.route.trim().isNotEmpty) {
+                                  context.push(
+                                    action.route.startsWith('/')
+                                        ? action.route
+                                        : '/${action.route}',
+                                  );
+                                  return;
+                                }
+
+                                _goAllowed(
+                                  context,
+                                  '/my-services/${Uri.encodeComponent(summary.serviceSnapshots.first.id)}',
+                                  capabilities,
+                                  'can_track_requests',
+                                );
+                              },
+                            )
+                          : _BannerCard(
+                              mode: mode,
+                              onPrimary: () =>
+                                  _bannerAction(context, capabilities, mode),
+                            ),
                     ),
                   ),
                   SliverPadding(
@@ -338,18 +369,19 @@ class HomeScreen extends ConsumerWidget {
   List<MobileQuickAction> _customerQuickActions() {
     return const [
       MobileQuickAction(
-        id: 'public-services',
-        title: 'Services',
-        subtitle: 'Browse',
+        id: 'customer-services',
+        title: 'My Services',
+        subtitle: 'Track',
         iconKey: 'services',
         targetType: MobileQuickActionTargetType.route,
-        targetValue: '/services',
+        targetValue: '/my-services',
+        requiredCapability: 'can_track_requests',
         sortOrder: 10,
       ),
       MobileQuickAction(
         id: 'customer-docs',
         title: 'Documents',
-        subtitle: 'Upload',
+        subtitle: 'Files',
         iconKey: 'documents',
         targetType: MobileQuickActionTargetType.route,
         targetValue: '/documents',
@@ -359,22 +391,12 @@ class HomeScreen extends ConsumerWidget {
       MobileQuickAction(
         id: 'customer-payments',
         title: 'Payments',
-        subtitle: 'Pay now',
+        subtitle: 'Billing',
         iconKey: 'payments',
         targetType: MobileQuickActionTargetType.route,
         targetValue: '/payments',
         requiredCapability: 'can_view_payments',
         sortOrder: 30,
-      ),
-      MobileQuickAction(
-        id: 'customer-track',
-        title: 'Track',
-        subtitle: 'Requests',
-        iconKey: 'track',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/my-services',
-        requiredCapability: 'can_track_requests',
-        sortOrder: 40,
       ),
       MobileQuickAction(
         id: 'tax-calculator',
@@ -384,6 +406,15 @@ class HomeScreen extends ConsumerWidget {
         targetType: MobileQuickActionTargetType.feature,
         targetValue: 'calculator',
         requiredCapability: 'can_use_tax_calculator',
+        sortOrder: 40,
+      ),
+      MobileQuickAction(
+        id: 'expense-tracker',
+        title: 'Expense Tracker',
+        subtitle: 'Manage',
+        iconKey: 'expense',
+        targetType: MobileQuickActionTargetType.route,
+        targetValue: '/expense-tracker',
         sortOrder: 50,
       ),
     ];
@@ -941,6 +972,292 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
+class _CustomerServiceFocusCard extends StatelessWidget {
+  const _CustomerServiceFocusCard({
+    required this.service,
+    required this.nextAction,
+    required this.onOpenService,
+    required this.onPrimaryAction,
+  });
+
+  final HomeDashboardServiceSnapshot service;
+  final HomeDashboardNextAction? nextAction;
+  final VoidCallback onOpenService;
+  final VoidCallback onPrimaryAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusTone = _statusTone(service.status);
+    final progress = service.progress.clamp(0.0, 1.0);
+    final progressPercent = (progress * 100).round();
+    final missingDocuments = service.documentSummary.missing;
+    final actionTitle = _actionTitle;
+    final actionLabel = _actionButtonLabel;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 26,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: onOpenService,
+            borderRadius: BorderRadius.circular(18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: statusTone.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(
+                    Icons.business_center_outlined,
+                    color: statusTone,
+                    size: 27,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        service.title.isEmpty
+                            ? 'Active OMC Service'
+                            : service.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 18,
+                          height: 1.15,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.25,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        service.id,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusTone.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    service.status.isEmpty ? 'In Progress' : service.status,
+                    style: TextStyle(
+                      color: statusTone,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 7,
+                    backgroundColor: const Color(0xFFF0F1F4),
+                    valueColor: AlwaysStoppedAnimation<Color>(statusTone),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '$progressPercent%',
+                style: TextStyle(
+                  color: statusTone,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Material(
+            color: const Color(0xFFFAFAFB),
+            borderRadius: BorderRadius.circular(15),
+            child: InkWell(
+              onTap: onOpenService,
+              borderRadius: BorderRadius.circular(15),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 11,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: statusTone.withValues(alpha: 0.09),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.info_outline_rounded,
+                        size: 16,
+                        color: statusTone,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        actionTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 12.5,
+                          height: 1.25,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (missingDocuments > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '$missingDocuments document'
+                        '${missingDocuments == 1 ? '' : 's'} missing',
+                        style: TextStyle(
+                          color: statusTone,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 3),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: statusTone,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 13),
+          SizedBox(
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: onPrimaryAction,
+              style: FilledButton.styleFrom(
+                elevation: 0,
+                backgroundColor: AppTheme.primaryRed,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              icon: Icon(_actionIcon, size: 20),
+              label: Text(
+                actionLabel,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String get _actionTitle {
+    final title = nextAction?.title.trim() ?? '';
+    final subtitle = nextAction?.subtitle.trim() ?? '';
+
+    if (title.isNotEmpty && subtitle.isNotEmpty) {
+      return '$title: $subtitle';
+    }
+    if (title.isNotEmpty) return title;
+    if (service.documentSummary.missing > 0) {
+      return 'Next step: Upload the required document';
+    }
+
+    return 'Open this service to view the next step';
+  }
+
+  String get _actionButtonLabel {
+    final configured = nextAction?.buttonLabel.trim() ?? '';
+    if (configured.isNotEmpty) return configured;
+
+    if (service.documentSummary.missing > 0) {
+      return 'Upload document';
+    }
+
+    return 'View service';
+  }
+
+  IconData get _actionIcon {
+    final type = nextAction?.type.toLowerCase().trim() ?? '';
+
+    if (type.contains('document') || service.documentSummary.missing > 0) {
+      return Icons.upload_file_outlined;
+    }
+    if (type.contains('payment')) return Icons.payments_outlined;
+
+    return Icons.arrow_forward_rounded;
+  }
+
+  Color _statusTone(String status) {
+    final normalized = status.toLowerCase().trim();
+
+    if (normalized.contains('review') ||
+        normalized.contains('pending') ||
+        normalized.contains('waiting')) {
+      return const Color(0xFFF97316);
+    }
+
+    if (normalized.contains('complete') ||
+        normalized.contains('approved') ||
+        normalized.contains('paid')) {
+      return const Color(0xFF159447);
+    }
+
+    return AppTheme.primaryRed;
+  }
+}
+
 class _BannerCard extends StatelessWidget {
   const _BannerCard({required this.mode, required this.onPrimary});
   final _HomeMode mode;
@@ -1085,7 +1402,12 @@ class _QuickActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visible = actions.take(5).toList(growable: false);
+    // Do not expose inaccessible destinations as disabled tiles.
+    // Guest and pending modes only see actions their capabilities permit.
+    final visible = actions
+        .where((action) => _isAllowed(action, capabilities))
+        .take(5)
+        .toList(growable: false);
     return SizedBox(
       height: 88,
       child: Row(
