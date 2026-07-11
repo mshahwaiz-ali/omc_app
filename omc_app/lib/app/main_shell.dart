@@ -280,7 +280,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     ];
 
     return Scaffold(
-      extendBody: true,
+      extendBody: false,
       body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: OmcBottomNav(
         selectedIndex: _currentIndex,

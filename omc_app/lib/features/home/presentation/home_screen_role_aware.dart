@@ -11,6 +11,7 @@ import '../../auth/application/auth_state.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
+import 'customer_guest_home_view.dart';
 
 const Color _taxBlue = Color(0xFF2F6BFF);
 const Color _paymentsGreen = Color(0xFF17B890);
@@ -47,10 +48,14 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
-    final capabilities = authState.capabilities;
     final profileAsync = ref.watch(profileSummaryProvider);
     final quickActionsAsync = ref.watch(mobileQuickActionsProvider);
 
+    final profile = profileAsync.maybeWhen(
+      data: (value) => value,
+      orElse: () => null,
+    );
+    final capabilities = profile?.capabilities ?? authState.capabilities;
     final mode = _HomeMode.fromCapabilities(capabilities);
     final dashboardAsync = mode.isInternal || mode.isCustomer
         ? ref.watch(homeDashboardSummaryProvider)
@@ -61,10 +66,6 @@ class HomeScreen extends ConsumerWidget {
     final summary = dashboardAsync.maybeWhen(
       data: (value) => value,
       orElse: () => const HomeDashboardSummary.empty(),
-    );
-    final profile = profileAsync.maybeWhen(
-      data: (value) => value,
-      orElse: () => null,
     );
     final displayName =
         profile?.displayName ??
@@ -82,6 +83,96 @@ class HomeScreen extends ConsumerWidget {
             ),
           )
         : _customerQuickActions();
+
+    if (!mode.isInternal) {
+      return CustomerGuestHomeView(
+        displayName: displayName,
+        avatarUrl: avatarUrl,
+        summary: summary,
+        capabilities: capabilities,
+        actions: quickActions,
+        isGuest: capabilities.isGuest,
+        isPending: capabilities.isPending,
+        isRejected: capabilities.isRejected,
+        onRefresh: () async {
+          ref.invalidate(homeDashboardSummaryProvider);
+          ref.invalidate(mobileQuickActionsProvider);
+          ref.invalidate(profileSummaryProvider);
+        },
+        onNotifications: () =>
+            _openNotifications(context, capabilities, onOpenNotifications),
+        onAvatar: () {
+          if (capabilities.isGuest) {
+            context.push('/signup');
+            return;
+          }
+          context.push('/profile');
+        },
+        onSearch: () => context.push('/services'),
+        onAction: (action) => _handleQuickAction(
+          context,
+          action,
+          capabilities,
+          onOpenServices: onOpenServices,
+          onOpenCalculator: onOpenCalculator,
+          onOpenSupport: onOpenSupport,
+        ),
+        isActionAllowed: (action) => _isActionAllowed(action, capabilities),
+        onLockedAction: (action) => _showGuestAccessSheet(
+          context,
+          capabilities,
+          featureName: action.title,
+        ),
+        onOpenService: (id) => _goAllowed(
+          context,
+          '/my-services/${Uri.encodeComponent(id)}',
+          capabilities,
+          'can_track_requests',
+        ),
+        onOpenServices: () => _goAllowed(
+          context,
+          '/my-services',
+          capabilities,
+          'can_track_requests',
+        ),
+        onPrimaryServiceAction: (service) {
+          final action = summary.nextAction;
+
+          if (action != null &&
+              action.route.trim().isNotEmpty &&
+              _isAllowed('can_track_requests', capabilities)) {
+            context.push(
+              action.route.startsWith('/') ? action.route : '/${action.route}',
+            );
+            return;
+          }
+
+          if (!_isAllowed('can_track_requests', capabilities)) {
+            _showGuestAccessSheet(
+              context,
+              capabilities,
+              featureName: 'service tracking',
+            );
+            return;
+          }
+
+          context.push('/my-services/${Uri.encodeComponent(service.id)}');
+        },
+        onActivityTap: () {
+          if (!_isAllowed('can_track_requests', capabilities)) {
+            _showGuestAccessSheet(
+              context,
+              capabilities,
+              featureName: 'recent activity',
+            );
+            return;
+          }
+          context.push('/my-services');
+        },
+        onSignUp: () => context.push('/signup'),
+        onSignIn: () => context.push('/login'),
+      );
+    }
 
     return Scaffold(
       body: Stack(
@@ -415,6 +506,7 @@ class HomeScreen extends ConsumerWidget {
         iconKey: 'expense',
         targetType: MobileQuickActionTargetType.route,
         targetValue: '/expense-tracker',
+        requiredCapability: 'can_access_customer_dashboard',
         sortOrder: 50,
       ),
     ];
@@ -517,6 +609,11 @@ class HomeScreen extends ConsumerWidget {
       'can_manage_tasks' =>
         capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
       'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
+      'can_access_customer_dashboard' =>
+        capabilities.canViewCustomerDashboard ||
+            capabilities.canAccessCustomerDashboard ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
       _ => true,
     };
   }
@@ -586,6 +683,11 @@ class HomeScreen extends ConsumerWidget {
         capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
       'can_manage_tasks' =>
         capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
+      'can_access_customer_dashboard' =>
+        capabilities.canViewCustomerDashboard ||
+            capabilities.canAccessCustomerDashboard ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
       _ => true,
     };
   }
@@ -618,6 +720,129 @@ class HomeScreen extends ConsumerWidget {
     } else {
       context.push('/profile');
     }
+  }
+
+  void _showGuestAccessSheet(
+    BuildContext context,
+    AuthCapabilities capabilities, {
+    required String featureName,
+  }) {
+    if (!capabilities.isGuest) {
+      _showLockedSnack(context, capabilities);
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x240F172A),
+                blurRadius: 32,
+                offset: Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDE1E7),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Icon(
+                  Icons.lock_open_rounded,
+                  color: AppTheme.primaryRed,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Unlock your OMC workspace',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.35,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Create an account to use $featureName, track services, '
+                'manage documents and access payments.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    context.push('/signup');
+                  },
+                  style: FilledButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: AppTheme.primaryRed,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                  ),
+                  child: const Text(
+                    'Create free account',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/login');
+                },
+                child: const Text(
+                  'Already have an account? Sign in',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
@@ -1464,6 +1689,11 @@ class _QuickActionsRow extends StatelessWidget {
       'can_manage_tasks' =>
         capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
       'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
+      'can_access_customer_dashboard' =>
+        capabilities.canViewCustomerDashboard ||
+            capabilities.canAccessCustomerDashboard ||
+            capabilities.isApproved ||
+            capabilities.isInternal,
       _ => true,
     };
   }
