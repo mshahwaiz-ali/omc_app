@@ -616,12 +616,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   String? _resolveAvatarUrl(String? value) {
-    final text = value?.trim();
-    if (text == null || text.isEmpty) return null;
-    if (text.startsWith('http://') || text.startsWith('https://')) return text;
-    return text.startsWith('/')
-        ? '${ApiConfig.baseUrl}$text'
-        : '${ApiConfig.baseUrl}/$text';
+    return ApiConfig.resolveFileUrl(value);
   }
 }
 
