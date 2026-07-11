@@ -521,6 +521,67 @@ class _OperationsSummary extends StatelessWidget {
       0,
       (sum, item) => sum + item.approvedDocuments,
     );
+    final completed = cases
+        .where((item) => _isClosedStatus(item.status))
+        .length;
+
+    if (area == InternalOperationArea.payments) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final metrics = [
+            _OpsMetric(
+              value: '${cases.length}',
+              label: 'Services',
+              subtitle: 'Total',
+              icon: Icons.receipt_long_outlined,
+              color: AppTheme.primaryRed,
+            ),
+            _OpsMetric(
+              value: '$uploaded',
+              label: 'Uploaded',
+              subtitle: 'Files available',
+              icon: Icons.cloud_upload_outlined,
+              color: const Color(0xFFF08A35),
+            ),
+            _OpsMetric(
+              value: '$pending',
+              label: 'Pending',
+              subtitle: 'Action required',
+              icon: Icons.schedule_rounded,
+              color: const Color(0xFF2464D8),
+            ),
+            _OpsMetric(
+              value: '$completed',
+              label: 'Received',
+              subtitle: 'Completed',
+              icon: Icons.check_circle_outline_rounded,
+              color: const Color(0xFF2E9B58),
+            ),
+          ];
+
+          if (constraints.maxWidth < 700) {
+            return GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.28,
+              children: metrics,
+            );
+          }
+
+          return Row(
+            children: [
+              for (var index = 0; index < metrics.length; index++) ...[
+                Expanded(child: metrics[index]),
+                if (index != metrics.length - 1) const SizedBox(width: 10),
+              ],
+            ],
+          );
+        },
+      );
+    }
 
     if (area != InternalOperationArea.customers) {
       return Row(
@@ -547,12 +608,8 @@ class _OperationsSummary extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: _OpsMetric(
-              value: area == InternalOperationArea.payments
-                  ? '$pending'
-                  : '$approved',
-              label: area == InternalOperationArea.payments
-                  ? 'Pending'
-                  : 'Approved',
+              value: '$approved',
+              label: 'Approved',
               subtitle: 'Current',
               icon: Icons.check_circle_outline_rounded,
               color: const Color(0xFF2E9B58),
@@ -679,12 +736,13 @@ class _OperationsCaseCard extends StatelessWidget {
       return _Customer360Card(serviceCase: serviceCase);
     }
 
-    final title = area == InternalOperationArea.payments
-        ? 'Payment control'
-        : serviceCase.documentSummaryLabel;
+    if (area == InternalOperationArea.payments) {
+      return _PaymentReviewCard(serviceCase: serviceCase);
+    }
 
     final subtitle =
-        '${serviceCase.displayCustomer} · ${serviceCase.displayService} · ${serviceCase.id}';
+        '${serviceCase.displayCustomer} · '
+        '${serviceCase.displayService} · ${serviceCase.id}';
 
     return PremiumCard(
       onTap: () => context.go(
@@ -712,7 +770,7 @@ class _OperationsCaseCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      serviceCase.documentSummaryLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -771,16 +829,282 @@ class _OperationsCaseCard extends StatelessWidget {
                     '/my-services/${Uri.encodeComponent(serviceCase.id)}',
                   ),
                   icon: const Icon(Icons.rate_review_outlined),
-                  label: Text(
-                    area == InternalOperationArea.payments
-                        ? 'Review'
-                        : 'Actions',
-                  ),
+                  label: const Text('Actions'),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PaymentReviewCard extends StatelessWidget {
+  const _PaymentReviewCard({required this.serviceCase});
+
+  final InternalServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final workspacePath =
+        '/internal-workspace/service-cases/'
+        '${Uri.encodeComponent(serviceCase.id)}';
+    final livePath = '/my-services/${Uri.encodeComponent(serviceCase.id)}';
+    final isClosed = _isClosedStatus(serviceCase.status);
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: () => context.go(workspacePath),
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE7E9EF)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x080B1633),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(
+                      Icons.receipt_long_outlined,
+                      color: AppTheme.primaryRed,
+                      size: 27,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Payment control',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 17,
+                            height: 1.15,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${serviceCase.displayCustomer}  ·  '
+                          '${serviceCase.displayService}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF526887),
+                            fontSize: 13,
+                            height: 1.35,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          serviceCase.id,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF526887),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _StatusPill(label: serviceCase.status),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.textPrimary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _PaymentCountTag(
+                    label: '${serviceCase.uploadedDocuments} uploaded',
+                    color: const Color(0xFF2464D8),
+                    background: const Color(0xFFEEF3FF),
+                  ),
+                  _PaymentCountTag(
+                    label: '${serviceCase.pendingDocuments} missing',
+                    color: const Color(0xFFE27922),
+                    background: const Color(0xFFFFF3E8),
+                  ),
+                  _PaymentCountTag(
+                    label: '${serviceCase.approvedDocuments} approved',
+                    color: const Color(0xFF16864B),
+                    background: const Color(0xFFEAF7EF),
+                  ),
+                  if (serviceCase.rejectedDocuments > 0)
+                    _PaymentCountTag(
+                      label: '${serviceCase.rejectedDocuments} rejected',
+                      color: AppTheme.primaryRed,
+                      background: AppTheme.primaryRed.withValues(alpha: 0.07),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              Container(height: 1, color: const Color(0xFFE5E8EF)),
+              const SizedBox(height: 14),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final dateInfo = Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 19,
+                        color: Color(0xFF172033),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Requested on',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              serviceCase.createdAt,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF526887),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+
+                  final action = SizedBox(
+                    height: 44,
+                    child: isClosed
+                        ? OutlinedButton.icon(
+                            onPressed: () => context.go(livePath),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primaryRed,
+                              side: const BorderSide(
+                                color: AppTheme.primaryRed,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.receipt_long_outlined,
+                              size: 19,
+                            ),
+                            label: const Text(
+                              'View Payment',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          )
+                        : FilledButton.icon(
+                            onPressed: () => context.go(livePath),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppTheme.primaryRed,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(
+                              Icons.visibility_outlined,
+                              size: 20,
+                            ),
+                            label: const Text(
+                              'Review Payment',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                  );
+
+                  if (constraints.maxWidth < 470) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [dateInfo, const SizedBox(height: 13), action],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: dateInfo),
+                      const SizedBox(width: 16),
+                      action,
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentCountTag extends StatelessWidget {
+  const _PaymentCountTag({
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }

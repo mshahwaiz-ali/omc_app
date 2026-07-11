@@ -6,7 +6,6 @@ import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
@@ -71,11 +70,17 @@ class _PaymentsHeader extends StatelessWidget {
         .where((item) => item.status == PaymentStatus.paid)
         .length;
     final pendingCount = payments
-        .where((item) => item.status == PaymentStatus.pending)
+        .where(
+          (item) =>
+              item.status == PaymentStatus.pending ||
+              item.status == PaymentStatus.receiptSubmitted ||
+              item.status == PaymentStatus.underReview,
+        )
         .length;
     final overdueCount = payments
         .where((item) => item.status == PaymentStatus.overdue)
         .length;
+    final actionCount = payments.where((item) => item.requiresAction).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,48 +88,132 @@ class _PaymentsHeader extends StatelessWidget {
         PremiumListHeader(
           icon: Icons.account_balance_wallet_outlined,
           title: 'Payments',
-          subtitle:
-              'Track invoices, dues, receipts and service payment status.',
+          subtitle: 'Invoices, receipts and payment status in one place.',
           metaLabel: '${payments.length} total',
         ),
         if (payments.isNotEmpty) ...[
           const SizedBox(height: 16),
-          Row(
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 19),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF111A31), Color(0xFF202C4C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x24111A31),
+                  blurRadius: 22,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.10),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.receipt_long_outlined,
+                    color: Colors.white,
+                    size: 27,
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Payment overview',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          height: 1.15,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        actionCount > 0
+                            ? '$actionCount payment${actionCount == 1 ? '' : 's'} need your attention.'
+                            : 'All current payment records are up to date.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          fontSize: 12.5,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: actionCount > 0
+                        ? AppTheme.primaryRed
+                        : const Color(0xFF2DA567),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    actionCount > 0 ? '$actionCount action' : 'Up to date',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.72,
             children: [
-              Expanded(
-                child: OmcMetricCard(
-                  icon: Icons.receipt_long_outlined,
-                  label: 'Total',
-                  value: payments.length.toString(),
-                  color: OmcPremium.payments,
-                ),
+              OmcMetricCard(
+                icon: Icons.receipt_long_outlined,
+                label: 'Total',
+                value: payments.length.toString(),
+                color: OmcPremium.payments,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OmcMetricCard(
-                  icon: Icons.hourglass_top_rounded,
-                  label: 'Pending',
-                  value: pendingCount.toString(),
-                  color: OmcPremium.action,
-                ),
+              OmcMetricCard(
+                icon: Icons.hourglass_top_rounded,
+                label: 'In progress',
+                value: pendingCount.toString(),
+                color: OmcPremium.action,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OmcMetricCard(
-                  icon: Icons.warning_amber_rounded,
-                  label: 'Overdue',
-                  value: overdueCount.toString(),
-                  color: OmcPremium.danger,
-                ),
+              OmcMetricCard(
+                icon: Icons.warning_amber_rounded,
+                label: 'Overdue',
+                value: overdueCount.toString(),
+                color: OmcPremium.danger,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OmcMetricCard(
-                  icon: Icons.verified_rounded,
-                  label: 'Paid',
-                  value: paidCount.toString(),
-                  color: OmcPremium.success,
-                ),
+              OmcMetricCard(
+                icon: Icons.verified_rounded,
+                label: 'Paid',
+                value: paidCount.toString(),
+                color: OmcPremium.success,
               ),
             ],
           ),
@@ -143,116 +232,298 @@ class _PaymentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor(payment.status);
+    final detailPath = '/payments/${Uri.encodeComponent(payment.id)}';
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: () => context.push('/payments/${Uri.encodeComponent(payment.id)}'),
-      child: PremiumCard(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.09),
-                borderRadius: BorderRadius.circular(16),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => context.push(detailPath),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE7E9EF)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x080B1633),
+                blurRadius: 18,
+                offset: Offset(0, 8),
               ),
-              child: Icon(_statusIcon(payment.status), color: statusColor),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    payment.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Icon(
+                      _statusIcon(payment.status),
+                      color: statusColor,
+                      size: 27,
                     ),
                   ),
-                  const SizedBox(height: 7),
-                  Text(
-                    payment.amountLabel,
-                    style: const TextStyle(
-                      color: OmcPremium.payments,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      PremiumInfoChip(
-                        label: payment.status.label,
-                        color: statusColor,
-                      ),
-                      if (payment.reference != null)
-                        PremiumInfoChip(label: payment.reference!),
-                      if (payment.dueDateLabel != null)
-                        PremiumInfoChip(label: 'Due ${payment.dueDateLabel!}'),
-                      if (payment.paidDateLabel != null)
-                        PremiumInfoChip(
-                          label: 'Paid ${payment.paidDateLabel!}',
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          payment.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 16.5,
+                            height: 1.2,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      if (payment.serviceReference != null)
-                        PremiumInfoChip(label: payment.serviceReference!),
-                    ],
+                        if (payment.serviceReference?.trim().isNotEmpty ==
+                            true) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            payment.serviceReference!.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF526887),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  if (payment.remarks != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      payment.remarks!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
+                  const SizedBox(width: 10),
+                  _PaymentStatusPill(
+                    label: payment.status.label,
+                    color: statusColor,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Amount',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          payment.amountLabel,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 22,
+                            height: 1,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (payment.reference?.trim().isNotEmpty == true)
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            'Reference',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            payment.reference!.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              color: Color(0xFF526887),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              if (payment.dueDateLabel != null ||
+                  payment.paidDateLabel != null ||
+                  payment.remarks?.trim().isNotEmpty == true) ...[
+                const SizedBox(height: 15),
+                Container(height: 1, color: const Color(0xFFE7E9EF)),
+                const SizedBox(height: 13),
+              ],
+              if (payment.dueDateLabel != null || payment.paidDateLabel != null)
+                Row(
+                  children: [
+                    Icon(
+                      payment.paidDateLabel != null
+                          ? Icons.event_available_outlined
+                          : Icons.calendar_today_outlined,
+                      size: 18,
+                      color: payment.paidDateLabel != null
+                          ? OmcPremium.success
+                          : statusColor,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        payment.paidDateLabel != null
+                            ? 'Paid on ${payment.paidDateLabel}'
+                            : 'Due ${payment.dueDateLabel}',
+                        style: const TextStyle(
+                          color: Color(0xFF526887),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
-                ],
+                ),
+              if (payment.remarks?.trim().isNotEmpty == true) ...[
+                if (payment.dueDateLabel != null ||
+                    payment.paidDateLabel != null)
+                  const SizedBox(height: 10),
+                Text(
+                  payment.remarks!.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: payment.requiresAction
+                    ? FilledButton.icon(
+                        onPressed: () => context.push(detailPath),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.primaryRed,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: Icon(_actionIcon(payment), size: 20),
+                        label: Text(
+                          _actionLabel(payment),
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: () => context.push(detailPath),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: statusColor,
+                          side: BorderSide(
+                            color: statusColor.withValues(alpha: 0.42),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: Icon(_actionIcon(payment), size: 20),
+                        label: Text(
+                          _actionLabel(payment),
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: OmcPremium.payments.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.chevron_right_rounded,
-                color: OmcPremium.payments,
-                size: 20,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
+  String _actionLabel(PaymentItem payment) {
+    switch (payment.status) {
+      case PaymentStatus.pending:
+      case PaymentStatus.overdue:
+        return payment.paymentUrl?.trim().isNotEmpty == true
+            ? 'Pay Now'
+            : 'View Payment Details';
+      case PaymentStatus.rejected:
+        return 'Upload Receipt Again';
+      case PaymentStatus.receiptSubmitted:
+      case PaymentStatus.underReview:
+        return payment.receiptUrl?.trim().isNotEmpty == true
+            ? 'View Submitted Receipt'
+            : 'View Payment Status';
+      case PaymentStatus.paid:
+        return payment.receiptUrl?.trim().isNotEmpty == true
+            ? 'View Receipt'
+            : 'View Payment';
+      case PaymentStatus.cancelled:
+        return 'View Details';
+    }
+  }
+
+  IconData _actionIcon(PaymentItem payment) {
+    switch (payment.status) {
+      case PaymentStatus.pending:
+      case PaymentStatus.overdue:
+        return payment.paymentUrl?.trim().isNotEmpty == true
+            ? Icons.payments_outlined
+            : Icons.visibility_outlined;
+      case PaymentStatus.rejected:
+        return Icons.cloud_upload_outlined;
+      case PaymentStatus.receiptSubmitted:
+      case PaymentStatus.underReview:
+        return Icons.receipt_long_outlined;
+      case PaymentStatus.paid:
+        return Icons.verified_outlined;
+      case PaymentStatus.cancelled:
+        return Icons.visibility_outlined;
+    }
+  }
+
   Color _statusColor(PaymentStatus status) {
     switch (status) {
       case PaymentStatus.receiptSubmitted:
-        return OmcPremium.review;
       case PaymentStatus.underReview:
         return OmcPremium.review;
       case PaymentStatus.paid:
         return OmcPremium.success;
       case PaymentStatus.rejected:
-        return OmcPremium.danger;
       case PaymentStatus.overdue:
         return OmcPremium.danger;
       case PaymentStatus.cancelled:
@@ -279,6 +550,36 @@ class _PaymentCard extends StatelessWidget {
       case PaymentStatus.pending:
         return Icons.account_balance_wallet_outlined;
     }
+  }
+}
+
+class _PaymentStatusPill extends StatelessWidget {
+  const _PaymentStatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 124),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
   }
 }
 

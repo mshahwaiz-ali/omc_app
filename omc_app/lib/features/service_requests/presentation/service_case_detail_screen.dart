@@ -37,10 +37,10 @@ class _ServiceCaseDetailScreenState
       body: Column(
         children: [
           AppBackHeader(
-            title: 'Service Details',
-            subtitle: 'Track request progress and documents',
+            title: 'Service Request',
+            subtitle: 'Progress, documents, payments and activity',
             actionIcon: Icons.support_agent_rounded,
-            actionTooltip: 'Support',
+            actionTooltip: 'Contact support',
             onAction: () => SupportLauncher.openWhatsApp(context),
           ),
           Expanded(
@@ -70,7 +70,7 @@ class _ServiceCaseDetailScreenState
 
                   return ListView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
                     children: [
                       _CaseHero(serviceCase: serviceCase),
                       const SizedBox(height: 14),
@@ -381,9 +381,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(30),
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
         ),
         child: SafeArea(
           top: false,
@@ -579,8 +577,9 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF159447),
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor:
-                          const Color(0xFF159447).withValues(alpha: 0.45),
+                      disabledBackgroundColor: const Color(
+                        0xFF159447,
+                      ).withValues(alpha: 0.45),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -595,10 +594,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(
-                            Icons.cloud_upload_outlined,
-                            size: 20,
-                          ),
+                        : const Icon(Icons.cloud_upload_outlined, size: 20),
                     label: Text(
                       _isUploading ? 'Uploading...' : 'Upload document',
                       style: const TextStyle(
@@ -642,9 +638,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
       if (!mounted) return;
 
       if (result.hasRejectedFiles) {
-        setState(
-          () => _errorMessage = result.rejectedMessages.join('\n'),
-        );
+        setState(() => _errorMessage = result.rejectedMessages.join('\n'));
       }
 
       if (result.hasAcceptedFiles) {
@@ -656,9 +650,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
     } catch (_) {
       if (!mounted) return;
 
-      setState(
-        () => _errorMessage = 'File picker could not open right now.',
-      );
+      setState(() => _errorMessage = 'File picker could not open right now.');
     } finally {
       if (mounted) {
         setState(() => _isPicking = false);
@@ -670,9 +662,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
     final attachment = _selectedAttachment;
 
     if (attachment == null) {
-      setState(
-        () => _errorMessage = 'Choose a file before uploading.',
-      );
+      setState(() => _errorMessage = 'Choose a file before uploading.');
       return;
     }
 
@@ -731,9 +721,7 @@ class _SelectedFileTile extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: hasFile
-              ? const Color(0xFFF2FAF5)
-              : AppTheme.background,
+          color: hasFile ? const Color(0xFFF2FAF5) : AppTheme.background,
           borderRadius: BorderRadius.circular(17),
           border: Border.all(
             color: hasFile
@@ -747,9 +735,7 @@ class _SelectedFileTile extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: hasFile
-                    ? const Color(0xFFE1F4E8)
-                    : Colors.white,
+                color: hasFile ? const Color(0xFFE1F4E8) : Colors.white,
                 borderRadius: BorderRadius.circular(13),
                 border: Border.all(
                   color: Colors.black.withValues(alpha: 0.045),
@@ -782,9 +768,7 @@ class _SelectedFileTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    hasFile
-                        ? 'Ready to upload'
-                        : 'PDF, JPG or PNG document',
+                    hasFile ? 'Ready to upload' : 'PDF, JPG or PNG document',
                     style: TextStyle(
                       color: hasFile
                           ? const Color(0xFF168D49)
@@ -945,6 +929,8 @@ class _CaseHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusStyle = _caseStatusVisual(serviceCase.status);
+    final category = serviceCase.category.trim();
+    final remarks = serviceCase.remarks?.trim() ?? '';
 
     return PremiumCard(
       padding: EdgeInsets.zero,
@@ -954,24 +940,53 @@ class _CaseHero extends StatelessWidget {
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 560;
 
-            final icon = Container(
-              width: compact ? 58 : 72,
-              height: compact ? 58 : 72,
+            final serviceIcon = Container(
+              width: compact ? 68 : 78,
+              height: compact ? 68 : 78,
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(compact ? 19 : 22),
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.primaryRed.withValues(alpha: 0.14),
+                    AppTheme.primaryRed.withValues(alpha: 0.055),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(compact ? 21 : 24),
                 border: Border.all(
                   color: AppTheme.primaryRed.withValues(alpha: 0.10),
                 ),
               ),
-              child: Icon(
-                Icons.description_outlined,
-                size: compact ? 29 : 36,
-                color: AppTheme.primaryRed,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    size: compact ? 34 : 39,
+                    color: AppTheme.primaryRed,
+                  ),
+                  Positioned(
+                    right: compact ? 8 : 9,
+                    bottom: compact ? 8 : 9,
+                    child: Container(
+                      width: 19,
+                      height: 19,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.primaryRed,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
 
-            final details = Column(
+            final content = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -982,9 +997,10 @@ class _CaseHero extends StatelessWidget {
                         serviceCase.title,
                         style: TextStyle(
                           color: AppTheme.textPrimary,
-                          fontSize: compact ? 20 : 23,
-                          height: 1.15,
+                          fontSize: compact ? 21 : 24,
+                          height: 1.13,
                           fontWeight: FontWeight.w900,
+                          letterSpacing: -0.35,
                         ),
                       ),
                     ),
@@ -998,9 +1014,7 @@ class _CaseHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 7),
                 Text(
-                  serviceCase.category.trim().isEmpty
-                      ? 'OMC professional service'
-                      : serviceCase.category,
+                  category.isEmpty ? 'OMC Professional Service' : category,
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 13,
@@ -1010,26 +1024,26 @@ class _CaseHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  serviceCase.remarks?.trim().isNotEmpty == true
-                      ? serviceCase.remarks!.trim()
-                      : 'Track your request, documents, payments and the latest OMC updates.',
+                  remarks.isEmpty
+                      ? 'Track the complete progress of your service request.'
+                      : remarks,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12.5,
-                    height: 1.4,
+                    height: 1.45,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 Wrap(
-                  spacing: 18,
-                  runSpacing: 12,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
                     _HeroMeta(
-                      icon: Icons.tag_rounded,
-                      label: 'Reference',
+                      icon: Icons.confirmation_number_outlined,
+                      label: 'Request ID',
                       value: serviceCase.displayReference,
                     ),
                     _HeroMeta(
@@ -1050,16 +1064,16 @@ class _CaseHero extends StatelessWidget {
             if (compact) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [icon, const SizedBox(height: 16), details],
+                children: [serviceIcon, const SizedBox(height: 16), content],
               );
             }
 
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                icon,
+                serviceIcon,
                 const SizedBox(width: 18),
-                Expanded(child: details),
+                Expanded(child: content),
               ],
             );
           },
@@ -1215,38 +1229,50 @@ class _QuickStatusGrid extends StatelessWidget {
     final submitted =
         serviceCase.submittedDocumentsCount ??
         serviceCase.submittedDocuments.length;
+    final missing =
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
+
     final paymentTotal = serviceCase.activePaymentTotal;
     final paymentPaid = serviceCase.approvedPaymentTotal;
+    final paymentDue = (paymentTotal - paymentPaid).clamp(0, paymentTotal);
+
+    final documents = _SummaryTile(
+      icon: Icons.description_outlined,
+      iconColor: const Color(0xFF16864B),
+      iconBackground: const Color(0xFFEAF7EF),
+      title: 'Documents',
+      value: required > 0 ? '$approved / $required' : submitted.toString(),
+      subtitle: required > 0 ? 'Approved' : 'Submitted',
+      footer: rejected > 0
+          ? '$rejected rejected'
+          : missing > 0
+          ? '$missing missing'
+          : serviceCase.documentSummaryLabel,
+    );
+
+    final payments = _SummaryTile(
+      icon: Icons.account_balance_wallet_outlined,
+      iconColor: const Color(0xFF7B3FD3),
+      iconBackground: const Color(0xFFF3ECFF),
+      title: 'Payments',
+      value: paymentTotal > 0 ? '$paymentPaid / $paymentTotal' : '—',
+      subtitle: paymentTotal > 0 ? 'Paid' : 'Not opened',
+      footer: paymentDue > 0
+          ? '$paymentDue payment${paymentDue == 1 ? '' : 's'} due'
+          : serviceCase.paymentSummaryLabel,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 620;
-
-        final documents = _SummaryTile(
-          icon: Icons.description_outlined,
-          iconColor: const Color(0xFF16864B),
-          iconBackground: const Color(0xFFEAF7EF),
-          title: 'Documents',
-          value: required > 0 ? '$approved / $required' : submitted.toString(),
-          subtitle: required > 0 ? 'Approved' : 'Submitted',
-          footer: rejected > 0
-              ? '$rejected need attention'
-              : serviceCase.documentSummaryLabel,
-        );
-
-        final payments = _SummaryTile(
-          icon: Icons.account_balance_wallet_outlined,
-          iconColor: const Color(0xFF7B3FD3),
-          iconBackground: const Color(0xFFF3ECFF),
-          title: 'Payments',
-          value: paymentTotal > 0 ? '$paymentPaid / $paymentTotal' : '—',
-          subtitle: paymentTotal > 0 ? 'Paid' : 'Not opened',
-          footer: serviceCase.paymentSummaryLabel,
-        );
-
-        if (compact) {
-          return Column(
-            children: [documents, const SizedBox(height: 12), payments],
+        if (constraints.maxWidth < 620) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: documents),
+              const SizedBox(width: 12),
+              Expanded(child: payments),
+            ],
           );
         }
 
@@ -1254,7 +1280,7 @@ class _QuickStatusGrid extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: documents),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(child: payments),
           ],
         );
