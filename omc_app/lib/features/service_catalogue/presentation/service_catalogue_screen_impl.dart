@@ -22,7 +22,7 @@ const Color _border = Color(0xFFE5E7EB);
 const Color _primary = Color(0xFF111827);
 const Color _primarySoft = Color(0xFFF3F4F6);
 const Color _success = Color(0xFF0F9D8E);
-const Color _review = Color(0xFF6D28D9);
+const Color _review = Color(0xFF0F9F8F);
 const Color _attention = Color(0xFFF59E0B);
 const Color _done = Color(0xFF16A34A);
 const Color _servicesRose = Color(0xFFE11D48);
@@ -396,7 +396,8 @@ class _ServiceCatalogueScreenState
                     _FilterPill(
                       label: status,
                       selected: _selectedStatus == status,
-                      selectedColor: _primary,
+                      selectedColor: _statusFilterColor(status),
+                      icon: _statusFilterIcon(status),
                       onTap: () {
                         setState(() => _selectedStatus = status);
                         Navigator.of(sheetContext).pop();
@@ -420,9 +421,12 @@ class _ServiceCatalogueScreenState
                 children: [
                   for (final category in categories)
                     _FilterPill(
-                      label: category,
+                      label: _displayCategoryLabel(category),
                       selected: _selectedCategory == category,
-                      selectedColor: _primary,
+                      selectedColor: _servicesRose,
+                      icon: category == _allCategory
+                          ? Icons.apps_rounded
+                          : Icons.category_outlined,
                       onTap: () {
                         setState(() => _selectedCategory = category);
                         Navigator.of(sheetContext).pop();
@@ -988,17 +992,30 @@ class _StatusChipsRow extends StatelessWidget {
           final count = label == 'All Services'
               ? counts.values.fold<int>(0, (a, b) => a + b)
               : counts[_statusFromLabel(label)] ?? 0;
+          final color = _statusFilterColor(label);
           return ChoiceChip(
+            avatar: Icon(
+              _statusFilterIcon(label),
+              size: 16,
+              color: selected ? color : _slate,
+            ),
             label: Text('$label ($count)'),
             selected: selected,
             onSelected: (_) => onSelected(label),
             labelStyle: TextStyle(
-              color: selected ? Colors.white : _ink,
+              color: selected ? color : _ink,
               fontWeight: FontWeight.w800,
             ),
-            selectedColor: _primary,
+            selectedColor: color.withValues(alpha: 0.10),
             backgroundColor: Colors.white,
-            side: BorderSide(color: selected ? _primary : AppTheme.border),
+            side: BorderSide(
+              color: selected
+                  ? color.withValues(alpha: 0.30)
+                  : AppTheme.border,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           );
         },
       ),
@@ -1030,16 +1047,28 @@ class _CategoryChipsRow extends StatelessWidget {
           final category = items[index];
           final selected = category == selectedCategory;
           return ChoiceChip(
-            label: Text(category),
+            avatar: Icon(
+              category == 'All'
+                  ? Icons.apps_rounded
+                  : Icons.category_outlined,
+              size: 16,
+              color: selected ? _servicesRose : _slate,
+            ),
+            label: Text(_displayCategoryLabel(category)),
             selected: selected,
             onSelected: (_) => onSelected(category),
             labelStyle: TextStyle(
-              color: selected ? Colors.white : _ink,
+              color: selected ? _servicesRose : _ink,
               fontWeight: FontWeight.w800,
             ),
-            selectedColor: _primary,
+            selectedColor: _roseSoft,
             backgroundColor: Colors.white,
-            side: BorderSide(color: selected ? _primary : AppTheme.border),
+            side: BorderSide(
+              color: selected ? _roseBorder : AppTheme.border,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           );
         },
       ),
@@ -1275,25 +1304,41 @@ class _FilterPill extends StatelessWidget {
     required this.selected,
     required this.selectedColor,
     required this.onTap,
+    this.icon,
   });
 
   final String label;
   final bool selected;
   final Color selectedColor;
   final VoidCallback onTap;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return ChoiceChip(
+      avatar: icon == null
+          ? null
+          : Icon(
+              icon,
+              size: 16,
+              color: selected ? selectedColor : _slate,
+            ),
       label: Text(label),
       selected: selected,
-      selectedColor: selectedColor,
+      selectedColor: selectedColor.withValues(alpha: 0.10),
       labelStyle: TextStyle(
-        color: selected ? Colors.white : _ink,
+        color: selected ? selectedColor : _ink,
         fontWeight: FontWeight.w800,
       ),
       backgroundColor: Colors.white,
-      side: BorderSide(color: selected ? selectedColor : AppTheme.border),
+      side: BorderSide(
+        color: selected
+            ? selectedColor.withValues(alpha: 0.30)
+            : AppTheme.border,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
       onSelected: (_) => onTap(),
     );
   }
@@ -1542,6 +1587,30 @@ _ServiceStatus _serviceStatusForIndex(int index) {
   if (index == 2) return _ServiceStatus.actionNeeded;
   if (index >= 3) return _ServiceStatus.completed;
   return _ServiceStatus.open;
+}
+
+Color _statusFilterColor(String label) {
+  if (label == 'All Services') return const Color(0xFF2563EB);
+  return _serviceCatalogueStatusColor(_statusFromLabel(label));
+}
+
+IconData _statusFilterIcon(String label) {
+  if (label == 'All Services') return Icons.layers_outlined;
+  switch (_statusFromLabel(label)) {
+    case _ServiceStatus.open:
+      return Icons.radio_button_checked_rounded;
+    case _ServiceStatus.underReview:
+      return Icons.fact_check_outlined;
+    case _ServiceStatus.actionNeeded:
+      return Icons.priority_high_rounded;
+    case _ServiceStatus.completed:
+      return Icons.check_circle_outline_rounded;
+  }
+}
+
+String _displayCategoryLabel(String value) {
+  if (value == 'All') return value;
+  return _titleCase(value.replaceAll('_', ' ').replaceAll('-', ' '));
 }
 
 _ServiceStatus _statusFromLabel(String label) {
