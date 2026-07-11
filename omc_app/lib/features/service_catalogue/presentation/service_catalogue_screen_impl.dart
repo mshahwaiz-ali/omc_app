@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/widgets/omc_identity_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -100,19 +101,18 @@ class _ServiceCatalogueScreenState
               ),
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
-                _Header(
+                OmcIdentityHeader(
                   displayName: displayName,
-                  avatarUrl: avatarUrl,
-                  unreadCount: unreadNotifications,
-                  authState: authState,
-                  onNotificationsTap: () {
+                  avatarUrl: ApiConfig.resolveFileUrl(avatarUrl),
+                  unreadNotifications: unreadNotifications,
+                  onNotifications: () {
                     if (_canOpenNotifications(capabilities)) {
                       context.go('/notifications');
                     } else {
                       _showLockedSnack(context, capabilities);
                     }
                   },
-                  onProfileTap: () => context.go('/profile'),
+                  onAvatar: () => context.go('/profile'),
                 ),
                 const SizedBox(height: 18),
                 const Text(
