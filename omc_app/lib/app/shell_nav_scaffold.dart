@@ -37,9 +37,10 @@ class ShellNavScaffold extends ConsumerWidget {
     final capabilities = profile?.capabilities ?? authState.capabilities;
     final unreadNotifications =
         ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final isInternal = _isInternal(capabilities);
 
     return Scaffold(
-      extendBody: true,
+      extendBody: false,
       body: child,
       bottomNavigationBar: OmcBottomNav(
         selectedIndex: selectedIndex,
@@ -48,8 +49,13 @@ class ShellNavScaffold extends ConsumerWidget {
         onQuickActions: () =>
             _showQuickActionsSheet(context, ref, capabilities),
         onMore: () => _showMoreSheet(context, ref),
+        isInternal: isInternal,
       ),
     );
+  }
+
+  bool _isInternal(AuthCapabilities capabilities) {
+    return capabilities.canAccessInternalWorkspace || capabilities.isInternal;
   }
 
   void _openTab(
@@ -57,6 +63,17 @@ class ShellNavScaffold extends ConsumerWidget {
     AuthCapabilities capabilities,
     int index,
   ) {
+    if (_isInternal(capabilities)) {
+      final path = switch (index) {
+        homeIndex => '/internal-workspace',
+        servicesIndex => '/customers',
+        trackIndex => '/internal-workspace/service-cases',
+        _ => '/internal-workspace',
+      };
+      context.go(path);
+      return;
+    }
+
     if (index == trackIndex && !_canOpenTrack(capabilities)) {
       _showLockedSnack(context, capabilities);
       return;
