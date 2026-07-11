@@ -51,10 +51,11 @@ class _InternalServiceTrackScreenState
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                 children: [
                   const PremiumListHeader(
-                    icon: Icons.track_changes_rounded,
-                    title: 'Track',
+                    icon: Icons.route_rounded,
+                    title: 'Track Services',
                     subtitle:
-                        'Follow active services, documents, payments and completion status.',
+                        'Follow progress, required actions, documents and payments.',
+                    accentColor: OmcPremium.track,
                   ),
                   const SizedBox(height: 16),
                   _TopStats(cases: cases),
@@ -154,14 +155,14 @@ class _InternalCaseFilterBar extends StatelessWidget {
             onTap: () => onSelected(filter),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: selected ? color.withValues(alpha: 0.12) : Colors.white,
-                borderRadius: BorderRadius.circular(999),
+                color: selected ? color.withValues(alpha: 0.09) : Colors.white,
+                borderRadius: BorderRadius.circular(15),
                 border: Border.all(
                   color: selected
-                      ? color.withValues(alpha: 0.28)
-                      : Colors.black.withValues(alpha: 0.08),
+                      ? color.withValues(alpha: 0.25)
+                      : AppTheme.border,
                 ),
               ),
               child: Row(
@@ -225,15 +226,30 @@ class _TopStats extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _StatTile(value: '$active', label: 'Active'),
+          child: _StatTile(
+            value: '$active',
+            label: 'Active',
+            icon: Icons.timeline_rounded,
+            color: OmcPremium.track,
+          ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _StatTile(value: '$action', label: 'Action'),
+          child: _StatTile(
+            value: '$action',
+            label: 'Action',
+            icon: Icons.priority_high_rounded,
+            color: Color(0xFFF59E0B),
+          ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _StatTile(value: '$closed', label: 'Closed'),
+          child: _StatTile(
+            value: '$closed',
+            label: 'Closed',
+            icon: Icons.check_circle_outline_rounded,
+            color: Color(0xFF16A34A),
+          ),
         ),
       ],
     );
@@ -241,22 +257,46 @@ class _TopStats extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.value, required this.label});
+  const _StatTile({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
 
   final String value;
   final String label;
+  final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: OmcPremium.track.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: OmcPremium.track.withValues(alpha: 0.08)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(height: 7),
           Text(
             value,
             maxLines: 1,
@@ -330,10 +370,11 @@ class _InternalServiceCaseCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        PremiumInfoChip(
-                          icon: Icons.category_outlined,
-                          label: serviceCase.category,
-                        ),
+                        if (_visibleCategory(serviceCase.category) != null)
+                          PremiumInfoChip(
+                            icon: Icons.category_outlined,
+                            label: _visibleCategory(serviceCase.category)!,
+                          ),
                         _StatusBadge(
                           label: palette.label,
                           color: palette.color,
@@ -358,13 +399,7 @@ class _InternalServiceCaseCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: palette.color.withValues(alpha: 0.035),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
+          Row(
               children: [
                 Expanded(
                   child: ClipRRect(
@@ -388,24 +423,33 @@ class _InternalServiceCaseCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           _CompactDetails(serviceCase: serviceCase),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: FilledButton.icon(
                   onPressed: () => context.go('/my-services/${serviceCase.id}'),
-                  icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('View details'),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: const Text('Open service'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OmcPremium.track,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
-              IconButton.filledTonal(
+              IconButton.outlined(
                 tooltip: 'Ask support',
                 onPressed: () => SupportLauncher.openWhatsApp(context),
-                icon: const Icon(Icons.support_agent_rounded),
+                style: IconButton.styleFrom(
+                  foregroundColor: OmcPremium.track,
+                  side: BorderSide(
+                    color: OmcPremium.track.withValues(alpha: 0.22),
+                  ),
+                ),
+                icon: const Icon(Icons.chat_bubble_outline_rounded),
               ),
             ],
           ),
@@ -528,8 +572,9 @@ class _DetailRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: OmcPremium.track.withValues(alpha: 0.030),
+        color: AppTheme.cardSoft,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.border.withValues(alpha: 0.75)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -774,6 +819,18 @@ String _cleanError(Object error) {
   return text.isEmpty
       ? 'Could not load service requests from the backend right now.'
       : text;
+}
+
+String? _visibleCategory(String value) {
+  final clean = value.trim();
+  if (clean.isEmpty || clean == '-') return null;
+  return clean
+      .replaceAll('_', ' ')
+      .replaceAll('-', ' ')
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+      .join(' ');
 }
 
 bool _isCancelled(ServiceCase serviceCase) {
