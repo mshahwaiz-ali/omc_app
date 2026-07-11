@@ -663,6 +663,8 @@ class _Backdrop extends StatelessWidget {
   }
 }
 
+// Retained while older role layouts are migrated to OmcIdentityHeader.
+// ignore: unused_element
 class _Header extends StatelessWidget {
   const _Header({
     required this.displayName,
