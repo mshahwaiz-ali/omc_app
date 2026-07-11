@@ -11,6 +11,7 @@ class OmcBottomNav extends StatelessWidget {
     required this.onTabSelected,
     required this.onQuickActions,
     required this.onMore,
+    this.isInternal = false,
     super.key,
   });
 
@@ -19,8 +20,9 @@ class OmcBottomNav extends StatelessWidget {
   final ValueChanged<int> onTabSelected;
   final VoidCallback onQuickActions;
   final VoidCallback onMore;
+  final bool isInternal;
 
-  static const List<OmcBottomNavItem> _items = [
+  static const List<OmcBottomNavItem> _customerItems = [
     OmcBottomNavItem(
       label: 'Home',
       icon: Icons.home_outlined,
@@ -34,32 +36,54 @@ class OmcBottomNav extends StatelessWidget {
       shellIndex: 1,
     ),
     OmcBottomNavItem(
-      label: 'Track',
-      icon: Icons.timeline_outlined,
-      activeIcon: Icons.timeline_rounded,
+      label: 'Requests',
+      icon: Icons.receipt_long_outlined,
+      activeIcon: Icons.receipt_long_rounded,
+      shellIndex: 2,
+    ),
+  ];
+
+  static const List<OmcBottomNavItem> _adminItems = [
+    OmcBottomNavItem(
+      label: 'Workspace',
+      icon: Icons.dashboard_customize_outlined,
+      activeIcon: Icons.dashboard_customize_rounded,
+      shellIndex: 0,
+    ),
+    OmcBottomNavItem(
+      label: 'Customers',
+      icon: Icons.groups_outlined,
+      activeIcon: Icons.groups_rounded,
+      shellIndex: 1,
+    ),
+    OmcBottomNavItem(
+      label: 'Cases',
+      icon: Icons.fact_check_outlined,
+      activeIcon: Icons.fact_check_rounded,
       shellIndex: 2,
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final items = isInternal ? _adminItems : _customerItems;
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding > 0 ? 10 : 14),
+    return Material(
+      color: Colors.white,
+      elevation: 0,
+      child: SafeArea(
+        top: false,
         child: Container(
-          padding: const EdgeInsets.all(10),
+          height: 72,
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.98),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: AppTheme.border),
+            color: Colors.white,
+            border: Border(top: BorderSide(color: AppTheme.border)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 26,
-                offset: const Offset(0, 10),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 18,
+                offset: const Offset(0, -6),
               ),
             ],
           ),
@@ -67,22 +91,25 @@ class OmcBottomNav extends StatelessWidget {
             children: [
               Expanded(
                 child: _NavTab(
-                  item: _items[0],
+                  item: items[0],
                   selected: selectedIndex == 0,
                   onTap: () => onTabSelected(0),
                 ),
               ),
               Expanded(
                 child: _NavTab(
-                  item: _items[1],
+                  item: items[1],
                   selected: selectedIndex == 1,
                   onTap: () => onTabSelected(1),
                 ),
               ),
-              _CenterActionButton(onTap: onQuickActions),
+              _CenterActionButton(
+                onTap: onQuickActions,
+                isInternal: isInternal,
+              ),
               Expanded(
                 child: _NavTab(
-                  item: _items[2],
+                  item: items[2],
                   selected: selectedIndex == 2,
                   onTap: () => onTabSelected(2),
                 ),
@@ -103,36 +130,44 @@ class OmcBottomNav extends StatelessWidget {
 }
 
 class _CenterActionButton extends StatelessWidget {
-  const _CenterActionButton({required this.onTap});
+  const _CenterActionButton({required this.onTap, required this.isInternal});
 
   final VoidCallback onTap;
+  final bool isInternal;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Material(
-        color: OmcPremium.ink,
-        borderRadius: BorderRadius.circular(22),
-        elevation: 0,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: OmcPremium.ink,
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: OmcPremium.ink.withValues(alpha: 0.24),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      child: Semantics(
+        button: true,
+        label: isInternal ? 'Open admin quick actions' : 'Open quick actions',
+        child: Material(
+          color: OmcPremium.ink,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: OmcPremium.ink,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: OmcPremium.ink.withValues(alpha: 0.20),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Icon(
+                isInternal ? Icons.bolt_rounded : Icons.add_rounded,
+                color: Colors.white,
+                size: 27,
+              ),
             ),
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
           ),
         ),
       ),
@@ -160,35 +195,36 @@ class _NavTab extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          height: 60,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          height: 58,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: selected
-                ? OmcPremium.tax.withValues(alpha: 0.10)
+                ? OmcPremium.tax.withValues(alpha: 0.08)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 4),
-              AnimatedDefaultTextStyle(
+              AnimatedScale(
                 duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
+                scale: selected ? 1.05 : 1,
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: color,
-                  fontSize: 10.5,
-                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
-                ),
-                child: Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  fontSize: 10,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  height: 1.1,
                 ),
               ),
             ],
@@ -218,47 +254,43 @@ class _MoreTab extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          height: 60,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          height: 58,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: selected
-                ? OmcPremium.tax.withValues(alpha: 0.10)
+                ? OmcPremium.tax.withValues(alpha: 0.08)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(Icons.more_horiz_rounded, color: color, size: 22),
-                    if (badgeCount > 0)
-                      Positioned(
-                        top: -7,
-                        right: -12,
-                        child: _Badge(count: badgeCount),
-                      ),
-                  ],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(Icons.more_horiz_rounded, color: color, size: 23),
+                  if (badgeCount > 0)
+                    Positioned(
+                      top: -7,
+                      right: -12,
+                      child: _Badge(count: badgeCount),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'More',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  height: 1.1,
                 ),
-                const SizedBox(height: 4),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10.5,
-                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
-                  ),
-                  child: const Text('More'),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -274,8 +306,8 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 18),
-      height: 18,
+      constraints: const BoxConstraints(minWidth: 17),
+      height: 17,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: OmcPremium.services,
@@ -287,7 +319,7 @@ class _Badge extends StatelessWidget {
           count > 99 ? '99+' : count.toString(),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 9,
+            fontSize: 8.5,
             fontWeight: FontWeight.w900,
             height: 1,
           ),
