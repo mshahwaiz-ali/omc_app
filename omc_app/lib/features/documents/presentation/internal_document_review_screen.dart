@@ -11,6 +11,14 @@ import '../../../core/widgets/premium_list_header.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
 
+const _documentIndigo = Color(0xFF4F46E5);
+const _documentNavy = Color(0xFF0B1F4D);
+const _reviewTeal = Color(0xFF0F9F8F);
+const _approvedGreen = Color(0xFF159A62);
+const _actionAmber = Color(0xFFF59E0B);
+const _rejectedRed = Color(0xFFE5484D);
+const _archivedSlate = Color(0xFF64748B);
+
 enum _ReviewFilter {
   all('All', null),
   needsReview('Needs Review', 'needs_review'),
@@ -227,11 +235,12 @@ class _ReviewContent extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
         PremiumListHeader(
-          icon: Icons.fact_check_outlined,
-          title: 'Document Review Center',
+          icon: Icons.folder_copy_outlined,
+          title: 'Document Review',
           subtitle:
-              'Select a service request first, then review only its related customer documents.',
+              'Review customer files by service request and keep every case moving.',
           metaLabel: '${documents.length} docs',
+          accentColor: _documentIndigo,
         ),
         const SizedBox(height: 16),
         Row(
@@ -241,6 +250,7 @@ class _ReviewContent extends StatelessWidget {
                 icon: Icons.hourglass_top_rounded,
                 label: 'Review',
                 value: needsReview.toString(),
+                color: _reviewTeal,
               ),
             ),
             const SizedBox(width: 10),
@@ -249,6 +259,7 @@ class _ReviewContent extends StatelessWidget {
                 icon: Icons.error_outline_rounded,
                 label: 'Rejected',
                 value: rejected.toString(),
+                color: _rejectedRed,
               ),
             ),
             const SizedBox(width: 10),
@@ -257,6 +268,7 @@ class _ReviewContent extends StatelessWidget {
                 icon: Icons.verified_rounded,
                 label: 'Approved',
                 value: approved.toString(),
+                color: _approvedGreen,
               ),
             ),
             const SizedBox(width: 10),
@@ -265,6 +277,7 @@ class _ReviewContent extends StatelessWidget {
                 icon: Icons.archive_rounded,
                 label: 'Archive',
                 value: archived.toString(),
+                color: _archivedSlate,
               ),
             ),
           ],
@@ -295,6 +308,7 @@ class _ReviewContent extends StatelessWidget {
             title: 'Documents',
             subtitle: selectedGroup.serviceTitle,
             metaLabel: '${selectedGroup.documents.length} files',
+            accentColor: _documentIndigo,
           ),
           const SizedBox(height: 12),
           for (final document in selectedGroup.documents) ...[
@@ -429,7 +443,7 @@ class _ServiceSelectorCard extends StatelessWidget {
         isExpanded: true,
         decoration: const InputDecoration(
           labelText: 'Service request',
-          prefixIcon: Icon(Icons.manage_search_rounded),
+          prefixIcon: Icon(Icons.folder_open_rounded, color: _documentIndigo),
         ),
         items: groups
             .map(
@@ -468,12 +482,12 @@ class _ServiceSummaryCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: _documentIndigo.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.assignment_ind_outlined,
-                  color: AppTheme.primaryRed,
+                  color: _documentIndigo,
                   size: 24,
                 ),
               ),
@@ -520,17 +534,17 @@ class _ServiceSummaryCard extends StatelessWidget {
               if (group.needsReview > 0)
                 PremiumInfoChip(
                   label: '${group.needsReview} needs review',
-                  color: Colors.orange.shade800,
+                  color: _reviewTeal,
                 ),
               if (group.approved > 0)
                 PremiumInfoChip(
                   label: '${group.approved} approved',
-                  color: Colors.green.shade700,
+                  color: _approvedGreen,
                 ),
               if (group.rejected > 0)
                 PremiumInfoChip(
                   label: '${group.rejected} rejected',
-                  color: Colors.red.shade700,
+                  color: _rejectedRed,
                 ),
             ],
           ),
@@ -629,23 +643,36 @@ class _ReviewFilterBar extends StatelessWidget {
         child: Row(
           children: [
             for (final filter in _ReviewFilter.values) ...[
-              ChoiceChip(
-                label: Text(filter.label),
-                selected: selectedFilter == filter,
-                onSelected: (_) => onSelected(filter),
-                selectedColor: AppTheme.primaryRed.withValues(alpha: 0.12),
-                side: BorderSide(
-                  color: selectedFilter == filter
-                      ? AppTheme.primaryRed.withValues(alpha: 0.28)
-                      : Colors.black.withValues(alpha: 0.08),
-                ),
-                labelStyle: TextStyle(
-                  color: selectedFilter == filter
-                      ? AppTheme.primaryRed
-                      : AppTheme.textSecondary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                ),
+              Builder(
+                builder: (context) {
+                  final selected = selectedFilter == filter;
+                  final color = _reviewFilterColor(filter);
+                  return ChoiceChip(
+                    avatar: Icon(
+                      _reviewFilterIcon(filter),
+                      size: 16,
+                      color: selected ? color : AppTheme.textMuted,
+                    ),
+                    label: Text(filter.label),
+                    selected: selected,
+                    onSelected: (_) => onSelected(filter),
+                    selectedColor: color.withValues(alpha: 0.11),
+                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color: selected
+                          ? color.withValues(alpha: 0.28)
+                          : AppTheme.border,
+                    ),
+                    labelStyle: TextStyle(
+                      color: selected ? color : AppTheme.textSecondary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 8),
             ],
@@ -782,6 +809,10 @@ class _ReviewDocumentCard extends StatelessWidget {
                         : null,
                     icon: const Icon(Icons.open_in_new_rounded, size: 16),
                     label: const Text('Case'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _documentNavy,
+                      side: const BorderSide(color: Color(0xFFD8DFEC)),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -796,6 +827,10 @@ class _ReviewDocumentCard extends StatelessWidget {
                           )
                         : const Icon(Icons.check_rounded, size: 16),
                     label: const Text('Approve'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _approvedGreen,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -804,6 +839,12 @@ class _ReviewDocumentCard extends StatelessWidget {
                     onPressed: canReview ? onReject : null,
                     icon: const Icon(Icons.close_rounded, size: 16),
                     label: const Text('Reject'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _rejectedRed,
+                      side: BorderSide(
+                        color: _rejectedRed.withValues(alpha: 0.34),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -815,19 +856,50 @@ class _ReviewDocumentCard extends StatelessWidget {
   }
 
   Color _statusColor(DocumentItem document) {
-    if (document.isArchived) return Colors.blueGrey.shade700;
+    if (document.isArchived) return _archivedSlate;
 
     switch (document.status) {
       case DocumentStatus.approved:
-        return Colors.green.shade700;
+        return _approvedGreen;
       case DocumentStatus.rejected:
+        return _rejectedRed;
       case DocumentStatus.missing:
-        return Colors.red.shade700;
+        return _actionAmber;
       case DocumentStatus.pendingReview:
-        return Colors.orange.shade800;
+        return _reviewTeal;
       case DocumentStatus.uploaded:
-        return AppTheme.primaryRed;
+        return _documentIndigo;
     }
+  }
+}
+
+Color _reviewFilterColor(_ReviewFilter filter) {
+  switch (filter) {
+    case _ReviewFilter.all:
+      return _documentNavy;
+    case _ReviewFilter.needsReview:
+      return _reviewTeal;
+    case _ReviewFilter.rejected:
+      return _rejectedRed;
+    case _ReviewFilter.approved:
+      return _approvedGreen;
+    case _ReviewFilter.archived:
+      return _archivedSlate;
+  }
+}
+
+IconData _reviewFilterIcon(_ReviewFilter filter) {
+  switch (filter) {
+    case _ReviewFilter.all:
+      return Icons.folder_copy_outlined;
+    case _ReviewFilter.needsReview:
+      return Icons.fact_check_outlined;
+    case _ReviewFilter.rejected:
+      return Icons.cancel_outlined;
+    case _ReviewFilter.approved:
+      return Icons.check_circle_outline_rounded;
+    case _ReviewFilter.archived:
+      return Icons.archive_outlined;
   }
 }
 
@@ -836,11 +908,13 @@ class _MetricTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.color,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -849,8 +923,16 @@ class _MetricTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 20),
-          const SizedBox(height: 8),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(height: 9),
           Text(
             value,
             maxLines: 1,
@@ -889,9 +971,10 @@ class _ReviewLoadingView extends StatelessWidget {
       children: const [
         PremiumListHeader(
           icon: Icons.fact_check_outlined,
-          title: 'Document Review Center',
+          title: 'Document Review',
           subtitle: 'Loading customer document queue from backend.',
           metaLabel: 'Loading',
+          accentColor: _documentIndigo,
         ),
         SizedBox(height: 16),
         PremiumCard(
