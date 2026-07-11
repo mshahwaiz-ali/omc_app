@@ -65,10 +65,10 @@ class _InternalServiceTrackScreenState
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
                 children: [
                   _Header(cases: cases),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 18),
                   _SearchField(
                     controller: _searchController,
                     onChanged: (value) =>
@@ -78,21 +78,21 @@ class _InternalServiceTrackScreenState
                       setState(() => _query = '');
                     },
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   _FilterBar(
                     cases: cases,
                     selected: _filter,
                     onSelected: (value) => setState(() => _filter = value),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   _SummaryStrip(cases: cases),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 18),
                   Row(
                     children: [
-                      Expanded(
+                      const Expanded(
                         child: Text(
-                          'Service Requests (${visible.length})',
-                          style: const TextStyle(
+                          'Service Requests',
+                          style: TextStyle(
                             color: AppTheme.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -101,7 +101,8 @@ class _InternalServiceTrackScreenState
                         ),
                       ),
                       Text(
-                        _filter.label,
+                        '${visible.length} '
+                        '${visible.length == 1 ? 'result' : 'results'}',
                         style: const TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 12,
@@ -110,7 +111,7 @@ class _InternalServiceTrackScreenState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   if (visible.isEmpty)
                     _EmptyState(hasQuery: _query.isNotEmpty)
                   else
@@ -171,77 +172,32 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Service Requests',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 28,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                '$active active  •  $attention need attention',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: OmcPremium.border),
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Center(
-                child: Icon(
-                  Icons.notifications_none_rounded,
-                  color: AppTheme.textPrimary,
-                  size: 25,
-                ),
-              ),
-              if (attention > 0)
-                Positioned(
-                  right: -2,
-                  top: -3,
-                  child: Container(
-                    constraints: const BoxConstraints(
-                      minWidth: 21,
-                      minHeight: 21,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 5),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: OmcPremium.danger,
-                      borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: Text(
-                      attention > 99 ? '99+' : '$attention',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Service Requests',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 28,
+                    height: 1.05,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.6,
                   ),
                 ),
-            ],
+                const SizedBox(height: 7),
+                Text(
+                  '$active active  •  $attention need attention',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -324,8 +280,8 @@ extension on _CaseFilter {
   String get label => switch (this) {
     _CaseFilter.all => 'All',
     _CaseFilter.attention => 'Attention',
-    _CaseFilter.inProgress => 'In Progress',
-    _CaseFilter.completed => 'Completed',
+    _CaseFilter.inProgress => 'Progress',
+    _CaseFilter.completed => 'Done',
   };
 
   bool matches(ServiceCase item) => switch (this) {
@@ -351,82 +307,128 @@ class _FilterBar extends StatelessWidget {
     return cases.where(filter.matches).length;
   }
 
-  Color _colorFor(_CaseFilter filter) {
-    return switch (filter) {
-      _CaseFilter.all => OmcPremium.services,
-      _CaseFilter.attention => OmcPremium.danger,
-      _CaseFilter.inProgress => OmcPremium.documents,
-      _CaseFilter.completed => OmcPremium.success,
-    };
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 52,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F3F5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.textPrimary.withValues(alpha: 0.055),
+        ),
+      ),
+      child: Row(
+        children: [
+          for (final item in _CaseFilter.values)
+            Expanded(
+              child: _FilterSegment(
+                label: item.label,
+                count: _countFor(item),
+                selected: item == selected,
+                showAttentionIndicator:
+                    item == _CaseFilter.attention &&
+                    _countFor(_CaseFilter.attention) > 0,
+                onTap: () => onSelected(item),
+              ),
+            ),
+        ],
+      ),
+    );
   }
+}
+
+class _FilterSegment extends StatelessWidget {
+  const _FilterSegment({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.showAttentionIndicator,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final bool showAttentionIndicator;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: _CaseFilter.values.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final item = _CaseFilter.values[index];
-          final active = item == selected;
-          final color = _colorFor(item);
-          final count = _countFor(item);
-
-          return InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: () => onSelected(item),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: active ? color.withValues(alpha: 0.07) : Colors.white,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: active
-                      ? color
-                      : AppTheme.textPrimary.withValues(alpha: 0.09),
-                  width: active ? 1.4 : 1,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          height: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: selected
+                ? Border.all(
+                    color: AppTheme.textPrimary.withValues(alpha: 0.065),
+                  )
+                : null,
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.045),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (showAttentionIndicator) ...[
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    color: OmcPremium.danger,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                  style: TextStyle(
+                    color: selected
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                    fontSize: 10.5,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                    letterSpacing: -0.15,
+                  ),
                 ),
               ),
-              child: Row(
-                children: [
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      color: active ? color : AppTheme.textSecondary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    constraints: const BoxConstraints(
-                      minWidth: 23,
-                      minHeight: 23,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: active ? 0.14 : 0.08),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 4),
+              Text(
+                '$count',
+                style: TextStyle(
+                  color: selected
+                      ? AppTheme.textPrimary
+                      : AppTheme.textSecondary.withValues(alpha: 0.78),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
     );
   }
