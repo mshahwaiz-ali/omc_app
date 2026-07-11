@@ -27,6 +27,20 @@ class ApiConfig {
 
   static String get currentBaseUrl => baseUrl;
 
+  static String? resolveFileUrl(String? value) {
+    final cleanValue = value?.trim();
+    if (cleanValue == null || cleanValue.isEmpty) return null;
+
+    final absolute = cleanValue.startsWith('http://') ||
+            cleanValue.startsWith('https://')
+        ? cleanValue
+        : cleanValue.startsWith('/')
+            ? '$baseUrl$cleanValue'
+            : '$baseUrl/$cleanValue';
+
+    return Uri.parse(absolute).toString();
+  }
+
   static String get _defaultBaseUrlForEnvironment {
     switch (Env.current) {
       case AppEnvironment.development:
