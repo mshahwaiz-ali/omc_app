@@ -405,6 +405,8 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
   }
 }
 
+// Retained while older customer layouts are migrated to OmcIdentityHeader.
+// ignore: unused_element
 class _Header extends StatelessWidget {
   const _Header({
     required this.displayName,
