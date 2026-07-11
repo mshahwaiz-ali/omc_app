@@ -26,7 +26,6 @@ class ServiceCaseDetailScreen extends ConsumerStatefulWidget {
 class _ServiceCaseDetailScreenState
     extends ConsumerState<ServiceCaseDetailScreen> {
   bool _isUploadingDocument = false;
-  bool _isUpdatingStatus = false;
   bool _isUpdatingDocumentStatus = false;
   bool _isCancellingRequest = false;
 
@@ -74,34 +73,15 @@ class _ServiceCaseDetailScreenState
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                     children: [
                       _CaseHero(serviceCase: serviceCase),
-                      const SizedBox(height: 16),
-                      _QuickStatusGrid(serviceCase: serviceCase),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       _ProgressCard(serviceCase: serviceCase),
-                      if (_RecentActivityCard.hasActivity(serviceCase)) ...[
-                        const SizedBox(height: 16),
-                        _RecentActivityCard(serviceCase: serviceCase),
-                      ],
                       if (serviceCase.customerActionRequired) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         _ActionRequiredCard(serviceCase: serviceCase),
                       ],
-                      const SizedBox(height: 16),
-                      _CaseInfoCard(serviceCase: serviceCase),
-                      const SizedBox(height: 16),
-                      if (serviceCase.canUpdateStatus) ...[
-                        _CaseAdminStatusCard(
-                          serviceCase: serviceCase,
-                          isUpdating: _isUpdatingStatus,
-                          onStatusSelected: _isUpdatingStatus
-                              ? null
-                              : (status) => _updateServiceCaseStatus(
-                                  serviceCase,
-                                  status,
-                                ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
+                      const SizedBox(height: 14),
+                      _QuickStatusGrid(serviceCase: serviceCase),
+                      const SizedBox(height: 14),
                       _RequiredDocumentsCard(
                         serviceCase: serviceCase,
                         isUpdatingDocumentStatus: _isUpdatingDocumentStatus,
@@ -116,7 +96,13 @@ class _ServiceCaseDetailScreenState
                                   )
                             : null,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+                      _CaseInfoCard(serviceCase: serviceCase),
+                      if (_RecentActivityCard.hasActivity(serviceCase)) ...[
+                        const SizedBox(height: 14),
+                        _RecentActivityCard(serviceCase: serviceCase),
+                      ],
+                      const SizedBox(height: 14),
                       _CaseActionsCard(
                         serviceCase: serviceCase,
                         isUploading: _isUploadingDocument,
@@ -127,8 +113,6 @@ class _ServiceCaseDetailScreenState
                             ? () => _confirmCancelServiceRequest(serviceCase)
                             : null,
                       ),
-                      const SizedBox(height: 16),
-                      _SupportCard(serviceCase: serviceCase),
                     ],
                   );
                 },
@@ -195,41 +179,6 @@ class _ServiceCaseDetailScreenState
       _showSnack('Service request could not be cancelled right now.');
     } finally {
       if (mounted) setState(() => _isCancellingRequest = false);
-    }
-  }
-
-  Future<void> _updateServiceCaseStatus(
-    ServiceCase serviceCase,
-    String status,
-  ) async {
-    if (_isUpdatingStatus) return;
-
-    final caseId = _uploadDocnameFor(serviceCase);
-    if (caseId == null) {
-      _showSnack(
-        'Status update cannot continue because this case is missing its service reference.',
-      );
-      return;
-    }
-
-    setState(() => _isUpdatingStatus = true);
-
-    try {
-      final repository = ref.read(serviceCaseRepositoryProvider);
-      await repository.updateServiceCaseStatus(caseId: caseId, status: status);
-
-      if (!mounted) return;
-      ref.invalidate(serviceCaseDetailProvider(widget.caseId));
-      ref.invalidate(serviceCasesProvider);
-      _showSnack('Service case marked as $status.');
-    } on ApiError catch (error) {
-      if (!mounted) return;
-      _showSnack(error.message);
-    } catch (_) {
-      if (!mounted) return;
-      _showSnack('Service case status could not be updated right now.');
-    } finally {
-      if (mounted) setState(() => _isUpdatingStatus = false);
     }
   }
 
@@ -422,109 +371,259 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
         ),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(30),
+          ),
+        ),
         child: SafeArea(
           top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 42,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD8DDE3),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Upload required document',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Select the required document type first, then choose the file to attach. The file name will not be used as the document title.',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<ServiceCaseDocument>(
-                initialValue: _selectedDocument,
-                decoration: const InputDecoration(
-                  labelText: 'Required document',
-                ),
-                items: widget.documents
-                    .map(
-                      (document) => DropdownMenuItem(
-                        value: document,
-                        child: Text(document.title),
+                const SizedBox(height: 22),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE9F7EE),
+                        borderRadius: BorderRadius.circular(15),
                       ),
-                    )
-                    .toList(growable: false),
-                onChanged: _isUploading
-                    ? null
-                    : (document) {
-                        if (document == null) return;
-                        setState(() {
-                          _selectedDocument = document;
-                          _errorMessage = null;
-                        });
-                      },
-              ),
-              const SizedBox(height: 12),
-              _SelectedFileTile(
-                attachment: _selectedAttachment,
-                isPicking: _isPicking,
-                onChoose: _isUploading ? null : _chooseFile,
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  _errorMessage!,
-                  style: const TextStyle(
-                    color: AppTheme.primaryRed,
+                      child: const Icon(
+                        Icons.upload_file_outlined,
+                        color: Color(0xFF168D49),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Upload required document',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 19,
+                              height: 1.2,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Choose the required document type and attach the correct file.',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12.5,
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                const Text(
+                  'Document type',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
                     fontSize: 12,
-                    height: 1.3,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<ServiceCaseDocument>(
+                  initialValue: _selectedDocument,
+                  isExpanded: true,
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppTheme.textSecondary,
+                  ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: AppTheme.background,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 15,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: Colors.black.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: Colors.black.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF168D49),
+                        width: 1.3,
+                      ),
+                    ),
+                  ),
+                  items: widget.documents
+                      .map(
+                        (document) => DropdownMenuItem(
+                          value: document,
+                          child: Text(
+                            document.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: _isUploading
+                      ? null
+                      : (document) {
+                          if (document == null) return;
+
+                          setState(() {
+                            _selectedDocument = document;
+                            _errorMessage = null;
+                          });
+                        },
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Attachment',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _SelectedFileTile(
+                  attachment: _selectedAttachment,
+                  isPicking: _isPicking,
+                  onChoose: _isUploading ? null : _chooseFile,
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.055),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                        color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          color: AppTheme.primaryRed,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(
+                              color: AppTheme.primaryRed,
+                              fontSize: 11.5,
+                              height: 1.35,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  height: 50,
+                  child: FilledButton.icon(
+                    onPressed: _isUploading ? null : _upload,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF159447),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          const Color(0xFF159447).withValues(alpha: 0.45),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    icon: _isUploading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.cloud_upload_outlined,
+                            size: 20,
+                          ),
+                    label: Text(
+                      _isUploading ? 'Uploading...' : 'Upload document',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: _isUploading
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: _isUploading ? null : _upload,
-                icon: _isUploading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.cloud_upload_rounded),
-                label: Text(_isUploading ? 'Uploading...' : 'Upload'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -539,27 +638,41 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
 
     try {
       final result = await widget.onPickDocument();
+
       if (!mounted) return;
 
       if (result.hasRejectedFiles) {
-        setState(() => _errorMessage = result.rejectedMessages.join('\n'));
+        setState(
+          () => _errorMessage = result.rejectedMessages.join('\n'),
+        );
       }
 
       if (result.hasAcceptedFiles) {
-        setState(() => _selectedAttachment = result.accepted.first);
+        setState(() {
+          _selectedAttachment = result.accepted.first;
+          _errorMessage = null;
+        });
       }
     } catch (_) {
       if (!mounted) return;
-      setState(() => _errorMessage = 'File picker could not open right now.');
+
+      setState(
+        () => _errorMessage = 'File picker could not open right now.',
+      );
     } finally {
-      if (mounted) setState(() => _isPicking = false);
+      if (mounted) {
+        setState(() => _isPicking = false);
+      }
     }
   }
 
   Future<void> _upload() async {
     final attachment = _selectedAttachment;
+
     if (attachment == null) {
-      setState(() => _errorMessage = 'Choose a file before uploading.');
+      setState(
+        () => _errorMessage = 'Choose a file before uploading.',
+      );
       return;
     }
 
@@ -578,14 +691,20 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
 
     try {
       await widget.onUpload(_selectedDocument, attachment);
+
       if (!mounted) return;
+
       Navigator.of(context).pop();
     } catch (error) {
       debugPrint('Document upload failed: $error');
+
       if (!mounted) return;
+
       setState(() => _errorMessage = error.toString());
     } finally {
-      if (mounted) setState(() => _isUploading = false);
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 }
@@ -604,50 +723,117 @@ class _SelectedFileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fileName = attachment?.name.trim();
+    final hasFile = fileName != null && fileName.isNotEmpty;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            fileName == null || fileName.isEmpty
-                ? Icons.attach_file_rounded
-                : Icons.insert_drive_file_rounded,
-            color: AppTheme.primaryRed,
+    return InkWell(
+      onTap: isPicking ? null : onChoose,
+      borderRadius: BorderRadius.circular(17),
+      child: Ink(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: hasFile
+              ? const Color(0xFFF2FAF5)
+              : AppTheme.background,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(
+            color: hasFile
+                ? const Color(0xFF168D49).withValues(alpha: 0.20)
+                : Colors.black.withValues(alpha: 0.065),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              fileName == null || fileName.isEmpty
-                  ? 'No file selected'
-                  : fileName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: hasFile
+                    ? const Color(0xFFE1F4E8)
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                  color: Colors.black.withValues(alpha: 0.045),
+                ),
+              ),
+              child: Icon(
+                hasFile
+                    ? Icons.description_outlined
+                    : Icons.attach_file_rounded,
+                color: hasFile
+                    ? const Color(0xFF168D49)
+                    : AppTheme.textSecondary,
+                size: 21,
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          OutlinedButton.icon(
-            onPressed: isPicking ? null : onChoose,
-            icon: isPicking
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.folder_open_rounded, size: 18),
-            label: Text(isPicking ? 'Opening...' : 'Choose'),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasFile ? fileName : 'Choose a file',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    hasFile
+                        ? 'Ready to upload'
+                        : 'PDF, JPG or PNG document',
+                    style: TextStyle(
+                      color: hasFile
+                          ? const Color(0xFF168D49)
+                          : AppTheme.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            if (isPicking)
+              const SizedBox(
+                width: 19,
+                height: 19,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF168D49),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: hasFile
+                        ? const Color(0xFF168D49).withValues(alpha: 0.18)
+                        : Colors.black.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Text(
+                  hasFile ? 'Change' : 'Browse',
+                  style: TextStyle(
+                    color: hasFile
+                        ? const Color(0xFF168D49)
+                        : AppTheme.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -758,108 +944,133 @@ class _CaseHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusStyle = _caseStatusVisual(serviceCase.status);
+
     return PremiumCard(
       padding: EdgeInsets.zero,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppTheme.primaryRed, AppTheme.darkRed],
-          ),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(
-              Icons.assignment_turned_in_outlined,
-              color: Colors.white,
-              size: 34,
-            ),
-            const SizedBox(height: 14),
-            Text(
-              serviceCase.category,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 560;
+
+            final icon = Container(
+              width: compact ? 58 : 72,
+              height: compact ? 58 : 72,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(compact ? 19 : 22),
+                border: Border.all(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              serviceCase.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                height: 1.12,
-                fontWeight: FontWeight.w900,
+              child: Icon(
+                Icons.description_outlined,
+                size: compact ? 29 : 36,
+                color: AppTheme.primaryRed,
               ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            );
+
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _HeroPill(label: serviceCase.status),
-                _HeroPill(label: serviceCase.displayReference),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        serviceCase.title,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: compact ? 20 : 23,
+                          height: 1.15,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _CaseStatusBadge(
+                      label: serviceCase.status,
+                      color: statusStyle.color,
+                      background: statusStyle.background,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  serviceCase.category.trim().isEmpty
+                      ? 'OMC professional service'
+                      : serviceCase.category,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                    height: 1.3,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  serviceCase.remarks?.trim().isNotEmpty == true
+                      ? serviceCase.remarks!.trim()
+                      : 'Track your request, documents, payments and the latest OMC updates.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 18,
+                  runSpacing: 12,
+                  children: [
+                    _HeroMeta(
+                      icon: Icons.tag_rounded,
+                      label: 'Reference',
+                      value: serviceCase.displayReference,
+                    ),
+                    _HeroMeta(
+                      icon: Icons.calendar_today_outlined,
+                      label: 'Requested',
+                      value: serviceCase.createdAtLabel,
+                    ),
+                    _HeroMeta(
+                      icon: Icons.update_rounded,
+                      label: 'Last update',
+                      value: serviceCase.updatedAtLabel,
+                    ),
+                  ],
+                ),
               ],
-            ),
-          ],
+            );
+
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [icon, const SizedBox(height: 16), details],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                icon,
+                const SizedBox(width: 18),
+                Expanded(child: details),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _QuickStatusGrid extends StatelessWidget {
-  const _QuickStatusGrid({required this.serviceCase});
-
-  final ServiceCase serviceCase;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = serviceCase.progress.clamp(0, 1).toDouble();
-    final progressPercent =
-        serviceCase.progressPercent ?? (progress * 100).round();
-    final missingDocumentsCount =
-        serviceCase.missingDocumentsCount ??
-        serviceCase.missingDocuments.length;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickStatusTile(
-            icon: Icons.stacked_line_chart_rounded,
-            label: 'Progress',
-            value: '$progressPercent%',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _QuickStatusTile(
-            icon: Icons.file_present_rounded,
-            label: 'Missing docs',
-            value: missingDocumentsCount.toString(),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _QuickStatusTile(
-            icon: Icons.update_rounded,
-            label: 'Updated',
-            value: serviceCase.updatedAtLabel,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickStatusTile extends StatelessWidget {
-  const _QuickStatusTile({
+class _HeroMeta extends StatelessWidget {
+  const _HeroMeta({
     required this.icon,
     required this.label,
     required this.value,
@@ -871,30 +1082,265 @@ class _QuickStatusTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 118, maxWidth: 220),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 22),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
+          Container(
+            width: 31,
+            height: 31,
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+            ),
+            child: Icon(icon, size: 16, color: AppTheme.textSecondary),
+          ),
+          const SizedBox(width: 9),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value.trim().isEmpty ? '-' : value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 12,
+                    height: 1.25,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseStatusBadge extends StatelessWidget {
+  const _CaseStatusBadge({
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+({Color color, Color background}) _caseStatusVisual(String status) {
+  final value = status.trim().toLowerCase();
+
+  if (value.contains('complete') ||
+      value.contains('approved') ||
+      value.contains('closed')) {
+    return (
+      color: const Color(0xFF16864B),
+      background: const Color(0xFFEAF7EF),
+    );
+  }
+
+  if (value.contains('progress') ||
+      value.contains('review') ||
+      value.contains('processing')) {
+    return (
+      color: const Color(0xFF138A4B),
+      background: const Color(0xFFE8F6ED),
+    );
+  }
+
+  if (value.contains('waiting') || value.contains('pending')) {
+    return (
+      color: const Color(0xFFA85C00),
+      background: const Color(0xFFFFF4E4),
+    );
+  }
+
+  if (value.contains('cancel') || value.contains('reject')) {
+    return (
+      color: const Color(0xFFC62828),
+      background: const Color(0xFFFFEBEE),
+    );
+  }
+
+  return (color: AppTheme.textSecondary, background: AppTheme.background);
+}
+
+class _QuickStatusGrid extends StatelessWidget {
+  const _QuickStatusGrid({required this.serviceCase});
+
+  final ServiceCase serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final required = serviceCase.requiredDocumentTotal;
+    final approved = serviceCase.approvedDocumentTotal;
+    final rejected = serviceCase.rejectedDocumentTotal;
+    final submitted =
+        serviceCase.submittedDocumentsCount ??
+        serviceCase.submittedDocuments.length;
+    final paymentTotal = serviceCase.activePaymentTotal;
+    final paymentPaid = serviceCase.approvedPaymentTotal;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 620;
+
+        final documents = _SummaryTile(
+          icon: Icons.description_outlined,
+          iconColor: const Color(0xFF16864B),
+          iconBackground: const Color(0xFFEAF7EF),
+          title: 'Documents',
+          value: required > 0 ? '$approved / $required' : submitted.toString(),
+          subtitle: required > 0 ? 'Approved' : 'Submitted',
+          footer: rejected > 0
+              ? '$rejected need attention'
+              : serviceCase.documentSummaryLabel,
+        );
+
+        final payments = _SummaryTile(
+          icon: Icons.account_balance_wallet_outlined,
+          iconColor: const Color(0xFF7B3FD3),
+          iconBackground: const Color(0xFFF3ECFF),
+          title: 'Payments',
+          value: paymentTotal > 0 ? '$paymentPaid / $paymentTotal' : '—',
+          subtitle: paymentTotal > 0 ? 'Paid' : 'Not opened',
+          footer: serviceCase.paymentSummaryLabel,
+        );
+
+        if (compact) {
+          return Column(
+            children: [documents, const SizedBox(height: 12), payments],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: documents),
+            const SizedBox(width: 12),
+            Expanded(child: payments),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SummaryTile extends StatelessWidget {
+  const _SummaryTile({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.footer,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final String title;
+  final String value;
+  final String subtitle;
+  final String footer;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: iconBackground,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: iconColor, size: 23),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 22,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  footer,
+                  style: TextStyle(
+                    color: iconColor,
+                    fontSize: 11.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -912,349 +1358,328 @@ class _ProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
     final progressPercent =
-        (serviceCase.progressPercent ?? (progress * 100).round()).toString();
+        serviceCase.progressPercent ?? (progress * 100).round();
     final steps = _milestoneSteps(serviceCase);
     final activeIndex = _activeTimelineIndex(steps);
 
     return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      padding: const EdgeInsets.all(20),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 640;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: Text(
-                  'Progress timeline',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
+              if (compact) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Overall progress',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$progressPercent%',
+                      style: const TextStyle(
+                        color: Color(0xFF129447),
+                        fontSize: 25,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+              ] else
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 172,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Overall progress',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '$progressPercent%',
+                            style: const TextStyle(
+                              color: Color(0xFF129447),
+                              fontSize: 34,
+                              height: 1,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${steps.where((step) => step.isDone).length} of '
+                            '${steps.length} steps completed',
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 82,
+                      margin: const EdgeInsets.only(right: 20),
+                      color: Colors.black.withValues(alpha: 0.06),
+                    ),
+                    Expanded(
+                      child: _HorizontalProgressContent(
+                        progress: progress,
+                        steps: steps,
+                        activeIndex: activeIndex,
+                      ),
+                    ),
+                  ],
+                ),
+              if (compact) ...[
+                _HorizontalProgressContent(
+                  progress: progress,
+                  steps: steps,
+                  activeIndex: activeIndex,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '${steps.where((step) => step.isDone).length} of '
+                  '${steps.length} steps completed',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              Text(
-                '$progressPercent%',
-                style: const TextStyle(
-                  color: AppTheme.primaryRed,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              ],
             ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 9,
-              backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
-            ),
-          ),
-          const SizedBox(height: 18),
-          for (var index = 0; index < steps.length; index++)
-            _TimelineStep(
-              step: steps[index],
-              isActive: activeIndex == index,
-              isLast: index == steps.length - 1,
-            ),
-        ],
+          );
+        },
       ),
     );
   }
 
   List<ServiceCaseTimelineStep> _milestoneSteps(ServiceCase serviceCase) {
     final progress = serviceCase.progress.clamp(0, 1).toDouble();
-    final normalizedStatus = serviceCase.status.trim().toLowerCase();
-    final isCancelled =
-        normalizedStatus.contains('cancel') ||
-        normalizedStatus.contains('reject');
-    final isCompleted =
-        normalizedStatus.contains('complete') ||
-        normalizedStatus.contains('closed');
+    final status = serviceCase.status.trim().toLowerCase();
+    final completed = status.contains('complete') || status.contains('closed');
 
-    final requiredDocs = serviceCase.requiredDocumentTotal;
-    final approvedDocs = serviceCase.approvedDocumentTotal;
-    final missingDocs =
+    final required = serviceCase.requiredDocumentTotal;
+    final approved = serviceCase.approvedDocumentTotal;
+    final missing =
         serviceCase.missingDocumentsCount ??
         serviceCase.missingDocuments.length;
-    final activePayments = serviceCase.activePaymentTotal;
-    final paidPayments = serviceCase.approvedPaymentTotal;
-    final rejectedPayments = serviceCase.rejectedPaymentTotal;
 
-    final documentsDone = requiredDocs > 0
-        ? missingDocs == 0 && approvedDocs >= requiredDocs
-        : progress >= 0.35 || _statusAfterDocumentStage(normalizedStatus);
+    final documentsDone = required > 0
+        ? approved >= required && missing == 0
+        : progress >= 0.35;
 
-    final paymentDone = activePayments > 0
-        ? paidPayments >= activePayments
-        : progress >= 0.60 || _statusAfterPaymentStage(normalizedStatus);
+    final reviewDone =
+        progress >= 0.55 ||
+        status.contains('payment') ||
+        status.contains('progress') ||
+        completed;
 
-    final processingDone = progress >= 0.75 || isCompleted;
-    final completedDone = isCompleted && !isCancelled;
+    final processingDone = progress >= 0.80 || completed;
 
     return [
-      ServiceCaseTimelineStep(
-        title: 'Request received',
-        subtitle: isCancelled
-            ? 'This request was received before cancellation.'
-            : serviceCase.createdAtLabel.trim().isNotEmpty &&
-                  serviceCase.createdAtLabel != '-'
-            ? serviceCase.createdAtLabel
-            : 'Your request has been received by OMC.',
-        isDone:
-            progress >= 0.05 || serviceCase.createdAtLabel.trim().isNotEmpty,
+      const ServiceCaseTimelineStep(
+        title: 'Information',
+        subtitle: 'Completed',
+        isDone: true,
       ),
       ServiceCaseTimelineStep(
-        title: 'Documents review',
-        subtitle: _documentsSubtitle(
-          requiredDocs: requiredDocs,
-          approvedDocs: approvedDocs,
-          missingDocs: missingDocs,
-          documentsDone: documentsDone,
-          status: normalizedStatus,
-        ),
+        title: 'Documents',
+        subtitle: documentsDone ? 'Completed' : 'Pending',
         isDone: documentsDone,
       ),
       ServiceCaseTimelineStep(
-        title: 'Payment review',
-        subtitle: _paymentSubtitle(
-          activePayments: activePayments,
-          paidPayments: paidPayments,
-          rejectedPayments: rejectedPayments,
-          paymentDone: paymentDone,
-          status: normalizedStatus,
-        ),
-        isDone: paymentDone,
+        title: 'Review',
+        subtitle: reviewDone ? 'Completed' : 'In progress',
+        isDone: reviewDone,
       ),
       ServiceCaseTimelineStep(
-        title: 'OMC processing',
-        subtitle: processingDone
-            ? 'OMC processing is in progress.'
-            : serviceCase.nextStep ??
-                  'OMC team will update this request shortly.',
+        title: 'Processing',
+        subtitle: processingDone ? 'Completed' : 'Pending',
         isDone: processingDone,
       ),
       ServiceCaseTimelineStep(
-        title: 'Completed',
-        subtitle: completedDone
-            ? serviceCase.updatedAtLabel
-            : isCancelled
-            ? 'This request was cancelled.'
-            : 'Pending completion.',
-        isDone: completedDone,
+        title: 'Completion',
+        subtitle: completed ? 'Completed' : 'Pending',
+        isDone: completed,
       ),
     ];
   }
 
-  String _documentsSubtitle({
-    required int requiredDocs,
-    required int approvedDocs,
-    required int missingDocs,
-    required bool documentsDone,
-    required String status,
-  }) {
-    if (requiredDocs > 0) {
-      if (missingDocs > 0) {
-        return '$missingDocs document(s) still needed.';
-      }
-      if (documentsDone) {
-        return '$approvedDocs/$requiredDocs document(s) approved.';
-      }
-      return '$approvedDocs/$requiredDocs document(s) approved so far.';
-    }
-
-    if (_statusAfterDocumentStage(status)) {
-      return 'Document requirements have been reviewed.';
-    }
-
-    return 'OMC will confirm document requirements.';
-  }
-
-  String _paymentSubtitle({
-    required int activePayments,
-    required int paidPayments,
-    required int rejectedPayments,
-    required bool paymentDone,
-    required String status,
-  }) {
-    if (rejectedPayments > 0) {
-      return '$rejectedPayments payment receipt(s) need correction.';
-    }
-
-    if (activePayments > 0) {
-      if (paymentDone) {
-        return '$paidPayments/$activePayments payment(s) approved.';
-      }
-      return '$paidPayments/$activePayments payment(s) approved so far.';
-    }
-
-    if (status.contains('waiting for payment')) {
-      return 'Payment is pending.';
-    }
-    if (_statusAfterPaymentStage(status)) {
-      return 'Payment stage has been reviewed.';
-    }
-
-    return 'No payment has been opened yet.';
-  }
-
-  bool _statusAfterDocumentStage(String status) {
-    return status.contains('payment') ||
-        status.contains('in progress') ||
-        status.contains('under review') ||
-        status.contains('complete') ||
-        status.contains('closed');
-  }
-
-  bool _statusAfterPaymentStage(String status) {
-    return status.contains('in progress') ||
-        status.contains('under review') ||
-        status.contains('complete') ||
-        status.contains('closed');
-  }
-
   int _activeTimelineIndex(List<ServiceCaseTimelineStep> steps) {
-    if (steps.isEmpty) return -1;
-
     for (var index = 0; index < steps.length; index++) {
       if (!steps[index].isDone) return index;
     }
-
-    return steps.length - 1;
+    return steps.isEmpty ? -1 : steps.length - 1;
   }
 }
 
-class _TimelineStep extends StatelessWidget {
-  const _TimelineStep({
-    required this.step,
-    required this.isActive,
-    required this.isLast,
+class _HorizontalProgressContent extends StatelessWidget {
+  const _HorizontalProgressContent({
+    required this.progress,
+    required this.steps,
+    required this.activeIndex,
   });
 
-  final ServiceCaseTimelineStep step;
-  final bool isActive;
-  final bool isLast;
+  final double progress;
+  final List<ServiceCaseTimelineStep> steps;
+  final int activeIndex;
 
   @override
   Widget build(BuildContext context) {
-    final isFilled = step.isDone || isActive;
-    final titleColor = isFilled ? AppTheme.textPrimary : AppTheme.textSecondary;
-    final dotColor = step.isDone
-        ? AppTheme.primaryRed
-        : isActive
-        ? Colors.white
-        : AppTheme.primaryRed.withValues(alpha: 0.08);
-    final borderColor = isFilled
-        ? AppTheme.primaryRed
-        : AppTheme.primaryRed.withValues(alpha: 0.18);
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 28,
-            child: Column(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: isActive ? 27 : 24,
-                  height: isActive ? 27 : 24,
-                  decoration: BoxDecoration(
-                    color: dotColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: borderColor,
-                      width: isActive ? 2 : 1.4,
-                    ),
-                    boxShadow: isActive
-                        ? [
-                            BoxShadow(
-                              color: AppTheme.primaryRed.withValues(
-                                alpha: 0.18,
-                              ),
-                              blurRadius: 14,
-                              offset: const Offset(0, 6),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Center(
-                    child: Icon(
-                      step.isDone
-                          ? Icons.check_rounded
-                          : isActive
-                          ? Icons.radio_button_checked_rounded
-                          : Icons.circle_outlined,
-                      size: step.isDone ? 15 : 13,
-                      color: step.isDone || isActive
-                          ? AppTheme.primaryRed
-                          : AppTheme.primaryRed.withValues(alpha: 0.55),
-                    ),
-                  ),
-                ),
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: step.isDone
-                            ? AppTheme.primaryRed
-                            : AppTheme.primaryRed.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            backgroundColor: const Color(0xFFE9EEF1),
+            valueColor: const AlwaysStoppedAnimation(Color(0xFF18A153)),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 18),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(12, 0, 0, 0),
-                decoration: BoxDecoration(
-                  border: Border(
-                    left: BorderSide(
-                      color: isActive
-                          ? AppTheme.primaryRed.withValues(alpha: 0.16)
-                          : Colors.transparent,
-                      width: 3,
-                    ),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      step.title,
-                      style: TextStyle(
-                        color: titleColor,
-                        fontSize: 13.5,
-                        height: 1.2,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      step.subtitle,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12.2,
-                        height: 1.3,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var index = 0; index < steps.length; index++)
+              Expanded(
+                child: _HorizontalProgressStep(
+                  step: steps[index],
+                  number: index + 1,
+                  isActive: index == activeIndex,
+                  showConnector: index != steps.length - 1,
                 ),
               ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _HorizontalProgressStep extends StatelessWidget {
+  const _HorizontalProgressStep({
+    required this.step,
+    required this.number,
+    required this.isActive,
+    required this.showConnector,
+  });
+
+  final ServiceCaseTimelineStep step;
+  final int number;
+  final bool isActive;
+  final bool showConnector;
+
+  @override
+  Widget build(BuildContext context) {
+    const success = Color(0xFF16994C);
+    const pending = Color(0xFFCBD3DC);
+
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            if (showConnector)
+              Positioned(
+                left: 26,
+                right: -26,
+                child: Container(
+                  height: 1.5,
+                  color: step.isDone
+                      ? success.withValues(alpha: 0.45)
+                      : pending,
+                ),
+              ),
+            Container(
+              width: 29,
+              height: 29,
+              decoration: BoxDecoration(
+                color: step.isDone
+                    ? const Color(0xFFE9F8EF)
+                    : isActive
+                    ? success
+                    : Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: step.isDone || isActive ? success : pending,
+                  width: 1.5,
+                ),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: success.withValues(alpha: 0.18),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Center(
+                child: step.isDone
+                    ? const Icon(Icons.check_rounded, color: success, size: 17)
+                    : Text(
+                        '$number',
+                        style: TextStyle(
+                          color: isActive
+                              ? Colors.white
+                              : AppTheme.textSecondary,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          step.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w900,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          step.subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isActive ? success : AppTheme.textSecondary,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1417,56 +1842,95 @@ class _ActionRequiredCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final missingDocumentsCount =
+    final missing =
         serviceCase.missingDocumentsCount ??
         serviceCase.missingDocuments.length;
 
+    final title = missing > 0
+        ? 'Upload the requested documents'
+        : serviceCase.nextStep?.trim().isNotEmpty == true
+        ? serviceCase.nextStep!.trim()
+        : 'Your attention is required';
+
+    final message = missing > 0
+        ? '$missing document(s) are still required before OMC can continue.'
+        : serviceCase.actionRequiredLabel;
+
     return PremiumCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFB25E00).withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.priority_high_rounded,
-              color: Color(0xFFB25E00),
-            ),
+      padding: EdgeInsets.zero,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFFF1FAF4),
+              Colors.white.withValues(alpha: 0.96),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Action required',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  missingDocumentsCount > 0
-                      ? '$missingDocumentsCount document(s) are needed to continue this service request.'
-                      : serviceCase.nextStep ??
-                            'OMC needs an update from you to continue this request.',
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12.5,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: const Color(0xFF17984D).withValues(alpha: 0.10),
           ),
-        ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2F5E9),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: const Icon(
+                Icons.upload_file_outlined,
+                color: Color(0xFF168E49),
+                size: 27,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Next step',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 15,
+                      height: 1.25,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11.8,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1480,133 +1944,41 @@ class _CaseInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Case information',
+            'Request details',
             style: TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 14),
-          _InfoRow(label: 'Status', value: serviceCase.status),
-          _InfoRow(label: 'Created', value: serviceCase.createdAtLabel),
-          _InfoRow(label: 'Updated', value: serviceCase.updatedAtLabel),
-          if (serviceCase.nextStep != null)
-            _InfoRow(label: 'Next step', value: serviceCase.nextStep!),
-          if (serviceCase.remarks != null)
-            _InfoRow(label: 'Remarks', value: serviceCase.remarks!),
-        ],
-      ),
-    );
-  }
-}
-
-class _CaseAdminStatusCard extends StatelessWidget {
-  const _CaseAdminStatusCard({
-    required this.serviceCase,
-    required this.isUpdating,
-    required this.onStatusSelected,
-  });
-
-  final ServiceCase serviceCase;
-  final bool isUpdating;
-  final ValueChanged<String>? onStatusSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final status = serviceCase.status.trim().toLowerCase();
-    final isClosed = status == 'completed' || status == 'cancelled';
-
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          const SizedBox(height: 5),
           const Text(
-            'Admin case controls',
+            'Reference information and the latest case notes.',
             style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            isClosed
-                ? 'This case is closed. Reopen it before continuing work.'
-                : 'Update backend service progress after reviewing case activity.',
-            style: const TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 12.5,
+              fontSize: 11.8,
               height: 1.35,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _CaseStatusActionButton(
-                label: 'Waiting',
-                status: 'Waiting for Customer',
-                icon: Icons.hourglass_bottom_rounded,
-                enabled: !isUpdating && !isClosed && onStatusSelected != null,
-                onStatusSelected: onStatusSelected,
-              ),
-              _CaseStatusActionButton(
-                label: 'In Progress',
-                status: 'In Progress',
-                icon: Icons.timelapse_rounded,
-                enabled: !isUpdating && !isClosed && onStatusSelected != null,
-                onStatusSelected: onStatusSelected,
-              ),
-              _CaseStatusActionButton(
-                label: 'Complete',
-                status: 'Completed',
-                icon: Icons.verified_rounded,
-                enabled: !isUpdating && !isClosed && onStatusSelected != null,
-                onStatusSelected: onStatusSelected,
-              ),
-              _CaseStatusActionButton(
-                label: 'Reopen',
-                status: 'Open',
-                icon: Icons.refresh_rounded,
-                enabled: !isUpdating && onStatusSelected != null,
-                onStatusSelected: onStatusSelected,
-              ),
-            ],
-          ),
+          const SizedBox(height: 16),
+          _InfoRow(label: 'Reference', value: serviceCase.displayReference),
+          _InfoRow(label: 'Status', value: serviceCase.status),
+          _InfoRow(label: 'Created', value: serviceCase.createdAtLabel),
+          _InfoRow(label: 'Updated', value: serviceCase.updatedAtLabel),
+          if (serviceCase.currentStage?.trim().isNotEmpty == true)
+            _InfoRow(label: 'Stage', value: serviceCase.currentStage!.trim()),
+          if (serviceCase.nextStep?.trim().isNotEmpty == true)
+            _InfoRow(label: 'Next step', value: serviceCase.nextStep!.trim()),
+          if (serviceCase.remarks?.trim().isNotEmpty == true)
+            _InfoRow(label: 'Remarks', value: serviceCase.remarks!.trim()),
         ],
       ),
-    );
-  }
-}
-
-class _CaseStatusActionButton extends StatelessWidget {
-  const _CaseStatusActionButton({
-    required this.label,
-    required this.status,
-    required this.icon,
-    required this.enabled,
-    required this.onStatusSelected,
-  });
-
-  final String label;
-  final String status;
-  final IconData icon;
-  final bool enabled;
-  final ValueChanged<String>? onStatusSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: enabled ? () => onStatusSelected?.call(status) : null,
-      icon: Icon(icon),
-      label: Text(label),
     );
   }
 }
@@ -1898,270 +2270,363 @@ class _CaseActionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final documents = serviceCase.documentDetails;
+
     final missingDocumentsCount =
         serviceCase.missingDocumentsCount ??
         serviceCase.missingDocuments.length;
-    final documents = serviceCase.documentDetails;
+
     final hasMissingDocuments =
         missingDocumentsCount > 0 ||
         serviceCase.missingDocuments.isNotEmpty ||
         documents.any(
           (document) => document.isMissing || !document.isSubmitted,
         );
-    final hasRejectedDocuments = documents.any((document) {
-      final status = document.status.trim().toLowerCase();
-      return status.contains('reject');
-    });
+
+    final hasRejectedDocuments = documents.any(
+      (document) => document.status.trim().toLowerCase().contains('reject'),
+    );
+
     final hasPendingReview = documents.any((document) {
       final status = document.status.trim().toLowerCase();
+
       return document.isSubmitted &&
           !status.contains('approve') &&
           !status.contains('verified') &&
           !status.contains('reject');
     });
+
     final allDocumentsApproved =
         documents.isNotEmpty &&
         !hasMissingDocuments &&
         !hasRejectedDocuments &&
         documents.every((document) {
           final status = document.status.trim().toLowerCase();
+
           return status.contains('approve') || status.contains('verified');
         });
 
+    final action = _resolveAction(
+      hasMissingDocuments: hasMissingDocuments,
+      hasRejectedDocuments: hasRejectedDocuments,
+      hasPendingReview: hasPendingReview,
+      allDocumentsApproved: allDocumentsApproved,
+    );
+
     return PremiumCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Actions',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (hasMissingDocuments) ...[
-            _ActionNotice(
-              icon: Icons.cloud_upload_outlined,
-              title: 'Missing documents required',
-              message:
-                  'Upload the requested document by selecting its required document type first.',
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: isUploading ? null : onUploadMissingDocument,
-              icon: isUploading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.upload_file_rounded),
-              label: Text(isUploading ? 'Uploading...' : 'Upload documents'),
-            ),
-            const SizedBox(height: 10),
-          ] else if (hasRejectedDocuments) ...[
-            _ActionNotice(
-              icon: Icons.error_outline_rounded,
-              title: 'Documents need correction',
-              message:
-                  'One or more documents were rejected. Please upload corrected documents or contact OMC support.',
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: isUploading ? null : onUploadMissingDocument,
-              icon: isUploading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.upload_file_rounded),
-              label: Text(
-                isUploading ? 'Uploading...' : 'Upload corrected documents',
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: action.background,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(action.icon, color: action.color, size: 24),
               ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Available actions',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      action.title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 15,
+                        height: 1.25,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      action.message,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (action.primaryType != _CasePrimaryAction.none) ...[
+            const SizedBox(height: 17),
+            _PrimaryCaseActionButton(
+              action: action.primaryType,
+              isUploading: isUploading,
+              onUpload: onUploadMissingDocument,
             ),
-            const SizedBox(height: 10),
-          ] else if (allDocumentsApproved) ...[
-            const _ActionNotice(
-              icon: Icons.verified_rounded,
-              title: 'All documents approved',
-              message:
-                  'Your documents are approved. Please proceed to payment to continue your service request.',
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: () => context.go('/payments'),
-              icon: const Icon(Icons.payments_rounded),
-              label: const Text('Proceed to payment'),
-            ),
-            const SizedBox(height: 10),
-          ] else if (hasPendingReview) ...[
-            const _ActionNotice(
-              icon: Icons.hourglass_top_rounded,
-              title: 'Documents submitted',
-              message:
-                  'Your documents are submitted and waiting for OMC review. You will see the next step once review is complete.',
-            ),
-            const SizedBox(height: 12),
-          ] else ...[
-            const _ActionNotice(
-              icon: Icons.check_circle_outline_rounded,
-              title: 'Documents submitted',
-              message:
-                  'All currently required documents for this case appear submitted. OMC will share the next step shortly.',
-            ),
-            const SizedBox(height: 12),
           ],
-          if (onCancelRequest != null) ...[
-            const SizedBox(height: 4),
-            OutlinedButton.icon(
-              onPressed: isCancelling ? null : onCancelRequest,
-              icon: isCancelling
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.cancel_outlined),
-              label: Text(isCancelling ? 'Cancelling...' : 'Cancel request'),
-            ),
-            const SizedBox(height: 10),
-          ],
-          OutlinedButton.icon(
-            onPressed: () => SupportLauncher.openWhatsApp(context),
-            icon: const Icon(Icons.support_agent_rounded),
-            label: const Text('Ask OMC support'),
+          const SizedBox(height: 16),
+          Container(height: 1, color: Colors.black.withValues(alpha: 0.055)),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 390;
+
+              final supportButton = _SecondaryCaseAction(
+                icon: Icons.support_agent_outlined,
+                label: 'Contact support',
+                onPressed: () => SupportLauncher.openWhatsApp(context),
+              );
+
+              final cancelButton = onCancelRequest == null
+                  ? null
+                  : _SecondaryCaseAction(
+                      icon: Icons.close_rounded,
+                      label: isCancelling ? 'Cancelling...' : 'Cancel request',
+                      destructive: true,
+                      showProgress: isCancelling,
+                      onPressed: isCancelling ? null : onCancelRequest,
+                    );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    supportButton,
+                    if (cancelButton != null) ...[
+                      const SizedBox(height: 10),
+                      cancelButton,
+                    ],
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: supportButton),
+                  if (cancelButton != null) ...[
+                    const SizedBox(width: 10),
+                    Expanded(child: cancelButton),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
     );
   }
+
+  _ResolvedCaseAction _resolveAction({
+    required bool hasMissingDocuments,
+    required bool hasRejectedDocuments,
+    required bool hasPendingReview,
+    required bool allDocumentsApproved,
+  }) {
+    if (hasMissingDocuments) {
+      return const _ResolvedCaseAction(
+        icon: Icons.upload_file_outlined,
+        color: Color(0xFF168D49),
+        background: Color(0xFFE9F7EE),
+        title: 'Upload the missing documents',
+        message:
+            'Attach the requested files so OMC can continue reviewing your service request.',
+        primaryType: _CasePrimaryAction.upload,
+      );
+    }
+
+    if (hasRejectedDocuments) {
+      return const _ResolvedCaseAction(
+        icon: Icons.error_outline_rounded,
+        color: Color(0xFFC56A00),
+        background: Color(0xFFFFF3E2),
+        title: 'Some documents need correction',
+        message:
+            'Review the rejected items and upload corrected copies to continue.',
+        primaryType: _CasePrimaryAction.correctedUpload,
+      );
+    }
+
+    if (allDocumentsApproved) {
+      return const _ResolvedCaseAction(
+        icon: Icons.verified_outlined,
+        color: Color(0xFF168D49),
+        background: Color(0xFFE9F7EE),
+        title: 'Documents approved',
+        message:
+            'Your documents have been approved. Continue to payments when a payment request is available.',
+        primaryType: _CasePrimaryAction.payment,
+      );
+    }
+
+    if (hasPendingReview) {
+      return const _ResolvedCaseAction(
+        icon: Icons.hourglass_top_rounded,
+        color: Color(0xFF1769AA),
+        background: Color(0xFFEAF3FB),
+        title: 'Documents are under review',
+        message:
+            'No action is needed right now. OMC will notify you when the review is complete.',
+        primaryType: _CasePrimaryAction.none,
+      );
+    }
+
+    return const _ResolvedCaseAction(
+      icon: Icons.check_circle_outline_rounded,
+      color: Color(0xFF168D49),
+      background: Color(0xFFE9F7EE),
+      title: 'Everything is up to date',
+      message:
+          'There are no pending document actions for this service request.',
+      primaryType: _CasePrimaryAction.none,
+    );
+  }
 }
 
-class _ActionNotice extends StatelessWidget {
-  const _ActionNotice({
+enum _CasePrimaryAction { none, upload, correctedUpload, payment }
+
+class _ResolvedCaseAction {
+  const _ResolvedCaseAction({
     required this.icon,
+    required this.color,
+    required this.background,
     required this.title,
     required this.message,
+    required this.primaryType,
   });
 
   final IconData icon;
+  final Color color;
+  final Color background;
   final String title;
   final String message;
+  final _CasePrimaryAction primaryType;
+}
+
+class _PrimaryCaseActionButton extends StatelessWidget {
+  const _PrimaryCaseActionButton({
+    required this.action,
+    required this.isUploading,
+    required this.onUpload,
+  });
+
+  final _CasePrimaryAction action;
+  final bool isUploading;
+  final VoidCallback onUpload;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppTheme.primaryRed, size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+    final isPayment = action == _CasePrimaryAction.payment;
+
+    final label = switch (action) {
+      _CasePrimaryAction.upload => 'Upload documents',
+      _CasePrimaryAction.correctedUpload => 'Upload corrected documents',
+      _CasePrimaryAction.payment => 'View payments',
+      _CasePrimaryAction.none => '',
+    };
+
+    return SizedBox(
+      height: 48,
+      child: FilledButton.icon(
+        onPressed: isUploading
+            ? null
+            : isPayment
+            ? () => context.go('/payments')
+            : onUpload,
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF159447),
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: const Color(
+            0xFF159447,
+          ).withValues(alpha: 0.45),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
-        ],
+          elevation: 0,
+        ),
+        icon: isUploading
+            ? const SizedBox(
+                width: 17,
+                height: 17,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Icon(
+                isPayment
+                    ? Icons.account_balance_wallet_outlined
+                    : Icons.upload_file_outlined,
+                size: 20,
+              ),
+        label: Text(
+          isUploading ? 'Uploading...' : label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+        ),
       ),
     );
   }
 }
 
-class _SupportCard extends StatelessWidget {
-  const _SupportCard({required this.serviceCase});
+class _SecondaryCaseAction extends StatelessWidget {
+  const _SecondaryCaseAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.destructive = false,
+    this.showProgress = false,
+  });
 
-  final ServiceCase serviceCase;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Need help?',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Contact OMC support for tracking updates, missing documents or urgent follow-up.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () => SupportLauncher.openWhatsApp(context),
-            icon: const Icon(Icons.support_agent_rounded),
-            label: const Text('Ask support'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroPill extends StatelessWidget {
-  const _HeroPill({required this.label});
-
+  final IconData icon;
   final String label;
+  final VoidCallback? onPressed;
+  final bool destructive;
+  final bool showProgress;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
+    final color = destructive ? AppTheme.primaryRed : AppTheme.textPrimary;
+
+    return SizedBox(
+      height: 43,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          side: BorderSide(
+            color: destructive
+                ? AppTheme.primaryRed.withValues(alpha: 0.28)
+                : Colors.black.withValues(alpha: 0.09),
+          ),
+          backgroundColor: destructive
+              ? AppTheme.primaryRed.withValues(alpha: 0.025)
+              : AppTheme.background,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          elevation: 0,
+        ),
+        icon: showProgress
+            ? SizedBox(
+                width: 15,
+                height: 15,
+                child: CircularProgressIndicator(strokeWidth: 2, color: color),
+              )
+            : Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
         ),
       ),
     );
