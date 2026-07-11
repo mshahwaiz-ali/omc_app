@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/widgets/omc_identity_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../home/data/home_dashboard_repository.dart';
+import '../../profile/data/profile_repository.dart';
 import '../domain/internal_service_case.dart';
 import '../domain/internal_workspace_summary.dart';
 import 'internal_workspace_providers.dart';
@@ -82,6 +87,12 @@ class _InternalWorkspaceContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final queueAsync = ref.watch(internalServiceCasesProvider);
+    final authState = ref.watch(authControllerProvider);
+    final profile = ref.watch(profileSummaryProvider).value;
+    final displayName = profile?.displayName ?? authState.displayName ?? 'Administrator';
+    final avatarUrl = ApiConfig.resolveFileUrl(profile?.avatarUrl ?? authState.avatarUrl);
+    final unreadNotifications =
+        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
     final totalFocusItems =
         summary.openLeads + summary.pendingTasks + summary.pendingPayments;
 
@@ -89,7 +100,13 @@ class _InternalWorkspaceContent extends ConsumerWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: _kShellPagePadding,
       children: [
-        const _WorkspaceHeader(),
+        OmcIdentityHeader(
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+          unreadNotifications: unreadNotifications,
+          onNotifications: () => context.push('/notifications'),
+          onAvatar: () => context.push('/profile'),
+        ),
         const SizedBox(height: 14),
         _CustomerSearchCard(
           onSearch: (value) {
@@ -134,55 +151,6 @@ class _InternalWorkspaceContent extends ConsumerWidget {
         const SizedBox(height: 22),
         _ActivityPlaceholder(onOpenCases: () => context.go('/internal-workspace/service-cases')),
       ],
-    );
-  }
-}
-
-class _WorkspaceHeader extends StatelessWidget {
-  const _WorkspaceHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return PremiumCard(
-      padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Icon(Icons.hub_rounded, color: theme.colorScheme.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'OMC Operations Hub',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Manage customers, services, documents and payments.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
