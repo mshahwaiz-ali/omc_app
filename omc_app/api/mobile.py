@@ -111,7 +111,26 @@ def _service_required_documents(service_name):
     ]
 
 
+def _service_category_identity(service):
+    category_id = (getattr(service, "category", None) or "").strip()
+    if not category_id:
+        return "", ""
+
+    category_title = ""
+    if _has_doctype("OMC Service Category"):
+        category_title = (
+            frappe.db.get_value("OMC Service Category", category_id, "title")
+            or ""
+        ).strip()
+
+    if not category_title:
+        category_title = category_id.replace("_", " ").replace("-", " ").strip().title()
+
+    return category_id, category_title
+
+
 def _service_to_catalogue_dict(service, include_required_documents=False):
+    category_id, category_title = _service_category_identity(service)
     required_documents = (
         _service_required_documents(service.name)
         if include_required_documents
@@ -124,8 +143,12 @@ def _service_to_catalogue_dict(service, include_required_documents=False):
         "title": service.title or "",
         "description": service.description or "",
         "short_description": getattr(service, "short_description", None) or "",
-        "category": service.category or "",
-        "icon": service.icon or "",
+        "category": category_title,
+        "category_id": category_id,
+        "categoryId": category_id,
+        "icon": service.icon or "general_service",
+        "color_family": getattr(service, "color_family", None) or "slate",
+        "colorFamily": getattr(service, "color_family", None) or "slate",
         "estimated_duration": service.estimated_duration or "",
         "completion_time": _service_completion_time(service),
         "completionTime": _service_completion_time(service),
@@ -846,6 +869,7 @@ def get_service_catalogue():
             "description",
             "short_description",
             "icon",
+            "color_family",
             "estimated_duration",
             "completion_time",
             "base_price",
@@ -877,6 +901,11 @@ def get_service_detail(service_id=None):
             "title": "",
             "description": "",
             "category": "",
+            "category_id": "",
+            "categoryId": "",
+            "icon": "general_service",
+            "color_family": "slate",
+            "colorFamily": "slate",
             "required_documents": [],
         }
 

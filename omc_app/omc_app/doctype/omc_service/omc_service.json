@@ -7,24 +7,29 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "identity_section",
   "service_id",
   "title",
   "category",
-  "description",
   "short_description",
+  "description",
+  "mobile_appearance_section",
   "icon",
-  "estimated_duration",
-  "completion_time",
+  "color_family",
+  "pricing_duration_section",
   "base_price",
   "currency",
   "fee_label",
   "government_fee_label",
+  "estimated_duration",
+  "completion_time",
+  "request_configuration_section",
+  "wizard_type",
+  "wizard_config",
+  "support_message",
+  "publishing_section",
   "sort_order",
   "is_featured",
-  "support_message",
-  "wizard_type",
-  "color_family",
-  "wizard_config",
   "is_active"
  ],
  "fields": [
@@ -54,8 +59,11 @@
   },
   {
    "fieldname": "icon",
-   "fieldtype": "Data",
-   "label": "Icon"
+   "fieldtype": "Select",
+   "label": "Service Icon",
+   "options": "\nbusiness_setup\ncompany_registration\ntax_filing\ntax_registration\ngst\naccounting\naudit\ndocuments\ncertificate\nlegal\nvisa\npayroll\npayments\ncompliance\nconsultation\nlicensing\ntrademark\nbookkeeping\nbanking\ngeneral_service",
+   "default": "general_service",
+   "description": "Stable semantic icon key used by mobile clients."
   },
   {
    "fieldname": "estimated_duration",
@@ -124,18 +132,43 @@
    "options": "\nTax\nGST\nBusiness"
   },
   {
-   "default": "Tax",
+   "default": "slate",
    "fieldname": "color_family",
    "fieldtype": "Select",
-   "label": "Color Family",
-   "options": "\nTax\nPayments\nDocuments\nServices\nTrack\nLeads\nTasks\nNotifications",
-   "description": "Controls the accent family used by the app for this service."
+   "label": "Accent Family",
+   "options": "\nnavy\nblue\nteal\ngreen\namber\norange\nviolet\nindigo\nslate\nburgundy",
+   "description": "Restrained semantic accent used for the service icon treatment."
   },
   {
    "fieldname": "wizard_config",
    "fieldtype": "Code",
    "label": "Wizard Config JSON",
    "options": "JSON"
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "mobile_appearance_section",
+   "fieldtype": "Section Break",
+   "label": "Mobile Appearance"
+  },
+  {
+   "fieldname": "pricing_duration_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing and Duration"
+  },
+  {
+   "fieldname": "request_configuration_section",
+   "fieldtype": "Section Break",
+   "label": "Request Configuration"
+  },
+  {
+   "fieldname": "publishing_section",
+   "fieldtype": "Section Break",
+   "label": "Publishing"
   }
  ],
  "index_web_pages_for_search": 1,
