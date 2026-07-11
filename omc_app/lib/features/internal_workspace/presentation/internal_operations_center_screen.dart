@@ -88,10 +88,19 @@ class _InternalOperationsCenterScreenState
                     children: [
                       _OperationsSearchAndFilters(
                         controller: _searchController,
+
                         hint: config.searchHint,
+
                         filters: config.filters,
+
                         selectedFilter: _selectedFilter,
+
+                        counts: widget.area == InternalOperationArea.payments
+                            ? _paymentFilterCounts(queue.cases)
+                            : const <String, int>{},
+
                         onSearchChanged: (_) => setState(() {}),
+
                         onFilterChanged: (value) =>
                             setState(() => _selectedFilter = value),
                       ),
@@ -148,6 +157,23 @@ class _InternalOperationsCenterScreenState
     }
 
     return result.toList(growable: false);
+  }
+
+  Map<String, int> _paymentFilterCounts(List<InternalServiceCase> cases) {
+    final counts = <String, int>{};
+
+    for (final filter in _config.filters) {
+      if (filter == 'All') {
+        counts[filter] = cases.length;
+        continue;
+      }
+
+      counts[filter] = cases
+          .where((item) => _matchesAreaFilter(item, filter))
+          .length;
+    }
+
+    return counts;
   }
 
   bool _matchesAreaFilter(InternalServiceCase item, String filter) {
@@ -365,12 +391,14 @@ class _OperationsSearchAndFilters extends StatelessWidget {
     required this.selectedFilter,
     required this.onSearchChanged,
     required this.onFilterChanged,
+    this.counts = const <String, int>{},
   });
 
   final TextEditingController controller;
   final String hint;
   final List<String> filters;
   final String selectedFilter;
+  final Map<String, int> counts;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onFilterChanged;
 
@@ -444,6 +472,7 @@ class _OperationsSearchAndFilters extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 10),
                   child: _OpsFilterChip(
                     label: filter,
+                    count: counts[filter],
                     selected: selectedFilter == filter,
                     onTap: () => onFilterChanged(filter),
                   ),
@@ -461,9 +490,11 @@ class _OpsFilterChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.count,
   });
 
   final String label;
+  final int? count;
   final bool selected;
   final VoidCallback onTap;
 
@@ -487,13 +518,46 @@ class _OpsFilterChip extends StatelessWidget {
                   : const Color(0xFFDCE1E9),
             ),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? AppTheme.primaryRed : const Color(0xFF273044),
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected
+                      ? AppTheme.primaryRed
+                      : const Color(0xFF273044),
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 9),
+                Container(
+                  constraints: const BoxConstraints(minWidth: 25),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppTheme.primaryRed
+                        : const Color(0xFFF0F2F6),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      color: selected ? Colors.white : const Color(0xFF273044),
+                      fontSize: 11,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -559,23 +623,20 @@ class _OperationsSummary extends StatelessWidget {
             ),
           ];
 
-          if (constraints.maxWidth < 700) {
-            return GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.28,
-              children: metrics,
-            );
-          }
-
           return Row(
             children: [
               for (var index = 0; index < metrics.length; index++) ...[
-                Expanded(child: metrics[index]),
-                if (index != metrics.length - 1) const SizedBox(width: 10),
+                Expanded(
+                  child: _OpsMetric(
+                    value: metrics[index].value,
+                    label: metrics[index].label,
+                    subtitle: metrics[index].subtitle,
+                    icon: metrics[index].icon,
+                    color: metrics[index].color,
+                    compact: true,
+                  ),
+                ),
+                if (index != metrics.length - 1) const SizedBox(width: 8),
               ],
             ],
           );
@@ -662,6 +723,7 @@ class _OpsMetric extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.color,
+    this.compact = false,
   });
 
   final String value;
@@ -669,41 +731,51 @@ class _OpsMetric extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final Color color;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 7 : 14,
+        vertical: compact ? 13 : 18,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: compact
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
+        crossAxisAlignment: compact
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: compact ? 38 : 44,
+            height: compact ? 38 : 44,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: compact ? 21 : 24),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: compact ? 10 : 14),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 22,
+              fontSize: compact ? 20 : 22,
               height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 7),
+          SizedBox(height: compact ? 6 : 7),
           Text(
             label,
             maxLines: 1,
+            textAlign: compact ? TextAlign.center : TextAlign.start,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF526887),
-              fontSize: 12,
+            style: TextStyle(
+              color: const Color(0xFF526887),
+              fontSize: compact ? 10.5 : 12,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -711,10 +783,11 @@ class _OpsMetric extends StatelessWidget {
           Text(
             subtitle,
             maxLines: 1,
+            textAlign: compact ? TextAlign.center : TextAlign.start,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 11,
+              fontSize: compact ? 9.5 : 11,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -976,38 +1049,28 @@ class _PaymentReviewCard extends StatelessWidget {
                 builder: (context, constraints) {
                   final dateInfo = Row(
                     children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 19,
-                        color: Color(0xFF172033),
-                      ),
-                      const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Requested on',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              serviceCase.createdAt,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF526887),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                        child: _PaymentMetaItem(
+                          icon: Icons.calendar_today_outlined,
+                          label: 'Requested on',
+                          value: serviceCase.createdAt,
                         ),
                       ),
+                      if (constraints.maxWidth >= 560) ...[
+                        Container(
+                          width: 1,
+                          height: 42,
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          color: const Color(0xFFE5E8EF),
+                        ),
+                        Expanded(
+                          child: _PaymentMetaItem(
+                            icon: Icons.update_rounded,
+                            label: 'Last updated',
+                            value: serviceCase.updatedAt,
+                          ),
+                        ),
+                      ],
                     ],
                   );
 
@@ -1075,6 +1138,54 @@ class _PaymentReviewCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PaymentMetaItem extends StatelessWidget {
+  const _PaymentMetaItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 19, color: const Color(0xFF172033)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF526887),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
