@@ -41,18 +41,20 @@ class _InternalServiceTrackScreenState
             onRetry: () => ref.invalidate(serviceCasesProvider),
           ),
           data: (cases) {
-            final visible = cases.where((item) {
-              if (!_filter.matches(item)) return false;
-              if (_query.isEmpty) return true;
-              final value = [
-                item.displayCustomerName,
-                item.title,
-                item.displayReference,
-                item.category,
-                item.status,
-              ].join(' ').toLowerCase();
-              return value.contains(_query);
-            }).toList(growable: false);
+            final visible = cases
+                .where((item) {
+                  if (!_filter.matches(item)) return false;
+                  if (_query.isEmpty) return true;
+                  final value = [
+                    item.displayCustomerName,
+                    item.title,
+                    item.displayReference,
+                    item.category,
+                    item.status,
+                  ].join(' ').toLowerCase();
+                  return value.contains(_query);
+                })
+                .toList(growable: false);
 
             return RefreshIndicator(
               color: OmcPremium.services,
@@ -66,32 +68,56 @@ class _InternalServiceTrackScreenState
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
                 children: [
                   _Header(cases: cases),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 22),
                   _SearchField(
                     controller: _searchController,
-                    onChanged: (value) => setState(
-                      () => _query = value.trim().toLowerCase(),
-                    ),
+                    onChanged: (value) =>
+                        setState(() => _query = value.trim().toLowerCase()),
                     onClear: () {
                       _searchController.clear();
                       setState(() => _query = '');
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   _FilterBar(
+                    cases: cases,
                     selected: _filter,
                     onSelected: (value) => setState(() => _filter = value),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _SummaryStrip(cases: cases),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Service Requests (${visible.length})',
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _filter.label,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   if (visible.isEmpty)
                     _EmptyState(hasQuery: _query.isNotEmpty)
                   else
                     for (var index = 0; index < visible.length; index++) ...[
                       _ServiceRequestCard(serviceCase: visible[index]),
                       if (index != visible.length - 1)
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                     ],
                 ],
               ),
@@ -105,29 +131,45 @@ class _InternalServiceTrackScreenState
 
 class _Header extends StatelessWidget {
   const _Header({required this.cases});
+
   final List<ServiceCase> cases;
 
   @override
   Widget build(BuildContext context) {
     final active = cases.where((item) => !_caseState(item).isDone).length;
     final attention = cases.where(_needsAttention).length;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: OmcPremium.soft(OmcPremium.services, .09),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(
-            Icons.assignment_outlined,
-            color: OmcPremium.services,
-            size: 23,
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            onTap: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: OmcPremium.border),
+              ),
+              child: const Icon(
+                Icons.arrow_back_rounded,
+                color: AppTheme.textPrimary,
+                size: 26,
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 13),
+        const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,22 +178,69 @@ class _Header extends StatelessWidget {
                 'Service Requests',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
-                  fontSize: 25,
-                  height: 1.08,
+                  fontSize: 28,
+                  height: 1.05,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: -.55,
+                  letterSpacing: -0.6,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               Text(
-                '$active active ${active == 1 ? 'case' : 'cases'}  •  '
-                '$attention need attention',
+                '$active active  •  $attention need attention',
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: OmcPremium.border),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Center(
+                child: Icon(
+                  Icons.notifications_none_rounded,
+                  color: AppTheme.textPrimary,
+                  size: 25,
+                ),
+              ),
+              if (attention > 0)
+                Positioned(
+                  right: -2,
+                  top: -3,
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minWidth: 21,
+                      minHeight: 21,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: OmcPremium.danger,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: Text(
+                      attention > 99 ? '99+' : '$attention',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -166,6 +255,7 @@ class _SearchField extends StatelessWidget {
     required this.onChanged,
     required this.onClear,
   });
+
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
@@ -173,31 +263,45 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 60,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(21),
         border: Border.all(color: OmcPremium.border),
-        boxShadow: OmcPremium.softShadow,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 18,
+            offset: const Offset(0, 7),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
         onChanged: onChanged,
         textInputAction: TextInputAction.search,
+        style: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
         decoration: InputDecoration(
           hintText: 'Search customer, request ID or service',
           hintStyle: const TextStyle(
             color: AppTheme.textSecondary,
-            fontSize: 13,
+            fontSize: 13.5,
             fontWeight: FontWeight.w600,
           ),
           prefixIcon: const Icon(
             Icons.search_rounded,
             color: AppTheme.textSecondary,
+            size: 27,
           ),
           suffixIcon: controller.text.isEmpty
               ? const Icon(
                   Icons.tune_rounded,
                   color: AppTheme.textSecondary,
+                  size: 24,
                 )
               : IconButton(
                   tooltip: 'Clear search',
@@ -205,7 +309,9 @@ class _SearchField extends StatelessWidget {
                   icon: const Icon(Icons.close_rounded),
                 ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 18),
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 19),
         ),
       ),
     );
@@ -231,57 +337,89 @@ extension on _CaseFilter {
 }
 
 class _FilterBar extends StatelessWidget {
-  const _FilterBar({required this.selected, required this.onSelected});
+  const _FilterBar({
+    required this.cases,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<ServiceCase> cases;
   final _CaseFilter selected;
   final ValueChanged<_CaseFilter> onSelected;
+
+  int _countFor(_CaseFilter filter) {
+    return cases.where(filter.matches).length;
+  }
+
+  Color _colorFor(_CaseFilter filter) {
+    return switch (filter) {
+      _CaseFilter.all => OmcPremium.services,
+      _CaseFilter.attention => OmcPremium.danger,
+      _CaseFilter.inProgress => OmcPremium.documents,
+      _CaseFilter.completed => OmcPremium.success,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 42,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _CaseFilter.values.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 9),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final item = _CaseFilter.values[index];
           final active = item == selected;
+          final color = _colorFor(item);
+          final count = _countFor(item);
+
           return InkWell(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(999),
             onTap: () => onSelected(item),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 17),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: active
-                    ? OmcPremium.soft(OmcPremium.services, .13)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(14),
+                color: active ? color.withValues(alpha: 0.07) : Colors.white,
+                borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: active
-                      ? OmcPremium.soft(OmcPremium.services, .20)
-                      : OmcPremium.border,
+                      ? color
+                      : AppTheme.textPrimary.withValues(alpha: 0.09),
+                  width: active ? 1.4 : 1,
                 ),
               ),
               child: Row(
                 children: [
-                  if (active) ...[
-                    const Icon(
-                      Icons.check_rounded,
-                      color: OmcPremium.services,
-                      size: 17,
-                    ),
-                    const SizedBox(width: 7),
-                  ],
                   Text(
                     item.label,
                     style: TextStyle(
-                      color: active
-                          ? OmcPremium.services
-                          : AppTheme.textSecondary,
+                      color: active ? color : AppTheme.textSecondary,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    constraints: const BoxConstraints(
+                      minWidth: 23,
+                      minHeight: 23,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: active ? 0.14 : 0.08),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ],
@@ -296,43 +434,147 @@ class _FilterBar extends StatelessWidget {
 
 class _SummaryStrip extends StatelessWidget {
   const _SummaryStrip({required this.cases});
+
   final List<ServiceCase> cases;
 
   @override
   Widget build(BuildContext context) {
+    final active = cases.where((item) => !_caseState(item).isDone).length;
     final review = cases.where(_needsReview).length;
     final missing = cases.fold<int>(
       0,
       (total, item) => total + _missingCount(item),
     );
-    return OmcSurface(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    final completed = cases
+        .where((item) => _caseState(item).isCompleted)
+        .length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: OmcPremium.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.022),
+            blurRadius: 18,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 10.0;
+          final width = (constraints.maxWidth - spacing) / 2;
+
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              SizedBox(
+                width: width,
+                child: _SummaryTile(
+                  icon: Icons.trending_up_rounded,
+                  label: 'Active Requests',
+                  value: active,
+                  color: OmcPremium.services,
+                ),
+              ),
+              SizedBox(
+                width: width,
+                child: _SummaryTile(
+                  icon: Icons.rate_review_outlined,
+                  label: 'Awaiting Review',
+                  value: review,
+                  color: OmcPremium.action,
+                ),
+              ),
+              SizedBox(
+                width: width,
+                child: _SummaryTile(
+                  icon: Icons.description_outlined,
+                  label: 'Documents Missing',
+                  value: missing,
+                  color: OmcPremium.danger,
+                ),
+              ),
+              SizedBox(
+                width: width,
+                child: _SummaryTile(
+                  icon: Icons.check_circle_outline_rounded,
+                  label: 'Completed',
+                  value: completed,
+                  color: OmcPremium.success,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SummaryTile extends StatelessWidget {
+  const _SummaryTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final int value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: color.withValues(alpha: 0.08)),
+      ),
       child: Row(
         children: [
-          Expanded(
-            child: _Metric(
-              icon: Icons.folder_open_outlined,
-              label: 'Cases',
-              value: '${cases.length}',
-              color: OmcPremium.documents,
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
+            child: Icon(icon, color: color, size: 21),
           ),
-          const _Divider(),
+          const SizedBox(width: 11),
           Expanded(
-            child: _Metric(
-              icon: Icons.error_outline_rounded,
-              label: 'Need review',
-              value: '$review',
-              color: OmcPremium.action,
-            ),
-          ),
-          const _Divider(),
-          Expanded(
-            child: _Metric(
-              icon: Icons.insert_drive_file_outlined,
-              label: 'Missing',
-              value: '$missing',
-              color: OmcPremium.danger,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$value',
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 22,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -341,75 +583,9 @@ class _SummaryStrip extends StatelessWidget {
   }
 }
 
-class _Divider extends StatelessWidget {
-  const _Divider();
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 1,
-    height: 56,
-    color: OmcPremium.border,
-  );
-}
-
-class _Metric extends StatelessWidget {
-  const _Metric({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        OmcIconBadge(
-          icon: icon,
-          color: color,
-          size: 38,
-          iconSize: 19,
-          radius: 13,
-        ),
-        const SizedBox(width: 9),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 19,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _ServiceRequestCard extends StatelessWidget {
   const _ServiceRequestCard({required this.serviceCase});
+
   final ServiceCase serviceCase;
 
   @override
@@ -417,53 +593,113 @@ class _ServiceRequestCard extends StatelessWidget {
     final state = _caseState(serviceCase);
     final tone = state.color;
     final total = serviceCase.requiredDocumentTotal;
-    final received = serviceCase.submittedDocumentsCount ??
-        serviceCase.documentDetails.where((item) => item.fileUrl != null).length;
+    final received =
+        serviceCase.submittedDocumentsCount ??
+        serviceCase.documentDetails
+            .where((item) => item.fileUrl != null)
+            .length;
     final progress = total == 0
         ? (state.isCompleted ? 1.0 : 0.0)
         : (received / total).clamp(0, 1).toDouble();
     final missing = _missingCount(serviceCase);
+    final percent = (progress * 100).round();
+    final route = '/my-services/${Uri.encodeComponent(serviceCase.id)}';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: OmcPremium.border),
-        boxShadow: OmcPremium.softShadow,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: () => context.push(route),
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: tone.withValues(alpha: 0.20)),
+            boxShadow: [
+              BoxShadow(
+                color: tone.withValues(alpha: 0.035),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(width: 4, color: tone),
-              Expanded(
-                child: InkWell(
-                  onTap: () => context.go('/my-services/${serviceCase.id}'),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(15, 16, 15, 15),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _CardHeader(serviceCase: serviceCase, state: state),
-                        const SizedBox(height: 13),
-                        _DocumentProgress(
-                          received: received,
-                          total: total,
-                          missing: missing,
-                          progress: progress,
-                          color: tone,
-                          completed: state.isCompleted,
+              _CardHeader(serviceCase: serviceCase, state: state),
+              const SizedBox(height: 17),
+              Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 8,
+                        backgroundColor: AppTheme.textPrimary.withValues(
+                          alpha: 0.06,
                         ),
-                        const SizedBox(height: 12),
-                        _MetaRow(serviceCase: serviceCase, state: state),
-                        const SizedBox(height: 12),
-                        _NextAction(serviceCase: serviceCase, state: state),
-                      ],
+                        valueColor: AlwaysStoppedAnimation<Color>(tone),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 13),
+                  Text(
+                    '$percent%',
+                    style: TextStyle(
+                      color: tone,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _DocumentProgress(
+                received: received,
+                total: total,
+                missing: missing,
+                progress: progress,
+                color: tone,
+                completed: state.isCompleted,
+              ),
+              const SizedBox(height: 13),
+              _MetaRow(serviceCase: serviceCase, state: state),
+              const SizedBox(height: 13),
+              _NextAction(serviceCase: serviceCase, state: state),
+              const SizedBox(height: 15),
+              Divider(
+                height: 1,
+                color: AppTheme.textPrimary.withValues(alpha: 0.07),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      state.isCompleted
+                          ? 'View completed request summary'
+                          : 'Open request workspace',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    state.isCompleted ? 'View summary' : 'Open',
+                    style: TextStyle(
+                      color: tone,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right_rounded, color: tone, size: 21),
+                ],
               ),
             ],
           ),
@@ -475,36 +711,51 @@ class _ServiceRequestCard extends StatelessWidget {
 
 class _CardHeader extends StatelessWidget {
   const _CardHeader({required this.serviceCase, required this.state});
+
   final ServiceCase serviceCase;
   final _CaseState state;
 
   @override
   Widget build(BuildContext context) {
+    final reference = serviceCase.displayReference.trim();
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OmcIconBadge(
-          icon: Icons.person_outline_rounded,
-          color: state.color,
-          size: 46,
-          iconSize: 22,
-          radius: 16,
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: state.color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Icon(_requestIcon(serviceCase), color: state.color, size: 28),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                serviceCase.displayCustomerName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 16.5,
-                  height: 1.1,
-                  fontWeight: FontWeight.w900,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      serviceCase.displayCustomerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 17,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OmcStatusBadge(label: state.label, color: state.color),
+                ],
               ),
               const SizedBox(height: 5),
               Text(
@@ -517,25 +768,43 @@ class _CardHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                serviceCase.displayReference,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
+              if (reference.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Text(
+                  reference,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: state.color,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        OmcStatusBadge(label: state.label, color: state.color),
       ],
     );
   }
+}
+
+IconData _requestIcon(ServiceCase serviceCase) {
+  final key = '${serviceCase.title} ${serviceCase.category}'.toLowerCase();
+
+  if (key.contains('tax')) {
+    return Icons.business_center_outlined;
+  }
+
+  if (key.contains('company') || key.contains('business')) {
+    return Icons.account_balance_outlined;
+  }
+
+  if (key.contains('gst') || key.contains('registration')) {
+    return Icons.verified_user_outlined;
+  }
+
+  return Icons.assignment_outlined;
 }
 
 class _DocumentProgress extends StatelessWidget {
@@ -558,7 +827,9 @@ class _DocumentProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     if (total == 0) {
       return _SuccessPanel(
-        text: completed ? 'Service completed successfully' : 'No documents required',
+        text: completed
+            ? 'Service completed successfully'
+            : 'No documents required',
       );
     }
     final percent = (progress * 100).round();
@@ -791,7 +1062,10 @@ class _SuccessPanel extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
+          ),
         ],
       ),
     );
@@ -815,7 +1089,9 @@ class _TinyBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: softBackground ? OmcPremium.soft(color, .075) : Colors.transparent,
+        color: softBackground
+            ? OmcPremium.soft(color, .075)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(

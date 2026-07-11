@@ -5,10 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
-import '../../../core/widgets/omc_identity_header.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../home/data/home_dashboard_repository.dart';
@@ -43,7 +41,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
     final profile = ref
         .watch(profileSummaryProvider)
         .maybeWhen(data: (profile) => profile, orElse: () => null);
-    final capabilities = authState.capabilities;
+    final capabilities = profile?.capabilities ?? authState.capabilities;
     final displayName =
         profile?.displayName ??
         authState.displayName ??
@@ -70,7 +68,6 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             final filtered = _applyFilters(cases);
             final sorted = _applySort(filtered);
             final counts = _Counts.fromCases(cases);
-            final banner = _BannerData.from(capabilities, counts);
             final activityCases = _applySort(
               cases,
             ).take(3).toList(growable: false);
@@ -87,14 +84,21 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                 ),
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
                 children: [
-                  OmcIdentityHeader(
-                    displayName: displayName,
-                    avatarUrl: ApiConfig.resolveFileUrl(avatarUrl),
+                  _TrackHeader(
                     unreadNotifications: unreadNotifications,
+                    avatarUrl: ApiConfig.resolveFileUrl(avatarUrl),
+                    displayName: displayName,
+                    onBack: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/');
+                      }
+                    },
                     onNotifications: () => context.push('/notifications'),
                     onAvatar: () => context.push('/profile'),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 24),
                   _SearchAndFilterRow(
                     controller: _searchController,
                     query: _query,
@@ -102,23 +106,40 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                         setState(() => _query = value.trim().toLowerCase()),
                     onFilterTap: () => _openFilterSheet(context, counts),
                   ),
-                  const SizedBox(height: 16),
-                  _StatusBanner(
-                    data: banner,
-                    onPrimary: () => context.go(banner.actionRoute),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   _FilterRow(
                     cases: cases,
                     selectedFilter: _selectedFilter,
                     onSelected: (filter) =>
                         setState(() => _selectedFilter = filter),
                   ),
-                  const SizedBox(height: 18),
-                  _SectionHeader(
-                    title: 'My Services (${cases.length})',
-                    actionLabel: 'Sort by: ${_sortOption.label}',
-                    onTap: () => _openSortSheet(context),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'My Services (${sorted.length})',
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _openSortSheet(context),
+                        iconAlignment: IconAlignment.end,
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                        label: Text(_sortOption.label),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.textSecondary,
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   if (sorted.isEmpty)
@@ -128,10 +149,13 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                     )
                   else
                     for (var i = 0; i < sorted.length; i++) ...[
-                      _ServiceCard(serviceCase: sorted[i]),
-                      if (i != sorted.length - 1) const SizedBox(height: 12),
+                      _ServiceCard(
+                        serviceCase: sorted[i],
+                        capabilities: capabilities,
+                      ),
+                      if (i != sorted.length - 1) const SizedBox(height: 16),
                     ],
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 26),
                   _SectionHeader(
                     title: 'Recent Activity',
                     actionLabel: 'View all',
@@ -518,6 +542,192 @@ class _Header extends StatelessWidget {
   }
 }
 
+class _TrackHeader extends StatelessWidget {
+  const _TrackHeader({
+    required this.unreadNotifications,
+    required this.avatarUrl,
+    required this.displayName,
+    required this.onBack,
+    required this.onNotifications,
+    required this.onAvatar,
+  });
+
+  final int unreadNotifications;
+  final String? avatarUrl;
+  final String displayName;
+  final VoidCallback onBack;
+  final VoidCallback onNotifications;
+  final VoidCallback onAvatar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            onTap: onBack,
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: AppTheme.textPrimary.withValues(alpha: 0.09),
+                ),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(
+                Icons.arrow_back_rounded,
+                color: AppTheme.textPrimary,
+                size: 27,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 18),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'My Services',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 30,
+                  height: 1.05,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.6,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Track requests, documents and payments',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Material(
+              color: Colors.white,
+              shape: const CircleBorder(),
+              child: InkWell(
+                onTap: onNotifications,
+                customBorder: const CircleBorder(),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.textPrimary.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+            if (unreadNotifications > 0)
+              Positioned(
+                right: -3,
+                top: -4,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 21,
+                    minHeight: 21,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: OmcPremium.danger,
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: Text(
+                    unreadNotifications > 99 ? '99+' : '$unreadNotifications',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(width: 9),
+        InkWell(
+          onTap: onAvatar,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 48,
+            height: 48,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppTheme.textPrimary.withValues(alpha: 0.10),
+              ),
+            ),
+            child: ClipOval(
+              child: avatarUrl?.trim().isNotEmpty == true
+                  ? Image.network(
+                      avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          _TrackInitialsAvatar(name: displayName),
+                    )
+                  : _TrackInitialsAvatar(name: displayName),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TrackInitialsAvatar extends StatelessWidget {
+  const _TrackInitialsAvatar({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.substring(0, 1).toUpperCase())
+        .join();
+
+    return Container(
+      color: OmcPremium.services.withValues(alpha: 0.08),
+      alignment: Alignment.center,
+      child: Text(
+        initials.isEmpty ? 'U' : initials,
+        style: const TextStyle(
+          color: OmcPremium.services,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
 class _SearchAndFilterRow extends StatelessWidget {
   const _SearchAndFilterRow({
     required this.controller,
@@ -536,125 +746,87 @@ class _SearchAndFilterRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: TextField(
-            controller: controller,
-            onChanged: onChanged,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: 'Search services, cases or requests...',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear search',
-                      onPressed: () {
-                        controller.clear();
-                        onChanged('');
-                      },
-                      icon: const Icon(Icons.close_rounded),
-                    ),
+          child: Container(
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: AppTheme.textPrimary.withValues(alpha: 0.09),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.025),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              textInputAction: TextInputAction.search,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search service or request ID',
+                hintStyle: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+                prefixIcon: const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Icon(
+                    Icons.search_rounded,
+                    color: AppTheme.textSecondary,
+                    size: 27,
+                  ),
+                ),
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          controller.clear();
+                          onChanged('');
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 18),
+              ),
             ),
           ),
         ),
         const SizedBox(width: 12),
         SizedBox(
-          width: 98,
+          height: 58,
           child: OutlinedButton.icon(
             onPressed: onFilterTap,
-            icon: const Icon(Icons.tune_rounded, size: 18),
+            icon: const Icon(Icons.filter_alt_outlined, size: 22),
             label: const Text('Filter'),
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 17),
-              foregroundColor: OmcPremium.track,
-              side: BorderSide(color: OmcPremium.track.withValues(alpha: 0.16)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+              backgroundColor: Colors.white,
+              foregroundColor: AppTheme.textPrimary,
+              side: BorderSide(
+                color: AppTheme.textPrimary.withValues(alpha: 0.10),
               ),
-              textStyle: const TextStyle(fontWeight: FontWeight.w800),
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(21),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.data, required this.onPrimary});
-
-  final _BannerData data;
-  final VoidCallback onPrimary;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: data.tint,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: data.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: data.accent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(data.icon, color: data.accent, size: 30),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data.title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  data.subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13.5,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          FilledButton(
-            onPressed: onPrimary,
-            style: FilledButton.styleFrom(
-              backgroundColor: data.accent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              textStyle: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            child: Text(data.actionLabel),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -672,78 +844,69 @@ class _FilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filters = <_ServiceCaseFilter>[
+    const filters = <_ServiceCaseFilter>[
       _ServiceCaseFilter.all,
-      _ServiceCaseFilter.open,
-      _ServiceCaseFilter.inReview,
       _ServiceCaseFilter.actionNeeded,
+      _ServiceCaseFilter.open,
       _ServiceCaseFilter.completed,
     ];
 
     return SizedBox(
-      height: 46,
+      height: 49,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: filters.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final filter = filters[index];
-          final selected = selectedFilter == filter;
+          final selected = filter == selectedFilter;
           final count = filter.count(cases);
           final color = _filterColor(filter);
 
           return InkWell(
-            borderRadius: BorderRadius.circular(16),
             onTap: () => onSelected(filter),
+            borderRadius: BorderRadius.circular(999),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 17),
               decoration: BoxDecoration(
-                color: selected ? color.withValues(alpha: 0.12) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                color: selected ? color.withValues(alpha: 0.06) : Colors.white,
+                borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: selected
-                      ? color.withValues(alpha: 0.30)
-                      : Colors.black.withValues(alpha: 0.06),
+                      ? color
+                      : AppTheme.textPrimary.withValues(alpha: 0.09),
+                  width: selected ? 1.4 : 1,
                 ),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   Text(
-                    filter.label,
+                    filter == _ServiceCaseFilter.open ? 'Active' : filter.label,
                     style: TextStyle(
-                      color: selected ? color : AppTheme.textPrimary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w900,
+                      color: selected ? color : AppTheme.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 9),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 3,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
                     ),
+                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: selected ? 0.14 : 0.07),
+                      color: color.withValues(alpha: selected ? 0.14 : 0.09),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       '$count',
                       style: TextStyle(
-                        color: selected ? color : AppTheme.textSecondary,
-                        fontSize: 10.5,
-                        height: 1,
+                        color: color,
+                        fontSize: 11,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -798,189 +961,344 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({required this.serviceCase});
+  const _ServiceCard({required this.serviceCase, required this.capabilities});
 
   final ServiceCase serviceCase;
+  final AuthCapabilities capabilities;
 
   @override
   Widget build(BuildContext context) {
     final state = _stateFor(serviceCase);
     final palette = _paletteFor(state);
+    final progress = serviceCase.progress.clamp(0.0, 1.0);
     final progressPercent =
-        serviceCase.progressPercent ??
-        (serviceCase.progress.clamp(0, 1) * 100).round();
+        serviceCase.progressPercent ?? (progress * 100).round();
+    final reference = serviceCase.reference?.trim();
+    final nextStep = serviceCase.nextStep?.trim();
+    final missingCount =
+        serviceCase.missingDocumentsCount ??
+        serviceCase.missingDocuments.length;
+    final needsUpload =
+        state.needsAction &&
+        (missingCount > 0 ||
+            serviceCase.missingDocuments.isNotEmpty ||
+            (nextStep?.toLowerCase().contains('upload') ?? false));
 
-    return PremiumCard(
-      onTap: () => context.go('/my-services/${serviceCase.id}'),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final borderColor = palette.color.withValues(alpha: 0.22);
+    final route = '/my-services/${Uri.encodeComponent(serviceCase.id)}';
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: () => context.push(route),
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: palette.color.withValues(alpha: 0.035),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
+              ),
+            ],
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: OmcPremium.services.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: OmcPremium.services.withValues(alpha: 0.07),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: palette.color.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(19),
+                    ),
+                    child: Icon(
+                      _serviceIcon(serviceCase, state),
+                      color: palette.color,
+                      size: 31,
+                    ),
                   ),
-                ),
-                child: const Icon(
-                  Icons.folder_shared_rounded,
-                  color: OmcPremium.services,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
                                 serviceCase.title,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   color: AppTheme.textPrimary,
-                                  fontSize: 15.5,
-                                  height: 1.2,
+                                  fontSize: 18,
+                                  height: 1.18,
                                   fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.15,
+                                  letterSpacing: -0.25,
                                 ),
                               ),
-                              const SizedBox(height: 5),
-                              Text(
-                                serviceCase.category,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 10),
+                            _StatusPill(
+                              label: palette.label,
+                              color: palette.color,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        _StatusPill(label: palette.label, color: palette.color),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          size: 14,
-                          color: Colors.grey.shade500,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Requested on ${serviceCase.createdAtLabel}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        if (reference?.isNotEmpty == true) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            reference!,
                             style: const TextStyle(
                               color: AppTheme.textSecondary,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          color: Colors.grey.shade400,
-                          size: 22,
+                        ],
+                        const SizedBox(height: 15),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(999),
+                                child: LinearProgressIndicator(
+                                  value: progress,
+                                  minHeight: 8,
+                                  backgroundColor: AppTheme.textPrimary
+                                      .withValues(alpha: 0.06),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    palette.color,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Text(
+                              '$progressPercent%',
+                              style: TextStyle(
+                                color: palette.color,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 17),
+              Padding(
+                padding: const EdgeInsets.only(left: 80),
+                child: Column(
+                  children: [
+                    if (nextStep?.isNotEmpty == true)
+                      _ServiceInformationRow(
+                        icon: state.isClosed
+                            ? Icons.check_circle_outline_rounded
+                            : Icons.error_outline_rounded,
+                        text: state.isClosed
+                            ? nextStep!
+                            : 'Next step: $nextStep',
+                        color: palette.color,
+                        trailing: missingCount > 0
+                            ? _InlineBadge(
+                                label:
+                                    '$missingCount document${missingCount == 1 ? '' : 's'} missing',
+                                color: OmcPremium.danger,
+                              )
+                            : null,
+                      ),
+                    if (nextStep?.isNotEmpty == true)
+                      const SizedBox(height: 12),
+                    _ServiceInformationRow(
+                      icon: Icons.calendar_month_outlined,
+                      text: state.isClosed
+                          ? 'Completed ${serviceCase.updatedAtLabel}'
+                          : 'Updated ${serviceCase.updatedAtLabel}',
+                      color: AppTheme.textSecondary,
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 11),
-            decoration: BoxDecoration(
-              color: palette.color.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: serviceCase.progress.clamp(0, 1),
-                    minHeight: 8,
-                    backgroundColor: palette.color.withValues(alpha: 0.10),
-                    valueColor: AlwaysStoppedAnimation<Color>(palette.color),
-                  ),
-                ),
-                const SizedBox(height: 10),
+              const SizedBox(height: 17),
+              Divider(
+                height: 1,
+                color: AppTheme.textPrimary.withValues(alpha: 0.07),
+              ),
+              const SizedBox(height: 14),
+              if (needsUpload && capabilities.canUploadDocuments)
                 Row(
                   children: [
-                    Text(
-                      '$progressPercent%',
-                      style: TextStyle(
-                        color: palette.color,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w900,
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => context.push(route),
+                        icon: const Icon(Icons.upload_rounded),
+                        label: const Text('Upload document'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: OmcPremium.danger,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    Text(
-                      serviceCase.actionRequiredLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push(route),
+                        icon: const Icon(Icons.open_in_new_rounded, size: 19),
+                        label: const Text('Open workspace'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: OmcPremium.danger,
+                          side: BorderSide(
+                            color: OmcPremium.danger.withValues(alpha: 0.18),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
                     ),
                   ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              PremiumInfoChip(
-                icon: Icons.description_outlined,
-                label: serviceCase.documentSummaryLabel,
-              ),
-              PremiumInfoChip(
-                icon: Icons.payments_outlined,
-                label: serviceCase.paymentSummaryLabel,
-              ),
-              if (serviceCase.reference != null &&
-                  serviceCase.reference!.trim().isNotEmpty)
-                PremiumInfoChip(
-                  icon: Icons.confirmation_number_outlined,
-                  label: serviceCase.reference!,
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push(route),
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    label: Text(
+                      state.isClosed ? 'View summary' : 'View details',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textPrimary,
+                      side: BorderSide(
+                        color: AppTheme.textPrimary.withValues(alpha: 0.10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
+
+class _ServiceInformationRow extends StatelessWidget {
+  const _ServiceInformationRow({
+    required this.icon,
+    required this.text,
+    required this.color,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color == AppTheme.textSecondary
+                  ? AppTheme.textSecondary
+                  : AppTheme.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (trailing != null) ...[const SizedBox(width: 10), trailing!],
+      ],
+    );
+  }
+}
+
+class _InlineBadge extends StatelessWidget {
+  const _InlineBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+IconData _serviceIcon(ServiceCase serviceCase, _ServiceCaseState state) {
+  final key = '${serviceCase.title} ${serviceCase.category}'
+      .trim()
+      .toLowerCase();
+
+  if (state.isClosed) return Icons.verified_user_outlined;
+  if (key.contains('tax')) return Icons.business_center_outlined;
+  if (key.contains('company') || key.contains('business')) {
+    return Icons.account_balance_outlined;
+  }
+  if (key.contains('gst') || key.contains('registration')) {
+    return Icons.shield_outlined;
+  }
+
+  return Icons.work_outline_rounded;
 }
 
 class _StatusPill extends StatelessWidget {
@@ -992,30 +1310,18 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }
@@ -1028,14 +1334,60 @@ class _ActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: EdgeInsets.zero,
+    if (cases.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: AppTheme.textPrimary.withValues(alpha: 0.07),
+          ),
+        ),
+        child: const Column(
+          children: [
+            Icon(
+              Icons.history_rounded,
+              color: AppTheme.textSecondary,
+              size: 30,
+            ),
+            SizedBox(height: 10),
+            Text(
+              'No recent service activity',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.textPrimary.withValues(alpha: 0.07)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 18,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
       child: Column(
         children: [
-          for (var i = 0; i < cases.length; i++) ...[
-            _ActivityRow(serviceCase: cases[i]),
-            if (i != cases.length - 1)
-              const Divider(height: 1, indent: 74, endIndent: 16),
+          for (var index = 0; index < cases.length; index++) ...[
+            _ActivityRow(serviceCase: cases[index]),
+            if (index != cases.length - 1)
+              Divider(
+                height: 1,
+                indent: 70,
+                endIndent: 16,
+                color: AppTheme.textPrimary.withValues(alpha: 0.07),
+              ),
           ],
         ],
       ),
@@ -1052,47 +1404,79 @@ class _ActivityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = _stateFor(serviceCase);
     final palette = _paletteFor(state);
-    final subtitle = serviceCase.nextStep?.trim().isNotEmpty == true
-        ? serviceCase.nextStep!
+    final nextStep = serviceCase.nextStep?.trim();
+    final subtitle = nextStep?.isNotEmpty == true
+        ? nextStep!
         : serviceCase.actionRequiredLabel;
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      onTap: () => context.go('/my-services/${serviceCase.id}'),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: palette.color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(16),
+    return InkWell(
+      onTap: () =>
+          context.push('/my-services/${Uri.encodeComponent(serviceCase.id)}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: palette.color.withValues(alpha: 0.09),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                state.isClosed
+                    ? Icons.check_circle_outline_rounded
+                    : palette.icon,
+                color: palette.color,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    serviceCase.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              serviceCase.updatedAtLabel,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 5),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
+          ],
         ),
-        child: Icon(palette.icon, color: palette.color, size: 22),
       ),
-      title: Text(
-        serviceCase.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 14.5,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          '$subtitle • ${serviceCase.updatedAtLabel}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-            height: 1.3,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
     );
   }
 }
@@ -1451,97 +1835,6 @@ Color _serviceAvatarColor(String name) {
   final index =
       source.codeUnits.fold<int>(0, (sum, unit) => sum + unit) % colors.length;
   return colors[index];
-}
-
-class _BannerData {
-  const _BannerData({
-    required this.title,
-    required this.subtitle,
-    required this.actionLabel,
-    required this.actionRoute,
-    required this.icon,
-    required this.accent,
-    required this.tint,
-    required this.border,
-  });
-
-  final String title;
-  final String subtitle;
-  final String actionLabel;
-  final String actionRoute;
-  final IconData icon;
-  final Color accent;
-  final Color tint;
-  final Color border;
-
-  factory _BannerData.from(AuthCapabilities capabilities, _Counts counts) {
-    if (capabilities.isGuest) {
-      return const _BannerData(
-        title: 'Sign in to track your services',
-        subtitle:
-            'Guest access is limited. Create an account to submit requests and follow progress.',
-        actionLabel: 'Sign in',
-        actionRoute: '/profile',
-        icon: Icons.lock_outline_rounded,
-        accent: Color(0xFF8B5CF6),
-        tint: Color(0xFFF7F0FF),
-        border: Color(0xFFE9D5FF),
-      );
-    }
-
-    if (capabilities.isPending) {
-      return const _BannerData(
-        title: 'Your profile is under review',
-        subtitle:
-            'You have limited access. Complete your profile for full access to all services.',
-        actionLabel: 'Complete profile',
-        actionRoute: '/profile',
-        icon: Icons.verified_user_outlined,
-        accent: OmcPremium.services,
-        tint: Color(0xFFFFF4F5),
-        border: Color(0xFFFED7DC),
-      );
-    }
-
-    if (capabilities.isRejected) {
-      return const _BannerData(
-        title: 'Access needs attention',
-        subtitle:
-            'Your profile requires review before full service access can be restored.',
-        actionLabel: 'Contact support',
-        actionRoute: '/services',
-        icon: Icons.block_rounded,
-        accent: Color(0xFFEF4444),
-        tint: Color(0xFFFFF4F4),
-        border: Color(0xFFFECACA),
-      );
-    }
-
-    if (counts.actionNeeded > 0) {
-      return const _BannerData(
-        title: 'Action is needed on some requests',
-        subtitle:
-            'A few cases are waiting on documents or payment steps. Open the ones marked action needed.',
-        actionLabel: 'Open requests',
-        actionRoute: '/my-services',
-        icon: Icons.priority_high_rounded,
-        accent: Color(0xFFF59E0B),
-        tint: Color(0xFFFFFAED),
-        border: Color(0xFFFDE68A),
-      );
-    }
-
-    return const _BannerData(
-      title: 'Your services are moving',
-      subtitle: 'Track progress, documents and updates from one place.',
-      actionLabel: 'Browse services',
-      actionRoute: '/services',
-      icon: Icons.timeline_rounded,
-      accent: Color(0xFF14B8A6),
-      tint: Color(0xFFF0FFFD),
-      border: Color(0xFFA7F3D0),
-    );
-  }
 }
 
 class _Counts {

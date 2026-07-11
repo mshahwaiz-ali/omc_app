@@ -11,6 +11,7 @@ import '../../auth/application/auth_state.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
+import 'internal_home_view.dart';
 import 'customer_guest_home_view.dart';
 
 const Color _taxBlue = Color(0xFF2F6BFF);
@@ -171,6 +172,18 @@ class HomeScreen extends ConsumerWidget {
         },
         onSignUp: () => context.push('/signup'),
         onSignIn: () => context.push('/login'),
+      );
+    }
+
+    if (mode.isInternal) {
+      return InternalHomeView(
+        displayName: displayName,
+        avatarUrl: avatarUrl,
+        summary: summary,
+        quickActions: quickActions,
+        capabilities: capabilities,
+        onOpenNotifications: () =>
+            _openNotifications(context, capabilities, onOpenNotifications),
       );
     }
 
