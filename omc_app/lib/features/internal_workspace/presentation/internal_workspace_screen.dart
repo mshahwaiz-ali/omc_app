@@ -366,12 +366,6 @@ class _PriorityQueueTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final needsAction = serviceCase.uploadedDocuments > 0
-        ? '${serviceCase.uploadedDocuments} documents need review'
-        : serviceCase.pendingDocuments > 0
-            ? '${serviceCase.pendingDocuments} documents pending'
-            : serviceCase.status;
-
     final tone = serviceCase.uploadedDocuments > 0 ? _rose : _orange;
     return PremiumCard(
       padding: const EdgeInsets.all(13),
@@ -679,6 +673,8 @@ class _WorkAreaDivider extends StatelessWidget {
   }
 }
 
+// Reserved for the live activity feed once backend events are enabled.
+// ignore: unused_element
 class _ActivityPlaceholder extends StatelessWidget {
   const _ActivityPlaceholder({required this.onOpenCases});
 
