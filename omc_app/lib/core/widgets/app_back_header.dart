@@ -8,6 +8,7 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     super.key,
     this.subtitle,
+    this.action,
     this.actionIcon,
     this.actionTooltip,
     this.onAction,
@@ -16,6 +17,7 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
 
   final String title;
   final String? subtitle;
+  final Widget? action;
   final IconData? actionIcon;
   final String? actionTooltip;
   final VoidCallback? onAction;
@@ -118,6 +120,7 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                   ],
                 ),
               ),
+              if (action != null) ...[const SizedBox(width: 10), action!],
               if (actionIcon != null && onAction != null) ...[
                 const SizedBox(width: 10),
                 Tooltip(

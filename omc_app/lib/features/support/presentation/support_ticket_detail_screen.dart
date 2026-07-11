@@ -24,8 +24,19 @@ class SupportTicketDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ticketAsync = ref.watch(supportTicketDetailProvider(ticketId));
 
+    final loadedTicket = ticketAsync.asData?.value;
+
     return Scaffold(
-      appBar: const AppBackHeader(title: 'Support Chat'),
+      backgroundColor: const Color(0xFFF8FAFD),
+      appBar: AppBackHeader(
+        title: 'Support',
+        subtitle: loadedTicket == null
+            ? ticketId
+            : '${loadedTicket.subject} • ${loadedTicket.id}',
+        action: loadedTicket == null
+            ? null
+            : _StatusPill(status: loadedTicket.status, compact: true),
+      ),
       body: ticketAsync.when(
         data: (ticket) {
           if (ticket == null) {
@@ -98,6 +109,8 @@ class _SupportTicketChatBodyState
                 _TicketInfoCard(ticket: ticket),
                 if (ticket.canUpdateStatus) ...[
                   const SizedBox(height: 12),
+                  _CustomerInformationCard(ticket: ticket),
+                  const SizedBox(height: 12),
                   _SupportAdminStatusBar(
                     ticket: ticket,
                     isUpdating: _isUpdatingStatus,
@@ -106,8 +119,8 @@ class _SupportTicketChatBodyState
                         : (status) => _updateTicketStatus(context, status),
                   ),
                 ],
-                const SizedBox(height: 18),
-                _ConversationHeader(count: ticket.messages.length),
+                const SizedBox(height: 20),
+                const _ConversationHeader(),
                 const SizedBox(height: 12),
                 if (ticket.messages.isEmpty)
                   const _EmptyConversationBubble()
@@ -244,7 +257,6 @@ class _SupportTicketChatBodyState
 
       _replyController.clear();
       setState(() => _pickedAttachment = null);
-      messenger.showSnackBar(const SnackBar(content: Text('Message sent.')));
       ref.invalidate(supportTicketDetailProvider(ticket.id));
       ref.invalidate(supportTicketsProvider);
       _scrollToBottomSoon();
@@ -321,81 +333,237 @@ class _TicketInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.support_agent_rounded,
-                  color: AppTheme.primaryRed,
+              Expanded(
+                child: Text(
+                  ticket.subject,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    height: 1.25,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
+              _StatusPill(status: ticket.status, compact: true),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${ticket.id} • ${ticket.priority} priority',
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (ticket.referenceServiceRequest != null) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () => context.push(
+                '/my-services/${Uri.encodeComponent(ticket.referenceServiceRequest!)}',
+              ),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.link_rounded,
+                      size: 17,
+                      color: AppTheme.primaryRed,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        'Linked case: ${ticket.referenceServiceRequest!}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 19,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomerInformationCard extends StatelessWidget {
+  const _CustomerInformationCard({required this.ticket});
+
+  final SupportTicket ticket;
+
+  @override
+  Widget build(BuildContext context) {
+    final identity = _customerIdentity(ticket);
+    final email = ticket.contactEmail?.trim();
+    final phone = ticket.contactPhone?.trim();
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Customer',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 21,
+                backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
+                child: Text(
+                  _initials(identity),
+                  style: const TextStyle(
+                    color: AppTheme.primaryRed,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      ticket.subject,
-                      maxLines: 2,
+                      identity,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: FontWeight.w900,
-                        height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      ticket.id,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                    if (email != null && email.isNotEmpty)
+                      Text(
+                        email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
+                    if (phone != null && phone.isNotEmpty)
+                      Text(
+                        phone,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              _StatusPill(status: ticket.status),
+              const _CustomerBadge(),
             ],
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _SmallPill(
-                label: ticket.priority,
-                icon: Icons.flag_outlined,
-                color: Colors.blueGrey.shade700,
+          const SizedBox(height: 13),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          _ContextRow(
+            label: 'Case',
+            value: ticket.referenceServiceRequest ?? 'Not linked',
+          ),
+          _ContextRow(
+            label: 'Opened',
+            value: ticket.raisedOnLabel ?? ticket.createdAtLabel ?? '—',
+          ),
+          _ContextRow(label: 'Updated', value: ticket.updatedAtLabel ?? '—'),
+          _ContextRow(label: 'Ticket', value: ticket.id),
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomerBadge extends StatelessWidget {
+  const _CustomerBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F4F8),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: const Text(
+        'Customer',
+        style: TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _ContextRow extends StatelessWidget {
+  const _ContextRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 62,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
-              if (ticket.updatedAtLabel != null)
-                _SmallPill(
-                  label: ticket.updatedAtLabel!,
-                  icon: Icons.update_rounded,
-                  color: Colors.blueGrey.shade700,
-                ),
-              if (ticket.referenceServiceRequest != null)
-                ActionChip(
-                  avatar: const Icon(Icons.assignment_outlined, size: 16),
-                  label: Text(ticket.referenceServiceRequest!),
-                  onPressed: () => context.push(
-                    '/my-services/${Uri.encodeComponent(ticket.referenceServiceRequest!)}',
-                  ),
-                ),
-            ],
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -404,29 +572,17 @@ class _TicketInfoCard extends StatelessWidget {
 }
 
 class _ConversationHeader extends StatelessWidget {
-  const _ConversationHeader({required this.count});
-
-  final int count;
+  const _ConversationHeader();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Text(
-          'Conversation',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const Spacer(),
-        _SmallPill(
-          label: '$count',
-          icon: Icons.support_agent_rounded,
-          color: Colors.blueGrey.shade700,
-        ),
-      ],
+    return const Text(
+      'Conversation',
+      style: TextStyle(
+        color: AppTheme.textPrimary,
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+      ),
     );
   }
 }
@@ -683,49 +839,55 @@ class _SupportChatComposer extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
-            ),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (attachment != null) ...[
-                _PickedAttachmentPreview(
-                  attachment: attachment!,
-                  onRemove: enabled ? onRemoveAttachment : null,
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (isClosed)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    'This ticket is closed. Reopen it before adding a reply.',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
+      child: Container(
+        color: const Color(0xFFF2F5F8),
+        padding: const EdgeInsets.fromLTRB(12, 9, 12, 11),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (attachment != null) ...[
+              _PickedAttachmentPreview(
+                attachment: attachment!,
+                onRemove: enabled ? onRemoveAttachment : null,
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (isClosed)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 9),
+                child: Text(
+                  'This ticket is closed. Reopen it before adding a reply.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
-                )
-              else
-                Row(
+                ),
+              )
+            else ...[
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(21),
+                  border: Border.all(color: const Color(0xFFE0E5EB)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0A111827),
+                      blurRadius: 14,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    IconButton.filledTonal(
+                    IconButton(
                       onPressed: enabled ? onPickAttachment : null,
-                      icon: const Icon(Icons.add_rounded),
+                      icon: const Icon(Icons.attach_file_rounded),
                       tooltip: 'Attach file',
+                      color: AppTheme.textSecondary,
                     ),
-                    const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: controller,
@@ -733,43 +895,73 @@ class _SupportChatComposer extends StatelessWidget {
                         minLines: 1,
                         maxLines: 5,
                         textInputAction: TextInputAction.newline,
-                        decoration: InputDecoration(
-                          hintText: 'Write a message',
-                          filled: true,
-                          prefixIcon: const Icon(Icons.support_agent_rounded),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
+                        decoration: const InputDecoration(
+                          hintText: 'Write a message...',
+                          filled: false,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 4,
                             vertical: 12,
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(22),
-                            borderSide: BorderSide.none,
-                          ),
+                          border: InputBorder.none,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: enabled ? onSend : null,
-                      style: FilledButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(14),
-                      ),
-                      child: isSending
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded),
+                    const SizedBox(width: 4),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: controller,
+                      builder: (context, value, _) {
+                        final canSend =
+                            enabled &&
+                            !isSending &&
+                            (value.text.trim().isNotEmpty ||
+                                attachment != null);
+
+                        return SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: FilledButton(
+                            onPressed: canSend ? onSend : null,
+                            style: FilledButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              shape: const CircleBorder(),
+                              backgroundColor: AppTheme.primaryRed,
+                              disabledBackgroundColor: AppTheme.primaryRed
+                                  .withValues(alpha: 0.25),
+                            ),
+                            child: isSending
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.send_rounded, size: 20),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 6),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Text(
+                    'PDF, JPG, PNG or DOC • Max 10 MB',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -852,130 +1044,234 @@ class _SupportAdminStatusBar extends StatelessWidget {
   final bool isUpdating;
   final ValueChanged<String>? onStatusSelected;
 
+  static const _statuses = <String>[
+    'Open',
+    'In Progress',
+    'Waiting for Customer',
+    'Resolved',
+    'Closed',
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final status = ticket.status.trim().toLowerCase();
-    final isClosed = status == 'closed' || status == 'cancelled';
-
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Row(
         children: [
-          _StatusActionButton(
-            label: 'Progress',
-            status: 'In Progress',
-            icon: Icons.play_circle_outline_rounded,
-            enabled: !isUpdating && !isClosed,
-            onStatusSelected: onStatusSelected,
-          ),
-          _StatusActionButton(
-            label: 'Waiting',
-            status: 'Waiting for Customer',
-            icon: Icons.hourglass_bottom_rounded,
-            enabled: !isUpdating && !isClosed,
-            onStatusSelected: onStatusSelected,
-          ),
-          _StatusActionButton(
-            label: 'Resolved',
-            status: 'Resolved',
-            icon: Icons.verified_rounded,
-            enabled: !isUpdating && !isClosed,
-            onStatusSelected: onStatusSelected,
-          ),
-          _StatusActionButton(
-            label: 'Close',
-            status: 'Closed',
-            icon: Icons.lock_rounded,
-            enabled: !isUpdating && !isClosed,
-            onStatusSelected: onStatusSelected,
-          ),
-          _StatusActionButton(
-            label: 'Reopen',
-            status: 'Open',
-            icon: Icons.refresh_rounded,
-            enabled: !isUpdating,
-            onStatusSelected: onStatusSelected,
+          _StatusPill(status: ticket.status, compact: true),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: isUpdating || onStatusSelected == null
+                ? null
+                : () => _openStatusSheet(context),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryRed,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: isUpdating
+                ? const SizedBox(
+                    width: 15,
+                    height: 15,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.tune_rounded, size: 17),
+            label: const Text(
+              'Update status',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            ),
           ),
         ],
       ),
     );
   }
+
+  Future<void> _openStatusSheet(BuildContext context) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Update ticket status',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Choose the current stage of this conversation.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                for (final status in _statuses)
+                  _StatusSheetOption(
+                    status: status,
+                    selected:
+                        status.toLowerCase() ==
+                        ticket.status.trim().toLowerCase(),
+                    onTap: () => Navigator.of(context).pop(status),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected != null &&
+        selected.trim().toLowerCase() != ticket.status.trim().toLowerCase()) {
+      onStatusSelected?.call(selected);
+    }
+  }
 }
 
-class _StatusActionButton extends StatelessWidget {
-  const _StatusActionButton({
-    required this.label,
+class _StatusSheetOption extends StatelessWidget {
+  const _StatusSheetOption({
     required this.status,
-    required this.icon,
-    required this.enabled,
-    required this.onStatusSelected,
+    required this.selected,
+    required this.onTap,
   });
 
-  final String label;
   final String status;
-  final IconData icon;
-  final bool enabled;
-  final ValueChanged<String>? onStatusSelected;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: enabled && onStatusSelected != null
-          ? () => onStatusSelected!(status)
-          : null,
-      icon: Icon(icon, size: 17),
-      label: Text(label),
+    final color = _statusColor(status);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: selected
+            ? color.withValues(alpha: 0.07)
+            : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(15),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: selected
+                    ? color.withValues(alpha: 0.20)
+                    : const Color(0xFFE7EAF0),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.09),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(_statusIcon(status), size: 16, color: color),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    status,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  Icon(Icons.check_circle_rounded, size: 19, color: color)
+                else
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppTheme.textSecondary,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
+}
+
+IconData _statusIcon(String status) {
+  final value = status.trim().toLowerCase();
+
+  if (value.contains('progress')) {
+    return Icons.play_circle_outline_rounded;
+  }
+
+  if (value.contains('waiting')) {
+    return Icons.hourglass_bottom_rounded;
+  }
+
+  if (value.contains('resolved')) {
+    return Icons.verified_rounded;
+  }
+
+  if (value.contains('closed')) {
+    return Icons.lock_outline_rounded;
+  }
+
+  return Icons.radio_button_checked_rounded;
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status});
+  const _StatusPill({required this.status, this.compact = false});
 
   final String status;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    return _SmallPill(
-      label: status,
-      icon: Icons.support_agent_rounded,
-      color: AppTheme.primaryRed,
-    );
-  }
-}
+    final color = _statusColor(status);
 
-class _SmallPill extends StatelessWidget {
-  const _SmallPill({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 9 : 10,
+          vertical: compact ? 5 : 7,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: color),
+            Icon(Icons.circle, size: 7, color: color),
             const SizedBox(width: 6),
             Text(
-              label,
+              status,
               style: TextStyle(
                 color: color,
-                fontSize: 11,
+                fontSize: compact ? 10 : 11,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1085,6 +1381,56 @@ class _PickedSupportAttachment {
   final String? path;
   final Uint8List? bytes;
   final String extension;
+}
+
+Color _statusColor(String status) {
+  final value = status.trim().toLowerCase();
+  if (value.contains('progress')) return const Color(0xFF356AC3);
+  if (value.contains('waiting')) return const Color(0xFFB7791F);
+  if (value.contains('resolved') ||
+      value.contains('closed') ||
+      value.contains('complete')) {
+    return const Color(0xFF2F855A);
+  }
+  if (value.contains('cancel')) return const Color(0xFF718096);
+  return AppTheme.primaryRed;
+}
+
+String _customerIdentity(SupportTicket ticket) {
+  for (final message in ticket.messages) {
+    final author = message.author.trim();
+    if (message.isFromCustomer &&
+        author.isNotEmpty &&
+        author != '-' &&
+        !author.contains('@')) {
+      return author;
+    }
+  }
+
+  final email = ticket.contactEmail?.trim();
+  if (email != null && email.isNotEmpty) {
+    final local = email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ');
+    return local
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) =>
+              '${part[0].toUpperCase()}${part.length > 1 ? part.substring(1) : ''}',
+        )
+        .join(' ');
+  }
+
+  return 'Customer';
+}
+
+String _initials(String value) {
+  final parts = value
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .take(2);
+  final initials = parts.map((part) => part[0].toUpperCase()).join();
+  return initials.isEmpty ? 'CU' : initials;
 }
 
 String _extensionFor(String fileName) {

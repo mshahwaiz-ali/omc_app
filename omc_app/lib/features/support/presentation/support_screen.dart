@@ -493,10 +493,22 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                       'Track active support and review closed ticket history.',
                 ),
               ),
-              IconButton.filledTonal(
-                tooltip: 'Refresh',
-                onPressed: () => ref.invalidate(supportTicketsProvider),
-                icon: const Icon(Icons.refresh_rounded),
+              Material(
+                color: const Color(0xFFF1F4F8),
+                borderRadius: BorderRadius.circular(13),
+                child: InkWell(
+                  onTap: () => ref.invalidate(supportTicketsProvider),
+                  borderRadius: BorderRadius.circular(13),
+                  child: const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Icon(
+                      Icons.refresh_rounded,
+                      size: 19,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -583,22 +595,125 @@ class _SupportTicketTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<int>(
-      selected: {selectedIndex},
-      showSelectedIcon: false,
-      onSelectionChanged: (selection) => onChanged(selection.first),
-      segments: [
-        ButtonSegment<int>(
-          value: 0,
-          icon: const Icon(Icons.support_agent_rounded, size: 18),
-          label: Text('Active ($activeCount)'),
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F4F8),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SupportTabButton(
+              label: 'Active',
+              count: activeCount,
+              icon: Icons.chat_bubble_outline_rounded,
+              selected: selectedIndex == 0,
+              onTap: () => onChanged(0),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: _SupportTabButton(
+              label: 'Closed',
+              count: closedCount,
+              icon: Icons.check_circle_outline_rounded,
+              selected: selectedIndex == 1,
+              onTap: () => onChanged(1),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SupportTabButton extends StatelessWidget {
+  const _SupportTabButton({
+    required this.label,
+    required this.count,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? Colors.white : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x0A111827),
+                      blurRadius: 10,
+                      offset: Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? AppTheme.primaryRed : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                constraints: const BoxConstraints(minWidth: 21),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppTheme.primaryRed.withValues(alpha: 0.09)
+                      : const Color(0xFFE4E8EE),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: selected
+                        ? AppTheme.primaryRed
+                        : AppTheme.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        ButtonSegment<int>(
-          value: 1,
-          icon: const Icon(Icons.history_rounded, size: 18),
-          label: Text('Closed ($closedCount)'),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -738,23 +853,145 @@ class _TicketTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: _IconBox(
-        icon: ticket.isClosed
-            ? Icons.check_circle_outline_rounded
-            : Icons.confirmation_number_outlined,
-        color: ticket.isClosed ? OmcPremium.success : _priorityColor(ticket),
+    final status = ticket.status.isEmpty ? 'Open' : ticket.status;
+    final priority = ticket.priority.isEmpty ? 'Medium' : ticket.priority;
+    final color = ticket.isClosed
+        ? OmcPremium.success
+        : _ticketStatusColor(status);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Material(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () => context.push(
+            '/support-tickets/${Uri.encodeComponent(ticket.id)}',
+          ),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE7EAF0)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(
+                    ticket.isClosed
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.confirmation_number_outlined,
+                    color: color,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ticket.subject.isEmpty ? ticket.id : ticket.subject,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              status,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          const Text(
+                            '•',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            priority,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFE2E6ED)),
+                  ),
+                  child: const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      title: Text(ticket.subject.isEmpty ? ticket.id : ticket.subject),
-      subtitle: Text(
-        '${ticket.status.isEmpty ? 'Open' : ticket.status} • ${ticket.priority.isEmpty ? 'Medium' : ticket.priority}',
-      ),
-      trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: () =>
-          context.push('/support-tickets/${Uri.encodeComponent(ticket.id)}'),
     );
   }
+}
+
+Color _ticketStatusColor(String status) {
+  final value = status.trim().toLowerCase();
+
+  if (value.contains('progress')) {
+    return const Color(0xFF356AC3);
+  }
+
+  if (value.contains('waiting')) {
+    return const Color(0xFFB7791F);
+  }
+
+  if (value.contains('resolved') || value.contains('closed')) {
+    return const Color(0xFF2F855A);
+  }
+
+  return AppTheme.primaryRed;
 }
 
 class _FaqTile extends StatelessWidget {
@@ -1069,15 +1306,6 @@ Color _channelColor(SupportChannelConfig channel) {
   if (channel.isPhone) return OmcPremium.track;
   if (channel.isEmail) return OmcPremium.services;
   return OmcPremium.system;
-}
-
-Color _priorityColor(SupportTicket ticket) {
-  final priority = ticket.priority.trim().toLowerCase();
-  if (priority.contains('high') || priority.contains('urgent')) {
-    return OmcPremium.danger;
-  }
-  if (priority.contains('low')) return OmcPremium.track;
-  return OmcPremium.tasks;
 }
 
 Color _infoColor(IconData icon) {
