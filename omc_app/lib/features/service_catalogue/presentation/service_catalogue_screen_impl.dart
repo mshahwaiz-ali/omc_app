@@ -6,7 +6,6 @@ import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../profile/data/profile_repository.dart';
@@ -97,77 +96,111 @@ class _ServiceCatalogueScreenState
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: _ink,
-                    fontSize: 34,
-                    height: 1.02,
+                    fontSize: 30,
+                    height: 1.04,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.9,
+                    letterSpacing: -0.7,
                   ),
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 5),
                 const Text(
-                  'Manage and track all your services and requests.',
+                  'Discover and manage OMC services.',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: _slate,
-                    fontSize: 15,
-                    height: 1.4,
+                    fontSize: 14,
+                    height: 1.35,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.1,
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
+                const SizedBox(height: 14),
+                Stack(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) =>
-                            setState(() => _query = value.trim().toLowerCase()),
-                        textInputAction: TextInputAction.search,
-                        decoration: InputDecoration(
-                          hintText: 'Search services, cases or requests...',
-                          prefixIcon: const Icon(Icons.search_rounded),
-                          suffixIcon: _query.isEmpty
-                              ? null
-                              : IconButton(
-                                  tooltip: 'Clear search',
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _query = '');
-                                  },
-                                  icon: const Icon(Icons.close_rounded),
+                    TextField(
+                      controller: _searchController,
+                      onChanged: (value) =>
+                          setState(() => _query = value.trim().toLowerCase()),
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: 'Search services...',
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          size: 21,
+                          color: _slate,
+                        ),
+                        suffixIconConstraints: const BoxConstraints(
+                          minWidth: 92,
+                          minHeight: 52,
+                        ),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_query.isNotEmpty)
+                              IconButton(
+                                tooltip: 'Clear search',
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _query = '');
+                                },
+                                icon: const Icon(Icons.close_rounded, size: 19),
+                              ),
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Filter services',
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () =>
+                                      _openFilterSheet(context, categories),
+                                  icon: const Icon(
+                                    Icons.tune_rounded,
+                                    size: 20,
+                                  ),
                                 ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: AppTheme.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: AppTheme.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: const BorderSide(
-                              color: _primary,
-                              width: 1.2,
+                                if (_selectedStatus != _allStatus ||
+                                    _selectedCategory != _allCategory)
+                                  Positioned(
+                                    right: 8,
+                                    top: 8,
+                                    child: Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: const BoxDecoration(
+                                        color: _servicesRose,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
+                            const SizedBox(width: 4),
+                          ],
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 15,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: const BorderSide(color: _border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: const BorderSide(color: _border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: const BorderSide(
+                            color: _primary,
+                            width: 1.2,
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    _ActionButton(
-                      label: 'Filter',
-                      icon: Icons.tune_rounded,
-                      filled: false,
-                      onPressed: () => _openFilterSheet(context, categories),
                     ),
                   ],
                 ),
@@ -177,31 +210,30 @@ class _ServiceCatalogueScreenState
                   onActionTap: () => context.go(bannerRouteFor(authState)),
                 ),
                 const SizedBox(height: 16),
-                _SummaryGrid(
+                _SummaryStrip(
                   totalServices: services.length,
-                  openServices: statusCounts[_ServiceStatus.open] ?? 0,
-                  underReviewServices:
-                      statusCounts[_ServiceStatus.underReview] ?? 0,
+                  activeServices:
+                      (statusCounts[_ServiceStatus.open] ?? 0) +
+                      (statusCounts[_ServiceStatus.underReview] ?? 0),
                   actionNeededServices:
                       statusCounts[_ServiceStatus.actionNeeded] ?? 0,
-                  completedServices:
-                      statusCounts[_ServiceStatus.completed] ?? 0,
                 ),
-                const SizedBox(height: 14),
-                _StatusChipsRow(
+                const SizedBox(height: 12),
+                _StatusSegmentedControl(
                   counts: statusCounts,
                   selectedStatus: _selectedStatus,
                   onSelected: (status) =>
                       setState(() => _selectedStatus = status),
                 ),
-                const SizedBox(height: 12),
-                _CategoryChipsRow(
-                  categories: categories,
-                  selectedCategory: _selectedCategory,
-                  onSelected: (category) =>
-                      setState(() => _selectedCategory = category),
-                ),
-                const SizedBox(height: 16),
+                if (_selectedCategory != _allCategory) ...[
+                  const SizedBox(height: 10),
+                  _ActiveCategoryFilter(
+                    category: _selectedCategory,
+                    onClear: () =>
+                        setState(() => _selectedCategory = _allCategory),
+                  ),
+                ],
+                const SizedBox(height: 14),
                 _TrackMyServicesCard(
                   onTap: () {
                     if (_canTrackServices(capabilities)) {
@@ -217,7 +249,7 @@ class _ServiceCatalogueScreenState
                   children: [
                     const Expanded(
                       child: Text(
-                        'My Services',
+                        'Available Services',
                         style: TextStyle(
                           color: _ink,
                           fontSize: 17,
@@ -227,7 +259,9 @@ class _ServiceCatalogueScreenState
                       ),
                     ),
                     Text(
-                      '(${filteredServices.length})',
+                      filteredServices.length == 1
+                          ? '1 result'
+                          : '${filteredServices.length} results',
                       style: const TextStyle(
                         color: _slate,
                         fontSize: 13.5,
@@ -504,59 +538,6 @@ class _ServiceCatalogueScreenState
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    this.filled = false,
-    super.key,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onPressed;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    if (filled) {
-      return FilledButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 18),
-        label: Text(label),
-        style: FilledButton.styleFrom(
-          backgroundColor: _primary,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(0, 54),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      );
-    }
-
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _ink,
-        side: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
-        minimumSize: const Size(0, 54),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
-      ),
-    );
-  }
-}
-
 // Retained while older catalogue layouts are migrated to OmcIdentityHeader.
 // ignore: unused_element
 class _Header extends StatelessWidget {
@@ -791,19 +772,20 @@ class _StatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final banner = _bannerFor(authState);
+
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      onTap: onActionTap,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 54,
-            height: 54,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: banner.iconBackground,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(banner.icon, color: banner.iconColor, size: 26),
+            child: Icon(banner.icon, color: banner.iconColor, size: 21),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -812,28 +794,73 @@ class _StatusBanner extends StatelessWidget {
               children: [
                 Text(
                   banner.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _ink,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 Text(
                   banner.message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _slate,
-                    fontSize: 13,
-                    height: 1.45,
+                    fontSize: 12,
+                    height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: onActionTap,
-                  child: Text(banner.actionLabel),
-                ),
               ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded, color: _slate, size: 21),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryStrip extends StatelessWidget {
+  const _SummaryStrip({
+    required this.totalServices,
+    required this.activeServices,
+    required this.actionNeededServices,
+  });
+
+  final int totalServices;
+  final int activeServices;
+  final int actionNeededServices;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SummaryValue(label: 'Total', value: totalServices),
+          ),
+          const _SummaryDivider(),
+          Expanded(
+            child: _SummaryValue(label: 'Active', value: activeServices),
+          ),
+          const _SummaryDivider(),
+          Expanded(
+            child: _SummaryValue(
+              label: 'Need action',
+              value: actionNeededServices,
+              showAttention: actionNeededServices > 0,
             ),
           ),
         ],
@@ -842,103 +869,74 @@ class _StatusBanner extends StatelessWidget {
   }
 }
 
-class _SummaryGrid extends StatelessWidget {
-  const _SummaryGrid({
-    required this.totalServices,
-    required this.openServices,
-    required this.underReviewServices,
-    required this.actionNeededServices,
-    required this.completedServices,
+class _SummaryValue extends StatelessWidget {
+  const _SummaryValue({
+    required this.label,
+    required this.value,
+    this.showAttention = false,
   });
 
-  final int totalServices;
-  final int openServices;
-  final int underReviewServices;
-  final int actionNeededServices;
-  final int completedServices;
+  final String label;
+  final int value;
+  final bool showAttention;
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+    return Column(
       children: [
-        _MetricCard(
-          label: 'Total',
-          value: totalServices.toString(),
-          color: _primary,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$value',
+              style: const TextStyle(
+                color: _ink,
+                fontSize: 19,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.3,
+              ),
+            ),
+            if (showAttention) ...[
+              const SizedBox(width: 5),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: _servicesRose,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
         ),
-        _MetricCard(
-          label: 'Open',
-          value: openServices.toString(),
-          color: const Color(0xFF2563EB),
-        ),
-        _MetricCard(
-          label: 'Review',
-          value: underReviewServices.toString(),
-          color: _review,
-        ),
-        _MetricCard(
-          label: 'Action',
-          value: actionNeededServices.toString(),
-          color: _attention,
-        ),
-        _MetricCard(
-          label: 'Done',
-          value: completedServices.toString(),
-          color: _done,
+        const SizedBox(height: 5),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: _slate,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
+class _SummaryDivider extends StatelessWidget {
+  const _SummaryDivider();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: (MediaQuery.sizeOf(context).width - 20 * 2 - 10) / 2,
-      child: PremiumCard(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: const TextStyle(
-                color: _slate,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return Container(width: 1, height: 30, color: _border);
   }
 }
 
-class _StatusChipsRow extends StatelessWidget {
-  const _StatusChipsRow({
+class _StatusSegmentedControl extends StatelessWidget {
+  const _StatusSegmentedControl({
     required this.counts,
     required this.selectedStatus,
     required this.onSelected,
@@ -950,95 +948,181 @@ class _StatusChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statuses = <String>[
-      'All Services',
-      ..._ServiceStatus.values.map(_serviceCatalogueStatusLabelFor),
+    final items = <({String value, String label, int count})>[
+      (
+        value: 'All Services',
+        label: 'All',
+        count: counts.values.fold<int>(0, (sum, count) => sum + count),
+      ),
+      (value: 'Open', label: 'Open', count: counts[_ServiceStatus.open] ?? 0),
+      (
+        value: 'Under Review',
+        label: 'Review',
+        count: counts[_ServiceStatus.underReview] ?? 0,
+      ),
+      (
+        value: 'Action Needed',
+        label: 'Action',
+        count: counts[_ServiceStatus.actionNeeded] ?? 0,
+      ),
+      (
+        value: 'Completed',
+        label: 'Done',
+        count: counts[_ServiceStatus.completed] ?? 0,
+      ),
     ];
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: statuses.length,
-        separatorBuilder: (context, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final label = statuses[index];
-          final selected = label == selectedStatus;
-          final count = label == 'All Services'
-              ? counts.values.fold<int>(0, (a, b) => a + b)
-              : counts[_statusFromLabel(label)] ?? 0;
-          final color = _statusFilterColor(label);
-          return ChoiceChip(
-            avatar: Icon(
-              _statusFilterIcon(label),
-              size: 16,
-              color: selected ? color : _slate,
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: _primarySoft,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          for (final item in items)
+            Expanded(
+              child: _StatusSegment(
+                label: item.label,
+                count: item.count,
+                selected: selectedStatus == item.value,
+                showAttention: item.value == 'Action Needed' && item.count > 0,
+                onTap: () => onSelected(item.value),
+              ),
             ),
-            label: Text('$label ($count)'),
-            selected: selected,
-            onSelected: (_) => onSelected(label),
-            labelStyle: TextStyle(
-              color: selected ? color : _ink,
-              fontWeight: FontWeight.w800,
-            ),
-            selectedColor: color.withValues(alpha: 0.10),
-            backgroundColor: Colors.white,
-            side: BorderSide(
-              color: selected ? color.withValues(alpha: 0.30) : AppTheme.border,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          );
-        },
+        ],
       ),
     );
   }
 }
 
-class _CategoryChipsRow extends StatelessWidget {
-  const _CategoryChipsRow({
-    required this.categories,
-    required this.selectedCategory,
-    required this.onSelected,
+class _StatusSegment extends StatelessWidget {
+  const _StatusSegment({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.showAttention,
+    required this.onTap,
   });
 
-  final List<String> categories;
-  final String selectedCategory;
-  final ValueChanged<String> onSelected;
+  final String label;
+  final int count;
+  final bool selected;
+  final bool showAttention;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final items = <String>['All', ...categories.where((item) => item != 'All')];
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (context, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final category = items[index];
-          final selected = category == selectedCategory;
-          return ChoiceChip(
-            avatar: Icon(
-              category == 'All' ? Icons.apps_rounded : Icons.category_outlined,
-              size: 16,
-              color: selected ? _servicesRose : _slate,
+    return Material(
+      color: selected ? Colors.white : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 43),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$count',
+                    style: TextStyle(
+                      color: selected ? _ink : _slate,
+                      fontSize: 11,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (showAttention) ...[
+                    const SizedBox(width: 3),
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        color: _servicesRose,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: selected ? _ink : _slate,
+                    fontSize: 10.5,
+                    height: 1,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveCategoryFilter extends StatelessWidget {
+  const _ActiveCategoryFilter({required this.category, required this.onClear});
+
+  final String category;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(left: 13, right: 4, top: 5, bottom: 5),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.category_outlined, size: 16, color: _slate),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              'Category: ${_displayCategoryLabel(category)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _slate,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            label: Text(_displayCategoryLabel(category)),
-            selected: selected,
-            onSelected: (_) => onSelected(category),
-            labelStyle: TextStyle(
-              color: selected ? _servicesRose : _ink,
-              fontWeight: FontWeight.w800,
-            ),
-            selectedColor: _roseSoft,
-            backgroundColor: Colors.white,
-            side: BorderSide(color: selected ? _roseBorder : AppTheme.border),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          );
-        },
+          ),
+          IconButton(
+            tooltip: 'Clear category filter',
+            visualDensity: VisualDensity.compact,
+            onPressed: onClear,
+            icon: const Icon(Icons.close_rounded, size: 18, color: _slate),
+          ),
+        ],
       ),
     );
   }
@@ -1053,22 +1137,49 @@ class _TrackMyServicesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PremiumCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       child: Row(
-        children: const [
-          Icon(Icons.track_changes_rounded, color: _success),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Track my services',
-              style: TextStyle(
-                color: _ink,
-                fontSize: 14.5,
-                fontWeight: FontWeight.w800,
-              ),
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: _primarySoft,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(Icons.assignment_outlined, color: _ink, size: 21),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'My Requests',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Track ongoing and submitted service requests.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _slate,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: _slate),
+          SizedBox(width: 8),
+          Icon(Icons.chevron_right_rounded, color: _slate, size: 21),
         ],
       ),
     );
@@ -1100,7 +1211,7 @@ class _ServiceDashboardCard extends StatelessWidget {
 
     return PremiumCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1108,19 +1219,33 @@ class _ServiceDashboardCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 43,
+                height: 43,
                 decoration: BoxDecoration(
                   color: tone.color.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(tone.icon, color: tone.color),
+                child: Icon(tone.icon, color: tone.color, size: 21),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      service.category.trim().isEmpty
+                          ? 'OMC SERVICE'
+                          : service.category.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _slate,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.55,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Text(
                       service.title,
                       maxLines: 2,
@@ -1128,16 +1253,9 @@ class _ServiceDashboardCard extends StatelessWidget {
                       style: const TextStyle(
                         color: _ink,
                         fontSize: 16,
+                        height: 1.2,
                         fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      service.category,
-                      style: const TextStyle(
-                        color: _slate,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.25,
                       ),
                     ),
                   ],
@@ -1150,61 +1268,123 @@ class _ServiceDashboardCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              PremiumInfoChip(
-                icon: Icons.payments_outlined,
-                label: service.priceLabel,
-                color: tone.color,
-              ),
-              PremiumInfoChip(
-                icon: Icons.schedule_rounded,
-                label: service.completionTime,
-                color: _review,
-              ),
-              if (wizardLabel != null)
-                PremiumInfoChip(
-                  icon: Icons.auto_awesome_rounded,
-                  label: wizardLabel,
-                  color: _success,
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 11),
           Text(
             service.shortDescription ??
                 service.description ??
                 'OMC will share the service brief after review.',
-            maxLines: 3,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: _slate,
-              fontSize: 13,
-              height: 1.45,
+              fontSize: 12.5,
+              height: 1.42,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: _border),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.payments_outlined, size: 17, color: _slate),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    service.priceLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _ink,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 18,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  color: _border,
+                ),
+                const Icon(Icons.schedule_rounded, size: 17, color: _slate),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    service.completionTime,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: const TextStyle(
+                      color: _ink,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (wizardLabel != null) ...[
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome_rounded, size: 15, color: _slate),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    wizardLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _slate,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 13),
           Row(
             children: [
               Expanded(
                 child: FilledButton(
                   onPressed: onRequest,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   child: Text(requestLabel),
                 ),
               ),
-              const SizedBox(width: 10),
-              IconButton.filledTonal(
+              const SizedBox(width: 9),
+              OutlinedButton(
                 onPressed: onWhatsApp,
-                style: IconButton.styleFrom(
-                  backgroundColor: _primary.withValues(alpha: 0.08),
-                  foregroundColor: _primary,
-                  shape: const CircleBorder(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _ink,
+                  minimumSize: const Size(46, 46),
+                  padding: const EdgeInsets.symmetric(horizontal: 13),
+                  side: const BorderSide(color: _border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(13),
+                  ),
                 ),
-                icon: const Icon(Icons.support_agent_rounded),
+                child: const Icon(Icons.support_agent_rounded, size: 20),
               ),
             ],
           ),
