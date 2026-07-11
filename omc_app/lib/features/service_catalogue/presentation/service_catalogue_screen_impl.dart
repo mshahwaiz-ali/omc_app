@@ -4,13 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/widgets/omc_identity_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
-import '../../home/data/home_dashboard_repository.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
@@ -60,15 +58,7 @@ class _ServiceCatalogueScreenState
   Widget build(BuildContext context) {
     final servicesAsync = ref.watch(serviceCatalogueProvider);
     final authState = ref.watch(authControllerProvider);
-    final profile = ref
-        .watch(profileSummaryProvider)
-        .maybeWhen(data: (profile) => profile, orElse: () => null);
     final capabilities = authState.capabilities;
-    final displayName =
-        profile?.displayName ?? serviceCatalogueDisplayName(authState);
-    final avatarUrl = profile?.avatarUrl ?? authState.avatarUrl;
-    final unreadNotifications =
-        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
 
     return SafeArea(
       child: servicesAsync.when(
@@ -101,20 +91,6 @@ class _ServiceCatalogueScreenState
               ),
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
-                OmcIdentityHeader(
-                  displayName: displayName,
-                  avatarUrl: ApiConfig.resolveFileUrl(avatarUrl),
-                  unreadNotifications: unreadNotifications,
-                  onNotifications: () {
-                    if (_canOpenNotifications(capabilities)) {
-                      context.go('/notifications');
-                    } else {
-                      _showLockedSnack(context, capabilities);
-                    }
-                  },
-                  onAvatar: () => context.go('/profile'),
-                ),
-                const SizedBox(height: 18),
                 const Text(
                   'Services',
                   maxLines: 1,
@@ -1007,9 +983,7 @@ class _StatusChipsRow extends StatelessWidget {
             selectedColor: color.withValues(alpha: 0.10),
             backgroundColor: Colors.white,
             side: BorderSide(
-              color: selected
-                  ? color.withValues(alpha: 0.30)
-                  : AppTheme.border,
+              color: selected ? color.withValues(alpha: 0.30) : AppTheme.border,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
@@ -1046,9 +1020,7 @@ class _CategoryChipsRow extends StatelessWidget {
           final selected = category == selectedCategory;
           return ChoiceChip(
             avatar: Icon(
-              category == 'All'
-                  ? Icons.apps_rounded
-                  : Icons.category_outlined,
+              category == 'All' ? Icons.apps_rounded : Icons.category_outlined,
               size: 16,
               color: selected ? _servicesRose : _slate,
             ),
@@ -1061,9 +1033,7 @@ class _CategoryChipsRow extends StatelessWidget {
             ),
             selectedColor: _roseSoft,
             backgroundColor: Colors.white,
-            side: BorderSide(
-              color: selected ? _roseBorder : AppTheme.border,
-            ),
+            side: BorderSide(color: selected ? _roseBorder : AppTheme.border),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
@@ -1316,11 +1286,7 @@ class _FilterPill extends StatelessWidget {
     return ChoiceChip(
       avatar: icon == null
           ? null
-          : Icon(
-              icon,
-              size: 16,
-              color: selected ? selectedColor : _slate,
-            ),
+          : Icon(icon, size: 16, color: selected ? selectedColor : _slate),
       label: Text(label),
       selected: selected,
       selectedColor: selectedColor.withValues(alpha: 0.10),
@@ -1334,9 +1300,7 @@ class _FilterPill extends StatelessWidget {
             ? selectedColor.withValues(alpha: 0.30)
             : AppTheme.border,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       onSelected: (_) => onTap(),
     );
   }
@@ -1491,13 +1455,6 @@ bool _canTrackServices(AuthCapabilities capabilities) {
       capabilities.canViewCustomerDashboard ||
       capabilities.canAccessCustomerDashboard ||
       capabilities.isApproved ||
-      capabilities.canAccessInternalWorkspace;
-}
-
-bool _canOpenNotifications(AuthCapabilities capabilities) {
-  return capabilities.canViewCustomerNotifications ||
-      capabilities.isApproved ||
-      capabilities.isInternal ||
       capabilities.canAccessInternalWorkspace;
 }
 

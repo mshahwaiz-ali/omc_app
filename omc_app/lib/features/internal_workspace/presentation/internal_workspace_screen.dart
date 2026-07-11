@@ -2,14 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
-import '../../../core/widgets/omc_identity_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../auth/application/auth_controller.dart';
-import '../../home/data/home_dashboard_repository.dart';
-import '../../profile/data/profile_repository.dart';
 import '../domain/internal_service_case.dart';
 import '../domain/internal_workspace_summary.dart';
 import 'internal_workspace_providers.dart';
@@ -94,12 +89,6 @@ class _InternalWorkspaceContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final queueAsync = ref.watch(internalServiceCasesProvider);
-    final authState = ref.watch(authControllerProvider);
-    final profile = ref.watch(profileSummaryProvider).value;
-    final displayName = profile?.displayName ?? authState.displayName ?? 'Administrator';
-    final avatarUrl = ApiConfig.resolveFileUrl(profile?.avatarUrl ?? authState.avatarUrl);
-    final unreadNotifications =
-        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
     final totalFocusItems =
         summary.openLeads + summary.pendingTasks + summary.pendingPayments;
 
@@ -107,56 +96,96 @@ class _InternalWorkspaceContent extends ConsumerWidget {
       children: [
         const Positioned.fill(child: _WorkspaceBackdrop()),
         ListView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
           padding: _kShellPagePadding,
           children: [
-        OmcIdentityHeader(
-          displayName: displayName,
-          avatarUrl: avatarUrl,
-          unreadNotifications: unreadNotifications,
-          onNotifications: () => context.push('/notifications'),
-          onAvatar: () => context.push('/profile'),
+            const _WorkspacePageHeader(),
+            const SizedBox(height: 18),
+            _CustomerSearchCard(
+              onSearch: (value) {
+                final query = value.trim();
+                if (query.isEmpty) return;
+                ref
+                    .read(internalServiceCaseFiltersProvider.notifier)
+                    .setFilters(InternalServiceCaseFilters(search: query));
+                context.go('/internal-workspace/service-cases');
+              },
+            ),
+            const SizedBox(height: 16),
+            _FocusStrip(
+              totalFocusItems: totalFocusItems,
+              leads: summary.openLeads,
+              payments: summary.pendingPayments,
+            ),
+            const SizedBox(height: 20),
+            _SectionTitle(
+              title: 'Needs Attention',
+              actionLabel: 'View all',
+              onAction: () => context.go('/internal-workspace/service-cases'),
+            ),
+            const SizedBox(height: 10),
+            queueAsync.when(
+              loading: () => const _PriorityQueueLoading(),
+              error: (error, _) =>
+                  _PriorityQueueFallback(message: _backendErrorMessage(error)),
+              data: (queue) => _PriorityQueuePreview(
+                items: queue.cases.take(3).toList(growable: false),
+              ),
+            ),
+            const SizedBox(height: 22),
+            Text(
+              'Work Areas',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _CompactWorkAreas(summary: summary),
+            const SizedBox(height: 22),
+            Text(
+              'Quick Actions',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const _QuickActions(),
+          ],
         ),
-        const SizedBox(height: 18),
-        _CustomerSearchCard(
-          onSearch: (value) {
-            final query = value.trim();
-            if (query.isEmpty) return;
-            ref.read(internalServiceCaseFiltersProvider.notifier).setFilters(
-                  InternalServiceCaseFilters(search: query),
-                );
-            context.go('/internal-workspace/service-cases');
-          },
-        ),
-        const SizedBox(height: 16),
-        _FocusStrip(
-          totalFocusItems: totalFocusItems,
-          leads: summary.openLeads,
-          payments: summary.pendingPayments,
-        ),
-        const SizedBox(height: 20),
-        _SectionTitle(
-          title: 'Needs Attention',
-          actionLabel: 'View all',
-          onAction: () => context.go('/internal-workspace/service-cases'),
-        ),
-        const SizedBox(height: 10),
-        queueAsync.when(
-          loading: () => const _PriorityQueueLoading(),
-          error: (error, _) => _PriorityQueueFallback(message: _backendErrorMessage(error)),
-          data: (queue) => _PriorityQueuePreview(
-            items: queue.cases.take(3).toList(growable: false),
+      ],
+    );
+  }
+}
+
+class _WorkspacePageHeader extends StatelessWidget {
+  const _WorkspacePageHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Workspace',
+          style: TextStyle(
+            color: _ink,
+            fontSize: 32,
+            height: 1.05,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.8,
           ),
         ),
-        const SizedBox(height: 22),
-        Text('Work Areas', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-        const SizedBox(height: 12),
-        _CompactWorkAreas(summary: summary),
-        const SizedBox(height: 22),
-        Text('Quick Actions', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-        const SizedBox(height: 12),
-        const _QuickActions(),
-          ],
+        SizedBox(height: 7),
+        Text(
+          'Manage cases, customers and daily operations.',
+          style: TextStyle(
+            color: _slate,
+            fontSize: 14,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -167,14 +196,14 @@ class _WorkspaceBackdrop extends StatelessWidget {
   const _WorkspaceBackdrop();
   @override
   Widget build(BuildContext context) => const DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFDFEFF), Color(0xFFF6F8FC), Color(0xFFFAFBFD)],
-          ),
-        ),
-      );
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFDFEFF), Color(0xFFF6F8FC), Color(0xFFFAFBFD)],
+      ),
+    ),
+  );
 }
 
 class _CustomerSearchCard extends StatefulWidget {
@@ -249,11 +278,23 @@ class _FocusStrip extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: _MetricChip(value: '$payments', label: 'Pending pay', icon: Icons.receipt_long_rounded, color: _orange, background: Color(0xFFFFF7ED)),
+          child: _MetricChip(
+            value: '$payments',
+            label: 'Pending pay',
+            icon: Icons.receipt_long_rounded,
+            color: _orange,
+            background: Color(0xFFFFF7ED),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: _MetricChip(value: '$leads', label: 'Open leads', icon: Icons.person_add_alt_1_rounded, color: _green, background: Color(0xFFF0FDF4)),
+          child: _MetricChip(
+            value: '$leads',
+            label: 'Open leads',
+            icon: Icons.person_add_alt_1_rounded,
+            color: _green,
+            background: Color(0xFFF0FDF4),
+          ),
         ),
       ],
     );
@@ -261,7 +302,13 @@ class _FocusStrip extends StatelessWidget {
 }
 
 class _MetricChip extends StatelessWidget {
-  const _MetricChip({required this.value, required this.label, required this.icon, required this.color, required this.background});
+  const _MetricChip({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.background,
+  });
 
   final String value;
   final String label;
@@ -281,26 +328,33 @@ class _MetricChip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(width: 31, height: 31, decoration: BoxDecoration(color: color.withValues(alpha: .12), borderRadius: BorderRadius.circular(11)), child: Icon(icon, size: 17, color: color)),
+          Container(
+            width: 31,
+            height: 31,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 17, color: color),
+          ),
           const SizedBox(height: 12),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: _ink, fontSize: 24).copyWith(
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 24,
+            ).copyWith(fontWeight: FontWeight.w900, height: 1),
           ),
           const SizedBox(height: 3),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11).copyWith(
-              color: _slate,
-              fontWeight: FontWeight.w800,
-            ),
+            style: const TextStyle(
+              fontSize: 11,
+            ).copyWith(color: _slate, fontWeight: FontWeight.w800),
           ),
         ],
       ),
@@ -323,7 +377,9 @@ class _SectionTitle extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
         if (actionLabel != null && onAction != null)
@@ -369,7 +425,9 @@ class _PriorityQueueTile extends StatelessWidget {
     final tone = serviceCase.uploadedDocuments > 0 ? _rose : _orange;
     return PremiumCard(
       padding: const EdgeInsets.all(13),
-      onTap: () => context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
+      onTap: () => context.go(
+        '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+      ),
       child: Row(
         children: [
           Container(
@@ -390,7 +448,9 @@ class _PriorityQueueTile extends StatelessWidget {
                   '${serviceCase.displayCustomer} · ${serviceCase.displayService}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -407,8 +467,14 @@ class _PriorityQueueTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           FilledButton(
-            onPressed: () => context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
-            style: FilledButton.styleFrom(backgroundColor: _rose, minimumSize: const Size(0, 38), padding: const EdgeInsets.symmetric(horizontal: 14)),
+            onPressed: () => context.go(
+              '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: _rose,
+              minimumSize: const Size(0, 38),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+            ),
             child: const Text('Open'),
           ),
         ],
@@ -616,13 +682,13 @@ class _CompactWorkAreaTile extends StatelessWidget {
   }
 
   Color _workAreaTone(String value) => switch (value) {
-        'Service Requests' => _rose,
-        'Customers' => _orange,
-        'Documents' => _green,
-        'Payments' => _purple,
-        'Leads' => const Color(0xFF2563EB),
-        _ => const Color(0xFF0F9F8F),
-      };
+    'Service Requests' => _rose,
+    'Customers' => _orange,
+    'Documents' => _green,
+    'Payments' => _purple,
+    'Leads' => const Color(0xFF2563EB),
+    _ => const Color(0xFF0F9F8F),
+  };
 }
 
 class _QuickActions extends StatelessWidget {
@@ -631,9 +697,21 @@ class _QuickActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final actions = <({String label, IconData icon, String route})>[
       (label: 'New Request', icon: Icons.add_rounded, route: '/services'),
-      (label: 'Add Customer', icon: Icons.person_add_alt_1_rounded, route: '/internal-workspace/customers'),
-      (label: 'Upload Document', icon: Icons.upload_file_rounded, route: '/internal-workspace/documents'),
-      (label: 'Record Payment', icon: Icons.credit_card_rounded, route: '/internal-workspace/payments'),
+      (
+        label: 'Add Customer',
+        icon: Icons.person_add_alt_1_rounded,
+        route: '/internal-workspace/customers',
+      ),
+      (
+        label: 'Upload Document',
+        icon: Icons.upload_file_rounded,
+        route: '/internal-workspace/documents',
+      ),
+      (
+        label: 'Record Payment',
+        icon: Icons.credit_card_rounded,
+        route: '/internal-workspace/payments',
+      ),
     ];
     return Row(
       children: [
@@ -647,7 +725,16 @@ class _QuickActions extends StatelessWidget {
                 children: [
                   Icon(actions[i].icon, size: 20, color: _slate),
                   const SizedBox(height: 8),
-                  Text(actions[i].label, maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(color: _ink, fontSize: 9.5, fontWeight: FontWeight.w700)),
+                  Text(
+                    actions[i].label,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: _ink,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -689,7 +776,9 @@ class _ActivityPlaceholder extends StatelessWidget {
         children: [
           Text(
             'Recent Activity',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 6),
           Text(

@@ -18,7 +18,7 @@ class CustomerDetailScreen extends ConsumerWidget {
     final customerAsync = ref.watch(customerDetailProvider(customerId));
 
     return Scaffold(
-      appBar: const AppBackHeader(title: 'Customer Details'),
+      appBar: const AppBackHeader(title: 'Customer'),
       body: customerAsync.when(
         data: (customer) {
           if (customer == null) {
@@ -76,7 +76,10 @@ class _CustomerDetailBody extends StatelessWidget {
     }
     if (customer.isActive != null) {
       backendRows.add(
-        CrmInfoRow(label: 'Active flag', value: customer.isActive! ? 'Yes' : 'No'),
+        CrmInfoRow(
+          label: 'Active flag',
+          value: customer.isActive! ? 'Yes' : 'No',
+        ),
       );
     }
     if (customer.linkedErpnextCustomer != null) {

@@ -228,10 +228,10 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
       body: Column(
         children: [
           AppBackHeader(
-            title: 'Service Workspace',
+            title: 'Case Details',
             subtitle: caseId,
             actionIcon: Icons.open_in_new_rounded,
-            actionTooltip: 'Open live case',
+            actionTooltip: 'Open full case',
             onAction: () =>
                 context.go('/my-services/${Uri.encodeComponent(caseId)}'),
           ),
@@ -244,7 +244,7 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
               child: queueAsync.when(
                 loading: () => const _OperationsLoading(),
                 error: (error, _) => _OperationsError(
-                  title: 'Service workspace unavailable',
+                  title: 'Case details unavailable',
                   message: _cleanErrorMessage(error),
                   onRetry: () => ref.invalidate(internalServiceCasesProvider),
                 ),
@@ -262,8 +262,8 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
                         _OperationsEmpty(
                           title: 'Case not found in queue',
                           message:
-                              'Open the live case page to review full backend details and actions.',
-                          actionLabel: 'Open live case',
+                              'Open the full case to review its details and available actions.',
+                          actionLabel: 'Open full case',
                           onAction: () => context.go(
                             '/my-services/${Uri.encodeComponent(caseId)}',
                           ),
@@ -314,8 +314,8 @@ class _AreaConfig {
     switch (area) {
       case InternalOperationArea.customers:
         return const _AreaConfig(
-          title: 'Customer 360',
-          subtitle: 'Customer-first operations center',
+          title: 'Customers',
+          subtitle: 'Profiles, services and account activity',
           searchHint: 'Search customer, CNIC, NTN, phone or service ID',
           defaultFilter: 'All',
           filters: [
@@ -333,7 +333,7 @@ class _AreaConfig {
       case InternalOperationArea.documents:
         return const _AreaConfig(
           title: 'Document Review',
-          subtitle: 'Needs review, missing, approved and rejected files',
+          subtitle: 'Review uploaded and pending documents',
           searchHint: 'Search customer, document context or service ID',
           defaultFilter: 'Needs Review',
           filters: [
@@ -352,7 +352,7 @@ class _AreaConfig {
       case InternalOperationArea.payments:
         return const _AreaConfig(
           title: 'Payment Review',
-          subtitle: 'Receipt review and payment control',
+          subtitle: 'Review receipts and payment status',
           searchHint: 'Search customer, receipt context or service ID',
           defaultFilter: 'Pending',
           filters: [

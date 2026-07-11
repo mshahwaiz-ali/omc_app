@@ -118,8 +118,8 @@ class _InternalServiceCasesScreenState
       body: Column(
         children: [
           const AppBackHeader(
-            title: 'Service Requests',
-            subtitle: 'Admin queue for customer-linked service work',
+            title: 'Cases',
+            subtitle: 'Review and manage customer service cases',
           ),
           Expanded(
             child: RefreshIndicator(
