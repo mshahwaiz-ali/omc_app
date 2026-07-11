@@ -72,7 +72,11 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             ).take(3).toList(growable: false);
 
             return RefreshIndicator(
-              onRefresh: () async => ref.invalidate(serviceCasesProvider),
+              onRefresh: () async {
+                ref.invalidate(serviceCasesProvider);
+                ref.invalidate(profileSummaryProvider);
+                await ref.read(profileSummaryProvider.future);
+              },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
@@ -1387,7 +1391,7 @@ class _Avatar extends StatelessWidget {
     final cleanAvatarUrl = avatarUrl?.trim();
     final imageUrl = cleanAvatarUrl == null || cleanAvatarUrl.isEmpty
         ? null
-        : _absoluteAvatarUrl(cleanAvatarUrl);
+        : ApiConfig.resolveFileUrl(cleanAvatarUrl);
     final color = _serviceAvatarColor(name);
     return Container(
       width: 46,
@@ -1425,14 +1429,6 @@ class _Avatar extends StatelessWidget {
             ),
     );
   }
-}
-
-String _absoluteAvatarUrl(String value) {
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value;
-  }
-  if (value.startsWith('/')) return '${ApiConfig.currentBaseUrl}$value';
-  return '${ApiConfig.currentBaseUrl}/$value';
 }
 
 Color _serviceAvatarColor(String name) {
