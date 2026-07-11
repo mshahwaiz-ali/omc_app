@@ -18,7 +18,7 @@ class TaskDetailScreen extends ConsumerWidget {
     final taskAsync = ref.watch(taskDetailProvider(taskId));
 
     return Scaffold(
-      appBar: const AppBackHeader(title: 'Task Details'),
+      appBar: const AppBackHeader(title: 'Task', fallbackRoute: '/tasks'),
       body: taskAsync.when(
         data: (task) {
           if (task == null) {
