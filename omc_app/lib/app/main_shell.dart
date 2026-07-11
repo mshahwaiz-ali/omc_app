@@ -47,10 +47,10 @@ class _MainShellState extends ConsumerState<MainShell> {
     final capabilities = _currentCapabilities();
     if (_isInternal(capabilities)) {
       final path = switch (index) {
-        0 => '/internal-workspace',
-        1 => '/customers',
+        0 => '/home',
+        1 => '/services',
         2 => '/internal-workspace/service-cases',
-        _ => '/internal-workspace',
+        _ => '/home',
       };
       context.go(path);
       return;

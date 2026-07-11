@@ -395,7 +395,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/internal-workspace/service-cases',
         name: 'internal-service-cases',
         builder: (context, state) => _withShell(
-          ShellNavScaffold.moreIndex,
+          ShellNavScaffold.trackIndex,
           const InternalServiceCasesScreen(),
         ),
       ),
@@ -437,7 +437,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.pathParameters['caseId'] ?? '',
           );
           return _withShell(
-            ShellNavScaffold.moreIndex,
+            ShellNavScaffold.trackIndex,
             InternalServiceCaseWorkspaceScreen(caseId: caseId),
           );
         },
