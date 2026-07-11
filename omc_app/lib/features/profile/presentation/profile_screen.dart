@@ -875,7 +875,7 @@ class _ProfileAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final cleanAvatarUrl = avatarUrl?.trim();
     final hasImage = cleanAvatarUrl != null && cleanAvatarUrl.isNotEmpty;
-    final imageUrl = hasImage ? _absoluteProfileImageUrl(cleanAvatarUrl) : null;
+    final imageUrl = hasImage ? ApiConfig.resolveFileUrl(cleanAvatarUrl) : null;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -949,18 +949,6 @@ class _ProfileAvatar extends StatelessWidget {
       ],
     );
   }
-}
-
-String _absoluteProfileImageUrl(String value) {
-  final cleanValue = value.trim();
-  if (cleanValue.startsWith('http://') || cleanValue.startsWith('https://')) {
-    return cleanValue;
-  }
-
-  final baseUrl = ApiConfig.currentBaseUrl;
-  if (cleanValue.startsWith('/')) return '$baseUrl$cleanValue';
-
-  return '$baseUrl/$cleanValue';
 }
 
 String _initials(String value) {
