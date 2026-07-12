@@ -33,7 +33,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           .checkSession()
           .then((_) => true),
       ref.read(preferencesServiceProvider.future),
-      Future<void>.delayed(const Duration(milliseconds: 900)).then((_) => true),
+      Future<void>.delayed(const Duration(milliseconds: 700)).then((_) => true),
     ]);
 
     if (!mounted) return;
@@ -53,7 +53,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xFFFBFCFE),
       body: SafeArea(child: Center(child: _SplashContent())),
     );
   }
@@ -64,55 +64,39 @@ class _SplashContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 156,
-            height: 156,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(38),
-              border: Border.all(color: const Color(0xFFE8EDF5)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x140F172A),
-                  blurRadius: 36,
-                  offset: Offset(0, 18),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(18),
-            child: const OmcLogo.symbol(size: 118, borderRadius: 0),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 126,
+          height: 126,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(34),
+            border: Border.all(color: const Color(0xFFE8EDF5)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 32,
+                offset: Offset(0, 16),
+              ),
+            ],
           ),
-          const SizedBox(height: 28),
-          const OmcLogo.full(width: 190, height: 60),
-          const SizedBox(height: 10),
-          const Text(
-            'Premium business operations, simplified.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.35,
-              color: AppTheme.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
+          padding: const EdgeInsets.all(17),
+          child: const OmcLogo.symbol(size: 92, borderRadius: 0),
+        ),
+        const SizedBox(height: 34),
+        const SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.6,
+            color: AppTheme.primary,
+            backgroundColor: Color(0x12A40D22),
+            strokeCap: StrokeCap.round,
           ),
-          const SizedBox(height: 30),
-          const SizedBox(
-            width: 34,
-            height: 34,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              color: AppTheme.primary,
-              backgroundColor: Color(0x14A40D22),
-              strokeCap: StrokeCap.round,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
