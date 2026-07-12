@@ -1,0 +1,6 @@
+.secrets/
+.state/
+logs/
+backups/
+*.env
+!config/*.env.example
