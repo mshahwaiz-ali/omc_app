@@ -402,12 +402,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/internal-workspace/customers',
         name: 'internal-customers',
-        builder: (context, state) => _withShell(
-          ShellNavScaffold.moreIndex,
-          const InternalOperationsCenterScreen(
-            area: InternalOperationArea.customers,
-          ),
-        ),
+        builder: (context, state) =>
+            _withShell(ShellNavScaffold.moreIndex, const CustomersScreen()),
       ),
       GoRoute(
         path: '/internal-workspace/documents',

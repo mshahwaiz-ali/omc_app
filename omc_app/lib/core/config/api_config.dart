@@ -31,12 +31,12 @@ class ApiConfig {
     final cleanValue = value?.trim();
     if (cleanValue == null || cleanValue.isEmpty) return null;
 
-    final absolute = cleanValue.startsWith('http://') ||
-            cleanValue.startsWith('https://')
+    final absolute =
+        cleanValue.startsWith('http://') || cleanValue.startsWith('https://')
         ? cleanValue
         : cleanValue.startsWith('/')
-            ? '$baseUrl$cleanValue'
-            : '$baseUrl/$cleanValue';
+        ? '$baseUrl$cleanValue'
+        : '$baseUrl/$cleanValue';
 
     return Uri.parse(absolute).toString();
   }
@@ -181,10 +181,8 @@ class ApiConfig {
   static const String mobileAppConfigMethod =
       'omc_app.api.mobile.get_mobile_app_config';
 
-  static const String customersMethod =
-      'omc_app.api.internal_workspace.get_customers';
-  static const String customerDetailMethod =
-      'omc_app.api.internal_workspace.get_customer';
+  static const String customersMethod = 'omc_app.api.mobile.get_customers';
+  static const String customerDetailMethod = 'omc_app.api.mobile.get_customer';
 
   static const String leadsMethod = 'omc_app.api.mobile.get_leads';
   static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';

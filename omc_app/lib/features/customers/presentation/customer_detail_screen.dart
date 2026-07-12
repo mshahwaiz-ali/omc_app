@@ -69,6 +69,12 @@ class _CustomerDetailBody extends StatelessWidget {
       CrmInfoRow(label: 'Customer ID', value: customer.id),
     ];
 
+    if (customer.cnic != null) {
+      backendRows.add(CrmInfoRow(label: 'CNIC', value: customer.cnic!));
+    }
+    if (customer.ntn != null) {
+      backendRows.add(CrmInfoRow(label: 'NTN', value: customer.ntn!));
+    }
     if (customer.approvalStatus != null) {
       backendRows.add(
         CrmInfoRow(label: 'Approval', value: customer.approvalStatus!),
@@ -149,6 +155,8 @@ class _CustomerDetailBody extends StatelessWidget {
     switch (status) {
       case CustomerStatus.active:
         return 'Active';
+      case CustomerStatus.pending:
+        return 'Pending approval';
       case CustomerStatus.inactive:
         return 'Inactive';
       case CustomerStatus.prospect:

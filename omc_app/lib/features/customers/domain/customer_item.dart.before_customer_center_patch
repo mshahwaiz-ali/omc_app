@@ -1,4 +1,4 @@
-enum CustomerStatus { active, pending, inactive, prospect, blocked, unknown }
+enum CustomerStatus { active, inactive, prospect, blocked, unknown }
 
 class CustomerItem {
   const CustomerItem({
@@ -9,8 +9,6 @@ class CustomerItem {
     this.email,
     this.phone,
     this.city,
-    this.cnic,
-    this.ntn,
     this.lastActivityLabel,
     this.approvalStatus,
     this.isActive,
@@ -20,36 +18,26 @@ class CustomerItem {
   });
 
   factory CustomerItem.fromJson(Map<String, dynamic> json) {
-    final approvalStatus = _nullableString(json['approval_status']);
-    final customerStatus = _nullableString(
-      json['customer_status'] ?? json['status'],
-    );
-    final isActive = _boolOrNull(json['is_active']);
-
     return CustomerItem(
-      id: _stringValue(json['customer_id'] ?? json['id'] ?? json['name']),
+      id: _stringValue(json['id'] ?? json['name'] ?? json['customer_id']),
       name: _stringValue(
         json['customer_name'] ?? json['full_name'] ?? json['name'],
       ),
       companyName: _nullableString(json['company_name'] ?? json['company']),
-      status: _statusFromValues(
-        customerStatus: customerStatus,
-        approvalStatus: approvalStatus,
-        isActive: isActive,
+      status: _statusFromValue(
+        json['status'] ?? json['customer_status'] ?? json['approval_status'],
       ),
       email: _nullableString(json['email'] ?? json['email_id']),
       phone: _nullableString(json['phone'] ?? json['mobile_no']),
       city: _nullableString(json['city'] ?? json['territory']),
-      cnic: _nullableString(json['cnic']),
-      ntn: _nullableString(json['ntn']),
       lastActivityLabel: _nullableString(
         json['last_activity_label'] ??
             json['last_activity'] ??
             json['updated_at'] ??
             json['modified'],
       ),
-      approvalStatus: approvalStatus,
-      isActive: isActive,
+      approvalStatus: _nullableString(json['approval_status']),
+      isActive: _boolOrNull(json['is_active']),
       linkedErpnextCustomer: _nullableString(json['linked_erpnext_customer']),
       createdAtLabel: _nullableString(json['created_at'] ?? json['creation']),
       updatedAtLabel: _nullableString(json['updated_at'] ?? json['modified']),
@@ -63,46 +51,12 @@ class CustomerItem {
   final String? email;
   final String? phone;
   final String? city;
-  final String? cnic;
-  final String? ntn;
   final String? lastActivityLabel;
   final String? approvalStatus;
   final bool? isActive;
   final String? linkedErpnextCustomer;
   final String? createdAtLabel;
   final String? updatedAtLabel;
-
-  String get statusLabel {
-    switch (status) {
-      case CustomerStatus.active:
-        return 'Active';
-      case CustomerStatus.pending:
-        return 'Pending approval';
-      case CustomerStatus.inactive:
-        return 'Inactive';
-      case CustomerStatus.prospect:
-        return 'Prospect';
-      case CustomerStatus.blocked:
-        return 'Blocked';
-      case CustomerStatus.unknown:
-        return approvalStatus ?? 'Unknown';
-    }
-  }
-
-  String get searchableText {
-    return [
-      id,
-      name,
-      companyName,
-      email,
-      phone,
-      city,
-      cnic,
-      ntn,
-      approvalStatus,
-      linkedErpnextCustomer,
-    ].whereType<String>().join(' ').toLowerCase();
-  }
 
   static String _stringValue(dynamic value) {
     final text = value?.toString().trim() ?? '';
@@ -122,11 +76,9 @@ class CustomerItem {
 
     final text = value.toString().trim().toLowerCase();
     if (text.isEmpty) return null;
-
     if (text == '1' || text == 'true' || text == 'yes' || text == 'active') {
       return true;
     }
-
     if (text == '0' || text == 'false' || text == 'no' || text == 'inactive') {
       return false;
     }
@@ -134,37 +86,15 @@ class CustomerItem {
     return null;
   }
 
-  static CustomerStatus _statusFromValues({
-    required String? customerStatus,
-    required String? approvalStatus,
-    required bool? isActive,
-  }) {
-    final approval = approvalStatus?.trim().toLowerCase() ?? '';
-    final status = customerStatus?.trim().toLowerCase() ?? '';
+  static CustomerStatus _statusFromValue(dynamic value) {
+    final status = value?.toString().trim().toLowerCase() ?? '';
 
-    if (approval.contains('pending') ||
-        approval.contains('review') ||
-        approval.contains('await')) {
-      return CustomerStatus.pending;
-    }
-
-    if (approval.contains('reject') ||
-        status.contains('block') ||
-        status.contains('disabled')) {
+    if (status.contains('inactive')) return CustomerStatus.inactive;
+    if (status.contains('block') || status.contains('disabled')) {
       return CustomerStatus.blocked;
     }
-
-    if (status.contains('inactive') || isActive == false) {
-      return CustomerStatus.inactive;
-    }
-
-    if (status.contains('prospect')) {
-      return CustomerStatus.prospect;
-    }
-
-    if (status.contains('active') || isActive == true) {
-      return CustomerStatus.active;
-    }
+    if (status.contains('prospect')) return CustomerStatus.prospect;
+    if (status.contains('active')) return CustomerStatus.active;
 
     return CustomerStatus.unknown;
   }
