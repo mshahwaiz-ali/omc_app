@@ -11,6 +11,7 @@ class AuthEntryScaffold extends StatelessWidget {
     required this.child,
     this.leading,
     this.footer,
+    this.compactBrand = false,
   });
 
   final String title;
@@ -18,17 +19,19 @@ class AuthEntryScaffold extends StatelessWidget {
   final Widget child;
   final Widget? leading;
   final Widget? footer;
+  final bool compactBrand;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFFBFCFE),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
+              constraints: const BoxConstraints(maxWidth: 480),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -36,10 +39,17 @@ class AuthEntryScaffold extends StatelessWidget {
                     Align(alignment: Alignment.centerLeft, child: leading),
                     const SizedBox(height: 8),
                   ],
-                  AuthEntryHeader(title: title, subtitle: subtitle),
-                  const SizedBox(height: 24),
+                  AuthEntryHeader(
+                    title: title,
+                    subtitle: subtitle,
+                    compact: compactBrand,
+                  ),
+                  SizedBox(height: compactBrand ? 24 : 30),
                   child,
-                  if (footer != null) ...[const SizedBox(height: 18), footer!],
+                  if (footer != null) ...[
+                    const SizedBox(height: 20),
+                    footer!,
+                  ],
                 ],
               ),
             ),
@@ -55,10 +65,12 @@ class AuthEntryHeader extends StatelessWidget {
     super.key,
     required this.title,
     required this.subtitle,
+    this.compact = false,
   });
 
   final String title;
   final String subtitle;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -66,93 +78,50 @@ class AuthEntryHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 118,
-          height: 118,
+          width: compact ? 74 : 92,
+          height: compact ? 74 : 92,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(compact ? 22 : 26),
             border: Border.all(color: const Color(0xFFE8EDF5)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x140F172A),
-                blurRadius: 30,
-                offset: Offset(0, 16),
+                color: Color(0x100F172A),
+                blurRadius: 26,
+                offset: Offset(0, 13),
               ),
             ],
           ),
-          padding: const EdgeInsets.all(14),
-          child: const OmcLogo.symbol(size: 90, borderRadius: 0),
+          padding: EdgeInsets.all(compact ? 11 : 13),
+          child: OmcLogo.symbol(
+            size: compact ? 52 : 66,
+            borderRadius: 0,
+          ),
         ),
-        const SizedBox(height: 18),
-        const OmcLogo.full(width: 174, height: 56),
-        const SizedBox(height: 24),
+        SizedBox(height: compact ? 20 : 24),
         Text(
           title,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textPrimary,
-            fontSize: 31,
+            fontSize: compact ? 28 : 31,
             height: 1.08,
             fontWeight: FontWeight.w900,
+            letterSpacing: -0.6,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 9),
         Text(
           subtitle,
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: AppTheme.textSecondary,
-            fontSize: 15,
+            fontSize: 14.5,
             height: 1.45,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
-        ),
-        const SizedBox(height: 18),
-        const Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            AuthPill(icon: Icons.verified_user_outlined, label: 'Secure'),
-            AuthPill(icon: Icons.work_outline_rounded, label: 'Services'),
-            AuthPill(icon: Icons.support_agent_rounded, label: 'Support'),
-          ],
         ),
       ],
-    );
-  }
-}
-
-class AuthPill extends StatelessWidget {
-  const AuthPill({super.key, required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE4EAF3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: AppTheme.primary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
