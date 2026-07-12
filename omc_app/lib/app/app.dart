@@ -21,7 +21,6 @@ class OmcApp extends ConsumerWidget {
         );
     final appColors = OmcAppColors.resolve(
       accentColor: appConfig.branding.accentColor,
-      primaryColorFamily: appConfig.branding.primaryColorFamily,
     );
 
     return MaterialApp.router(
