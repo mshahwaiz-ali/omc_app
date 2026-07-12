@@ -454,6 +454,7 @@ class _MoreHeaderAvatar extends StatelessWidget {
               width: 48,
               height: 48,
               fit: BoxFit.cover,
+              webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
               errorBuilder: (_, _, _) => _AvatarFallback(initials: initials),
             )
           : _AvatarFallback(initials: initials),

@@ -119,80 +119,99 @@ class _ServiceRequestDraftScreenState
 
         final fields = _templateFields(service);
 
+        final completedFields = _completedFieldCount(fields);
+        final totalFields = fields.length + 4;
+
         return Scaffold(
+          backgroundColor: const Color(0xFFF8FAFD),
           appBar: const AppBackHeader(title: 'Start Request'),
+          bottomNavigationBar: _SubmitRequestBar(
+            service: service,
+            completedFields: completedFields,
+            totalFields: totalFields,
+            attachmentCount: _attachments.length,
+            isSubmitting: _isSubmitting,
+            onSubmit: () => _submit(service, fields),
+          ),
           body: SafeArea(
             top: false,
             child: Form(
               key: _formKey,
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              child: Stack(
                 children: [
-                  _SelectedServiceCard(service: service),
-                  const SizedBox(height: 16),
-                  _BackendTemplateStatusCard(
-                    service: service,
-                    fieldCount: fields.length,
-                  ),
-                  const SizedBox(height: 16),
-                  if (service.stages.isNotEmpty) ...[
-                    _StagesCard(stages: service.stages),
-                    const SizedBox(height: 16),
-                  ],
-                  _ContactDetailsCard(
-                    nameController: _nameController,
-                    phoneController: _phoneController,
-                    emailController: _emailController,
-                    taxIdController: _taxIdController,
-                    remarksController: _remarksController,
-                    requiredValidator: _required,
-                    emailValidator: _validateEmail,
-                    taxIdValidator: _validateOptionalCnicOrNtn,
-                  ),
-                  const SizedBox(height: 16),
-                  _DynamicFormCard(
-                    fields: fields,
-                    controllerFor: _controllerFor,
-                    selectValueFor: (field) => _selectValues[field.fieldname],
-                    checkedValueFor: (field) =>
-                        _checkValues[field.fieldname] ?? _boolDefault(field),
-                    onSelectChanged: (field, value) {
-                      setState(() => _selectValues[field.fieldname] = value);
-                    },
-                    onCheckChanged: (field, value) {
-                      setState(
-                        () => _checkValues[field.fieldname] = value ?? false,
-                      );
-                    },
-                    requiredValidator: _required,
-                  ),
-                  const SizedBox(height: 16),
-                  _RequiredDocumentsCard(
-                    documents: service.requiredDocuments,
-                    attachments: _attachments,
-                    isPickingDocuments: _isPickingDocuments,
-                    onPickDocuments: _pickDocuments,
-                    onRemoveDocument: _removeDocument,
-                    formatFileSize: ref
-                        .read(documentAttachmentControllerProvider)
-                        .formatFileSize,
-                  ),
-                  const SizedBox(height: 16),
-                  _ReviewCard(
-                    service: service,
-                    formValues: _dynamicValues(fields),
-                    fullName: _nameController.text,
-                    phone: _phoneController.text,
-                    email: _emailController.text,
-                    attachments: _attachments,
-                  ),
-                  const SizedBox(height: 18),
-                  AppButton(
-                    label: 'Submit request',
-                    icon: Icons.send_rounded,
-                    isLoading: _isSubmitting,
-                    onPressed: _isSubmitting ? null : () => _submit(service, fields),
+                  const Positioned.fill(child: _RequestBackdrop()),
+                  ListView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 132),
+                    children: [
+                      const _RequestIntro(),
+                      const SizedBox(height: 14),
+                      _RequestProgress(
+                        completedFields: completedFields,
+                        totalFields: totalFields,
+                        attachmentCount: _attachments.length,
+                      ),
+                      const SizedBox(height: 14),
+                      _SelectedServiceCard(
+                        service: service,
+                        onChange: () => context.go('/services'),
+                      ),
+                      const SizedBox(height: 18),
+                      _ContactDetailsCard(
+                        nameController: _nameController,
+                        phoneController: _phoneController,
+                        emailController: _emailController,
+                        taxIdController: _taxIdController,
+                        requiredValidator: _required,
+                        emailValidator: _validateEmail,
+                        taxIdValidator: _validateOptionalCnicOrNtn,
+                      ),
+                      const SizedBox(height: 16),
+                      _DynamicFormCard(
+                        fields: fields,
+                        remarksController: _remarksController,
+                        controllerFor: _controllerFor,
+                        selectValueFor: (field) =>
+                            _selectValues[field.fieldname],
+                        checkedValueFor: (field) =>
+                            _checkValues[field.fieldname] ??
+                            _boolDefault(field),
+                        onSelectChanged: (field, value) {
+                          setState(
+                            () => _selectValues[field.fieldname] = value,
+                          );
+                        },
+                        onCheckChanged: (field, value) {
+                          setState(
+                            () =>
+                                _checkValues[field.fieldname] = value ?? false,
+                          );
+                        },
+                        requiredValidator: _required,
+                      ),
+                      const SizedBox(height: 16),
+                      _RequiredDocumentsCard(
+                        documents: service.requiredDocuments,
+                        attachments: _attachments,
+                        isPickingDocuments: _isPickingDocuments,
+                        onPickDocuments: _pickDocuments,
+                        onRemoveDocument: _removeDocument,
+                        formatFileSize: ref
+                            .read(documentAttachmentControllerProvider)
+                            .formatFileSize,
+                      ),
+                      if (service.stages.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _StagesCard(stages: service.stages),
+                      ],
+                      const SizedBox(height: 16),
+                      _SubmissionSummaryCard(
+                        service: service,
+                        completedFields: completedFields,
+                        totalFields: totalFields,
+                        attachmentCount: _attachments.length,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -258,7 +277,9 @@ class _ServiceRequestDraftScreenState
 
   String _fieldValue(ServiceTemplateField field) {
     if (_isCheckField(field)) {
-      return ((_checkValues[field.fieldname] ?? _boolDefault(field)) ? 'Yes' : 'No');
+      return ((_checkValues[field.fieldname] ?? _boolDefault(field))
+          ? 'Yes'
+          : 'No');
     }
     if (_isSelectField(field)) {
       return _selectValues[field.fieldname] ?? field.defaultValue;
@@ -280,7 +301,9 @@ class _ServiceRequestDraftScreenState
       if (!mounted) return;
       setState(() => _attachments.addAll(result.accepted));
       for (final message in result.rejectedMessages) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } finally {
       if (mounted) setState(() => _isPickingDocuments = false);
@@ -288,10 +311,35 @@ class _ServiceRequestDraftScreenState
   }
 
   void _removeDocument(DocumentAttachment attachment) {
-    setState(() => _attachments.removeWhere((item) => item.id == attachment.id));
+    setState(
+      () => _attachments.removeWhere((item) => item.id == attachment.id),
+    );
   }
 
-  Future<void> _submit(ServiceItem service, List<ServiceTemplateField> fields) async {
+  int _completedFieldCount(List<ServiceTemplateField> fields) {
+    var count = 0;
+    for (final value in [
+      _nameController.text,
+      _phoneController.text,
+      _emailController.text,
+      _taxIdController.text,
+    ]) {
+      if (value.trim().isNotEmpty) {
+        count++;
+      }
+    }
+    for (final field in fields) {
+      if (_fieldValue(field).trim().isNotEmpty) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  Future<void> _submit(
+    ServiceItem service,
+    List<ServiceTemplateField> fields,
+  ) async {
     final form = _formKey.currentState;
     if (form == null || !form.validate()) return;
 
@@ -302,7 +350,9 @@ class _ServiceRequestDraftScreenState
 
     if (missingRequired.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please complete: ${missingRequired.join(', ')}')),
+        SnackBar(
+          content: Text('Please complete: ${missingRequired.join(', ')}'),
+        ),
       );
       return;
     }
@@ -312,7 +362,8 @@ class _ServiceRequestDraftScreenState
     final dynamicDetails = _dynamicValues(fields);
     final additionalDetails = <String, String>{
       ...dynamicDetails,
-      if (dynamicDetails.isNotEmpty) 'form_data_json': jsonEncode(dynamicDetails),
+      if (dynamicDetails.isNotEmpty)
+        'form_data_json': jsonEncode(dynamicDetails),
     };
 
     setState(() => _isSubmitting = true);
@@ -331,7 +382,9 @@ class _ServiceRequestDraftScreenState
       );
 
       final requestId = result.requestId;
-      if (requestId != null && requestId.trim().isNotEmpty && _attachments.isNotEmpty) {
+      if (requestId != null &&
+          requestId.trim().isNotEmpty &&
+          _attachments.isNotEmpty) {
         await repository.uploadRequestAttachments(
           requestId: requestId,
           attachments: _attachments,
@@ -349,7 +402,9 @@ class _ServiceRequestDraftScreenState
     } catch (_) {
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Request could not be submitted right now.')),
+        const SnackBar(
+          content: Text('Request could not be submitted right now.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -381,87 +436,339 @@ class _ServiceRequestDraftScreenState
   }
 }
 
-class _SelectedServiceCard extends StatelessWidget {
-  const _SelectedServiceCard({required this.service});
-
-  final ServiceItem service;
+class _RequestBackdrop extends StatelessWidget {
+  const _RequestBackdrop();
 
   @override
   Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFDFEFF), Color(0xFFF6F8FC), Color(0xFFFAFBFD)],
+        ),
+      ),
+    );
+  }
+}
+
+class _RequestIntro extends StatelessWidget {
+  const _RequestIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Let’s get you started',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 26,
+            height: 1.08,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Complete the details below and OMC will review your request.',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13.5,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RequestProgress extends StatelessWidget {
+  const _RequestProgress({
+    required this.completedFields,
+    required this.totalFields,
+    required this.attachmentCount,
+  });
+
+  final int completedFields;
+  final int totalFields;
+  final int attachmentCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = totalFields == 0
+        ? 0.0
+        : (completedFields / totalFields).clamp(0.0, 1.0);
+
     return PremiumCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 13),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            service.category,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Request progress',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$completedFields of $totalFields details',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 5),
-          Text(
-            service.title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.3,
-            ),
-          ),
-          if ((service.shortDescription?.trim() ?? '').isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              service.shortDescription?.trim() ?? '',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7,
+              backgroundColor: const Color(0xFFE9EDF3),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF7C3AED),
               ),
             ),
-          ],
+          ),
+          const SizedBox(height: 11),
+          Row(
+            children: [
+              const _ProgressStep(
+                icon: Icons.person_outline_rounded,
+                label: 'Details',
+              ),
+              const _ProgressDivider(),
+              const _ProgressStep(icon: Icons.tune_rounded, label: 'Service'),
+              const _ProgressDivider(),
+              _ProgressStep(
+                icon: Icons.attach_file_rounded,
+                label: attachmentCount == 0
+                    ? 'Documents'
+                    : '$attachmentCount attached',
+              ),
+              const _ProgressDivider(),
+              const _ProgressStep(
+                icon: Icons.check_circle_outline_rounded,
+                label: 'Submit',
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _BackendTemplateStatusCard extends StatelessWidget {
-  const _BackendTemplateStatusCard({required this.service, required this.fieldCount});
+class _ProgressStep extends StatelessWidget {
+  const _ProgressStep({required this.icon, required this.label});
 
-  final ServiceItem service;
-  final int fieldCount;
+  final IconData icon;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final hasTemplate = service.hasBackendTemplate;
-    return PremiumCard(
-      padding: const EdgeInsets.all(15),
-      child: Row(
+    return Expanded(
+      child: Column(
         children: [
-          Icon(
-            hasTemplate ? Icons.cloud_done_rounded : Icons.edit_note_rounded,
-            color: AppTheme.primaryRed,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              hasTemplate
-                  ? 'Backend configured form loaded with $fieldCount fields.'
-                  : 'Using safe fallback form until backend fields are configured.',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
-              ),
+          Icon(icon, size: 17, color: AppTheme.textSecondary),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProgressDivider extends StatelessWidget {
+  const _ProgressDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 13, height: 1, color: const Color(0xFFDDE3EB));
+  }
+}
+
+class _SelectedServiceCard extends StatelessWidget {
+  const _SelectedServiceCard({required this.service, required this.onChange});
+
+  final ServiceItem service;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = _serviceTone(service.colorFamily);
+    final description = service.shortDescription?.trim() ?? '';
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  _serviceIcon(service.iconKey),
+                  color: tone,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      service.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      service.title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 18,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(onPressed: onChange, child: const Text('Change')),
+            ],
+          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                description,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12.5,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFE8ECF2)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _ServiceMeta(
+                  icon: Icons.schedule_rounded,
+                  label: 'Timeline',
+                  value: service.completionTime.trim().isEmpty
+                      ? 'To be confirmed'
+                      : service.completionTime,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ServiceMeta(
+                  icon: Icons.payments_outlined,
+                  label: 'Service fee',
+                  value: service.priceLabel.trim().isEmpty
+                      ? 'To be confirmed'
+                      : service.priceLabel,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceMeta extends StatelessWidget {
+  const _ServiceMeta({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 31,
+          height: 31,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F4F8),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 16, color: AppTheme.textSecondary),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -472,7 +779,6 @@ class _ContactDetailsCard extends StatelessWidget {
     required this.phoneController,
     required this.emailController,
     required this.taxIdController,
-    required this.remarksController,
     required this.requiredValidator,
     required this.emailValidator,
     required this.taxIdValidator,
@@ -482,7 +788,6 @@ class _ContactDetailsCard extends StatelessWidget {
   final TextEditingController phoneController;
   final TextEditingController emailController;
   final TextEditingController taxIdController;
-  final TextEditingController remarksController;
   final String? Function(String?, String) requiredValidator;
   final String? Function(String?) emailValidator;
   final String? Function(String?) taxIdValidator;
@@ -490,10 +795,15 @@ class _ContactDetailsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardTitle(title: 'Contact details'),
+          const _CardTitle(
+            title: 'Your details',
+            subtitle: 'Tell us who this request is for.',
+            icon: Icons.person_outline_rounded,
+          ),
           const SizedBox(height: 16),
           TextFormField(
             controller: nameController,
@@ -536,22 +846,11 @@ class _ContactDetailsCard extends StatelessWidget {
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
               labelText: 'CNIC / NTN (optional)',
-              helperText: 'CNIC must be 13 digits. NTN should be 7-9 digits if provided.',
+              helperText:
+                  'CNIC must be 13 digits. NTN should be 7-9 digits if provided.',
               prefixIcon: Icon(Icons.badge_outlined),
             ),
             validator: taxIdValidator,
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: remarksController,
-            minLines: 3,
-            maxLines: 5,
-            textInputAction: TextInputAction.newline,
-            decoration: const InputDecoration(
-              labelText: 'Remarks (optional)',
-              alignLabelWithHint: true,
-              prefixIcon: Icon(Icons.notes_outlined),
-            ),
           ),
         ],
       ),
@@ -562,6 +861,7 @@ class _ContactDetailsCard extends StatelessWidget {
 class _DynamicFormCard extends StatelessWidget {
   const _DynamicFormCard({
     required this.fields,
+    required this.remarksController,
     required this.controllerFor,
     required this.selectValueFor,
     required this.checkedValueFor,
@@ -571,10 +871,13 @@ class _DynamicFormCard extends StatelessWidget {
   });
 
   final List<ServiceTemplateField> fields;
-  final TextEditingController Function(ServiceTemplateField field) controllerFor;
+  final TextEditingController remarksController;
+  final TextEditingController Function(ServiceTemplateField field)
+  controllerFor;
   final String? Function(ServiceTemplateField field) selectValueFor;
   final bool Function(ServiceTemplateField field) checkedValueFor;
-  final void Function(ServiceTemplateField field, String? value) onSelectChanged;
+  final void Function(ServiceTemplateField field, String? value)
+  onSelectChanged;
   final void Function(ServiceTemplateField field, bool? value) onCheckChanged;
   final String? Function(String?, String) requiredValidator;
 
@@ -584,16 +887,10 @@ class _DynamicFormCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardTitle(title: 'Service form'),
-          const SizedBox(height: 6),
-          const Text(
-            'These fields are driven by OMC backend service configuration.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
+          const _CardTitle(
+            title: 'Service information',
+            subtitle: 'Add the information needed to prepare your case.',
+            icon: Icons.tune_rounded,
           ),
           const SizedBox(height: 16),
           for (final field in fields) ...[
@@ -608,6 +905,18 @@ class _DynamicFormCard extends StatelessWidget {
             ),
             const SizedBox(height: 14),
           ],
+          TextFormField(
+            controller: remarksController,
+            minLines: 3,
+            maxLines: 5,
+            textInputAction: TextInputAction.newline,
+            decoration: const InputDecoration(
+              labelText: 'Additional notes (optional)',
+              hintText: 'Add anything else OMC should know.',
+              alignLabelWithHint: true,
+              prefixIcon: Icon(Icons.notes_outlined),
+            ),
+          ),
         ],
       ),
     );
@@ -635,8 +944,12 @@ class _DynamicField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = field.label.trim().isEmpty ? field.fieldname : field.label.trim();
-    final helperText = field.description.trim().isEmpty ? null : field.description.trim();
+    final label = field.label.trim().isEmpty
+        ? field.fieldname
+        : field.label.trim();
+    final helperText = field.description.trim().isEmpty
+        ? null
+        : field.description.trim();
 
     if (_isCheckField(field)) {
       return CheckboxListTile(
@@ -654,7 +967,9 @@ class _DynamicField extends StatelessWidget {
       return DropdownButtonFormField<String>(
         initialValue: selected,
         items: field.options
-            .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+            .map(
+              (option) => DropdownMenuItem(value: option, child: Text(option)),
+            )
             .toList(growable: false),
         onChanged: onSelectChanged,
         decoration: InputDecoration(
@@ -662,7 +977,9 @@ class _DynamicField extends StatelessWidget {
           helperText: helperText,
           prefixIcon: const Icon(Icons.list_alt_outlined),
         ),
-        validator: field.isRequired ? (value) => requiredValidator(value, label) : null,
+        validator: field.isRequired
+            ? (value) => requiredValidator(value, label)
+            : null,
       );
     }
 
@@ -677,12 +994,16 @@ class _DynamicField extends StatelessWidget {
           : TextInputAction.next,
       decoration: InputDecoration(
         labelText: field.isRequired ? '$label *' : label,
-        hintText: field.placeholder.trim().isEmpty ? null : field.placeholder.trim(),
+        hintText: field.placeholder.trim().isEmpty
+            ? null
+            : field.placeholder.trim(),
         helperText: helperText,
         alignLabelWithHint: _isLongTextField(field),
         prefixIcon: Icon(_iconFor(field)),
       ),
-      validator: field.isRequired ? (value) => requiredValidator(value, label) : null,
+      validator: field.isRequired
+          ? (value) => requiredValidator(value, label)
+          : null,
     );
   }
 }
@@ -694,81 +1015,142 @@ class _StagesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleStages = stages.where((stage) => stage.isCustomerVisible).toList()
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final visibleStages =
+        stages.where((stage) => stage.isCustomerVisible).toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     if (visibleStages.isEmpty) return const SizedBox.shrink();
 
     return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(16),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(top: 4),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFF7C3AED).withValues(alpha: 0.09),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: const Icon(
+            Icons.route_outlined,
+            color: Color(0xFF7C3AED),
+            size: 19,
+          ),
+        ),
+        title: const Text(
+          'What happens next',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        subtitle: Text(
+          '${visibleStages.length} service stage${visibleStages.length == 1 ? '' : 's'}',
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         children: [
-          const _CardTitle(title: 'Expected stages'),
-          const SizedBox(height: 14),
-          for (var index = 0; index < visibleStages.length; index++) ...[
-            _StageRow(number: index + 1, stage: visibleStages[index]),
-            if (index != visibleStages.length - 1) const SizedBox(height: 12),
-          ],
+          for (var index = 0; index < visibleStages.length; index++)
+            _CompactStageRow(
+              number: index + 1,
+              stage: visibleStages[index],
+              isLast: index == visibleStages.length - 1,
+            ),
         ],
       ),
     );
   }
 }
 
-class _StageRow extends StatelessWidget {
-  const _StageRow({required this.number, required this.stage});
+class _CompactStageRow extends StatelessWidget {
+  const _CompactStageRow({
+    required this.number,
+    required this.stage,
+    required this.isLast,
+  });
 
   final int number;
   final ServiceStageTemplate stage;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            number.toString(),
-            style: const TextStyle(
-              color: AppTheme.primaryRed,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                stage.title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              if (stage.description.trim().isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  stage.description.trim(),
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 34,
+            child: Column(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0ECFF),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Text(
+                    '$number',
+                    style: const TextStyle(
+                      color: Color(0xFF7C3AED),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 1,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: const Color(0xFFE2E6ED),
+                    ),
+                  ),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 2 : 15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    stage.title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (stage.description.trim().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      stage.description.trim(),
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -793,56 +1175,195 @@ class _RequiredDocumentsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardTitle(title: 'Required documents'),
-          const SizedBox(height: 8),
-          if (documents.isEmpty)
-            const Text(
-              'OMC will confirm required documents after reviewing your case.',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w600,
+          _CardTitle(
+            title: 'Documents',
+            subtitle: documents.isEmpty
+                ? 'You can attach supporting files now or provide them later.'
+                : '${documents.length} document${documents.length == 1 ? '' : 's'} may be needed for this service.',
+            icon: Icons.folder_copy_outlined,
+          ),
+          if (documents.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F8FB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE7EAF0)),
               ),
-            )
-          else
-            for (final document in documents)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.description_outlined, color: AppTheme.primaryRed, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(document)),
+              child: Column(
+                children: [
+                  for (var index = 0; index < documents.length; index++) ...[
+                    Row(
+                      children: [
+                        Container(
+                          width: 25,
+                          height: 25,
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF16A34A,
+                            ).withValues(alpha: 0.09),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.description_outlined,
+                            color: Color(0xFF16A34A),
+                            size: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            documents[index],
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (index != documents.length - 1)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Divider(height: 1, color: Color(0xFFE5E9EF)),
+                      ),
                   ],
-                ),
+                ],
               ),
+            ),
+          ],
           const SizedBox(height: 14),
-          OutlinedButton.icon(
-            onPressed: isPickingDocuments ? null : onPickDocuments,
-            icon: isPickingDocuments
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.upload_file_rounded),
-            label: Text(isPickingDocuments ? 'Opening picker...' : 'Attach documents'),
+          InkWell(
+            onTap: isPickingDocuments ? null : onPickDocuments,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAFBFD),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFD8DEE8), width: 1.2),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 39,
+                    height: 39,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: isPickingDocuments
+                        ? const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(
+                            Icons.upload_file_rounded,
+                            color: Color(0xFF2563EB),
+                            size: 20,
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isPickingDocuments
+                              ? 'Opening file picker...'
+                              : 'Attach documents',
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Add clear PDF or image files.',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.add_rounded, color: AppTheme.textSecondary),
+                ],
+              ),
+            ),
           ),
           if (attachments.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            Text(
+              '${attachments.length} attached',
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
             for (final attachment in attachments)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.insert_drive_file_outlined),
-                title: Text(attachment.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(formatFileSize(attachment.sizeInBytes)),
-                trailing: IconButton(
-                  tooltip: 'Remove',
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => onRemoveDocument(attachment),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(11, 9, 5, 9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F9FC),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: const Color(0xFFE5EAF1)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.insert_drive_file_outlined,
+                        color: Color(0xFF2563EB),
+                        size: 19,
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              attachment.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              formatFileSize(attachment.sizeInBytes),
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Remove',
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        onPressed: () => onRemoveDocument(attachment),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -852,97 +1373,231 @@ class _RequiredDocumentsCard extends StatelessWidget {
   }
 }
 
-class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({
+class _SubmissionSummaryCard extends StatelessWidget {
+  const _SubmissionSummaryCard({
     required this.service,
-    required this.formValues,
-    required this.fullName,
-    required this.phone,
-    required this.email,
-    required this.attachments,
+    required this.completedFields,
+    required this.totalFields,
+    required this.attachmentCount,
   });
 
   final ServiceItem service;
-  final Map<String, String> formValues;
-  final String fullName;
-  final String phone;
-  final String email;
-  final List<DocumentAttachment> attachments;
+  final int completedFields;
+  final int totalFields;
+  final int attachmentCount;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(15),
+      child: Row(
         children: [
-          const _CardTitle(title: 'Review'),
-          const SizedBox(height: 12),
-          _ReviewRow(label: 'Service', value: service.title),
-          _ReviewRow(label: 'Name', value: fullName.trim().isEmpty ? 'Not entered' : fullName.trim()),
-          _ReviewRow(label: 'Phone', value: phone.trim().isEmpty ? 'Not entered' : phone.trim()),
-          _ReviewRow(label: 'Email', value: email.trim().isEmpty ? 'Not entered' : email.trim()),
-          _ReviewRow(label: 'Form fields', value: formValues.length.toString()),
-          _ReviewRow(label: 'Attachments', value: attachments.length.toString()),
+          Container(
+            width: 39,
+            height: 39,
+            decoration: BoxDecoration(
+              color: const Color(0xFF16A34A).withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.fact_check_outlined,
+              color: Color(0xFF16A34A),
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  service.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '$completedFields of $totalFields details completed'
+                  ' · $attachmentCount file${attachmentCount == 1 ? '' : 's'} attached',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ReviewRow extends StatelessWidget {
-  const _ReviewRow({required this.label, required this.value});
+class _SubmitRequestBar extends StatelessWidget {
+  const _SubmitRequestBar({
+    required this.service,
+    required this.completedFields,
+    required this.totalFields,
+    required this.attachmentCount,
+    required this.isSubmitting,
+    required this.onSubmit,
+  });
 
-  final String label;
-  final String value;
+  final ServiceItem service;
+  final int completedFields;
+  final int totalFields;
+  final int attachmentCount;
+  final bool isSubmitting;
+  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 96,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w700,
+    return Material(
+      color: Colors.white,
+      elevation: 14,
+      shadowColor: Colors.black.withValues(alpha: 0.10),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      service.priceLabel.trim().isEmpty
+                          ? service.title
+                          : service.priceLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$completedFields/$totalFields details'
+                      ' · $attachmentCount attachment${attachmentCount == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w800,
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 158,
+                child: AppButton(
+                  label: 'Submit request',
+                  icon: Icons.arrow_forward_rounded,
+                  isLoading: isSubmitting,
+                  onPressed: isSubmitting ? null : onSubmit,
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _CardTitle extends StatelessWidget {
-  const _CardTitle({required this.title});
+  const _CardTitle({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
 
   final String title;
+  final String subtitle;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: AppTheme.textPrimary,
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFF7C3AED).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, color: const Color(0xFF7C3AED), size: 19),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
+}
+
+IconData _serviceIcon(String? key) {
+  return switch ((key ?? '').trim().toLowerCase()) {
+    'business_setup' => Icons.domain_add_outlined,
+    'company_registration' => Icons.apartment_outlined,
+    'tax_filing' => Icons.receipt_long_outlined,
+    'tax_registration' => Icons.how_to_reg_outlined,
+    'gst' => Icons.request_quote_outlined,
+    'accounting' => Icons.calculate_outlined,
+    'audit' => Icons.fact_check_outlined,
+    'payroll' => Icons.groups_outlined,
+    'legal' => Icons.gavel_outlined,
+    _ => Icons.work_outline_rounded,
+  };
+}
+
+Color _serviceTone(String? family) {
+  return switch ((family ?? '').trim().toLowerCase()) {
+    'orange' => const Color(0xFFF97316),
+    'green' => const Color(0xFF16A34A),
+    'purple' => const Color(0xFF7C3AED),
+    'blue' => const Color(0xFF2563EB),
+    'teal' => const Color(0xFF0F9F8F),
+    'rose' || 'red' => const Color(0xFFE11D48),
+    _ => const Color(0xFF7C3AED),
+  };
 }
 
 bool _isSelectField(ServiceTemplateField field) {
@@ -957,15 +1612,27 @@ bool _isCheckField(ServiceTemplateField field) {
 
 bool _isLongTextField(ServiceTemplateField field) {
   final type = field.fieldtype.trim().toLowerCase();
-  return type.contains('text') || type == 'textarea' || type == 'long text' || type == 'small text';
+  return type.contains('text') ||
+      type == 'textarea' ||
+      type == 'long text' ||
+      type == 'small text';
 }
 
 TextInputType _keyboardTypeFor(ServiceTemplateField field) {
   final type = field.fieldtype.trim().toLowerCase();
   final name = field.fieldname.trim().toLowerCase();
-  if (type.contains('email') || name.contains('email')) return TextInputType.emailAddress;
-  if (type.contains('phone') || name.contains('phone') || name.contains('mobile')) return TextInputType.phone;
-  if (type.contains('int') || type.contains('currency') || type.contains('float') || type.contains('number')) {
+  if (type.contains('email') || name.contains('email')) {
+    return TextInputType.emailAddress;
+  }
+  if (type.contains('phone') ||
+      name.contains('phone') ||
+      name.contains('mobile')) {
+    return TextInputType.phone;
+  }
+  if (type.contains('int') ||
+      type.contains('currency') ||
+      type.contains('float') ||
+      type.contains('number')) {
     return TextInputType.number;
   }
   if (_isLongTextField(field)) return TextInputType.multiline;
@@ -983,11 +1650,23 @@ List<TextInputFormatter> _inputFormattersFor(ServiceTemplateField field) {
 IconData _iconFor(ServiceTemplateField field) {
   final type = field.fieldtype.trim().toLowerCase();
   final name = field.fieldname.trim().toLowerCase();
-  if (type.contains('date') || name.contains('date')) return Icons.event_outlined;
-  if (type.contains('email') || name.contains('email')) return Icons.email_outlined;
-  if (type.contains('phone') || name.contains('phone')) return Icons.phone_outlined;
-  if (type.contains('currency') || name.contains('amount') || name.contains('fee')) return Icons.payments_outlined;
-  if (type.contains('int') || type.contains('number')) return Icons.numbers_outlined;
+  if (type.contains('date') || name.contains('date')) {
+    return Icons.event_outlined;
+  }
+  if (type.contains('email') || name.contains('email')) {
+    return Icons.email_outlined;
+  }
+  if (type.contains('phone') || name.contains('phone')) {
+    return Icons.phone_outlined;
+  }
+  if (type.contains('currency') ||
+      name.contains('amount') ||
+      name.contains('fee')) {
+    return Icons.payments_outlined;
+  }
+  if (type.contains('int') || type.contains('number')) {
+    return Icons.numbers_outlined;
+  }
   if (_isLongTextField(field)) return Icons.notes_outlined;
   return Icons.edit_outlined;
 }

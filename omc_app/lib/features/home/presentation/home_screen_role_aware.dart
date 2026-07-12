@@ -1092,6 +1092,7 @@ class _AvatarBadge extends StatelessWidget {
             : Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
+                webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                 errorBuilder: (_, error, stackTrace) => Container(
                   color: _avatarColor(name).withValues(alpha: 0.12),
                   alignment: Alignment.center,

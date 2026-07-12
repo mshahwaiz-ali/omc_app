@@ -617,6 +617,7 @@ class _Avatar extends StatelessWidget {
             ? Image.network(
                 cleanUrl,
                 fit: BoxFit.cover,
+                webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                 errorBuilder: (_, _, _) => _InitialsAvatar(initials: initials),
               )
             : _InitialsAvatar(initials: initials),

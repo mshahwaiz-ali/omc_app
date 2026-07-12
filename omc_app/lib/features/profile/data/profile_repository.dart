@@ -53,8 +53,7 @@ final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
 });
 
 class ProfileRepository {
-  const ProfileRepository({required FrappeClient frappeClient})
-    : _frappeClient = frappeClient;
+  const ProfileRepository({required this._frappeClient});
 
   final FrappeClient _frappeClient;
 

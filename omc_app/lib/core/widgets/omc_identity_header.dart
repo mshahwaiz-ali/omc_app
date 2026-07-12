@@ -170,10 +170,10 @@ class _Avatar extends StatelessWidget {
             : Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
+                webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                 // Frappe files are served from the backend origin during web
                 // development. A browser image element can display them without
                 // Flutter's XMLHttpRequest image fetch being blocked by CORS.
-                webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                 errorBuilder: (_, _, _) => fallback,
               ),
       ),
