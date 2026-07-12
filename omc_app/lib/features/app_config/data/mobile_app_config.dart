@@ -23,7 +23,6 @@ class MobileAppConfig {
         companyName: 'OMC House',
         tagline: 'Business, tax and compliance support',
         accentColor: '#111827',
-        primaryColorFamily: 'navy',
       ),
       legal: MobileLegalConfig.fallback,
       isFallback: true,
@@ -122,13 +121,15 @@ class MobileBrandingConfig {
     required this.companyName,
     required this.tagline,
     this.accentColor = '#111827',
-    this.primaryColorFamily = 'navy',
   });
 
   final String companyName;
   final String tagline;
   final String accentColor;
-  final String primaryColorFamily;
+
+  /// Temporary source-compatible alias for older widgets. There is no longer
+  /// a separate colour family; this returns the resolved accent hex value.
+  String get primaryColorFamily => accentColor;
 
   factory MobileBrandingConfig.fromJson(Map<String, dynamic> json) {
     return MobileBrandingConfig(
@@ -139,9 +140,6 @@ class MobileBrandingConfig {
       accentColor: _accentColorValue(
         json['accent_color'] ?? json['accentColor'],
       ),
-      primaryColorFamily: _primaryColorFamilyValue(
-        json['primary_color_family'] ?? json['primaryColorFamily'],
-      ),
     );
   }
 
@@ -150,11 +148,6 @@ class MobileBrandingConfig {
   static String _accentColorValue(dynamic value) {
     final color = _stringValue(value).toUpperCase();
     return RegExp(r'^#[0-9A-F]{6}$').hasMatch(color) ? color : '#111827';
-  }
-
-  static String _primaryColorFamilyValue(dynamic value) {
-    final family = _stringValue(value).toLowerCase();
-    return family.isEmpty ? 'navy' : family;
   }
 }
 
