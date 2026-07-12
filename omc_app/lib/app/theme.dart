@@ -4,9 +4,9 @@ class AppTheme {
   const AppTheme._();
 
   // Brand / interaction colors.
-  static const Color primary = Color(0xFF6D5DD3);
-  static const Color primaryDark = Color(0xFF5546B8);
-  static const Color primarySoft = Color(0xFFF0EDFF);
+  static const Color primary = Color(0xFF111827);
+  static const Color primaryDark = Color(0xFF0B1220);
+  static const Color primarySoft = Color(0xFFF1F5F9);
 
   // Semantic colors.
   static const Color danger = Color(0xFFE11D48);
@@ -322,7 +322,7 @@ class AppTheme {
           seedColor: primary,
           brightness: Brightness.dark,
         ).copyWith(
-          primary: const Color(0xFFB8ACFF),
+          primary: const Color(0xFFCBD5E1),
           error: const Color(0xFFFF8AA5),
           surfaceTint: Colors.transparent,
         );

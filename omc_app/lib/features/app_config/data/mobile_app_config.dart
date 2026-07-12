@@ -22,6 +22,7 @@ class MobileAppConfig {
       branding: const MobileBrandingConfig(
         companyName: 'OMC House',
         tagline: 'Business, tax and compliance support',
+        accentColor: '#111827',
         primaryColorFamily: 'navy',
       ),
       legal: MobileLegalConfig.fallback,
@@ -120,11 +121,13 @@ class MobileBrandingConfig {
   const MobileBrandingConfig({
     required this.companyName,
     required this.tagline,
+    this.accentColor = '#111827',
     this.primaryColorFamily = 'navy',
   });
 
   final String companyName;
   final String tagline;
+  final String accentColor;
   final String primaryColorFamily;
 
   factory MobileBrandingConfig.fromJson(Map<String, dynamic> json) {
@@ -133,6 +136,9 @@ class MobileBrandingConfig {
           ? _stringValue(json['company_name'])
           : 'OMC House',
       tagline: _stringValue(json['tagline']),
+      accentColor: _accentColorValue(
+        json['accent_color'] ?? json['accentColor'],
+      ),
       primaryColorFamily: _primaryColorFamilyValue(
         json['primary_color_family'] ?? json['primaryColorFamily'],
       ),
@@ -140,6 +146,11 @@ class MobileBrandingConfig {
   }
 
   static String _stringValue(dynamic value) => value?.toString().trim() ?? '';
+
+  static String _accentColorValue(dynamic value) {
+    final color = _stringValue(value).toUpperCase();
+    return RegExp(r'^#[0-9A-F]{6}$').hasMatch(color) ? color : '#111827';
+  }
 
   static String _primaryColorFamilyValue(dynamic value) {
     final family = _stringValue(value).toLowerCase();

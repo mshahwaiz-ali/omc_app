@@ -334,9 +334,14 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                           child: FilledButton.icon(
                             onPressed: saving ? null : submit,
                             style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFFD71937),
-                              foregroundColor: Colors.white,
-                              disabledBackgroundColor: const Color(0xFFF1A8B3),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                              foregroundColor: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary,
+                              disabledBackgroundColor: const Color(0xFFE2E8F0),
+                              disabledForegroundColor: const Color(0xFF94A3B8),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
