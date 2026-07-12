@@ -746,62 +746,71 @@ class _OperationsHero extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFA5D73), _omcRed],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 620;
+
+              final overview = Row(
+                children: [
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFA5D73), _omcRed],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.track_changes_rounded,
+                      color: Colors.white,
+                      size: 35,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.track_changes_rounded,
-                  color: Colors.white,
-                  size: 35,
-                ),
-              ),
-              const SizedBox(width: 17),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Operations overview',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: _ink,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text.rich(
-                      TextSpan(
-                        children: [
+                  const SizedBox(width: 17),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Operations overview',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: _ink,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text.rich(
                           TextSpan(
-                            text: '$attentionTotal',
-                            style: const TextStyle(
-                              color: _omcRed,
-                              fontWeight: FontWeight.w800,
-                            ),
+                            children: [
+                              TextSpan(
+                                text: '$attentionTotal',
+                                style: const TextStyle(
+                                  color: _omcRed,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const TextSpan(
+                                text: ' items need attention today',
+                              ),
+                            ],
                           ),
-                          const TextSpan(text: ' items need attention today'),
-                        ],
-                      ),
-                      style: const TextStyle(
-                        color: _ink,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+                          style: const TextStyle(
+                            color: _ink,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              FilledButton.icon(
+                  ),
+                ],
+              );
+
+              final button = FilledButton.icon(
                 onPressed: onOpen,
                 style: FilledButton.styleFrom(
                   backgroundColor: _omcRed,
@@ -820,8 +829,27 @@ class _OperationsHero extends StatelessWidget {
                   'Open Operations Hub',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
-              ),
-            ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    overview,
+                    const SizedBox(height: 16),
+                    SizedBox(height: 48, child: button),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: overview),
+                  const SizedBox(width: 18),
+                  Flexible(child: button),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 21),
           Row(

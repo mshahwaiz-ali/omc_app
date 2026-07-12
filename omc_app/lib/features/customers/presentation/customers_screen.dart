@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
@@ -384,7 +385,10 @@ class _CustomerCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _CustomerAvatar(name: customer.name),
+                  _CustomerAvatar(
+                    name: customer.name,
+                    imageUrl: customer.avatarUrl,
+                  ),
                   const SizedBox(width: 13),
                   Expanded(
                     child: Column(
@@ -507,7 +511,39 @@ class _CustomerCard extends StatelessWidget {
 }
 
 class _CustomerAvatar extends StatelessWidget {
-  const _CustomerAvatar({required this.name});
+  const _CustomerAvatar({required this.name, this.imageUrl});
+
+  final String name;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedImageUrl = ApiConfig.resolveFileUrl(imageUrl);
+
+    return Container(
+      width: 50,
+      height: 50,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppTheme.primarySoft,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.08)),
+      ),
+      child: resolvedImageUrl == null
+          ? _CustomerInitials(name: name)
+          : Image.network(
+              resolvedImageUrl,
+              fit: BoxFit.cover,
+              width: 50,
+              height: 50,
+              errorBuilder: (_, _, _) => _CustomerInitials(name: name),
+            ),
+    );
+  }
+}
+
+class _CustomerInitials extends StatelessWidget {
+  const _CustomerInitials({required this.name});
 
   final String name;
 
@@ -516,7 +552,7 @@ class _CustomerAvatar extends StatelessWidget {
     final parts = name
         .trim()
         .split(RegExp(r'\s+'))
-        .where((item) => item.isNotEmpty)
+        .where((item) => item.isNotEmpty && item != '-')
         .toList();
 
     final initials = parts.isEmpty
@@ -526,14 +562,7 @@ class _CustomerAvatar extends StatelessWidget {
         : '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
               .toUpperCase();
 
-    return Container(
-      width: 50,
-      height: 50,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppTheme.primarySoft,
-        borderRadius: BorderRadius.circular(17),
-      ),
+    return Center(
       child: Text(
         initials,
         style: const TextStyle(

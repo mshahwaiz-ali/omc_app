@@ -6,6 +6,7 @@ class CustomerItem {
     required this.name,
     required this.status,
     this.companyName,
+    this.avatarUrl,
     this.email,
     this.phone,
     this.city,
@@ -32,6 +33,12 @@ class CustomerItem {
         json['customer_name'] ?? json['full_name'] ?? json['name'],
       ),
       companyName: _nullableString(json['company_name'] ?? json['company']),
+      avatarUrl: _nullableString(
+        json['avatar_url'] ??
+            json['user_image'] ??
+            json['profile_image'] ??
+            json['image'],
+      ),
       status: _statusFromValues(
         customerStatus: customerStatus,
         approvalStatus: approvalStatus,
@@ -60,6 +67,7 @@ class CustomerItem {
   final String name;
   final CustomerStatus status;
   final String? companyName;
+  final String? avatarUrl;
   final String? email;
   final String? phone;
   final String? city;
