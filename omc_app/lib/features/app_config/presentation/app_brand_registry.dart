@@ -18,8 +18,15 @@ class OmcAppColors {
   final Color accentBorder;
   final Color accentPressed;
 
-  factory OmcAppColors.resolve({String? accentColor}) {
-    final accent = _tryParseHexColor(accentColor) ?? const Color(0xFF111827);
+  factory OmcAppColors.resolve({
+    String? accentColor,
+    String? primaryColorFamily,
+  }) {
+    // primaryColorFamily is retained only as a temporary source-compatible
+    // argument for older call sites. It now carries the resolved accent value.
+    final accent = _tryParseHexColor(accentColor) ??
+        _tryParseHexColor(primaryColorFamily) ??
+        const Color(0xFF111827);
     final brightness = ThemeData.estimateBrightnessForColor(accent);
     return OmcAppColors(
       accent: accent,
@@ -33,18 +40,31 @@ class OmcAppColors {
   }
 }
 
-/// Legacy compatibility helper for older screens. The family argument is
-/// intentionally ignored; [accentColor] is now the only branding source.
-Color appPrimaryColorFor(String? family, {String? accentColor}) {
-  return OmcAppColors.resolve(accentColor: accentColor).accent;
+/// Compatibility helper for older widgets. The argument is now the resolved
+/// accent hex value, not a named colour family.
+Color appPrimaryColorFor(String? accentColor, {String? legacyAccentColor}) {
+  return _tryParseHexColor(legacyAccentColor) ??
+      _tryParseHexColor(accentColor) ??
+      const Color(0xFF111827);
 }
 
-Color appPrimarySoftColorFor(String? family, {String? accentColor}) {
-  return OmcAppColors.resolve(accentColor: accentColor).accentSoft;
+Color appPrimarySoftColorFor(String? accentColor, {String? legacyAccentColor}) {
+  return appPrimaryColorFor(
+    accentColor,
+    legacyAccentColor: legacyAccentColor,
+  ).withValues(alpha: 0.08);
 }
 
-Color appPrimaryForegroundFor(String? family, {String? accentColor}) {
-  return OmcAppColors.resolve(accentColor: accentColor).onAccent;
+Color appPrimaryForegroundFor(
+  String? accentColor, {
+  String? legacyAccentColor,
+}) {
+  final primary = appPrimaryColorFor(
+    accentColor,
+    legacyAccentColor: legacyAccentColor,
+  );
+  final brightness = ThemeData.estimateBrightnessForColor(primary);
+  return brightness == Brightness.dark ? Colors.white : const Color(0xFF111827);
 }
 
 Color? _tryParseHexColor(String? value) {
@@ -55,5 +75,7 @@ Color? _tryParseHexColor(String? value) {
 
 Color _darken(Color color, double amount) {
   final hsl = HSLColor.fromColor(color);
-  return hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0)).toColor();
+  return hsl
+      .withLightness((hsl.lightness - amount).clamp(0.0, 1.0))
+      .toColor();
 }
