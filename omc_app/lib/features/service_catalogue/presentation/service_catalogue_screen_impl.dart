@@ -1216,6 +1216,7 @@ class _ServiceDashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final tone = _serviceCatalogueTone(service);
     final statusLabel = _serviceCatalogueStatusLabelFor(status);
     final wizardLabel = serviceCatalogueWizardBadgeLabel(service);
@@ -1369,8 +1370,8 @@ class _ServiceDashboardCard extends StatelessWidget {
                 child: FilledButton(
                   onPressed: onRequest,
                   style: FilledButton.styleFrom(
-                    backgroundColor: _primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                     minimumSize: const Size(0, 46),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(13),
@@ -1387,10 +1388,12 @@ class _ServiceDashboardCard extends StatelessWidget {
               OutlinedButton(
                 onPressed: onWhatsApp,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _ink,
+                  foregroundColor: colorScheme.primary,
                   minimumSize: const Size(46, 46),
                   padding: const EdgeInsets.symmetric(horizontal: 13),
-                  side: const BorderSide(color: _border),
+                  side: BorderSide(
+                    color: colorScheme.primary.withValues(alpha: 0.24),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(13),
                   ),
