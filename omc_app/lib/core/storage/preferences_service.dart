@@ -5,7 +5,10 @@ class PreferencesService {
 
   final SharedPreferences _preferences;
 
+  static const int currentOnboardingVersion = 1;
+
   static const String _hasCompletedOnboardingKey = 'has_completed_onboarding';
+  static const String _onboardingVersionKey = 'onboarding_version_seen';
   static const String _lastSelectedLanguageKey = 'last_selected_language';
   static const String _lastKnownUserNameKey = 'last_known_user_name';
 
@@ -14,12 +17,26 @@ class PreferencesService {
     return PreferencesService(preferences);
   }
 
-  bool get hasCompletedOnboarding {
-    return _preferences.getBool(_hasCompletedOnboardingKey) ?? false;
+  int get onboardingVersionSeen {
+    final storedVersion = _preferences.getInt(_onboardingVersionKey);
+    if (storedVersion != null) return storedVersion;
+
+    // Preserve the existing boolean preference for current installations.
+    return (_preferences.getBool(_hasCompletedOnboardingKey) ?? false)
+        ? currentOnboardingVersion
+        : 0;
   }
 
-  Future<void> setHasCompletedOnboarding(bool value) {
-    return _preferences.setBool(_hasCompletedOnboardingKey, value);
+  bool get hasCompletedOnboarding {
+    return onboardingVersionSeen >= currentOnboardingVersion;
+  }
+
+  Future<void> setHasCompletedOnboarding(bool value) async {
+    await _preferences.setBool(_hasCompletedOnboardingKey, value);
+    await _preferences.setInt(
+      _onboardingVersionKey,
+      value ? currentOnboardingVersion : 0,
+    );
   }
 
   String get lastSelectedLanguage {
@@ -40,6 +57,7 @@ class PreferencesService {
 
   Future<void> clearNonSensitivePreferences() async {
     await _preferences.remove(_hasCompletedOnboardingKey);
+    await _preferences.remove(_onboardingVersionKey);
     await _preferences.remove(_lastSelectedLanguageKey);
     await _preferences.remove(_lastKnownUserNameKey);
   }
