@@ -5,6 +5,9 @@ app_description = "OMC mobile backend app for ERPNext/Frappe"
 app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
+# Install the canonical OMC role and permission model on new sites.
+after_install = "omc_app.setup.roles.after_install"
+
 # Secure mobile API method overrides
 # ----------------------------------
 # Keep customer-facing endpoints stable while enforcing server-side guards,
