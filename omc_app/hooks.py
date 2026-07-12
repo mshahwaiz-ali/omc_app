@@ -13,6 +13,7 @@ override_whitelisted_methods = {
     "omc_app.api.mobile.sign_up": "omc_app.api.access.sign_up",
     "omc_app.api.mobile.get_mobile_capabilities": "omc_app.api.access.get_mobile_capabilities",
     "omc_app.api.mobile.get_session_user": "omc_app.api.access.get_session_user",
+    "omc_app.api.mobile.get_mobile_app_config": "omc_app.api.branding_config.get_mobile_app_config",
     "omc_app.api.mobile.get_service_cases": "omc_app.api.secured_mobile.get_service_cases",
     "omc_app.api.mobile.get_service_case": "omc_app.api.secured_mobile.get_service_case",
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
