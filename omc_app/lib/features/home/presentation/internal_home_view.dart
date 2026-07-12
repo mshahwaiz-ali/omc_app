@@ -64,15 +64,6 @@ class InternalHomeView extends ConsumerWidget {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                sliver: SliverToBoxAdapter(
-                  child: _SearchField(
-                    onTap: () => context.go('/internal-workspace'),
-                    onFilter: () => context.go('/internal-workspace'),
-                  ),
-                ),
-              ),
-              SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
                 sliver: SliverToBoxAdapter(
                   child: _OperationsHero(
@@ -643,70 +634,6 @@ class _InitialsAvatar extends StatelessWidget {
           fontWeight: FontWeight.w800,
           fontSize: 17,
         ),
-      ),
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.onTap, required this.onFilter});
-
-  final VoidCallback onTap;
-  final VoidCallback onFilter;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A101828),
-            blurRadius: 18,
-            offset: Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(20),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Icon(Icons.search_rounded, color: _muted, size: 27),
-                    SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        'Search customers, requests, services or documents...',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: _muted,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Container(width: 1, height: 34, color: _border),
-          IconButton(
-            onPressed: onFilter,
-            padding: const EdgeInsets.symmetric(horizontal: 17),
-            icon: const Icon(Icons.tune_rounded, color: _muted, size: 27),
-          ),
-        ],
       ),
     );
   }
