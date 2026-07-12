@@ -651,25 +651,25 @@ class _ReviewFilterBar extends StatelessWidget {
               Builder(
                 builder: (context) {
                   final selected = selectedFilter == filter;
-                  final color = _reviewFilterColor(filter);
+                  final accent = Theme.of(context).colorScheme.primary;
                   return ChoiceChip(
                     avatar: Icon(
                       _reviewFilterIcon(filter),
                       size: 16,
-                      color: selected ? color : AppTheme.textMuted,
+                      color: selected ? accent : AppTheme.textMuted,
                     ),
                     label: Text(filter.label),
                     selected: selected,
                     onSelected: (_) => onSelected(filter),
-                    selectedColor: color.withValues(alpha: 0.11),
+                    selectedColor: accent.withValues(alpha: 0.08),
                     backgroundColor: Colors.white,
                     side: BorderSide(
                       color: selected
-                          ? color.withValues(alpha: 0.28)
+                          ? accent.withValues(alpha: 0.22)
                           : AppTheme.border,
                     ),
                     labelStyle: TextStyle(
-                      color: selected ? color : AppTheme.textSecondary,
+                      color: selected ? accent : AppTheme.textSecondary,
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
                     ),
@@ -880,21 +880,6 @@ class _ReviewDocumentCard extends StatelessWidget {
       case DocumentStatus.uploaded:
         return _documentIndigo;
     }
-  }
-}
-
-Color _reviewFilterColor(_ReviewFilter filter) {
-  switch (filter) {
-    case _ReviewFilter.all:
-      return _documentNavy;
-    case _ReviewFilter.needsReview:
-      return _reviewTeal;
-    case _ReviewFilter.rejected:
-      return _rejectedRed;
-    case _ReviewFilter.approved:
-      return _approvedGreen;
-    case _ReviewFilter.archived:
-      return _archivedSlate;
   }
 }
 

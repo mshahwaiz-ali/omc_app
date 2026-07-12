@@ -230,7 +230,7 @@ class _OnboardingSlideView extends StatelessWidget {
       final parsed = int.tryParse('FF$hex', radix: 16);
       if (parsed != null) return Color(parsed);
     }
-    return AppTheme.primaryRed;
+    return AppTheme.primary;
   }
 }
 
@@ -325,7 +325,7 @@ class _PageDots extends StatelessWidget {
             height: 8,
             margin: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
-              color: i == index ? AppTheme.primaryRed : const Color(0xFFD7DEE8),
+              color: i == index ? AppTheme.primary : const Color(0xFFD7DEE8),
               borderRadius: BorderRadius.circular(999),
             ),
           ),

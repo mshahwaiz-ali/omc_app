@@ -414,7 +414,7 @@ class _SearchBar extends StatelessWidget {
           const SizedBox(width: 6),
           Material(
             color: filtersActive
-                ? AppTheme.primaryRed.withValues(alpha: 0.08)
+                ? AppTheme.primary.withValues(alpha: 0.08)
                 : const Color(0xFFF2F3F6),
             borderRadius: BorderRadius.circular(13),
             child: InkWell(
@@ -431,7 +431,7 @@ class _SearchBar extends StatelessWidget {
                       Icons.tune_rounded,
                       size: 21,
                       color: filtersActive
-                          ? AppTheme.primaryRed
+                          ? AppTheme.primary
                           : const Color(0xFF555961),
                     ),
                     if (filtersActive)
@@ -440,7 +440,7 @@ class _SearchBar extends StatelessWidget {
                         top: 8,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryRed,
+                            color: AppTheme.primary,
                             shape: BoxShape.circle,
                           ),
                           child: SizedBox(width: 6, height: 6),
@@ -1223,7 +1223,7 @@ class _FilterOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected
-          ? AppTheme.primaryRed.withValues(alpha: 0.08)
+          ? AppTheme.primary.withValues(alpha: 0.08)
           : const Color(0xFFF3F4F6),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -1238,16 +1238,14 @@ class _FilterOption extends StatelessWidget {
                 const Icon(
                   Icons.check_rounded,
                   size: 15,
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                 ),
                 const SizedBox(width: 6),
               ],
               Text(
                 label,
                 style: TextStyle(
-                  color: selected
-                      ? AppTheme.primaryRed
-                      : const Color(0xFF575C65),
+                  color: selected ? AppTheme.primary : const Color(0xFF575C65),
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1321,7 +1319,7 @@ class _LoadingCard extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.06),
+                  color: AppTheme.primary.withValues(alpha: 0.06),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -1360,7 +1358,7 @@ class _LoadingBar extends StatelessWidget {
       child: Container(
         height: height,
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.06),
+          color: AppTheme.primary.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(999),
         ),
       ),
@@ -1385,7 +1383,7 @@ class _CasesErrorView extends StatelessWidget {
             children: [
               const Icon(
                 Icons.cloud_off_rounded,
-                color: AppTheme.primaryRed,
+                color: AppTheme.primary,
                 size: 34,
               ),
               const SizedBox(height: 10),
@@ -1430,7 +1428,7 @@ class _EmptyCasesView extends StatelessWidget {
     return const PremiumCard(
       child: Column(
         children: [
-          Icon(Icons.inbox_rounded, color: AppTheme.primaryRed, size: 34),
+          Icon(Icons.inbox_rounded, color: AppTheme.primary, size: 34),
           SizedBox(height: 10),
           Text(
             'No matching service requests',
@@ -1476,14 +1474,14 @@ _CaseTone _statusTone(String status) {
     return const _CaseTone(Color(0xFF2865C7));
   }
 
-  return const _CaseTone(AppTheme.primaryRed);
+  return const _CaseTone(AppTheme.primary);
 }
 
 Color _priorityColor(String priority) {
   final clean = priority.toLowerCase();
 
   if (clean.contains('high') || clean.contains('urgent')) {
-    return AppTheme.primaryRed;
+    return AppTheme.primary;
   }
 
   if (clean.contains('low')) {

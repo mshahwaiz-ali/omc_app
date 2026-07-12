@@ -106,7 +106,7 @@ class _SplashContent extends StatelessWidget {
             height: 34,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              color: AppTheme.primaryRed,
+              color: AppTheme.primary,
               backgroundColor: Color(0x14A40D22),
               strokeCap: StrokeCap.round,
             ),

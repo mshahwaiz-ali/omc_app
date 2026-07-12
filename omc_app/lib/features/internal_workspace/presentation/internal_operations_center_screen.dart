@@ -509,9 +509,7 @@ class _OpsFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected
-          ? AppTheme.primaryRed.withValues(alpha: 0.09)
-          : Colors.white,
+      color: selected ? AppTheme.primary.withValues(alpha: 0.09) : Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -522,7 +520,7 @@ class _OpsFilterChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected
-                  ? AppTheme.primaryRed.withValues(alpha: 0.25)
+                  ? AppTheme.primary.withValues(alpha: 0.25)
                   : const Color(0xFFDCE1E9),
             ),
           ),
@@ -532,9 +530,7 @@ class _OpsFilterChip extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: selected
-                      ? AppTheme.primaryRed
-                      : const Color(0xFF273044),
+                  color: selected ? AppTheme.primary : const Color(0xFF273044),
                   fontSize: 13,
                   fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                 ),
@@ -549,7 +545,7 @@ class _OpsFilterChip extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: selected
-                        ? AppTheme.primaryRed
+                        ? AppTheme.primary
                         : const Color(0xFFF0F2F6),
                     borderRadius: BorderRadius.circular(999),
                   ),
@@ -606,7 +602,7 @@ class _OperationsSummary extends StatelessWidget {
               label: 'Services',
               subtitle: 'Total',
               icon: Icons.receipt_long_outlined,
-              color: AppTheme.primaryRed,
+              color: AppTheme.primary,
             ),
             _OpsMetric(
               value: '$uploaded',
@@ -840,10 +836,10 @@ class _OperationsCaseCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: AppTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(17),
                 ),
-                child: Icon(_areaIcon(area), color: AppTheme.primaryRed),
+                child: Icon(_areaIcon(area), color: AppTheme.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -963,12 +959,12 @@ class _PaymentReviewCard extends StatelessWidget {
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                      color: AppTheme.primary.withValues(alpha: 0.09),
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: const Icon(
                       Icons.receipt_long_outlined,
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primary,
                       size: 27,
                     ),
                   ),
@@ -1045,8 +1041,8 @@ class _PaymentReviewCard extends StatelessWidget {
                   if (serviceCase.rejectedDocuments > 0)
                     _PaymentCountTag(
                       label: '${serviceCase.rejectedDocuments} rejected',
-                      color: AppTheme.primaryRed,
-                      background: AppTheme.primaryRed.withValues(alpha: 0.07),
+                      color: AppTheme.primary,
+                      background: AppTheme.primary.withValues(alpha: 0.07),
                     ),
                 ],
               ),
@@ -1088,10 +1084,8 @@ class _PaymentReviewCard extends StatelessWidget {
                         ? OutlinedButton.icon(
                             onPressed: () => context.go(livePath),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.primaryRed,
-                              side: const BorderSide(
-                                color: AppTheme.primaryRed,
-                              ),
+                              foregroundColor: AppTheme.primary,
+                              side: const BorderSide(color: AppTheme.primary),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(13),
                               ),
@@ -1108,7 +1102,7 @@ class _PaymentReviewCard extends StatelessWidget {
                         : FilledButton.icon(
                             onPressed: () => context.go(livePath),
                             style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.primaryRed,
+                              backgroundColor: AppTheme.primary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(13),
@@ -1372,7 +1366,7 @@ class _Customer360Card extends StatelessWidget {
                       label: '${serviceCase.uploadedDocuments} uploaded',
                       color: serviceCase.uploadedDocuments > 0
                           ? const Color(0xFF2E9B58)
-                          : AppTheme.primaryRed,
+                          : AppTheme.primary,
                     ),
                     _CustomerDocumentTag(
                       label: '${serviceCase.pendingDocuments} missing',
@@ -2045,8 +2039,8 @@ class _ProgressStage extends StatelessWidget {
       circleColor = const Color(0xFF5A9B73);
       borderColor = const Color(0xFF5A9B73);
     } else if (isCurrent) {
-      circleColor = AppTheme.primaryRed;
-      borderColor = AppTheme.primaryRed;
+      circleColor = AppTheme.primary;
+      borderColor = AppTheme.primary;
     } else {
       circleColor = Colors.white;
       borderColor = const Color(0xFFC9CFDA);
@@ -2665,8 +2659,8 @@ class _WorkspaceSection extends StatelessWidget {
             children: [
               _WorkspaceIconTile(
                 icon: icon,
-                foreground: AppTheme.primaryRed,
-                background: AppTheme.primaryRed.withValues(alpha: 0.08),
+                foreground: AppTheme.primary,
+                background: AppTheme.primary.withValues(alpha: 0.08),
                 size: 38,
                 iconSize: 19,
               ),
@@ -2830,7 +2824,7 @@ class _LoadingCard extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.07),
+        color: AppTheme.primary.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(24),
       ),
     );
@@ -2859,7 +2853,7 @@ class _OperationsError extends StatelessWidget {
             children: [
               const Icon(
                 Icons.cloud_off_rounded,
-                color: AppTheme.primaryRed,
+                color: AppTheme.primary,
                 size: 34,
               ),
               const SizedBox(height: 10),
@@ -2915,7 +2909,7 @@ class _OperationsEmpty extends StatelessWidget {
     return PremiumCard(
       child: Column(
         children: [
-          const Icon(Icons.inbox_rounded, color: AppTheme.primaryRed, size: 34),
+          const Icon(Icons.inbox_rounded, color: AppTheme.primary, size: 34),
           const SizedBox(height: 10),
           Text(
             title,

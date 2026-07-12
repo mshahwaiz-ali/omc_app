@@ -458,7 +458,7 @@ class _NoBudgetState extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.20)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.20)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -472,7 +472,7 @@ class _NoBudgetState extends StatelessWidget {
           Icon(
             Icons.savings_outlined,
             size: 34,
-            color: AppTheme.primaryRed.withValues(alpha: 0.9),
+            color: AppTheme.primary.withValues(alpha: 0.9),
           ),
           const SizedBox(height: 10),
           Text(
@@ -536,7 +536,7 @@ class _BudgetCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: (isOverLimit || isNearLimit)
-                ? AppTheme.primaryRed.withValues(alpha: 0.26)
+                ? AppTheme.primary.withValues(alpha: 0.26)
                 : Colors.black.withValues(alpha: 0.05),
           ),
           boxShadow: [
@@ -556,14 +556,14 @@ class _BudgetCard extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                    color: AppTheme.primary.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     isOverLimit
                         ? Icons.error_outline_rounded
                         : Icons.savings_outlined,
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -612,7 +612,7 @@ class _BudgetCard extends StatelessWidget {
                   : '${formatter.format(remaining)} remaining',
               style: TextStyle(
                 color: (isOverLimit || isNearLimit)
-                    ? AppTheme.primaryRed
+                    ? AppTheme.primary
                     : AppTheme.textSecondary,
                 fontWeight: FontWeight.w800,
               ),

@@ -311,10 +311,10 @@ class _ModeIcon extends StatelessWidget {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.10),
+        color: AppTheme.primary.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: const Icon(Icons.shield_outlined, color: AppTheme.primaryRed),
+      child: const Icon(Icons.shield_outlined, color: AppTheme.primary),
     );
   }
 }
@@ -373,7 +373,7 @@ class _SupportContactRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: AppTheme.primaryRed),
+        Icon(icon, size: 20, color: AppTheme.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

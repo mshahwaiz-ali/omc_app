@@ -29,10 +29,10 @@ class FeaturePlaceholderScreen extends StatelessWidget {
                   width: 74,
                   height: 74,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    color: AppTheme.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Icon(icon, color: AppTheme.primaryRed, size: 34),
+                  child: Icon(icon, color: AppTheme.primary, size: 34),
                 ),
                 const SizedBox(height: 22),
                 Text(

@@ -126,15 +126,11 @@ class _ActionHeaderIcon extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.09),
+        color: AppTheme.primary.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.08)),
       ),
-      child: const Icon(
-        Icons.bolt_rounded,
-        color: AppTheme.primaryRed,
-        size: 22,
-      ),
+      child: const Icon(Icons.bolt_rounded, color: AppTheme.primary, size: 22),
     );
   }
 }
@@ -156,11 +152,11 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = enabled ? AppTheme.primaryRed : AppTheme.textSecondary;
+    final color = enabled ? AppTheme.primary : AppTheme.textSecondary;
 
     return Material(
       color: enabled
-          ? AppTheme.primaryRed.withValues(alpha: 0.045)
+          ? AppTheme.primary.withValues(alpha: 0.045)
           : Colors.black.withValues(alpha: 0.025),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
@@ -226,7 +222,7 @@ class _ActionTile extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.chevron_right_rounded,
-                  color: enabled ? AppTheme.primaryRed : AppTheme.textSecondary,
+                  color: enabled ? AppTheme.primary : AppTheme.textSecondary,
                   size: 20,
                 ),
               ),

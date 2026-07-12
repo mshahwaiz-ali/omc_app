@@ -80,7 +80,7 @@ class _DetailLoadingView extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 118,
-                    color: AppTheme.primaryRed.withValues(alpha: 0.045),
+                    color: AppTheme.primary.withValues(alpha: 0.045),
                   ),
                 ),
                 Padding(
@@ -91,10 +91,10 @@ class _DetailLoadingView extends StatelessWidget {
                         width: 54,
                         height: 54,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                          color: AppTheme.primary.withValues(alpha: 0.09),
                           borderRadius: BorderRadius.circular(19),
                           border: Border.all(
-                            color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                            color: AppTheme.primary.withValues(alpha: 0.10),
                           ),
                         ),
                         child: const Center(
@@ -171,7 +171,7 @@ class _LoadingBar extends StatelessWidget {
       child: Container(
         height: 12,
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.07),
+          color: AppTheme.primary.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(999),
         ),
       ),
@@ -209,7 +209,7 @@ class _DocumentHeroCard extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppTheme.primaryRed, AppTheme.darkRed],
+            colors: [AppTheme.primary, AppTheme.darkRed],
           ),
           borderRadius: BorderRadius.circular(24),
         ),
@@ -236,7 +236,7 @@ class _DocumentHeroCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: statusColor == AppTheme.primaryRed
+                color: statusColor == AppTheme.primary
                     ? Colors.white70
                     : Colors.white,
                 fontSize: 12,
@@ -337,13 +337,13 @@ class _DocumentStatTile extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.065),
+              color: AppTheme.primary.withValues(alpha: 0.065),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                color: AppTheme.primary.withValues(alpha: 0.07),
               ),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 18),
+            child: Icon(icon, color: AppTheme.primary, size: 18),
           ),
           const SizedBox(height: 10),
           Text(
@@ -478,16 +478,13 @@ class _DocumentTimelinePlaceholder extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              color: AppTheme.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                color: AppTheme.primary.withValues(alpha: 0.08),
               ),
             ),
-            child: const Icon(
-              Icons.timeline_rounded,
-              color: AppTheme.primaryRed,
-            ),
+            child: const Icon(Icons.timeline_rounded, color: AppTheme.primary),
           ),
           const SizedBox(width: 14),
           const Expanded(
@@ -536,7 +533,7 @@ Color _documentStatusColor(DocumentStatus status) {
     case DocumentStatus.pendingReview:
       return const Color(0xFFB25E00);
     case DocumentStatus.uploaded:
-      return AppTheme.primaryRed;
+      return AppTheme.primary;
   }
 }
 

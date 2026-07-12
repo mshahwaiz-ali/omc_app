@@ -31,7 +31,7 @@ class CrmDetailHeaderCard extends StatelessWidget {
               child: Icon(
                 icon,
                 size: 108,
-                color: AppTheme.primaryRed.withValues(alpha: 0.045),
+                color: AppTheme.primary.withValues(alpha: 0.045),
               ),
             ),
             Padding(
@@ -43,13 +43,13 @@ class CrmDetailHeaderCard extends StatelessWidget {
                     width: 54,
                     height: 54,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                      color: AppTheme.primary.withValues(alpha: 0.09),
                       borderRadius: BorderRadius.circular(19),
                       border: Border.all(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                        color: AppTheme.primary.withValues(alpha: 0.10),
                       ),
                     ),
-                    child: Icon(icon, color: AppTheme.primaryRed, size: 26),
+                    child: Icon(icon, color: AppTheme.primary, size: 26),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -113,7 +113,7 @@ class CrmDetailInfoCard extends StatelessWidget {
                 width: 7,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -208,7 +208,7 @@ class CrmActivityTimelineCard extends StatelessWidget {
                 width: 7,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -260,16 +260,16 @@ class _CrmStatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        color: AppTheme.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.14)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.14)),
       ),
       child: Text(
         label.trim().isEmpty ? 'Open' : label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
-          color: AppTheme.primaryRed,
+          color: AppTheme.primary,
           fontSize: 11,
           fontWeight: FontWeight.w900,
         ),
@@ -322,10 +322,10 @@ class _TimelineItemTile extends StatelessWidget {
             width: 31,
             height: 31,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              color: AppTheme.primary.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
-            child: Icon(item.icon, size: 16, color: AppTheme.primaryRed),
+            child: Icon(item.icon, size: 16, color: AppTheme.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -399,7 +399,7 @@ class CrmDetailLoadingView extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 112,
-                    color: AppTheme.primaryRed.withValues(alpha: 0.04),
+                    color: AppTheme.primary.withValues(alpha: 0.04),
                   ),
                 ),
                 Padding(
@@ -410,10 +410,10 @@ class CrmDetailLoadingView extends StatelessWidget {
                         width: 54,
                         height: 54,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                          color: AppTheme.primary.withValues(alpha: 0.09),
                           borderRadius: BorderRadius.circular(19),
                           border: Border.all(
-                            color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                            color: AppTheme.primary.withValues(alpha: 0.10),
                           ),
                         ),
                         child: const Center(

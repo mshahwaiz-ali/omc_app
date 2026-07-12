@@ -159,7 +159,7 @@ class _CustomerIdentityCard extends StatelessWidget {
                 height: 130,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.primaryRed.withValues(alpha: 0.035),
+                  color: AppTheme.primary.withValues(alpha: 0.035),
                 ),
               ),
             ),
@@ -267,9 +267,9 @@ class _CustomerProfileAvatar extends StatelessWidget {
       height: 58,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.09),
+        color: AppTheme.primary.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.10)),
       ),
       child: resolvedImageUrl == null
           ? _fallback()
@@ -289,7 +289,7 @@ class _CustomerProfileAvatar extends StatelessWidget {
       child: Text(
         initials,
         style: const TextStyle(
-          color: AppTheme.primaryRed,
+          color: AppTheme.primary,
           fontSize: 18,
           fontWeight: FontWeight.w900,
           letterSpacing: 0.4,
@@ -403,11 +403,7 @@ class _OverviewTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 19,
-            color: AppTheme.primaryRed.withValues(alpha: 0.85),
-          ),
+          Icon(icon, size: 19, color: AppTheme.primary.withValues(alpha: 0.85)),
           const SizedBox(height: 11),
           Text(
             label,
@@ -494,10 +490,10 @@ class _DetailRow extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.065),
+              color: AppTheme.primary.withValues(alpha: 0.065),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(data.icon, size: 19, color: AppTheme.primaryRed),
+            child: Icon(data.icon, size: 19, color: AppTheme.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -563,13 +559,13 @@ class _ActivityCard extends StatelessWidget {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                    color: AppTheme.primary.withValues(alpha: 0.07),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.history_rounded,
                     size: 23,
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -652,7 +648,7 @@ class _TechnicalDetailsCard extends StatelessWidget {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
           childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-          iconColor: AppTheme.primaryRed,
+          iconColor: AppTheme.primary,
           collapsedIconColor: AppTheme.textSecondary,
           title: const Text(
             'Technical details',

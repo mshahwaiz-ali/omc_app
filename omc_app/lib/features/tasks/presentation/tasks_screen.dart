@@ -676,13 +676,15 @@ class _TasksPageHeader extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFECEF),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Text(
                 metaLabel,
-                style: const TextStyle(
-                  color: Color(0xFFD90429),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -697,8 +699,8 @@ class _TasksPageHeader extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onAddTask,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFD90429),
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(horizontal: 22),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
@@ -771,12 +773,16 @@ class _SearchBar extends StatelessWidget {
             margin: const EdgeInsets.only(right: 7),
             decoration: BoxDecoration(
               color: filtersActive
-                  ? const Color(0xFFFFECEF)
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.08)
                   : const Color(0xFFF7F8FA),
               borderRadius: BorderRadius.circular(13),
               border: Border.all(
                 color: filtersActive
-                    ? const Color(0xFFFFC9D2)
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.22)
                     : const Color(0xFFE4E8EF),
               ),
             ),
@@ -786,7 +792,7 @@ class _SearchBar extends StatelessWidget {
               icon: Icon(
                 Icons.tune_rounded,
                 color: filtersActive
-                    ? const Color(0xFFD90429)
+                    ? Theme.of(context).colorScheme.primary
                     : AppTheme.textPrimary,
               ),
             ),
@@ -853,8 +859,10 @@ class _StatusTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+
     return Material(
-      color: selected ? const Color(0xFFFFE6EA) : Colors.white,
+      color: selected ? accent.withValues(alpha: 0.08) : Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -865,7 +873,7 @@ class _StatusTab extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected
-                  ? const Color(0xFFFFD0D7)
+                  ? accent.withValues(alpha: 0.22)
                   : const Color(0xFFE4E8EF),
             ),
           ),
@@ -874,9 +882,7 @@ class _StatusTab extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: selected
-                      ? const Color(0xFFD90429)
-                      : AppTheme.textPrimary,
+                  color: selected ? accent : AppTheme.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -886,16 +892,16 @@ class _StatusTab extends StatelessWidget {
                 constraints: const BoxConstraints(minWidth: 24),
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xFFD90429)
-                      : const Color(0xFFF0F2F5),
+                  color: selected ? accent : const Color(0xFFF0F2F5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '$count',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: selected ? Colors.white : AppTheme.textPrimary,
+                    color: selected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : AppTheme.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
                   ),

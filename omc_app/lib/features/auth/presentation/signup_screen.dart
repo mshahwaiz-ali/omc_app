@@ -738,9 +738,7 @@ class _SignupStepper extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: i <= step
-                    ? AppTheme.primaryRed.withValues(
-                        alpha: i == step ? 1 : 0.10,
-                      )
+                    ? AppTheme.primary.withValues(alpha: i == step ? 1 : 0.10)
                     : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -751,7 +749,7 @@ class _SignupStepper extends StatelessWidget {
                   color: i == step
                       ? Colors.white
                       : i < step
-                      ? AppTheme.primaryRed
+                      ? AppTheme.primary
                       : AppTheme.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
@@ -840,11 +838,11 @@ class _RoleCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: selected
-              ? AppTheme.primaryRed.withValues(alpha: 0.08)
+              ? AppTheme.primary.withValues(alpha: 0.08)
               : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? AppTheme.primaryRed : const Color(0xFFE5EAF2),
+            color: selected ? AppTheme.primary : const Color(0xFFE5EAF2),
           ),
         ),
         child: Row(
@@ -854,11 +852,11 @@ class _RoleCard extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 color: selected
-                    ? AppTheme.primaryRed.withValues(alpha: 0.14)
+                    ? AppTheme.primary.withValues(alpha: 0.14)
                     : Colors.white,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(data.$1, color: AppTheme.primaryRed),
+              child: Icon(data.$1, color: AppTheme.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -889,7 +887,7 @@ class _RoleCard extends StatelessWidget {
               selected
                   ? Icons.radio_button_checked_rounded
                   : Icons.radio_button_unchecked_rounded,
-              color: selected ? AppTheme.primaryRed : const Color(0xFF94A3B8),
+              color: selected ? AppTheme.primary : const Color(0xFF94A3B8),
             ),
           ],
         ),

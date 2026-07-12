@@ -672,7 +672,7 @@ class _SupportTabButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: selected ? AppTheme.primaryRed : AppTheme.textSecondary,
+                color: selected ? AppTheme.primary : AppTheme.textSecondary,
               ),
               const SizedBox(width: 7),
               Flexible(
@@ -695,16 +695,14 @@ class _SupportTabButton extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: selected
-                      ? AppTheme.primaryRed.withValues(alpha: 0.09)
+                      ? AppTheme.primary.withValues(alpha: 0.09)
                       : const Color(0xFFE4E8EE),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   '$count',
                   style: TextStyle(
-                    color: selected
-                        ? AppTheme.primaryRed
-                        : AppTheme.textSecondary,
+                    color: selected ? AppTheme.primary : AppTheme.textSecondary,
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
                   ),
@@ -991,7 +989,7 @@ Color _ticketStatusColor(String status) {
     return const Color(0xFF2F855A);
   }
 
-  return AppTheme.primaryRed;
+  return AppTheme.primary;
 }
 
 class _FaqTile extends StatelessWidget {

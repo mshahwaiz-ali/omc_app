@@ -458,10 +458,10 @@ class _CompactHeader extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.075),
+              color: AppTheme.primary.withValues(alpha: 0.075),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 24),
+            child: Icon(icon, color: AppTheme.primary, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -532,16 +532,16 @@ class _NextActionCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.085),
+                  color: AppTheme.primary.withValues(alpha: 0.085),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: AppTheme.primaryRed, size: 22),
+                child: Icon(icon, color: AppTheme.primary, size: 22),
               ),
               const SizedBox(width: 12),
               Text(
                 eyebrow,
                 style: const TextStyle(
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0.2,
@@ -615,7 +615,7 @@ class _MetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(data.icon, color: AppTheme.primaryRed, size: 21),
+          Icon(data.icon, color: AppTheme.primary, size: 21),
           const SizedBox(height: 13),
           Text(
             data.value,
@@ -682,7 +682,7 @@ class _MiniSummaryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: AppTheme.primaryRed, size: 23),
+              Icon(icon, color: AppTheme.primary, size: 23),
               const Spacer(),
               Text(
                 value,
@@ -785,9 +785,9 @@ class _ServiceSnapshotTile extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progressValue,
                 minHeight: 7,
-                backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.06),
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.06),
                 valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppTheme.primaryRed,
+                  AppTheme.primary,
                 ),
               ),
             ),
@@ -807,7 +807,7 @@ class _ServiceSnapshotTile extends StatelessWidget {
                 Text(
                   trailingLabel,
                   style: const TextStyle(
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w900,
                   ),
@@ -849,12 +849,12 @@ class _InternalQueueTile extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.075),
+                color: AppTheme.primary.withValues(alpha: 0.075),
                 borderRadius: BorderRadius.circular(15),
               ),
               child: const Icon(
                 Icons.work_outline_rounded,
-                color: AppTheme.primaryRed,
+                color: AppTheme.primary,
                 size: 21,
               ),
             ),
@@ -884,7 +884,7 @@ class _InternalQueueTile extends StatelessWidget {
                   Text(
                     documentLabel,
                     style: const TextStyle(
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primary,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -934,7 +934,7 @@ class _AttentionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(row.icon, color: AppTheme.primaryRed, size: 20),
+        Icon(row.icon, color: AppTheme.primary, size: 20),
         const SizedBox(width: 11),
         Expanded(
           child: Text(
@@ -975,7 +975,7 @@ class _QuickActionsCard extends StatelessWidget {
         children: [
           for (final action in actions)
             ActionChip(
-              avatar: Icon(action.icon, color: AppTheme.primaryRed, size: 17),
+              avatar: Icon(action.icon, color: AppTheme.primary, size: 17),
               label: Text(action.label),
               labelStyle: const TextStyle(
                 color: AppTheme.textPrimary,
@@ -1055,12 +1055,12 @@ class _ActivityRow extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.075),
+            color: AppTheme.primary.withValues(alpha: 0.075),
             borderRadius: BorderRadius.circular(15),
           ),
           child: const Icon(
             Icons.timeline_rounded,
-            color: AppTheme.primaryRed,
+            color: AppTheme.primary,
             size: 20,
           ),
         ),
@@ -1095,7 +1095,7 @@ class _ActivityRow extends StatelessWidget {
                 Text(
                   activity.createdAtLabel!,
                   style: const TextStyle(
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1125,10 +1125,10 @@ class _StatusBreakdownRow extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.075),
+            color: AppTheme.primary.withValues(alpha: 0.075),
             borderRadius: BorderRadius.circular(15),
           ),
-          child: Icon(data.icon, color: AppTheme.primaryRed, size: 20),
+          child: Icon(data.icon, color: AppTheme.primary, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1163,9 +1163,9 @@ class _StatusBreakdownRow extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 7,
-                  backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.065),
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.065),
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppTheme.primaryRed,
+                    AppTheme.primary,
                   ),
                 ),
               ),
@@ -1251,7 +1251,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: AppTheme.primaryRed, size: 24),
+        Icon(icon, color: AppTheme.primary, size: 24),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -1292,16 +1292,16 @@ class _SoftPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.07),
+        color: AppTheme.primary.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.1)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(
           label,
           style: const TextStyle(
-            color: AppTheme.primaryRed,
+            color: AppTheme.primary,
             fontSize: 11,
             fontWeight: FontWeight.w900,
           ),
@@ -1326,12 +1326,12 @@ class _FallbackCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.075),
+              color: AppTheme.primary.withValues(alpha: 0.075),
               borderRadius: BorderRadius.circular(17),
             ),
             child: const Icon(
               Icons.info_outline_rounded,
-              color: AppTheme.primaryRed,
+              color: AppTheme.primary,
             ),
           ),
           const SizedBox(width: 14),
@@ -1454,7 +1454,7 @@ class _LoadingBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.045),
+        color: AppTheme.primary.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -1472,7 +1472,7 @@ class _LoadingPill extends StatelessWidget {
       width: width,
       height: 30,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.045),
+        color: AppTheme.primary.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(999),
       ),
     );
@@ -1492,7 +1492,7 @@ class _LoadingBar extends StatelessWidget {
       child: Container(
         height: height,
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.045),
+          color: AppTheme.primary.withValues(alpha: 0.045),
           borderRadius: BorderRadius.circular(999),
         ),
       ),

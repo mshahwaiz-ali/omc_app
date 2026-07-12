@@ -166,7 +166,7 @@ class _PaymentsHeader extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: actionCount > 0
-                        ? AppTheme.primaryRed
+                        ? AppTheme.primary
                         : const Color(0xFF2DA567),
                     borderRadius: BorderRadius.circular(999),
                   ),
@@ -430,7 +430,7 @@ class _PaymentCard extends StatelessWidget {
                     ? FilledButton.icon(
                         onPressed: () => context.push(detailPath),
                         style: FilledButton.styleFrom(
-                          backgroundColor: AppTheme.primaryRed,
+                          backgroundColor: AppTheme.primary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

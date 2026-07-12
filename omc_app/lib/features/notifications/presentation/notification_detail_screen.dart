@@ -313,7 +313,7 @@ class _NotificationDetailBodyState
       case AppNotificationType.paymentAlert:
         return Colors.green.shade700;
       case AppNotificationType.serviceUpdate:
-        return AppTheme.primaryRed;
+        return AppTheme.primary;
       case AppNotificationType.general:
         return Colors.blueGrey.shade700;
     }
@@ -394,7 +394,7 @@ class _NotificationHeroCard extends StatelessWidget {
                               label: notification.isRead ? 'Read' : 'Unread',
                               color: notification.isRead
                                   ? Colors.green.shade700
-                                  : AppTheme.primaryRed,
+                                  : AppTheme.primary,
                             ),
                             if (notification.actionUrl != null)
                               const _InfoPill(label: 'Action available'),
@@ -497,7 +497,7 @@ class _ActionsCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.tune_rounded, color: AppTheme.primaryRed, size: 20),
+              Icon(Icons.tune_rounded, color: AppTheme.primary, size: 20),
               SizedBox(width: 8),
               Text(
                 'Actions',
@@ -539,7 +539,7 @@ class _InfoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pillColor = color ?? AppTheme.primaryRed;
+    final pillColor = color ?? AppTheme.primary;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -582,10 +582,10 @@ class _DetailTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.08),
+              color: AppTheme.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(15),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 21),
+            child: Icon(icon, color: AppTheme.primary, size: 21),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -644,7 +644,7 @@ class _ActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: isEnabled
               ? Colors.white
-              : AppTheme.primaryRed.withValues(alpha: 0.035),
+              : AppTheme.primary.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: Theme.of(
@@ -658,14 +658,14 @@ class _ActionButton extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(
+                color: AppTheme.primary.withValues(
                   alpha: isEnabled ? 0.08 : 0.04,
                 ),
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Icon(
                 icon,
-                color: isEnabled ? AppTheme.primaryRed : AppTheme.textSecondary,
+                color: isEnabled ? AppTheme.primary : AppTheme.textSecondary,
               ),
             ),
             const SizedBox(width: 12),
@@ -792,7 +792,7 @@ class _LoadingBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        color: AppTheme.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -810,7 +810,7 @@ class _LoadingPill extends StatelessWidget {
       width: width,
       height: 28,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.05),
+        color: AppTheme.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(999),
       ),
     );
@@ -830,7 +830,7 @@ class _LoadingBar extends StatelessWidget {
       child: Container(
         height: height,
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.05),
+          color: AppTheme.primary.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(999),
         ),
       ),

@@ -37,15 +37,15 @@ class DocumentActionCard extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: AppTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    color: AppTheme.primary.withValues(alpha: 0.08),
                   ),
                 ),
                 child: const Icon(
                   Icons.task_alt_rounded,
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   size: 20,
                 ),
               ),
@@ -141,7 +141,7 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = enabled ? AppTheme.primaryRed : AppTheme.textSecondary;
+    final color = enabled ? AppTheme.primary : AppTheme.textSecondary;
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
@@ -150,12 +150,12 @@ class _ActionTile extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: enabled
-              ? AppTheme.primaryRed.withValues(alpha: 0.035)
+              ? AppTheme.primary.withValues(alpha: 0.035)
               : Colors.black.withValues(alpha: 0.025),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: enabled
-                ? AppTheme.primaryRed.withValues(alpha: 0.07)
+                ? AppTheme.primary.withValues(alpha: 0.07)
                 : Colors.black.withValues(alpha: 0.05),
           ),
         ),
@@ -213,7 +213,7 @@ class _ActionTile extends StatelessWidget {
               ),
               child: Icon(
                 Icons.chevron_right_rounded,
-                color: enabled ? AppTheme.primaryRed : AppTheme.textSecondary,
+                color: enabled ? AppTheme.primary : AppTheme.textSecondary,
                 size: 20,
               ),
             ),

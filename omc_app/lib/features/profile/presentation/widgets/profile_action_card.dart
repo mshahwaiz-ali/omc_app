@@ -102,11 +102,9 @@ class _ProfileActionTile extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppTheme.primaryRed.withValues(alpha: 0.035),
+          color: AppTheme.primary.withValues(alpha: 0.035),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppTheme.primaryRed.withValues(alpha: 0.07),
-          ),
+          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.07)),
         ),
         child: Row(
           children: [
@@ -114,13 +112,13 @@ class _ProfileActionTile extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                color: AppTheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: AppTheme.primary.withValues(alpha: 0.08),
                 ),
               ),
-              child: Icon(icon, color: AppTheme.primaryRed, size: 21),
+              child: Icon(icon, color: AppTheme.primary, size: 21),
             ),
             const SizedBox(width: 12),
             Expanded(

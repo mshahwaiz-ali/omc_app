@@ -28,12 +28,12 @@ class UnderReviewScreen extends StatelessWidget {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                      color: AppTheme.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(22),
                     ),
                     child: const Icon(
                       Icons.hourglass_top_rounded,
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primary,
                       size: 30,
                     ),
                   ),

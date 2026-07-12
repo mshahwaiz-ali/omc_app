@@ -605,7 +605,7 @@ class _CompactBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 5),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed,
+        color: AppTheme.primary,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white, width: 2),
       ),

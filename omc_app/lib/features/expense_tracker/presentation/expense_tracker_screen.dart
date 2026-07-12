@@ -912,16 +912,14 @@ class _QuickAddPanel extends StatelessWidget {
                     avatar: Icon(
                       _iconForCategory(category.title),
                       size: 18,
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primary,
                     ),
                     label: Text(category.title),
                     onPressed: () => onSelected(category),
                     side: BorderSide(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.18),
+                      color: AppTheme.primary.withValues(alpha: 0.18),
                     ),
-                    backgroundColor: AppTheme.primaryRed.withValues(
-                      alpha: 0.05,
-                    ),
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.05),
                     labelStyle: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontWeight: FontWeight.w800,
@@ -1747,9 +1745,9 @@ class _MiniStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.06),
+        color: AppTheme.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.07)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.07)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1867,14 +1865,14 @@ class _MiniChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.07),
+        color: AppTheme.primary.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.10)),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: AppTheme.primaryRed,
+          color: AppTheme.primary,
           fontSize: 11,
           fontWeight: FontWeight.w900,
         ),
@@ -1894,11 +1892,11 @@ class _IconBox extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        color: AppTheme.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(size >= 40 ? 15 : 12),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.08)),
       ),
-      child: Icon(icon, color: AppTheme.primaryRed, size: size >= 40 ? 22 : 18),
+      child: Icon(icon, color: AppTheme.primary, size: size >= 40 ? 22 : 18),
     );
   }
 }

@@ -188,7 +188,7 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
                     height: 28,
                     width: 74,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.05),
+                      color: AppTheme.primary.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -199,7 +199,7 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
                 height: 22,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.06),
+                  color: AppTheme.primary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -208,7 +208,7 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
                 height: 14,
                 width: 240,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.05),
+                  color: AppTheme.primary.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -227,7 +227,7 @@ class _KnowledgeDetailLoadingView extends StatelessWidget {
                 height: 12,
                 width: index == 6 ? 180 : double.infinity,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.05),
+                  color: AppTheme.primary.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -286,14 +286,14 @@ class _MetaChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+        color: AppTheme.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.08)),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: AppTheme.primaryRed,
+          color: AppTheme.primary,
           fontSize: 11,
           fontWeight: FontWeight.w900,
         ),
@@ -327,15 +327,15 @@ class _KnowledgeDetailUnavailable extends StatelessWidget {
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: AppTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    color: AppTheme.primary.withValues(alpha: 0.08),
                   ),
                 ),
                 child: const Icon(
                   Icons.article_outlined,
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   size: 28,
                 ),
               ),

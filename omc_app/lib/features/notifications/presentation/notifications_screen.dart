@@ -180,30 +180,31 @@ class _NotificationsHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(20),
+    final accent = Theme.of(context).colorScheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 4, 2, 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 58,
-                height: 58,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: OmcPremium.system.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: OmcPremium.system.withValues(alpha: 0.10),
-                  ),
+                  color: accent.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: accent.withValues(alpha: 0.13)),
                 ),
-                child: const Icon(
-                  Icons.notifications_active_outlined,
-                  color: OmcPremium.system,
-                  size: 30,
+                child: Icon(
+                  Icons.notifications_none_rounded,
+                  color: accent,
+                  size: 24,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 13),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,54 +213,60 @@ class _NotificationsHero extends StatelessWidget {
                       'Notifications',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
-                        fontSize: 26,
+                        fontSize: 24,
                         fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
                       ),
                     ),
-                    SizedBox(height: 5),
+                    SizedBox(height: 3),
                     Text(
-                      'Service updates, documents, payments and account alerts.',
+                      'Service, document and payment updates',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
-                        fontSize: 13,
-                        height: 1.35,
+                        fontSize: 12.5,
+                        height: 1.3,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (onMarkAllRead != null) ...[
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
+              if (onMarkAllRead != null)
+                IconButton(
                   tooltip: 'Mark all read',
                   onPressed: onMarkAllRead,
+                  style: IconButton.styleFrom(
+                    foregroundColor: accent,
+                    backgroundColor: accent.withValues(alpha: 0.08),
+                  ),
                   icon: const Icon(Icons.done_all_rounded),
                 ),
+            ],
+          ),
+          if (totalCount > 0) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                PremiumInfoChip(
+                  icon: Icons.inbox_outlined,
+                  label: 'All $totalCount',
+                ),
+                if (unreadCount > 0)
+                  PremiumInfoChip(
+                    icon: Icons.mark_email_unread_outlined,
+                    label: 'Unread $unreadCount',
+                    color: accent,
+                  ),
+                if (actionCount > 0)
+                  PremiumInfoChip(
+                    icon: Icons.touch_app_outlined,
+                    label: 'Action needed $actionCount',
+                  ),
               ],
-            ],
-          ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              PremiumInfoChip(
-                icon: Icons.inbox_outlined,
-                label: '$totalCount total',
-              ),
-              PremiumInfoChip(
-                icon: unreadCount == 0
-                    ? Icons.mark_email_read_outlined
-                    : Icons.mark_email_unread_outlined,
-                label: unreadCount == 0 ? 'All read' : '$unreadCount unread',
-              ),
-              PremiumInfoChip(
-                icon: Icons.touch_app_outlined,
-                label: actionCount == 0 ? 'No actions' : '$actionCount actions',
-              ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );
@@ -307,7 +314,7 @@ class _NotificationCard extends StatelessWidget {
                         width: 11,
                         height: 11,
                         decoration: BoxDecoration(
-                          color: OmcPremium.services,
+                          color: Theme.of(context).colorScheme.primary,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -422,12 +429,12 @@ class _EmptyNotificationsView extends StatelessWidget {
           actionCount: 0,
           onMarkAllRead: null,
         ),
-        SizedBox(height: 18),
+        SizedBox(height: 28),
         _NotificationsStateCard(
           icon: Icons.notifications_none_rounded,
-          title: 'No notifications yet',
+          title: "You're all caught up",
           message:
-              'Service updates, document requests and payment alerts will appear here when available.',
+              'New service updates, document requests, payments and account alerts will appear here.',
         ),
       ],
     );
@@ -463,7 +470,7 @@ class _NotificationsErrorView extends StatelessWidget {
           actionCount: 0,
           onMarkAllRead: null,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 28),
         _NotificationsStateCard(
           icon: Icons.cloud_off_rounded,
           title: 'Notifications unavailable',
@@ -497,14 +504,14 @@ class _NotificationsStateCard extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 62,
-            height: 62,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: color.withValues(alpha: 0.08)),
             ),
-            child: Icon(icon, color: color, size: 32),
+            child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 18),
           Text(

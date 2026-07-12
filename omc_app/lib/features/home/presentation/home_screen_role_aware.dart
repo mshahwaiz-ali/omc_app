@@ -782,12 +782,12 @@ class HomeScreen extends ConsumerWidget {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.09),
+                  color: AppTheme.primary.withValues(alpha: 0.09),
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: const Icon(
                   Icons.lock_open_rounded,
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   size: 30,
                 ),
               ),
@@ -825,7 +825,7 @@ class HomeScreen extends ConsumerWidget {
                   },
                   style: FilledButton.styleFrom(
                     elevation: 0,
-                    backgroundColor: AppTheme.primaryRed,
+                    backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(17),
@@ -1421,7 +1421,7 @@ class _CustomerServiceFocusCard extends StatelessWidget {
               onPressed: onPrimaryAction,
               style: FilledButton.styleFrom(
                 elevation: 0,
-                backgroundColor: AppTheme.primaryRed,
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -1494,7 +1494,7 @@ class _CustomerServiceFocusCard extends StatelessWidget {
       return const Color(0xFF159447);
     }
 
-    return AppTheme.primaryRed;
+    return AppTheme.primary;
   }
 }
 

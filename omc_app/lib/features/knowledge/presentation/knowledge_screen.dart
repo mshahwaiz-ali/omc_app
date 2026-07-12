@@ -123,22 +123,22 @@ class _KnowledgeHeroCard extends StatelessWidget {
                     width: 54,
                     height: 54,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                      color: AppTheme.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(19),
                       border: Border.all(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                        color: AppTheme.primary.withValues(alpha: 0.08),
                       ),
                     ),
                     child: Icon(
                       _iconForType(article.type),
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primary,
                       size: 28,
                     ),
                   ),
                   const Spacer(),
                   PremiumInfoChip(
                     label: _labelForType(article.type),
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                   ),
                 ],
               ),
@@ -201,7 +201,7 @@ class _KnowledgeHeroCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   const Icon(
                     Icons.arrow_forward_rounded,
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                   ),
                 ],
               ),
@@ -227,12 +227,12 @@ class _SectionHeader extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.08),
+            color: AppTheme.primary.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(
             Icons.auto_stories_outlined,
-            color: AppTheme.primaryRed,
+            color: AppTheme.primary,
             size: 20,
           ),
         ),
@@ -403,12 +403,12 @@ class _KnowledgeArticleTile extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: AppTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   _iconForType(article.type),
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   size: 22,
                 ),
               ),
@@ -447,7 +447,7 @@ class _KnowledgeArticleTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: AppTheme.primaryRed,
+                          color: AppTheme.primary,
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
                         ),
@@ -522,12 +522,12 @@ class _KnowledgeEmptyState extends StatelessWidget {
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: AppTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Icon(
                   Icons.menu_book_outlined,
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   size: 28,
                 ),
               ),

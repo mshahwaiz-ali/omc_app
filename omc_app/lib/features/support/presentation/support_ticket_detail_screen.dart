@@ -380,7 +380,7 @@ class _TicketInfoCard extends StatelessWidget {
                     const Icon(
                       Icons.link_rounded,
                       size: 17,
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primary,
                     ),
                     const SizedBox(width: 7),
                     Expanded(
@@ -440,11 +440,11 @@ class _CustomerInformationCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 21,
-                backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.08),
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
                 child: Text(
                   _initials(identity),
                   style: const TextStyle(
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
                   ),
@@ -623,12 +623,12 @@ class _ChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final maxWidth = MediaQuery.sizeOf(context).width * 0.78;
     final bubbleColor = isMine
-        ? AppTheme.primaryRed.withValues(alpha: 0.09)
+        ? AppTheme.primary.withValues(alpha: 0.09)
         : Theme.of(
             context,
           ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.68);
     final borderColor = isMine
-        ? AppTheme.primaryRed.withValues(alpha: 0.12)
+        ? AppTheme.primary.withValues(alpha: 0.12)
         : Theme.of(context).dividerColor.withValues(alpha: 0.55);
 
     return Align(
@@ -658,7 +658,7 @@ class _ChatBubble extends StatelessWidget {
                       message.isFromCustomer
                           ? Icons.person_outline_rounded
                           : Icons.support_agent_rounded,
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primary,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
@@ -741,16 +741,14 @@ class _AttachmentTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.72),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppTheme.primaryRed.withValues(alpha: 0.10),
-          ),
+          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.10)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
               Icons.attach_file_rounded,
-              color: AppTheme.primaryRed,
+              color: AppTheme.primary,
               size: 18,
             ),
             const SizedBox(width: 8),
@@ -924,8 +922,8 @@ class _SupportChatComposer extends StatelessWidget {
                             style: FilledButton.styleFrom(
                               padding: EdgeInsets.zero,
                               shape: const CircleBorder(),
-                              backgroundColor: AppTheme.primaryRed,
-                              disabledBackgroundColor: AppTheme.primaryRed
+                              backgroundColor: AppTheme.primary,
+                              disabledBackgroundColor: AppTheme.primary
                                   .withValues(alpha: 0.25),
                             ),
                             child: isSending
@@ -982,15 +980,15 @@ class _PickedAttachmentPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.06),
+        color: AppTheme.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.10)),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.attach_file_rounded,
-            color: AppTheme.primaryRed,
+            color: AppTheme.primary,
             size: 18,
           ),
           const SizedBox(width: 8),
@@ -1065,7 +1063,7 @@ class _SupportAdminStatusBar extends StatelessWidget {
                 ? null
                 : () => _openStatusSheet(context),
             style: TextButton.styleFrom(
-              foregroundColor: AppTheme.primaryRed,
+              foregroundColor: AppTheme.primary,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1393,7 +1391,7 @@ Color _statusColor(String status) {
     return const Color(0xFF2F855A);
   }
   if (value.contains('cancel')) return const Color(0xFF718096);
-  return AppTheme.primaryRed;
+  return AppTheme.primary;
 }
 
 String _customerIdentity(SupportTicket ticket) {

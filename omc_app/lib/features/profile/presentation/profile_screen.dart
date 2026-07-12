@@ -97,10 +97,10 @@ class _ProfileHeroSkeleton extends StatelessWidget {
             width: 74,
             height: 74,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.06),
+              color: AppTheme.primary.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(26),
               border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.07),
+                color: AppTheme.primary.withValues(alpha: 0.07),
               ),
             ),
           ),
@@ -207,15 +207,15 @@ class _ProfileUnavailableView extends StatelessWidget {
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                  color: AppTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(21),
                   border: Border.all(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    color: AppTheme.primary.withValues(alpha: 0.08),
                   ),
                 ),
                 child: const Icon(
                   Icons.person_search_outlined,
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primary,
                   size: 30,
                 ),
               ),
@@ -376,12 +376,12 @@ class _ProfileContent extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                    color: AppTheme.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(
                     Icons.admin_panel_settings_rounded,
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -585,12 +585,12 @@ class _ProfileRequestSheet extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.08),
+                      color: AppTheme.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
                       Icons.edit_note_rounded,
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primary,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -883,11 +883,11 @@ class _ProfileAvatar extends StatelessWidget {
           width: 86,
           height: 86,
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed,
+            color: AppTheme.primary,
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryRed.withValues(alpha: 0.20),
+                color: AppTheme.primary.withValues(alpha: 0.20),
                 blurRadius: 24,
                 offset: const Offset(0, 14),
               ),

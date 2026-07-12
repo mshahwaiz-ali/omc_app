@@ -539,10 +539,10 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.055),
+                      color: AppTheme.primary.withValues(alpha: 0.055),
                       borderRadius: BorderRadius.circular(13),
                       border: Border.all(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                        color: AppTheme.primary.withValues(alpha: 0.10),
                       ),
                     ),
                     child: Row(
@@ -550,7 +550,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
                       children: [
                         const Icon(
                           Icons.error_outline_rounded,
-                          color: AppTheme.primaryRed,
+                          color: AppTheme.primary,
                           size: 18,
                         ),
                         const SizedBox(width: 8),
@@ -558,7 +558,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
                           child: Text(
                             _errorMessage!,
                             style: const TextStyle(
-                              color: AppTheme.primaryRed,
+                              color: AppTheme.primary,
                               fontSize: 11.5,
                               height: 1.35,
                               fontWeight: FontWeight.w700,
@@ -856,7 +856,7 @@ class _ErrorView extends StatelessWidget {
             children: [
               const Icon(
                 Icons.cloud_off_rounded,
-                color: AppTheme.primaryRed,
+                color: AppTheme.primary,
                 size: 42,
               ),
               const SizedBox(height: 12),
@@ -946,15 +946,15 @@ class _CaseHero extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primaryRed.withValues(alpha: 0.14),
-                    AppTheme.primaryRed.withValues(alpha: 0.055),
+                    AppTheme.primary.withValues(alpha: 0.14),
+                    AppTheme.primary.withValues(alpha: 0.055),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(compact ? 21 : 24),
                 border: Border.all(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                  color: AppTheme.primary.withValues(alpha: 0.10),
                 ),
               ),
               child: Stack(
@@ -963,7 +963,7 @@ class _CaseHero extends StatelessWidget {
                   Icon(
                     Icons.description_outlined,
                     size: compact ? 34 : 39,
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primary,
                   ),
                   Positioned(
                     right: compact ? 8 : 9,
@@ -972,7 +972,7 @@ class _CaseHero extends StatelessWidget {
                       width: 19,
                       height: 19,
                       decoration: const BoxDecoration(
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primary,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -1794,15 +1794,15 @@ class _ActivityRow extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.07),
+              color: AppTheme.primary.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(13),
               border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.10),
+                color: AppTheme.primary.withValues(alpha: 0.10),
               ),
             ),
             child: Icon(
               _activityIcon(step.title),
-              color: AppTheme.primaryRed,
+              color: AppTheme.primary,
               size: 18,
             ),
           ),
@@ -2622,7 +2622,7 @@ class _SecondaryCaseAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? AppTheme.primaryRed : AppTheme.textPrimary;
+    final color = destructive ? AppTheme.primary : AppTheme.textPrimary;
 
     return SizedBox(
       height: 43,
@@ -2632,11 +2632,11 @@ class _SecondaryCaseAction extends StatelessWidget {
           foregroundColor: color,
           side: BorderSide(
             color: destructive
-                ? AppTheme.primaryRed.withValues(alpha: 0.28)
+                ? AppTheme.primary.withValues(alpha: 0.28)
                 : Colors.black.withValues(alpha: 0.09),
           ),
           backgroundColor: destructive
-              ? AppTheme.primaryRed.withValues(alpha: 0.025)
+              ? AppTheme.primary.withValues(alpha: 0.025)
               : AppTheme.background,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

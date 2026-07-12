@@ -141,7 +141,7 @@ class AuthPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: AppTheme.primaryRed),
+          Icon(icon, size: 15, color: AppTheme.primary),
           const SizedBox(width: 6),
           Text(
             label,
@@ -176,7 +176,7 @@ class AuthErrorBanner extends StatelessWidget {
         children: [
           const Icon(
             Icons.error_outline_rounded,
-            color: AppTheme.primaryRed,
+            color: AppTheme.primary,
             size: 20,
           ),
           const SizedBox(width: 10),
