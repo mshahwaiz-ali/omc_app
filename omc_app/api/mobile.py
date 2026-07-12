@@ -1,3 +1,5 @@
+import re
+
 import frappe
 from frappe.utils.file_manager import save_file
 
@@ -10,6 +12,33 @@ def _message(message="OK", **extra):
     data = {"message": message}
     data.update(extra)
     return data
+
+
+_ACCENT_FAMILY_FALLBACKS = {
+    "navy": "#111827",
+    "blue": "#2563EB",
+    "teal": "#0F766E",
+    "indigo": "#4F46E5",
+    "slate": "#475569",
+    "burgundy": "#881337",
+    "omc_red": "#C81D32",
+}
+
+
+def _valid_hex_color(value):
+    text = (value or "").strip().upper()
+    if re.fullmatch(r"#[0-9A-F]{6}", text):
+        return text
+    return ""
+
+
+def _resolved_accent_color(settings):
+    custom = _valid_hex_color(getattr(settings, "accent_color", None))
+    if custom:
+        return custom
+
+    family = (getattr(settings, "primary_color_family", None) or "navy").strip().lower()
+    return _ACCENT_FAMILY_FALLBACKS.get(family, "#111827")
 
 
 def _format_datetime(value):

@@ -27,6 +27,7 @@
   "force_update",
   "maintenance_mode",
   "appearance_section",
+  "accent_color",
   "primary_color_family",
   "legal_section",
   "privacy_policy_url",
@@ -178,6 +179,14 @@
    "fieldname": "appearance_section",
    "fieldtype": "Section Break",
    "label": "App Appearance"
+  },
+  {
+   "default": "#111827",
+   "description": "Global mobile app accent used for primary actions, active navigation, selected filters and focused controls.",
+   "fieldname": "accent_color",
+   "fieldtype": "Color",
+   "label": "Accent Color",
+   "reqd": 0
   },
   {
    "default": "navy",
