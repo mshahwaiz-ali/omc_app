@@ -46,9 +46,15 @@ class TaskItem {
       ),
       assignedTo: _stringValue(json['assigned_to'] ?? json['owner']),
       description: _nullableString(json['description'] ?? json['details']),
-      customerProfile: _nullableString(json['customer_profile'] ?? json['customer']),
-      serviceRequest: _nullableString(json['service_request'] ?? json['case_id']),
-      supportTicket: _nullableString(json['support_ticket'] ?? json['ticket_id']),
+      customerProfile: _nullableString(
+        json['customer_profile'] ?? json['customer'],
+      ),
+      serviceRequest: _nullableString(
+        json['service_request'] ?? json['case_id'],
+      ),
+      supportTicket: _nullableString(
+        json['support_ticket'] ?? json['ticket_id'],
+      ),
       completedOnLabel: _nullableString(json['completed_on']),
       createdAtLabel: _nullableString(json['created_at'] ?? json['creation']),
       updatedAtLabel: _nullableString(json['updated_at'] ?? json['modified']),

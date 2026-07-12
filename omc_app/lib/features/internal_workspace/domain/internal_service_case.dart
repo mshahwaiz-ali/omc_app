@@ -37,7 +37,8 @@ class InternalServiceCaseQueue {
   factory InternalServiceCaseQueue.fromResponse(Map<String, dynamic> data) {
     final message = data['message'];
     final source = message is Map<String, dynamic> ? message : data;
-    final rawCases = source['cases'] ?? source['service_cases'] ?? source['data'];
+    final rawCases =
+        source['cases'] ?? source['service_cases'] ?? source['data'];
     final rawSummary = source['summary'];
     final rawCapabilities = source['capabilities'];
 

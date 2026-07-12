@@ -50,6 +50,7 @@ class _InternalServiceCasesScreenState
     extends ConsumerState<InternalServiceCasesScreen> {
   late final TextEditingController _searchController;
 
+  String _searchQuery = '';
   String _primaryFilter = 'All';
   String _statusFilter = 'All';
   String _documentFilter = 'All';
@@ -58,9 +59,7 @@ class _InternalServiceCasesScreenState
   void initState() {
     super.initState();
 
-    _searchController = TextEditingController(
-      text: ref.read(internalServiceCaseFiltersProvider).search,
-    );
+    _searchController = TextEditingController();
   }
 
   @override
@@ -70,9 +69,7 @@ class _InternalServiceCasesScreenState
   }
 
   void _updateSearch(String value) {
-    ref
-        .read(internalServiceCaseFiltersProvider.notifier)
-        .setFilters(InternalServiceCaseFilters(search: value));
+    setState(() => _searchQuery = value);
   }
 
   Future<void> _showFilters() async {
@@ -202,6 +199,22 @@ class _InternalServiceCasesScreenState
 
   List<InternalServiceCase> _visibleCases(List<InternalServiceCase> cases) {
     Iterable<InternalServiceCase> result = cases;
+    final query = _searchQuery.trim().toLowerCase();
+
+    if (query.isNotEmpty) {
+      result = result.where((item) {
+        final searchable = [
+          item.id,
+          item.customerName,
+          item.customerProfile,
+          item.serviceTitle,
+          item.status,
+          item.priority,
+        ].join(' ').toLowerCase();
+
+        return searchable.contains(query);
+      });
+    }
 
     switch (_primaryFilter) {
       case 'Attention':

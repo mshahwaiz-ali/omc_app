@@ -66,7 +66,9 @@ class TasksRepository {
         data: {
           'title': cleanTitle,
           'status': status?.trim().isNotEmpty == true ? status!.trim() : 'Open',
-          'priority': priority?.trim().isNotEmpty == true ? priority!.trim() : 'Normal',
+          'priority': priority?.trim().isNotEmpty == true
+              ? priority!.trim()
+              : 'Normal',
           'due_date': dueDate?.trim() ?? '',
           'assigned_to': assignedTo?.trim() ?? '',
           'description': description?.trim() ?? '',

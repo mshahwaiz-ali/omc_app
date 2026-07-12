@@ -15,16 +15,20 @@ import '../../profile/data/profile_repository.dart';
 import '../data/expense_tracker_repository.dart';
 import '../domain/expense_transaction.dart';
 
-final expenseTrackerConfigProvider = FutureProvider<ExpenseTrackerConfig>((ref) {
+final expenseTrackerConfigProvider = FutureProvider<ExpenseTrackerConfig>((
+  ref,
+) {
   return ref.watch(expenseTrackerRepositoryProvider).fetchConfig();
 });
 
 final expenseTransactionsProvider =
-    AsyncNotifierProvider<ExpenseTransactionsController, List<ExpenseTransaction>>(
-  ExpenseTransactionsController.new,
-);
+    AsyncNotifierProvider<
+      ExpenseTransactionsController,
+      List<ExpenseTransaction>
+    >(ExpenseTransactionsController.new);
 
-class ExpenseTransactionsController extends AsyncNotifier<List<ExpenseTransaction>> {
+class ExpenseTransactionsController
+    extends AsyncNotifier<List<ExpenseTransaction>> {
   late final ExpenseTrackerRepository _repository;
 
   @override
@@ -53,7 +57,10 @@ class ExpenseTransactionsController extends AsyncNotifier<List<ExpenseTransactio
     }
   }
 
-  Future<ExpenseTransaction> add(ExpenseTransaction transaction, {required bool sync}) async {
+  Future<ExpenseTransaction> add(
+    ExpenseTransaction transaction, {
+    required bool sync,
+  }) async {
     final current = state.value ?? const <ExpenseTransaction>[];
     var nextTransaction = transaction;
 
@@ -68,7 +75,10 @@ class ExpenseTransactionsController extends AsyncNotifier<List<ExpenseTransactio
     return nextTransaction;
   }
 
-  Future<ExpenseTransaction> updateTransaction(ExpenseTransaction transaction, {required bool sync}) async {
+  Future<ExpenseTransaction> updateTransaction(
+    ExpenseTransaction transaction, {
+    required bool sync,
+  }) async {
     final current = state.value ?? const <ExpenseTransaction>[];
     var nextTransaction = transaction;
 
@@ -158,14 +168,14 @@ class ExpenseTrackerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileSummaryProvider).maybeWhen(
-          data: (profile) => profile,
-          orElse: () => null,
-        );
+    final profile = ref
+        .watch(profileSummaryProvider)
+        .maybeWhen(data: (profile) => profile, orElse: () => null);
     final authState = ref.watch(authControllerProvider);
     final capabilities = profile?.capabilities ?? authState.capabilities;
     final accessMode = _resolveAccessMode(capabilities);
-    final config = ref.watch(expenseTrackerConfigProvider).value ??
+    final config =
+        ref.watch(expenseTrackerConfigProvider).value ??
         ExpenseTrackerConfig.fallback();
     final transactionsAsync = ref.watch(expenseTransactionsProvider);
     final shouldSync = accessMode == ExpenseTrackerAccessMode.approvedSync;
@@ -199,23 +209,40 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                 ref.read(expenseTransactionsProvider.notifier).reloadLocal();
               }
             },
-            icon: Icon(shouldSync ? Icons.cloud_sync_outlined : Icons.refresh_rounded),
+            icon: Icon(
+              shouldSync ? Icons.cloud_sync_outlined : Icons.refresh_rounded,
+            ),
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              final transactions = transactionsAsync.value ?? const <ExpenseTransaction>[];
+              final transactions =
+                  transactionsAsync.value ?? const <ExpenseTransaction>[];
               if (value == 'export') _showExportDialog(context, transactions);
               if (value == 'import') _showImportDialog(context, ref);
-              if (value == 'sync') ref.read(expenseTransactionsProvider.notifier).bulkSync();
+              if (value == 'sync') {
+                ref.read(expenseTransactionsProvider.notifier).bulkSync();
+              }
               if (value == 'clear') _confirmClearAll(context, ref);
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'export', child: Text('Export backup JSON')),
+              const PopupMenuItem(
+                value: 'export',
+                child: Text('Export backup JSON'),
+              ),
               if (!shouldSync)
-                const PopupMenuItem(value: 'import', child: Text('Import backup JSON')),
+                const PopupMenuItem(
+                  value: 'import',
+                  child: Text('Import backup JSON'),
+                ),
               if (shouldSync)
-                const PopupMenuItem(value: 'sync', child: Text('Sync local entries now')),
-              const PopupMenuItem(value: 'clear', child: Text('Clear local data')),
+                const PopupMenuItem(
+                  value: 'sync',
+                  child: Text('Sync local entries now'),
+                ),
+              const PopupMenuItem(
+                value: 'clear',
+                child: Text('Clear local data'),
+              ),
             ],
           ),
         ],
@@ -223,19 +250,22 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       floatingActionButton: Builder(
         builder: (context) {
           final count = transactionsAsync.value?.length ?? 0;
-          final limitReached = accessMode == ExpenseTrackerAccessMode.guestLocal &&
+          final limitReached =
+              accessMode == ExpenseTrackerAccessMode.guestLocal &&
               count >= config.guestLimit;
           return FloatingActionButton.extended(
             onPressed: limitReached
                 ? () => _showLimitDialog(context, config.guestLimit)
                 : () => _showTransactionSheet(
-                      context,
-                      ref,
-                      accessMode: accessMode,
-                      config: config,
-                      sync: shouldSync,
-                    ),
-            icon: Icon(limitReached ? Icons.lock_outline_rounded : Icons.add_rounded),
+                    context,
+                    ref,
+                    accessMode: accessMode,
+                    config: config,
+                    sync: shouldSync,
+                  ),
+            icon: Icon(
+              limitReached ? Icons.lock_outline_rounded : Icons.add_rounded,
+            ),
             label: Text(limitReached ? 'Limit reached' : 'Add'),
           );
         },
@@ -275,7 +305,8 @@ class ExpenseTrackerScreen extends ConsumerWidget {
               initialCategory: category,
             ),
             onSync: shouldSync
-                ? () => ref.read(expenseTransactionsProvider.notifier).bulkSync()
+                ? () =>
+                      ref.read(expenseTransactionsProvider.notifier).bulkSync()
                 : null,
             onEdit: (transaction) => _showTransactionSheet(
               context,
@@ -285,12 +316,8 @@ class ExpenseTrackerScreen extends ConsumerWidget {
               sync: shouldSync,
               transaction: transaction,
             ),
-            onDelete: (id) => _confirmDeleteTransaction(
-              context,
-              ref,
-              id,
-              sync: shouldSync,
-            ),
+            onDelete: (id) =>
+                _confirmDeleteTransaction(context, ref, id, sync: shouldSync),
           ),
         ),
       ),
@@ -323,11 +350,9 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         initialCategory: initialCategory,
         receiptEnabled: accessMode == ExpenseTrackerAccessMode.approvedSync,
         onAttachReceipt: accessMode == ExpenseTrackerAccessMode.approvedSync
-            ? (saved, file) => ref.read(expenseTransactionsProvider.notifier).attachReceipt(
-                  transaction: saved,
-                  file: file,
-                  sync: sync,
-                )
+            ? (saved, file) => ref
+                  .read(expenseTransactionsProvider.notifier)
+                  .attachReceipt(transaction: saved, file: file, sync: sync)
             : null,
         onSave: (next) async {
           final controller = ref.read(expenseTransactionsProvider.notifier);
@@ -340,10 +365,13 @@ class ExpenseTrackerScreen extends ConsumerWidget {
     );
   }
 
-
-  void _showExportDialog(BuildContext context, List<ExpenseTransaction> transactions) {
-    final encoded = const JsonEncoder.withIndent('  ')
-        .convert(transactions.map((transaction) => transaction.toJson()).toList());
+  void _showExportDialog(
+    BuildContext context,
+    List<ExpenseTransaction> transactions,
+  ) {
+    final encoded = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(transactions.map((transaction) => transaction.toJson()).toList());
 
     showDialog<void>(
       context: context,
@@ -375,7 +403,9 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             controller: controller,
             minLines: 8,
             maxLines: 12,
-            decoration: const InputDecoration(hintText: 'Paste exported JSON here...'),
+            decoration: const InputDecoration(
+              hintText: 'Paste exported JSON here...',
+            ),
           ),
         ),
         actions: [
@@ -387,20 +417,34 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             onPressed: () {
               try {
                 final decoded = jsonDecode(controller.text.trim());
-                if (decoded is! List) throw const FormatException('Backup must be a list.');
+                if (decoded is! List) {
+                  throw const FormatException('Backup must be a list.');
+                }
                 final transactions = decoded
                     .whereType<Map>()
-                    .map((item) => ExpenseTransaction.fromJson(Map<String, dynamic>.from(item)))
+                    .map(
+                      (item) => ExpenseTransaction.fromJson(
+                        Map<String, dynamic>.from(item),
+                      ),
+                    )
                     .where((item) => item.id.isNotEmpty && item.amount > 0)
                     .toList(growable: false);
-                ref.read(expenseTransactionsProvider.notifier).replaceAll(transactions);
+                ref
+                    .read(expenseTransactionsProvider.notifier)
+                    .replaceAll(transactions);
                 Navigator.of(dialogContext).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Imported ${transactions.length} transactions.')),
+                  SnackBar(
+                    content: Text(
+                      'Imported ${transactions.length} transactions.',
+                    ),
+                  ),
                 );
               } catch (_) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invalid backup JSON. Please check format.')),
+                  const SnackBar(
+                    content: Text('Invalid backup JSON. Please check format.'),
+                  ),
                 );
               }
             },
@@ -421,9 +465,11 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Archive transaction?'),
-        content: Text(sync
-            ? 'This transaction will be archived in your OMC account.'
-            : 'This transaction will be removed from the local tracker.'),
+        content: Text(
+          sync
+              ? 'This transaction will be archived in your OMC account.'
+              : 'This transaction will be removed from the local tracker.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -447,7 +493,9 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Clear local tracker?'),
-        content: const Text('Only local cache is cleared. Cloud records are not deleted.'),
+        content: const Text(
+          'Only local cache is cleared. Cloud records are not deleted.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -552,7 +600,10 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
         const SizedBox(height: 16),
         _ServiceSuggestionCard(stats: allStats),
         const SizedBox(height: 16),
-        _FilterChips(selected: _filter, onChanged: (filter) => setState(() => _filter = filter)),
+        _FilterChips(
+          selected: _filter,
+          onChanged: (filter) => setState(() => _filter = filter),
+        ),
         const SizedBox(height: 16),
         _MonthSummaryCard(title: _filter.label, stats: filteredStats),
         const SizedBox(height: 16),
@@ -568,7 +619,8 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
           const PremiumEmptyState(
             icon: Icons.receipt_long_outlined,
             title: 'No transactions yet',
-            message: 'Add income or expenses to start building your monthly tax-ready summary.',
+            message:
+                'Add income or expenses to start building your monthly tax-ready summary.',
           )
         else if (filteredTransactions.isEmpty)
           PremiumEmptyState(
@@ -590,16 +642,21 @@ class _ExpenseTrackerBodyState extends State<_ExpenseTrackerBody> {
     );
   }
 
-  List<ExpenseTransaction> _filterTransactions(List<ExpenseTransaction> transactions) {
+  List<ExpenseTransaction> _filterTransactions(
+    List<ExpenseTransaction> transactions,
+  ) {
     final now = DateTime.now();
-    return transactions.where((item) {
-      if (_filter == _TrackerFilter.all) return true;
-      if (_filter == _TrackerFilter.thisMonth) {
-        return item.date.year == now.year && item.date.month == now.month;
-      }
-      final lastMonth = DateTime(now.year, now.month - 1);
-      return item.date.year == lastMonth.year && item.date.month == lastMonth.month;
-    }).toList(growable: false);
+    return transactions
+        .where((item) {
+          if (_filter == _TrackerFilter.all) return true;
+          if (_filter == _TrackerFilter.thisMonth) {
+            return item.date.year == now.year && item.date.month == now.month;
+          }
+          final lastMonth = DateTime(now.year, now.month - 1);
+          return item.date.year == lastMonth.year &&
+              item.date.month == lastMonth.month;
+        })
+        .toList(growable: false);
   }
 }
 
@@ -651,7 +708,9 @@ class _TrackerStats {
     return 'Low';
   }
 
-  factory _TrackerStats.fromTransactions(List<ExpenseTransaction> transactions) {
+  factory _TrackerStats.fromTransactions(
+    List<ExpenseTransaction> transactions,
+  ) {
     double income = 0;
     double expenses = 0;
     double taxRelevantTotal = 0;
@@ -700,25 +759,25 @@ class _AccessBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = switch (mode) {
       ExpenseTrackerAccessMode.guestLocal => (
-          Icons.phone_iphone_rounded,
-          'Local Lite Mode',
-          '$count/$guestLimit entries used. Create an OMC account for sync, backup, receipts and tax-ready summaries.',
-        ),
+        Icons.phone_iphone_rounded,
+        'Local Lite Mode',
+        '$count/$guestLimit entries used. Create an OMC account for sync, backup, receipts and tax-ready summaries.',
+      ),
       ExpenseTrackerAccessMode.pendingLocal => (
-          Icons.hourglass_top_rounded,
-          'Local tracker unlocked',
-          'Sync will activate after your profile is approved. Your local entries stay safe on this device.',
-        ),
+        Icons.hourglass_top_rounded,
+        'Local tracker unlocked',
+        'Sync will activate after your profile is approved. Your local entries stay safe on this device.',
+      ),
       ExpenseTrackerAccessMode.approvedSync => (
-          Icons.cloud_sync_outlined,
-          'Approved cloud tracker',
-          'Sync entries to OMC Desk, upload receipts, prepare reports and share summaries with consultants.',
-        ),
+        Icons.cloud_sync_outlined,
+        'Approved cloud tracker',
+        'Sync entries to OMC Desk, upload receipts, prepare reports and share summaries with consultants.',
+      ),
       _ => (
-          Icons.lock_outline_rounded,
-          'Tracker unavailable',
-          'This account cannot use the customer tracker.',
-        ),
+        Icons.lock_outline_rounded,
+        'Tracker unavailable',
+        'This account cannot use the customer tracker.',
+      ),
     };
 
     return PremiumCard(
@@ -735,7 +794,8 @@ class _AccessBanner extends StatelessWidget {
                 Text(data.$2, style: _titleStyle(size: 15)),
                 const SizedBox(height: 5),
                 Text(data.$3, style: _bodyStyle()),
-                if (mode == ExpenseTrackerAccessMode.approvedSync && onSync != null) ...[
+                if (mode == ExpenseTrackerAccessMode.approvedSync &&
+                    onSync != null) ...[
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: onSync,
@@ -764,15 +824,32 @@ class _HeroSummaryCard extends StatelessWidget {
         children: [
           Text('Current month balance', style: _bodyStyle()),
           const SizedBox(height: 8),
-          Text(_money(stats.balance), maxLines: 1, overflow: TextOverflow.ellipsis, style: _titleStyle(size: 30)),
+          Text(
+            _money(stats.balance),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _titleStyle(size: 30),
+          ),
           const SizedBox(height: 12),
           Text(_insightText(stats), style: _bodyStyle()),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _MiniStat(label: 'Income', value: _money(stats.income), icon: Icons.south_west_rounded)),
+              Expanded(
+                child: _MiniStat(
+                  label: 'Income',
+                  value: _money(stats.income),
+                  icon: Icons.south_west_rounded,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _MiniStat(label: 'Expenses', value: _money(stats.expenses), icon: Icons.north_east_rounded)),
+              Expanded(
+                child: _MiniStat(
+                  label: 'Expenses',
+                  value: _money(stats.expenses),
+                  icon: Icons.north_east_rounded,
+                ),
+              ),
             ],
           ),
         ],
@@ -781,9 +858,15 @@ class _HeroSummaryCard extends StatelessWidget {
   }
 
   String _insightText(_TrackerStats stats) {
-    if (stats.taxRelevantTotal > 0) return '${_money(stats.taxRelevantTotal)} marked tax-relevant.';
-    if (stats.businessTotal > 0) return '${_money(stats.businessTotal)} tracked as business expense.';
-    if (stats.transactionCount == 0) return 'Add your first expense in two taps.';
+    if (stats.taxRelevantTotal > 0) {
+      return '${_money(stats.taxRelevantTotal)} marked tax-relevant.';
+    }
+    if (stats.businessTotal > 0) {
+      return '${_money(stats.businessTotal)} tracked as business expense.';
+    }
+    if (stats.transactionCount == 0) {
+      return 'Add your first expense in two taps.';
+    }
     return '${stats.transactionCount} entries tracked this month.';
   }
 }
@@ -824,14 +907,27 @@ class _QuickAddPanel extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: categories
-                .map((category) => ActionChip(
-                      avatar: Icon(_iconForCategory(category.title), size: 18, color: AppTheme.primaryRed),
-                      label: Text(category.title),
-                      onPressed: () => onSelected(category),
-                      side: BorderSide(color: AppTheme.primaryRed.withValues(alpha: 0.18)),
-                      backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.05),
-                      labelStyle: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w800),
-                    ))
+                .map(
+                  (category) => ActionChip(
+                    avatar: Icon(
+                      _iconForCategory(category.title),
+                      size: 18,
+                      color: AppTheme.primaryRed,
+                    ),
+                    label: Text(category.title),
+                    onPressed: () => onSelected(category),
+                    side: BorderSide(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.18),
+                    ),
+                    backgroundColor: AppTheme.primaryRed.withValues(
+                      alpha: 0.05,
+                    ),
+                    labelStyle: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                )
                 .toList(growable: false),
           ),
         ],
@@ -853,7 +949,8 @@ class _TaxReadyCard extends StatelessWidget {
         children: [
           const _TrackerSectionHeader(
             title: 'Tax readiness',
-            subtitle: 'Based on tags, receipts, business expenses and income entries.',
+            subtitle:
+                'Based on tags, receipts, business expenses and income entries.',
             icon: Icons.verified_outlined,
           ),
           const SizedBox(height: 14),
@@ -865,7 +962,10 @@ class _TaxReadyCard extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    CircularProgressIndicator(value: score / 100, strokeWidth: 8),
+                    CircularProgressIndicator(
+                      value: score / 100,
+                      strokeWidth: 8,
+                    ),
                     Text('$score%', style: _titleStyle(size: 17)),
                   ],
                 ),
@@ -877,7 +977,10 @@ class _TaxReadyCard extends StatelessWidget {
                   children: [
                     Text(stats.readinessLabel, style: _titleStyle(size: 17)),
                     const SizedBox(height: 4),
-                    Text('Tax total ${_money(stats.taxRelevantTotal)} · Business ${_money(stats.businessTotal)} · Receipts ${stats.receiptsAttached}', style: _bodyStyle()),
+                    Text(
+                      'Tax total ${_money(stats.taxRelevantTotal)} · Business ${_money(stats.businessTotal)} · Receipts ${stats.receiptsAttached}',
+                      style: _bodyStyle(),
+                    ),
                   ],
                 ),
               ),
@@ -896,10 +999,22 @@ class _ServiceSuggestionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (title, message, icon) = stats.businessTotal > 0
-        ? ('Bookkeeping support', 'You are tracking business expenses. OMC can organize these into monthly books.', Icons.business_center_outlined)
+        ? (
+            'Bookkeeping support',
+            'You are tracking business expenses. OMC can organize these into monthly books.',
+            Icons.business_center_outlined,
+          )
         : stats.taxRelevantTotal > 0
-            ? ('Tax filing preparation', 'Your tax-ready expense summary is building. Start tax filing with OMC when ready.', Icons.fact_check_outlined)
-            : ('Build your tax record', 'Mark useful expenses as tax-relevant and attach receipts for better filing readiness.', Icons.lightbulb_outline_rounded);
+        ? (
+            'Tax filing preparation',
+            'Your tax-ready expense summary is building. Start tax filing with OMC when ready.',
+            Icons.fact_check_outlined,
+          )
+        : (
+            'Build your tax record',
+            'Mark useful expenses as tax-relevant and attach receipts for better filing readiness.',
+            Icons.lightbulb_outline_rounded,
+          );
 
     return PremiumCard(
       child: Row(
@@ -932,7 +1047,12 @@ class _FilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     return SegmentedButton<_TrackerFilter>(
       segments: _TrackerFilter.values
-          .map((filter) => ButtonSegment<_TrackerFilter>(value: filter, label: Text(filter.label)))
+          .map(
+            (filter) => ButtonSegment<_TrackerFilter>(
+              value: filter,
+              label: Text(filter.label),
+            ),
+          )
           .toList(growable: false),
       selected: {selected},
       onSelectionChanged: (selection) => onChanged(selection.first),
@@ -953,13 +1073,29 @@ class _MonthSummaryCard extends StatelessWidget {
         children: [
           Text(title, style: _titleStyle(size: 18)),
           const SizedBox(height: 12),
-          _SummaryRow(label: 'Income', value: stats.income, icon: Icons.trending_up_rounded),
+          _SummaryRow(
+            label: 'Income',
+            value: stats.income,
+            icon: Icons.trending_up_rounded,
+          ),
           const Divider(height: 24),
-          _SummaryRow(label: 'Expenses', value: stats.expenses, icon: Icons.trending_down_rounded),
+          _SummaryRow(
+            label: 'Expenses',
+            value: stats.expenses,
+            icon: Icons.trending_down_rounded,
+          ),
           const Divider(height: 24),
-          _SummaryRow(label: 'Net balance', value: stats.balance, icon: Icons.account_balance_wallet_outlined),
+          _SummaryRow(
+            label: 'Net balance',
+            value: stats.balance,
+            icon: Icons.account_balance_wallet_outlined,
+          ),
           const Divider(height: 24),
-          _SummaryRow(label: 'Transactions', valueLabel: '${stats.transactionCount}', icon: Icons.receipt_long_outlined),
+          _SummaryRow(
+            label: 'Transactions',
+            valueLabel: '${stats.transactionCount}',
+            icon: Icons.receipt_long_outlined,
+          ),
         ],
       ),
     );
@@ -972,15 +1108,25 @@ class _CategorySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expenses = transactions.where((item) => item.isExpense).toList(growable: false);
+    final expenses = transactions
+        .where((item) => item.isExpense)
+        .toList(growable: false);
     if (expenses.isEmpty) return const SizedBox.shrink();
 
     final totals = <String, double>{};
     for (final transaction in expenses) {
-      totals.update(transaction.category, (value) => value + transaction.amount, ifAbsent: () => transaction.amount);
+      totals.update(
+        transaction.category,
+        (value) => value + transaction.amount,
+        ifAbsent: () => transaction.amount,
+      );
     }
-    final rows = totals.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final totalExpense = expenses.fold<double>(0, (sum, item) => sum + item.amount);
+    final rows = totals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final totalExpense = expenses.fold<double>(
+      0,
+      (sum, item) => sum + item.amount,
+    );
 
     return PremiumCard(
       child: Column(
@@ -1008,7 +1154,11 @@ class _CategorySummaryCard extends StatelessWidget {
 }
 
 class _TransactionTile extends StatelessWidget {
-  const _TransactionTile({required this.transaction, required this.onEdit, required this.onDelete});
+  const _TransactionTile({
+    required this.transaction,
+    required this.onEdit,
+    required this.onDelete,
+  });
   final ExpenseTransaction transaction;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -1019,18 +1169,39 @@ class _TransactionTile extends StatelessWidget {
     return PremiumCard(
       child: Row(
         children: [
-          _IconBox(icon: isIncome ? Icons.south_west_rounded : _iconForCategory(transaction.category)),
+          _IconBox(
+            icon: isIncome
+                ? Icons.south_west_rounded
+                : _iconForCategory(transaction.category),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(transaction.merchant?.trim().isNotEmpty == true ? transaction.merchant!.trim() : transaction.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: _titleStyle(size: 15)),
+                Text(
+                  transaction.merchant?.trim().isNotEmpty == true
+                      ? transaction.merchant!.trim()
+                      : transaction.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _titleStyle(size: 15),
+                ),
                 const SizedBox(height: 4),
-                Text('${DateFormat('dd MMM yyyy').format(transaction.date)} · ${transaction.account} · ${transaction.paymentMethod}', maxLines: 1, overflow: TextOverflow.ellipsis, style: _bodyStyle()),
+                Text(
+                  '${DateFormat('dd MMM yyyy').format(transaction.date)} · ${transaction.account} · ${transaction.paymentMethod}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _bodyStyle(),
+                ),
                 if ((transaction.note ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(transaction.note!.trim(), maxLines: 2, overflow: TextOverflow.ellipsis, style: _bodyStyle()),
+                  Text(
+                    transaction.note!.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: _bodyStyle(),
+                  ),
                 ],
                 const SizedBox(height: 7),
                 Wrap(
@@ -1038,9 +1209,12 @@ class _TransactionTile extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     if (transaction.taxRelevant) const _MiniChip(label: 'Tax'),
-                    if (transaction.businessRelated) const _MiniChip(label: 'Business'),
-                    if (transaction.recurring) const _MiniChip(label: 'Recurring'),
-                    if ((transaction.receiptFile ?? '').trim().isNotEmpty) const _MiniChip(label: 'Receipt'),
+                    if (transaction.businessRelated)
+                      const _MiniChip(label: 'Business'),
+                    if (transaction.recurring)
+                      const _MiniChip(label: 'Recurring'),
+                    if ((transaction.receiptFile ?? '').trim().isNotEmpty)
+                      const _MiniChip(label: 'Receipt'),
                     if (transaction.synced) const _MiniChip(label: 'Synced'),
                   ],
                 ),
@@ -1053,13 +1227,34 @@ class _TransactionTile extends StatelessWidget {
             children: [
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 118),
-                child: Text('${isIncome ? '+' : '-'}${_money(transaction.amount)}', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: TextStyle(color: isIncome ? Colors.green.shade700 : Colors.red.shade700, fontWeight: FontWeight.w900)),
+                child: Text(
+                  '${isIncome ? '+' : '-'}${_money(transaction.amount)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: isIncome
+                        ? Colors.green.shade700
+                        : Colors.red.shade700,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(visualDensity: VisualDensity.compact, tooltip: 'Edit', onPressed: onEdit, icon: const Icon(Icons.edit_outlined)),
-                  IconButton(visualDensity: VisualDensity.compact, tooltip: 'Archive', onPressed: onDelete, icon: const Icon(Icons.archive_outlined)),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Edit',
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Archive',
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.archive_outlined),
+                  ),
                 ],
               ),
             ],
@@ -1085,7 +1280,11 @@ class _TransactionSheet extends StatefulWidget {
   final Future<ExpenseTransaction> Function(ExpenseTransaction) onSave;
   final ExpenseTransaction? transaction;
   final ExpenseTrackerCategory? initialCategory;
-  final Future<void> Function(ExpenseTransaction transaction, PlatformFile file)? onAttachReceipt;
+  final Future<void> Function(
+    ExpenseTransaction transaction,
+    PlatformFile file,
+  )?
+  onAttachReceipt;
 
   @override
   State<_TransactionSheet> createState() => _TransactionSheetState();
@@ -1115,17 +1314,32 @@ class _TransactionSheetState extends State<_TransactionSheet> {
     super.initState();
     final existing = widget.transaction;
     final initialCategory = widget.initialCategory;
-    _type = existing?.type ?? initialCategory?.type ?? ExpenseTransactionType.expense;
+    _type =
+        existing?.type ??
+        initialCategory?.type ??
+        ExpenseTransactionType.expense;
     _selectedDate = existing?.date ?? DateTime.now();
-    _amountController = TextEditingController(text: existing == null ? '' : existing.amount.toStringAsFixed(0));
-    _categoryController = TextEditingController(text: existing?.category ?? initialCategory?.title ?? '');
-    _accountController = TextEditingController(text: existing?.account ?? 'Cash');
-    _paymentMethodController = TextEditingController(text: existing?.paymentMethod ?? 'Cash');
+    _amountController = TextEditingController(
+      text: existing == null ? '' : existing.amount.toStringAsFixed(0),
+    );
+    _categoryController = TextEditingController(
+      text: existing?.category ?? initialCategory?.title ?? '',
+    );
+    _accountController = TextEditingController(
+      text: existing?.account ?? 'Cash',
+    );
+    _paymentMethodController = TextEditingController(
+      text: existing?.paymentMethod ?? 'Cash',
+    );
     _merchantController = TextEditingController(text: existing?.merchant ?? '');
     _noteController = TextEditingController(text: existing?.note ?? '');
-    _receiptController = TextEditingController(text: existing?.receiptFile ?? '');
-    _taxRelevant = existing?.taxRelevant ?? initialCategory?.isTaxRelevant ?? false;
-    _businessRelated = existing?.businessRelated ?? initialCategory?.businessDefault ?? false;
+    _receiptController = TextEditingController(
+      text: existing?.receiptFile ?? '',
+    );
+    _taxRelevant =
+        existing?.taxRelevant ?? initialCategory?.isTaxRelevant ?? false;
+    _businessRelated =
+        existing?.businessRelated ?? initialCategory?.businessDefault ?? false;
     _recurring = existing?.recurring ?? false;
     _reimbursable = existing?.reimbursable ?? false;
   }
@@ -1145,7 +1359,10 @@ class _TransactionSheetState extends State<_TransactionSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final quickCategories = widget.categories.where((item) => item.type == _type).take(8).toList(growable: false);
+    final quickCategories = widget.categories
+        .where((item) => item.type == _type)
+        .take(8)
+        .toList(growable: false);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 16, 20, bottomInset + 20),
@@ -1156,28 +1373,57 @@ class _TransactionSheetState extends State<_TransactionSheet> {
           children: [
             Row(
               children: [
-                _IconBox(icon: widget.transaction == null ? Icons.add_card_rounded : Icons.edit_outlined),
+                _IconBox(
+                  icon: widget.transaction == null
+                      ? Icons.add_card_rounded
+                      : Icons.edit_outlined,
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: Text(widget.transaction == null ? 'Add transaction' : 'Edit transaction', style: _titleStyle(size: 22))),
+                Expanded(
+                  child: Text(
+                    widget.transaction == null
+                        ? 'Add transaction'
+                        : 'Edit transaction',
+                    style: _titleStyle(size: 22),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
             SegmentedButton<ExpenseTransactionType>(
               segments: const [
-                ButtonSegment(value: ExpenseTransactionType.expense, label: Text('Expense'), icon: Icon(Icons.north_east_rounded)),
-                ButtonSegment(value: ExpenseTransactionType.income, label: Text('Income'), icon: Icon(Icons.south_west_rounded)),
+                ButtonSegment(
+                  value: ExpenseTransactionType.expense,
+                  label: Text('Expense'),
+                  icon: Icon(Icons.north_east_rounded),
+                ),
+                ButtonSegment(
+                  value: ExpenseTransactionType.income,
+                  label: Text('Income'),
+                  icon: Icon(Icons.south_west_rounded),
+                ),
               ],
               selected: {_type},
-              onSelectionChanged: (selection) => setState(() => _type = selection.first),
+              onSelectionChanged: (selection) =>
+                  setState(() => _type = selection.first),
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Amount', prefixIcon: Icon(Icons.payments_outlined)),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                prefixIcon: Icon(Icons.payments_outlined),
+              ),
               validator: (value) {
-                final amount = double.tryParse(value?.replaceAll(',', '').trim() ?? '');
-                if (amount == null || amount <= 0) return 'Enter a valid amount.';
+                final amount = double.tryParse(
+                  value?.replaceAll(',', '').trim() ?? '',
+                );
+                if (amount == null || amount <= 0) {
+                  return 'Enter a valid amount.';
+                }
                 return null;
               },
             ),
@@ -1186,16 +1432,18 @@ class _TransactionSheetState extends State<_TransactionSheet> {
               spacing: 8,
               runSpacing: 8,
               children: quickCategories
-                  .map((category) => ActionChip(
-                        label: Text(category.title),
-                        onPressed: () {
-                          setState(() {
-                            _categoryController.text = category.title;
-                            _taxRelevant = category.isTaxRelevant;
-                            _businessRelated = category.businessDefault;
-                          });
-                        },
-                      ))
+                  .map(
+                    (category) => ActionChip(
+                      label: Text(category.title),
+                      onPressed: () {
+                        setState(() {
+                          _categoryController.text = category.title;
+                          _taxRelevant = category.isTaxRelevant;
+                          _businessRelated = category.businessDefault;
+                        });
+                      },
+                    ),
+                  )
                   .toList(growable: false),
             ),
             const SizedBox(height: 10),
@@ -1203,10 +1451,14 @@ class _TransactionSheetState extends State<_TransactionSheet> {
               controller: _categoryController,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
-                labelText: _type == ExpenseTransactionType.income ? 'Income category' : 'Expense category',
+                labelText: _type == ExpenseTransactionType.income
+                    ? 'Income category'
+                    : 'Expense category',
                 prefixIcon: const Icon(Icons.category_outlined),
               ),
-              validator: (value) => value == null || value.trim().isEmpty ? 'Category is required.' : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Category is required.'
+                  : null,
             ),
             const SizedBox(height: 12),
             ExpansionTile(
@@ -1217,7 +1469,9 @@ class _TransactionSheetState extends State<_TransactionSheet> {
               children: [
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: _accountController.text.trim().isEmpty ? 'Cash' : _accountController.text.trim(),
+                  initialValue: _accountController.text.trim().isEmpty
+                      ? 'Cash'
+                      : _accountController.text.trim(),
                   decoration: const InputDecoration(
                     labelText: 'Account',
                     prefixIcon: Icon(Icons.account_balance_wallet_outlined),
@@ -1244,8 +1498,14 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                   items: const [
                     DropdownMenuItem(value: 'Cash', child: Text('Cash')),
                     DropdownMenuItem(value: 'Card', child: Text('Card')),
-                    DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
-                    DropdownMenuItem(value: 'Wallet', child: Text('Wallet / Digital Wallet')),
+                    DropdownMenuItem(
+                      value: 'Bank Transfer',
+                      child: Text('Bank Transfer'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Wallet',
+                      child: Text('Wallet / Digital Wallet'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) _paymentMethodController.text = value;
@@ -1254,9 +1514,23 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                 const SizedBox(height: 12),
                 _DatePickerTile(date: _selectedDate, onTap: _pickDate),
                 const SizedBox(height: 12),
-                TextFormField(controller: _merchantController, decoration: const InputDecoration(labelText: 'Merchant optional', prefixIcon: Icon(Icons.storefront_outlined))),
+                TextFormField(
+                  controller: _merchantController,
+                  decoration: const InputDecoration(
+                    labelText: 'Merchant optional',
+                    prefixIcon: Icon(Icons.storefront_outlined),
+                  ),
+                ),
                 const SizedBox(height: 12),
-                TextFormField(controller: _noteController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Note optional', prefixIcon: Icon(Icons.notes_outlined))),
+                TextFormField(
+                  controller: _noteController,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Note optional',
+                    prefixIcon: Icon(Icons.notes_outlined),
+                  ),
+                ),
                 if (widget.receiptEnabled) ...[
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
@@ -1278,14 +1552,37 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                   ),
                 ],
                 const SizedBox(height: 10),
-                SwitchListTile.adaptive(value: _taxRelevant, onChanged: (value) => setState(() => _taxRelevant = value), title: const Text('Useful for tax')),
-                SwitchListTile.adaptive(value: _businessRelated, onChanged: (value) => setState(() => _businessRelated = value), title: const Text('Business expense')),
-                SwitchListTile.adaptive(value: _recurring, onChanged: (value) => setState(() => _recurring = value), title: const Text('Recurring')),
-                SwitchListTile.adaptive(value: _reimbursable, onChanged: (value) => setState(() => _reimbursable = value), title: const Text('Reimbursable')),
+                SwitchListTile.adaptive(
+                  value: _taxRelevant,
+                  onChanged: (value) => setState(() => _taxRelevant = value),
+                  title: const Text('Useful for tax'),
+                ),
+                SwitchListTile.adaptive(
+                  value: _businessRelated,
+                  onChanged: (value) =>
+                      setState(() => _businessRelated = value),
+                  title: const Text('Business expense'),
+                ),
+                SwitchListTile.adaptive(
+                  value: _recurring,
+                  onChanged: (value) => setState(() => _recurring = value),
+                  title: const Text('Recurring'),
+                ),
+                SwitchListTile.adaptive(
+                  value: _reimbursable,
+                  onChanged: (value) => setState(() => _reimbursable = value),
+                  title: const Text('Reimbursable'),
+                ),
               ],
             ),
             const SizedBox(height: 18),
-            AppButton(label: widget.transaction == null ? 'Save transaction' : 'Update transaction', icon: Icons.check_rounded, onPressed: _save),
+            AppButton(
+              label: widget.transaction == null
+                  ? 'Save transaction'
+                  : 'Update transaction',
+              icon: Icons.check_rounded,
+              onPressed: _save,
+            ),
             const SizedBox(height: 4),
           ],
         ),
@@ -1301,7 +1598,13 @@ class _TransactionSheetState extends State<_TransactionSheet> {
       lastDate: DateTime.now(),
     );
     if (pickedDate == null) return;
-    setState(() => _selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day));
+    setState(
+      () => _selectedDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+      ),
+    );
   }
 
   Future<void> _pickReceipt() async {
@@ -1328,16 +1631,26 @@ class _TransactionSheetState extends State<_TransactionSheet> {
       type: _type,
       amount: double.parse(_amountController.text.replaceAll(',', '').trim()),
       category: _categoryController.text.trim(),
-      account: _accountController.text.trim().isEmpty ? 'Cash' : _accountController.text.trim(),
-      paymentMethod: _paymentMethodController.text.trim().isEmpty ? 'Cash' : _paymentMethodController.text.trim(),
-      merchant: _merchantController.text.trim().isEmpty ? null : _merchantController.text.trim(),
+      account: _accountController.text.trim().isEmpty
+          ? 'Cash'
+          : _accountController.text.trim(),
+      paymentMethod: _paymentMethodController.text.trim().isEmpty
+          ? 'Cash'
+          : _paymentMethodController.text.trim(),
+      merchant: _merchantController.text.trim().isEmpty
+          ? null
+          : _merchantController.text.trim(),
       date: _selectedDate,
-      note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      note: _noteController.text.trim().isEmpty
+          ? null
+          : _noteController.text.trim(),
       taxRelevant: _taxRelevant,
       businessRelated: _businessRelated,
       recurring: _recurring,
       reimbursable: _reimbursable,
-      receiptFile: _receiptController.text.trim().isEmpty ? null : _receiptController.text.trim(),
+      receiptFile: _receiptController.text.trim().isEmpty
+          ? null
+          : _receiptController.text.trim(),
       createdFromGuest: existing?.createdFromGuest ?? false,
       synced: existing?.synced ?? false,
     );
@@ -1365,15 +1678,25 @@ class _DatePickerTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       onTap: onTap,
       child: InputDecorator(
-        decoration: const InputDecoration(labelText: 'Date', prefixIcon: Icon(Icons.calendar_month_outlined)),
-        child: Text(DateFormat('dd MMM yyyy').format(date), style: _titleStyle(size: 14)),
+        decoration: const InputDecoration(
+          labelText: 'Date',
+          prefixIcon: Icon(Icons.calendar_month_outlined),
+        ),
+        child: Text(
+          DateFormat('dd MMM yyyy').format(date),
+          style: _titleStyle(size: 14),
+        ),
       ),
     );
   }
 }
 
 class _TrackerSectionHeader extends StatelessWidget {
-  const _TrackerSectionHeader({required this.title, required this.subtitle, required this.icon});
+  const _TrackerSectionHeader({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
   final String title;
   final String subtitle;
   final IconData icon;
@@ -1388,9 +1711,19 @@ class _TrackerSectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: _titleStyle(size: 18)),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _titleStyle(size: 18),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: _bodyStyle()),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: _bodyStyle(),
+              ),
             ],
           ),
         ),
@@ -1400,7 +1733,11 @@ class _TrackerSectionHeader extends StatelessWidget {
 }
 
 class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value, required this.icon});
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
   final String label;
   final String value;
   final IconData icon;
@@ -1421,7 +1758,12 @@ class _MiniStat extends StatelessWidget {
           const SizedBox(height: 10),
           Text(label, style: _bodyStyle()),
           const SizedBox(height: 4),
-          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: _titleStyle(size: 14)),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _titleStyle(size: 14),
+          ),
         ],
       ),
     );
@@ -1429,7 +1771,12 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.icon, this.value, this.valueLabel});
+  const _SummaryRow({
+    required this.label,
+    required this.icon,
+    this.value,
+    this.valueLabel,
+  });
   final String label;
   final double? value;
   final String? valueLabel;
@@ -1441,15 +1788,34 @@ class _SummaryRow extends StatelessWidget {
       children: [
         _IconBox(icon: icon, size: 32),
         const SizedBox(width: 10),
-        Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: _bodyStyle())),
-        Flexible(child: Text(valueLabel ?? _money(value ?? 0), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: _titleStyle(size: 14))),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _bodyStyle(),
+          ),
+        ),
+        Flexible(
+          child: Text(
+            valueLabel ?? _money(value ?? 0),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: _titleStyle(size: 14),
+          ),
+        ),
       ],
     );
   }
 }
 
 class _CategoryRow extends StatelessWidget {
-  const _CategoryRow({required this.label, required this.amount, required this.percentage});
+  const _CategoryRow({
+    required this.label,
+    required this.amount,
+    required this.percentage,
+  });
   final String label;
   final double amount;
   final double percentage;
@@ -1462,12 +1828,31 @@ class _CategoryRow extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: _bodyStyle())),
-            Flexible(child: Text('${_money(amount)} · $percentLabel', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, style: _titleStyle(size: 13))),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _bodyStyle(),
+              ),
+            ),
+            Flexible(
+              child: Text(
+                '${_money(amount)} · $percentLabel',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: _titleStyle(size: 13),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
-        LinearProgressIndicator(value: percentage.clamp(0, 1), minHeight: 6, borderRadius: BorderRadius.circular(999)),
+        LinearProgressIndicator(
+          value: percentage.clamp(0, 1),
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(999),
+        ),
       ],
     );
   }
@@ -1486,7 +1871,14 @@ class _MiniChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.10)),
       ),
-      child: Text(label, style: const TextStyle(color: AppTheme.primaryRed, fontSize: 11, fontWeight: FontWeight.w900)),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppTheme.primaryRed,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
@@ -1525,15 +1917,42 @@ class _TrackerLoadingView extends StatelessWidget {
             padding: const EdgeInsets.all(18),
             child: Row(
               children: [
-                Container(width: 46, height: 46, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(16))),
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(width: double.infinity, height: 14, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(999))),
+                      Container(
+                        width: double.infinity,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
                       const SizedBox(height: 10),
-                      Container(width: 150, height: 11, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(999))),
+                      Container(
+                        width: 150,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1548,29 +1967,48 @@ class _TrackerLoadingView extends StatelessWidget {
 }
 
 TextStyle _titleStyle({required double size}) {
-  return TextStyle(color: AppTheme.textPrimary, fontSize: size, fontWeight: FontWeight.w900);
+  return TextStyle(
+    color: AppTheme.textPrimary,
+    fontSize: size,
+    fontWeight: FontWeight.w900,
+  );
 }
 
 TextStyle _bodyStyle() {
-  return const TextStyle(color: AppTheme.textSecondary, fontSize: 12, height: 1.35, fontWeight: FontWeight.w600);
+  return const TextStyle(
+    color: AppTheme.textSecondary,
+    fontSize: 12,
+    height: 1.35,
+    fontWeight: FontWeight.w600,
+  );
 }
 
 IconData _iconForCategory(String value) {
   final text = value.toLowerCase();
   if (text.contains('food')) return Icons.restaurant_outlined;
   if (text.contains('fuel')) return Icons.local_gas_station_outlined;
-  if (text.contains('bill') || text.contains('util')) return Icons.receipt_long_outlined;
+  if (text.contains('bill') || text.contains('util')) {
+    return Icons.receipt_long_outlined;
+  }
   if (text.contains('rent')) return Icons.home_work_outlined;
   if (text.contains('shop')) return Icons.shopping_bag_outlined;
   if (text.contains('transport')) return Icons.directions_car_outlined;
   if (text.contains('health')) return Icons.health_and_safety_outlined;
   if (text.contains('education')) return Icons.school_outlined;
   if (text.contains('business')) return Icons.business_center_outlined;
-  if (text.contains('tax') || text.contains('legal')) return Icons.gavel_outlined;
-  if (text.contains('salary') || text.contains('income')) return Icons.payments_outlined;
+  if (text.contains('tax') || text.contains('legal')) {
+    return Icons.gavel_outlined;
+  }
+  if (text.contains('salary') || text.contains('income')) {
+    return Icons.payments_outlined;
+  }
   return Icons.category_outlined;
 }
 
 String _money(double value) {
-  return NumberFormat.currency(locale: 'en_PK', symbol: 'PKR ', decimalDigits: 0).format(value);
+  return NumberFormat.currency(
+    locale: 'en_PK',
+    symbol: 'PKR ',
+    decimalDigits: 0,
+  ).format(value);
 }

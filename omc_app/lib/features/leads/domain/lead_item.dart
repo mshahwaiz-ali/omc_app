@@ -36,7 +36,9 @@ class LeadItem {
       createdAtLabel: _nullableString(
         json['created_at_label'] ?? json['creation'] ?? json['created_at'],
       ),
-      serviceInterest: _nullableString(json['service_interest'] ?? json['service']),
+      serviceInterest: _nullableString(
+        json['service_interest'] ?? json['service'],
+      ),
       assignedTo: _nullableString(json['assigned_to'] ?? json['owner']),
       customerProfile: _nullableString(json['customer_profile']),
       convertedCustomerProfile: _nullableString(

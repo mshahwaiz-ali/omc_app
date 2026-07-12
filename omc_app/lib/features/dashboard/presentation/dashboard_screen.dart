@@ -63,7 +63,9 @@ class DashboardScreen extends ConsumerWidget {
           data: (value) => value,
           orElse: InternalWorkspaceSummary.empty,
         );
-    final queue = ref.watch(internalServiceCasesProvider).maybeWhen(
+    final queue = ref
+        .watch(internalServiceCasesProvider)
+        .maybeWhen(
           data: (value) => value,
           orElse: () => const InternalServiceCaseQueue(
             cases: [],
@@ -264,29 +266,29 @@ class _InternalDashboardBody extends StatelessWidget {
           title: documentsWaiting > 0
               ? '$documentsWaiting service documents need review'
               : workspaceSummary.pendingPayments > 0
-                  ? '${workspaceSummary.pendingPayments} payments need review'
-                  : queue.cases.isNotEmpty
-                      ? '${queue.cases.length} service cases need follow-up'
-                      : 'Operations queue is clear',
+              ? '${workspaceSummary.pendingPayments} payments need review'
+              : queue.cases.isNotEmpty
+              ? '${queue.cases.length} service cases need follow-up'
+              : 'Operations queue is clear',
           subtitle: documentsWaiting > 0
               ? 'Open the review queue and clear uploaded customer documents.'
               : workspaceSummary.pendingPayments > 0
-                  ? 'Payment receipts are waiting for internal verification.'
-                  : queue.cases.isNotEmpty
-                      ? 'Review latest service movement and customer status.'
-                      : 'No urgent internal action is visible right now.',
+              ? 'Payment receipts are waiting for internal verification.'
+              : queue.cases.isNotEmpty
+              ? 'Review latest service movement and customer status.'
+              : 'No urgent internal action is visible right now.',
           buttonLabel: documentsWaiting > 0
               ? 'Open review queue'
               : workspaceSummary.pendingPayments > 0
-                  ? 'Review payments'
-                  : 'Open workspace',
+              ? 'Review payments'
+              : 'Open workspace',
           icon: Icons.bolt_outlined,
           onPressed: () => context.go(
             documentsWaiting > 0
                 ? '/internal-workspace/documents'
                 : workspaceSummary.pendingPayments > 0
-                    ? '/internal-workspace/payments'
-                    : '/internal-workspace',
+                ? '/internal-workspace/payments'
+                : '/internal-workspace',
           ),
         ),
         const SizedBox(height: 18),
@@ -489,9 +491,7 @@ class _CompactHeader extends StatelessWidget {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: [
-                    for (final chip in chips) _SoftPill(label: chip),
-                  ],
+                  children: [for (final chip in chips) _SoftPill(label: chip)],
                 ),
               ],
             ),
@@ -834,7 +834,8 @@ class _InternalQueueTile extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: () => context.go('/internal-workspace/service-cases/${serviceCase.id}'),
+      onTap: () =>
+          context.go('/internal-workspace/service-cases/${serviceCase.id}'),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -891,7 +892,10 @@ class _InternalQueueTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
           ],
         ),
       ),
@@ -1633,7 +1637,8 @@ List<_AttentionRow> _internalAttentionRows(
   if (queue.cases.isNotEmpty) {
     rows.add(
       _AttentionRow(
-        label: '${queue.cases.length} active service cases need team visibility',
+        label:
+            '${queue.cases.length} active service cases need team visibility',
         icon: Icons.pending_actions_outlined,
       ),
     );
@@ -1668,7 +1673,9 @@ List<_AttentionRow> _internalAttentionRows(
 }
 
 int _customerActionCount(HomeDashboardSummary summary) {
-  return summary.pendingDocuments + summary.paymentsDue + summary.unreadNotifications;
+  return summary.pendingDocuments +
+      summary.paymentsDue +
+      summary.unreadNotifications;
 }
 
 int _safeMax(List<int> values) {

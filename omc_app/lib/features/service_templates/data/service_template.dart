@@ -95,11 +95,11 @@ class ServiceStageTemplate {
       title: _readString(json, ['title', 'stage_title', 'label']),
       description: _readString(json, ['description']),
       sortOrder: _readInt(json, ['sort_order', 'idx']),
-      isCustomerVisible: _readBool(
-        json,
-        ['is_customer_visible', 'isCustomerVisible', 'visible'],
-        true,
-      ),
+      isCustomerVisible: _readBool(json, [
+        'is_customer_visible',
+        'isCustomerVisible',
+        'visible',
+      ], true),
     );
   }
 }
@@ -113,7 +113,9 @@ List<Map<String, dynamic>> _readList(
     if (value is List) {
       return value
           .whereType<Map>()
-          .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+          .map(
+            (item) => item.map((key, value) => MapEntry(key.toString(), value)),
+          )
           .toList(growable: false);
     }
   }

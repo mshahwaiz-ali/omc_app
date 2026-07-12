@@ -98,9 +98,13 @@ class ExpenseTrackerConfig {
     final rawCategories = json['categories'];
     final categories = rawCategories is List
         ? rawCategories
-            .whereType<Map>()
-            .map((item) => ExpenseTrackerCategory.fromJson(Map<String, dynamic>.from(item)))
-            .toList(growable: false)
+              .whereType<Map>()
+              .map(
+                (item) => ExpenseTrackerCategory.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList(growable: false)
         : const <ExpenseTrackerCategory>[];
 
     return ExpenseTrackerConfig(
@@ -142,8 +146,14 @@ class ExpenseTrackerCategory {
   factory ExpenseTrackerCategory.fromJson(Map<String, dynamic> json) {
     final rawType = json['transaction_type'] ?? json['type'];
     return ExpenseTrackerCategory(
-      name: _cleanText(json['name'], fallback: _cleanText(json['title'], fallback: 'Other')),
-      title: _cleanText(json['title'] ?? json['category_name'], fallback: 'Other'),
+      name: _cleanText(
+        json['name'],
+        fallback: _cleanText(json['title'], fallback: 'Other'),
+      ),
+      title: _cleanText(
+        json['title'] ?? json['category_name'],
+        fallback: 'Other',
+      ),
       type: rawType?.toString().toLowerCase() == 'income'
           ? ExpenseTransactionType.income
           : ExpenseTransactionType.expense,
@@ -169,24 +179,136 @@ class ExpenseTrackerCategory {
   }
 
   static const defaultCategories = [
-    ExpenseTrackerCategory(name: 'Food', title: 'Food', type: ExpenseTransactionType.expense, icon: 'restaurant', sortOrder: 10),
-    ExpenseTrackerCategory(name: 'Fuel', title: 'Fuel', type: ExpenseTransactionType.expense, icon: 'local_gas_station', sortOrder: 20),
-    ExpenseTrackerCategory(name: 'Bills', title: 'Bills', type: ExpenseTransactionType.expense, icon: 'receipt', sortOrder: 30),
-    ExpenseTrackerCategory(name: 'Rent', title: 'Rent', type: ExpenseTransactionType.expense, icon: 'home', sortOrder: 40),
-    ExpenseTrackerCategory(name: 'Shopping', title: 'Shopping', type: ExpenseTransactionType.expense, icon: 'shopping_bag', sortOrder: 50),
-    ExpenseTrackerCategory(name: 'Transport', title: 'Transport', type: ExpenseTransactionType.expense, icon: 'directions_car', sortOrder: 60),
-    ExpenseTrackerCategory(name: 'Health', title: 'Health', type: ExpenseTransactionType.expense, icon: 'health_and_safety', sortOrder: 70, isTaxRelevant: true),
-    ExpenseTrackerCategory(name: 'Education', title: 'Education', type: ExpenseTransactionType.expense, icon: 'school', sortOrder: 80, isTaxRelevant: true),
-    ExpenseTrackerCategory(name: 'Business', title: 'Business', type: ExpenseTransactionType.expense, icon: 'business_center', sortOrder: 90, businessDefault: true),
-    ExpenseTrackerCategory(name: 'Tax / Legal', title: 'Tax / Legal', type: ExpenseTransactionType.expense, icon: 'gavel', sortOrder: 100, isTaxRelevant: true),
-    ExpenseTrackerCategory(name: 'Utilities', title: 'Utilities', type: ExpenseTransactionType.expense, icon: 'bolt', sortOrder: 110),
-    ExpenseTrackerCategory(name: 'Other', title: 'Other', type: ExpenseTransactionType.expense, icon: 'category', sortOrder: 999),
-    ExpenseTrackerCategory(name: 'Salary', title: 'Salary', type: ExpenseTransactionType.income, icon: 'payments', sortOrder: 10),
-    ExpenseTrackerCategory(name: 'Business Income', title: 'Business Income', type: ExpenseTransactionType.income, icon: 'storefront', sortOrder: 20),
-    ExpenseTrackerCategory(name: 'Freelance', title: 'Freelance', type: ExpenseTransactionType.income, icon: 'laptop', sortOrder: 30),
-    ExpenseTrackerCategory(name: 'Rental Income', title: 'Rental Income', type: ExpenseTransactionType.income, icon: 'apartment', sortOrder: 40),
-    ExpenseTrackerCategory(name: 'Investment', title: 'Investment', type: ExpenseTransactionType.income, icon: 'trending_up', sortOrder: 50),
-    ExpenseTrackerCategory(name: 'Other Income', title: 'Other Income', type: ExpenseTransactionType.income, icon: 'add_card', sortOrder: 999),
+    ExpenseTrackerCategory(
+      name: 'Food',
+      title: 'Food',
+      type: ExpenseTransactionType.expense,
+      icon: 'restaurant',
+      sortOrder: 10,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Fuel',
+      title: 'Fuel',
+      type: ExpenseTransactionType.expense,
+      icon: 'local_gas_station',
+      sortOrder: 20,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Bills',
+      title: 'Bills',
+      type: ExpenseTransactionType.expense,
+      icon: 'receipt',
+      sortOrder: 30,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Rent',
+      title: 'Rent',
+      type: ExpenseTransactionType.expense,
+      icon: 'home',
+      sortOrder: 40,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Shopping',
+      title: 'Shopping',
+      type: ExpenseTransactionType.expense,
+      icon: 'shopping_bag',
+      sortOrder: 50,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Transport',
+      title: 'Transport',
+      type: ExpenseTransactionType.expense,
+      icon: 'directions_car',
+      sortOrder: 60,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Health',
+      title: 'Health',
+      type: ExpenseTransactionType.expense,
+      icon: 'health_and_safety',
+      sortOrder: 70,
+      isTaxRelevant: true,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Education',
+      title: 'Education',
+      type: ExpenseTransactionType.expense,
+      icon: 'school',
+      sortOrder: 80,
+      isTaxRelevant: true,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Business',
+      title: 'Business',
+      type: ExpenseTransactionType.expense,
+      icon: 'business_center',
+      sortOrder: 90,
+      businessDefault: true,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Tax / Legal',
+      title: 'Tax / Legal',
+      type: ExpenseTransactionType.expense,
+      icon: 'gavel',
+      sortOrder: 100,
+      isTaxRelevant: true,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Utilities',
+      title: 'Utilities',
+      type: ExpenseTransactionType.expense,
+      icon: 'bolt',
+      sortOrder: 110,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Other',
+      title: 'Other',
+      type: ExpenseTransactionType.expense,
+      icon: 'category',
+      sortOrder: 999,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Salary',
+      title: 'Salary',
+      type: ExpenseTransactionType.income,
+      icon: 'payments',
+      sortOrder: 10,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Business Income',
+      title: 'Business Income',
+      type: ExpenseTransactionType.income,
+      icon: 'storefront',
+      sortOrder: 20,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Freelance',
+      title: 'Freelance',
+      type: ExpenseTransactionType.income,
+      icon: 'laptop',
+      sortOrder: 30,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Rental Income',
+      title: 'Rental Income',
+      type: ExpenseTransactionType.income,
+      icon: 'apartment',
+      sortOrder: 40,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Investment',
+      title: 'Investment',
+      type: ExpenseTransactionType.income,
+      icon: 'trending_up',
+      sortOrder: 50,
+    ),
+    ExpenseTrackerCategory(
+      name: 'Other Income',
+      title: 'Other Income',
+      type: ExpenseTransactionType.income,
+      icon: 'add_card',
+      sortOrder: 999,
+    ),
   ];
 }
 
@@ -201,7 +323,8 @@ class ExpenseTrackerRepository {
 
   final FrappeClient _frappeClient;
 
-  ExpenseTrackerStorageMode get storageMode => ExpenseTrackerStorageMode.localOnly;
+  ExpenseTrackerStorageMode get storageMode =>
+      ExpenseTrackerStorageMode.localOnly;
 
   Future<ExpenseTrackerStorageMode> readStorageMode() async {
     final preferences = await SharedPreferences.getInstance();
@@ -221,7 +344,9 @@ class ExpenseTrackerRepository {
 
   Future<ExpenseTrackerConfig> fetchConfig() async {
     try {
-      final response = await _frappeClient.getMethod(ApiConfig.expenseConfigMethod);
+      final response = await _frappeClient.getMethod(
+        ApiConfig.expenseConfigMethod,
+      );
       final payload = _extractPayload(response);
       return ExpenseTrackerConfig.fromJson(payload);
     } catch (_) {
@@ -231,7 +356,9 @@ class ExpenseTrackerRepository {
 
   Future<List<ExpenseTrackerCategory>> fetchCategories() async {
     try {
-      final response = await _frappeClient.getMethod(ApiConfig.expenseCategoriesMethod);
+      final response = await _frappeClient.getMethod(
+        ApiConfig.expenseCategoriesMethod,
+      );
       final rawCategories = _extractList(response, 'categories');
       return rawCategories
           .map(ExpenseTrackerCategory.fromJson)
@@ -253,8 +380,13 @@ class ExpenseTrackerRepository {
 
       return decoded
           .whereType<Map>()
-          .map((item) => ExpenseTransaction.fromJson(Map<String, dynamic>.from(item)))
-          .where((item) => item.id.isNotEmpty && item.amount > 0 && !item.isArchived)
+          .map(
+            (item) =>
+                ExpenseTransaction.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .where(
+            (item) => item.id.isNotEmpty && item.amount > 0 && !item.isArchived,
+          )
           .toList(growable: false);
     } catch (_) {
       return const [];
@@ -276,11 +408,15 @@ class ExpenseTrackerRepository {
   }
 
   Future<List<ExpenseTransaction>> fetchSyncedTransactions() async {
-    final response = await _frappeClient.getMethod(ApiConfig.expenseEntriesMethod);
+    final response = await _frappeClient.getMethod(
+      ApiConfig.expenseEntriesMethod,
+    );
     final rawEntries = _extractList(response, 'entries');
     return rawEntries
         .map(ExpenseTransaction.fromJson)
-        .where((item) => item.id.isNotEmpty && item.amount > 0 && !item.isArchived)
+        .where(
+          (item) => item.id.isNotEmpty && item.amount > 0 && !item.isArchived,
+        )
         .toList(growable: false);
   }
 
@@ -307,7 +443,9 @@ class ExpenseTrackerRepository {
 
     return _extractList(response, 'entries')
         .map(ExpenseTransaction.fromJson)
-        .where((item) => item.id.isNotEmpty && item.amount > 0 && !item.isArchived)
+        .where(
+          (item) => item.id.isNotEmpty && item.amount > 0 && !item.isArchived,
+        )
         .toList(growable: false);
   }
 
@@ -333,12 +471,16 @@ class ExpenseTrackerRepository {
   }
 
   Future<Map<String, dynamic>> fetchSyncedSummary() async {
-    final response = await _frappeClient.getMethod(ApiConfig.expenseSummaryMethod);
+    final response = await _frappeClient.getMethod(
+      ApiConfig.expenseSummaryMethod,
+    );
     return _extractPayload(response);
   }
 
   Future<List<Map<String, dynamic>>> fetchBudgets() async {
-    final response = await _frappeClient.getMethod(ApiConfig.expenseBudgetsMethod);
+    final response = await _frappeClient.getMethod(
+      ApiConfig.expenseBudgetsMethod,
+    );
     return _extractList(response, 'budgets');
   }
 

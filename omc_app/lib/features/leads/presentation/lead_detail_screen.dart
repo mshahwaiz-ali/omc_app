@@ -75,7 +75,9 @@ class _LeadDetailBody extends StatelessWidget {
       );
     }
     if (lead.assignedTo != null) {
-      backendRows.add(CrmInfoRow(label: 'Assigned to', value: lead.assignedTo!));
+      backendRows.add(
+        CrmInfoRow(label: 'Assigned to', value: lead.assignedTo!),
+      );
     }
     if (lead.customerProfile != null) {
       backendRows.add(

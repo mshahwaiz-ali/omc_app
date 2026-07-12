@@ -6,8 +6,12 @@ import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import 'service_template.dart';
 
-final serviceTemplateRepositoryProvider = Provider<ServiceTemplateRepository>((ref) {
-  return ServiceTemplateRepository(frappeClient: ref.watch(frappeClientProvider));
+final serviceTemplateRepositoryProvider = Provider<ServiceTemplateRepository>((
+  ref,
+) {
+  return ServiceTemplateRepository(
+    frappeClient: ref.watch(frappeClientProvider),
+  );
 });
 
 class ServiceTemplateRepository {

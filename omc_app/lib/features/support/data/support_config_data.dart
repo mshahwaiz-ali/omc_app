@@ -54,7 +54,8 @@ class SupportConfigData {
         SupportTopicConfig(
           title: 'POS & Digital Invoicing',
           subtitle: 'POS setup, FBR integration and invoices',
-          defaultMessage: 'Hello OMC, I need help with POS or digital invoicing.',
+          defaultMessage:
+              'Hello OMC, I need help with POS or digital invoicing.',
           iconKey: 'pos',
           sortOrder: 2,
         ),
@@ -128,8 +129,7 @@ class SupportConfigData {
     );
   }
 
-  SupportChannelConfig? get whatsappChannel =>
-      _firstChannelByType('whatsapp');
+  SupportChannelConfig? get whatsappChannel => _firstChannelByType('whatsapp');
 
   SupportChannelConfig? get phoneChannel => _firstChannelByType('phone');
 

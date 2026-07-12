@@ -85,7 +85,9 @@ class _InternalDocumentReviewScreenState
     setState(() => _busyDocumentId = document.id);
 
     try {
-      await ref.read(documentsRepositoryProvider).updateServiceDocumentStatus(
+      await ref
+          .read(documentsRepositoryProvider)
+          .updateServiceDocumentStatus(
             documentId: document.id,
             status: status,
             remarks: remarks,
@@ -292,7 +294,8 @@ class _ReviewContent extends StatelessWidget {
           PremiumEmptyState(
             icon: Icons.task_alt_rounded,
             title: 'No documents in this queue',
-            message: 'Switch filters or refresh when new customer uploads arrive.',
+            message:
+                'Switch filters or refresh when new customer uploads arrive.',
           )
         else ...[
           _ServiceSelectorCard(
@@ -387,7 +390,9 @@ class _ServiceDocumentGroup {
   int get rejected =>
       documents.where((item) => item.status == DocumentStatus.rejected).length;
 
-  static List<_ServiceDocumentGroup> fromDocuments(List<DocumentItem> documents) {
+  static List<_ServiceDocumentGroup> fromDocuments(
+    List<DocumentItem> documents,
+  ) {
     final grouped = <String, List<DocumentItem>>{};
     for (final document in documents) {
       final key = document.serviceReference?.trim().isNotEmpty == true
@@ -698,7 +703,8 @@ class _ReviewDocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canReview = !document.isArchived &&
+    final canReview =
+        !document.isArchived &&
         document.status != DocumentStatus.approved &&
         !isBusy;
     final serviceReference = document.serviceReference?.trim() ?? '';
@@ -706,7 +712,8 @@ class _ReviewDocumentCard extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(22),
-      onTap: () => context.push('/documents/${Uri.encodeComponent(document.id)}'),
+      onTap: () =>
+          context.push('/documents/${Uri.encodeComponent(document.id)}'),
       child: PremiumCard(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -778,9 +785,12 @@ class _ReviewDocumentCard extends StatelessWidget {
                   label: document.statusLabel,
                   color: _statusColor(document),
                 ),
-                if (document.source != null) PremiumInfoChip(label: document.source!),
+                if (document.source != null)
+                  PremiumInfoChip(label: document.source!),
                 if (document.updatedAtLabel != null)
-                  PremiumInfoChip(label: 'Uploaded ${document.updatedAtLabel!}'),
+                  PremiumInfoChip(
+                    label: 'Uploaded ${document.updatedAtLabel!}',
+                  ),
               ],
             ),
             if (document.remarks != null) ...[
@@ -804,8 +814,8 @@ class _ReviewDocumentCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: canOpenCase
                         ? () => context.push(
-                              '/my-services/${Uri.encodeComponent(serviceReference)}',
-                            )
+                            '/my-services/${Uri.encodeComponent(serviceReference)}',
+                          )
                         : null,
                     icon: const Icon(Icons.open_in_new_rounded, size: 16),
                     label: const Text('Case'),

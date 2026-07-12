@@ -24,7 +24,9 @@ class AppContentRepository {
 
   Future<List<AppBannerItem>> fetchBanners() async {
     try {
-      final response = await _frappeClient.getMethod(ApiConfig.appBannersMethod);
+      final response = await _frappeClient.getMethod(
+        ApiConfig.appBannersMethod,
+      );
       final rows = _readRows(response, const ['banners', 'items', 'rows']);
       return rows
           .map(AppBannerItem.fromJson)
@@ -72,7 +74,10 @@ class AppContentRepository {
       if (value is List) {
         return value
             .whereType<Map>()
-            .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+            .map(
+              (item) =>
+                  item.map((key, value) => MapEntry(key.toString(), value)),
+            )
             .toList(growable: false);
       }
     }
@@ -80,7 +85,9 @@ class AppContentRepository {
     if (message is List) {
       return message
           .whereType<Map>()
-          .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+          .map(
+            (item) => item.map((key, value) => MapEntry(key.toString(), value)),
+          )
           .toList(growable: false);
     }
 
@@ -112,9 +119,22 @@ class AppBannerItem {
       id: _readString(json, const ['id', 'name', 'banner_id']),
       title: _readString(json, const ['title', 'heading', 'subject']),
       message: _readString(json, const ['message', 'description', 'subtitle']),
-      imageUrl: _readNullableString(json, const ['image_url', 'image', 'banner_image']),
-      actionLabel: _readNullableString(json, const ['action_label', 'button_label', 'cta_label']),
-      actionUrl: _readNullableString(json, const ['action_url', 'mobile_route', 'route', 'url']),
+      imageUrl: _readNullableString(json, const [
+        'image_url',
+        'image',
+        'banner_image',
+      ]),
+      actionLabel: _readNullableString(json, const [
+        'action_label',
+        'button_label',
+        'cta_label',
+      ]),
+      actionUrl: _readNullableString(json, const [
+        'action_url',
+        'mobile_route',
+        'route',
+        'url',
+      ]),
       priority: _readInt(json, const ['priority', 'sort_order', 'idx']),
     );
   }

@@ -156,10 +156,9 @@ class _HistoryFiltersCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
         side: BorderSide(
-          color: Theme.of(context)
-              .colorScheme
-              .outlineVariant
-              .withValues(alpha: 0.65),
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.65),
         ),
       ),
       child: Padding(
@@ -177,9 +176,9 @@ class _HistoryFiltersCard extends StatelessWidget {
                 ),
                 Text(
                   countLabel,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -224,9 +223,9 @@ class _FilterRow extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
         SingleChildScrollView(
@@ -271,7 +270,9 @@ class _FilterChip extends StatelessWidget {
       onSelected: (_) => onTap(),
       selectedColor: colorScheme.primaryContainer,
       labelStyle: TextStyle(
-        color: selected ? colorScheme.onPrimaryContainer : colorScheme.onSurface,
+        color: selected
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onSurface,
         fontWeight: FontWeight.w800,
       ),
       side: BorderSide(
@@ -330,7 +331,11 @@ class _HistoryCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.65)),
+        side: BorderSide(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.65),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -342,7 +347,10 @@ class _HistoryCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     item.taxYear.isEmpty ? 'Saved tax estimate' : item.taxYear,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 if (item.linkedServiceRequest.trim().isNotEmpty)
@@ -351,25 +359,51 @@ class _HistoryCard extends StatelessWidget {
             ),
             if (item.createdOn.trim().isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(item.createdOn, style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                item.createdOn,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _Chip(label: item.incomeType.isEmpty ? 'Income' : item.incomeType),
-                _Chip(label: item.filerStatus.isEmpty ? 'Filer Status' : item.filerStatus),
+                _Chip(
+                  label: item.incomeType.isEmpty ? 'Income' : item.incomeType,
+                ),
+                _Chip(
+                  label: item.filerStatus.isEmpty
+                      ? 'Filer Status'
+                      : item.filerStatus,
+                ),
               ],
             ),
             const SizedBox(height: 14),
-            _KeyValue(label: 'Annual Income', value: _formatMoney(item.annualIncome)),
-            _KeyValue(label: 'Estimated Annual Tax', value: _formatMoney(item.estimatedAnnualTax), strong: true),
-            _KeyValue(label: 'Monthly Tax', value: _formatMoney(item.monthlyTax)),
-            _KeyValue(label: 'Effective Rate', value: '${item.effectiveTaxRate.toStringAsFixed(2)}%'),
+            _KeyValue(
+              label: 'Annual Income',
+              value: _formatMoney(item.annualIncome),
+            ),
+            _KeyValue(
+              label: 'Estimated Annual Tax',
+              value: _formatMoney(item.estimatedAnnualTax),
+              strong: true,
+            ),
+            _KeyValue(
+              label: 'Monthly Tax',
+              value: _formatMoney(item.monthlyTax),
+            ),
+            _KeyValue(
+              label: 'Effective Rate',
+              value: '${item.effectiveTaxRate.toStringAsFixed(2)}%',
+            ),
             if (item.linkedServiceRequest.trim().isNotEmpty) ...[
               const Divider(height: 20),
-              _KeyValue(label: 'Linked Service Request', value: item.linkedServiceRequest, strong: true),
+              _KeyValue(
+                label: 'Linked Service Request',
+                value: item.linkedServiceRequest,
+                strong: true,
+              ),
             ],
           ],
         ),
@@ -393,14 +427,21 @@ class _Chip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSecondaryContainer,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 }
 
 class _KeyValue extends StatelessWidget {
-  const _KeyValue({required this.label, required this.value, this.strong = false});
+  const _KeyValue({
+    required this.label,
+    required this.value,
+    this.strong = false,
+  });
 
   final String label;
   final String value;
@@ -419,7 +460,9 @@ class _KeyValue extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: TextStyle(fontWeight: strong ? FontWeight.w900 : FontWeight.w600),
+              style: TextStyle(
+                fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -429,7 +472,11 @@ class _KeyValue extends StatelessWidget {
 }
 
 class _StateMessage extends StatelessWidget {
-  const _StateMessage({required this.icon, required this.title, required this.message});
+  const _StateMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
 
   final IconData icon;
   final String title;
@@ -445,7 +492,11 @@ class _StateMessage extends StatelessWidget {
           children: [
             Icon(icon, size: 46),
             const SizedBox(height: 14),
-            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900), textAlign: TextAlign.center),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
             Text(message, textAlign: TextAlign.center),
           ],
@@ -469,5 +520,7 @@ String _formatMoney(double value) {
 String _friendlyError(Object? error) {
   final text = error?.toString().trim() ?? '';
   if (text.isEmpty) return 'Something went wrong. Please try again.';
-  return text.replaceFirst('Exception: ', '').replaceFirst('DioException [bad response]: ', '');
+  return text
+      .replaceFirst('Exception: ', '')
+      .replaceFirst('DioException [bad response]: ', '');
 }

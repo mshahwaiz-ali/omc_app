@@ -29,7 +29,9 @@ const Color _roseSoft = Color(0xFFFFF1F3);
 const Color _roseBorder = Color(0xFFF6CDD6);
 
 class ServiceCatalogueScreen extends ConsumerStatefulWidget {
-  const ServiceCatalogueScreen({super.key});
+  const ServiceCatalogueScreen({this.initialQuery = '', super.key});
+
+  final String initialQuery;
 
   @override
   ConsumerState<ServiceCatalogueScreen> createState() =>
@@ -47,6 +49,14 @@ class _ServiceCatalogueScreenState
   String _selectedCategory = _allCategory;
   String _selectedStatus = _allStatus;
   String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    final initialQuery = widget.initialQuery.trim();
+    _query = initialQuery.toLowerCase();
+    _searchController.text = initialQuery;
+  }
 
   @override
   void dispose() {

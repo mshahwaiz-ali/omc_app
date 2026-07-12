@@ -4,8 +4,12 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
 
-final taxCalculationRepositoryProvider = Provider<TaxCalculationRepository>((ref) {
-  return TaxCalculationRepository(frappeClient: ref.watch(frappeClientProvider));
+final taxCalculationRepositoryProvider = Provider<TaxCalculationRepository>((
+  ref,
+) {
+  return TaxCalculationRepository(
+    frappeClient: ref.watch(frappeClientProvider),
+  );
 });
 
 enum TaxIncomeType { salary, business, rental }
@@ -96,13 +100,21 @@ class TaxCalculatorConfig {
           .toList(growable: false),
       showAdvancedMode: _bool(settings['show_advanced_mode'], fallback: true),
       showBreakdown: _bool(settings['show_breakdown'], fallback: true),
-      showFilerComparison: _bool(settings['show_filer_comparison'], fallback: true),
-      showTaxHealthScore: _bool(settings['show_tax_health_score'], fallback: true),
+      showFilerComparison: _bool(
+        settings['show_filer_comparison'],
+        fallback: true,
+      ),
+      showTaxHealthScore: _bool(
+        settings['show_tax_health_score'],
+        fallback: true,
+      ),
       disclaimer: _string(json['disclaimer']) ?? '',
       filingDeadlineAlert: _string(json['filing_deadline_alert']) ?? '',
       recommendedNextSteps: _strings(json['recommended_next_steps']),
       requiredDocuments: _strings(json['required_documents']),
-      cta: json['cta'] is Map ? TaxCta.fromJson(_map(json['cta'])) : const TaxCta(),
+      cta: json['cta'] is Map
+          ? TaxCta.fromJson(_map(json['cta']))
+          : const TaxCta(),
     );
   }
 }
@@ -253,17 +265,33 @@ class TaxCalculationResult {
     return TaxCalculationResult(
       annualIncome: _double(json['annual_income'] ?? json['yearly_income']),
       taxableIncome: _double(json['taxable_income']),
-      estimatedAnnualTax: _double(json['estimated_annual_tax'] ?? json['yearly_tax'] ?? json['annual_tax']),
+      estimatedAnnualTax: _double(
+        json['estimated_annual_tax'] ??
+            json['yearly_tax'] ??
+            json['annual_tax'],
+      ),
       monthlyTax: _double(json['monthly_tax']),
-      monthlyTakeHome: _double(json['monthly_take_home'] ?? json['monthly_after_tax']),
+      monthlyTakeHome: _double(
+        json['monthly_take_home'] ?? json['monthly_after_tax'],
+      ),
       effectiveTaxRate: _double(json['effective_tax_rate']),
       breakdown: _map(json['breakdown']),
-      comparison: json['comparison'] is Map ? TaxComparison.fromJson(_map(json['comparison'])) : null,
-      taxHealth: json['tax_health'] is Map ? TaxHealth.fromJson(_map(json['tax_health'])) : null,
-      insights: _list(json['insights']).map((item) => TaxInsight.fromJson(_map(item))).toList(growable: false),
+      comparison: json['comparison'] is Map
+          ? TaxComparison.fromJson(_map(json['comparison']))
+          : null,
+      taxHealth: json['tax_health'] is Map
+          ? TaxHealth.fromJson(_map(json['tax_health']))
+          : null,
+      insights: _list(
+        json['insights'],
+      ).map((item) => TaxInsight.fromJson(_map(item))).toList(growable: false),
       recommendedNextSteps: _strings(json['recommended_next_steps']),
-      source: json['source'] is Map ? TaxSource.fromJson(_map(json['source'])) : null,
-      cta: json['cta'] is Map ? TaxCta.fromJson(_map(json['cta'])) : const TaxCta(),
+      source: json['source'] is Map
+          ? TaxSource.fromJson(_map(json['source']))
+          : null,
+      cta: json['cta'] is Map
+          ? TaxCta.fromJson(_map(json['cta']))
+          : const TaxCta(),
       calculationLog: _string(json['calculation_log']),
       note: _string(json['note']),
     );
@@ -271,7 +299,11 @@ class TaxCalculationResult {
 }
 
 class TaxComparison {
-  const TaxComparison({required this.activeFilerTax, required this.nonFilerTax, required this.possibleDifference});
+  const TaxComparison({
+    required this.activeFilerTax,
+    required this.nonFilerTax,
+    required this.possibleDifference,
+  });
 
   final double activeFilerTax;
   final double nonFilerTax;
@@ -293,7 +325,10 @@ class TaxHealth {
   final String reason;
 
   factory TaxHealth.fromJson(Map<String, dynamic> json) {
-    return TaxHealth(score: _string(json['score']) ?? 'Medium', reason: _string(json['reason']) ?? '');
+    return TaxHealth(
+      score: _string(json['score']) ?? 'Medium',
+      reason: _string(json['reason']) ?? '',
+    );
   }
 }
 
@@ -330,7 +365,12 @@ class TaxInsight {
 }
 
 class TaxSource {
-  const TaxSource({required this.taxYear, required this.verified, this.lastVerifiedOn = '', this.publicNote = ''});
+  const TaxSource({
+    required this.taxYear,
+    required this.verified,
+    this.lastVerifiedOn = '',
+    this.publicNote = '',
+  });
 
   final String taxYear;
   final bool verified;
@@ -379,7 +419,9 @@ class StartTaxServiceResult {
   factory StartTaxServiceResult.fromJson(Map<String, dynamic> json) {
     return StartTaxServiceResult(
       serviceRequest: _string(json['service_request']) ?? '',
-      message: _string(json['message']) ?? 'Tax filing service request created successfully.',
+      message:
+          _string(json['message']) ??
+          'Tax filing service request created successfully.',
       createdNew: _bool(json['created_new'], fallback: true),
       canCancel: _bool(json['can_cancel']),
     );
@@ -387,7 +429,11 @@ class StartTaxServiceResult {
 }
 
 class TaxEstimatePdfResult {
-  const TaxEstimatePdfResult({required this.fileName, required this.fileUrl, required this.message});
+  const TaxEstimatePdfResult({
+    required this.fileName,
+    required this.fileUrl,
+    required this.message,
+  });
 
   final String fileName;
   final String fileUrl;
@@ -397,13 +443,19 @@ class TaxEstimatePdfResult {
     return TaxEstimatePdfResult(
       fileName: _string(json['file_name']) ?? '',
       fileUrl: _string(json['file_url']) ?? '',
-      message: _string(json['message']) ?? 'Tax estimate PDF generated successfully.',
+      message:
+          _string(json['message']) ??
+          'Tax estimate PDF generated successfully.',
     );
   }
 }
 
 class TaxShareResult {
-  const TaxShareResult({required this.message, required this.calculationLog, required this.linkedServiceRequest});
+  const TaxShareResult({
+    required this.message,
+    required this.calculationLog,
+    required this.linkedServiceRequest,
+  });
 
   final String message;
   final String calculationLog;
@@ -411,7 +463,9 @@ class TaxShareResult {
 
   factory TaxShareResult.fromJson(Map<String, dynamic> json) {
     return TaxShareResult(
-      message: _string(json['message']) ?? 'Tax estimate shared with OMC consultant.',
+      message:
+          _string(json['message']) ??
+          'Tax estimate shared with OMC consultant.',
       calculationLog: _string(json['calculation_log']) ?? '',
       linkedServiceRequest: _string(json['linked_service_request']) ?? '',
     );
@@ -465,16 +519,24 @@ class TaxCalculationRepository {
   final FrappeClient frappeClient;
 
   Future<TaxCalculatorConfig> getConfig() async {
-    final response = await frappeClient.getMethod(ApiConfig.taxCalculatorConfigMethod);
+    final response = await frappeClient.getMethod(
+      ApiConfig.taxCalculatorConfigMethod,
+    );
     return TaxCalculatorConfig.fromJson(_unwrap(response));
   }
 
   Future<TaxCalculationResult> calculate(TaxCalculationInput input) async {
-    final response = await frappeClient.postMethod(ApiConfig.taxCalculatorMethod, data: input.toJson());
+    final response = await frappeClient.postMethod(
+      ApiConfig.taxCalculatorMethod,
+      data: input.toJson(),
+    );
     return TaxCalculationResult.fromJson(_unwrap(response));
   }
 
-  Future<StartTaxServiceResult> startServiceFromCalculation({required String calculationLog, required String service}) async {
+  Future<StartTaxServiceResult> startServiceFromCalculation({
+    required String calculationLog,
+    required String service,
+  }) async {
     final response = await frappeClient.postMethod(
       ApiConfig.startTaxServiceFromCalculationMethod,
       data: {'calculation_log': calculationLog, 'service': service},
@@ -492,7 +554,9 @@ class TaxCalculationRepository {
         .toList(growable: false);
   }
 
-  Future<TaxEstimatePdfResult> downloadEstimatePdf(String calculationLog) async {
+  Future<TaxEstimatePdfResult> downloadEstimatePdf(
+    String calculationLog,
+  ) async {
     final response = await frappeClient.postMethod(
       ApiConfig.downloadTaxEstimatePdfMethod,
       data: {'calculation_log': calculationLog},
@@ -500,7 +564,9 @@ class TaxCalculationRepository {
     return TaxEstimatePdfResult.fromJson(_unwrap(response));
   }
 
-  Future<TaxShareResult> shareEstimateWithConsultant(String calculationLog) async {
+  Future<TaxShareResult> shareEstimateWithConsultant(
+    String calculationLog,
+  ) async {
     final response = await frappeClient.postMethod(
       ApiConfig.shareTaxEstimateWithConsultantMethod,
       data: {'calculation_log': calculationLog},
@@ -521,7 +587,9 @@ Map<String, dynamic> _unwrap(Map<String, dynamic> response) {
 
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) return value;
-  if (value is Map) return value.map((key, item) => MapEntry(key.toString(), item));
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
   return <String, dynamic>{};
 }
 

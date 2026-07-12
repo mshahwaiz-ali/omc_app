@@ -107,7 +107,8 @@ class InternalWorkspaceRepository {
     }
 
     throw const ApiError(
-      message: 'Service request was created but the backend response was incomplete.',
+      message:
+          'Service request was created but the backend response was incomplete.',
       code: 'internal_service_case_response_invalid',
     );
   }

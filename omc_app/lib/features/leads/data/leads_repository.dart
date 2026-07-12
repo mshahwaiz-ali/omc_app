@@ -69,7 +69,9 @@ class LeadsRepository {
           'lead_name': (customerName ?? cleanTitle).trim(),
           'phone': phone?.trim() ?? '',
           'email': email?.trim() ?? '',
-          'source': source?.trim().isNotEmpty == true ? source!.trim() : 'Mobile App',
+          'source': source?.trim().isNotEmpty == true
+              ? source!.trim()
+              : 'Mobile App',
           'service_interest': serviceInterest?.trim() ?? '',
           'notes': notes?.trim() ?? '',
         },
@@ -77,7 +79,9 @@ class LeadsRepository {
 
       final created = _mapLeadDetailResponse(response);
       if (created == null) {
-        throw const ApiError(message: 'Lead was created but response was empty.');
+        throw const ApiError(
+          message: 'Lead was created but response was empty.',
+        );
       }
       return created;
     } on ApiError {

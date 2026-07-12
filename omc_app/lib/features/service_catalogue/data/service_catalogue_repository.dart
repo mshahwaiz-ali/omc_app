@@ -96,7 +96,9 @@ class ServiceCatalogueRepository {
     }
   }
 
-  Future<List<ServiceItem>> _withBackendTemplates(List<ServiceItem> services) async {
+  Future<List<ServiceItem>> _withBackendTemplates(
+    List<ServiceItem> services,
+  ) async {
     final enriched = <ServiceItem>[];
 
     for (final service in services) {
@@ -205,9 +207,9 @@ class ServiceCatalogueRepository {
 
     if (rawServices is Map<String, dynamic>) {
       return _uniqueServices(
-        _expandServiceRecord(rawServices)
-            .map(ServiceItem.fromJson)
-            .where((service) => service.id.isNotEmpty),
+        _expandServiceRecord(
+          rawServices,
+        ).map(ServiceItem.fromJson).where((service) => service.id.isNotEmpty),
       );
     }
 
@@ -252,7 +254,9 @@ class ServiceCatalogueRepository {
     }
 
     if (response.containsKey('services')) return response['services'];
-    if (response.containsKey('service_groups')) return response['service_groups'];
+    if (response.containsKey('service_groups')) {
+      return response['service_groups'];
+    }
     if (response.containsKey('service_categories')) {
       return response['service_categories'];
     }

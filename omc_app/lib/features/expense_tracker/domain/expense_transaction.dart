@@ -121,12 +121,18 @@ class ExpenseTransaction {
         : ExpenseTransactionType.expense;
 
     return ExpenseTransaction(
-      id: _cleanText(json['id'] ?? json['name'] ?? json['sync_id'], fallback: ''),
+      id: _cleanText(
+        json['id'] ?? json['name'] ?? json['sync_id'],
+        fallback: '',
+      ),
       type: parsedType,
       amount: double.tryParse(json['amount']?.toString() ?? '') ?? 0,
       category: _cleanText(json['category'], fallback: 'Uncategorized'),
-      date: DateTime.tryParse(
-            json['date']?.toString() ?? json['transaction_date']?.toString() ?? '',
+      date:
+          DateTime.tryParse(
+            json['date']?.toString() ??
+                json['transaction_date']?.toString() ??
+                '',
           ) ??
           DateTime.now(),
       account: _cleanText(json['account'], fallback: 'Cash'),

@@ -122,7 +122,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/services',
         name: 'services',
-        builder: (context, state) => const MainShell(initialIndex: 1),
+        builder: (context, state) => MainShell(
+          initialIndex: 1,
+          initialServiceQuery: state.uri.queryParameters['query'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/track',

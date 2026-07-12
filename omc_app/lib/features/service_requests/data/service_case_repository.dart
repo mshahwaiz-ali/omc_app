@@ -150,7 +150,9 @@ class ServiceCaseRepository {
     );
   }
 
-  Future<Map<String, dynamic>> cancelServiceRequest({required String caseId}) async {
+  Future<Map<String, dynamic>> cancelServiceRequest({
+    required String caseId,
+  }) async {
     final cleanCaseId = caseId.trim();
     if (cleanCaseId.isEmpty) {
       throw const ApiError(message: 'Missing service case reference.');
@@ -360,7 +362,9 @@ class ServiceCaseRepository {
     );
   }
 
-  List<ServiceCaseDocument> _fallbackDocumentDetails(Map<String, dynamic> json) {
+  List<ServiceCaseDocument> _fallbackDocumentDetails(
+    Map<String, dynamic> json,
+  ) {
     final required = _stringList(json['required_documents']);
     if (required.isEmpty) return const [];
 
@@ -427,7 +431,9 @@ class ServiceCaseRepository {
             paidOnLabel: _nullableString(_displayDate(item['paid_on'])),
             paymentReference: _nullableString(item['payment_reference']),
             receiptUrl: _nullableString(
-              item['receipt_url'] ?? item['receipt_attachment'] ?? item['attachment'],
+              item['receipt_url'] ??
+                  item['receipt_attachment'] ??
+                  item['attachment'],
             ),
             remarks: _nullableString(item['remarks'] ?? item['notes']),
           ),

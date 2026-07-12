@@ -4,11 +4,14 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
 
-final mobileQuickActionsRepositoryProvider = Provider<MobileQuickActionsRepository>(
-  (ref) => MobileQuickActionsRepository(ref.watch(frappeClientProvider)),
-);
+final mobileQuickActionsRepositoryProvider =
+    Provider<MobileQuickActionsRepository>(
+      (ref) => MobileQuickActionsRepository(ref.watch(frappeClientProvider)),
+    );
 
-final mobileQuickActionsProvider = FutureProvider<List<MobileQuickAction>>((ref) {
+final mobileQuickActionsProvider = FutureProvider<List<MobileQuickAction>>((
+  ref,
+) {
   return ref.watch(mobileQuickActionsRepositoryProvider).fetchQuickActions();
 });
 
@@ -22,7 +25,11 @@ class MobileQuickActionsRepository {
       final response = await _frappeClient.getMethod(
         ApiConfig.mobileQuickActionsMethod,
       );
-      final rows = _readRows(response, const ['quick_actions', 'actions', 'items']);
+      final rows = _readRows(response, const [
+        'quick_actions',
+        'actions',
+        'items',
+      ]);
       final actions = rows
           .map(MobileQuickAction.fromJson)
           .where((action) => action.title.isNotEmpty)
@@ -46,7 +53,10 @@ class MobileQuickActionsRepository {
       if (value is List) {
         return value
             .whereType<Map>()
-            .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+            .map(
+              (item) =>
+                  item.map((key, value) => MapEntry(key.toString(), value)),
+            )
             .toList(growable: false);
       }
     }
@@ -54,7 +64,9 @@ class MobileQuickActionsRepository {
     if (message is List) {
       return message
           .whereType<Map>()
-          .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+          .map(
+            (item) => item.map((key, value) => MapEntry(key.toString(), value)),
+          )
           .toList(growable: false);
     }
 
@@ -100,8 +112,15 @@ class MobileQuickAction {
       subtitle: _readString(json, const ['subtitle', 'description']),
       iconKey: _normalizeIconKey(_readString(json, const ['icon_key', 'icon'])),
       targetType: _targetType(_readString(json, const ['target_type'])),
-      targetValue: _readString(json, const ['target_value', 'route', 'url', 'service']),
-      requiredCapability: _readNullableString(json, const ['required_capability']),
+      targetValue: _readString(json, const [
+        'target_value',
+        'route',
+        'url',
+        'service',
+      ]),
+      requiredCapability: _readNullableString(json, const [
+        'required_capability',
+      ]),
       badgeType: _normalizeKey(_readString(json, const ['badge_type'])),
       style: _style(_readString(json, const ['style'])),
       sortOrder: _readInt(json, const ['sort_order', 'idx']),
@@ -193,7 +212,9 @@ MobileQuickActionTargetType _targetType(String value) {
   return switch (_normalizeKey(value)) {
     'feature' => MobileQuickActionTargetType.feature,
     'service' => MobileQuickActionTargetType.service,
-    'external-url' || 'external_url' || 'url' => MobileQuickActionTargetType.externalUrl,
+    'external-url' ||
+    'external_url' ||
+    'url' => MobileQuickActionTargetType.externalUrl,
     _ => MobileQuickActionTargetType.route,
   };
 }
@@ -206,7 +227,8 @@ MobileQuickActionStyle _style(String value) {
   };
 }
 
-String _normalizeIconKey(String value) => _normalizeKey(value).isEmpty ? 'services' : _normalizeKey(value);
+String _normalizeIconKey(String value) =>
+    _normalizeKey(value).isEmpty ? 'services' : _normalizeKey(value);
 
 String _normalizeKey(String value) {
   return value.trim().toLowerCase().replaceAll('_', '-').replaceAll(' ', '-');

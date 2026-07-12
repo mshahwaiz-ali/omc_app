@@ -20,9 +20,14 @@ import 'navigation/omc_more_sheet.dart';
 import 'navigation/omc_quick_actions_sheet.dart';
 
 class MainShell extends ConsumerStatefulWidget {
-  const MainShell({this.initialIndex = 0, super.key});
+  const MainShell({
+    this.initialIndex = 0,
+    this.initialServiceQuery = '',
+    super.key,
+  });
 
   final int initialIndex;
+  final String initialServiceQuery;
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
@@ -292,7 +297,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenSupport: () => context.push('/support'),
         onOpenNotifications: () => context.push('/notifications'),
       ),
-      const ServiceCatalogueScreen(),
+      ServiceCatalogueScreen(initialQuery: widget.initialServiceQuery),
       canUseInternalTrack
           ? const InternalServiceTrackScreen()
           : const MyServicesScreen(),

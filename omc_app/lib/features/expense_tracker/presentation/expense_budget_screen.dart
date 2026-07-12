@@ -8,13 +8,17 @@ import '../../auth/application/auth_controller.dart';
 import '../data/expense_tracker_repository.dart';
 import '../domain/expense_transaction.dart';
 
-final expenseBudgetsProvider = FutureProvider<List<ExpenseBudgetItem>>((ref) async {
+final expenseBudgetsProvider = FutureProvider<List<ExpenseBudgetItem>>((
+  ref,
+) async {
   final repository = ref.watch(expenseTrackerRepositoryProvider);
   final rows = await repository.fetchBudgets();
   return rows.map(ExpenseBudgetItem.fromJson).toList(growable: false);
 });
 
-final expenseBudgetEntriesProvider = FutureProvider<List<ExpenseTransaction>>((ref) async {
+final expenseBudgetEntriesProvider = FutureProvider<List<ExpenseTransaction>>((
+  ref,
+) async {
   final repository = ref.watch(expenseTrackerRepositoryProvider);
   return repository.fetchSyncedTransactions();
 });
@@ -40,9 +44,11 @@ class ExpenseBudgetItem {
     return ExpenseBudgetItem(
       name: json['name']?.toString() ?? '',
       category: json['category']?.toString() ?? 'Overall',
-      month: DateTime.tryParse(json['month']?.toString() ?? '') ?? DateTime.now(),
+      month:
+          DateTime.tryParse(json['month']?.toString() ?? '') ?? DateTime.now(),
       limitAmount: double.tryParse(json['limit_amount']?.toString() ?? '') ?? 0,
-      alertThreshold: double.tryParse(json['alert_threshold']?.toString() ?? '') ?? 80,
+      alertThreshold:
+          double.tryParse(json['alert_threshold']?.toString() ?? '') ?? 80,
       active: _boolValue(json['active'], true),
     );
   }
@@ -52,7 +58,8 @@ class ExpenseBudgetScreen extends ConsumerStatefulWidget {
   const ExpenseBudgetScreen({super.key});
 
   @override
-  ConsumerState<ExpenseBudgetScreen> createState() => _ExpenseBudgetScreenState();
+  ConsumerState<ExpenseBudgetScreen> createState() =>
+      _ExpenseBudgetScreenState();
 }
 
 class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
@@ -68,7 +75,10 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
   @override
   Widget build(BuildContext context) {
     final capabilities = ref.watch(authControllerProvider).capabilities;
-    final canManageBudgets = capabilities.isApproved || capabilities.canAccessInternalWorkspace || capabilities.isInternal;
+    final canManageBudgets =
+        capabilities.isApproved ||
+        capabilities.canAccessInternalWorkspace ||
+        capabilities.isInternal;
 
     if (!canManageBudgets) {
       return Scaffold(
@@ -77,7 +87,8 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
           child: PremiumEmptyState(
             icon: Icons.lock_outline_rounded,
             title: 'Approved access required',
-            message: 'Monthly budgets are available for approved customers and OMC admin users only.',
+            message:
+                'Monthly budgets are available for approved customers and OMC admin users only.',
           ),
         ),
       );
@@ -111,13 +122,19 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
         child: RefreshIndicator.adaptive(
           onRefresh: () async => _refresh(),
           child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 128),
             children: [
               _BudgetMonthHeader(
                 month: _month,
-                onPrevious: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
-                onNext: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
+                onPrevious: () => setState(
+                  () => _month = DateTime(_month.year, _month.month - 1),
+                ),
+                onNext: () => setState(
+                  () => _month = DateTime(_month.year, _month.month + 1),
+                ),
               ),
               const SizedBox(height: 14),
               Align(
@@ -137,9 +154,12 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                   message: 'Could not load synced budget settings right now.',
                 ),
                 data: (budgets) {
-                  final monthBudgets = budgets.where((item) {
-                    return item.month.year == _month.year && item.month.month == _month.month;
-                  }).toList(growable: false);
+                  final monthBudgets = budgets
+                      .where((item) {
+                        return item.month.year == _month.year &&
+                            item.month.month == _month.month;
+                      })
+                      .toList(growable: false);
 
                   return entriesAsync.when(
                     loading: () => const _BudgetLoadingCard(),
@@ -148,14 +168,16 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                       entries: const [],
                       month: _month,
                       onAdd: () => _showBudgetSheet(month: _month),
-                      onEdit: (budget) => _showBudgetSheet(month: _month, budget: budget),
+                      onEdit: (budget) =>
+                          _showBudgetSheet(month: _month, budget: budget),
                     ),
                     data: (entries) => _BudgetList(
                       budgets: monthBudgets,
                       entries: entries,
                       month: _month,
                       onAdd: () => _showBudgetSheet(month: _month),
-                      onEdit: (budget) => _showBudgetSheet(month: _month, budget: budget),
+                      onEdit: (budget) =>
+                          _showBudgetSheet(month: _month, budget: budget),
                     ),
                   );
                 },
@@ -180,7 +202,9 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
       text: budget?.category == 'Overall' ? '' : budget?.category ?? '',
     );
     final amountController = TextEditingController(
-      text: budget == null || budget.limitAmount <= 0 ? '' : budget.limitAmount.toStringAsFixed(0),
+      text: budget == null || budget.limitAmount <= 0
+          ? ''
+          : budget.limitAmount.toStringAsFixed(0),
     );
     final thresholdController = TextEditingController(
       text: (budget?.alertThreshold ?? 80).toStringAsFixed(0),
@@ -204,12 +228,16 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
             children: [
               Text(
                 budget == null ? 'Set monthly budget' : 'Update monthly budget',
-                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
               Text(
                 'Leave category blank for an overall monthly budget.',
-                style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 18),
               TextField(
@@ -224,7 +252,9 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Budget limit',
                   prefixText: 'PKR ',
@@ -234,7 +264,9 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: thresholdController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Warning threshold',
                   suffixText: '%',
@@ -246,23 +278,32 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () async {
-                    final amount = double.tryParse(amountController.text.trim()) ?? 0;
-                    final threshold = double.tryParse(thresholdController.text.trim()) ?? 80;
+                    final amount =
+                        double.tryParse(amountController.text.trim()) ?? 0;
+                    final threshold =
+                        double.tryParse(thresholdController.text.trim()) ?? 80;
                     if (amount <= 0) {
                       ScaffoldMessenger.of(sheetContext).showSnackBar(
-                        const SnackBar(content: Text('Enter a valid budget amount.')),
+                        const SnackBar(
+                          content: Text('Enter a valid budget amount.'),
+                        ),
                       );
                       return;
                     }
 
-                    await ref.read(expenseTrackerRepositoryProvider).saveBudget({
-                      if (budget != null && budget.name.isNotEmpty) 'name': budget.name,
-                      'category': categoryController.text.trim().isEmpty ? null : categoryController.text.trim(),
-                      'month': DateFormat('yyyy-MM-dd').format(month),
-                      'limit_amount': amount,
-                      'alert_threshold': threshold.clamp(1, 100),
-                      'active': 1,
-                    });
+                    await ref
+                        .read(expenseTrackerRepositoryProvider)
+                        .saveBudget({
+                          if (budget != null && budget.name.isNotEmpty)
+                            'name': budget.name,
+                          'category': categoryController.text.trim().isEmpty
+                              ? null
+                              : categoryController.text.trim(),
+                          'month': DateFormat('yyyy-MM-dd').format(month),
+                          'limit_amount': amount,
+                          'alert_threshold': threshold.clamp(1, 100),
+                          'active': 1,
+                        });
 
                     if (!sheetContext.mounted) return;
                     _refresh();
@@ -321,12 +362,17 @@ class _BudgetMonthHeader extends StatelessWidget {
               children: [
                 const Text(
                   'Budget month',
-                  style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   DateFormat('MMMM yyyy').format(month),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ],
             ),
@@ -362,9 +408,13 @@ class _BudgetList extends StatelessWidget {
       return _NoBudgetState(onAdd: onAdd);
     }
 
-    final visibleEntries = entries.where((item) {
-      return item.isExpense && item.date.year == month.year && item.date.month == month.month;
-    }).toList(growable: false);
+    final visibleEntries = entries
+        .where((item) {
+          return item.isExpense &&
+              item.date.year == month.year &&
+              item.date.month == month.month;
+        })
+        .toList(growable: false);
 
     return Column(
       children: [
@@ -381,11 +431,16 @@ class _BudgetList extends StatelessWidget {
     );
   }
 
-  double _spentForBudget(ExpenseBudgetItem budget, List<ExpenseTransaction> entries) {
+  double _spentForBudget(
+    ExpenseBudgetItem budget,
+    List<ExpenseTransaction> entries,
+  ) {
     final category = budget.category.trim().toLowerCase();
     final matching = category.isEmpty || category == 'overall'
         ? entries
-        : entries.where((item) => item.category.trim().toLowerCase() == category);
+        : entries.where(
+            (item) => item.category.trim().toLowerCase() == category,
+          );
     return matching.fold<double>(0, (sum, item) => sum + item.amount);
   }
 }
@@ -414,17 +469,27 @@ class _NoBudgetState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(Icons.savings_outlined, size: 34, color: AppTheme.primaryRed.withValues(alpha: 0.9)),
+          Icon(
+            Icons.savings_outlined,
+            size: 34,
+            color: AppTheme.primaryRed.withValues(alpha: 0.9),
+          ),
           const SizedBox(height: 10),
           Text(
             'No budget set yet',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           const Text(
             'Add an overall or category budget to track spending against your monthly limit.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w600, height: 1.35),
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -454,7 +519,9 @@ class _BudgetCard extends StatelessWidget {
     final formatter = NumberFormat.currency(symbol: 'PKR ', decimalDigits: 0);
     final rawRatio = budget.limitAmount <= 0 ? 0.0 : spent / budget.limitAmount;
     final ratio = rawRatio.clamp(0.0, 1.25).toDouble();
-    final alertRatio = (budget.alertThreshold / 100).clamp(0.01, 1.0).toDouble();
+    final alertRatio = (budget.alertThreshold / 100)
+        .clamp(0.01, 1.0)
+        .toDouble();
     final isOverLimit = spent > budget.limitAmount;
     final isNearLimit = !isOverLimit && ratio >= alertRatio;
     final remaining = budget.limitAmount - spent;
@@ -493,7 +560,9 @@ class _BudgetCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
-                    isOverLimit ? Icons.error_outline_rounded : Icons.savings_outlined,
+                    isOverLimit
+                        ? Icons.error_outline_rounded
+                        : Icons.savings_outlined,
                     color: AppTheme.primaryRed,
                   ),
                 ),
@@ -503,18 +572,27 @@ class _BudgetCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        budget.category.trim().isEmpty ? 'Overall budget' : budget.category,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                        budget.category.trim().isEmpty
+                            ? 'Overall budget'
+                            : budget.category,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${formatter.format(spent)} spent of ${formatter.format(budget.limitAmount)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.edit_outlined, size: 18, color: AppTheme.textSecondary),
+                const Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: AppTheme.textSecondary,
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -530,10 +608,12 @@ class _BudgetCard extends StatelessWidget {
               isOverLimit
                   ? 'Over budget by ${formatter.format(remaining.abs())}'
                   : isNearLimit
-                      ? 'Warning: ${budget.alertThreshold.toStringAsFixed(0)}% threshold reached'
-                      : '${formatter.format(remaining)} remaining',
+                  ? 'Warning: ${budget.alertThreshold.toStringAsFixed(0)}% threshold reached'
+                  : '${formatter.format(remaining)} remaining',
               style: TextStyle(
-                color: (isOverLimit || isNearLimit) ? AppTheme.primaryRed : AppTheme.textSecondary,
+                color: (isOverLimit || isNearLimit)
+                    ? AppTheme.primaryRed
+                    : AppTheme.textSecondary,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -565,7 +645,11 @@ bool _boolValue(dynamic value, bool fallback) {
   if (value is bool) return value;
   if (value is num) return value != 0;
   final text = value?.toString().trim().toLowerCase();
-  if (text == 'true' || text == '1' || text == 'yes' || text == 'on') return true;
-  if (text == 'false' || text == '0' || text == 'no' || text == 'off') return false;
+  if (text == 'true' || text == '1' || text == 'yes' || text == 'on') {
+    return true;
+  }
+  if (text == 'false' || text == '0' || text == 'no' || text == 'off') {
+    return false;
+  }
   return fallback;
 }

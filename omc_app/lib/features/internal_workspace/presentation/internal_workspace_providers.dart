@@ -19,9 +19,11 @@ final internalWorkspaceSummaryProvider =
       return repository.getSummary();
     });
 
-final internalServiceCaseFiltersProvider = NotifierProvider<
-    InternalServiceCaseFiltersNotifier,
-    InternalServiceCaseFilters>(InternalServiceCaseFiltersNotifier.new);
+final internalServiceCaseFiltersProvider =
+    NotifierProvider<
+      InternalServiceCaseFiltersNotifier,
+      InternalServiceCaseFilters
+    >(InternalServiceCaseFiltersNotifier.new);
 
 class InternalServiceCaseFiltersNotifier
     extends Notifier<InternalServiceCaseFilters> {

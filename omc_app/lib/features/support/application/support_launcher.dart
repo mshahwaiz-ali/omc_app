@@ -23,7 +23,9 @@ class SupportLauncher {
     String? phoneNumber,
     required String message,
   }) async {
-    final cleanNumber = _digitsOnly(phoneNumber ?? SupportConfig.whatsappNumber);
+    final cleanNumber = _digitsOnly(
+      phoneNumber ?? SupportConfig.whatsappNumber,
+    );
     if (cleanNumber.isEmpty) {
       _showFailure(context, 'WhatsApp support number is not configured.');
       return;

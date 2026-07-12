@@ -518,7 +518,7 @@ class _CustomerAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedImageUrl = ApiConfig.resolveFileUrl(imageUrl);
+    final resolvedUrl = ApiConfig.resolveFileUrl(imageUrl);
 
     return Container(
       width: 50,
@@ -529,21 +529,23 @@ class _CustomerAvatar extends StatelessWidget {
         borderRadius: BorderRadius.circular(17),
         border: Border.all(color: AppTheme.primary.withValues(alpha: 0.08)),
       ),
-      child: resolvedImageUrl == null
-          ? _CustomerInitials(name: name)
+      child: resolvedUrl == null
+          ? _CustomerAvatarInitials(name: name)
           : Image.network(
-              resolvedImageUrl,
-              fit: BoxFit.cover,
+              resolvedUrl,
               width: 50,
               height: 50,
-              errorBuilder: (_, _, _) => _CustomerInitials(name: name),
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) {
+                return _CustomerAvatarInitials(name: name);
+              },
             ),
     );
   }
 }
 
-class _CustomerInitials extends StatelessWidget {
-  const _CustomerInitials({required this.name});
+class _CustomerAvatarInitials extends StatelessWidget {
+  const _CustomerAvatarInitials({required this.name});
 
   final String name;
 
@@ -552,15 +554,14 @@ class _CustomerInitials extends StatelessWidget {
     final parts = name
         .trim()
         .split(RegExp(r'\s+'))
-        .where((item) => item.isNotEmpty && item != '-')
+        .where((part) => part.isNotEmpty && part != '-')
         .toList();
 
     final initials = parts.isEmpty
         ? '?'
         : parts.length == 1
         ? parts.first.substring(0, 1).toUpperCase()
-        : '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
-              .toUpperCase();
+        : '${parts.first[0]}${parts.last[0]}'.toUpperCase();
 
     return Center(
       child: Text(

@@ -279,10 +279,12 @@ class ServiceRequestRepository {
           'request_id': requestId,
           'service_request': requestId,
           'name': requestId,
-          'document_title': cleanDocumentTitle != null && cleanDocumentTitle.isNotEmpty
+          'document_title':
+              cleanDocumentTitle != null && cleanDocumentTitle.isNotEmpty
               ? cleanDocumentTitle
               : attachment.name,
-          'document_type': cleanDocumentType != null && cleanDocumentType.isNotEmpty
+          'document_type':
+              cleanDocumentType != null && cleanDocumentType.isNotEmpty
               ? cleanDocumentType
               : attachment.extension ?? '',
           'attachment': uploadedFileUrl,

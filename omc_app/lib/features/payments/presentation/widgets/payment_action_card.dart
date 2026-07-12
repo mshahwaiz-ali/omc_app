@@ -24,7 +24,8 @@ class PaymentActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canContactSupport = payment.requiresAction && payment.paymentUrl != null;
+    final canContactSupport =
+        payment.requiresAction && payment.paymentUrl != null;
     final canOpenReceipt = payment.receiptUrl != null;
     final canUploadReceipt =
         payment.status != PaymentStatus.paid &&
@@ -76,7 +77,8 @@ class PaymentActionCard extends StatelessWidget {
             _ActionTile(
               icon: Icons.chat_rounded,
               title: 'Contact OMC on WhatsApp',
-              subtitle: 'Get account details and confirm this payment with OMC.',
+              subtitle:
+                  'Get account details and confirm this payment with OMC.',
               enabled: true,
               onTap: onPayNow,
             ),
@@ -87,7 +89,9 @@ class PaymentActionCard extends StatelessWidget {
               icon: isUploadingReceipt
                   ? Icons.hourglass_top_rounded
                   : Icons.upload_file_rounded,
-              title: isUploadingReceipt ? 'Uploading receipt' : 'Upload receipt',
+              title: isUploadingReceipt
+                  ? 'Uploading receipt'
+                  : 'Upload receipt',
               subtitle: isUploadingReceipt
                   ? 'Please wait while the receipt is uploaded.'
                   : payment.status == PaymentStatus.rejected

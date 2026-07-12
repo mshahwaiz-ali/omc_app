@@ -109,7 +109,8 @@ class HomeScreen extends ConsumerWidget {
           }
           context.push('/profile');
         },
-        onSearch: () => context.push('/services'),
+        onSearch: (query) =>
+            context.push('/services?query=${Uri.encodeQueryComponent(query)}'),
         onAction: (action) => _handleQuickAction(
           context,
           action,

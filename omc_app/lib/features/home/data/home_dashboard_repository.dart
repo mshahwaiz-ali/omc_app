@@ -5,11 +5,11 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 
-final homeDashboardRepositoryProvider = Provider<HomeDashboardRepository>(
-  (ref) {
-    return HomeDashboardRepository(frappeClient: ref.watch(frappeClientProvider));
-  },
-);
+final homeDashboardRepositoryProvider = Provider<HomeDashboardRepository>((
+  ref,
+) {
+  return HomeDashboardRepository(frappeClient: ref.watch(frappeClientProvider));
+});
 
 final homeDashboardSummaryProvider = FutureProvider<HomeDashboardSummary>((
   ref,
@@ -292,7 +292,9 @@ class HomeDashboardRepository {
         data['recent_activity'] ?? data['timeline'] ?? data['activity'],
       ),
       serviceSnapshots: _serviceSnapshots(
-        data['service_snapshots'] ?? data['active_services'] ?? data['services'],
+        data['service_snapshots'] ??
+            data['active_services'] ??
+            data['services'],
       ),
       documentSummary: documentSummary,
       paymentSummary: paymentSummary,
@@ -355,7 +357,9 @@ class HomeDashboardRepository {
       activeCustomers: _readInt(value, const ['active_customers']),
       pendingTasks: _readInt(value, const ['pending_tasks']),
       pendingPayments: _readInt(value, const ['pending_payments']),
-      documentsWaitingReview: _readInt(value, const ['documents_waiting_review']),
+      documentsWaitingReview: _readInt(value, const [
+        'documents_waiting_review',
+      ]),
       activeServices: _readInt(value, const ['active_services']),
       waitingCustomer: _readInt(value, const ['waiting_customer']),
     );
@@ -386,7 +390,11 @@ class HomeDashboardRepository {
 
           return HomeDashboardServiceSnapshot(
             id: _readString(item, const ['id', 'name']),
-            title: _readString(item, const ['title', 'service_title', 'service']),
+            title: _readString(item, const [
+              'title',
+              'service_title',
+              'service',
+            ]),
             status: _readString(item, const ['status']),
             customerName: _readString(item, const ['customer_name']),
             documentSummary: _documentSummary(

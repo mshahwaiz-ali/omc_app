@@ -49,7 +49,7 @@ class CustomerGuestHomeView extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final VoidCallback onNotifications;
   final VoidCallback onAvatar;
-  final VoidCallback onSearch;
+  final ValueChanged<String> onSearch;
   final ValueChanged<MobileQuickAction> onAction;
   final bool Function(MobileQuickAction) isActionAllowed;
   final ValueChanged<MobileQuickAction> onLockedAction;
@@ -413,42 +413,71 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-class _SearchField extends StatelessWidget {
+class _SearchField extends StatefulWidget {
   const _SearchField({required this.onTap});
 
-  final VoidCallback onTap;
+  final ValueChanged<String> onTap;
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final query = _controller.text.trim();
+    if (query.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    widget.onTap(query);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.95),
-      borderRadius: BorderRadius.circular(28),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
-        child: Container(
-          height: 60,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFE2E4E8)),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.search_rounded, size: 27, color: Color(0xFF434B58)),
-              SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  'Search services, requests or tools',
-                  style: TextStyle(
-                    color: Color(0xFF69717F),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return TextField(
+      controller: _controller,
+      onSubmitted: (_) => _submit(),
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Search services, requests or tools',
+        hintStyle: const TextStyle(
+          color: Color(0xFF69717F),
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          size: 27,
+          color: Color(0xFF434B58),
+        ),
+        suffixIcon: IconButton(
+          tooltip: 'Search',
+          onPressed: _submit,
+          icon: const Icon(Icons.arrow_forward_rounded),
+        ),
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.95),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 18,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: Color(0xFFE2E4E8)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: Color(0xFFE2E4E8)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: Color(0xFF111827), width: 1.2),
         ),
       ),
     );
