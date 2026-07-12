@@ -1,34 +1,19 @@
 import frappe
 
 from omc_app.api import mobile
-
-
-CUSTOMER_ROLE = "OMC Customer"
-INTERNAL_ADMIN_ROLE = "OMC Admin"
-INTERNAL_MANAGER_ROLE = "OMC Manager"
-INTERNAL_SUPPORT_ROLE = "OMC Customer Support"
-SYSTEM_ROLE = "System Manager"
-
-INTERNAL_ROLES = {
+from omc_app.setup.roles import (
+    ACTIVE_PORTAL_ROLES,
+    ADMIN_ROLE,
+    CUSTOMER_ROLE,
+    LEGACY_CLIENT_ROLES,
+    LEGACY_ROLES,
+    MANAGER_ROLE,
     SYSTEM_ROLE,
-    INTERNAL_ADMIN_ROLE,
-    INTERNAL_MANAGER_ROLE,
-    INTERNAL_SUPPORT_ROLE,
-}
-ADMIN_ROLES = {SYSTEM_ROLE, INTERNAL_ADMIN_ROLE}
-MANAGER_ROLES = ADMIN_ROLES | {INTERNAL_MANAGER_ROLE}
-SUPPORT_ROLES = MANAGER_ROLES | {INTERNAL_SUPPORT_ROLE}
+)
 
-LEGACY_CLIENT_ROLES = {"OMC Customer Applicant"}
-LEGACY_INTERNAL_ROLES = {
-    "OMC Support Agent",
-    "OMC Document Reviewer",
-    "OMC Finance Reviewer",
-    "OMC Consultant",
-    "OMC Business Partner",
-    "OMC Tax Associate",
-}
-LEGACY_ROLES = LEGACY_CLIENT_ROLES | LEGACY_INTERNAL_ROLES
+INTERNAL_ROLES = {SYSTEM_ROLE, ADMIN_ROLE, MANAGER_ROLE}
+ADMIN_ROLES = {SYSTEM_ROLE, ADMIN_ROLE}
+MANAGER_ROLES = ADMIN_ROLES | {MANAGER_ROLE}
 
 
 def _current_user():
@@ -59,16 +44,15 @@ def _normalize_user_roles(user_id):
 
     if roles.intersection(LEGACY_CLIENT_ROLES) and CUSTOMER_ROLE not in existing:
         user_doc.append("roles", {"role": CUSTOMER_ROLE})
-        existing.add(CUSTOMER_ROLE)
-
-    if roles.intersection({"OMC Support Agent"}) and INTERNAL_SUPPORT_ROLE not in existing:
-        user_doc.append("roles", {"role": INTERNAL_SUPPORT_ROLE})
-        existing.add(INTERNAL_SUPPORT_ROLE)
 
     user_doc.roles = [row for row in user_doc.roles if row.role not in LEGACY_ROLES]
     final_roles = {row.role for row in user_doc.roles}
 
-    user_doc.user_type = "System User" if final_roles.intersection(INTERNAL_ROLES) else "Website User"
+    if final_roles.intersection(INTERNAL_ROLES):
+        user_doc.user_type = "System User"
+    elif final_roles.intersection(ACTIVE_PORTAL_ROLES):
+        user_doc.user_type = "Website User"
+
     user_doc.save(ignore_permissions=True)
     frappe.clear_cache(user=user_id)
 
@@ -80,7 +64,6 @@ def _canonical_capabilities(user=None):
     is_internal = bool(roles.intersection(INTERNAL_ROLES))
     is_admin = bool(roles.intersection(ADMIN_ROLES))
     is_manager = bool(roles.intersection(MANAGER_ROLES))
-    is_support = bool(roles.intersection(SUPPORT_ROLES))
 
     if not is_internal:
         return None
@@ -109,12 +92,12 @@ def _canonical_capabilities(user=None):
         "can_update_service_status": is_manager,
         "can_review_documents": is_manager,
         "can_review_payments": is_manager,
-        "can_update_support_ticket_status": is_support,
+        "can_update_support_ticket_status": is_manager,
         "can_manage_customers": is_manager,
         "can_manage_leads": is_manager,
         "can_manage_tasks": is_manager,
         "can_view_internal_notes": True,
-        "can_manage_settings": is_admin or bool(roles.intersection({INTERNAL_MANAGER_ROLE})),
+        "can_manage_settings": is_admin or MANAGER_ROLE in roles,
     }
 
 
@@ -123,30 +106,49 @@ def sign_up(**kwargs):
     """Public signup creates/keeps a customer profile only.
 
     Register-as/customer-type values stay as profile metadata. They never become
-    permission roles. The only client role assigned by public signup is
-    OMC Customer, and existing internal users keep their internal roles.
+    permission roles. The only role assigned by public signup is OMC Customer,
+    and existing internal users keep their internal roles.
     """
     result = mobile.sign_up(**kwargs)
-    email = ((result.get("user") or {}).get("email") or kwargs.get("email") or kwargs.get("user") or "").strip().lower()
+    email = (
+        (result.get("user") or {}).get("email")
+        or kwargs.get("email")
+        or kwargs.get("user")
+        or ""
+    ).strip().lower()
 
     if email and frappe.db.exists("User", email):
         user_doc = frappe.get_doc("User", email)
         existing = {row.role for row in (user_doc.roles or [])}
         is_internal_account = bool(existing.intersection(INTERNAL_ROLES))
 
-        if not is_internal_account and frappe.db.exists("Role", CUSTOMER_ROLE) and CUSTOMER_ROLE not in existing:
+        if (
+            not is_internal_account
+            and frappe.db.exists("Role", CUSTOMER_ROLE)
+            and CUSTOMER_ROLE not in existing
+        ):
             user_doc.append("roles", {"role": CUSTOMER_ROLE})
 
         user_doc.roles = [row for row in user_doc.roles if row.role not in LEGACY_ROLES]
         final_roles = {row.role for row in user_doc.roles}
-        user_doc.user_type = "System User" if final_roles.intersection(INTERNAL_ROLES) else "Website User"
+        user_doc.user_type = (
+            "System User"
+            if final_roles.intersection(INTERNAL_ROLES)
+            else "Website User"
+        )
         user_doc.save(ignore_permissions=True)
         frappe.clear_cache(user=email)
         frappe.db.commit()
 
     if isinstance(result, dict):
-        result["access_state"] = "pending" if result.get("access_state") != "approved" else "approved"
-        result["capabilities"] = get_mobile_capabilities(user=email) if email else result.get("capabilities")
+        result["access_state"] = (
+            "pending" if result.get("access_state") != "approved" else "approved"
+        )
+        result["capabilities"] = (
+            get_mobile_capabilities(user=email)
+            if email
+            else result.get("capabilities")
+        )
 
     return result
 
