@@ -63,9 +63,22 @@ backend_omc_app/frappe-bench/node_modules/
 backend_omc_app/logs/
 backend_omc_app/.secrets/
 
-# Legacy backend sync source - keep tracked until one-time migration is complete
+# Monorepo custom app source
 !backend_omc_app/apps/
 !backend_omc_app/apps/**
+
+# OMC deployment toolkit runtime data
+backend_omc_app/deploy/.secrets/
+backend_omc_app/deploy/logs/
+backend_omc_app/deploy/backups/
+backend_omc_app/deploy/.state/
+backend_omc_app/deploy/**/*.env
+!backend_omc_app/deploy/**/*.env.example
+backend_omc_app/deploy/**/*.sql
+backend_omc_app/deploy/**/*.sql.gz
+backend_omc_app/deploy/**/*.pid
+backend_omc_app/deploy/**/*.sock
+backend_omc_app/deploy/**/site_config.json
 
 # Frappe local/runtime files
 sites/
