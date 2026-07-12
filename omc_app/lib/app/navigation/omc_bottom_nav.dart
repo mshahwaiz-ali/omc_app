@@ -12,6 +12,7 @@ class OmcBottomNav extends StatelessWidget {
     required this.onQuickActions,
     required this.onMore,
     required this.primaryColor,
+    this.onAccentColor,
     this.isInternal = false,
     super.key,
   });
@@ -22,53 +23,28 @@ class OmcBottomNav extends StatelessWidget {
   final VoidCallback onQuickActions;
   final VoidCallback onMore;
   final Color primaryColor;
+  final Color? onAccentColor;
   final bool isInternal;
 
-  static const List<OmcBottomNavItem> _customerItems = [
-    OmcBottomNavItem(
-      label: 'Home',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home_rounded,
-      shellIndex: 0,
-    ),
-    OmcBottomNavItem(
-      label: 'Services',
-      icon: Icons.grid_view_outlined,
-      activeIcon: Icons.grid_view_rounded,
-      shellIndex: 1,
-    ),
-    OmcBottomNavItem(
-      label: 'Requests',
-      icon: Icons.receipt_long_outlined,
-      activeIcon: Icons.receipt_long_rounded,
-      shellIndex: 2,
-    ),
+  static const _customerItems = <OmcBottomNavItem>[
+    OmcBottomNavItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home_rounded, shellIndex: 0),
+    OmcBottomNavItem(label: 'Services', icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view_rounded, shellIndex: 1),
+    OmcBottomNavItem(label: 'Requests', icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long_rounded, shellIndex: 2),
   ];
 
-  static const List<OmcBottomNavItem> _adminItems = [
-    OmcBottomNavItem(
-      label: 'Home',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home_rounded,
-      shellIndex: 0,
-    ),
-    OmcBottomNavItem(
-      label: 'Services',
-      icon: Icons.grid_view_outlined,
-      activeIcon: Icons.grid_view_rounded,
-      shellIndex: 1,
-    ),
-    OmcBottomNavItem(
-      label: 'Cases',
-      icon: Icons.fact_check_outlined,
-      activeIcon: Icons.fact_check_rounded,
-      shellIndex: 2,
-    ),
+  static const _adminItems = <OmcBottomNavItem>[
+    OmcBottomNavItem(label: 'Home', icon: Icons.home_outlined, activeIcon: Icons.home_rounded, shellIndex: 0),
+    OmcBottomNavItem(label: 'Services', icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view_rounded, shellIndex: 1),
+    OmcBottomNavItem(label: 'Cases', icon: Icons.fact_check_outlined, activeIcon: Icons.fact_check_rounded, shellIndex: 2),
   ];
 
   @override
   Widget build(BuildContext context) {
     final items = isInternal ? _adminItems : _customerItems;
+    final readableForeground = onAccentColor ??
+        (ThemeData.estimateBrightnessForColor(primaryColor) == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF111827));
 
     return Material(
       color: Colors.white,
@@ -91,43 +67,16 @@ class OmcBottomNav extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Expanded(
-                child: _NavTab(
-                  item: items[0],
-                  selected: selectedIndex == 0,
-                  primaryColor: primaryColor,
-                  onTap: () => onTabSelected(0),
-                ),
-              ),
-              Expanded(
-                child: _NavTab(
-                  item: items[1],
-                  selected: selectedIndex == 1,
-                  primaryColor: primaryColor,
-                  onTap: () => onTabSelected(1),
-                ),
-              ),
+              Expanded(child: _NavTab(item: items[0], selected: selectedIndex == 0, accentColor: primaryColor, onTap: () => onTabSelected(0))),
+              Expanded(child: _NavTab(item: items[1], selected: selectedIndex == 1, accentColor: primaryColor, onTap: () => onTabSelected(1))),
               _CenterActionButton(
                 onTap: onQuickActions,
                 isInternal: isInternal,
-                primaryColor: primaryColor,
+                accentColor: primaryColor,
+                onAccentColor: readableForeground,
               ),
-              Expanded(
-                child: _NavTab(
-                  item: items[2],
-                  selected: selectedIndex == 2,
-                  primaryColor: primaryColor,
-                  onTap: () => onTabSelected(2),
-                ),
-              ),
-              Expanded(
-                child: _MoreTab(
-                  selected: selectedIndex >= 3,
-                  badgeCount: notificationBadgeCount,
-                  primaryColor: primaryColor,
-                  onTap: onMore,
-                ),
-              ),
+              Expanded(child: _NavTab(item: items[2], selected: selectedIndex == 2, accentColor: primaryColor, onTap: () => onTabSelected(2))),
+              Expanded(child: _MoreTab(selected: selectedIndex >= 3, badgeCount: notificationBadgeCount, accentColor: primaryColor, onTap: onMore)),
             ],
           ),
         ),
@@ -140,12 +89,14 @@ class _CenterActionButton extends StatelessWidget {
   const _CenterActionButton({
     required this.onTap,
     required this.isInternal,
-    required this.primaryColor,
+    required this.accentColor,
+    required this.onAccentColor,
   });
 
   final VoidCallback onTap;
   final bool isInternal;
-  final Color primaryColor;
+  final Color accentColor;
+  final Color onAccentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +106,7 @@ class _CenterActionButton extends StatelessWidget {
         button: true,
         label: isInternal ? 'Open admin quick actions' : 'Open quick actions',
         child: Material(
-          color: primaryColor,
+          color: accentColor,
           borderRadius: BorderRadius.circular(18),
           child: InkWell(
             onTap: onTap,
@@ -164,17 +115,17 @@ class _CenterActionButton extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: primaryColor,
+                color: accentColor,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: primaryColor.withValues(alpha: 0.20),
+                    color: accentColor.withValues(alpha: 0.20),
                     blurRadius: 14,
                     offset: const Offset(0, 5),
                   ),
                 ],
               ),
-              child: Icon(Icons.add_rounded, color: Colors.white, size: 27),
+              child: Icon(Icons.add_rounded, color: onAccentColor, size: 27),
             ),
           ),
         ),
@@ -184,23 +135,16 @@ class _CenterActionButton extends StatelessWidget {
 }
 
 class _NavTab extends StatelessWidget {
-  const _NavTab({
-    required this.item,
-    required this.selected,
-    required this.primaryColor,
-    required this.onTap,
-  });
+  const _NavTab({required this.item, required this.selected, required this.accentColor, required this.onTap});
 
   final OmcBottomNavItem item;
   final bool selected;
-  final Color primaryColor;
+  final Color accentColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final icon = selected ? item.activeIcon : item.icon;
-    final color = selected ? primaryColor : AppTheme.textMuted;
-
+    final color = selected ? accentColor : AppTheme.textMuted;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -212,9 +156,7 @@ class _NavTab extends StatelessWidget {
           height: 58,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color: selected
-                ? primaryColor.withValues(alpha: 0.08)
-                : Colors.transparent,
+            color: selected ? accentColor.withValues(alpha: 0.08) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -223,19 +165,14 @@ class _NavTab extends StatelessWidget {
               AnimatedScale(
                 duration: const Duration(milliseconds: 180),
                 scale: selected ? 1.05 : 1,
-                child: Icon(icon, color: color, size: 22),
+                child: Icon(selected ? item.activeIcon : item.icon, color: color, size: 22),
               ),
               const SizedBox(height: 3),
               Text(
                 item.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  height: 1.1,
-                ),
+                style: TextStyle(color: color, fontSize: 10, fontWeight: selected ? FontWeight.w800 : FontWeight.w600, height: 1.1),
               ),
             ],
           ),
@@ -246,22 +183,16 @@ class _NavTab extends StatelessWidget {
 }
 
 class _MoreTab extends StatelessWidget {
-  const _MoreTab({
-    required this.selected,
-    required this.badgeCount,
-    required this.primaryColor,
-    required this.onTap,
-  });
+  const _MoreTab({required this.selected, required this.badgeCount, required this.accentColor, required this.onTap});
 
   final bool selected;
   final int badgeCount;
-  final Color primaryColor;
+  final Color accentColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? primaryColor : AppTheme.textMuted;
-
+    final color = selected ? accentColor : AppTheme.textMuted;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -272,9 +203,7 @@ class _MoreTab extends StatelessWidget {
           height: 58,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color: selected
-                ? primaryColor.withValues(alpha: 0.08)
-                : Colors.transparent,
+            color: selected ? accentColor.withValues(alpha: 0.08) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -284,24 +213,11 @@ class _MoreTab extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   Icon(Icons.more_horiz_rounded, color: color, size: 23),
-                  if (badgeCount > 0)
-                    Positioned(
-                      top: -7,
-                      right: -12,
-                      child: _Badge(count: badgeCount),
-                    ),
+                  if (badgeCount > 0) Positioned(top: -7, right: -12, child: _Badge(count: badgeCount)),
                 ],
               ),
               const SizedBox(height: 3),
-              Text(
-                'More',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  height: 1.1,
-                ),
-              ),
+              Text('More', style: TextStyle(color: color, fontSize: 10, fontWeight: selected ? FontWeight.w800 : FontWeight.w600, height: 1.1)),
             ],
           ),
         ),
@@ -312,7 +228,6 @@ class _MoreTab extends StatelessWidget {
 
 class _Badge extends StatelessWidget {
   const _Badge({required this.count});
-
   final int count;
 
   @override
@@ -329,12 +244,7 @@ class _Badge extends StatelessWidget {
       child: Center(
         child: Text(
           count > 99 ? '99+' : count.toString(),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 8.5,
-            fontWeight: FontWeight.w900,
-            height: 1,
-          ),
+          style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w900, height: 1),
         ),
       ),
     );
