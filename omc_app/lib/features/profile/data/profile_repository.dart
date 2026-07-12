@@ -18,12 +18,20 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 });
 
 final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
-  final authState = ref.watch(authControllerProvider);
-  if (authState.status != AuthStatus.authenticated) return null;
+  // Only observe session identity. Profile metadata is synchronised back into
+  // AuthState below, so watching the complete state would re-run this provider
+  // after every sync and continuously call get_profile.
+  final authIdentity = ref.watch(
+    authControllerProvider.select(
+      (state) => (status: state.status, userId: state.userId),
+    ),
+  );
+
+  if (authIdentity.status != AuthStatus.authenticated) return null;
 
   final repository = ref.watch(profileRepositoryProvider);
   final profile = await repository.fetchProfile(
-    fallbackUserId: authState.userId,
+    fallbackUserId: authIdentity.userId,
   );
   if (profile != null) {
     ref
@@ -45,7 +53,8 @@ final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
 });
 
 class ProfileRepository {
-  const ProfileRepository({required this._frappeClient});
+  const ProfileRepository({required FrappeClient frappeClient})
+    : _frappeClient = frappeClient;
 
   final FrappeClient _frappeClient;
 
@@ -179,7 +188,9 @@ class ProfileRepository {
         profile['company_name'] ?? profile['company'],
       ),
       approvalStatus: _nullableString(profile['approval_status']),
-      avatarUrl: avatarUrl == null ? null : _withAvatarCacheBust(avatarUrl),
+      // Keep the backend User.user_image URL stable during ordinary reads.
+      // A fresh cache-buster is only returned immediately after an upload.
+      avatarUrl: avatarUrl,
       status:
           _nullableString(profile['customer_status'] ?? profile['status']) ??
           fallback.status,
