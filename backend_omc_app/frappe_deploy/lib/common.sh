@@ -33,7 +33,19 @@ reset_state(){ rm -f "$(state_file "$1")"; }
 setup_log(){ local name file; name="$1"; file="$LOG_DIR/${name}-$(date +%Y%m%d-%H%M%S).log"; touch "$file"; exec > >(tee -a "$file") 2>&1; info "log: $file"; }
 
 require_ubuntu_debian(){ [[ -r /etc/os-release ]] || die 'Cannot detect operating system.'; source /etc/os-release; case "${ID:-}" in ubuntu|debian) ;; *) die "Unsupported OS: ${ID:-unknown}. Use Ubuntu or Debian.";; esac; }
-need_sudo(){ if [[ $EUID -eq 0 ]]; then SUDO=(); else have sudo || die 'sudo is required'; sudo -v || die 'sudo authentication failed'; SUDO=(sudo); fi; }
+need_sudo(){
+  if [[ $EUID -eq 0 ]]; then
+    SUDO=()
+    return 0
+  fi
+  have sudo || die 'sudo is required'
+  if sudo -n true 2>/dev/null; then
+    SUDO=(sudo)
+    return 0
+  fi
+  sudo -v || die 'sudo authentication failed'
+  SUDO=(sudo)
+}
 apt_install_missing(){ local p; local -a missing=(); for p in "$@"; do dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p"); done; ((${#missing[@]}==0)) && { info 'all apt packages already installed'; return; }; "${SUDO[@]}" apt-get install -y "${missing[@]}"; }
 
 run_as_bench_user(){ local user; user="${BENCH_USER:-$(id -un)}"; if [[ "$user" == "$(id -un)" ]]; then "$@"; else sudo -H -u "$user" -- "$@"; fi; }
