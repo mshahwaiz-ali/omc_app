@@ -69,7 +69,10 @@ class OmcIdentityHeader extends StatelessWidget {
 }
 
 class _NotificationButton extends StatelessWidget {
-  const _NotificationButton({required this.unreadNotifications, required this.onTap});
+  const _NotificationButton({
+    required this.unreadNotifications,
+    required this.onTap,
+  });
 
   final int unreadNotifications;
   final VoidCallback onTap;
@@ -99,8 +102,14 @@ class _NotificationButton extends StatelessWidget {
                 right: 4,
                 top: 5,
                 child: Container(
-                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: const Color(0xFFE11D48),
@@ -148,7 +157,11 @@ class _Avatar extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 6)),
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
         ],
       ),
       child: ClipOval(
@@ -157,16 +170,28 @@ class _Avatar extends StatelessWidget {
             : Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
+                // Frappe files are served from the backend origin during web
+                // development. A browser image element can display them without
+                // Flutter's XMLHttpRequest image fetch being blocked by CORS.
+                webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
                 errorBuilder: (_, _, _) => fallback,
               ),
       ),
     );
     if (onTap == null) return avatar;
-    return InkWell(customBorder: const CircleBorder(), onTap: onTap, child: avatar);
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: avatar,
+    );
   }
 
   String get _initials {
-    final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return 'U';
     return parts.length == 1
         ? parts.first.substring(0, 1).toUpperCase()
@@ -183,6 +208,7 @@ class _Avatar extends StatelessWidget {
       Color(0xFFF59E0B),
     ];
     final source = name.trim().isEmpty ? 'OMC' : name.trim();
-    return colors[source.codeUnits.fold<int>(0, (sum, unit) => sum + unit) % colors.length];
+    return colors[source.codeUnits.fold<int>(0, (sum, unit) => sum + unit) %
+        colors.length];
   }
 }
