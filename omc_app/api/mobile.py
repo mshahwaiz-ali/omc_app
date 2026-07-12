@@ -3541,7 +3541,89 @@ def get_lead(lead_id=None):
     return {"lead": _lead_to_dict(lead)}
 
 
+
+def _customer_profile_image(profile):
+    """Resolve the Frappe User image linked to a customer profile."""
+    if not profile:
+        return ""
+
+    candidates = []
+
+    # Prefer explicit Customer Profile -> User link fields when present.
+    for fieldname in (
+        "user",
+        "user_id",
+        "linked_user",
+        "customer_user",
+        "portal_user",
+    ):
+        try:
+            if hasattr(profile, "meta") and profile.meta.has_field(fieldname):
+                value = (profile.get(fieldname) or "").strip()
+                if value:
+                    candidates.append(value)
+            else:
+                value = (getattr(profile, fieldname, None) or "").strip()
+                if value:
+                    candidates.append(value)
+        except Exception:
+            pass
+
+    email = (getattr(profile, "email", None) or "").strip()
+    if email:
+        candidates.append(email)
+
+    # Remove duplicates while preserving priority.
+    candidates = list(dict.fromkeys(candidates))
+
+    for candidate in candidates:
+        try:
+            image = frappe.db.get_value("User", candidate, "user_image")
+            if image:
+                return image
+        except Exception:
+            pass
+
+        try:
+            user_name = frappe.db.get_value(
+                "User",
+                {"email": candidate},
+                "name",
+            )
+            if user_name:
+                image = frappe.db.get_value(
+                    "User",
+                    user_name,
+                    "user_image",
+                )
+                if image:
+                    return image
+        except Exception:
+            pass
+
+        try:
+            user_name = frappe.db.get_value(
+                "User",
+                {"username": candidate},
+                "name",
+            )
+            if user_name:
+                image = frappe.db.get_value(
+                    "User",
+                    user_name,
+                    "user_image",
+                )
+                if image:
+                    return image
+        except Exception:
+            pass
+
+    return ""
+
+
 def _customer_profile_to_dict(profile):
+    user_image = _customer_profile_image(profile)
+
     return {
         "name": profile.name,
         "customer_id": profile.name,
@@ -3556,6 +3638,8 @@ def _customer_profile_to_dict(profile):
         "approval_status": profile.approval_status or "",
         "is_active": int(profile.is_active or 0),
         "linked_erpnext_customer": profile.linked_erpnext_customer or "",
+        "user_image": user_image,
+        "avatar_url": user_image,
         "created_at": str(profile.creation) if profile.creation else "",
         "updated_at": str(profile.modified) if profile.modified else "",
     }
@@ -3564,49 +3648,22 @@ def _customer_profile_to_dict(profile):
 @frappe.whitelist()
 def get_customers():
     _assert_internal_workspace_access()
-    customers = frappe.get_all(
+
+    customer_names = frappe.get_all(
         "OMC Customer Profile",
-        fields=[
-            "name",
-            "full_name",
-            "email",
-            "phone",
-            "company_name",
-            "cnic",
-            "ntn",
-            "customer_status",
-            "approval_status",
-            "is_active",
-            "linked_erpnext_customer",
-            "creation",
-            "modified",
-        ],
+        pluck="name",
         order_by="modified desc",
         limit_page_length=100,
     )
 
-    return {
-        "customers": [
-            {
-                "name": row.name,
-                "customer_id": row.name,
-                "customer_name": row.full_name or "",
-                "full_name": row.full_name or "",
-                "email": row.email or "",
-                "phone": row.phone or "",
-                "company_name": row.company_name or "",
-                "cnic": row.cnic or "",
-                "ntn": row.ntn or "",
-                "customer_status": row.customer_status or "",
-                "approval_status": row.approval_status or "",
-                "is_active": int(row.is_active or 0),
-                "linked_erpnext_customer": row.linked_erpnext_customer or "",
-                "created_at": str(row.creation) if row.creation else "",
-                "updated_at": str(row.modified) if row.modified else "",
-            }
-            for row in customers
-        ]
-    }
+    customers = [
+        _customer_profile_to_dict(
+            frappe.get_doc("OMC Customer Profile", customer_name)
+        )
+        for customer_name in customer_names
+    ]
+
+    return {"customers": customers}
 
 
 @frappe.whitelist()
