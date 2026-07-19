@@ -5,7 +5,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from omc_app import permissions
-from omc_app.api import mobile
+from omc_app.api import document_upload, mobile
 from omc_app.setup.roles import (
     BUSINESS_PARTNER_ROLE,
     CONSULTANT_ROLE,
@@ -271,3 +271,84 @@ class TestTaskAssignmentBoundary(FrappeTestCase):
             self.assertRaises(frappe.PermissionError),
         ):
             permissions.validate_task_assignment(task)
+
+class TestDocumentAttachmentBoundary(FrappeTestCase):
+    def test_cross_service_uploaded_file_reuse_is_rejected(self):
+        service_case = SimpleNamespace(name="SR-TARGET")
+        uploaded_file = SimpleNamespace(
+            file_name="identity.pdf",
+            file_url="/private/files/identity.pdf",
+            file_size=1024,
+            owner="customer@example.com",
+            attached_to_doctype="OMC Service Request",
+            attached_to_name="SR-OTHER",
+        )
+
+        with (
+            patch.object(document_upload.frappe.db, "count", return_value=0),
+            patch.object(
+                document_upload,
+                "_find_uploaded_file",
+                return_value=uploaded_file,
+            ),
+            patch.object(
+                document_upload,
+                "_current_user",
+                return_value="customer@example.com",
+            ),
+            self.assertRaises(frappe.PermissionError),
+        ):
+            document_upload._validate_uploaded_document(
+                service_case,
+                "/private/files/identity.pdf",
+            )
+
+
+class TestNotificationOwnershipBoundary(FrappeTestCase):
+    def test_customer_notification_without_matching_profile_is_rejected(self):
+        notification = SimpleNamespace(
+            customer_profile="",
+            recipient_user="",
+        )
+        profile = SimpleNamespace(name="CUST-001")
+
+        with self.assertRaises(frappe.PermissionError):
+            mobile._assert_notification_access(
+                notification,
+                user="customer@example.com",
+                profile=profile,
+            )
+
+    def test_internal_notification_without_matching_recipient_is_rejected(self):
+        notification = SimpleNamespace(
+            customer_profile="",
+            recipient_user="",
+        )
+
+        with self.assertRaises(frappe.PermissionError):
+            mobile._assert_notification_access(
+                notification,
+                user="support@example.com",
+                profile=None,
+            )
+
+    def test_exact_notification_owner_is_allowed(self):
+        customer_notification = SimpleNamespace(
+            customer_profile="CUST-001",
+            recipient_user="",
+        )
+        internal_notification = SimpleNamespace(
+            customer_profile="",
+            recipient_user="support@example.com",
+        )
+
+        mobile._assert_notification_access(
+            customer_notification,
+            user="customer@example.com",
+            profile=SimpleNamespace(name="CUST-001"),
+        )
+        mobile._assert_notification_access(
+            internal_notification,
+            user="support@example.com",
+            profile=None,
+        )

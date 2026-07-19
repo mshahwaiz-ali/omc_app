@@ -2248,6 +2248,30 @@ def get_notifications():
     }
 
 
+
+def _assert_notification_access(notification, user=None, profile=None):
+    user = user or _current_user()
+    if not user or user == "Guest":
+        frappe.throw("Login is required", frappe.PermissionError)
+
+    customer_profile = (getattr(notification, "customer_profile", None) or "").strip()
+    recipient_user = (getattr(notification, "recipient_user", None) or "").strip()
+
+    if profile:
+        if customer_profile != profile.name:
+            frappe.throw(
+                "You do not have permission to access this notification",
+                frappe.PermissionError,
+            )
+        return
+
+    if recipient_user != user:
+        frappe.throw(
+            "You do not have permission to access this notification",
+            frappe.PermissionError,
+        )
+
+
 @frappe.whitelist()
 def mark_notification_read(notification_id=None, name=None):
     notification_id = notification_id or name
@@ -2268,11 +2292,11 @@ def mark_notification_read(notification_id=None, name=None):
 
     profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
 
-    if profile and notification.customer_profile and notification.customer_profile != profile.name:
-        frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
-
-    if not profile and notification.recipient_user and notification.recipient_user != user:
-        frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
+    _assert_notification_access(
+        notification,
+        user=user,
+        profile=profile,
+    )
 
     notification.is_read = 1
     notification.read_on = frappe.utils.now_datetime()
@@ -2447,11 +2471,11 @@ def get_notification_detail(notification_id=None):
 
     profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
 
-    if profile and notification.customer_profile and notification.customer_profile != profile.name:
-        frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
-
-    if not profile and notification.recipient_user and notification.recipient_user != user:
-        frappe.throw("You do not have permission to access this notification", frappe.PermissionError)
+    _assert_notification_access(
+        notification,
+        user=user,
+        profile=profile,
+    )
 
     if not notification.is_read:
         notification.is_read = 1
