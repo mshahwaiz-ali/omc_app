@@ -5,6 +5,7 @@ omc_app.patches.fix_support_ticket_message_child_table
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+omc_app.patches.move_accent_color_to_branding_settings
 omc_app.patches.create_omc_roles
 omc_app.patches.fix_omc_role_desk_access
 omc_app.patches.fix_omc_customer_user_type

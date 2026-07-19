@@ -15,7 +15,7 @@
   "login_logo",
   "favicon",
   "theme_section",
-  "primary_color",
+  "accent_color",
   "apply_section",
   "last_applied_on",
   "last_apply_status"
@@ -75,10 +75,12 @@
    "label": "Theme"
   },
   {
-   "default": "#0F5132",
-   "fieldname": "primary_color",
-   "fieldtype": "Data",
-   "label": "Primary Color"
+   "default": "#111827",
+   "description": "Used for primary actions, active navigation and selected controls.",
+   "fieldname": "accent_color",
+   "fieldtype": "Color",
+   "label": "Accent Color",
+   "reqd": 0
   },
   {
    "fieldname": "apply_section",

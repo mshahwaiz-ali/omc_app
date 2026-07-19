@@ -73,9 +73,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         lower.contains('unauthorized') ||
         lower.contains('incorrect') ||
         lower.contains('invalid') ||
+        lower.contains('wrong') ||
         lower.contains('not permitted') ||
         lower.contains('login failed')) {
-      return 'Wrong email or password. Please try again.';
+      return 'Invalid email or password. Please check and try again.';
     }
     return 'Sign in could not be completed right now. Please try again.';
   }
@@ -286,8 +287,9 @@ class _AuthFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
           text,
