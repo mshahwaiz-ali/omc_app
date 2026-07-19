@@ -43,7 +43,10 @@ def _validate_uploaded_document(service_case, attachment):
 
     uploaded_file = _find_uploaded_file(clean_attachment)
     if not uploaded_file:
-        return clean_attachment, None
+        frappe.throw(
+            "Uploaded file could not be verified. Please upload the file again.",
+            frappe.DoesNotExistError,
+        )
 
     file_extension = _document_extension(
         uploaded_file.file_name or uploaded_file.file_url or clean_attachment

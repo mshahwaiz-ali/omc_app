@@ -25,6 +25,7 @@ def _normalize_interested_services(value):
 
 
 def _guest_session_to_dict(doc):
+    """Return the public guest-session contract without account identifiers."""
     return {
         "name": doc.name,
         "session_id": doc.name,
@@ -35,8 +36,6 @@ def _guest_session_to_dict(doc):
         "first_active_on": str(doc.first_active_on) if doc.first_active_on else "",
         "last_active_on": str(doc.last_active_on) if doc.last_active_on else "",
         "conversion_status": doc.conversion_status or "Anonymous",
-        "converted_user": doc.converted_user or "",
-        "converted_customer_profile": doc.converted_customer_profile or "",
         "is_converted": int(doc.is_converted or 0),
     }
 
@@ -82,10 +81,28 @@ def update_guest_activity(**kwargs):
     device_id = _clean_text(kwargs.get("device_id"))
 
     doc = None
-    if session_id and frappe.db.exists("OMC Guest Session", session_id):
-        doc = frappe.get_doc("OMC Guest Session", session_id)
+    if session_id:
+        if not device_id:
+            frappe.throw(
+                "device_id is required when session_id is provided",
+                frappe.ValidationError,
+            )
+        if not frappe.db.exists("OMC Guest Session", session_id):
+            frappe.throw("Guest session not found", frappe.DoesNotExistError)
+
+        candidate = frappe.get_doc("OMC Guest Session", session_id)
+        if candidate.device_id != device_id:
+            frappe.throw(
+                "Guest session does not belong to this device",
+                frappe.PermissionError,
+            )
+        doc = candidate
     elif device_id:
-        existing_name = frappe.db.get_value("OMC Guest Session", {"device_id": device_id}, "name")
+        existing_name = frappe.db.get_value(
+            "OMC Guest Session",
+            {"device_id": device_id},
+            "name",
+        )
         if existing_name:
             doc = frappe.get_doc("OMC Guest Session", existing_name)
 
@@ -108,11 +125,23 @@ def update_guest_activity(**kwargs):
         if doc.conversion_status == "Anonymous":
             doc.conversion_status = "Interested"
 
-    converted_user = _clean_text(kwargs.get("converted_user"))
-    converted_customer_profile = _clean_text(kwargs.get("converted_customer_profile"))
-    if converted_user or converted_customer_profile:
-        doc.converted_user = converted_user or doc.converted_user
-        doc.converted_customer_profile = converted_customer_profile or doc.converted_customer_profile
+    current_user = frappe.session.user if getattr(frappe, "session", None) else "Guest"
+    if current_user and current_user != "Guest":
+        profile_name = (
+            frappe.db.get_value(
+                "OMC Customer Profile",
+                {"user": current_user},
+                "name",
+            )
+            or frappe.db.get_value(
+                "OMC Customer Profile",
+                {"email": current_user},
+                "name",
+            )
+        )
+        doc.converted_user = current_user
+        if profile_name:
+            doc.converted_customer_profile = profile_name
         doc.is_converted = 1
         doc.conversion_status = "Converted"
 
