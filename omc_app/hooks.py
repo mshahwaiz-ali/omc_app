@@ -23,3 +23,25 @@ override_whitelisted_methods = {
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
     "omc_app.api.mobile.update_service_document_status": "omc_app.api.secured_mobile.update_service_document_status",
 }
+
+
+# Frappe Desk record scoping for canonical OMC roles.
+permission_query_conditions = {
+    "OMC Service Request": "omc_app.permissions.service_request_query",
+    "OMC Customer Profile": "omc_app.permissions.customer_profile_query",
+    "OMC Task": "omc_app.permissions.task_query",
+    "OMC Service Document": "omc_app.permissions.service_document_query",
+    "OMC Service Payment": "omc_app.permissions.service_payment_query",
+    "OMC Support Ticket": "omc_app.permissions.support_ticket_query",
+    "OMC Lead": "omc_app.permissions.lead_query",
+}
+
+has_permission = {
+    "OMC Service Request": "omc_app.permissions.service_request_has_permission",
+    "OMC Customer Profile": "omc_app.permissions.customer_profile_has_permission",
+    "OMC Task": "omc_app.permissions.task_has_permission",
+    "OMC Service Document": "omc_app.permissions.service_document_has_permission",
+    "OMC Service Payment": "omc_app.permissions.service_payment_has_permission",
+    "OMC Support Ticket": "omc_app.permissions.support_ticket_has_permission",
+    "OMC Lead": "omc_app.permissions.lead_has_permission",
+}

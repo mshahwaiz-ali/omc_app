@@ -1574,257 +1574,42 @@ def upload_service_document(**kwargs):
 
 @frappe.whitelist()
 def update_service_document_status(document_id=None, status=None, remarks=None):
-    require_omc_staff(DOCUMENT_REVIEW_ROLES, "You do not have permission to review service documents.")
+    # Compatibility wrapper for the canonical document review endpoint.
+    from omc_app.api import customer_documents
 
-    if not document_id:
-        frappe.throw("document_id is required")
-
-    if not status:
-        frappe.throw("status is required")
-
-    allowed_statuses = ["Pending", "Uploaded", "Approved", "Rejected"]
-
-    if status not in allowed_statuses:
-        frappe.throw("Invalid document status")
-
-    if not frappe.db.exists("OMC Service Document", document_id):
-        frappe.throw("Service document not found", frappe.DoesNotExistError)
-
-    doc = frappe.get_doc("OMC Service Document", document_id)
-    old_status = doc.status or ""
-
-    doc.status = status
-
-    if remarks is not None:
-        doc.remarks = remarks or ""
-
-    doc.save(ignore_permissions=True)
-
-    if old_status != status:
-        timeline_title = f"Document {status}"
-        timeline_description = remarks or f"{doc.document_title or 'Document'} marked as {status}."
-
-        _create_service_timeline_entry(
-            service_request=doc.service_request,
-            event_type="Document Uploaded" if status == "Uploaded" else "Update",
-            title=timeline_title,
-            description=timeline_description,
-            visible_to_customer=1,
-        )
-    elif remarks:
-        _create_service_timeline_entry(
-            service_request=doc.service_request,
-            event_type="Update",
-            title="Document Updated",
-            description=remarks,
-            visible_to_customer=1,
-        )
-
-    frappe.db.commit()
-
-    return {
-        "name": doc.name,
-        "case_id": doc.service_request,
-        "status": doc.status,
-        "updated": True,
-        "message": "Service document updated.",
-    }
-
-
+    return customer_documents.update_service_document_status(
+        document_id=document_id,
+        status=status,
+        remarks=remarks,
+    )
 
 @frappe.whitelist()
 def get_documents():
-    profile = None if _can_access_internal_workspace() else _assert_approved_customer()
-    capabilities = _get_mobile_capabilities(profile=profile)
+    # Compatibility wrapper for canonical document reads.
+    from omc_app.api import customer_documents
 
-    service_filters = {}
-    if profile:
-        service_filters["customer_profile"] = profile.name
-
-    service_request_names = [
-        row.name
-        for row in frappe.get_all(
-            "OMC Service Request",
-            filters=service_filters,
-            fields=["name"],
-        )
-    ]
-
-    if not service_request_names:
-        return {"documents": []}
-
-    docs = frappe.get_all(
-        "OMC Service Document",
-        filters={
-            "service_request": ["in", service_request_names],
-            "visible_to_customer": 1,
-        },
-        fields=[
-            "name",
-            "service_request",
-            "document_title",
-            "document_type",
-            "attachment",
-            "status",
-            "uploaded_on",
-            "uploaded_by",
-            "remarks",
-        ],
-        order_by="uploaded_on desc, creation desc",
-    )
-
-    return {
-        "documents": [
-            {
-                "name": doc.name,
-                "case_id": doc.service_request,
-                "title": doc.document_title or "",
-                "type": doc.document_type or "",
-                "status": doc.status or "",
-                "file_url": doc.attachment or "",
-                "created_at": _format_datetime(doc.uploaded_on),
-                "uploaded_by": doc.uploaded_by or "",
-                "remarks": doc.remarks or "",
-                "can_review_documents": capabilities["can_review_documents"],
-            }
-            for doc in docs
-        ]
-    }
-
+    return customer_documents.get_documents()
 
 @frappe.whitelist()
 def get_document(document_id=None):
-    if not document_id:
-        frappe.throw("document_id is required")
+    # Compatibility wrapper for canonical document detail reads.
+    from omc_app.api import customer_documents
 
-    if not frappe.db.exists("OMC Service Document", document_id):
-        frappe.throw("Document not found", frappe.DoesNotExistError)
-
-    doc = frappe.get_doc("OMC Service Document", document_id)
-
-    if not doc.visible_to_customer:
-        frappe.throw("Document not found", frappe.DoesNotExistError)
-
-    profile = None if _can_access_internal_workspace() else _assert_approved_customer()
-    capabilities = _get_mobile_capabilities(profile=profile)
-    service_case = frappe.get_doc("OMC Service Request", doc.service_request)
-
-    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
-        frappe.throw("You do not have permission to access this document", frappe.PermissionError)
-
-    return {
-        "name": doc.name,
-        "case_id": doc.service_request,
-        "title": doc.document_title or "",
-        "type": doc.document_type or "",
-        "status": doc.status or "",
-        "file_url": doc.attachment or "",
-        "created_at": _format_datetime(doc.uploaded_on),
-        "uploaded_by": doc.uploaded_by or "",
-        "remarks": doc.remarks or "",
-        "can_review_documents": capabilities["can_review_documents"],
-    }
-
+    return customer_documents.get_document(document_id=document_id)
 
 @frappe.whitelist()
 def get_payments():
-    profile = None if _can_access_internal_workspace() else _assert_approved_customer()
-    capabilities = _get_mobile_capabilities(profile=profile)
+    # Compatibility wrapper for canonical payment reads.
+    from omc_app.api import payments
 
-    service_filters = {}
-    if profile:
-        service_filters["customer_profile"] = profile.name
-
-    service_request_names = [
-        row.name
-        for row in frappe.get_all(
-            "OMC Service Request",
-            filters=service_filters,
-            fields=["name"],
-        )
-    ]
-
-    if not service_request_names:
-        return {"payments": []}
-
-    payments = frappe.get_all(
-        "OMC Service Payment",
-        filters={
-            "service_request": ["in", service_request_names],
-            "visible_to_customer": 1,
-        },
-        fields=[
-            "name",
-            "service_request",
-            "payment_title",
-            "amount",
-            "currency",
-            "status",
-            "due_date",
-            "paid_on",
-            "payment_reference",
-            "receipt_attachment",
-            "remarks",
-        ],
-        order_by="due_date desc, creation desc",
-    )
-
-    return {
-        "payments": [
-            {
-                "name": payment.name,
-                "case_id": payment.service_request,
-                "title": payment.payment_title or "",
-                "amount": payment.amount or 0,
-                "currency": payment.currency or "PKR",
-                "status": payment.status or "",
-                "due_date": _format_datetime(payment.due_date),
-                "paid_on": _format_datetime(payment.paid_on),
-                "payment_reference": payment.payment_reference or "",
-                "receipt_url": payment.receipt_attachment or "",
-                "remarks": payment.remarks or "",
-                "can_review_payments": capabilities["can_review_payments"],
-            }
-            for payment in payments
-        ]
-    }
-
+    return payments.get_payments()
 
 @frappe.whitelist()
 def get_payment(payment_id=None):
-    if not payment_id:
-        frappe.throw("payment_id is required")
+    # Compatibility wrapper for canonical payment detail reads.
+    from omc_app.api import payments
 
-    if not frappe.db.exists("OMC Service Payment", payment_id):
-        frappe.throw("Payment not found", frappe.DoesNotExistError)
-
-    payment = frappe.get_doc("OMC Service Payment", payment_id)
-
-    if not payment.visible_to_customer:
-        frappe.throw("Payment not found", frappe.DoesNotExistError)
-
-    profile = None if _can_access_internal_workspace() else _assert_approved_customer()
-    capabilities = _get_mobile_capabilities(profile=profile)
-    service_case = frappe.get_doc("OMC Service Request", payment.service_request)
-
-    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
-        frappe.throw("You do not have permission to access this payment", frappe.PermissionError)
-
-    return {
-        "name": payment.name,
-        "case_id": payment.service_request,
-        "title": payment.payment_title or "",
-        "amount": payment.amount or 0,
-        "currency": payment.currency or "PKR",
-        "status": payment.status or "",
-        "due_date": _format_datetime(payment.due_date),
-        "paid_on": _format_datetime(payment.paid_on),
-        "payment_reference": payment.payment_reference or "",
-        "receipt_url": payment.receipt_attachment or "",
-        "remarks": payment.remarks or "",
-        "can_review_payments": capabilities["can_review_payments"],
-    }
-
+    return payments.get_payment(payment_id=payment_id)
 
 @frappe.whitelist()
 def upload_payment_receipt(**kwargs):
@@ -1881,80 +1666,21 @@ def upload_payment_receipt(**kwargs):
 
 
 @frappe.whitelist()
-def review_payment_receipt(payment_id=None, status=None, remarks=None, payment_reference=None):
-    require_omc_staff(PAYMENT_REVIEW_ROLES, "You do not have permission to review payments.")
+def review_payment_receipt(
+    payment_id=None,
+    status=None,
+    remarks=None,
+    payment_reference=None,
+):
+    # Compatibility wrapper for the canonical finance review endpoint.
+    from omc_app.api import payments
 
-    if not payment_id:
-        frappe.throw("payment_id is required")
-
-    if not status:
-        frappe.throw("status is required")
-
-    allowed_statuses = ["Under Review", "Paid", "Rejected", "Cancelled"]
-    if status not in allowed_statuses:
-        frappe.throw("status must be one of: Under Review, Paid, Rejected, Cancelled")
-
-    if not frappe.db.exists("OMC Service Payment", payment_id):
-        frappe.throw("Payment not found", frappe.DoesNotExistError)
-
-    payment = frappe.get_doc("OMC Service Payment", payment_id)
-    old_status = payment.status or ""
-
-    if status in ["Paid", "Rejected"] and not payment.receipt_attachment:
-        frappe.throw("A receipt must be uploaded before marking this payment as Paid or Rejected.")
-
-    payment.status = status
-
-    if payment_reference is not None:
-        payment.payment_reference = payment_reference or ""
-
-    if remarks is not None:
-        payment.remarks = remarks or ""
-
-    if status == "Paid":
-        payment.paid_on = frappe.utils.now_datetime()
-    elif status in ["Rejected", "Cancelled"]:
-        payment.paid_on = None
-
-    payment.save(ignore_permissions=True)
-
-    timeline_title = f"Payment {status}"
-    timeline_description = remarks or f"{payment.payment_title or 'Payment'} marked as {status}."
-
-    _create_service_timeline_entry(
-        service_request=payment.service_request,
-        event_type="Payment Updated",
-        title=timeline_title,
-        description=timeline_description,
-        visible_to_customer=1,
+    return payments.review_payment_receipt(
+        payment_id=payment_id,
+        status=status,
+        remarks=remarks,
+        payment_reference=payment_reference,
     )
-
-    service_case = frappe.get_doc("OMC Service Request", payment.service_request)
-
-    _create_customer_notification(
-        customer_profile=service_case.customer_profile,
-        title=timeline_title,
-        message=timeline_description,
-        notification_type="Payment",
-        reference_doctype="OMC Service Payment",
-        reference_name=payment.name,
-    )
-
-    frappe.db.commit()
-
-    return {
-        "updated": True,
-        "name": payment.name,
-        "case_id": payment.service_request,
-        "old_status": old_status,
-        "status": payment.status,
-        "paid_on": _format_datetime(payment.paid_on),
-        "receipt_url": payment.receipt_attachment or "",
-        "payment_reference": payment.payment_reference or "",
-        "remarks": payment.remarks or "",
-        "message": "Payment receipt reviewed.",
-    }
-
 
 
 def _knowledge_article_from_service(service):
@@ -3456,6 +3182,10 @@ def get_internal_workspace_summary():
 @frappe.whitelist()
 def create_lead(**kwargs):
     _assert_internal_workspace_access()
+    _require_canonical_capability(
+        "can_manage_leads",
+        message="You do not have permission to create leads.",
+    )
     title = (kwargs.get("title") or kwargs.get("subject") or "").strip()
     lead_name = (kwargs.get("lead_name") or kwargs.get("name") or kwargs.get("full_name") or "").strip()
     company_name = (kwargs.get("company_name") or kwargs.get("company") or "").strip()
@@ -3530,7 +3260,7 @@ def _assigned_record_names(reference_type, user=None):
         filters={
             "reference_type": reference_type,
             "allocated_to": user,
-            "status": ["!=", "Cancelled"],
+            "status": ["not in", ["Cancelled", "Closed"]],
         },
         pluck="reference_name",
     )

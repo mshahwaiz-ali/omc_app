@@ -28,6 +28,37 @@ def _require_capability(capability, message):
     return capabilities
 
 
+
+def _assert_support_assignee_allowed(assigned_to):
+    user_values = frappe.db.get_value(
+        "User",
+        assigned_to,
+        ["enabled", "user_type"],
+        as_dict=True,
+    )
+    if not user_values:
+        frappe.throw("Assigned user not found", frappe.DoesNotExistError)
+
+    if not int(user_values.enabled or 0):
+        frappe.throw(
+            "Support tickets can only be assigned to an enabled user.",
+            frappe.ValidationError,
+        )
+
+    if user_values.user_type != "System User":
+        frappe.throw(
+            "Support tickets can only be assigned to an internal system user.",
+            frappe.PermissionError,
+        )
+
+    capabilities = access.get_mobile_capabilities(user=assigned_to)
+    if not capabilities.get("can_view_support_tickets"):
+        frappe.throw(
+            "Assigned user does not have permission to access support tickets.",
+            frappe.PermissionError,
+        )
+
+
 def _clean_file_reference(value):
     text_value = (value or "").strip()
     if not text_value:
@@ -481,7 +512,6 @@ def get_support_ticket(ticket_id=None, name=None):
 
     ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
     _assert_support_ticket_access(ticket)
-    _ensure_initial_message_record(ticket)
     return {"ticket": _support_ticket_to_dict(ticket)}
 
 
@@ -505,7 +535,6 @@ def get_active_support_ticket():
 
     ticket = frappe.get_doc("OMC Support Ticket", ticket_names[0])
     _assert_support_ticket_access(ticket)
-    _ensure_initial_message_record(ticket)
     return {"ticket": _support_ticket_to_dict(ticket)}
 
 
@@ -665,8 +694,7 @@ def assign_support_ticket(ticket_id=None, assigned_to=None, **kwargs):
         frappe.throw("assigned_to is required")
     if not frappe.db.exists("OMC Support Ticket", ticket_id):
         frappe.throw("Support ticket not found", frappe.DoesNotExistError)
-    if not frappe.db.exists("User", assigned_to):
-        frappe.throw("Assigned user not found", frappe.DoesNotExistError)
+    _assert_support_assignee_allowed(assigned_to)
 
     ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
     user, _profile = _assert_support_ticket_access(ticket)
