@@ -713,8 +713,6 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
 
       Navigator.of(context).pop();
     } catch (error) {
-      debugPrint('Document upload failed: $error');
-
       if (!mounted) return;
 
       setState(() => _errorMessage = error.toString());
