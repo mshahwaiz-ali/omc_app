@@ -472,6 +472,22 @@ def sign_up(**kwargs):
     if "@" not in email:
         frappe.throw("A valid email address is required")
 
+    if not password:
+        frappe.throw("A password is required")
+
+    if len(password) < 8:
+        frappe.throw("Password must be at least 8 characters long")
+
+    existing_profile = (
+        frappe.db.exists("OMC Customer Profile", {"user": email})
+        or frappe.db.exists("OMC Customer Profile", {"email": email})
+    )
+    if frappe.db.exists("User", email) or existing_profile:
+        frappe.throw(
+            "An account with this email already exists. Please sign in.",
+            frappe.DuplicateEntryError,
+        )
+
     if not full_name:
         full_name = email
 
@@ -2701,6 +2717,7 @@ def _settings_text(doc, fieldname, default=""):
 
 
 def _public_file_url(value):
+    """Return only file references that are safe for unauthenticated APIs."""
     text = (value or "").strip()
     if not text:
         return ""
@@ -2708,10 +2725,11 @@ def _public_file_url(value):
     if text.startswith(("http://", "https://")):
         return text
 
-    if text.startswith(("/files/", "/private/files/", "/assets/")):
+    if text.startswith(("/files/", "/assets/")):
         return frappe.utils.get_url(text)
 
-    return text
+    # Never expose private or unclassified local paths through public content APIs.
+    return ""
 
 
 

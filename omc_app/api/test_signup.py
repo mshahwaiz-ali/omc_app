@@ -96,7 +96,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         self.assertNotIn("OMC Customer Applicant", roles)
         self.assertEqual(result["access_state"], "pending")
 
-    def test_existing_internal_user_is_not_downgraded(self):
+    def test_existing_internal_user_cannot_be_targeted_by_guest_signup(self):
         email = self._email("internal-signup")
         user = frappe.new_doc("User")
         user.email = email
@@ -107,31 +107,61 @@ class TestSignupRoleNormalization(FrappeTestCase):
         user.append("roles", {"role": ADMIN_ROLE})
         user.insert(ignore_permissions=True)
 
-        mobile.sign_up(**self._signup_payload(email))
+        with self.assertRaises(frappe.DuplicateEntryError):
+            mobile.sign_up(**self._signup_payload(email))
 
         user.reload()
         roles = {row.role for row in user.roles}
         self.assertEqual(user.user_type, "System User")
         self.assertIn(ADMIN_ROLE, roles)
         self.assertNotIn(CUSTOMER_ROLE, roles)
-        self.assertNotIn("OMC Customer Applicant", roles)
+        self.assertFalse(
+            frappe.db.exists("OMC Customer Profile", {"email": email})
+        )
 
-    def test_duplicate_signup_is_idempotent_and_preserves_approved_profile(self):
+    def test_duplicate_guest_signup_cannot_modify_existing_profile(self):
         email = self._email("duplicate-signup")
-        first = access.sign_up(**self._signup_payload(email, register_as="Customer", customer_type="Customer"))
-        profile = frappe.get_doc("OMC Customer Profile", first["profile"]["customer_id"])
+        first = access.sign_up(
+            **self._signup_payload(
+                email,
+                register_as="Customer",
+                customer_type="Customer",
+            )
+        )
+        profile = frappe.get_doc(
+            "OMC Customer Profile",
+            first["profile"]["customer_id"],
+        )
         profile.customer_status = "Active"
         profile.approval_status = "Approved"
+        original_company = profile.company_name
         profile.save(ignore_permissions=True)
 
-        second = access.sign_up(**self._signup_payload(email, company="Updated Company"))
+        with self.assertRaises(frappe.DuplicateEntryError):
+            access.sign_up(
+                **self._signup_payload(email, company="Attacker Company")
+            )
 
-        user = frappe.get_doc("User", email)
         profile.reload()
-        roles = [row.role for row in user.roles]
-        self.assertFalse(second["created"])
-        self.assertEqual(roles.count(CUSTOMER_ROLE), 1)
         self.assertEqual(profile.customer_status, "Active")
         self.assertEqual(profile.approval_status, "Approved")
-        self.assertEqual(profile.company_name, "Updated Company")
-        self.assertEqual(second["access_state"], "approved")
+        self.assertEqual(profile.company_name, original_company)
+
+    def test_password_is_required_for_guest_signup(self):
+        email = self._email("passwordless-signup")
+
+        with self.assertRaises(frappe.ValidationError):
+            access.sign_up(**self._signup_payload(email, password=""))
+
+        self.assertFalse(frappe.db.exists("User", email))
+        self.assertFalse(
+            frappe.db.exists("OMC Customer Profile", {"email": email})
+        )
+
+    def test_short_password_is_rejected_for_guest_signup(self):
+        email = self._email("short-password-signup")
+
+        with self.assertRaises(frappe.ValidationError):
+            mobile.sign_up(**self._signup_payload(email, password="short"))
+
+        self.assertFalse(frappe.db.exists("User", email))
