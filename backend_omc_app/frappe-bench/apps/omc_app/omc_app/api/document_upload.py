@@ -65,11 +65,14 @@ def _validate_uploaded_document(service_case, attachment):
     if uploaded_file.attached_to_doctype and uploaded_file.attached_to_doctype not in allowed_doctypes:
         frappe.throw("Uploaded file is attached to another document.", frappe.PermissionError)
 
-    if uploaded_file.attached_to_name and uploaded_file.attached_to_name not in {
-        service_case.name,
-        uploaded_file.attached_to_name,
-    }:
-        frappe.throw("Uploaded file is attached to another service request.", frappe.PermissionError)
+    if (
+        uploaded_file.attached_to_name
+        and uploaded_file.attached_to_name != service_case.name
+    ):
+        frappe.throw(
+            "Uploaded file is attached to another service request.",
+            frappe.PermissionError,
+        )
 
     return uploaded_file.file_url or clean_attachment, uploaded_file
 
