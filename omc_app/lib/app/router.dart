@@ -38,6 +38,7 @@ import '../features/tasks/presentation/tasks_screen.dart';
 import '../features/tax_calculator/presentation/tax_calculation_history_screen.dart';
 import '../features/tax_calculator/presentation/tax_calculator_screen.dart';
 import 'main_shell.dart';
+import 'route_access_policy.dart';
 import 'shell_nav_scaffold.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -68,7 +69,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (authState.status == AuthStatus.guest) {
         if (isSplash) return '/home';
         if (isAuthRoute) return null;
-        return _isGuestAllowedRoute(location) ? null : '/home';
+        return isGuestAllowedRoute(location) ? null : '/home';
       }
 
       if (authState.status == AuthStatus.authenticated) {
@@ -77,11 +78,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return authState.capabilities.isPending ? null : '/home';
         }
 
-        final canAccessRoute = _canAccessRoute(
-          location,
-          authState.capabilities,
-        );
-        if (canAccessRoute) return null;
+        final hasRouteAccess = canAccessRoute(location, authState.capabilities);
+        if (hasRouteAccess) return null;
 
         return authState.capabilities.isPending ? '/under-review' : '/home';
       }
@@ -465,103 +463,4 @@ class _RouterRefreshNotifier extends ChangeNotifier {
     _subscription.close();
     super.dispose();
   }
-}
-
-bool _isGuestAllowedRoute(String location) {
-  if (location == '/home' ||
-      location == '/services' ||
-      location == '/more' ||
-      location == '/knowledge' ||
-      location == '/tax-calculator' ||
-      location == '/expense-tracker' ||
-      location == '/support') {
-    return true;
-  }
-
-  if (location.startsWith('/knowledge/')) return true;
-
-  return location.startsWith('/services/') && !location.endsWith('/request');
-}
-
-bool _canAccessRoute(String location, AuthCapabilities capabilities) {
-  if (_isGuestAllowedRoute(location)) return true;
-
-  if (_isServiceRequestRoute(location)) {
-    return capabilities.canCreateServiceRequest;
-  }
-
-  if (location == '/dashboard') {
-    return capabilities.canViewCustomerDashboard ||
-        capabilities.canAccessCustomerDashboard ||
-        capabilities.canAccessInternalWorkspace;
-  }
-
-  if (location == '/track' ||
-      location == '/my-services' ||
-      location.startsWith('/my-services/')) {
-    return capabilities.canTrackRequests ||
-        capabilities.canViewCustomerDashboard ||
-        capabilities.canAccessCustomerDashboard ||
-        capabilities.isApproved ||
-        capabilities.canAccessInternalWorkspace;
-  }
-
-  if (location == '/documents' || location.startsWith('/documents/')) {
-    return capabilities.canViewDocuments ||
-        capabilities.canReviewDocuments ||
-        capabilities.isApproved;
-  }
-
-  if (location == '/payments' || location.startsWith('/payments/')) {
-    return capabilities.canViewPayments ||
-        capabilities.canReviewPayments ||
-        capabilities.isApproved ||
-        capabilities.isInternal;
-  }
-
-  if (location == '/notifications' || location.startsWith('/notifications/')) {
-    return capabilities.canViewCustomerNotifications ||
-        capabilities.isApproved ||
-        capabilities.isInternal ||
-        capabilities.canAccessInternalWorkspace;
-  }
-
-  if (location.startsWith('/support-tickets/')) {
-    return capabilities.canViewSupportTickets ||
-        capabilities.canAccessInternalWorkspace;
-  }
-
-  if (location == '/expense-tracker') {
-    return !capabilities.isInternal;
-  }
-
-  if (location == '/expense-budget') {
-    return capabilities.isApproved;
-  }
-
-  if (location == '/internal-workspace' ||
-      location.startsWith('/internal-workspace/')) {
-    return capabilities.canAccessInternalWorkspace;
-  }
-
-  if (location == '/leads' || location.startsWith('/leads/')) {
-    return capabilities.canManageLeads ||
-        capabilities.canAccessInternalWorkspace;
-  }
-
-  if (location == '/customers' || location.startsWith('/customers/')) {
-    return capabilities.canManageCustomers ||
-        capabilities.canAccessInternalWorkspace;
-  }
-
-  if (location == '/tasks' || location.startsWith('/tasks/')) {
-    return capabilities.canManageTasks ||
-        capabilities.canAccessInternalWorkspace;
-  }
-
-  return true;
-}
-
-bool _isServiceRequestRoute(String location) {
-  return location.startsWith('/services/') && location.endsWith('/request');
 }
