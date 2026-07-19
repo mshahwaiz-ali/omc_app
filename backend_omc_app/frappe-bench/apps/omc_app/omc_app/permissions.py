@@ -170,6 +170,59 @@ def _record_matches_query(doctype, name, condition):
     )
 
 
+
+def validate_task_assignment(doc, method=None):
+    assigned_to = (getattr(doc, "assigned_to", None) or "").strip()
+    if not assigned_to:
+        return
+
+    user_values = frappe.db.get_value(
+        "User",
+        assigned_to,
+        ["enabled", "user_type"],
+        as_dict=True,
+    )
+    if not user_values:
+        frappe.throw("Task assignee does not exist.", frappe.ValidationError)
+    if not int(user_values.enabled or 0):
+        frappe.throw("Task assignee must be an enabled user.", frappe.ValidationError)
+    if (user_values.user_type or "") != "System User":
+        frappe.throw("Task assignee must be an internal System User.", frappe.ValidationError)
+
+    assignee_roles = _roles(assigned_to)
+    allowed_assignee_roles = PRIVILEGED_ROLES | {
+        SUPPORT_AGENT_ROLE,
+        DOCUMENT_REVIEWER_ROLE,
+        FINANCE_REVIEWER_ROLE,
+    } | FIELD_ROLES
+    if not assignee_roles.intersection(allowed_assignee_roles):
+        frappe.throw(
+            "Task assignee must have an active OMC staff role.",
+            frappe.ValidationError,
+        )
+
+    actor = _user()
+    if actor in {"Guest", "Administrator"} or _privileged(actor):
+        return
+
+    if getattr(doc, "is_new", lambda: False)():
+        frappe.throw(
+            "Only OMC Admin or Manager may create tasks.",
+            frappe.PermissionError,
+        )
+
+    previous_assignee = (
+        frappe.db.get_value("OMC Task", doc.name, "assigned_to")
+        if getattr(doc, "name", None)
+        else None
+    )
+    if (previous_assignee or "") != assigned_to:
+        frappe.throw(
+            "Only OMC Admin or Manager may reassign tasks.",
+            frappe.PermissionError,
+        )
+
+
 def service_request_has_permission(doc, user=None, permission_type=None):
     if permission_type not in {None, "read", "write", "create"}:
         return None

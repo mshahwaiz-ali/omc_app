@@ -1151,16 +1151,121 @@ def _split_service_documents(documents, required_document_templates=None):
 
     return required_documents, submitted_documents, missing_documents
 
+
+def _service_case_scope_names(capabilities, user=None):
+    user = user or _current_user()
+
+    if capabilities.get("can_view_all_service_cases"):
+        return None
+
+    names = set()
+
+    if capabilities.get("can_view_assigned_service_cases"):
+        names.update(_assigned_record_names("OMC Service Request", user))
+
+    if capabilities.get("can_view_relevant_service_cases"):
+        if capabilities.get("can_view_support_tickets") and _has_doctype("OMC Support Ticket"):
+            names.update(
+                frappe.get_all(
+                    "OMC Support Ticket",
+                    filters={"reference_service_request": ["is", "set"]},
+                    pluck="reference_service_request",
+                )
+            )
+
+        if (
+            capabilities.get("can_view_document_queue")
+            or capabilities.get("can_view_document_summaries")
+            or capabilities.get("can_review_documents")
+        ) and _has_doctype("OMC Service Document"):
+            names.update(
+                frappe.get_all(
+                    "OMC Service Document",
+                    filters={"service_request": ["is", "set"]},
+                    pluck="service_request",
+                )
+            )
+
+        if (
+            capabilities.get("can_view_payment_queue")
+            or capabilities.get("can_view_payment_summaries")
+            or capabilities.get("can_review_payments")
+        ) and _has_doctype("OMC Service Payment"):
+            names.update(
+                frappe.get_all(
+                    "OMC Service Payment",
+                    filters={"service_request": ["is", "set"]},
+                    pluck="service_request",
+                )
+            )
+
+    return sorted(name for name in names if name)
+
+
+def _require_service_case_read_scope(case_id=None):
+    user = _assert_internal_workspace_access()
+    capabilities = _canonical_capabilities()
+
+    if not any(
+        capabilities.get(name)
+        for name in (
+            "can_view_all_service_cases",
+            "can_view_relevant_service_cases",
+            "can_view_assigned_service_cases",
+        )
+    ):
+        frappe.throw(
+            "You do not have permission to view service cases.",
+            frappe.PermissionError,
+        )
+
+    allowed_names = _service_case_scope_names(capabilities, user)
+    if case_id and allowed_names is not None and case_id not in allowed_names:
+        frappe.throw(
+            "You do not have permission to access this service request.",
+            frappe.PermissionError,
+        )
+
+    return user, capabilities, allowed_names
+
+
+def _require_service_case_update_scope(case_id):
+    user = _assert_internal_workspace_access()
+    capabilities = _canonical_capabilities()
+
+    if capabilities.get("can_update_service_status"):
+        return user, capabilities
+
+    if not capabilities.get("can_update_assigned_service_status"):
+        frappe.throw(
+            "You do not have permission to update service case status.",
+            frappe.PermissionError,
+        )
+
+    assigned_names = set(_assigned_record_names("OMC Service Request", user))
+    if case_id not in assigned_names:
+        frappe.throw(
+            "You may only update service requests assigned to you.",
+            frappe.PermissionError,
+        )
+
+    return user, capabilities
+
+
 @frappe.whitelist()
 def get_service_cases():
     if _can_access_internal_workspace():
         profile = None
+        _user, _capabilities, allowed_names = _require_service_case_read_scope()
     else:
         profile = _assert_approved_customer()
+        allowed_names = None
 
     filters = {}
     if profile:
         filters["customer_profile"] = profile.name
+    elif allowed_names is not None:
+        filters["name"] = ["in", allowed_names or ["__no_service_requests__"]]
 
     cases = frappe.get_all(
         "OMC Service Request",
@@ -1202,10 +1307,10 @@ def get_service_cases():
 
 @frappe.whitelist()
 def update_service_case_status(case_id=None, status=None, note=None, expected_completion_date=None):
-    require_omc_staff(SERVICE_STATUS_ROLES, "You do not have permission to update service case status.")
-
     if not case_id:
         frappe.throw("case_id is required")
+
+    _require_service_case_update_scope(case_id)
 
     if not status:
         frappe.throw("status is required")
@@ -1278,7 +1383,11 @@ def get_service_case(case_id=None):
 
     service_case = frappe.get_doc("OMC Service Request", case_id)
     can_access_internal_workspace = _can_access_internal_workspace()
-    profile = None if can_access_internal_workspace else _assert_approved_customer()
+    if can_access_internal_workspace:
+        _require_service_case_read_scope(case_id)
+        profile = None
+    else:
+        profile = _assert_approved_customer()
 
     if not can_access_internal_workspace:
         if not profile:

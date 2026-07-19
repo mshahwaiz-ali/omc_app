@@ -45,3 +45,10 @@ has_permission = {
     "OMC Support Ticket": "omc_app.permissions.support_ticket_has_permission",
     "OMC Lead": "omc_app.permissions.lead_has_permission",
 }
+
+# Validate task assignment for Desk, API resource, import, and server writes.
+doc_events = {
+    "OMC Task": {
+        "validate": "omc_app.permissions.validate_task_assignment",
+    },
+}
