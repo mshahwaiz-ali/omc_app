@@ -66,5 +66,34 @@ void main() {
         isFalse,
       );
     });
+
+    test('allows authenticated account routes explicitly', () {
+      const pending = AuthCapabilities(
+        accessState: AccountAccessState.pending,
+        canUseTaxCalculator: true,
+      );
+
+      expect(canAccessRoute('/profile', pending), isTrue);
+      expect(canAccessRoute('/settings', pending), isTrue);
+      expect(canAccessRoute('/tax-calculator/history', pending), isTrue);
+    });
+
+    test('denies calculator history without calculator capability', () {
+      const authenticated = AuthCapabilities(
+        accessState: AccountAccessState.approved,
+        canUseTaxCalculator: false,
+      );
+
+      expect(canAccessRoute('/tax-calculator/history', authenticated), isFalse);
+    });
+
+    test('denies unknown authenticated routes by default', () {
+      const internal = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canAccessInternalWorkspace: true,
+      );
+
+      expect(canAccessRoute('/future-unclassified-route', internal), isFalse);
+    });
   });
 }

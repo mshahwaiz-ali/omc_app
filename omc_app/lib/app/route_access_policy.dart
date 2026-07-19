@@ -77,9 +77,15 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.canManageTasks;
   }
 
-  // Unclassified authenticated routes retain their existing behavior for now.
-  // A later route-inventory batch will replace this with deny-by-default.
-  return true;
+  if (location == '/profile' || location == '/settings') {
+    return !capabilities.isGuest;
+  }
+
+  if (location == '/tax-calculator/history') {
+    return !capabilities.isGuest && capabilities.canUseTaxCalculator;
+  }
+
+  return false;
 }
 
 bool _isServiceRequestRoute(String location) {
