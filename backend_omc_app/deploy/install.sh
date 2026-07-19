@@ -10,7 +10,7 @@ setup_log install
 need_sudo
 
 FRAPPE_BRANCH="${FRAPPE_BRANCH:-version-15}"
-NODE_MAJOR="${NODE_MAJOR:-18}"
+NODE_MAJOR="${NODE_MAJOR:-20}"
 BENCH_USER="${BENCH_USER:-$(id -un)}"
 BENCH_DIR="${BENCH_DIR:-/home/$BENCH_USER/frappe-bench}"
 APP_SOURCE_DIR="${APP_SOURCE_DIR:-$BACKEND_DIR/frappe-bench/apps/omc_app}"
@@ -29,6 +29,7 @@ validate_app "$APP_SOURCE_DIR"
 info "deployment user: $BENCH_USER"
 info "runtime Bench: $BENCH_DIR"
 info "OMC app source: $APP_SOURCE_DIR"
+info "Node.js major version: $NODE_MAJOR"
 
 export DEBIAN_FRONTEND=noninteractive
 "${SUDO[@]}" apt-get update
@@ -40,8 +41,14 @@ apt_install_missing \
   liblcms2-dev libwebp-dev libtiff-dev libxrender1 libxext6 \
   fontconfig xfonts-75dpi xfonts-base wkhtmltopdf
 
-if ! have node || [[ "$(node -p 'process.versions.node.split(`.`)[0]')" != "$NODE_MAJOR" ]]; then
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | "${SUDO[@]}" -E bash -
+current_node_major=""
+if have node; then
+  current_node_major="$(node -p 'process.versions.node.split(`.`)[0]')"
+fi
+
+if [[ "$current_node_major" != "$NODE_MAJOR" ]]; then
+  info "installing Node.js ${NODE_MAJOR}.x"
+  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | "${SUDO[@]}" bash -
   apt_install_missing nodejs
 fi
 
