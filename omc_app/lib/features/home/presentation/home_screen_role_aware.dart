@@ -8,9 +8,11 @@ import '../../../core/config/api_config.dart';
 import '../../../core/widgets/omc_identity_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../../app/route_access_policy.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
+import '../application/home_action_access.dart';
 import 'internal_home_view.dart';
 import 'customer_guest_home_view.dart';
 
@@ -591,45 +593,7 @@ class HomeScreen extends ConsumerWidget {
     MobileQuickAction action,
     AuthCapabilities capabilities,
   ) {
-    final required = action.requiredCapability?.trim();
-    if (required == null || required.isEmpty) return true;
-    return switch (required) {
-      'can_view_documents' =>
-        capabilities.canViewDocuments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      'can_track_requests' =>
-        capabilities.canTrackRequests ||
-            capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.isApproved ||
-            capabilities.canAccessInternalWorkspace,
-      'can_view_payments' =>
-        capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      'can_review_documents' =>
-        capabilities.canReviewDocuments ||
-            capabilities.canAccessInternalWorkspace,
-      'can_review_payments' =>
-        capabilities.canReviewPayments ||
-            capabilities.canAccessInternalWorkspace,
-      'can_manage_customers' =>
-        capabilities.canManageCustomers ||
-            capabilities.canAccessInternalWorkspace,
-      'can_manage_leads' =>
-        capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
-      'can_manage_tasks' =>
-        capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
-      'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
-      'can_access_customer_dashboard' =>
-        capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      _ => true,
-    };
+    return canUseHomeActionCapability(action.requiredCapability, capabilities);
   }
 
   void _openNotifications(
@@ -637,12 +601,7 @@ class HomeScreen extends ConsumerWidget {
     AuthCapabilities capabilities,
     VoidCallback? callback,
   ) {
-    final allowed =
-        capabilities.canViewCustomerNotifications ||
-        capabilities.isApproved ||
-        capabilities.isInternal ||
-        capabilities.canAccessInternalWorkspace ||
-        capabilities.isGuest;
+    final allowed = canAccessRoute('/notifications', capabilities);
     if (!allowed) {
       _showLockedSnack(context, capabilities);
       return;
@@ -668,42 +627,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   bool _isAllowed(String capability, AuthCapabilities capabilities) {
-    return switch (capability) {
-      'can_view_documents' =>
-        capabilities.canViewDocuments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      'can_track_requests' =>
-        capabilities.canTrackRequests ||
-            capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.isApproved ||
-            capabilities.canAccessInternalWorkspace,
-      'can_view_payments' =>
-        capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      'can_review_documents' =>
-        capabilities.canReviewDocuments ||
-            capabilities.canAccessInternalWorkspace,
-      'can_review_payments' =>
-        capabilities.canReviewPayments ||
-            capabilities.canAccessInternalWorkspace,
-      'can_manage_customers' =>
-        capabilities.canManageCustomers ||
-            capabilities.canAccessInternalWorkspace,
-      'can_manage_leads' =>
-        capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
-      'can_manage_tasks' =>
-        capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
-      'can_access_customer_dashboard' =>
-        capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      _ => true,
-    };
+    return canUseHomeActionCapability(capability, capabilities);
   }
 
   void _ctaAction(
@@ -1672,45 +1596,7 @@ class _QuickActionsRow extends StatelessWidget {
   }
 
   bool _isAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
-    final required = action.requiredCapability?.trim();
-    if (required == null || required.isEmpty) return true;
-    return switch (required) {
-      'can_view_documents' =>
-        capabilities.canViewDocuments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      'can_track_requests' =>
-        capabilities.canTrackRequests ||
-            capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.isApproved ||
-            capabilities.canAccessInternalWorkspace,
-      'can_view_payments' =>
-        capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      'can_review_documents' =>
-        capabilities.canReviewDocuments ||
-            capabilities.canAccessInternalWorkspace,
-      'can_review_payments' =>
-        capabilities.canReviewPayments ||
-            capabilities.canAccessInternalWorkspace,
-      'can_manage_customers' =>
-        capabilities.canManageCustomers ||
-            capabilities.canAccessInternalWorkspace,
-      'can_manage_leads' =>
-        capabilities.canManageLeads || capabilities.canAccessInternalWorkspace,
-      'can_manage_tasks' =>
-        capabilities.canManageTasks || capabilities.canAccessInternalWorkspace,
-      'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
-      'can_access_customer_dashboard' =>
-        capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
-      _ => true,
-    };
+    return canUseHomeActionCapability(action.requiredCapability, capabilities);
   }
 }
 

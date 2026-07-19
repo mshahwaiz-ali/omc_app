@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../auth/application/auth_state.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
+import '../application/home_action_access.dart';
 
 const Color _omcRed = Color(0xFFE50924);
 const Color _ink = Color(0xFF111827);
@@ -417,25 +418,11 @@ class InternalHomeView extends ConsumerWidget {
   }
 
   bool _hasCapability(AuthCapabilities capabilities, String? capability) {
-    final key = capability?.trim().toLowerCase();
-    if (key == null || key.isEmpty) {
-      return capabilities.isInternal || capabilities.canAccessInternalWorkspace;
-    }
-
-    return switch (key) {
-      'can_access_internal_workspace' =>
-        capabilities.canAccessInternalWorkspace || capabilities.isInternal,
-      'can_review_documents' => capabilities.canReviewDocuments,
-      'can_review_payments' => capabilities.canReviewPayments,
-      'can_manage_customers' => capabilities.canManageCustomers,
-      'can_manage_leads' => capabilities.canManageLeads,
-      'can_manage_tasks' => capabilities.canManageTasks,
-      'can_update_service_status' => capabilities.canUpdateServiceStatus,
-      'can_update_support_ticket_status' =>
-        capabilities.canUpdateSupportTicketStatus,
-      'can_view_internal_notes' => capabilities.canViewInternalNotes,
-      _ => false,
-    };
+    return canUseHomeActionCapability(
+      capability,
+      capabilities,
+      allowWithoutRequirement: false,
+    );
   }
 }
 
@@ -1100,22 +1087,11 @@ class _QuickActions extends StatelessWidget {
   }
 
   bool _isAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
-    final capability = action.requiredCapability?.trim().toLowerCase();
-
-    if (capability == null || capability.isEmpty) {
-      return capabilities.isInternal || capabilities.canAccessInternalWorkspace;
-    }
-
-    return switch (capability) {
-      'can_review_documents' => capabilities.canReviewDocuments,
-      'can_review_payments' => capabilities.canReviewPayments,
-      'can_manage_customers' => capabilities.canManageCustomers,
-      'can_manage_leads' => capabilities.canManageLeads,
-      'can_manage_tasks' => capabilities.canManageTasks,
-      'can_access_internal_workspace' =>
-        capabilities.canAccessInternalWorkspace || capabilities.isInternal,
-      _ => false,
-    };
+    return canUseHomeActionCapability(
+      action.requiredCapability,
+      capabilities,
+      allowWithoutRequirement: false,
+    );
   }
 }
 
