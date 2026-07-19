@@ -1,9 +1,11 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from omc_app import permissions
+from omc_app.api import mobile
 from omc_app.setup.roles import (
     BUSINESS_PARTNER_ROLE,
     CONSULTANT_ROLE,
@@ -150,3 +152,122 @@ class TestManagerConfigurationBoundary(FrappeTestCase):
             "OMC Tax Year",
         }
         self.assertTrue(expected.issubset(MANAGER_BLOCKED_DOCTYPES))
+
+
+class TestMobileServiceCaseScope(FrappeTestCase):
+    def test_assigned_service_case_scope_returns_only_assigned_names(self):
+        capabilities = {
+            "can_view_all_service_cases": False,
+            "can_view_relevant_service_cases": False,
+            "can_view_assigned_service_cases": True,
+        }
+        with patch.object(
+            mobile,
+            "_assigned_record_names",
+            return_value=["SR-ASSIGNED-1", "SR-ASSIGNED-2"],
+        ):
+            names = mobile._service_case_scope_names(
+                capabilities,
+                user="consultant@example.com",
+            )
+
+        self.assertEqual(names, ["SR-ASSIGNED-1", "SR-ASSIGNED-2"])
+
+    def test_unassigned_service_case_status_update_is_rejected(self):
+        capabilities = {
+            "can_update_service_status": False,
+            "can_update_assigned_service_status": True,
+        }
+        with (
+            patch.object(
+                mobile,
+                "_assert_internal_workspace_access",
+                return_value="consultant@example.com",
+            ),
+            patch.object(
+                mobile,
+                "_canonical_capabilities",
+                return_value=capabilities,
+            ),
+            patch.object(
+                mobile,
+                "_assigned_record_names",
+                return_value=["SR-ASSIGNED"],
+            ),
+            self.assertRaises(frappe.PermissionError),
+        ):
+            mobile._require_service_case_update_scope("SR-UNASSIGNED")
+
+
+class TestTaskAssignmentBoundary(FrappeTestCase):
+    def _task(self, assigned_to, *, name="TASK-1", is_new=False):
+        return SimpleNamespace(
+            assigned_to=assigned_to,
+            name=name,
+            is_new=lambda: is_new,
+        )
+
+    def test_disabled_task_assignee_is_rejected(self):
+        task = self._task("disabled@example.com")
+        with (
+            patch.object(
+                permissions.frappe.db,
+                "get_value",
+                return_value=SimpleNamespace(
+                    enabled=0,
+                    user_type="System User",
+                ),
+            ),
+            self.assertRaises(frappe.ValidationError),
+        ):
+            permissions.validate_task_assignment(task)
+
+    def test_website_user_task_assignee_is_rejected(self):
+        task = self._task("customer@example.com")
+        with (
+            patch.object(
+                permissions.frappe.db,
+                "get_value",
+                return_value=SimpleNamespace(
+                    enabled=1,
+                    user_type="Website User",
+                ),
+            ),
+            self.assertRaises(frappe.ValidationError),
+        ):
+            permissions.validate_task_assignment(task)
+
+    def test_specialist_cannot_reassign_existing_task(self):
+        task = self._task("new-assignee@example.com")
+        user_values = SimpleNamespace(
+            enabled=1,
+            user_type="System User",
+        )
+
+        def get_value(doctype, name, fieldname, **kwargs):
+            if doctype == "User":
+                return user_values
+            if doctype == "OMC Task":
+                return "old-assignee@example.com"
+            return None
+
+        with (
+            patch.object(permissions.frappe.db, "get_value", side_effect=get_value),
+            patch.object(
+                permissions,
+                "_roles",
+                return_value={CONSULTANT_ROLE},
+            ),
+            patch.object(
+                permissions,
+                "_user",
+                return_value="consultant@example.com",
+            ),
+            patch.object(
+                permissions,
+                "_privileged",
+                return_value=False,
+            ),
+            self.assertRaises(frappe.PermissionError),
+        ):
+            permissions.validate_task_assignment(task)
