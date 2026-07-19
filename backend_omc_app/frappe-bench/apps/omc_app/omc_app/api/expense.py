@@ -294,14 +294,12 @@ def get_expense_categories():
     if not _has_doctype("OMC Expense Category"):
         return {"categories": DEFAULT_EXPENSE_CATEGORIES, "fallback": True, "enabled": True}
 
-    _seed_default_categories()
     rows = frappe.get_all(
         "OMC Expense Category",
         filters={"enabled": 1},
         fields=["name", "title", "transaction_type", "icon", "color", "is_tax_relevant", "business_default", "sort_order"],
         order_by="sort_order asc, title asc",
     )
-    frappe.db.commit()
 
     return {
         "categories": [_category_to_dict(row) for row in rows] or DEFAULT_EXPENSE_CATEGORIES,
