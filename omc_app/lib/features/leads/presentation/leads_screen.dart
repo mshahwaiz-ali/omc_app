@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../auth/application/auth_controller.dart';
 import '../data/leads_repository.dart';
 import '../domain/lead_item.dart';
 
@@ -25,7 +26,10 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
     super.initState();
     if (widget.openCreateOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showCreateLeadSheet();
+        if (mounted &&
+            ref.read(authControllerProvider).capabilities.canManageLeads) {
+          _showCreateLeadSheet();
+        }
       });
     }
   }
@@ -33,6 +37,10 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
   @override
   Widget build(BuildContext context) {
     final leadsAsync = ref.watch(leadsProvider);
+    final canCreateLeads = ref
+        .watch(authControllerProvider)
+        .capabilities
+        .canManageLeads;
 
     return Scaffold(
       body: RefreshIndicator(
@@ -47,9 +55,11 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
             statusFilter: _statusFilter,
             onQueryChanged: (value) => setState(() => _query = value),
             onStatusChanged: (value) => setState(() => _statusFilter = value),
-            onAddLead: _showCreateLeadSheet,
+            onAddLead: canCreateLeads ? _showCreateLeadSheet : null,
           ),
-          loading: () => _LeadsLoadingView(onAddLead: _showCreateLeadSheet),
+          loading: () => _LeadsLoadingView(
+            onAddLead: canCreateLeads ? _showCreateLeadSheet : null,
+          ),
           error: (error, _) => _BackendUnavailableState(
             icon: Icons.trending_up_rounded,
             title: 'Leads unavailable',
@@ -62,6 +72,13 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
   }
 
   Future<void> _showCreateLeadSheet() async {
+    if (!ref.read(authControllerProvider).capabilities.canManageLeads) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your role cannot create leads.')),
+      );
+      return;
+    }
+
     final titleController = TextEditingController();
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
@@ -82,6 +99,18 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
           builder: (context, setSheetState) {
             Future<void> submit() async {
               if (saving) return;
+
+              if (!ref
+                  .read(authControllerProvider)
+                  .capabilities
+                  .canManageLeads) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Your role cannot create leads.'),
+                  ),
+                );
+                return;
+              }
 
               final title = titleController.text.trim();
               if (title.isEmpty) {
@@ -551,7 +580,7 @@ class _LeadsContent extends StatelessWidget {
   final LeadStatus? statusFilter;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<LeadStatus?> onStatusChanged;
-  final VoidCallback onAddLead;
+  final VoidCallback? onAddLead;
 
   @override
   Widget build(BuildContext context) {
@@ -669,7 +698,7 @@ class _LeadsHeader extends StatelessWidget {
   final int totalCount;
   final int filteredCount;
   final bool hasActiveFilter;
-  final VoidCallback onAddLead;
+  final VoidCallback? onAddLead;
   final VoidCallback onClearFilters;
 
   @override
@@ -1547,7 +1576,7 @@ class _LeadListFooter extends StatelessWidget {
 
   final int visibleCount;
   final int totalCount;
-  final VoidCallback onAddLead;
+  final VoidCallback? onAddLead;
 
   @override
   Widget build(BuildContext context) {
@@ -1629,7 +1658,7 @@ class _LeadListFooter extends StatelessWidget {
 class _LeadsLoadingView extends StatelessWidget {
   const _LeadsLoadingView({required this.onAddLead});
 
-  final VoidCallback onAddLead;
+  final VoidCallback? onAddLead;
 
   @override
   Widget build(BuildContext context) {

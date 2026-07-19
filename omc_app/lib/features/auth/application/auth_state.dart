@@ -32,8 +32,26 @@ class AuthCapabilities {
     this.canReviewPayments = false,
     this.canUpdateSupportTicketStatus = false,
     this.canManageCustomers = false,
+    this.canViewAllCustomers = false,
+    this.canViewRelevantCustomers = false,
     this.canManageLeads = false,
     this.canManageTasks = false,
+    this.canManageAssignedTasks = false,
+    this.canCreateServiceForCustomer = false,
+    this.canViewAllServiceCases = false,
+    this.canViewRelevantServiceCases = false,
+    this.canViewAssignedServiceCases = false,
+    this.canUpdateAssignedServiceStatus = false,
+
+    this.canViewDocumentQueue = false,
+    this.canViewDocumentSummaries = false,
+    this.canViewDocumentAttachments = false,
+    this.canViewPaymentQueue = false,
+    this.canViewPaymentSummaries = false,
+    this.canViewPaymentReceipts = false,
+    this.canReplySupportTickets = false,
+    this.canAssignSupportTickets = false,
+    this.canManageSettings = false,
     this.canViewInternalNotes = false,
   });
 
@@ -59,8 +77,26 @@ class AuthCapabilities {
   final bool canReviewPayments;
   final bool canUpdateSupportTicketStatus;
   final bool canManageCustomers;
+  final bool canViewAllCustomers;
+  final bool canViewRelevantCustomers;
   final bool canManageLeads;
   final bool canManageTasks;
+  final bool canManageAssignedTasks;
+  final bool canCreateServiceForCustomer;
+  final bool canViewAllServiceCases;
+  final bool canViewRelevantServiceCases;
+  final bool canViewAssignedServiceCases;
+  final bool canUpdateAssignedServiceStatus;
+
+  final bool canViewDocumentQueue;
+  final bool canViewDocumentSummaries;
+  final bool canViewDocumentAttachments;
+  final bool canViewPaymentQueue;
+  final bool canViewPaymentSummaries;
+  final bool canViewPaymentReceipts;
+  final bool canReplySupportTickets;
+  final bool canAssignSupportTickets;
+  final bool canManageSettings;
   final bool canViewInternalNotes;
 
   static const guest = AuthCapabilities(accessState: AccountAccessState.guest);
@@ -100,8 +136,29 @@ class AuthCapabilities {
             canUpdateSupportTicketStatus ==
                 other.canUpdateSupportTicketStatus &&
             canManageCustomers == other.canManageCustomers &&
+            canViewAllCustomers == other.canViewAllCustomers &&
+            canViewRelevantCustomers == other.canViewRelevantCustomers &&
             canManageLeads == other.canManageLeads &&
             canManageTasks == other.canManageTasks &&
+            canCreateServiceForCustomer == other.canCreateServiceForCustomer &&
+            canViewRelevantServiceCases == other.canViewRelevantServiceCases &&
+            canViewAssignedServiceCases == other.canViewAssignedServiceCases &&
+            canManageAssignedTasks == other.canManageAssignedTasks &&
+            canViewAllServiceCases == other.canViewAllServiceCases &&
+            canViewRelevantServiceCases == other.canViewRelevantServiceCases &&
+            canViewAssignedServiceCases == other.canViewAssignedServiceCases &&
+            canCreateServiceForCustomer == other.canCreateServiceForCustomer &&
+            canUpdateAssignedServiceStatus ==
+                other.canUpdateAssignedServiceStatus &&
+            canViewDocumentQueue == other.canViewDocumentQueue &&
+            canViewDocumentSummaries == other.canViewDocumentSummaries &&
+            canViewDocumentAttachments == other.canViewDocumentAttachments &&
+            canViewPaymentQueue == other.canViewPaymentQueue &&
+            canViewPaymentSummaries == other.canViewPaymentSummaries &&
+            canViewPaymentReceipts == other.canViewPaymentReceipts &&
+            canReplySupportTickets == other.canReplySupportTickets &&
+            canAssignSupportTickets == other.canAssignSupportTickets &&
+            canManageSettings == other.canManageSettings &&
             canViewInternalNotes == other.canViewInternalNotes;
   }
 
@@ -129,8 +186,25 @@ class AuthCapabilities {
     canReviewPayments,
     canUpdateSupportTicketStatus,
     canManageCustomers,
+    canViewAllCustomers,
+    canViewRelevantCustomers,
     canManageLeads,
     canManageTasks,
+    canManageAssignedTasks,
+    canViewAllServiceCases,
+    canViewRelevantServiceCases,
+    canViewAssignedServiceCases,
+    canCreateServiceForCustomer,
+    canUpdateAssignedServiceStatus,
+    canViewDocumentQueue,
+    canViewDocumentSummaries,
+    canViewDocumentAttachments,
+    canViewPaymentQueue,
+    canViewPaymentSummaries,
+    canViewPaymentReceipts,
+    canReplySupportTickets,
+    canAssignSupportTickets,
+    canManageSettings,
     canViewInternalNotes,
   ]);
 
@@ -205,9 +279,36 @@ class AuthCapabilities {
       canUpdateSupportTicketStatus: _boolValue(
         json['can_update_support_ticket_status'],
       ),
+      canReplySupportTickets: _boolValue(json['can_reply_support_tickets']),
+      canAssignSupportTickets: _boolValue(json['can_assign_support_tickets']),
       canManageCustomers: _boolValue(json['can_manage_customers']),
+      canViewAllCustomers: _boolValue(json['can_view_all_customers']),
+      canViewRelevantCustomers: _boolValue(json['can_view_relevant_customers']),
       canManageLeads: _boolValue(json['can_manage_leads']),
       canManageTasks: _boolValue(json['can_manage_tasks']),
+      canManageAssignedTasks: _boolValue(json['can_manage_assigned_tasks']),
+      canCreateServiceForCustomer: _boolValue(
+        json['can_create_service_for_customer'],
+      ),
+      canViewAllServiceCases: _boolValue(json['can_view_all_service_cases']),
+      canViewRelevantServiceCases: _boolValue(
+        json['can_view_relevant_service_cases'],
+      ),
+      canViewAssignedServiceCases: _boolValue(
+        json['can_view_assigned_service_cases'],
+      ),
+      canUpdateAssignedServiceStatus: _boolValue(
+        json['can_update_assigned_service_status'],
+      ),
+      canViewDocumentQueue: _boolValue(json['can_view_document_queue']),
+      canViewDocumentSummaries: _boolValue(json['can_view_document_summaries']),
+      canViewDocumentAttachments: _boolValue(
+        json['can_view_document_attachments'],
+      ),
+      canViewPaymentQueue: _boolValue(json['can_view_payment_queue']),
+      canViewPaymentSummaries: _boolValue(json['can_view_payment_summaries']),
+      canViewPaymentReceipts: _boolValue(json['can_view_payment_receipts']),
+      canManageSettings: _boolValue(json['can_manage_settings']),
       canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
     );
   }

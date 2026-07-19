@@ -8,6 +8,7 @@ import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
 import '../../../core/widgets/premium_list_header.dart';
+import '../../auth/application/auth_controller.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
 
@@ -82,6 +83,20 @@ class _InternalDocumentReviewScreenState
     String? remarks,
   }) async {
     final messenger = ScaffoldMessenger.of(context);
+    final canReview = ref
+        .read(authControllerProvider)
+        .capabilities
+        .canReviewDocuments;
+
+    if (!canReview) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Your role cannot review customer documents.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _busyDocumentId = document.id);
 
     try {
@@ -147,6 +162,11 @@ class _InternalDocumentReviewScreenState
 
   @override
   Widget build(BuildContext context) {
+    final canReviewDocuments = ref
+        .watch(authControllerProvider)
+        .capabilities
+        .canReviewDocuments;
+
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
@@ -174,6 +194,7 @@ class _InternalDocumentReviewScreenState
                 selectedFilter: _selectedFilter,
                 selectedServiceReference: _selectedServiceReference,
                 busyDocumentId: _busyDocumentId,
+                canReviewDocuments: canReviewDocuments,
                 onFilterSelected: _selectFilter,
                 onServiceSelected: _selectService,
                 onApprove: (document) => _reviewDocument(document, 'Approved'),
@@ -204,6 +225,7 @@ class _ReviewContent extends StatelessWidget {
     required this.selectedFilter,
     required this.selectedServiceReference,
     required this.busyDocumentId,
+    required this.canReviewDocuments,
     required this.onFilterSelected,
     required this.onServiceSelected,
     required this.onApprove,
@@ -214,6 +236,7 @@ class _ReviewContent extends StatelessWidget {
   final _ReviewFilter selectedFilter;
   final String? selectedServiceReference;
   final String? busyDocumentId;
+  final bool canReviewDocuments;
   final ValueChanged<_ReviewFilter> onFilterSelected;
   final ValueChanged<String?> onServiceSelected;
   final ValueChanged<DocumentItem> onApprove;
@@ -318,6 +341,7 @@ class _ReviewContent extends StatelessWidget {
             _ReviewDocumentCard(
               document: document,
               isBusy: busyDocumentId == document.id,
+              canReviewDocuments: canReviewDocuments,
               onApprove: () => onApprove(document),
               onReject: () => onReject(document),
             ),
@@ -692,18 +716,21 @@ class _ReviewDocumentCard extends StatelessWidget {
   const _ReviewDocumentCard({
     required this.document,
     required this.isBusy,
+    required this.canReviewDocuments,
     required this.onApprove,
     required this.onReject,
   });
 
   final DocumentItem document;
   final bool isBusy;
+  final bool canReviewDocuments;
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
   @override
   Widget build(BuildContext context) {
     final canReview =
+        canReviewDocuments &&
         !document.isArchived &&
         document.status != DocumentStatus.approved &&
         !isBusy;

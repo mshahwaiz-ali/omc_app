@@ -12,6 +12,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../auth/application/auth_controller.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
 
@@ -91,6 +92,15 @@ class _SupportTicketChatBodyState
 
   @override
   Widget build(BuildContext context) {
+    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final isInternal = capabilities.isInternal;
+    final canReply =
+        ticket.canReply && (!isInternal || capabilities.canReplySupportTickets);
+    final canUpdateStatus =
+        ticket.canUpdateStatus && capabilities.canUpdateSupportTicketStatus;
+    final canViewInternalDetails =
+        isInternal && capabilities.canViewInternalNotes;
+
     return Column(
       children: [
         Expanded(
@@ -107,9 +117,11 @@ class _SupportTicketChatBodyState
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
               children: [
                 _TicketInfoCard(ticket: ticket),
-                if (ticket.canUpdateStatus) ...[
+                if (canViewInternalDetails) ...[
                   const SizedBox(height: 12),
                   _CustomerInformationCard(ticket: ticket),
+                ],
+                if (canUpdateStatus) ...[
                   const SizedBox(height: 12),
                   _SupportAdminStatusBar(
                     ticket: ticket,
@@ -128,7 +140,7 @@ class _SupportTicketChatBodyState
                   for (final message in ticket.messages) ...[
                     _ChatBubble(
                       message: message,
-                      isMine: ticket.canUpdateStatus
+                      isMine: isInternal
                           ? !message.isFromCustomer
                           : message.isFromCustomer,
                     ),
@@ -141,7 +153,7 @@ class _SupportTicketChatBodyState
         _SupportChatComposer(
           controller: _replyController,
           attachment: _pickedAttachment,
-          enabled: ticket.canReply && !ticket.isClosed && !_isSendingReply,
+          enabled: canReply && !ticket.isClosed && !_isSendingReply,
           isSending: _isSendingReply,
           isClosed: ticket.isClosed,
           onPickAttachment: _pickAttachment,
@@ -154,6 +166,19 @@ class _SupportTicketChatBodyState
 
   Future<void> _pickAttachment() async {
     final messenger = ScaffoldMessenger.of(context);
+    final capabilities = ref.read(authControllerProvider).capabilities;
+    final canReply =
+        ticket.canReply &&
+        (!capabilities.isInternal || capabilities.canReplySupportTickets);
+
+    if (!canReply) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Your role cannot reply to this support ticket.'),
+        ),
+      );
+      return;
+    }
 
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -213,6 +238,20 @@ class _SupportTicketChatBodyState
     final message = _replyController.text.trim();
     final attachment = _pickedAttachment;
     final messenger = ScaffoldMessenger.of(context);
+
+    final capabilities = ref.read(authControllerProvider).capabilities;
+    final canReply =
+        ticket.canReply &&
+        (!capabilities.isInternal || capabilities.canReplySupportTickets);
+
+    if (!canReply) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Your role cannot reply to this support ticket.'),
+        ),
+      );
+      return;
+    }
 
     if (ticket.isClosed) {
       messenger.showSnackBar(
@@ -278,9 +317,19 @@ class _SupportTicketChatBodyState
   }
 
   Future<void> _updateTicketStatus(BuildContext context, String status) async {
-    final repository = ref.read(supportRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
+    final capabilities = ref.read(authControllerProvider).capabilities;
 
+    if (!ticket.canUpdateStatus || !capabilities.canUpdateSupportTicketStatus) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Your role cannot update support ticket status.'),
+        ),
+      );
+      return;
+    }
+
+    final repository = ref.read(supportRepositoryProvider);
     setState(() => _isUpdatingStatus = true);
 
     try {

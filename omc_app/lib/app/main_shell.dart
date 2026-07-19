@@ -56,7 +56,9 @@ class _MainShellState extends ConsumerState<MainShell> {
       final path = switch (index) {
         0 => '/home',
         1 => '/services',
-        2 => '/internal-workspace/service-cases',
+        2 when _canOpenInternalCases(capabilities) =>
+          '/internal-workspace/service-cases',
+        3 when _canOpenDocuments(capabilities) => '/documents',
         _ => '/home',
       };
       context.go(path);
@@ -91,6 +93,16 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   bool _canOpenDocuments(AuthCapabilities capabilities) {
     return canAccessRoute('/documents', capabilities);
+  }
+
+  bool _canOpenInternalCases(AuthCapabilities capabilities) {
+    return capabilities.canViewAllServiceCases ||
+        capabilities.canViewRelevantServiceCases ||
+        capabilities.canViewAssignedServiceCases;
+  }
+
+  bool _canUseInternalDocumentReview(AuthCapabilities capabilities) {
+    return capabilities.canViewDocumentQueue || capabilities.canReviewDocuments;
   }
 
   void _openWhenAllowed({
@@ -166,11 +178,31 @@ class _MainShellState extends ConsumerState<MainShell> {
       onOpenProfile: () =>
           capabilities.isGuest ? _openPath('/signup') : _openPath('/profile'),
       onOpenKnowledge: () => _openPath('/knowledge'),
-      onOpenInternalWorkspace: () => _openPath('/internal-workspace'),
-      onOpenCustomers: () => _openPath('/customers'),
-      onOpenTasks: () => _openPath('/tasks'),
-      onCreateLead: () => _openPath('/leads?action=create'),
-      onCreateTask: () => _openPath('/tasks?action=create'),
+      onOpenInternalWorkspace: () => _openWhenAllowed(
+        allowed: capabilities.canAccessInternalWorkspace,
+        path: '/internal-workspace',
+        capabilities: capabilities,
+      ),
+      onOpenCustomers: () => _openWhenAllowed(
+        allowed: canAccessRoute('/customers', capabilities),
+        path: '/customers',
+        capabilities: capabilities,
+      ),
+      onOpenTasks: () => _openWhenAllowed(
+        allowed: canAccessRoute('/tasks', capabilities),
+        path: '/tasks',
+        capabilities: capabilities,
+      ),
+      onCreateLead: () => _openWhenAllowed(
+        allowed: capabilities.canManageLeads,
+        path: '/leads?action=create',
+        capabilities: capabilities,
+      ),
+      onCreateTask: () => _openWhenAllowed(
+        allowed: capabilities.canManageTasks,
+        path: '/tasks?action=create',
+        capabilities: capabilities,
+      ),
     );
   }
 
@@ -234,11 +266,31 @@ class _MainShellState extends ConsumerState<MainShell> {
         path: '/settings',
         capabilities: capabilities,
       ),
-      onOpenInternalWorkspace: () => _openPath('/internal-workspace'),
-      onOpenInternalCases: () => _openPath('/internal-workspace/service-cases'),
-      onOpenCustomers: () => _openPath('/customers'),
-      onOpenLeads: () => _openPath('/leads'),
-      onOpenTasks: () => _openPath('/tasks'),
+      onOpenInternalWorkspace: () => _openWhenAllowed(
+        allowed: capabilities.canAccessInternalWorkspace,
+        path: '/internal-workspace',
+        capabilities: capabilities,
+      ),
+      onOpenInternalCases: () => _openWhenAllowed(
+        allowed: _canOpenInternalCases(capabilities),
+        path: '/internal-workspace/service-cases',
+        capabilities: capabilities,
+      ),
+      onOpenCustomers: () => _openWhenAllowed(
+        allowed: canAccessRoute('/customers', capabilities),
+        path: '/customers',
+        capabilities: capabilities,
+      ),
+      onOpenLeads: () => _openWhenAllowed(
+        allowed: canAccessRoute('/leads', capabilities),
+        path: '/leads',
+        capabilities: capabilities,
+      ),
+      onOpenTasks: () => _openWhenAllowed(
+        allowed: canAccessRoute('/tasks', capabilities),
+        path: '/tasks',
+        capabilities: capabilities,
+      ),
       onLogout: authState.status == AuthStatus.guest
           ? () => context.go('/login')
           : _logout,
@@ -261,12 +313,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     final primaryColor = appPrimaryColorFor(
       mobileConfig.branding.primaryColorFamily,
     );
-    final canUseInternalTrack =
-        capabilities.canAccessInternalWorkspace || capabilities.isInternal;
-    final canUseInternalDocs =
-        capabilities.canReviewDocuments ||
-        capabilities.canAccessInternalWorkspace ||
-        capabilities.isInternal;
+    final canUseInternalTrack = _canOpenInternalCases(capabilities);
+    final canUseInternalDocs = _canUseInternalDocumentReview(capabilities);
 
     final screens = [
       HomeScreen(

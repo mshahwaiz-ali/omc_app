@@ -83,14 +83,52 @@ List<OmcSheetAction> _quickActions({
   }
 
   if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
-    return [
-      action('New Lead', Icons.person_add_alt_1_rounded, onCreateLead),
-      action('Assign Task', Icons.playlist_add_check_rounded, onCreateTask),
-      action('Start Request', Icons.add_business_rounded, onOpenServices),
-      action('Review Payments', Icons.receipt_long_outlined, onOpenPayments),
-      action('Review Documents', Icons.fact_check_outlined, onOpenDocuments),
-      action('Customers', Icons.person_search_rounded, onOpenCustomers),
-    ];
+    final items = <OmcSheetAction>[];
+
+    if (capabilities.canManageLeads) {
+      items.add(
+        action('New Lead', Icons.person_add_alt_1_rounded, onCreateLead),
+      );
+    }
+    if (capabilities.canManageTasks) {
+      items.add(
+        action('Assign Task', Icons.playlist_add_check_rounded, onCreateTask),
+      );
+    }
+    if (capabilities.canCreateServiceForCustomer) {
+      items.add(
+        action('Start Request', Icons.add_business_rounded, onOpenServices),
+      );
+    }
+    if (capabilities.canReviewPayments) {
+      items.add(
+        action('Review Payments', Icons.receipt_long_outlined, onOpenPayments),
+      );
+    }
+    if (capabilities.canReviewDocuments) {
+      items.add(
+        action('Review Documents', Icons.fact_check_outlined, onOpenDocuments),
+      );
+    }
+    if (capabilities.canManageCustomers ||
+        capabilities.canViewAllCustomers ||
+        capabilities.canViewRelevantCustomers) {
+      items.add(
+        action('Customers', Icons.person_search_rounded, onOpenCustomers),
+      );
+    }
+    if (capabilities.canViewAllServiceCases ||
+        capabilities.canViewRelevantServiceCases ||
+        capabilities.canViewAssignedServiceCases) {
+      items.add(
+        action('Cases', Icons.fact_check_outlined, onOpenInternalWorkspace),
+      );
+    }
+    if (capabilities.canManageAssignedTasks && !capabilities.canManageTasks) {
+      items.add(action('My Tasks', Icons.task_alt_outlined, onOpenTasks));
+    }
+
+    return items;
   }
 
   if (capabilities.isApproved) {

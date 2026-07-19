@@ -14,6 +14,16 @@ ALLOWED_RECEIPT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png"}
 MAX_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _require_payment_review_access():
+    capabilities = access.get_mobile_capabilities()
+    if not capabilities.get("can_review_payments"):
+        frappe.throw(
+            "You do not have permission to review payments.",
+            frappe.PermissionError,
+        )
+    return capabilities
+
+
 def _clean_text(value):
     return (value or "").strip()
 
@@ -439,4 +449,90 @@ def upload_payment_receipt_file(payment_id=None, name=None, file_name=None, cont
         "payment_reference": payment.payment_reference or "",
         "remarks": payment.remarks or "",
         "file_url": file_doc.file_url,
+    }
+
+
+@frappe.whitelist()
+def review_payment_receipt(
+    payment_id=None,
+    name=None,
+    status=None,
+    remarks=None,
+    payment_reference=None,
+):
+    _require_payment_review_access()
+
+    payment_id = payment_id or name
+    if not payment_id:
+        frappe.throw("payment_id is required")
+    if not status:
+        frappe.throw("status is required")
+
+    allowed_statuses = {"Under Review", "Paid", "Rejected", "Cancelled"}
+    if status not in allowed_statuses:
+        frappe.throw(
+            "status must be one of: Under Review, Paid, Rejected, Cancelled"
+        )
+
+    if not frappe.db.exists(PAYMENT_DOCTYPE, payment_id):
+        frappe.throw("Payment not found", frappe.DoesNotExistError)
+
+    payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
+    old_status = payment.status or ""
+
+    if status in {"Paid", "Rejected"} and not payment.receipt_attachment:
+        frappe.throw(
+            "A receipt must be uploaded before marking this payment as Paid or Rejected."
+        )
+
+    payment.status = status
+    if payment_reference is not None:
+        payment.payment_reference = payment_reference or ""
+    if remarks is not None:
+        payment.remarks = remarks or ""
+
+    if status == "Paid":
+        payment.paid_on = frappe.utils.now_datetime()
+    elif status in {"Rejected", "Cancelled"}:
+        payment.paid_on = None
+
+    payment.save(ignore_permissions=True)
+
+    timeline_title = f"Payment {status}"
+    timeline_description = (
+        remarks or f"{payment.payment_title or 'Payment'} marked as {status}."
+    )
+    mobile._create_service_timeline_entry(
+        service_request=payment.service_request,
+        event_type="Payment Updated",
+        title=timeline_title,
+        description=timeline_description,
+        visible_to_customer=1,
+    )
+
+    service_case = frappe.get_doc(
+        "OMC Service Request",
+        payment.service_request,
+    )
+    mobile._create_customer_notification(
+        customer_profile=service_case.customer_profile,
+        title=timeline_title,
+        message=timeline_description,
+        notification_type="Payment",
+        reference_doctype=PAYMENT_DOCTYPE,
+        reference_name=payment.name,
+    )
+
+    frappe.db.commit()
+    return {
+        "updated": True,
+        "name": payment.name,
+        "case_id": payment.service_request,
+        "old_status": old_status,
+        "status": payment.status,
+        "paid_on": mobile._format_datetime(payment.paid_on),
+        "receipt_url": payment.receipt_attachment or "",
+        "payment_reference": payment.payment_reference or "",
+        "remarks": payment.remarks or "",
+        "message": "Payment receipt reviewed.",
     }

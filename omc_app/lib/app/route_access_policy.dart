@@ -35,11 +35,19 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location == '/documents' || location.startsWith('/documents/')) {
-    return capabilities.canViewDocuments || capabilities.canReviewDocuments;
+    return capabilities.canViewDocuments ||
+        capabilities.canViewDocumentQueue ||
+        capabilities.canViewDocumentSummaries ||
+        capabilities.canViewDocumentAttachments ||
+        capabilities.canReviewDocuments;
   }
 
   if (location == '/payments' || location.startsWith('/payments/')) {
-    return capabilities.canViewPayments || capabilities.canReviewPayments;
+    return capabilities.canViewPayments ||
+        capabilities.canViewPaymentQueue ||
+        capabilities.canViewPaymentSummaries ||
+        capabilities.canViewPaymentReceipts ||
+        capabilities.canReviewPayments;
   }
 
   if (location == '/notifications' || location.startsWith('/notifications/')) {
@@ -49,7 +57,9 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
 
   if (location.startsWith('/support-tickets/')) {
     return capabilities.canViewSupportTickets ||
-        capabilities.canUpdateSupportTicketStatus;
+        capabilities.canReplySupportTickets ||
+        capabilities.canUpdateSupportTicketStatus ||
+        capabilities.canAssignSupportTickets;
   }
 
   if (location == '/expense-tracker') {
@@ -60,8 +70,17 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.isApproved;
   }
 
-  if (location == '/internal-workspace' ||
-      location.startsWith('/internal-workspace/')) {
+  if (location == '/internal-workspace') {
+    return capabilities.canAccessInternalWorkspace;
+  }
+
+  if (location.startsWith('/internal-workspace/service-cases')) {
+    return capabilities.canViewAllServiceCases ||
+        capabilities.canViewRelevantServiceCases ||
+        capabilities.canViewAssignedServiceCases;
+  }
+
+  if (location.startsWith('/internal-workspace/')) {
     return capabilities.canAccessInternalWorkspace;
   }
 
@@ -70,11 +89,13 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location == '/customers' || location.startsWith('/customers/')) {
-    return capabilities.canManageCustomers;
+    return capabilities.canManageCustomers ||
+        capabilities.canViewAllCustomers ||
+        capabilities.canViewRelevantCustomers;
   }
 
   if (location == '/tasks' || location.startsWith('/tasks/')) {
-    return capabilities.canManageTasks;
+    return capabilities.canManageTasks || capabilities.canManageAssignedTasks;
   }
 
   if (location == '/profile' || location == '/settings') {

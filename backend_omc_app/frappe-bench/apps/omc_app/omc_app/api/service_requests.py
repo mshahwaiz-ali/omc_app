@@ -27,6 +27,12 @@ def create_service(**kwargs):
 
     if is_internal:
         mobile._assert_internal_workspace_access()
+        capabilities = mobile._capabilities()
+        if not capabilities.get("can_create_service_for_customer"):
+            frappe.throw(
+                "You do not have permission to create service requests for customers.",
+                frappe.PermissionError,
+            )
     else:
         profile = mobile._assert_approved_customer()
 

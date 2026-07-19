@@ -122,28 +122,72 @@ List<OmcSheetAction> _moreActions({
   }
 
   if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
-    return [
+    final items = <OmcSheetAction>[
       action(
         'Workspace',
         Icons.admin_panel_settings_outlined,
         onOpenInternalWorkspace,
       ),
-      action('Cases', Icons.fact_check_outlined, onOpenInternalCases),
-      action('Customers', Icons.groups_outlined, onOpenCustomers),
-      action('Review Docs', Icons.folder_copy_outlined, onOpenDocuments),
-      action('Payments', Icons.receipt_long_outlined, onOpenPayments),
-      action('Leads', Icons.person_search_outlined, onOpenLeads),
-      action('Tasks', Icons.task_alt_outlined, onOpenTasks),
-      action('Support', Icons.support_agent_outlined, onOpenSupport),
-      action(
-        'Alerts',
-        Icons.notifications_none_rounded,
-        onOpenNotifications,
-        badgeCount: unreadNotifications,
-      ),
-      action('Settings', Icons.settings_outlined, onOpenSettings),
-      action('Logout', Icons.logout_rounded, onLogout, isDestructive: true),
     ];
+
+    if (capabilities.canViewAllServiceCases ||
+        capabilities.canViewRelevantServiceCases ||
+        capabilities.canViewAssignedServiceCases) {
+      items.add(
+        action('Cases', Icons.fact_check_outlined, onOpenInternalCases),
+      );
+    }
+    if (capabilities.canManageCustomers ||
+        capabilities.canViewAllCustomers ||
+        capabilities.canViewRelevantCustomers) {
+      items.add(action('Customers', Icons.groups_outlined, onOpenCustomers));
+    }
+    if (capabilities.canViewDocumentQueue ||
+        capabilities.canViewDocumentSummaries ||
+        capabilities.canViewDocumentAttachments ||
+        capabilities.canReviewDocuments) {
+      items.add(
+        action('Documents', Icons.folder_copy_outlined, onOpenDocuments),
+      );
+    }
+    if (capabilities.canViewPaymentQueue ||
+        capabilities.canViewPaymentSummaries ||
+        capabilities.canViewPaymentReceipts ||
+        capabilities.canReviewPayments) {
+      items.add(
+        action('Payments', Icons.receipt_long_outlined, onOpenPayments),
+      );
+    }
+    if (capabilities.canManageLeads) {
+      items.add(action('Leads', Icons.person_search_outlined, onOpenLeads));
+    }
+    if (capabilities.canManageTasks || capabilities.canManageAssignedTasks) {
+      items.add(action('Tasks', Icons.task_alt_outlined, onOpenTasks));
+    }
+    if (capabilities.canViewSupportTickets ||
+        capabilities.canReplySupportTickets ||
+        capabilities.canUpdateSupportTicketStatus ||
+        capabilities.canAssignSupportTickets) {
+      items.add(action('Support', Icons.support_agent_outlined, onOpenSupport));
+    }
+    if (capabilities.canViewCustomerNotifications) {
+      items.add(
+        action(
+          'Alerts',
+          Icons.notifications_none_rounded,
+          onOpenNotifications,
+          badgeCount: unreadNotifications,
+        ),
+      );
+    }
+    if (capabilities.canManageSettings) {
+      items.add(action('Settings', Icons.settings_outlined, onOpenSettings));
+    }
+
+    items.add(
+      action('Logout', Icons.logout_rounded, onLogout, isDestructive: true),
+    );
+    return items;
   }
 
   final items = <OmcSheetAction>[];

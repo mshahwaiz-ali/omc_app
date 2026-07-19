@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../documents/data/document_attachment.dart';
 import '../../support/application/support_launcher.dart';
@@ -32,6 +33,11 @@ class _ServiceCaseDetailScreenState
   @override
   Widget build(BuildContext context) {
     final caseAsync = ref.watch(serviceCaseDetailProvider(widget.caseId));
+    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final canReviewDocuments = capabilities.canReviewDocuments;
+    final canUploadDocuments = capabilities.canUploadDocuments;
+    final canCancelOwnRequest =
+        capabilities.isApproved && capabilities.canTrackRequests;
 
     return Scaffold(
       body: Column(
@@ -86,7 +92,8 @@ class _ServiceCaseDetailScreenState
                         serviceCase: serviceCase,
                         isUpdatingDocumentStatus: _isUpdatingDocumentStatus,
                         onUpdateDocumentStatus:
-                            serviceCase.canReviewDocuments &&
+                            canReviewDocuments &&
+                                serviceCase.canReviewDocuments &&
                                 !_isUpdatingDocumentStatus
                             ? (document, status) =>
                                   _updateServiceDocumentStatus(
@@ -106,10 +113,12 @@ class _ServiceCaseDetailScreenState
                       _CaseActionsCard(
                         serviceCase: serviceCase,
                         isUploading: _isUploadingDocument,
-                        onUploadMissingDocument: () =>
-                            _showUploadDocumentSheet(serviceCase),
+                        onUploadMissingDocument: canUploadDocuments
+                            ? () => _showUploadDocumentSheet(serviceCase)
+                            : null,
                         isCancelling: _isCancellingRequest,
-                        onCancelRequest: serviceCase.canCancel
+                        onCancelRequest:
+                            canCancelOwnRequest && serviceCase.canCancel
                             ? () => _confirmCancelServiceRequest(serviceCase)
                             : null,
                       ),
@@ -153,6 +162,12 @@ class _ServiceCaseDetailScreenState
   Future<void> _cancelServiceRequest(ServiceCase serviceCase) async {
     if (_isCancellingRequest) return;
 
+    final capabilities = ref.read(authControllerProvider).capabilities;
+    if (!capabilities.isApproved || !capabilities.canTrackRequests) {
+      _showSnack('Your account cannot cancel this service request.');
+      return;
+    }
+
     final caseId = _uploadDocnameFor(serviceCase);
     if (caseId == null) {
       _showSnack(
@@ -189,6 +204,13 @@ class _ServiceCaseDetailScreenState
   ) async {
     if (_isUpdatingDocumentStatus) return;
 
+    if (!ref.read(authControllerProvider).capabilities.canReviewDocuments) {
+      _showSnack(
+        'Your role can view document information but cannot review files.',
+      );
+      return;
+    }
+
     if (!document.hasRealId) {
       _showSnack('Document status cannot be updated without document ID.');
       return;
@@ -220,6 +242,11 @@ class _ServiceCaseDetailScreenState
 
   Future<void> _showUploadDocumentSheet(ServiceCase serviceCase) async {
     if (_isUploadingDocument) return;
+
+    if (!ref.read(authControllerProvider).capabilities.canUploadDocuments) {
+      _showSnack('Your account cannot upload documents for this request.');
+      return;
+    }
 
     final options = _uploadDocumentOptions(serviceCase);
     if (options.isEmpty) {
@@ -2290,7 +2317,7 @@ class _CaseActionsCard extends StatelessWidget {
 
   final ServiceCase serviceCase;
   final bool isUploading;
-  final VoidCallback onUploadMissingDocument;
+  final VoidCallback? onUploadMissingDocument;
   final bool isCancelling;
   final VoidCallback? onCancelRequest;
 
@@ -2549,7 +2576,7 @@ class _PrimaryCaseActionButton extends StatelessWidget {
 
   final _CasePrimaryAction action;
   final bool isUploading;
-  final VoidCallback onUpload;
+  final VoidCallback? onUpload;
 
   @override
   Widget build(BuildContext context) {

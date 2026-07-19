@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../auth/application/auth_controller.dart';
 import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
 
@@ -28,7 +29,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
     if (widget.openCreateOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (mounted &&
+            ref.read(authControllerProvider).capabilities.canManageTasks) {
           _showCreateTaskSheet();
         }
       });
@@ -38,6 +40,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     final tasksAsync = ref.watch(tasksProvider);
+    final canCreateTasks = ref
+        .watch(authControllerProvider)
+        .capabilities
+        .canManageTasks;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFD),
@@ -60,9 +66,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             },
             onOpenFilters: () => _showFilterSheet(tasks),
             onClearFilters: _clearFilters,
-            onAddTask: _showCreateTaskSheet,
+            onAddTask: canCreateTasks ? _showCreateTaskSheet : null,
           ),
-          loading: () => _TasksLoadingView(onAddTask: _showCreateTaskSheet),
+          loading: () => _TasksLoadingView(
+            onAddTask: canCreateTasks ? _showCreateTaskSheet : null,
+          ),
           error: (error, _) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 150),
@@ -239,6 +247,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 
   Future<void> _showCreateTaskSheet() async {
+    if (!ref.read(authControllerProvider).capabilities.canManageTasks) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your role cannot create or assign tasks.'),
+        ),
+      );
+      return;
+    }
+
     final titleController = TextEditingController();
     final assignedController = TextEditingController();
     final dueDateController = TextEditingController();
@@ -281,6 +298,18 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
             Future<void> submit() async {
               if (saving) {
+                return;
+              }
+
+              if (!ref
+                  .read(authControllerProvider)
+                  .capabilities
+                  .canManageTasks) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Your role cannot create or assign tasks.'),
+                  ),
+                );
                 return;
               }
 
@@ -515,7 +544,7 @@ class _TasksContent extends StatelessWidget {
   final ValueChanged<String> onStatusChanged;
   final VoidCallback onOpenFilters;
   final VoidCallback onClearFilters;
-  final VoidCallback onAddTask;
+  final VoidCallback? onAddTask;
 
   @override
   Widget build(BuildContext context) {
@@ -1308,7 +1337,7 @@ class _TaskMetadata extends StatelessWidget {
 class _TasksLoadingView extends StatelessWidget {
   const _TasksLoadingView({required this.onAddTask});
 
-  final VoidCallback onAddTask;
+  final VoidCallback? onAddTask;
 
   @override
   Widget build(BuildContext context) {

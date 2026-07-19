@@ -24,6 +24,78 @@ ACTIVE_STAFF_ROLES = {
 }
 ACTIVE_OMC_ROLES = ACTIVE_PORTAL_ROLES | ACTIVE_STAFF_ROLES
 
+MANAGER_BLOCKED_DOCTYPES = {
+    "OMC Branding Settings",
+    "OMC Mobile Settings",
+    "OMC Mobile Quick Action",
+    "OMC Service",
+    "OMC Service Category",
+    "OMC Service Form Field",
+    "OMC Service Required Document",
+    "OMC Service Stage Template",
+    "OMC App Banner",
+    "OMC Onboarding Slide",
+    "OMC FAQ",
+    "OMC Knowledge Article",
+    "OMC Announcement",
+    "OMC Expense Category",
+    "OMC Payment Account",
+    "OMC Tax Adjustment Rule",
+    "OMC Tax Calculator Settings",
+    "OMC Tax Input Field",
+    "OMC Tax Result Insight",
+    "OMC Tax Year",
+}
+
+SPECIALIST_DOCTYPE_ACCESS = {
+    SUPPORT_AGENT_ROLE: {
+        "OMC Lead": {"read": 1, "write": 1, "create": 1},
+        "OMC Support Ticket": {"read": 1, "write": 1, "create": 1},
+        "OMC Support Ticket Message": {"read": 1, "write": 1, "create": 1},
+        "OMC Customer Profile": {"read": 1},
+        "OMC Service Request": {"read": 1, "create": 1},
+        "OMC Task": {"read": 1, "write": 1, "create": 1},
+        "OMC Notification": {"read": 1, "create": 1},
+    },
+    DOCUMENT_REVIEWER_ROLE: {
+        "OMC Service Document": {"read": 1, "write": 1},
+        "OMC Service Required Document": {"read": 1},
+        "OMC Service Request": {"read": 1},
+        "OMC Customer Profile": {"read": 1},
+        "OMC Service Timeline": {"read": 1, "create": 1},
+        "OMC Task": {"read": 1, "write": 1},
+    },
+    FINANCE_REVIEWER_ROLE: {
+        "OMC Service Payment": {"read": 1, "write": 1},
+        "OMC Payment Account": {"read": 1},
+        "OMC Service Request": {"read": 1},
+        "OMC Customer Profile": {"read": 1},
+        "OMC Service Timeline": {"read": 1, "create": 1},
+        "OMC Task": {"read": 1, "write": 1},
+    },
+    CONSULTANT_ROLE: {
+        "OMC Service Request": {"read": 1, "write": 1},
+        "OMC Service Document": {"read": 1},
+        "OMC Customer Profile": {"read": 1},
+        "OMC Service Timeline": {"read": 1, "create": 1},
+        "OMC Task": {"read": 1, "write": 1},
+    },
+    TAX_ASSOCIATE_ROLE: {
+        "OMC Service Request": {"read": 1, "write": 1},
+        "OMC Service Document": {"read": 1},
+        "OMC Customer Profile": {"read": 1},
+        "OMC Service Timeline": {"read": 1, "create": 1},
+        "OMC Task": {"read": 1, "write": 1},
+    },
+    BUSINESS_PARTNER_ROLE: {
+        "OMC Service Request": {"read": 1, "write": 1},
+        "OMC Service Document": {"read": 1},
+        "OMC Customer Profile": {"read": 1},
+        "OMC Service Timeline": {"read": 1, "create": 1},
+        "OMC Task": {"read": 1, "write": 1},
+    },
+}
+
 LEGACY_CLIENT_ROLES = {"OMC Customer Applicant"}
 LEGACY_STAFF_ROLES = {"OMC Customer Support"}
 LEGACY_ROLES = LEGACY_CLIENT_ROLES | LEGACY_STAFF_ROLES
@@ -156,7 +228,7 @@ def _mobile_quick_action_admin_permission():
 
 def _mobile_quick_action_manager_permission():
     return {
-        "read": 1,
+        "read": 0,
         "write": 0,
         "create": 0,
         "delete": 0,
@@ -172,6 +244,30 @@ def _mobile_quick_action_manager_permission():
         "if_owner": 0,
         "select": 0,
     }
+
+
+def _specialist_permission(values):
+    permission = _base_permission()
+    permission.update(
+        {
+            "read": int(values.get("read", 0)),
+            "write": int(values.get("write", 0)),
+            "create": int(values.get("create", 0)),
+            "delete": 0,
+            "submit": 0,
+            "cancel": 0,
+            "amend": 0,
+            "report": int(values.get("read", 0)),
+            "export": 0,
+            "import": 0,
+            "print": int(values.get("read", 0)),
+            "email": 0,
+            "share": 0,
+            "if_owner": 0,
+            "select": int(values.get("read", 0)),
+        }
+    )
+    return permission
 
 
 def _omc_doctypes():
@@ -194,23 +290,36 @@ def _remove_role_docperms(role_names):
 
 
 def _apply_permissions():
-    # Customer and specialist staff access is enforced through guarded APIs.
-    # Specialist DocPerms are added only after each DocType has an explicit,
-    # reviewed baseline in the role-plan permission inventory.
-    _remove_role_docperms(ACTIVE_PORTAL_ROLES | (ACTIVE_STAFF_ROLES - {ADMIN_ROLE, MANAGER_ROLE}) | LEGACY_ROLES)
+    # Rebuild every OMC role baseline idempotently. API capabilities remain the
+    # authoritative action layer; these DocPerms only expose the matching Desk
+    # records and are further restricted by permission query hooks.
+    _remove_role_docperms(ACTIVE_OMC_ROLES | LEGACY_ROLES)
 
     for row in _omc_doctypes():
         doctype = row.name
         is_submittable = bool(int(row.is_submittable or 0))
-        if doctype == "OMC Mobile Quick Action":
-            admin_values = _mobile_quick_action_admin_permission()
-            manager_values = _mobile_quick_action_manager_permission()
-        else:
-            admin_values = _admin_permission(is_submittable)
-            manager_values = _manager_permission(is_submittable)
 
+        admin_values = (
+            _mobile_quick_action_admin_permission()
+            if doctype == "OMC Mobile Quick Action"
+            else _admin_permission(is_submittable)
+        )
         _upsert_docperm(doctype, ADMIN_ROLE, admin_values)
-        _upsert_docperm(doctype, MANAGER_ROLE, manager_values)
+
+        if doctype not in MANAGER_BLOCKED_DOCTYPES:
+            _upsert_docperm(
+                doctype,
+                MANAGER_ROLE,
+                _manager_permission(is_submittable),
+            )
+
+    for role, doctype_map in SPECIALIST_DOCTYPE_ACCESS.items():
+        for doctype, values in doctype_map.items():
+            _upsert_docperm(
+                doctype,
+                role,
+                _specialist_permission(values),
+            )
 
 
 def sync_canonical_roles():

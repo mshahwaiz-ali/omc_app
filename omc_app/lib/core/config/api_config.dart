@@ -121,7 +121,7 @@ class ApiConfig {
   static const String uploadPaymentReceiptFileMethod =
       'omc_app.api.payments.upload_payment_receipt_file';
   static const String reviewPaymentReceiptMethod =
-      'omc_app.api.mobile.review_payment_receipt';
+      'omc_app.api.payments.review_payment_receipt';
 
   static const String profileMethod = 'omc_app.api.access_v2.get_profile';
   static const String updateProfileMethod = 'omc_app.api.mobile.update_profile';

@@ -1,13 +1,41 @@
 import frappe
 
+from omc_app.api import access
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _can_access_internal_workspace,
     _format_datetime,
-    _get_mobile_capabilities,
-    require_omc_staff,
-    DOCUMENT_REVIEW_ROLES,
 )
+
+def _canonical_capabilities():
+    return access.get_mobile_capabilities()
+
+
+def _require_document_read_access(capabilities):
+    if not any(
+        capabilities.get(name)
+        for name in (
+            "can_view_document_queue",
+            "can_view_document_summaries",
+            "can_view_document_attachments",
+            "can_review_documents",
+        )
+    ):
+        frappe.throw(
+            "You do not have permission to view service documents.",
+            frappe.PermissionError,
+        )
+
+
+def _require_document_review_access():
+    capabilities = _canonical_capabilities()
+    if not capabilities.get("can_review_documents"):
+        frappe.throw(
+            "You do not have permission to review service documents.",
+            frappe.PermissionError,
+        )
+    return capabilities
+
 
 ARCHIVE_SERVICE_STATUSES = {
     "Completed": "Service Completed",
@@ -148,6 +176,20 @@ def _document_dict(doc, service_case=None, customer_profile=None, capabilities=N
 
     review_remarks = getattr(doc, "review_remarks", None) or ""
     remarks = review_remarks or getattr(doc, "remarks", None) or ""
+    capabilities = capabilities or {}
+    can_review = bool(capabilities.get("can_review_documents"))
+    can_view_attachment = bool(
+        capabilities.get("can_view_document_attachments") or can_review
+    )
+    is_customer_view = not bool(
+        capabilities.get("can_access_internal_workspace")
+    )
+
+    if is_customer_view:
+        can_view_attachment = True
+    if not can_review and not is_customer_view:
+        review_remarks = ""
+        remarks = ""
 
     return {
         "id": doc.name,
@@ -172,15 +214,21 @@ def _document_dict(doc, service_case=None, customer_profile=None, capabilities=N
         "document_type": doc.document_type or "",
         "status": doc.status or "",
         "source": getattr(doc, "source", None) or "Service Upload",
-        "file_url": doc.attachment or "",
-        "attachment": doc.attachment or "",
+        "file_url": doc.attachment or "" if can_view_attachment else "",
+        "attachment": doc.attachment or "" if can_view_attachment else "",
         "created_at": _format_datetime(doc.uploaded_on),
         "uploaded_on": _format_datetime(doc.uploaded_on),
         "uploaded_by": doc.uploaded_by or "",
         "remarks": remarks,
         "review_remarks": review_remarks,
-        "reviewed_by": getattr(doc, "reviewed_by", None) or "",
-        "reviewed_on": _format_datetime(getattr(doc, "reviewed_on", None)),
+        "reviewed_by": (
+            getattr(doc, "reviewed_by", None) or "" if can_review else ""
+        ),
+        "reviewed_on": (
+            _format_datetime(getattr(doc, "reviewed_on", None))
+            if can_review
+            else ""
+        ),
         "is_archived": is_archived,
         "archived": is_archived,
         "archived_on": _format_datetime(getattr(doc, "archived_on", None)),
@@ -263,7 +311,9 @@ def sync_service_document_customer_profile(service_request=None):
 def get_documents(show_archived=None, queue=None, customer=None, service_request=None, status=None):
     is_internal = _can_access_internal_workspace()
     profile = None if is_internal else _assert_approved_customer()
-    capabilities = _get_mobile_capabilities(profile=profile)
+    capabilities = _canonical_capabilities()
+    if is_internal:
+        _require_document_read_access(capabilities)
 
     service_filters = {}
     if profile:
@@ -362,7 +412,9 @@ def get_document(document_id=None):
         frappe.throw("Document not found", frappe.DoesNotExistError)
 
     profile = None if is_internal else _assert_approved_customer()
-    capabilities = _get_mobile_capabilities(profile=profile)
+    capabilities = _canonical_capabilities()
+    if is_internal:
+        _require_document_read_access(capabilities)
     service_case = frappe.get_doc("OMC Service Request", doc.service_request)
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
@@ -379,7 +431,7 @@ def get_document(document_id=None):
 
 @frappe.whitelist()
 def update_service_document_status(document_id=None, status=None, remarks=None):
-    require_omc_staff(DOCUMENT_REVIEW_ROLES, "You do not have permission to review service documents.")
+    _require_document_review_access()
 
     if not document_id:
         frappe.throw("document_id is required")
