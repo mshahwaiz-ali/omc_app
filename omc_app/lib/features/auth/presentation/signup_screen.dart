@@ -54,6 +54,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _submittedSuccessfully = false;
+  bool _whatsappSameAsMobile = false;
   int _step = 0;
   String _selectedRole = _roles.first;
   String? _submitError;
@@ -200,8 +201,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       digits = digits.substring(1);
     }
 
-    if (!RegExp(r'^3\d{9}$').hasMatch(digits)) {
-      return '$label must be a valid Pakistan number, e.g. 3063191907.';
+    if (digits.length != 10) {
+      return 'Invalid number.';
+    }
+    if (!digits.startsWith('3')) {
+      return 'Invalid number.';
     }
 
     return null;
@@ -221,7 +225,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final email = value!.trim();
     final isValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
     if (!isValid) {
-      return 'Enter a valid email address.';
+      return 'Invalid email address.';
     }
 
     return null;
@@ -291,6 +295,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     emailController: _emailController,
                     mobileController: _mobileController,
                     whatsappController: _whatsappController,
+                    whatsappSameAsMobile: _whatsappSameAsMobile,
+                    onWhatsappSameAsMobileChanged: (value) {
+                      setState(() {
+                        _whatsappSameAsMobile = value;
+                        if (value) {
+                          _whatsappController.text = _mobileController.text;
+                        }
+                      });
+                    },
+                    onMobileChanged: (value) {
+                      if (_whatsappSameAsMobile) {
+                        _whatsappController.text = value;
+                      }
+                    },
                     requiredValidator: _required,
                     emailValidator: _emailValidator,
                     phoneValidator: _pakistanPhoneValidator,
@@ -394,6 +412,9 @@ class _AccountStep extends StatelessWidget {
     required this.emailController,
     required this.mobileController,
     required this.whatsappController,
+    required this.whatsappSameAsMobile,
+    required this.onWhatsappSameAsMobileChanged,
+    required this.onMobileChanged,
     required this.requiredValidator,
     required this.emailValidator,
     required this.phoneValidator,
@@ -407,6 +428,9 @@ class _AccountStep extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController mobileController;
   final TextEditingController whatsappController;
+  final bool whatsappSameAsMobile;
+  final ValueChanged<bool> onWhatsappSameAsMobileChanged;
+  final ValueChanged<String> onMobileChanged;
   final String? Function(String?, String) requiredValidator;
   final String? Function(String?) emailValidator;
   final String? Function(String?, String) phoneValidator;
@@ -458,30 +482,46 @@ class _AccountStep extends StatelessWidget {
           TextFormField(
             controller: mobileController,
             keyboardType: TextInputType.phone,
+            onChanged: onMobileChanged,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.telephoneNumber],
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(10),
-            ],
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            maxLength: 10,
             decoration: const InputDecoration(
               labelText: 'Mobile number',
+              hintText: '300 1234567',
+              counterText: '',
               prefixIcon: Icon(Icons.phone_outlined),
               prefixText: '+92 ',
             ),
             validator: (value) => phoneValidator(value, 'Mobile number'),
           ),
           const SizedBox(height: 14),
+          CheckboxListTile(
+            value: whatsappSameAsMobile,
+            onChanged: (value) => onWhatsappSameAsMobileChanged(value ?? false),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            dense: true,
+            title: const Text(
+              'WhatsApp number is same as mobile',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(height: 6),
           TextFormField(
             controller: whatsappController,
+            enabled: !whatsappSameAsMobile,
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.done,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(10),
-            ],
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            maxLength: 10,
             decoration: const InputDecoration(
               labelText: 'WhatsApp number',
+              hintText: '300 1234567',
+              counterText: '',
               prefixIcon: Icon(Icons.chat_outlined),
               prefixText: '+92 ',
             ),
