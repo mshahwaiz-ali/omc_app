@@ -22,7 +22,11 @@ APP_SOURCE_DIR="${APP_SOURCE_DIR:-$BACKEND_DIR/frappe-bench/apps/omc_app}"
 
 source /etc/os-release
 [[ "${ID:-}" == ubuntu ]] || die 'this production installer supports Ubuntu only'
-[[ "${VERSION_ID:-}" == 24.04 ]] || warn "designed and tested for Ubuntu 24.04; detected ${VERSION_ID:-unknown}"
+case "${VERSION_ID:-}" in
+  24.04|26.04) ;;
+  *) warn "tested on Ubuntu 24.04 and 26.04; detected ${VERSION_ID:-unknown}" ;;
+esac
+
 id "$BENCH_USER" >/dev/null 2>&1 || die "deployment user does not exist: $BENCH_USER"
 validate_app "$APP_SOURCE_DIR"
 
@@ -39,7 +43,7 @@ apt_install_missing \
   mariadb-server mariadb-client redis-server nginx supervisor \
   libffi-dev libssl-dev libmariadb-dev libjpeg-dev zlib1g-dev \
   liblcms2-dev libwebp-dev libtiff-dev libxrender1 libxext6 \
-  fontconfig xfonts-75dpi xfonts-base wkhtmltopdf
+  fontconfig xfonts-75dpi xfonts-base
 
 current_node_major=""
 if have node; then
@@ -59,7 +63,7 @@ run_as_bench_user bash -lc 'export PATH="$HOME/.local/bin:$PATH"; command -v ben
 
 "${SUDO[@]}" systemctl enable --now mariadb redis-server nginx supervisor
 
-if [[ -d "$BENCH_DIR/apps/frappe" && -d "$BENCH_DIR/sites" ]]; then
+if [[ -d "$BENCH_DIR/apps/frappe" && -d "$BENCH_DIR/sites" && -x "$BENCH_DIR/env/bin/python" ]]; then
   ok "healthy Bench preserved: $BENCH_DIR"
 elif [[ -e "$BENCH_DIR" && -n "$(find "$BENCH_DIR" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
   die "Bench path is non-empty and not healthy; inspect manually: $BENCH_DIR"
@@ -68,4 +72,16 @@ else
   run_as_bench_user bash -lc 'export PATH="$HOME/.local/bin:$PATH"; bench init --frappe-branch "$1" "$2"' bash "$FRAPPE_BRANCH" "$BENCH_DIR"
 fi
 
-ok 'production prerequisites and runtime Bench are ready; no site or database was created'
+run_as_bench_user bash -lc 'export PATH="$HOME/.local/bin:$PATH"; command -v bench; bench --version; node --version; npm --version; yarn --version'
+"${SUDO[@]}" systemctl is-active --quiet mariadb || die 'MariaDB is not active'
+"${SUDO[@]}" systemctl is-active --quiet redis-server || die 'Redis is not active'
+"${SUDO[@]}" systemctl is-active --quiet nginx || die 'Nginx is not active'
+"${SUDO[@]}" systemctl is-active --quiet supervisor || die 'Supervisor is not active'
+
+if have wkhtmltopdf; then
+  ok "wkhtmltopdf available: $(wkhtmltopdf --version 2>&1 | head -n1)"
+else
+  warn 'wkhtmltopdf is unavailable from this Ubuntu release; core Frappe installation is complete, but PDF print generation requires a separately supported wkhtmltopdf package'
+fi
+
+ok 'production dependencies and runtime Bench are ready; no site or database was created'
