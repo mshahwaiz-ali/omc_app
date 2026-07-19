@@ -57,7 +57,6 @@ class TaxCalculatorConfig {
     required this.enabled,
     this.message,
     this.activeTaxYear,
-    this.availableTaxYears = const [],
     this.simpleFields = const [],
     this.advancedFields = const [],
     this.showAdvancedMode = true,
@@ -74,7 +73,6 @@ class TaxCalculatorConfig {
   final bool enabled;
   final String? message;
   final TaxYearInfo? activeTaxYear;
-  final List<TaxYearInfo> availableTaxYears;
   final List<TaxInputField> simpleFields;
   final List<TaxInputField> advancedFields;
   final bool showAdvancedMode;
@@ -119,10 +117,6 @@ class TaxCalculatorConfig {
       activeTaxYear: json['active_tax_year'] is Map
           ? TaxYearInfo.fromJson(_map(json['active_tax_year']))
           : null,
-      availableTaxYears: _list(json['available_tax_years'])
-          .map((item) => TaxYearInfo.fromJson(_map(item)))
-          .where((item) => item.name.isNotEmpty)
-          .toList(growable: false),
       simpleFields: _list(json['simple_fields'])
           .map((item) => TaxInputField.fromJson(_map(item)))
           .toList(growable: false),
@@ -549,13 +543,9 @@ class TaxCalculationRepository {
 
   final FrappeClient frappeClient;
 
-  Future<TaxCalculatorConfig> getConfig({String? taxYear}) async {
-    final selectedYear = taxYear?.trim();
+  Future<TaxCalculatorConfig> getConfig() async {
     final response = await frappeClient.getMethod(
       ApiConfig.taxCalculatorConfigMethod,
-      queryParameters: selectedYear == null || selectedYear.isEmpty
-          ? null
-          : {'tax_year': selectedYear},
     );
     final payload = _unwrap(response);
     if (payload.isEmpty || !payload.containsKey('enabled')) {

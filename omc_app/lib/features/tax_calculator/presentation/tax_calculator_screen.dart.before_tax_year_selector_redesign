@@ -31,7 +31,6 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   bool _isStartingService = false;
   AppFailure? _calculationFailure;
   String? _validationMessage;
-  String? _selectedTaxYear;
   late Future<TaxCalculatorConfig> _configFuture;
 
   @override
@@ -42,9 +41,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
   void _retryConfig() {
     setState(() {
-      _configFuture = ref
-          .read(taxCalculationRepositoryProvider)
-          .getConfig(taxYear: _selectedTaxYear);
+      _configFuture = ref.read(taxCalculationRepositoryProvider).getConfig();
     });
   }
 
@@ -63,15 +60,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     final authState = ref.watch(authControllerProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7F9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F7F9),
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Tax Calculator',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Tax Calculator'),
         actions: [
           if (_canOpenHistory(authState))
             IconButton(
@@ -143,30 +133,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           return RefreshIndicator(
             onRefresh: () async => setState(() {}),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
               children: [
-                _HeaderCard(
-                  config: config,
-                  selectedTaxYear:
-                      _selectedTaxYear ?? config.activeTaxYear?.name,
-                  onTaxYearChanged: (value) {
-                    if (value == null || value == _selectedTaxYear) return;
-                    setState(() {
-                      _selectedTaxYear = value;
-                      _result = null;
-                      _validationMessage = null;
-                      _calculationFailure = null;
-                      _advancedValues.clear();
-                      for (final controller in _advancedControllers.values) {
-                        controller.dispose();
-                      }
-                      _advancedControllers.clear();
-                      _configFuture = ref
-                          .read(taxCalculationRepositoryProvider)
-                          .getConfig(taxYear: value);
-                    });
-                  },
-                ),
+                _HeaderCard(config: config),
                 const SizedBox(height: 14),
                 _InputCard(
                   incomeType: _incomeType,
@@ -313,7 +282,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           incomeMode: _incomeMode,
           incomeAmount: amount,
           filerStatus: _filerStatus,
-          taxYear: _selectedTaxYear ?? config.activeTaxYear?.name,
+          taxYear: config.activeTaxYear?.name,
           advancedInputs: selectedAdvancedInputs,
         ),
       );
@@ -414,118 +383,63 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 }
 
 class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({
-    required this.config,
-    required this.selectedTaxYear,
-    required this.onTaxYearChanged,
-  });
+  const _HeaderCard({required this.config});
 
   final TaxCalculatorConfig config;
-  final String? selectedTaxYear;
-  final ValueChanged<String?> onTaxYearChanged;
 
   @override
   Widget build(BuildContext context) {
     final year = config.activeTaxYear;
-    final years = config.availableTaxYears.isEmpty
-        ? [?year]
-        : config.availableTaxYears;
-    final currentValue = years.any((item) => item.name == selectedTaxYear)
-        ? selectedTaxYear
-        : year?.name;
+    final verifiedText = year?.verified == true
+        ? 'Verified slabs'
+        : 'Backend configured';
+    final badgeText = year == null
+        ? 'OMC configured tax rules'
+        : '${year.title} · ${year.currency} · $verifiedText';
 
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFDECEF),
-                  borderRadius: BorderRadius.circular(15),
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(
-                  Icons.calculate_outlined,
-                  color: Color(0xFFDA1735),
-                  size: 24,
+                child: Icon(
+                  Icons.calculate_rounded,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
                 ),
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: 12),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Estimate your tax',
+                      'Tax Calculator',
                       style: TextStyle(
-                        fontSize: 20,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.35,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Choose a tax year and calculate using OMC configured slabs.',
-                      style: TextStyle(
-                        color: Color(0xFF667085),
-                        height: 1.35,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    SizedBox(height: 2),
+                    Text('Estimate your tax using OMC configured rules.'),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          DropdownButtonFormField<String>(
-            initialValue: currentValue,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Tax Year',
-              prefixIcon: const Icon(Icons.calendar_month_outlined),
-              filled: true,
-              fillColor: const Color(0xFFF8F9FB),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Color(0xFFE3E7ED)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Color(0xFFE3E7ED)),
-              ),
-            ),
-            items: years
-                .map(
-                  (item) => DropdownMenuItem(
-                    value: item.name,
-                    child: Text(
-                      item.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: years.length > 1 ? onTaxYearChanged : null,
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _Chip(
-                icon: year?.verified == true
-                    ? Icons.verified_rounded
-                    : Icons.rule_rounded,
-                label: year == null
-                    ? 'Backend configured rules'
-                    : '${year.currency} · ${year.verified ? 'Verified slabs' : 'Configured slabs'}',
-              ),
+              _Chip(icon: Icons.verified_rounded, label: badgeText),
               if (config.filingDeadlineAlert.trim().isNotEmpty)
                 _Chip(
                   icon: Icons.event_available_rounded,
@@ -565,8 +479,8 @@ class _InputCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _SectionTitle(
-            title: 'Calculation details',
-            subtitle: 'Enter the income information used for this estimate.',
+            title: 'Simple Calculator',
+            subtitle: 'Fast estimate for guests and customers.',
           ),
           const SizedBox(height: 14),
           _SegmentBlock<TaxIncomeType>(
@@ -596,11 +510,7 @@ class _InputCard extends StatelessWidget {
                   ? 'Monthly Income Amount'
                   : 'Annual Income Amount',
               prefixText: 'PKR ',
-              filled: true,
-              fillColor: const Color(0xFFF8F9FB),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 14),

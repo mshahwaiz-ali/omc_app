@@ -55,12 +55,10 @@ def get_tax_calculator_config(tax_year=None, income_type=None):
         }
 
     fields = _get_input_fields(year.name)
-    available_tax_years = _get_available_tax_years()
 
     return {
         "enabled": True,
         "active_tax_year": _tax_year_payload(year),
-        "available_tax_years": available_tax_years,
         "income_types": ["salary", "business", "rental"],
         "filer_status_options": ["active_filer", "late_filer", "non_filer"],
         "simple_fields": [field for field in fields if field.get("mode") == "simple"],
@@ -623,35 +621,6 @@ def _cta_payload(settings, user):
         "button": settings.get("customer_cta_button") or "Start Tax Filing Service",
         "linked_service": settings.get("customer_cta_service") or "",
     }
-
-
-def _get_available_tax_years():
-    rows = frappe.get_all(
-        "OMC Tax Year",
-        filters={"status": "Published", "is_active": 1},
-        fields=[
-            "name",
-            "tax_year",
-            "title",
-            "currency",
-            "last_verified_on",
-            "public_note",
-            "effective_from",
-        ],
-        order_by="effective_from desc, tax_year desc",
-    )
-    return [
-        {
-            "name": row.name,
-            "tax_year": row.tax_year or row.name,
-            "title": row.title or row.tax_year or row.name,
-            "currency": row.currency or "PKR",
-            "verified": bool(row.last_verified_on),
-            "last_verified_on": str(row.last_verified_on or ""),
-            "public_note": row.public_note or "",
-        }
-        for row in rows
-    ]
 
 
 def _get_owned_calculation_log(calculation_log):

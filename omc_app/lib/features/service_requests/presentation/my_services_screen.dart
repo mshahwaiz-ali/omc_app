@@ -9,7 +9,6 @@ import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
-import '../../home/data/home_dashboard_repository.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
@@ -42,13 +41,6 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
         .watch(profileSummaryProvider)
         .maybeWhen(data: (profile) => profile, orElse: () => null);
     final capabilities = profile?.capabilities ?? authState.capabilities;
-    final displayName =
-        profile?.displayName ??
-        authState.displayName ??
-        _displayNameFromUserId(authState.userId ?? '');
-    final avatarUrl = profile?.avatarUrl ?? authState.avatarUrl;
-    final unreadNotifications =
-        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
 
     return Scaffold(
       body: SafeArea(
@@ -68,9 +60,6 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             final filtered = _applyFilters(cases);
             final sorted = _applySort(filtered);
             final counts = _Counts.fromCases(cases);
-            final activityCases = _applySort(
-              cases,
-            ).take(3).toList(growable: false);
 
             return RefreshIndicator(
               onRefresh: () async {
@@ -82,12 +71,9 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 148),
                 children: [
                   _TrackHeader(
-                    unreadNotifications: unreadNotifications,
-                    avatarUrl: ApiConfig.resolveFileUrl(avatarUrl),
-                    displayName: displayName,
                     onBack: () {
                       if (context.canPop()) {
                         context.pop();
@@ -95,10 +81,8 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                         context.go('/home');
                       }
                     },
-                    onNotifications: () => context.push('/notifications'),
-                    onAvatar: () => context.push('/profile'),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
                   _SearchAndFilterRow(
                     controller: _searchController,
                     query: _query,
@@ -106,22 +90,22 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                         setState(() => _query = value.trim().toLowerCase()),
                     onFilterTap: () => _openFilterSheet(context, counts),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   _FilterRow(
                     cases: cases,
                     selectedFilter: _selectedFilter,
                     onSelected: (filter) =>
                         setState(() => _selectedFilter = filter),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 18),
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          'My Services (${sorted.length})',
+                          '${sorted.length} ${sorted.length == 1 ? 'request' : 'requests'}',
                           style: const TextStyle(
                             color: AppTheme.textPrimary,
-                            fontSize: 19,
+                            fontSize: 17,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -0.2,
                           ),
@@ -155,14 +139,6 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
                       ),
                       if (i != sorted.length - 1) const SizedBox(height: 16),
                     ],
-                  const SizedBox(height: 26),
-                  _SectionHeader(
-                    title: 'Recent Activity',
-                    actionLabel: 'View all',
-                    onTap: () => context.go('/my-services'),
-                  ),
-                  const SizedBox(height: 10),
-                  _ActivityCard(cases: activityCases),
                 ],
               ),
             );
@@ -543,51 +519,39 @@ class _Header extends StatelessWidget {
 }
 
 class _TrackHeader extends StatelessWidget {
-  const _TrackHeader({
-    required this.unreadNotifications,
-    required this.avatarUrl,
-    required this.displayName,
-    required this.onBack,
-    required this.onNotifications,
-    required this.onAvatar,
-  });
+  const _TrackHeader({required this.onBack});
 
-  final int unreadNotifications;
-  final String? avatarUrl;
-  final String displayName;
   final VoidCallback onBack;
-  final VoidCallback onNotifications;
-  final VoidCallback onAvatar;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Material(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: InkWell(
             onTap: onBack,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 58,
-              height: 58,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: AppTheme.textPrimary.withValues(alpha: 0.09),
+                  color: AppTheme.textPrimary.withValues(alpha: 0.08),
                 ),
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
                 Icons.arrow_back_rounded,
                 color: AppTheme.textPrimary,
-                size: 27,
+                size: 24,
               ),
             ),
           ),
         ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 14),
         const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -596,134 +560,25 @@ class _TrackHeader extends StatelessWidget {
                 'My Services',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
-                  fontSize: 30,
+                  fontSize: 27,
                   height: 1.05,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: -0.6,
+                  letterSpacing: -0.5,
                 ),
               ),
-              SizedBox(height: 8),
+              SizedBox(height: 5),
               Text(
                 'Track requests, documents and payments',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
-                  fontSize: 15,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 10),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Material(
-              color: Colors.white,
-              shape: const CircleBorder(),
-              child: InkWell(
-                onTap: onNotifications,
-                customBorder: const CircleBorder(),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppTheme.textPrimary.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.notifications_none_rounded,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ),
-            ),
-            if (unreadNotifications > 0)
-              Positioned(
-                right: -3,
-                top: -4,
-                child: Container(
-                  constraints: const BoxConstraints(
-                    minWidth: 21,
-                    minHeight: 21,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: OmcPremium.danger,
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: Text(
-                    unreadNotifications > 99 ? '99+' : '$unreadNotifications',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(width: 9),
-        InkWell(
-          onTap: onAvatar,
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 48,
-            height: 48,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppTheme.textPrimary.withValues(alpha: 0.10),
-              ),
-            ),
-            child: ClipOval(
-              child: avatarUrl?.trim().isNotEmpty == true
-                  ? Image.network(
-                      avatarUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          _TrackInitialsAvatar(name: displayName),
-                    )
-                  : _TrackInitialsAvatar(name: displayName),
-            ),
-          ),
-        ),
       ],
-    );
-  }
-}
-
-class _TrackInitialsAvatar extends StatelessWidget {
-  const _TrackInitialsAvatar({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final initials = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part.substring(0, 1).toUpperCase())
-        .join();
-
-    return Container(
-      color: OmcPremium.services.withValues(alpha: 0.08),
-      alignment: Alignment.center,
-      child: Text(
-        initials.isEmpty ? 'U' : initials,
-        style: const TextStyle(
-          color: OmcPremium.services,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
     );
   }
 }
@@ -743,47 +598,41 @@ class _SearchAndFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 58,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: AppTheme.textPrimary.withValues(alpha: 0.09),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.025),
-                  blurRadius: 18,
-                  offset: const Offset(0, 7),
-                ),
-              ],
-            ),
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.only(left: 13, right: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE1E4EA)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search_rounded, size: 20, color: Color(0xFF6D7179)),
+          const SizedBox(width: 10),
+          Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
               textInputAction: TextInputAction.search,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
               decoration: InputDecoration(
                 hintText: 'Search service or request ID',
                 hintStyle: const TextStyle(
-                  color: AppTheme.textSecondary,
+                  color: Color(0xFF8A8E96),
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
-                prefixIcon: const Padding(
-                  padding: EdgeInsets.only(left: 4),
-                  child: Icon(
-                    Icons.search_rounded,
-                    color: AppTheme.textSecondary,
-                    size: 27,
-                  ),
-                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
                 suffixIcon: query.isEmpty
                     ? null
                     : IconButton(
@@ -792,41 +641,31 @@ class _SearchAndFilterRow extends StatelessWidget {
                           controller.clear();
                           onChanged('');
                         },
-                        icon: const Icon(Icons.close_rounded),
+                        icon: const Icon(Icons.close_rounded, size: 18),
                       ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 18),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        SizedBox(
-          height: 58,
-          child: OutlinedButton.icon(
-            onPressed: onFilterTap,
-            icon: const Icon(Icons.filter_alt_outlined, size: 22),
-            label: const Text('Filter'),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppTheme.textPrimary,
-              side: BorderSide(
-                color: AppTheme.textPrimary.withValues(alpha: 0.10),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(21),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+          const SizedBox(width: 6),
+          Material(
+            color: const Color(0xFFF2F3F6),
+            borderRadius: BorderRadius.circular(13),
+            child: InkWell(
+              onTap: onFilterTap,
+              borderRadius: BorderRadius.circular(13),
+              child: const SizedBox(
+                width: 38,
+                height: 38,
+                child: Icon(
+                  Icons.tune_rounded,
+                  size: 21,
+                  color: Color(0xFF555961),
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -852,110 +691,54 @@ class _FilterRow extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: 49,
+      height: 36,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: filters.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final filter = filters[index];
           final selected = filter == selectedFilter;
           final count = filter.count(cases);
-          final color = _filterColor(filter);
+          final label = filter == _ServiceCaseFilter.open
+              ? 'Active'
+              : filter.label;
 
-          return InkWell(
-            onTap: () => onSelected(filter),
-            borderRadius: BorderRadius.circular(999),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 17),
-              decoration: BoxDecoration(
-                color: selected ? color.withValues(alpha: 0.06) : Colors.white,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: selected
-                      ? color
-                      : AppTheme.textPrimary.withValues(alpha: 0.09),
-                  width: selected ? 1.4 : 1,
+          return Material(
+            color: selected
+                ? AppTheme.primary.withValues(alpha: 0.10)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(11),
+            child: InkWell(
+              onTap: () => onSelected(filter),
+              borderRadius: BorderRadius.circular(11),
+              child: Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 13),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(
+                    color: selected
+                        ? AppTheme.primary.withValues(alpha: 0.32)
+                        : const Color(0xFFE1E4E9),
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    filter == _ServiceCaseFilter.open ? 'Active' : filter.label,
-                    style: TextStyle(
-                      color: selected ? color : AppTheme.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
+                child: Text(
+                  '$label  $count',
+                  style: TextStyle(
+                    color: selected
+                        ? AppTheme.primary
+                        : const Color(0xFF686D76),
+                    fontSize: 11,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                   ),
-                  const SizedBox(width: 9),
-                  Container(
-                    constraints: const BoxConstraints(
-                      minWidth: 24,
-                      minHeight: 24,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 7),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: selected ? 0.14 : 0.09),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           );
         },
       ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    required this.actionLabel,
-    required this.onTap,
-  });
-
-  final String title;
-  final String actionLabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.15,
-            ),
-          ),
-        ),
-        TextButton(
-          onPressed: onTap,
-          style: TextButton.styleFrom(
-            foregroundColor: AppTheme.textSecondary,
-            textStyle: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-          child: Text(actionLabel),
-        ),
-      ],
     );
   }
 }
@@ -980,32 +763,23 @@ class _ServiceCard extends StatelessWidget {
         serviceCase.missingDocuments.length;
     final needsUpload =
         state.needsAction &&
+        capabilities.canUploadDocuments &&
         (missingCount > 0 ||
             serviceCase.missingDocuments.isNotEmpty ||
             (nextStep?.toLowerCase().contains('upload') ?? false));
-
-    final borderColor = palette.color.withValues(alpha: 0.22);
     final route = '/my-services/${Uri.encodeComponent(serviceCase.id)}';
 
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: () => context.push(route),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: borderColor),
-            boxShadow: [
-              BoxShadow(
-                color: palette.color.withValues(alpha: 0.035),
-                blurRadius: 22,
-                offset: const Offset(0, 9),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE3E6EB)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1014,270 +788,203 @@ class _ServiceCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 64,
-                    height: 64,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color: palette.color.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(19),
+                      color: const Color(0xFFF1F3F6),
+                      borderRadius: BorderRadius.circular(11),
                     ),
                     child: Icon(
                       _serviceIcon(serviceCase, state),
-                      color: palette.color,
-                      size: 31,
+                      color: const Color(0xFF555B64),
+                      size: 19,
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                serviceCase.title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 18,
-                                  height: 1.18,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.25,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            _StatusPill(
-                              label: palette.label,
-                              color: palette.color,
-                            ),
-                          ],
+                        Text(
+                          serviceCase.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 14,
+                            height: 1.15,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                         if (reference?.isNotEmpty == true) ...[
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 4),
                           Text(
                             reference!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: AppTheme.textSecondary,
-                              fontSize: 13,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
-                        const SizedBox(height: 15),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(999),
-                                child: LinearProgressIndicator(
-                                  value: progress,
-                                  minHeight: 8,
-                                  backgroundColor: AppTheme.textPrimary
-                                      .withValues(alpha: 0.06),
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    palette.color,
-                                  ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _StatusPill(label: palette.label, color: palette.color),
+                ],
+              ),
+              const SizedBox(height: 11),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F8FA),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE9EBEF)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      state.isClosed
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.description_outlined,
+                      color: const Color(0xFF646A73),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        state.isClosed
+                            ? 'Request closed'
+                            : missingCount > 0
+                            ? '$missingCount document${missingCount == 1 ? '' : 's'} missing'
+                            : serviceCase.documentSummaryLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (!state.isClosed) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '$progressPercent%',
+                        style: TextStyle(
+                          color: palette.color,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (!state.isClosed && nextStep?.isNotEmpty == true) ...[
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 27,
+                      height: 27,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F2F5),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 15,
+                        color: Color(0xFF555A63),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(
+                                text: 'Next: ',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w900,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 14),
-                            Text(
-                              '$progressPercent%',
-                              style: TextStyle(
-                                color: palette.color,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
+                              TextSpan(text: nextStep),
+                            ],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 11.5,
+                            height: 1.35,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.schedule_rounded,
+                    size: 15,
+                    color: AppTheme.textSecondary,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      state.isClosed
+                          ? 'Closed ${serviceCase.updatedAtLabel}'
+                          : 'Updated ${serviceCase.updatedAtLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () => context.push(route),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.textPrimary,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                    ),
+                    child: Text(
+                      needsUpload ? 'Upload documents' : 'View details',
+                      style: TextStyle(
+                        color: needsUpload
+                            ? AppTheme.primary
+                            : AppTheme.textPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 17),
-              Padding(
-                padding: const EdgeInsets.only(left: 80),
-                child: Column(
-                  children: [
-                    if (nextStep?.isNotEmpty == true)
-                      _ServiceInformationRow(
-                        icon: state.isClosed
-                            ? Icons.check_circle_outline_rounded
-                            : Icons.error_outline_rounded,
-                        text: state.isClosed
-                            ? nextStep!
-                            : 'Next step: $nextStep',
-                        color: palette.color,
-                        trailing: missingCount > 0
-                            ? _InlineBadge(
-                                label:
-                                    '$missingCount document${missingCount == 1 ? '' : 's'} missing',
-                                color: OmcPremium.danger,
-                              )
-                            : null,
-                      ),
-                    if (nextStep?.isNotEmpty == true)
-                      const SizedBox(height: 12),
-                    _ServiceInformationRow(
-                      icon: Icons.calendar_month_outlined,
-                      text: state.isClosed
-                          ? 'Completed ${serviceCase.updatedAtLabel}'
-                          : 'Updated ${serviceCase.updatedAtLabel}',
-                      color: AppTheme.textSecondary,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 17),
-              Divider(
-                height: 1,
-                color: AppTheme.textPrimary.withValues(alpha: 0.07),
-              ),
-              const SizedBox(height: 14),
-              if (needsUpload && capabilities.canUploadDocuments)
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => context.push(route),
-                        icon: const Icon(Icons.upload_rounded),
-                        label: const Text('Upload document'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: OmcPremium.danger,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => context.push(route),
-                        icon: const Icon(Icons.open_in_new_rounded, size: 19),
-                        label: const Text('Open workspace'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: OmcPremium.danger,
-                          side: BorderSide(
-                            color: OmcPremium.danger.withValues(alpha: 0.18),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push(route),
-                    iconAlignment: IconAlignment.end,
-                    icon: const Icon(Icons.chevron_right_rounded),
-                    label: Text(
-                      state.isClosed ? 'View summary' : 'View details',
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.textPrimary,
-                      side: BorderSide(
-                        color: AppTheme.textPrimary.withValues(alpha: 0.10),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ServiceInformationRow extends StatelessWidget {
-  const _ServiceInformationRow({
-    required this.icon,
-    required this.text,
-    required this.color,
-    this.trailing,
-  });
-
-  final IconData icon;
-  final String text;
-  final Color color;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color == AppTheme.textSecondary
-                  ? AppTheme.textSecondary
-                  : AppTheme.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        if (trailing != null) ...[const SizedBox(width: 10), trailing!],
-      ],
-    );
-  }
-}
-
-class _InlineBadge extends StatelessWidget {
-  const _InlineBadge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -1321,160 +1028,6 @@ class _StatusPill extends StatelessWidget {
           color: color,
           fontSize: 11.5,
           fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({required this.cases});
-
-  final List<ServiceCase> cases;
-
-  @override
-  Widget build(BuildContext context) {
-    if (cases.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: AppTheme.textPrimary.withValues(alpha: 0.07),
-          ),
-        ),
-        child: const Column(
-          children: [
-            Icon(
-              Icons.history_rounded,
-              color: AppTheme.textSecondary,
-              size: 30,
-            ),
-            SizedBox(height: 10),
-            Text(
-              'No recent service activity',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.textPrimary.withValues(alpha: 0.07)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
-            blurRadius: 18,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          for (var index = 0; index < cases.length; index++) ...[
-            _ActivityRow(serviceCase: cases[index]),
-            if (index != cases.length - 1)
-              Divider(
-                height: 1,
-                indent: 70,
-                endIndent: 16,
-                color: AppTheme.textPrimary.withValues(alpha: 0.07),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.serviceCase});
-
-  final ServiceCase serviceCase;
-
-  @override
-  Widget build(BuildContext context) {
-    final state = _stateFor(serviceCase);
-    final palette = _paletteFor(state);
-    final nextStep = serviceCase.nextStep?.trim();
-    final subtitle = nextStep?.isNotEmpty == true
-        ? nextStep!
-        : serviceCase.actionRequiredLabel;
-
-    return InkWell(
-      onTap: () =>
-          context.push('/my-services/${Uri.encodeComponent(serviceCase.id)}'),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: palette.color.withValues(alpha: 0.09),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                state.isClosed
-                    ? Icons.check_circle_outline_rounded
-                    : palette.icon,
-                color: palette.color,
-                size: 21,
-              ),
-            ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    serviceCase.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              serviceCase.updatedAtLabel,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 5),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppTheme.textSecondary,
-            ),
-          ],
         ),
       ),
     );
@@ -2005,23 +1558,6 @@ _Palette _paletteFor(_ServiceCaseState state) {
   );
 }
 
-Color _filterColor(_ServiceCaseFilter filter) {
-  switch (filter) {
-    case _ServiceCaseFilter.all:
-      return OmcPremium.services;
-    case _ServiceCaseFilter.open:
-      return const Color(0xFF2563EB);
-    case _ServiceCaseFilter.inReview:
-      return const Color(0xFF14B8A6);
-    case _ServiceCaseFilter.actionNeeded:
-      return const Color(0xFFF59E0B);
-    case _ServiceCaseFilter.completed:
-      return const Color(0xFF16A34A);
-    case _ServiceCaseFilter.cancelled:
-      return const Color(0xFFEF4444);
-  }
-}
-
 enum _ServiceCaseFilter {
   all,
   open,
@@ -2093,24 +1629,6 @@ String _greeting() {
   if (hour < 12) return 'Good morning,';
   if (hour < 17) return 'Good afternoon,';
   return 'Good evening,';
-}
-
-String _displayNameFromUserId(String userId) {
-  final cleaned = userId.trim();
-  if (cleaned.isEmpty) return 'Ali Raza';
-
-  final localPart = cleaned.contains('@') ? cleaned.split('@').first : cleaned;
-  final pieces = localPart
-      .split(RegExp(r'[._\-\s]+'))
-      .where((piece) => piece.trim().isNotEmpty)
-      .toList(growable: false);
-  if (pieces.isEmpty) return localPart;
-  return pieces.map(_titleCase).join(' ');
-}
-
-String _titleCase(String value) {
-  if (value.isEmpty) return value;
-  return '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
 }
 
 String _initials(String name) {

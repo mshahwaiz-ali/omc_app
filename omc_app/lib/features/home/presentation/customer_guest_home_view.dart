@@ -110,6 +110,7 @@ class CustomerGuestHomeView extends StatelessWidget {
                         isPending: isPending,
                         isRejected: isRejected,
                         onPrimaryServiceAction: onPrimaryServiceAction,
+                        onOpenServices: onOpenServices,
                         onSignUp: onSignUp,
                       ),
                     ),
@@ -398,6 +399,7 @@ class _Avatar extends StatelessWidget {
           : Image.network(
               avatarUrl!,
               fit: BoxFit.cover,
+              webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
               errorBuilder: (_, error, stackTrace) => Center(
                 child: Text(
                   initial,
@@ -491,6 +493,7 @@ class _HeroArea extends StatelessWidget {
     required this.isPending,
     required this.isRejected,
     required this.onPrimaryServiceAction,
+    required this.onOpenServices,
     required this.onSignUp,
   });
 
@@ -499,23 +502,112 @@ class _HeroArea extends StatelessWidget {
   final bool isPending;
   final bool isRejected;
   final ValueChanged<HomeDashboardServiceSnapshot> onPrimaryServiceAction;
+  final VoidCallback onOpenServices;
   final VoidCallback onSignUp;
 
   @override
   Widget build(BuildContext context) {
-    if (!isGuest && summary.serviceSnapshots.isNotEmpty) {
-      return _ServiceHeroCard(
-        service: summary.serviceSnapshots.first,
-        nextAction: summary.nextAction,
-        onPrimaryAction: () =>
-            onPrimaryServiceAction(summary.serviceSnapshots.first),
-      );
+    if (!isGuest) {
+      if (summary.serviceSnapshots.isNotEmpty) {
+        return _ServiceHeroCard(
+          service: summary.serviceSnapshots.first,
+          nextAction: summary.nextAction,
+          onPrimaryAction: () =>
+              onPrimaryServiceAction(summary.serviceSnapshots.first),
+        );
+      }
+
+      return _CustomerEmptyHeroCard(onOpenServices: onOpenServices);
     }
 
     return _GuestHeroCard(
       isPending: isPending,
       isRejected: isRejected,
       onSignUp: onSignUp,
+    );
+  }
+}
+
+class _CustomerEmptyHeroCard extends StatelessWidget {
+  const _CustomerEmptyHeroCard({required this.onOpenServices});
+
+  final VoidCallback onOpenServices;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SurfaceCard(
+      radius: 28,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDECEF),
+                  borderRadius: BorderRadius.circular(19),
+                ),
+                child: const Icon(
+                  Icons.business_center_outlined,
+                  color: _red,
+                  size: 29,
+                ),
+              ),
+              const SizedBox(width: 15),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Start your first OMC service',
+                      style: TextStyle(
+                        color: _navy,
+                        fontSize: 18,
+                        height: 1.18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.25,
+                      ),
+                    ),
+                    SizedBox(height: 7),
+                    Text(
+                      'Browse available services and submit a request when you are ready.',
+                      style: TextStyle(
+                        color: Color(0xFF56647A),
+                        fontSize: 12.5,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton.icon(
+              onPressed: onOpenServices,
+              style: FilledButton.styleFrom(
+                elevation: 0,
+                backgroundColor: _red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(17),
+                ),
+              ),
+              icon: const Icon(Icons.grid_view_rounded, size: 20),
+              label: const Text(
+                'Browse services',
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
