@@ -4,7 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../data/knowledge_article.dart';
@@ -24,17 +25,27 @@ class KnowledgeDetailScreen extends ConsumerWidget {
       body: SafeArea(
         child: articleState.when(
           loading: () => const _KnowledgeDetailLoadingView(),
-          error: (error, _) => _KnowledgeDetailUnavailable(
-            message: _knowledgeDetailErrorMessage(error),
-            onRetry: () =>
-                ref.invalidate(knowledgeArticleDetailProvider(articleId)),
+          error: (error, _) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+            child: AppErrorState.fromError(
+              error: error,
+              fallbackTitle: 'Article unavailable',
+              fallbackMessage:
+                  'This knowledge item could not be loaded right now.',
+              onRetry: () =>
+                  ref.invalidate(knowledgeArticleDetailProvider(articleId)),
+            ),
           ),
           data: (article) {
             if (article == null) {
-              return _KnowledgeDetailUnavailable(
-                message: 'This knowledge item could not be loaded right now.',
-                onRetry: () =>
-                    ref.invalidate(knowledgeArticleDetailProvider(articleId)),
+              return const Padding(
+                padding: EdgeInsets.fromLTRB(20, 24, 20, 28),
+                child: AppEmptyState(
+                  icon: Icons.article_outlined,
+                  title: 'Article unavailable',
+                  message:
+                      'This article may have been removed or is no longer available.',
+                ),
               );
             }
 
@@ -132,36 +143,58 @@ Uri? _resolvedArticleUri(String? value) {
   if (cleanValue == null || cleanValue.isEmpty) return null;
 
   final parsedUri = Uri.tryParse(cleanValue);
-  if (parsedUri != null && parsedUri.hasScheme) return parsedUri;
-
-  if (cleanValue.startsWith('/')) {
-    return Uri.tryParse('${ApiConfig.baseUrl}$cleanValue');
+  if (parsedUri != null && parsedUri.hasScheme) {
+    return _isAllowedArticleScheme(parsedUri.scheme) ? parsedUri : null;
   }
 
-  return Uri.tryParse('${ApiConfig.baseUrl}/$cleanValue');
+  final resolved = cleanValue.startsWith('/')
+      ? Uri.tryParse('${ApiConfig.baseUrl}$cleanValue')
+      : Uri.tryParse('${ApiConfig.baseUrl}/$cleanValue');
+
+  if (resolved == null || !_isAllowedArticleScheme(resolved.scheme)) {
+    return null;
+  }
+  return resolved;
+}
+
+bool _isAllowedArticleScheme(String scheme) {
+  final normalized = scheme.toLowerCase();
+  return normalized == 'https' || normalized == 'http';
 }
 
 Future<void> _openExternalArticle(BuildContext context, Uri uri) async {
-  final canOpen = await canLaunchUrl(uri);
-  final opened = canOpen
-      ? await launchUrl(uri, mode: LaunchMode.externalApplication)
-      : false;
+  final messenger = ScaffoldMessenger.of(context);
 
-  if (!opened && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Article link could not be opened right now.'),
-      ),
+  if (!_isAllowedArticleScheme(uri.scheme)) {
+    messenger.showSnackBar(
+      const SnackBar(content: Text('This article link is not supported.')),
     );
-  }
-}
-
-String _knowledgeDetailErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
+    return;
   }
 
-  return 'This knowledge item could not be loaded right now.';
+  try {
+    final canOpen = await canLaunchUrl(uri);
+    final opened = canOpen
+        ? await launchUrl(uri, mode: LaunchMode.externalApplication)
+        : false;
+
+    if (!context.mounted) return;
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Article link could not be opened right now.'),
+        ),
+      );
+    }
+  } catch (error) {
+    if (!context.mounted) return;
+    final failure = AppFailureClassifier.classify(
+      error,
+      fallbackTitle: 'Article unavailable',
+      fallbackMessage: 'Article link could not be opened right now.',
+    );
+    messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+  }
 }
 
 class _KnowledgeDetailLoadingView extends StatelessWidget {
@@ -298,78 +331,6 @@ class _MetaChip extends StatelessWidget {
           fontWeight: FontWeight.w900,
         ),
       ),
-    );
-  }
-}
-
-class _KnowledgeDetailUnavailable extends StatelessWidget {
-  const _KnowledgeDetailUnavailable({
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
-      children: [
-        PremiumCard(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppTheme.primary.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.article_outlined,
-                  color: AppTheme.primary,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Article unavailable',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

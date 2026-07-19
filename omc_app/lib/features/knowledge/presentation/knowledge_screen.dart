@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -21,10 +21,14 @@ class KnowledgeScreen extends ConsumerWidget {
       body: SafeArea(
         child: articlesState.when(
           loading: () => const _KnowledgeLoadingView(),
-          error: (error, _) => _KnowledgeEmptyState(
-            title: 'Knowledge is unavailable',
-            message: _knowledgeErrorMessage(error),
-            onRetry: () => ref.invalidate(knowledgeArticlesProvider),
+          error: (error, _) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+            child: AppErrorState.fromError(
+              error: error,
+              fallbackTitle: 'Knowledge is unavailable',
+              fallbackMessage: 'OMC updates could not be loaded right now.',
+              onRetry: () => ref.invalidate(knowledgeArticlesProvider),
+            ),
           ),
           data: (articles) {
             if (articles.isEmpty) {
@@ -83,14 +87,6 @@ class KnowledgeScreen extends ConsumerWidget {
       ),
     );
   }
-}
-
-String _knowledgeErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  return 'OMC updates could not be loaded right now. Please try again.';
 }
 
 class _KnowledgeHeroCard extends StatelessWidget {
