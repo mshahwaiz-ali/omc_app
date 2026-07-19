@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 
 final taxCalculationRepositoryProvider = Provider<TaxCalculationRepository>((
@@ -83,6 +84,30 @@ class TaxCalculatorConfig {
   final List<String> recommendedNextSteps;
   final List<String> requiredDocuments;
   final TaxCta cta;
+
+  String get stateTitle {
+    final reason = (message ?? '').toLowerCase();
+    if (reason.contains('login')) {
+      return 'Sign in required';
+    }
+    if (reason.contains('tax year')) {
+      return 'Tax calculator is not configured';
+    }
+    if (reason.contains('settings')) {
+      return 'Tax calculator setup is incomplete';
+    }
+    return 'Tax calculator is unavailable';
+  }
+
+  String get stateMessage {
+    final text = message?.trim();
+    if (text != null && text.isNotEmpty) {
+      {
+        return text;
+      }
+    }
+    return 'The calculator is not available right now. Please contact OMC support.';
+  }
 
   factory TaxCalculatorConfig.fromJson(Map<String, dynamic> json) {
     final settings = _map(json['settings']);
@@ -522,7 +547,14 @@ class TaxCalculationRepository {
     final response = await frappeClient.getMethod(
       ApiConfig.taxCalculatorConfigMethod,
     );
-    return TaxCalculatorConfig.fromJson(_unwrap(response));
+    final payload = _unwrap(response);
+    if (payload.isEmpty || !payload.containsKey('enabled')) {
+      throw const ApiError(
+        message: 'The tax calculator returned malformed configuration.',
+        code: 'malformed_response',
+      );
+    }
+    return TaxCalculatorConfig.fromJson(payload);
   }
 
   Future<TaxCalculationResult> calculate(TaxCalculationInput input) async {
@@ -530,7 +562,22 @@ class TaxCalculationRepository {
       ApiConfig.taxCalculatorMethod,
       data: input.toJson(),
     );
-    return TaxCalculationResult.fromJson(_unwrap(response));
+    final payload = _unwrap(response);
+    const requiredKeys = {
+      'annual_income',
+      'taxable_income',
+      'estimated_annual_tax',
+      'monthly_tax',
+      'monthly_take_home',
+      'effective_tax_rate',
+    };
+    if (!requiredKeys.every(payload.containsKey)) {
+      throw const ApiError(
+        message: 'The tax calculator returned an incomplete result.',
+        code: 'malformed_response',
+      );
+    }
+    return TaxCalculationResult.fromJson(payload);
   }
 
   Future<StartTaxServiceResult> startServiceFromCalculation({
@@ -577,16 +624,26 @@ class TaxCalculationRepository {
 
 Map<String, dynamic> _unwrap(Map<String, dynamic> response) {
   final message = response['message'];
-  if (message is Map<String, dynamic>) return message;
-  if (message is Map) return _map(message);
+  if (message is Map<String, dynamic>) {
+    return message;
+  }
+  if (message is Map) {
+    return _map(message);
+  }
   final data = response['data'];
-  if (data is Map<String, dynamic>) return data;
-  if (data is Map) return _map(data);
+  if (data is Map<String, dynamic>) {
+    return data;
+  }
+  if (data is Map) {
+    return _map(data);
+  }
   return response;
 }
 
 Map<String, dynamic> _map(Object? value) {
-  if (value is Map<String, dynamic>) return value;
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
   if (value is Map) {
     return value.map((key, item) => MapEntry(key.toString(), item));
   }
@@ -604,23 +661,39 @@ List<String> _strings(Object? value) {
 
 String? _string(Object? value) {
   final text = value?.toString().trim();
-  if (text == null || text.isEmpty) return null;
+  if (text == null || text.isEmpty) {
+    return null;
+  }
   return text;
 }
 
 double _double(Object? value) {
-  if (value is num) return value.toDouble();
+  if (value is num) {
+    return value.toDouble();
+  }
   final text = value?.toString().replaceAll(',', '').trim();
-  if (text == null || text.isEmpty) return 0;
+  if (text == null || text.isEmpty) {
+    return 0;
+  }
   return double.tryParse(text) ?? 0;
 }
 
 bool _bool(Object? value, {bool fallback = false}) {
-  if (value is bool) return value;
-  if (value is num) return value != 0;
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
   final text = value?.toString().trim().toLowerCase();
-  if (text == null || text.isEmpty) return fallback;
-  if (text == '1' || text == 'true' || text == 'yes') return true;
-  if (text == '0' || text == 'false' || text == 'no') return false;
+  if (text == null || text.isEmpty) {
+    return fallback;
+  }
+  if (text == '1' || text == 'true' || text == 'yes') {
+    return true;
+  }
+  if (text == '0' || text == 'false' || text == 'no') {
+    return false;
+  }
   return fallback;
 }

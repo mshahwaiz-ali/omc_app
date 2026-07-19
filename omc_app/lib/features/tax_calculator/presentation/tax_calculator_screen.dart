@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../data/tax_calculation_repository.dart';
@@ -27,7 +29,21 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   bool _showAdvanced = false;
   bool _isCalculating = false;
   bool _isStartingService = false;
-  String? _error;
+  AppFailure? _calculationFailure;
+  String? _validationMessage;
+  late Future<TaxCalculatorConfig> _configFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _configFuture = ref.read(taxCalculationRepositoryProvider).getConfig();
+  }
+
+  void _retryConfig() {
+    setState(() {
+      _configFuture = ref.read(taxCalculationRepositoryProvider).getConfig();
+    });
+  }
 
   @override
   void dispose() {
@@ -56,29 +72,56 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
         ],
       ),
       body: FutureBuilder<TaxCalculatorConfig>(
-        future: repository.getConfig(),
+        future: _configFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return _StateMessage(
-              icon: Icons.error_outline_rounded,
-              title: 'Calculator unavailable',
-              message: _friendlyError(snapshot.error),
-              actionLabel: 'Try again',
-              onAction: () => setState(() {}),
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: AppErrorState.fromError(
+                error: snapshot.error!,
+                onRetry: _retryConfig,
+                fallbackTitle: 'We could not load the tax calculator',
+                fallbackMessage:
+                    'Check your connection and try loading the calculator again.',
+              ),
             );
           }
 
           final config = snapshot.data;
-          if (config == null || !config.enabled) {
-            return _StateMessage(
-              icon: Icons.calculate_outlined,
-              title: 'Calculator unavailable',
-              message:
-                  config?.message ?? 'Tax calculator is currently disabled.',
+          if (config == null) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: AppErrorState(
+                title: 'Unable to read calculator settings',
+                message:
+                    'The server returned incomplete calculator configuration.',
+                onRetry: _retryConfig,
+              ),
+            );
+          }
+
+          if (!config.enabled) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: AppConfigurationState(
+                title: config.stateTitle,
+                message: config.stateMessage,
+              ),
+            );
+          }
+
+          if (config.activeTaxYear == null) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: AppConfigurationState(
+                title: 'Tax calculator is not configured',
+                message:
+                    'No active tax year is available. Please contact OMC support or ask an administrator to configure one.',
+              ),
             );
           }
 
@@ -103,21 +146,24 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     setState(() {
                       _incomeType = value;
                       _result = null;
-                      _error = null;
+                      _validationMessage = null;
+                      _calculationFailure = null;
                     });
                   },
                   onIncomeModeChanged: (value) {
                     setState(() {
                       _incomeMode = value;
                       _result = null;
-                      _error = null;
+                      _validationMessage = null;
+                      _calculationFailure = null;
                     });
                   },
                   onFilerStatusChanged: (value) {
                     setState(() {
                       _filerStatus = value;
                       _result = null;
-                      _error = null;
+                      _validationMessage = null;
+                      _calculationFailure = null;
                     });
                   },
                 ),
@@ -137,12 +183,12 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     },
                   ),
                 ],
-                if (_error != null) ...[
+                if (_validationMessage != null) ...[
                   const SizedBox(height: 12),
                   _NoticeCard(
                     icon: Icons.warning_amber_rounded,
                     title: 'Check calculation input',
-                    message: _error!,
+                    message: _validationMessage!,
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -161,6 +207,17 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     _isCalculating ? 'Calculating...' : 'Calculate Tax',
                   ),
                 ),
+                if (_calculationFailure != null) ...[
+                  const SizedBox(height: 12),
+                  AppErrorState(
+                    title: _calculationFailure!.title,
+                    message: _calculationFailure!.message,
+                    onRetry: _calculationFailure!.canRetry
+                        ? () => _calculate(repository, config)
+                        : null,
+                    compact: true,
+                  ),
+                ],
                 if (_result != null) ...[
                   const SizedBox(height: 18),
                   _ResultSection(
@@ -198,7 +255,10 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   ) async {
     final amount = _parseAmount(_amountController.text);
     if (amount <= 0) {
-      setState(() => _error = 'Enter a valid income amount greater than zero.');
+      setState(() {
+        _validationMessage = 'Enter a valid income amount greater than zero.';
+        _calculationFailure = null;
+      });
       return;
     }
 
@@ -211,7 +271,8 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
 
     setState(() {
       _isCalculating = true;
-      _error = null;
+      _validationMessage = null;
+      _calculationFailure = null;
     });
 
     try {
@@ -226,10 +287,16 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
         ),
       );
       if (!mounted) return;
-      setState(() => _result = result);
+      setState(() {
+        _result = result;
+        _calculationFailure = null;
+      });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = _friendlyError(error));
+      setState(() {
+        _result = null;
+        _calculationFailure = AppFailureClassifier.classify(error);
+      });
     } finally {
       if (mounted) setState(() => _isCalculating = false);
     }
@@ -305,9 +372,10 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
       }
     } catch (error) {
       if (!mounted) return;
+      final failure = AppFailureClassifier.classify(error);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(_friendlyError(error))));
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) setState(() => _isStartingService = false);
     }
@@ -965,49 +1033,6 @@ class _NoticeCard extends StatelessWidget {
   }
 }
 
-class _StateMessage extends StatelessWidget {
-  const _StateMessage({
-    required this.icon,
-    required this.title,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 46),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 16),
-              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _Card extends StatelessWidget {
   const _Card({required this.child});
 
@@ -1177,12 +1202,4 @@ String _formatMoney(double value) {
     if (positionFromEnd > 1 && positionFromEnd % 3 == 1) buffer.write(',');
   }
   return 'PKR ${buffer.toString()}';
-}
-
-String _friendlyError(Object? error) {
-  final text = error?.toString().trim() ?? '';
-  if (text.isEmpty) return 'Something went wrong. Please try again.';
-  return text
-      .replaceFirst('Exception: ', '')
-      .replaceFirst('DioException [bad response]: ', '');
 }

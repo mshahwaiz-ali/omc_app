@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../domain/internal_service_case.dart';
@@ -77,7 +77,12 @@ class _InternalOperationsCenterScreenState
                 loading: () => const _OperationsLoading(),
                 error: (error, _) => _OperationsError(
                   title: '${config.title} unavailable',
-                  message: _cleanErrorMessage(error),
+                  message: AppFailureClassifier.classify(
+                    error,
+                    fallbackTitle: '${config.title} unavailable',
+                    fallbackMessage:
+                        'The internal operations queue could not be loaded. Please try again.',
+                  ).message,
                   onRetry: () => ref.invalidate(internalServiceCasesProvider),
                 ),
                 data: (queue) {
@@ -247,7 +252,12 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
                 error: (error, _) => _CaseDetailsState(
                   icon: Icons.cloud_off_rounded,
                   title: 'Case details unavailable',
-                  message: _cleanErrorMessage(error),
+                  message: AppFailureClassifier.classify(
+                    error,
+                    fallbackTitle: 'Case details unavailable',
+                    fallbackMessage:
+                        'The case workspace could not be loaded. Please try again.',
+                  ).message,
                   actionLabel: 'Try again',
                   actionIcon: Icons.refresh_rounded,
                   onAction: () => ref.invalidate(internalServiceCasesProvider),
@@ -2943,13 +2953,4 @@ class _OperationsEmpty extends StatelessWidget {
       ),
     );
   }
-}
-
-String _cleanErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final raw = error.toString().replaceFirst('ApiError:', '').trim();
-  return raw.isEmpty ? 'The internal workspace could not load this data.' : raw;
 }

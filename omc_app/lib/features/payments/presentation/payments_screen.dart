@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_list_header.dart';
@@ -29,8 +29,10 @@ class PaymentsScreen extends ConsumerWidget {
                 ? const _EmptyPaymentsView()
                 : _PaymentsList(payments: payments),
             loading: () => const _PaymentsLoadingView(),
-            error: (error, _) =>
-                _PaymentsErrorView(message: _cleanError(error)),
+            error: (error, _) => _PaymentsErrorView(
+              error: error,
+              onRetry: () => ref.invalidate(paymentsProvider),
+            ),
           ),
         ),
       ),
@@ -640,22 +642,11 @@ class _EmptyPaymentsView extends StatelessWidget {
   }
 }
 
-String _cleanError(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  if (message.isEmpty) {
-    return 'Payments could not be loaded right now. Please try again.';
-  }
-  return message;
-}
-
 class _PaymentsErrorView extends StatelessWidget {
-  const _PaymentsErrorView({required this.message});
+  const _PaymentsErrorView({required this.error, required this.onRetry});
 
-  final String message;
+  final Object error;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -665,46 +656,13 @@ class _PaymentsErrorView extends StatelessWidget {
       children: [
         const _PaymentsHeader(payments: []),
         const SizedBox(height: 24),
-        PremiumCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: [
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: OmcPremium.danger.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.cloud_off_rounded,
-                  color: OmcPremium.danger,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Payments unavailable',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+        AppErrorState.fromError(
+          error: error,
+          onRetry: onRetry,
+          fallbackTitle: 'Payments unavailable',
+          fallbackMessage:
+              'We could not load your payment records. Please try again.',
+          compact: true,
         ),
       ],
     );

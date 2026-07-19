@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -114,14 +116,17 @@ class _InternalDocumentReviewScreenState
       await _refresh();
     } on ApiError catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
+      final failure = AppFailureClassifier.classify(error);
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+    } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Document review action failed. Please try again.'),
-        ),
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Document review failed',
+        fallbackMessage:
+            'The document review action could not be completed. Please try again.',
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) setState(() => _busyDocumentId = null);
     }
@@ -179,12 +184,18 @@ class _InternalDocumentReviewScreenState
               }
 
               if (snapshot.hasError) {
-                return PremiumEmptyState(
-                  icon: Icons.cloud_off_rounded,
-                  title: 'Review queue unavailable',
-                  message: _cleanError(snapshot.error!),
-                  actionLabel: 'Retry',
-                  onAction: _refresh,
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    AppErrorState.fromError(
+                      error: snapshot.error!,
+                      onRetry: _refresh,
+                      fallbackTitle: 'Review queue unavailable',
+                      fallbackMessage:
+                          'Customer documents could not be loaded. Please try again.',
+                    ),
+                  ],
                 );
               }
 
@@ -206,17 +217,6 @@ class _InternalDocumentReviewScreenState
       ),
     );
   }
-}
-
-String _cleanError(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  return message.isEmpty
-      ? 'Could not load customer documents from the backend right now.'
-      : message;
 }
 
 class _ReviewContent extends StatelessWidget {

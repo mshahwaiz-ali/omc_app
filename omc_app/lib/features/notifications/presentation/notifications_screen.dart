@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -34,8 +36,10 @@ class NotificationsScreen extends ConsumerWidget {
                         : null,
                   ),
             loading: () => const _NotificationsLoadingView(),
-            error: (error, _) =>
-                _NotificationsErrorView(message: _cleanError(error)),
+            error: (error, _) => _NotificationsErrorView(
+              error: error,
+              onRetry: () => ref.invalidate(notificationsProvider),
+            ),
           ),
         ),
       ),
@@ -55,13 +59,11 @@ class NotificationsScreen extends ConsumerWidget {
         const SnackBar(content: Text('All notifications marked as read.')),
       );
     } on ApiError catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Notifications could not be updated right now.'),
-        ),
-      );
+      final failure = AppFailureClassifier.classify(error);
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+    } catch (error) {
+      final failure = AppFailureClassifier.classify(error);
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     }
   }
 }
@@ -441,22 +443,11 @@ class _EmptyNotificationsView extends StatelessWidget {
   }
 }
 
-String _cleanError(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  if (message.isEmpty) {
-    return 'Notifications could not be loaded right now. Please try again.';
-  }
-  return message;
-}
-
 class _NotificationsErrorView extends StatelessWidget {
-  const _NotificationsErrorView({required this.message});
+  const _NotificationsErrorView({required this.error, required this.onRetry});
 
-  final String message;
+  final Object error;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -471,11 +462,13 @@ class _NotificationsErrorView extends StatelessWidget {
           onMarkAllRead: null,
         ),
         const SizedBox(height: 28),
-        _NotificationsStateCard(
-          icon: Icons.cloud_off_rounded,
-          title: 'Notifications unavailable',
-          message: message,
-          isError: true,
+        AppErrorState.fromError(
+          error: error,
+          onRetry: onRetry,
+          fallbackTitle: 'Notifications unavailable',
+          fallbackMessage:
+              'We could not load your notifications. Please try again.',
+          compact: true,
         ),
       ],
     );

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../domain/internal_service_case.dart';
@@ -127,7 +127,12 @@ class _InternalServiceCasesScreenState
               child: queueAsync.when(
                 loading: () => const _CasesLoadingView(),
                 error: (error, _) => _CasesErrorView(
-                  message: _cleanErrorMessage(error),
+                  message: AppFailureClassifier.classify(
+                    error,
+                    fallbackTitle: 'Cases unavailable',
+                    fallbackMessage:
+                        'The internal service case queue could not be loaded. Please try again.',
+                  ).message,
                   onRetry: () => ref.invalidate(internalServiceCasesProvider),
                 ),
                 data: (queue) {
@@ -1541,14 +1546,4 @@ bool _isClosedStatus(String status) {
   return clean.contains('complete') ||
       clean.contains('cancel') ||
       clean.contains('closed');
-}
-
-String _cleanErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final raw = error.toString().replaceFirst('ApiError:', '').trim();
-
-  return raw.isEmpty ? 'The internal workspace could not load this data.' : raw;
 }

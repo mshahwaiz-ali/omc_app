@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_info_chip.dart';
@@ -30,24 +30,15 @@ class DocumentsScreen extends ConsumerWidget {
                 ? const _EmptyDocumentsView()
                 : _DocumentsList(documents: documents),
             loading: () => const _DocumentsLoadingView(),
-            error: (error, _) =>
-                _DocumentsErrorView(message: _documentsErrorMessage(error)),
+            error: (error, _) => _DocumentsErrorView(
+              error: error,
+              onRetry: () => ref.invalidate(documentsProvider),
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-String _documentsErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  if (message.isNotEmpty) return message;
-
-  return 'Document records are unavailable right now. Please try again.';
 }
 
 enum _DocumentFilter {
@@ -757,64 +748,26 @@ class _EmptyDocumentsView extends StatelessWidget {
 }
 
 class _DocumentsErrorView extends StatelessWidget {
-  const _DocumentsErrorView({required this.message});
+  const _DocumentsErrorView({required this.error, required this.onRetry});
 
-  final String message;
+  final Object error;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 48, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
-        PremiumCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: [
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: OmcPremium.documents.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: OmcPremium.documents.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.cloud_off_outlined,
-                  color: OmcPremium.documents,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Documents unavailable',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.15,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+        const _DocumentsHeader(documents: []),
+        const SizedBox(height: 24),
+        AppErrorState.fromError(
+          error: error,
+          onRetry: onRetry,
+          fallbackTitle: 'Documents unavailable',
+          fallbackMessage:
+              'We could not load your document records. Please try again.',
+          compact: true,
         ),
       ],
     );

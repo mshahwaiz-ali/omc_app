@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
@@ -56,7 +56,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
         child: casesAsync.when(
           loading: () => const _LoadingState(),
           error: (error, _) => _ErrorState(
-            message: _cleanErrorMessage(error),
+            error: error,
             onRetry: () => ref.invalidate(serviceCasesProvider),
             onStartRequest: () => context.go('/services'),
           ),
@@ -1551,12 +1551,12 @@ class _LoadingBlock extends StatelessWidget {
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({
-    required this.message,
+    required this.error,
     required this.onRetry,
     required this.onStartRequest,
   });
 
-  final String message;
+  final Object error;
   final VoidCallback onRetry;
   final VoidCallback onStartRequest;
 
@@ -1565,57 +1565,27 @@ class _ErrorState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: PremiumCard(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.cloud_off_rounded,
-                size: 42,
-                color: OmcPremium.danger,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppErrorState.fromError(
+              error: error,
+              onRetry: onRetry,
+              fallbackTitle: 'Service tracking unavailable',
+              fallbackMessage:
+                  'We could not load your service requests. Please try again.',
+              compact: true,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onStartRequest,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Start a request'),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Service tracking unavailable',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onRetry,
-                      child: const Text('Retry'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: onStartRequest,
-                      child: const Text('Start request'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -2157,14 +2127,4 @@ String _initials(String name) {
         : value.substring(0, 1).toUpperCase();
   }
   return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
-}
-
-String _cleanErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  if (message.isNotEmpty) return message;
-  return 'Service tracking is unavailable right now. Please try again.';
 }
