@@ -6,7 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -96,12 +97,15 @@ class _ServiceRequestDraftScreenState
       ),
       error: (error, _) => Scaffold(
         appBar: const AppBackHeader(title: 'Start Request'),
-        body: EmptyState(
-          title: 'Request form unavailable',
-          message: _serviceRequestDraftErrorMessage(error),
-          icon: Icons.cloud_off_outlined,
-          actionLabel: 'Retry',
-          onAction: () => ref.invalidate(serviceCatalogueProvider),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: AppErrorState.fromError(
+            error: error,
+            fallbackTitle: 'Request form unavailable',
+            fallbackMessage:
+                'The request form could not be prepared right now.',
+            onRetry: () => ref.invalidate(serviceCatalogueProvider),
+          ),
         ),
       ),
       data: (services) {
@@ -293,6 +297,8 @@ class _ServiceRequestDraftScreenState
   }
 
   Future<void> _pickDocuments() async {
+    if (_isPickingDocuments || _isSubmitting) return;
+
     setState(() => _isPickingDocuments = true);
     try {
       final result = await ref
@@ -305,6 +311,17 @@ class _ServiceRequestDraftScreenState
           context,
         ).showSnackBar(SnackBar(content: Text(message)));
       }
+    } catch (error) {
+      if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Documents unavailable',
+        fallbackMessage:
+            'Documents could not be selected right now. Your form was retained.',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) setState(() => _isPickingDocuments = false);
     }
@@ -340,6 +357,8 @@ class _ServiceRequestDraftScreenState
     ServiceItem service,
     List<ServiceTemplateField> fields,
   ) async {
+    if (_isSubmitting) return;
+
     final form = _formKey.currentState;
     if (form == null || !form.validate()) return;
 
@@ -381,14 +400,27 @@ class _ServiceRequestDraftScreenState
         ),
       );
 
-      final requestId = result.requestId;
+      final requestId = result.requestId?.trim();
       if (requestId != null &&
-          requestId.trim().isNotEmpty &&
+          requestId.isNotEmpty &&
           _attachments.isNotEmpty) {
-        await repository.uploadRequestAttachments(
-          requestId: requestId,
-          attachments: _attachments,
-        );
+        try {
+          await repository.uploadRequestAttachments(
+            requestId: requestId,
+            attachments: _attachments,
+          );
+        } catch (error) {
+          if (!mounted) return;
+          final failure = AppFailureClassifier.classify(
+            error,
+            fallbackTitle: 'Documents not uploaded',
+            fallbackMessage:
+                'Your service request was submitted, but its documents could not be uploaded. Open the request and retry the document upload.',
+          );
+          messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+          context.go('/my-services/${Uri.encodeComponent(requestId)}');
+          return;
+        }
       }
 
       if (!mounted) return;
@@ -396,16 +428,15 @@ class _ServiceRequestDraftScreenState
         const SnackBar(content: Text('Service request submitted to OMC.')),
       );
       context.go('/my-services');
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Request could not be submitted right now.'),
-        ),
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Request not submitted',
+        fallbackMessage:
+            'Request could not be submitted right now. Your entered information was retained.',
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -1669,11 +1700,4 @@ IconData _iconFor(ServiceTemplateField field) {
   }
   if (_isLongTextField(field)) return Icons.notes_outlined;
   return Icons.edit_outlined;
-}
-
-String _serviceRequestDraftErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-  return 'OMC service request form could not be loaded right now. Please try again.';
 }

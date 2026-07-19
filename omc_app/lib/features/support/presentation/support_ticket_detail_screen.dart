@@ -8,10 +8,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/support_repository.dart';
 import '../data/support_ticket.dart';
@@ -41,21 +41,30 @@ class SupportTicketDetailScreen extends ConsumerWidget {
       body: ticketAsync.when(
         data: (ticket) {
           if (ticket == null) {
-            return PremiumEmptyState(
-              icon: Icons.support_agent_outlined,
-              title: 'Ticket unavailable',
-              message:
-                  'Support ticket $ticketId could not be loaded right now.',
+            return const Padding(
+              padding: EdgeInsets.all(20),
+              child: AppEmptyState(
+                icon: Icons.support_agent_outlined,
+                title: 'Ticket unavailable',
+                message:
+                    'This support ticket may have been removed or is no longer available.',
+              ),
             );
           }
 
           return _SupportTicketChatBody(ticket: ticket);
         },
         loading: () => const _TicketDetailLoadingView(),
-        error: (error, _) => PremiumEmptyState(
-          icon: Icons.cloud_off_rounded,
-          title: 'Ticket unavailable',
-          message: _cleanError(error),
+        error: (error, _) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: AppErrorState.fromError(
+            error: error,
+            fallbackTitle: 'Ticket unavailable',
+            fallbackMessage:
+                'Support ticket details could not be loaded right now.',
+            onRetry: () =>
+                ref.invalidate(supportTicketDetailProvider(ticketId)),
+          ),
         ),
       ),
     );
@@ -80,6 +89,7 @@ class _SupportTicketChatBodyState
   bool _isSendingReply = false;
   bool _isUpdatingStatus = false;
   _PickedSupportAttachment? _pickedAttachment;
+  String? _uploadedAttachmentUrlForRetry;
 
   SupportTicket get ticket => widget.ticket;
 
@@ -157,7 +167,10 @@ class _SupportTicketChatBodyState
           isSending: _isSendingReply,
           isClosed: ticket.isClosed,
           onPickAttachment: _pickAttachment,
-          onRemoveAttachment: () => setState(() => _pickedAttachment = null),
+          onRemoveAttachment: () => setState(() {
+            _pickedAttachment = null;
+            _uploadedAttachmentUrlForRetry = null;
+          }),
           onSend: () => _sendReply(context),
         ),
       ],
@@ -165,6 +178,8 @@ class _SupportTicketChatBodyState
   }
 
   Future<void> _pickAttachment() async {
+    if (_isSendingReply) return;
+
     final messenger = ScaffoldMessenger.of(context);
     final capabilities = ref.read(authControllerProvider).capabilities;
     final canReply =
@@ -217,6 +232,7 @@ class _SupportTicketChatBodyState
       }
 
       setState(() {
+        _uploadedAttachmentUrlForRetry = null;
         _pickedAttachment = _PickedSupportAttachment(
           name: file.name,
           sizeInBytes: file.size,
@@ -225,16 +241,19 @@ class _SupportTicketChatBodyState
           extension: _extensionFor(file.name),
         );
       });
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Attachment could not be selected right now.'),
-        ),
+    } catch (error) {
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Attachment unavailable',
+        fallbackMessage: 'Attachment could not be selected right now.',
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     }
   }
 
   Future<void> _sendReply(BuildContext context) async {
+    if (_isSendingReply) return;
+
     final message = _replyController.text.trim();
     final attachment = _pickedAttachment;
     final messenger = ScaffoldMessenger.of(context);
@@ -274,14 +293,15 @@ class _SupportTicketChatBodyState
     setState(() => _isSendingReply = true);
 
     try {
-      String? attachmentUrl;
-      if (attachment != null) {
+      String? attachmentUrl = _uploadedAttachmentUrlForRetry;
+      if (attachment != null && attachmentUrl == null) {
         attachmentUrl = await repository.uploadSupportTicketAttachment(
           ticketId: ticket.id,
           filePath: attachment.path,
           fileBytes: attachment.bytes,
           fileName: attachment.name,
         );
+        _uploadedAttachmentUrlForRetry = attachmentUrl;
       }
 
       await repository.addSupportTicketReply(
@@ -295,28 +315,30 @@ class _SupportTicketChatBodyState
       if (!context.mounted) return;
 
       _replyController.clear();
-      setState(() => _pickedAttachment = null);
+      setState(() {
+        _pickedAttachment = null;
+        _uploadedAttachmentUrlForRetry = null;
+      });
       ref.invalidate(supportTicketDetailProvider(ticket.id));
       ref.invalidate(supportTicketsProvider);
       _scrollToBottomSoon();
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!context.mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!context.mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Message could not be sent right now. Please try again.',
-          ),
-        ),
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Message not sent',
+        fallbackMessage:
+            'Message could not be sent right now. Your text and attachment were retained.',
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) setState(() => _isSendingReply = false);
     }
   }
 
   Future<void> _updateTicketStatus(BuildContext context, String status) async {
+    if (_isUpdatingStatus) return;
+
     final messenger = ScaffoldMessenger.of(context);
     final capabilities = ref.read(authControllerProvider).capabilities;
 
@@ -345,18 +367,15 @@ class _SupportTicketChatBodyState
       );
       ref.invalidate(supportTicketDetailProvider(ticket.id));
       ref.invalidate(supportTicketsProvider);
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!context.mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!context.mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Status not updated',
+        fallbackMessage:
             'Support ticket status could not be updated right now.',
-          ),
-        ),
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
     }
@@ -836,19 +855,35 @@ class _AttachmentTile extends StatelessWidget {
   Future<void> _openAttachment(BuildContext context, String rawUrl) async {
     final messenger = ScaffoldMessenger.of(context);
     final uri = Uri.tryParse(_absoluteUrl(rawUrl));
-    if (uri == null) {
+    if (uri == null || !_isAllowedWebScheme(uri.scheme)) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Attachment link is invalid.')),
       );
       return;
     }
 
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Attachment could not be opened.')),
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!context.mounted) return;
+      if (!opened) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Attachment could not be opened.')),
+        );
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Attachment unavailable',
+        fallbackMessage: 'Attachment could not be opened right now.',
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     }
+  }
+
+  bool _isAllowedWebScheme(String scheme) {
+    final normalized = scheme.toLowerCase();
+    return normalized == 'https' || normalized == 'http';
   }
 
   String _absoluteUrl(String value) {
@@ -1484,11 +1519,4 @@ String _extensionFor(String fileName) {
   final clean = fileName.trim();
   if (!clean.contains('.')) return '';
   return clean.split('.').last.toLowerCase();
-}
-
-String _cleanError(Object error) {
-  if (error is ApiError) return error.message;
-  final text = error.toString().trim();
-  if (text.isEmpty) return 'Something went wrong while loading this ticket.';
-  return text.replaceFirst('Exception: ', '');
 }
