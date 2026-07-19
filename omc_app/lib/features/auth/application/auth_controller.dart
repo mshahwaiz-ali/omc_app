@@ -127,10 +127,19 @@ class AuthController extends Notifier<AuthState> {
       final message = error.message.trim();
       final lower = message.toLowerCase();
       if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
           lower.contains('incorrect') ||
           lower.contains('invalid login') ||
           lower.contains('invalid password') ||
-          lower.contains('authentication failed')) {
+          lower.contains('invalid credential') ||
+          lower.contains('wrong email') ||
+          lower.contains('wrong password') ||
+          lower.contains('user not found') ||
+          lower.contains('unknown user') ||
+          lower.contains('does not exist') ||
+          lower.contains('authentication failed') ||
+          lower.contains('account disabled') ||
+          lower.contains('user disabled')) {
         return 'Wrong email or password. Please try again.';
       }
     }

@@ -556,68 +556,71 @@ class _TasksContent extends StatelessWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 154),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 154),
       children: [
         _TasksPageHeader(
-          metaLabel: tasks.isEmpty ? 'Empty' : '${tasks.length}',
-          onAddTask: onAddTask,
+          metaLabel: tasks.isEmpty ? null : '${tasks.length}',
+          onAddTask: tasks.isEmpty ? null : onAddTask,
         ),
-        const SizedBox(height: 18),
-        _SearchBar(
-          onChanged: onQueryChanged,
-          onOpenFilters: onOpenFilters,
-          filtersActive: statusFilter != 'All' || priorityFilter != 'All',
-        ),
-        const SizedBox(height: 16),
-        _StatusTabs(
-          tasks: tasks,
-          selected: statusFilter,
-          onSelected: onStatusChanged,
-        ),
-        const SizedBox(height: 18),
-        _TaskSummaryGrid(tasks: tasks),
-        const SizedBox(height: 20),
-        if (tasks.isEmpty)
+        if (tasks.isEmpty) ...[
+          const SizedBox(height: 24),
           PremiumEmptyState(
             icon: Icons.assignment_outlined,
             title: 'No tasks yet',
             message: 'Create the first assignment to start tracking team work.',
             actionLabel: 'Add task',
             onAction: onAddTask,
-          )
-        else if (filtered.isEmpty)
-          PremiumEmptyState(
-            icon: Icons.filter_alt_off_rounded,
-            title: 'No matching tasks',
-            message: 'No task matches the current search and filter selection.',
-            actionLabel: hasFilters ? 'Clear filters' : null,
-            onAction: hasFilters ? onClearFilters : null,
-          )
-        else ...[
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${filtered.length} ${filtered.length == 1 ? 'task' : 'tasks'}',
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+          ),
+        ] else ...[
+          const SizedBox(height: 16),
+          _SearchBar(
+            onChanged: onQueryChanged,
+            onOpenFilters: onOpenFilters,
+            filtersActive: statusFilter != 'All' || priorityFilter != 'All',
+          ),
+          const SizedBox(height: 12),
+          _StatusTabs(
+            tasks: tasks,
+            selected: statusFilter,
+            onSelected: onStatusChanged,
+          ),
+          const SizedBox(height: 14),
+          _TaskSummaryGrid(tasks: tasks),
+          const SizedBox(height: 16),
+          if (filtered.isEmpty)
+            PremiumEmptyState(
+              icon: Icons.filter_alt_off_rounded,
+              title: 'No matching tasks',
+              message:
+                  'No task matches the current search and filter selection.',
+              actionLabel: hasFilters ? 'Clear filters' : null,
+              onAction: hasFilters ? onClearFilters : null,
+            )
+          else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${filtered.length} ${filtered.length == 1 ? 'task' : 'tasks'}',
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              if (hasFilters)
-                TextButton.icon(
-                  onPressed: onClearFilters,
-                  icon: const Icon(Icons.refresh_rounded, size: 17),
-                  label: const Text('Clear'),
-                ),
+                if (hasFilters)
+                  TextButton(
+                    onPressed: onClearFilters,
+                    child: const Text('Clear filters'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final task in filtered) ...[
+              _TaskCard(task: task),
+              const SizedBox(height: 10),
             ],
-          ),
-          const SizedBox(height: 8),
-          for (final task in filtered) ...[
-            _TaskCard(task: task),
-            const SizedBox(height: 12),
           ],
         ],
       ],
@@ -663,7 +666,7 @@ class _TasksContent extends StatelessWidget {
 class _TasksPageHeader extends StatelessWidget {
   const _TasksPageHeader({required this.metaLabel, required this.onAddTask});
 
-  final String metaLabel;
+  final String? metaLabel;
   final VoidCallback? onAddTask;
 
   @override
@@ -701,41 +704,45 @@ class _TasksPageHeader extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Text(
-                metaLabel,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
+            if (metaLabel != null) ...[
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE8EE),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  metaLabel!,
+                  style: const TextStyle(
+                    color: Color(0xFFE11D48),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
         if (onAddTask != null) ...[
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 50,
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
             child: FilledButton.icon(
               onPressed: onAddTask,
               style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 22),
+                backgroundColor: const Color(0xFFE11D48),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 42),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              icon: const Icon(Icons.add_rounded),
+              icon: const Icon(Icons.add_rounded, size: 19),
               label: const Text(
                 'Add task',
                 style: TextStyle(fontWeight: FontWeight.w800),
@@ -762,28 +769,21 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 58,
+      height: 48,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE4E8EF)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x09111827),
-            blurRadius: 18,
-            offset: Offset(0, 7),
-          ),
-        ],
       ),
       child: Row(
         children: [
-          const SizedBox(width: 16),
+          const SizedBox(width: 13),
           const Icon(
             Icons.search_rounded,
-            color: AppTheme.textPrimary,
-            size: 25,
+            color: AppTheme.textSecondary,
+            size: 20,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 9),
           Expanded(
             child: TextField(
               onChanged: onChanged,
@@ -797,9 +797,9 @@ class _SearchBar extends StatelessWidget {
             ),
           ),
           Container(
-            width: 44,
-            height: 44,
-            margin: const EdgeInsets.only(right: 7),
+            width: 38,
+            height: 38,
+            margin: const EdgeInsets.only(right: 5),
             decoration: BoxDecoration(
               color: filtersActive
                   ? Theme.of(
@@ -888,21 +888,19 @@ class _StatusTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.primary;
-
     return Material(
-      color: selected ? accent.withValues(alpha: 0.08) : Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      color: selected ? const Color(0xFFFFE8EE) : Colors.white,
+      borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: selected
-                  ? accent.withValues(alpha: 0.22)
+                  ? const Color(0xFFF3A7B8)
                   : const Color(0xFFE4E8EF),
             ),
           ),
@@ -911,7 +909,9 @@ class _StatusTab extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? accent : AppTheme.textPrimary,
+                  color: selected
+                      ? const Color(0xFFE11D48)
+                      : AppTheme.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -921,16 +921,16 @@ class _StatusTab extends StatelessWidget {
                 constraints: const BoxConstraints(minWidth: 24),
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: selected ? accent : const Color(0xFFF0F2F5),
+                  color: selected
+                      ? const Color(0xFFE11D48)
+                      : const Color(0xFFF0F2F5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '$count',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: selected
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : AppTheme.textPrimary,
+                    color: selected ? Colors.white : AppTheme.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
                   ),

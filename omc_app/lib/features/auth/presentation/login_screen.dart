@@ -74,9 +74,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         lower.contains('incorrect') ||
         lower.contains('invalid') ||
         lower.contains('wrong') ||
+        lower.contains('credential') ||
+        lower.contains('user not found') ||
+        lower.contains('unknown user') ||
+        lower.contains('does not exist') ||
+        lower.contains('account disabled') ||
+        lower.contains('user disabled') ||
         lower.contains('not permitted') ||
         lower.contains('login failed')) {
-      return 'Invalid email or password. Please check and try again.';
+      return 'Wrong email or password. Please try again.';
     }
     return 'Sign in could not be completed right now. Please try again.';
   }

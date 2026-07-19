@@ -1731,8 +1731,8 @@ class _NextCaseAction extends StatelessWidget {
               children: [
                 const _WorkspaceIconTile(
                   icon: Icons.next_plan_outlined,
-                  foreground: Color(0xFF315F91),
-                  background: Color(0xFFE1ECF8),
+                  foreground: Color(0xFFE11D48),
+                  background: Color(0xFFFFE8EE),
                   size: 38,
                   iconSize: 19,
                 ),
@@ -1744,7 +1744,7 @@ class _NextCaseAction extends StatelessWidget {
                       const Text(
                         'Next action',
                         style: TextStyle(
-                          color: Color(0xFF315F91),
+                          color: Color(0xFFE11D48),
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.2,
@@ -1988,10 +1988,10 @@ class _WorkspaceProgressTracker extends StatelessWidget {
   Widget build(BuildContext context) {
     const labels = ['Open', 'Processing', 'Review', 'Completed'];
     const stageColors = [
-      AppTheme.primary,
-      Color(0xFFD88700),
+      Color(0xFFE11D48),
+      Color(0xFFD97706),
       Color(0xFF7047C7),
-      Color(0xFF198754),
+      Color(0xFF16A34A),
     ];
     final progress = _progressState(status);
 
@@ -2790,9 +2790,9 @@ _WorkspaceColors _workspaceStatusColors(String rawStatus) {
     );
   }
 
-  return _WorkspaceColors(
-    foreground: AppTheme.primary,
-    background: AppTheme.primary.withValues(alpha: 0.09),
+  return const _WorkspaceColors(
+    foreground: Color(0xFFE11D48),
+    background: Color(0xFFFFE8EE),
   );
 }
 
