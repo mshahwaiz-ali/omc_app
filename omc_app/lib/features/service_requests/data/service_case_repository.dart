@@ -300,6 +300,9 @@ class ServiceCaseRepository {
             json['service_request'] ??
             json['request_id'],
       ),
+      serviceId: _nullableString(
+        json['service_id'] ?? json['service'] ?? json['service_code'],
+      ),
       title: _stringValue(
         json['title'] ??
             json['service_title'] ??

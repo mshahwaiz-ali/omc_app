@@ -10,6 +10,7 @@ class ServiceCase {
     required this.updatedAtLabel,
     required this._progress,
     this.reference,
+    this.serviceId,
     this.nextStep,
     this.remarks,
     this.requiredDocuments = const [],
@@ -46,6 +47,7 @@ class ServiceCase {
   final String updatedAtLabel;
   final double _progress;
   final String? reference;
+  final String? serviceId;
   final String? nextStep;
   final String? remarks;
   final List<String> requiredDocuments;

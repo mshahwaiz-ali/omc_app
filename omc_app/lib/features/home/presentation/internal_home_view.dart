@@ -446,46 +446,46 @@ class _Header extends StatelessWidget {
     final firstName = displayName.trim().isEmpty
         ? 'Admin'
         : displayName.trim().split(RegExp(r'\s+')).first;
+    final hour = DateTime.now().hour;
+    final greeting = switch (hour) {
+      >= 5 && < 12 => 'Good morning',
+      >= 12 && < 17 => 'Good afternoon',
+      >= 17 && < 21 => 'Good evening',
+      _ => 'Welcome back',
+    };
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Good morning, $firstName 👋',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                '$greeting, $firstName',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: _ink,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 23,
+                  height: 1.16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.35,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
-                'Welcome to OMC Operations Hub',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: _ink,
-                  fontSize: 26,
-                  height: 1.14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                'Here’s what’s happening today',
+                'Here’s what needs your attention today.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: _muted,
+                  height: 1.35,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         _NotificationButton(count: notificationCount, onTap: onNotifications),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         InkWell(
           onTap: onAvatar,
           customBorder: const CircleBorder(),
@@ -514,8 +514,8 @@ class _NotificationButton extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 54,
-              height: 54,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 border: Border.all(color: _border),
                 borderRadius: BorderRadius.circular(16),
@@ -530,7 +530,7 @@ class _NotificationButton extends StatelessWidget {
               child: const Icon(
                 Icons.notifications_none_rounded,
                 color: _ink,
-                size: 27,
+                size: 25,
               ),
             ),
           ),
@@ -582,8 +582,8 @@ class _Avatar extends StatelessWidget {
         .join();
 
     return Container(
-      width: 56,
-      height: 56,
+      width: 50,
+      height: 50,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -619,7 +619,7 @@ class _InitialsAvatar extends StatelessWidget {
         style: const TextStyle(
           color: _omcRed,
           fontWeight: FontWeight.w800,
-          fontSize: 17,
+          fontSize: 16,
         ),
       ),
     );
@@ -641,20 +641,20 @@ class _OperationsHero extends StatelessWidget {
     final attentionTotal = documents + payments + tasks;
 
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFFFF4F5), Color(0xFFFFF8F0)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFFFD9DE)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0AE50924),
-            blurRadius: 22,
-            offset: Offset(0, 8),
+            blurRadius: 18,
+            offset: Offset(0, 7),
           ),
         ],
       ),
@@ -667,23 +667,23 @@ class _OperationsHero extends StatelessWidget {
               final overview = Row(
                 children: [
                   Container(
-                    width: 68,
-                    height: 68,
+                    width: 60,
+                    height: 60,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFFFA5D73), _omcRed],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     child: const Icon(
                       Icons.track_changes_rounded,
                       color: Colors.white,
-                      size: 35,
+                      size: 31,
                     ),
                   ),
-                  const SizedBox(width: 17),
+                  const SizedBox(width: 15),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -699,18 +699,26 @@ class _OperationsHero extends StatelessWidget {
                         const SizedBox(height: 5),
                         Text.rich(
                           TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '$attentionTotal',
-                                style: const TextStyle(
-                                  color: _omcRed,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const TextSpan(
-                                text: ' items need attention today',
-                              ),
-                            ],
+                            children: attentionTotal == 0
+                                ? const [
+                                    TextSpan(
+                                      text: 'No items need attention today',
+                                    ),
+                                  ]
+                                : [
+                                    TextSpan(
+                                      text: '$attentionTotal',
+                                      style: const TextStyle(
+                                        color: _omcRed,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: attentionTotal == 1
+                                          ? ' item needs attention today'
+                                          : ' items need attention today',
+                                    ),
+                                  ],
                           ),
                           style: const TextStyle(
                             color: _ink,
@@ -740,7 +748,7 @@ class _OperationsHero extends StatelessWidget {
                 iconAlignment: IconAlignment.end,
                 icon: const Icon(Icons.chevron_right_rounded),
                 label: const Text(
-                  'Open Operations Hub',
+                  'View operations',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               );
@@ -765,7 +773,7 @@ class _OperationsHero extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 21),
+          const SizedBox(height: 19),
           Row(
             children: [
               Expanded(
@@ -959,7 +967,11 @@ class _QuickActions extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 12.0;
-        final count = constraints.maxWidth >= 760 ? 5 : 3;
+        final count = constraints.maxWidth >= 760
+            ? 5
+            : constraints.maxWidth >= 500
+            ? 3
+            : 2;
         final width = (constraints.maxWidth - (spacing * (count - 1))) / count;
 
         return Wrap(
@@ -1287,21 +1299,6 @@ class _OperationsGrid extends StatelessWidget {
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
-                          ),
-                          const SizedBox(height: 11),
-                          Row(
-                            children: [
-                              Icon(item.icon, size: 16, color: item.accent),
-                              const SizedBox(width: 5),
-                              Text(
-                                'Live backend total',
-                                style: TextStyle(
-                                  color: item.accent,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),

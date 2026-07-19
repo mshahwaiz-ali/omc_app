@@ -20,7 +20,8 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   if (isGuestAllowedRoute(location)) return true;
 
   if (_isServiceRequestRoute(location)) {
-    return capabilities.canCreateServiceRequest;
+    return capabilities.canCreateServiceRequest ||
+        capabilities.canCreateServiceForCustomer;
   }
 
   if (location == '/dashboard') {

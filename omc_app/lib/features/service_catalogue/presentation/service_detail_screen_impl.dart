@@ -11,6 +11,8 @@ import '../../app_config/data/mobile_app_config_repository.dart';
 import '../../app_config/presentation/app_brand_registry.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import '../../service_requests/data/service_case.dart';
+import '../../service_requests/data/service_case_repository.dart';
 import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
@@ -20,8 +22,8 @@ const Color _ink = Color(0xFF111827);
 const Color _slate = Color(0xFF64748B);
 const Color _primary = Color(0xFF111827);
 const Color _primarySoft = Color(0xFFF3F4F6);
-const Color _review = Color(0xFF6D28D9);
-const Color _done = Color(0xFF16A34A);
+const Color _surface = Color(0xFFF8FAFC);
+const Color _border = Color(0xFFE5E7EB);
 
 class ServiceDetailScreen extends ConsumerWidget {
   const ServiceDetailScreen({super.key, required this.serviceId});
@@ -89,7 +91,7 @@ class ServiceDetailScreen extends ConsumerWidget {
             children: [
               AppBackHeader(
                 title: 'Service Details',
-                subtitle: 'Review requirements and start request',
+                subtitle: 'Review requirements and start service',
                 actionIcon: Icons.support_agent_rounded,
                 actionTooltip: 'WhatsApp support',
                 onAction: () => SupportLauncher.openWhatsApp(context),
@@ -106,55 +108,25 @@ class ServiceDetailScreen extends ConsumerWidget {
                         tone: tone,
                         wizardLabel: wizardLabel,
                       ),
-                      const SizedBox(height: 16),
-                      _StatsGrid(service: service, tone: tone),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
+                      _ServiceMetaCard(service: service),
+                      const SizedBox(height: 14),
                       _SectionCard(
                         title: 'Overview',
                         icon: Icons.notes_rounded,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              subtitle.isEmpty
-                                  ? 'OMC will share the service brief after review.'
-                                  : subtitle,
-                              style: const TextStyle(
-                                color: _slate,
-                                fontSize: 13.5,
-                                height: 1.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                _MiniNote(
-                                  label: 'Service-specific flow',
-                                  color: tone.color,
-                                ),
-                                const _MiniNote(
-                                  label: 'Support-assisted review',
-                                  color: _primary,
-                                ),
-                                const _MiniNote(
-                                  label: 'Progress tracked live',
-                                  color: _review,
-                                ),
-                              ],
-                            ),
-                          ],
+                        child: Text(
+                          subtitle.isEmpty
+                              ? 'OMC will share the service brief after review.'
+                              : subtitle,
+                          style: const TextStyle(
+                            color: _slate,
+                            fontSize: 13.5,
+                            height: 1.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      _WizardCard(
-                        service: service,
-                        tone: tone,
-                        wizardLabel: wizardLabel,
-                      ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       _ChecklistCard(
                         title: 'Requirements',
                         subtitle:
@@ -162,10 +134,10 @@ class ServiceDetailScreen extends ConsumerWidget {
                         emptyMessage:
                             'OMC will confirm requirements after reviewing your case.',
                         items: service.requirements,
-                        icon: Icons.check_circle_rounded,
-                        accent: tone.color,
+                        icon: Icons.fact_check_outlined,
+                        accent: _ink,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _ChecklistCard(
                         title: 'Required documents',
                         subtitle:
@@ -174,14 +146,15 @@ class ServiceDetailScreen extends ConsumerWidget {
                             'OMC will confirm required documents after reviewing your case.',
                         items: service.requiredDocuments,
                         icon: Icons.description_outlined,
-                        accent: tone.color,
+                        accent: _ink,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _ProcessCard(
                         steps: service.processSteps,
-                        accent: tone.color,
+                        accent: _ink,
+                        isInternal: false,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       _SupportCard(service: service, tone: tone),
                       const SizedBox(height: 18),
                       SizedBox(
@@ -201,19 +174,12 @@ class ServiceDetailScreen extends ConsumerWidget {
                               letterSpacing: -0.1,
                             ),
                           ),
-                          onPressed: () {
-                            if (capabilities.canCreateServiceRequest) {
-                              context.push(
-                                '/services/${Uri.encodeComponent(service.id)}/request',
-                              );
-                            } else if (capabilities.isGuest) {
-                              context.push('/signup');
-                            } else if (capabilities.isPending) {
-                              context.go('/under-review');
-                            } else {
-                              _showLockedSnack(context, capabilities);
-                            }
-                          },
+                          onPressed: () => _startService(
+                            context,
+                            ref,
+                            service,
+                            capabilities,
+                          ),
                           icon: Icon(
                             capabilities.isGuest
                                 ? Icons.person_add_alt_1_rounded
@@ -238,6 +204,93 @@ class ServiceDetailScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _startService(
+    BuildContext context,
+    WidgetRef ref,
+    ServiceItem service,
+    AuthCapabilities capabilities,
+  ) async {
+    if (!_canStartService(capabilities)) {
+      if (capabilities.isGuest) {
+        context.push('/signup');
+      } else if (capabilities.isPending) {
+        context.go('/under-review');
+      } else {
+        _showLockedSnack(context, capabilities);
+      }
+      return;
+    }
+
+    List<ServiceCase> activeCases = const [];
+    try {
+      final cases = await ref.read(serviceCasesProvider.future);
+      activeCases = cases
+          .where((serviceCase) {
+            if (serviceCase.isClosed) return false;
+
+            final caseServiceId = serviceCase.serviceId?.trim().toLowerCase();
+            final selectedServiceId = service.id.trim().toLowerCase();
+            if (caseServiceId != null && caseServiceId.isNotEmpty) {
+              return caseServiceId == selectedServiceId;
+            }
+
+            return serviceCase.title.trim().toLowerCase() ==
+                service.title.trim().toLowerCase();
+          })
+          .toList(growable: false);
+    } catch (_) {
+      // Duplicate checking must never prevent a valid new request.
+    }
+
+    if (!context.mounted) return;
+    if (activeCases.isEmpty) {
+      _openNewRequest(context, service);
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _ExistingServiceRequestsSheet(
+        service: service,
+        cases: activeCases,
+        isInternal: capabilities.isInternal,
+        onResume: (serviceCase) {
+          Navigator.of(sheetContext).pop();
+          _openExistingRequest(context, serviceCase, capabilities);
+        },
+        onStartNew: () {
+          Navigator.of(sheetContext).pop();
+          _openNewRequest(context, service);
+        },
+      ),
+    );
+  }
+
+  bool _canStartService(AuthCapabilities capabilities) {
+    return capabilities.canCreateServiceRequest ||
+        capabilities.canCreateServiceForCustomer;
+  }
+
+  void _openNewRequest(BuildContext context, ServiceItem service) {
+    context.push('/services/${Uri.encodeComponent(service.id)}/request');
+  }
+
+  void _openExistingRequest(
+    BuildContext context,
+    ServiceCase serviceCase,
+    AuthCapabilities capabilities,
+  ) {
+    final caseId = Uri.encodeComponent(serviceCase.id);
+    if (capabilities.isInternal) {
+      context.push('/internal-workspace/service-cases/$caseId');
+      return;
+    }
+    context.push('/my-services/$caseId');
+  }
+
   void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -260,6 +313,181 @@ class ServiceDetailScreen extends ConsumerWidget {
       return 'This account is not approved for service requests. Please contact OMC support.';
     }
     return 'This account does not have access to service requests.';
+  }
+}
+
+class _ExistingServiceRequestsSheet extends StatelessWidget {
+  const _ExistingServiceRequestsSheet({
+    required this.service,
+    required this.cases,
+    required this.isInternal,
+    required this.onResume,
+    required this.onStartNew,
+  });
+
+  final ServiceItem service;
+  final List<ServiceCase> cases;
+  final bool isInternal;
+  final ValueChanged<ServiceCase> onResume;
+  final VoidCallback onStartNew;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+      ),
+      padding: EdgeInsets.fromLTRB(20, 10, 20, 18 + bottomPadding),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Align(
+            child: Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _border,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Service already in progress',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 20,
+              height: 1.15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            cases.length == 1
+                ? 'An active ${service.title} request already exists. Resume it or start a separate request.'
+                : '${cases.length} active ${service.title} requests already exist. Resume one or start a separate request.',
+            style: const TextStyle(
+              color: _slate,
+              fontSize: 13.5,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: cases.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final serviceCase = cases[index];
+                return Material(
+                  color: _surface,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => onResume(serviceCase),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _border),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(13),
+                              border: Border.all(color: _border),
+                            ),
+                            child: const Icon(
+                              Icons.description_outlined,
+                              color: _slate,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isInternal
+                                      ? serviceCase.displayCustomerName
+                                      : serviceCase.displayReference,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _ink,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  isInternal
+                                      ? '${serviceCase.displayReference} · ${serviceCase.status}'
+                                      : serviceCase.status,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _slate,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: _ink,
+                            size: 19,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: onStartNew,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _ink,
+                side: const BorderSide(color: _border),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 19),
+              label: const Text('Start a new request'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -491,7 +719,7 @@ class _HeroCard extends StatelessWidget {
               PremiumInfoChip(
                 icon: Icons.schedule_rounded,
                 label: service.completionTime,
-                color: _review,
+                color: _slate,
               ),
               if (service.governmentFeeLabel != null &&
                   service.governmentFeeLabel!.trim().isNotEmpty)
@@ -535,105 +763,6 @@ class _HeroCard extends StatelessWidget {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.service, required this.tone});
-
-  final ServiceItem service;
-  final _Tone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatTile(
-            label: 'Price',
-            value: service.priceLabel,
-            icon: Icons.payments_outlined,
-            color: tone.color,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatTile(
-            label: 'Timeline',
-            value: service.completionTime,
-            icon: Icons.schedule_outlined,
-            color: _review,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatTile(
-            label: 'Reqs',
-            value: service.requirements.length.toString(),
-            icon: Icons.fact_check_outlined,
-            color: _done,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _slate,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
         ],
       ),
     );
@@ -688,6 +817,103 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
+class _ServiceMetaCard extends StatelessWidget {
+  const _ServiceMetaCard({required this.service});
+
+  final ServiceItem service;
+
+  @override
+  Widget build(BuildContext context) {
+    final governmentFee = service.governmentFeeLabel?.trim();
+
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        children: [
+          _MetaRow(
+            icon: Icons.payments_outlined,
+            label: 'Service fee',
+            value: service.priceLabel,
+          ),
+          const Divider(height: 1, color: _border),
+          _MetaRow(
+            icon: Icons.schedule_outlined,
+            label: 'Expected timeline',
+            value: service.completionTime,
+          ),
+          if (governmentFee != null && governmentFee.isNotEmpty) ...[
+            const Divider(height: 1, color: _border),
+            _MetaRow(
+              icon: Icons.account_balance_outlined,
+              label: 'Government fee',
+              value: governmentFee,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaRow extends StatelessWidget {
+  const _MetaRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: _border),
+            ),
+            child: Icon(icon, color: _slate, size: 18),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: _slate,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: _ink,
+                fontSize: 13.5,
+                height: 1.25,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ChecklistCard extends StatelessWidget {
   const _ChecklistCard({
     required this.title,
@@ -731,56 +957,6 @@ class _ChecklistCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _ChecklistRow(label: item, accent: accent),
               ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WizardCard extends StatelessWidget {
-  const _WizardCard({
-    required this.service,
-    required this.tone,
-    required this.wizardLabel,
-  });
-
-  final ServiceItem service;
-  final _Tone tone;
-  final String? wizardLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasWizard = wizardLabel != null;
-    return _SectionCard(
-      title: hasWizard ? 'Guided wizard' : 'How this works',
-      icon: Icons.auto_awesome_rounded,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            hasWizard
-                ? '$wizardLabel opens a step-by-step flow with the exact fields, uploads and review checkpoints for this service.'
-                : 'OMC will guide you through the exact requirements for this service after request submission.',
-            style: const TextStyle(
-              color: _slate,
-              fontSize: 13.5,
-              height: 1.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _MiniNote(label: 'Service-specific flow', color: tone.color),
-              const _MiniNote(
-                label: 'Support-assisted review',
-                color: _primary,
-              ),
-              const _MiniNote(label: 'Progress tracked live', color: _review),
-            ],
-          ),
         ],
       ),
     );
@@ -877,10 +1053,15 @@ class _ChecklistRow extends StatelessWidget {
 }
 
 class _ProcessCard extends StatelessWidget {
-  const _ProcessCard({required this.steps, required this.accent});
+  const _ProcessCard({
+    required this.steps,
+    required this.accent,
+    required this.isInternal,
+  });
 
   final List<String> steps;
   final Color accent;
+  final bool isInternal;
 
   @override
   Widget build(BuildContext context) {
@@ -891,8 +1072,10 @@ class _ProcessCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (steps.isEmpty)
-            const _NoticePill(
-              label: 'OMC will share the process after review.',
+            _NoticePill(
+              label: isInternal
+                  ? 'No delivery process is configured.'
+                  : 'OMC will share the process after review.',
               accent: _primary,
             )
           else
@@ -995,32 +1178,6 @@ class _NoticePill extends StatelessWidget {
           fontSize: 13,
           fontWeight: FontWeight.w700,
           height: 1.35,
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniNote extends StatelessWidget {
-  const _MiniNote({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
         ),
       ),
     );
@@ -1131,9 +1288,7 @@ String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {
 String _startRequestLabel(ServiceItem service, AuthCapabilities capabilities) {
   if (capabilities.isGuest) return 'Sign up to request';
   if (capabilities.isPending) return 'View approval status';
-  return serviceCatalogueWizardBadgeLabel(service) != null
-      ? 'Start wizard'
-      : 'Request service';
+  return 'Start service';
 }
 
 String _titleCase(String value) {

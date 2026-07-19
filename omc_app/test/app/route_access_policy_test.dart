@@ -38,6 +38,24 @@ void main() {
       expect(canAccessRoute('/my-services', approvedWithTracking), isTrue);
     });
 
+    test(
+      'allows customer request creation for explicitly capable internal users',
+      () {
+        const internalCreator = AuthCapabilities(
+          accessState: AccountAccessState.internal,
+          canCreateServiceForCustomer: true,
+        );
+
+        expect(
+          canAccessRoute(
+            '/services/mainland-company-setup/request',
+            internalCreator,
+          ),
+          isTrue,
+        );
+      },
+    );
+
     test('allows support operations through explicit status capability', () {
       const supportManager = AuthCapabilities(
         accessState: AccountAccessState.internal,
