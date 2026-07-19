@@ -1987,6 +1987,12 @@ class _WorkspaceProgressTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const labels = ['Open', 'Processing', 'Review', 'Completed'];
+    const stageColors = [
+      AppTheme.primary,
+      Color(0xFFD88700),
+      Color(0xFF7047C7),
+      Color(0xFF198754),
+    ];
     final progress = _progressState(status);
 
     return Row(
@@ -1998,6 +2004,7 @@ class _WorkspaceProgressTracker extends StatelessWidget {
               label: progress.isCancelled && index == progress.index
                   ? 'Closed'
                   : labels[index],
+              color: stageColors[index],
               isCompleted: !progress.isCancelled && index < progress.index,
               isCurrent: index == progress.index,
               isCancelled: progress.isCancelled && index == progress.index,
@@ -2006,12 +2013,12 @@ class _WorkspaceProgressTracker extends StatelessWidget {
           if (index != labels.length - 1)
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(top: 7),
+                padding: const EdgeInsets.only(top: 8),
                 child: Container(
                   height: 2,
                   decoration: BoxDecoration(
                     color: !progress.isCancelled && index < progress.index
-                        ? const Color(0xFF5A9B73)
+                        ? stageColors[index].withValues(alpha: 0.55)
                         : const Color(0xFFE0E4EB),
                     borderRadius: BorderRadius.circular(999),
                   ),
@@ -2027,50 +2034,59 @@ class _WorkspaceProgressTracker extends StatelessWidget {
 class _ProgressStage extends StatelessWidget {
   const _ProgressStage({
     required this.label,
+    required this.color,
     required this.isCompleted,
     required this.isCurrent,
     required this.isCancelled,
   });
 
   final String label;
+  final Color color;
   final bool isCompleted;
   final bool isCurrent;
   final bool isCancelled;
 
   @override
   Widget build(BuildContext context) {
-    final Color circleColor;
-    final Color borderColor;
-
-    if (isCancelled) {
-      circleColor = const Color(0xFF667085);
-      borderColor = const Color(0xFF667085);
-    } else if (isCompleted) {
-      circleColor = const Color(0xFF5A9B73);
-      borderColor = const Color(0xFF5A9B73);
-    } else if (isCurrent) {
-      circleColor = AppTheme.primary;
-      borderColor = AppTheme.primary;
-    } else {
-      circleColor = Colors.white;
-      borderColor = const Color(0xFFC9CFDA);
-    }
+    final effectiveColor = isCancelled ? const Color(0xFF667085) : color;
+    final active = isCompleted || isCurrent || isCancelled;
 
     return Column(
       children: [
         Container(
-          width: 15,
-          height: 15,
+          width: 17,
+          height: 17,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: circleColor,
+            color: active ? effectiveColor : Colors.white,
             shape: BoxShape.circle,
-            border: Border.all(color: borderColor, width: 1.5),
+            border: Border.all(
+              color: active ? effectiveColor : const Color(0xFFC9CFDA),
+              width: 1.5,
+            ),
+            boxShadow: isCurrent
+                ? [
+                    BoxShadow(
+                      color: effectiveColor.withValues(alpha: 0.18),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
           ),
           child: isCompleted
-              ? const Icon(Icons.check_rounded, size: 9, color: Colors.white)
+              ? const Icon(Icons.check_rounded, size: 10, color: Colors.white)
               : isCancelled
-              ? const Icon(Icons.close_rounded, size: 9, color: Colors.white)
+              ? const Icon(Icons.close_rounded, size: 10, color: Colors.white)
+              : isCurrent
+              ? Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                )
               : null,
         ),
         const SizedBox(height: 7),
@@ -2080,9 +2096,7 @@ class _ProgressStage extends StatelessWidget {
           textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: isCurrent || isCompleted
-                ? AppTheme.textPrimary
-                : AppTheme.textSecondary,
+            color: active ? effectiveColor : AppTheme.textSecondary,
             fontSize: 9.5,
             height: 1.2,
             fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w700,
@@ -2737,36 +2751,48 @@ class _WorkspaceColors {
 _WorkspaceColors _workspaceStatusColors(String rawStatus) {
   final status = rawStatus.trim().toLowerCase();
 
-  if (status.contains('complete') ||
-      status.contains('closed') ||
-      status.contains('approved')) {
-    return const _WorkspaceColors(
-      foreground: Color(0xFF138A4B),
-      background: Color(0xFFE8F7EE),
-    );
-  }
-
   if (status.contains('cancel') ||
       status.contains('reject') ||
       status.contains('failed')) {
     return const _WorkspaceColors(
-      foreground: Color(0xFFC81E3A),
-      background: Color(0xFFFDECEF),
+      foreground: Color(0xFFC62828),
+      background: Color(0xFFFFEBEE),
     );
   }
 
-  if (status.contains('progress') ||
-      status.contains('processing') ||
-      status.contains('review')) {
+  if (status.contains('complete') ||
+      status.contains('closed') ||
+      status.contains('approved')) {
     return const _WorkspaceColors(
-      foreground: Color(0xFFE86F00),
-      background: Color(0xFFFFF1E3),
+      foreground: Color(0xFF198754),
+      background: Color(0xFFEAF7EF),
     );
   }
 
-  return const _WorkspaceColors(
-    foreground: Color(0xFF155EEF),
-    background: Color(0xFFEAF1FF),
+  if (status.contains('review')) {
+    return const _WorkspaceColors(
+      foreground: Color(0xFF7047C7),
+      background: Color(0xFFF2EDFC),
+    );
+  }
+
+  if (status.contains('progress') || status.contains('processing')) {
+    return const _WorkspaceColors(
+      foreground: Color(0xFFB76A00),
+      background: Color(0xFFFFF4DF),
+    );
+  }
+
+  if (status.contains('waiting') || status.contains('pending')) {
+    return const _WorkspaceColors(
+      foreground: Color(0xFFC56A00),
+      background: Color(0xFFFFF3E2),
+    );
+  }
+
+  return _WorkspaceColors(
+    foreground: AppTheme.primary,
+    background: AppTheme.primary.withValues(alpha: 0.09),
   );
 }
 

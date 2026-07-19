@@ -16,8 +16,6 @@ const Color _slate = AppTheme.textSecondary;
 const Color _surface = AppTheme.cardSoft;
 const Color _border = AppTheme.border;
 const Color _primary = AppTheme.primary;
-const Color _accent = Color(0xFFE11D48);
-const Color _accentSoft = Color(0xFFFFF1F3);
 
 class ServiceCatalogueScreen extends ConsumerStatefulWidget {
   const ServiceCatalogueScreen({this.initialQuery = '', super.key});
@@ -430,24 +428,28 @@ class _SearchField extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Material(
-          color: hasActiveCategory ? _accentSoft : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          color: hasActiveCategory
+              ? AppTheme.primary.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(14),
           child: InkWell(
             onTap: onFilterTap,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             child: Container(
-              width: 52,
-              height: 52,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: hasActiveCategory ? _accent : _border,
+                  color: hasActiveCategory
+                      ? AppTheme.primary.withValues(alpha: 0.32)
+                      : _border,
                 ),
               ),
               child: Icon(
                 Icons.tune_rounded,
-                size: 21,
-                color: hasActiveCategory ? _accent : _slate,
+                size: 20,
+                color: hasActiveCategory ? AppTheme.primary : _slate,
               ),
             ),
           ),
@@ -471,7 +473,7 @@ class _CategoryStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 38,
+      height: 36,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -479,29 +481,69 @@ class _CategoryStrip extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final category = categories[index];
-          final selected = selectedCategory == category;
-          return ChoiceChip(
-            label: Text(
-              category == 'All'
-                  ? 'All services'
-                  : _displayCategoryLabel(category),
-            ),
-            selected: selected,
-            showCheckmark: false,
-            selectedColor: _accent,
-            backgroundColor: Colors.white,
-            side: BorderSide(color: selected ? _accent : _border),
-            labelStyle: TextStyle(
-              color: selected ? Colors.white : _slate,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
-            ),
-            onSelected: (_) => onSelected(category),
+
+          return _ServiceFilterChip(
+            label: category == 'All'
+                ? 'All services'
+                : _displayCategoryLabel(category),
+            selected: selectedCategory == category,
+            onTap: () => onSelected(category),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ServiceFilterChip extends StatelessWidget {
+  const _ServiceFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.compact = true,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(11);
+
+    return Material(
+      color: selected ? AppTheme.primary.withValues(alpha: 0.10) : Colors.white,
+      borderRadius: radius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: Container(
+          alignment: Alignment.center,
+          constraints: BoxConstraints(minHeight: compact ? 36 : 40),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 13 : 14,
+            vertical: compact ? 8 : 10,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(
+              color: selected
+                  ? AppTheme.primary.withValues(alpha: 0.32)
+                  : _border,
+            ),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? AppTheme.primary : const Color(0xFF686D76),
+              fontSize: compact ? 11 : 11.5,
+              fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -777,10 +819,9 @@ class _ServiceCard extends StatelessWidget {
               if (internal)
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
+                  child: OutlinedButton(
                     onPressed: onOpen,
-                    icon: const Icon(Icons.visibility_outlined, size: 18),
-                    label: const Text('View service'),
+                    child: const Text('View service'),
                   ),
                 )
               else
@@ -972,19 +1013,11 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
+    return _ServiceFilterChip(
+      label: label,
       selected: selected,
-      showCheckmark: false,
-      selectedColor: _accent,
-      backgroundColor: Colors.white,
-      side: BorderSide(color: selected ? _accent : _border),
-      labelStyle: TextStyle(
-        color: selected ? Colors.white : _slate,
-        fontWeight: FontWeight.w800,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-      onSelected: (_) => onTap(),
+      onTap: onTap,
+      compact: false,
     );
   }
 }

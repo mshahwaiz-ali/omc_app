@@ -9,7 +9,7 @@ import '../../../core/widgets/premium_card.dart';
 import '../domain/internal_service_case.dart';
 import 'internal_workspace_providers.dart';
 
-const EdgeInsets _kCasesPadding = EdgeInsets.fromLTRB(20, 12, 20, 148);
+const EdgeInsets _kCasesPadding = EdgeInsets.fromLTRB(20, 10, 20, 148);
 
 const List<String> _primaryFilters = [
   'All',
@@ -153,7 +153,7 @@ class _InternalServiceCasesScreenState
                         attentionCount: attentionCount,
                         visibleCount: visibleCases.length,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       _SearchBar(
                         controller: _searchController,
                         onChanged: _updateSearch,
@@ -161,7 +161,7 @@ class _InternalServiceCasesScreenState
                         filtersActive:
                             _statusFilter != 'All' || _documentFilter != 'All',
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       _PrimaryFilters(
                         selected: _primaryFilter,
                         onSelected: (value) {
@@ -182,13 +182,13 @@ class _InternalServiceCasesScreenState
                           },
                         ),
                       ],
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       if (visibleCases.isEmpty)
                         const _EmptyCasesView()
                       else
                         for (final serviceCase in visibleCases)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: _InternalCaseCard(serviceCase: serviceCase),
                           ),
                     ],
@@ -292,73 +292,51 @@ class _CasesOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 15, 14, 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6E8ED)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F3F7),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: const Icon(
-              Icons.work_outline_rounded,
-              size: 22,
-              color: Color(0xFF35383F),
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            '$visibleCount ${visibleCount == 1 ? 'case' : 'cases'}',
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.1,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$visibleCount ${visibleCount == 1 ? 'case' : 'cases'} shown',
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    height: 1.1,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '$activeCount active  •  $attentionCount need attention',
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.2,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+        ),
+        Text(
+          '$activeCount active',
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
           ),
-          if (attentionCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF4E5),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '$attentionCount priority',
-                style: const TextStyle(
-                  color: Color(0xFFA76100),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
+        ),
+        if (attentionCount > 0) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 7),
+            child: SizedBox(
+              width: 3,
+              height: 3,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xFFB3B7BE),
+                  shape: BoxShape.circle,
                 ),
               ),
             ),
+          ),
+          Text(
+            '$attentionCount need attention',
+            style: const TextStyle(
+              color: Color(0xFFA76100),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -379,16 +357,16 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 54,
-      padding: const EdgeInsets.only(left: 15, right: 6),
+      height: 48,
+      padding: const EdgeInsets.only(left: 13, right: 5),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE1E4EA)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, size: 22, color: Color(0xFF6D7179)),
+          const Icon(Icons.search_rounded, size: 20, color: Color(0xFF6D7179)),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -426,8 +404,8 @@ class _SearchBar extends StatelessWidget {
               onTap: onFilterPressed,
               borderRadius: BorderRadius.circular(13),
               child: SizedBox(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 child: Stack(
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
@@ -470,74 +448,73 @@ class _PrimaryFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 45,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEDEFF3),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        children: [
-          for (final item in _primaryFilters)
-            Expanded(
-              child: _SegmentItem(
-                label: item,
-                selected: selected == item,
-                onTap: () => onSelected(item),
-              ),
-            ),
-        ],
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _primaryFilters.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final item = _primaryFilters[index];
+
+          return _CaseFilterChip(
+            label: item,
+            selected: selected == item,
+            onTap: () => onSelected(item),
+          );
+        },
       ),
     );
   }
 }
 
-class _SegmentItem extends StatelessWidget {
-  const _SegmentItem({
+class _CaseFilterChip extends StatelessWidget {
+  const _CaseFilterChip({
     required this.label,
     required this.selected,
     required this.onTap,
+    this.compact = true,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(11);
+
     return Material(
-      color: selected ? Colors.white : Colors.transparent,
-      borderRadius: BorderRadius.circular(11),
+      color: selected ? AppTheme.primary.withValues(alpha: 0.10) : Colors.white,
+      borderRadius: radius,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: radius,
         child: Container(
           alignment: Alignment.center,
-          decoration: selected
-              ? BoxDecoration(
-                  borderRadius: BorderRadius.circular(11),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x0D111827),
-                      blurRadius: 7,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                )
-              : null,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(
-                color: selected
-                    ? AppTheme.textPrimary
-                    : const Color(0xFF727780),
-                fontSize: 11,
-                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
-              ),
+          constraints: BoxConstraints(minHeight: compact ? 36 : 40),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 13 : 14,
+            vertical: compact ? 8 : 10,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(
+              color: selected
+                  ? AppTheme.primary.withValues(alpha: 0.32)
+                  : const Color(0xFFE1E4E9),
+            ),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? AppTheme.primary : const Color(0xFF686D76),
+              fontSize: compact ? 11 : 11.5,
+              fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
             ),
           ),
         ),
@@ -611,60 +588,45 @@ class _InternalCaseCard extends StatelessWidget {
     final workspacePath =
         '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}';
     final tone = _statusTone(serviceCase.status);
-
     final totalDocuments =
         serviceCase.pendingDocuments +
         serviceCase.uploadedDocuments +
         serviceCase.approvedDocuments +
         serviceCase.rejectedDocuments;
-
     final receivedDocuments =
         serviceCase.uploadedDocuments +
         serviceCase.approvedDocuments +
         serviceCase.rejectedDocuments;
 
-    final progress = totalDocuments <= 0
-        ? (_isClosedStatus(serviceCase.status) ? 1.0 : 0.0)
-        : (receivedDocuments / totalDocuments).clamp(0.0, 1.0);
-
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(19),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: () => context.go(workspacePath),
-        borderRadius: BorderRadius.circular(19),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 14, 14),
+          padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(19),
-            border: Border.all(color: const Color(0xFFE5E7EC)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x080B1633),
-                blurRadius: 14,
-                offset: Offset(0, 5),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE3E6EB)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _CaseHeader(serviceCase: serviceCase, tone: tone),
-              const SizedBox(height: 14),
+              const SizedBox(height: 11),
               _DocumentProgressPanel(
                 serviceCase: serviceCase,
-                progress: progress,
                 receivedDocuments: receivedDocuments,
                 totalDocuments: totalDocuments,
-                tone: tone,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               _CaseMetaRow(serviceCase: serviceCase),
-              const SizedBox(height: 12),
+              const SizedBox(height: 9),
               _NextStepRow(serviceCase: serviceCase),
               if (_needsAttention(serviceCase) &&
                   serviceCase.canReviewDocuments) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _ReviewAction(onTap: () => context.go(workspacePath)),
               ],
             ],
@@ -687,46 +649,46 @@ class _CaseHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 43,
-          height: 43,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: const Color(0xFFF1F3F6),
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(11),
           ),
-          child: Icon(
-            Icons.person_outline_rounded,
-            color: tone.color,
-            size: 22,
+          child: const Icon(
+            Icons.work_outline_rounded,
+            color: Color(0xFF555B64),
+            size: 19,
           ),
         ),
-        const SizedBox(width: 11),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                serviceCase.displayCustomer,
+                serviceCase.displayService,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
-                  fontSize: 15,
+                  fontSize: 14,
                   height: 1.15,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                serviceCase.displayService,
+                serviceCase.displayCustomer,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Color(0xFF53647A),
+                  color: Color(0xFF59616D),
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 serviceCase.id,
                 maxLines: 1,
@@ -750,118 +712,65 @@ class _CaseHeader extends StatelessWidget {
 class _DocumentProgressPanel extends StatelessWidget {
   const _DocumentProgressPanel({
     required this.serviceCase,
-    required this.progress,
     required this.receivedDocuments,
     required this.totalDocuments,
-    required this.tone,
   });
 
   final InternalServiceCase serviceCase;
-  final double progress;
   final int receivedDocuments;
   final int totalDocuments;
-  final _CaseTone tone;
 
   @override
   Widget build(BuildContext context) {
     final completed = _isClosedStatus(serviceCase.status);
-    final percentage = (progress * 100).round();
+    final summary = completed
+        ? 'Documents completed'
+        : totalDocuments > 0
+        ? '$receivedDocuments of $totalDocuments documents received'
+        : serviceCase.documentSummaryLabel;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F8FA),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFEBEDF1)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9EBEF)),
       ),
-      child: completed
-          ? Row(
-              children: [
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF198754),
-                  size: 21,
-                ),
-                const SizedBox(width: 9),
-                const Expanded(
-                  child: Text(
-                    'Documents completed',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: Color(0xFF858A92),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.description_outlined,
-                      color: Color(0xFF59616D),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        totalDocuments > 0
-                            ? '$receivedDocuments of $totalDocuments documents received'
-                            : serviceCase.documentSummaryLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    if (serviceCase.pendingDocuments > 0)
-                      Text(
-                        '${serviceCase.pendingDocuments} missing',
-                        style: const TextStyle(
-                          color: Color(0xFFA76100),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: LinearProgressIndicator(
-                          minHeight: 5,
-                          value: progress,
-                          backgroundColor: const Color(0xFFE1E4E9),
-                          valueColor: AlwaysStoppedAnimation<Color>(tone.color),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '$percentage%',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+      child: Row(
+        children: [
+          Icon(
+            completed
+                ? Icons.check_circle_outline_rounded
+                : Icons.description_outlined,
+            color: const Color(0xFF646A73),
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              summary,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
             ),
+          ),
+          if (!completed && serviceCase.pendingDocuments > 0) ...[
+            const SizedBox(width: 8),
+            Text(
+              '${serviceCase.pendingDocuments} missing',
+              style: const TextStyle(
+                color: Color(0xFFA76100),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1189,7 +1098,7 @@ class _AdvancedFilterSheet extends StatelessWidget {
                         );
                       },
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.textPrimary,
+                        backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1226,39 +1135,11 @@ class _FilterOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? AppTheme.primary.withValues(alpha: 0.08)
-          : const Color(0xFFF3F4F6),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (selected) ...[
-                const Icon(
-                  Icons.check_rounded,
-                  size: 15,
-                  color: AppTheme.primary,
-                ),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? AppTheme.primary : const Color(0xFF575C65),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return _CaseFilterChip(
+      label: label,
+      selected: selected,
+      onTap: onTap,
+      compact: false,
     );
   }
 }
