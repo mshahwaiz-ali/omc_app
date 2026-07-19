@@ -16,7 +16,7 @@ def _resolved_accent_color(settings):
 def get_mobile_app_config():
     """Return the public mobile config with one accent-color source of truth."""
     payload = mobile.get_mobile_app_config()
-    settings = mobile._get_single_settings("OMC Mobile Settings")
+    settings = mobile._get_single_settings("OMC Branding Settings")
 
     branding = dict(payload.get("branding") or {})
     branding.pop("primary_color_family", None)
