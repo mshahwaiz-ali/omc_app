@@ -12,6 +12,7 @@ import '../features/profile/data/profile_repository.dart';
 import 'navigation/omc_bottom_nav.dart';
 import 'navigation/omc_more_sheet.dart';
 import 'navigation/omc_quick_actions_sheet.dart';
+import 'route_access_policy.dart';
 
 class ShellNavScaffold extends ConsumerWidget {
   const ShellNavScaffold({
@@ -62,7 +63,7 @@ class ShellNavScaffold extends ConsumerWidget {
   }
 
   bool _isInternal(AuthCapabilities capabilities) {
-    return capabilities.canAccessInternalWorkspace || capabilities.isInternal;
+    return capabilities.canAccessInternalWorkspace;
   }
 
   void _openTab(
@@ -118,11 +119,7 @@ class ShellNavScaffold extends ConsumerWidget {
       ),
       onOpenPayments: () => _openWhenAllowed(
         context: context,
-        allowed:
-            capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
+        allowed: canAccessRoute('/payments', capabilities),
         path: '/payments',
         capabilities: capabilities,
       ),
@@ -169,10 +166,7 @@ class ShellNavScaffold extends ConsumerWidget {
       avatarUrl: profile?.avatarUrl ?? authState.avatarUrl,
       onOpenDashboard: () => _openWhenAllowed(
         context: context,
-        allowed:
-            capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.canAccessInternalWorkspace,
+        allowed: canAccessRoute('/dashboard', capabilities),
         path: '/dashboard',
         capabilities: capabilities,
       ),
@@ -184,21 +178,13 @@ class ShellNavScaffold extends ConsumerWidget {
       ),
       onOpenPayments: () => _openWhenAllowed(
         context: context,
-        allowed:
-            capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
+        allowed: canAccessRoute('/payments', capabilities),
         path: '/payments',
         capabilities: capabilities,
       ),
       onOpenNotifications: () => _openWhenAllowed(
         context: context,
-        allowed:
-            capabilities.canViewCustomerNotifications ||
-            capabilities.isApproved ||
-            capabilities.isInternal ||
-            capabilities.canAccessInternalWorkspace,
+        allowed: canAccessRoute('/notifications', capabilities),
         path: '/notifications',
         capabilities: capabilities,
       ),
@@ -206,7 +192,7 @@ class ShellNavScaffold extends ConsumerWidget {
       onOpenExpenseTracker: () => context.go('/expense-tracker'),
       onOpenBudget: () => _openWhenAllowed(
         context: context,
-        allowed: capabilities.isApproved,
+        allowed: canAccessRoute('/expense-budget', capabilities),
         path: '/expense-budget',
         capabilities: capabilities,
       ),
@@ -214,13 +200,13 @@ class ShellNavScaffold extends ConsumerWidget {
       onOpenSupport: () => context.go('/support'),
       onOpenProfile: () => _openWhenAllowed(
         context: context,
-        allowed: !capabilities.isGuest,
+        allowed: canAccessRoute('/profile', capabilities),
         path: '/profile',
         capabilities: capabilities,
       ),
       onOpenSettings: () => _openWhenAllowed(
         context: context,
-        allowed: !capabilities.isGuest,
+        allowed: canAccessRoute('/settings', capabilities),
         path: '/settings',
         capabilities: capabilities,
       ),
@@ -257,19 +243,11 @@ class ShellNavScaffold extends ConsumerWidget {
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {
-    return capabilities.canTrackRequests ||
-        capabilities.canViewCustomerDashboard ||
-        capabilities.canAccessCustomerDashboard ||
-        capabilities.isApproved ||
-        capabilities.canAccessInternalWorkspace;
+    return canAccessRoute('/my-services', capabilities);
   }
 
   bool _canOpenDocuments(AuthCapabilities capabilities) {
-    return capabilities.canViewDocuments ||
-        capabilities.canReviewDocuments ||
-        capabilities.isApproved ||
-        capabilities.isInternal ||
-        capabilities.canAccessInternalWorkspace;
+    return canAccessRoute('/documents', capabilities);
   }
 
   void _showLockedSnack(BuildContext context, AuthCapabilities capabilities) {

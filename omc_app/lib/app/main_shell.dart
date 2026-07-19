@@ -18,6 +18,7 @@ import '../features/service_requests/presentation/my_services_screen.dart';
 import 'navigation/omc_bottom_nav.dart';
 import 'navigation/omc_more_sheet.dart';
 import 'navigation/omc_quick_actions_sheet.dart';
+import 'route_access_policy.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({
@@ -81,23 +82,15 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   bool _isInternal(AuthCapabilities capabilities) {
-    return capabilities.canAccessInternalWorkspace || capabilities.isInternal;
+    return capabilities.canAccessInternalWorkspace;
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {
-    return capabilities.canTrackRequests ||
-        capabilities.canViewCustomerDashboard ||
-        capabilities.canAccessCustomerDashboard ||
-        capabilities.isApproved ||
-        capabilities.canAccessInternalWorkspace;
+    return canAccessRoute('/my-services', capabilities);
   }
 
   bool _canOpenDocuments(AuthCapabilities capabilities) {
-    return capabilities.canViewDocuments ||
-        capabilities.canReviewDocuments ||
-        capabilities.isApproved ||
-        capabilities.isInternal ||
-        capabilities.canAccessInternalWorkspace;
+    return canAccessRoute('/documents', capabilities);
   }
 
   void _openWhenAllowed({
@@ -158,11 +151,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         capabilities: capabilities,
       ),
       onOpenPayments: () => _openWhenAllowed(
-        allowed:
-            capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
+        allowed: canAccessRoute('/payments', capabilities),
         path: '/payments',
         capabilities: capabilities,
       ),
@@ -207,10 +196,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       customerStatus: profile?.status ?? authState.customerStatus,
       avatarUrl: profile?.avatarUrl ?? authState.avatarUrl,
       onOpenDashboard: () => _openWhenAllowed(
-        allowed:
-            capabilities.canViewCustomerDashboard ||
-            capabilities.canAccessCustomerDashboard ||
-            capabilities.canAccessInternalWorkspace,
+        allowed: canAccessRoute('/dashboard', capabilities),
         path: '/dashboard',
         capabilities: capabilities,
       ),
@@ -220,39 +206,31 @@ class _MainShellState extends ConsumerState<MainShell> {
         capabilities: capabilities,
       ),
       onOpenPayments: () => _openWhenAllowed(
-        allowed:
-            capabilities.canViewPayments ||
-            capabilities.canReviewPayments ||
-            capabilities.isApproved ||
-            capabilities.isInternal,
+        allowed: canAccessRoute('/payments', capabilities),
         path: '/payments',
         capabilities: capabilities,
       ),
       onOpenNotifications: () => _openWhenAllowed(
-        allowed:
-            capabilities.canViewCustomerNotifications ||
-            capabilities.isApproved ||
-            capabilities.isInternal ||
-            capabilities.canAccessInternalWorkspace,
+        allowed: canAccessRoute('/notifications', capabilities),
         path: '/notifications',
         capabilities: capabilities,
       ),
       onOpenTaxCalculator: () => _openPath('/tax-calculator'),
       onOpenExpenseTracker: () => _openPath('/expense-tracker'),
       onOpenBudget: () => _openWhenAllowed(
-        allowed: capabilities.isApproved,
+        allowed: canAccessRoute('/expense-budget', capabilities),
         path: '/expense-budget',
         capabilities: capabilities,
       ),
       onOpenKnowledge: () => _openPath('/knowledge'),
       onOpenSupport: () => _openPath('/support'),
       onOpenProfile: () => _openWhenAllowed(
-        allowed: !capabilities.isGuest,
+        allowed: canAccessRoute('/profile', capabilities),
         path: '/profile',
         capabilities: capabilities,
       ),
       onOpenSettings: () => _openWhenAllowed(
-        allowed: !capabilities.isGuest,
+        allowed: canAccessRoute('/settings', capabilities),
         path: '/settings',
         capabilities: capabilities,
       ),
