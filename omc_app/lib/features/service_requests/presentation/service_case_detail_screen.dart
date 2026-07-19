@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
@@ -54,13 +54,24 @@ class _ServiceCaseDetailScreenState
               top: false,
               child: caseAsync.when(
                 loading: () => const _LoadingView(),
-                error: (error, stackTrace) => _ErrorView(
-                  title: 'Tracking detail unavailable',
-                  message: _cleanErrorMessage(error),
-                  onRetry: () =>
-                      ref.invalidate(serviceCaseDetailProvider(widget.caseId)),
-                  onSupport: () => SupportLauncher.openWhatsApp(context),
-                ),
+                error: (error, stackTrace) {
+                  final failure = AppFailureClassifier.classify(
+                    error,
+                    fallbackTitle: 'Tracking detail unavailable',
+                    fallbackMessage:
+                        'This service request could not be loaded right now.',
+                  );
+                  return _ErrorView(
+                    title: failure.title,
+                    message: failure.message,
+                    onRetry: failure.canRetry
+                        ? () => ref.invalidate(
+                            serviceCaseDetailProvider(widget.caseId),
+                          )
+                        : null,
+                    onSupport: () => SupportLauncher.openWhatsApp(context),
+                  );
+                },
                 data: (serviceCase) {
                   if (serviceCase == null) {
                     return _ErrorView(
@@ -186,12 +197,14 @@ class _ServiceCaseDetailScreenState
       ref.invalidate(serviceCaseDetailProvider(widget.caseId));
       ref.invalidate(serviceCasesProvider);
       _showSnack('Service request cancelled successfully.');
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      _showSnack(error.message);
-    } catch (_) {
-      if (!mounted) return;
-      _showSnack('Service request could not be cancelled right now.');
+      _showSnack(
+        _safeMutationMessage(
+          error,
+          'Service request could not be cancelled right now.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isCancellingRequest = false);
     }
@@ -229,12 +242,14 @@ class _ServiceCaseDetailScreenState
       ref.invalidate(serviceCaseDetailProvider(widget.caseId));
       ref.invalidate(serviceCasesProvider);
       _showSnack('${document.title} marked as $status.');
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      _showSnack(error.message);
-    } catch (_) {
-      if (!mounted) return;
-      _showSnack('Document status could not be updated right now.');
+      _showSnack(
+        _safeMutationMessage(
+          error,
+          'Document status could not be updated right now.',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isUpdatingDocumentStatus = false);
     }
@@ -303,14 +318,13 @@ class _ServiceCaseDetailScreenState
             ? '${document.title} uploaded successfully.'
             : 'Document upload completed, but no saved file was returned.',
       );
-    } on ApiError catch (error) {
-      if (!mounted) return;
-      _showSnack(error.message);
-      rethrow;
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       _showSnack(
-        'Missing document could not be uploaded right now. Please try again.',
+        _safeMutationMessage(
+          error,
+          'Missing document could not be uploaded right now. Please try again.',
+        ),
       );
       rethrow;
     } finally {
@@ -354,6 +368,13 @@ class _ServiceCaseDetailScreenState
     if (id.isNotEmpty && id != '-') return id;
 
     return null;
+  }
+
+  String _safeMutationMessage(Object error, String fallbackMessage) {
+    return AppFailureClassifier.classify(
+      error,
+      fallbackMessage: fallbackMessage,
+    ).message;
   }
 
   void _showSnack(String message) {
@@ -861,13 +882,13 @@ class _ErrorView extends StatelessWidget {
   const _ErrorView({
     required this.title,
     required this.message,
-    required this.onRetry,
+    this.onRetry,
     required this.onSupport,
   });
 
   final String title;
   final String message;
-  final VoidCallback onRetry;
+  final VoidCallback? onRetry;
   final VoidCallback onSupport;
 
   @override
@@ -906,44 +927,41 @@ class _ErrorView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: onRetry,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Retry'),
+              if (onRetry != null)
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Retry'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: onSupport,
-                      icon: const Icon(Icons.support_agent_rounded),
-                      label: const Text('Support'),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onSupport,
+                        icon: const Icon(Icons.support_agent_rounded),
+                        label: const Text('Support'),
+                      ),
                     ),
+                  ],
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onSupport,
+                    icon: const Icon(Icons.support_agent_rounded),
+                    label: const Text('Contact support'),
                   ),
-                ],
-              ),
+                ),
             ],
           ),
         ),
       ),
     );
   }
-}
-
-String _cleanErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final rawMessage = error.toString().replaceFirst('ApiError:', '').trim();
-  if (rawMessage.isEmpty) {
-    return 'Service tracking detail is unavailable right now.';
-  }
-
-  return rawMessage;
 }
 
 class _CaseHero extends StatelessWidget {

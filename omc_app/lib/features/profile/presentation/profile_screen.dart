@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
@@ -60,11 +60,12 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 String _profileErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  return 'Full customer profile is unavailable right now. Please try again.';
+  return AppFailureClassifier.classify(
+    error,
+    fallbackTitle: 'Profile unavailable',
+    fallbackMessage:
+        'Full customer profile is unavailable right now. Please try again.',
+  ).message;
 }
 
 class _ProfileLoadingView extends StatelessWidget {
@@ -259,6 +260,9 @@ class _ProfileUnavailableView extends StatelessWidget {
   }
 }
 
+bool _profilePhotoUploadInFlight = false;
+bool _profileRequestSubmissionInFlight = false;
+
 class _ProfileContent extends StatelessWidget {
   const _ProfileContent({required this.profile, required this.ref});
 
@@ -406,6 +410,15 @@ class _ProfileContent extends StatelessWidget {
   }
 
   Future<void> _changeProfilePhoto(BuildContext context, WidgetRef ref) async {
+    if (_profilePhotoUploadInFlight) {
+      _showBackendPendingSnack(
+        context,
+        'Profile photo upload is already running.',
+      );
+      return;
+    }
+
+    _profilePhotoUploadInFlight = true;
     try {
       final picker = ImagePicker();
       final image = await picker.pickImage(
@@ -432,13 +445,18 @@ class _ProfileContent extends StatelessWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
-    } catch (_) {
+    } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not update profile photo. Please try again.'),
-        ),
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Profile photo not updated',
+        fallbackMessage: 'Could not update profile photo. Please try again.',
       );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      _profilePhotoUploadInFlight = false;
     }
   }
 
@@ -506,6 +524,7 @@ class _ProfileContent extends StatelessWidget {
 
     final cleanMessage = message?.trim();
     if (cleanMessage == null || cleanMessage.isEmpty) return;
+    if (!context.mounted) return;
 
     final profileSnapshot = includeProfileSnapshot
         ? '''
@@ -519,6 +538,15 @@ NTN: ${profile.ntn ?? 'Not available'}
 Company: ${profile.companyName ?? 'Not available'}'''
         : '';
 
+    if (_profileRequestSubmissionInFlight) {
+      _showBackendPendingSnack(
+        context,
+        'A profile request is already being submitted.',
+      );
+      return;
+    }
+
+    _profileRequestSubmissionInFlight = true;
     try {
       await ref
           .read(supportRepositoryProvider)
@@ -531,15 +559,19 @@ Company: ${profile.companyName ?? 'Not available'}'''
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$title submitted to OMC support.')),
       );
-    } catch (_) {
+    } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Could not submit request right now. Please try again.',
-          ),
-        ),
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Request not submitted',
+        fallbackMessage:
+            'Could not submit request right now. Your entered details were not changed.',
       );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      _profileRequestSubmissionInFlight = false;
     }
   }
 

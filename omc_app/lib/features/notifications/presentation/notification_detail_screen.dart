@@ -5,10 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../data/notification_item.dart';
 import '../data/notifications_repository.dart';
 
@@ -29,38 +29,35 @@ class NotificationDetailScreen extends ConsumerWidget {
         child: notificationAsync.when(
           data: (notification) {
             if (notification == null) {
-              return PremiumEmptyState(
-                icon: Icons.notifications_none_rounded,
-                title: 'Notification details unavailable',
-                message:
-                    'Notification $notificationId could not be loaded right now. Full message, reference, and actions will appear when data is available.',
+              return const Padding(
+                padding: EdgeInsets.all(20),
+                child: AppEmptyState(
+                  icon: Icons.notifications_none_rounded,
+                  title: 'Notification unavailable',
+                  message:
+                      'This notification may have been removed or is no longer available.',
+                ),
               );
             }
 
             return _NotificationDetailBody(notification: notification);
           },
           loading: () => const _NotificationDetailLoadingView(),
-          error: (error, _) => PremiumEmptyState(
-            icon: Icons.cloud_off_rounded,
-            title: 'Notification unavailable',
-            message: _cleanError(error),
+          error: (error, _) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: AppErrorState.fromError(
+              error: error,
+              fallbackTitle: 'Notification unavailable',
+              fallbackMessage:
+                  'Notification details could not be loaded right now. Please try again.',
+              onRetry: () =>
+                  ref.invalidate(notificationDetailProvider(notificationId)),
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-String _cleanError(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  if (message.isEmpty) {
-    return 'Notification details could not be loaded right now. Please try again.';
-  }
-  return message;
 }
 
 class _NotificationDetailBody extends ConsumerStatefulWidget {
@@ -177,19 +174,12 @@ class _NotificationDetailBodyState
     } catch (error) {
       if (!mounted || !showSnack) return;
 
-      final message = error is ApiError && error.message.trim().isNotEmpty
-          ? error.message.trim()
-          : error.toString().replaceFirst('ApiError:', '').trim();
-
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            message.isEmpty
-                ? 'Could not mark this notification as read yet.'
-                : message,
-          ),
-        ),
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Read status not updated',
+        fallbackMessage: 'Could not mark this notification as read yet.',
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) {
         setState(() => _isMarkingRead = false);
@@ -256,7 +246,15 @@ class _NotificationDetailBodyState
 
   Future<void> _openActionUrl(BuildContext context, String url) async {
     if (url.startsWith('/')) {
-      context.push(url);
+      final destination = _safeInternalDestination(url);
+      if (destination == null) {
+        _showBackendPendingSnack(
+          context,
+          'This notification action is not supported in the app.',
+        );
+        return;
+      }
+      context.push(destination);
       return;
     }
 
@@ -269,14 +267,24 @@ class _NotificationDetailBodyState
       return;
     }
 
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!context.mounted) return;
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!context.mounted) return;
 
-    if (!opened) {
-      _showBackendPendingSnack(
-        context,
-        'Notification action could not be opened right now.',
+      if (!opened) {
+        _showBackendPendingSnack(
+          context,
+          'Notification action could not be opened right now.',
+        );
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Notification action unavailable',
+        fallbackMessage: 'Notification action could not be opened right now.',
       );
+      _showBackendPendingSnack(context, failure.message);
     }
   }
 
@@ -285,7 +293,7 @@ class _NotificationDetailBodyState
     if (uri == null) return null;
 
     if (uri.hasScheme) {
-      return uri;
+      return _isAllowedExternalScheme(uri.scheme) ? uri : null;
     }
 
     if (!url.startsWith('/')) {
@@ -298,6 +306,28 @@ class _NotificationDetailBodyState
     }
 
     return baseUri.resolve(url);
+  }
+
+  String? _safeInternalDestination(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.host.isNotEmpty || uri.scheme.isNotEmpty) {
+      return null;
+    }
+
+    const allowedPrefixes = <String>[
+      '/my-services/',
+      '/payments/',
+      '/documents/',
+      '/notifications/',
+      '/services/',
+      '/support',
+    ];
+    return allowedPrefixes.any(uri.path.startsWith) ? uri.toString() : null;
+  }
+
+  bool _isAllowedExternalScheme(String scheme) {
+    final normalized = scheme.toLowerCase();
+    return normalized == 'https' || normalized == 'http';
   }
 
   void _showBackendPendingSnack(BuildContext context, String message) {

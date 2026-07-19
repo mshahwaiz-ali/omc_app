@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../data/payment_item.dart';
@@ -29,11 +29,14 @@ class PaymentDetailScreen extends ConsumerWidget {
       body: paymentAsync.when(
         data: (payment) {
           if (payment == null) {
-            return PremiumEmptyState(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'Payment details unavailable',
-              message:
-                  'Payment $paymentId could not be loaded right now. Invoice, receipt, and payment actions will appear when data is available.',
+            return const Padding(
+              padding: EdgeInsets.all(20),
+              child: AppEmptyState(
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Payment unavailable',
+                message:
+                    'This payment may have been removed or is no longer available.',
+              ),
             );
           }
 
@@ -44,10 +47,15 @@ class PaymentDetailScreen extends ConsumerWidget {
           title: 'Loading payment',
           message: 'Fetching invoice, receipt and payment action details.',
         ),
-        error: (error, _) => PremiumEmptyState(
-          icon: Icons.cloud_off_rounded,
-          title: 'Payment unavailable',
-          message: _cleanError(error),
+        error: (error, _) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: AppErrorState.fromError(
+            error: error,
+            fallbackTitle: 'Payment unavailable',
+            fallbackMessage:
+                'Payment details could not be loaded right now. Please try again.',
+            onRetry: () => ref.invalidate(paymentDetailProvider(paymentId)),
+          ),
         ),
       ),
     );
@@ -179,18 +187,6 @@ class _LoadingBar extends StatelessWidget {
       ),
     );
   }
-}
-
-String _cleanError(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  if (message.isEmpty) {
-    return 'Payment details could not be loaded right now. Please try again.';
-  }
-  return message;
 }
 
 class _PaymentHeroCard extends StatelessWidget {
@@ -745,16 +741,15 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
 
       ref.invalidate(paymentDetailProvider(payment.id));
       ref.invalidate(paymentsProvider);
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!context.mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!context.mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Payment review could not be completed right now.'),
-        ),
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Payment review failed',
+        fallbackMessage:
+            'Payment review could not be completed right now. Please try again.',
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) {
         setState(() => _isReviewingReceipt = false);
@@ -763,6 +758,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   }
 
   Future<void> _pickAndUploadReceipt(BuildContext context) async {
+    if (_isUploadingReceipt) return;
+
     final capabilities = ref.read(authControllerProvider).capabilities;
     if (!capabilities.canUploadPaymentReceipt) {
       _showSnack(
@@ -810,18 +807,15 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
 
       ref.invalidate(paymentDetailProvider(payment.id));
       ref.invalidate(paymentsProvider);
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!context.mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!context.mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Receipt upload failed',
+        fallbackMessage:
             'Receipt upload could not be completed right now. Please try again.',
-          ),
-        ),
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) {
         setState(() => _isUploadingReceipt = false);
@@ -846,11 +840,21 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       return;
     }
 
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!context.mounted) return;
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!context.mounted) return;
 
-    if (!opened) {
-      _showSnack(context, 'Payment link could not be opened right now.');
+      if (!opened) {
+        _showSnack(context, 'Payment link could not be opened right now.');
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Payment link unavailable',
+        fallbackMessage: 'Payment link could not be opened right now.',
+      );
+      _showSnack(context, failure.message);
     }
   }
 
@@ -859,7 +863,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     if (uri == null) return null;
 
     if (uri.hasScheme) {
-      return uri;
+      return _isAllowedWebScheme(uri.scheme) ? uri : null;
     }
 
     if (!url.startsWith('/')) {
@@ -872,6 +876,11 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     }
 
     return baseUri.resolve(url);
+  }
+
+  bool _isAllowedWebScheme(String scheme) {
+    final normalized = scheme.toLowerCase();
+    return normalized == 'https' || normalized == 'http';
   }
 
   void _showSnack(BuildContext context, String message) {

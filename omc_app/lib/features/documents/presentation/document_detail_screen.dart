@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/api_config.dart';
+import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_state.dart';
 import '../../../core/network/api_error.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../application/document_attachment_controller.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
@@ -27,11 +28,14 @@ class DocumentDetailScreen extends ConsumerWidget {
       body: documentAsync.when(
         data: (document) {
           if (document == null) {
-            return PremiumEmptyState(
-              icon: Icons.description_rounded,
-              title: 'Document details unavailable',
-              message:
-                  'Document $documentId could not be loaded right now. File status, remarks, and service links will appear when data is available.',
+            return const Padding(
+              padding: EdgeInsets.all(20),
+              child: AppEmptyState(
+                icon: Icons.description_rounded,
+                title: 'Document unavailable',
+                message:
+                    'This document may have been removed or is no longer available.',
+              ),
             );
           }
 
@@ -42,10 +46,15 @@ class DocumentDetailScreen extends ConsumerWidget {
           title: 'Loading document',
           message: 'Fetching file status, remarks and linked service details.',
         ),
-        error: (error, _) => PremiumEmptyState(
-          icon: Icons.cloud_off_rounded,
-          title: 'Document unavailable',
-          message: _cleanError(error),
+        error: (error, _) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: AppErrorState.fromError(
+            error: error,
+            fallbackTitle: 'Document unavailable',
+            fallbackMessage:
+                'Document details could not be loaded right now. Please try again.',
+            onRetry: () => ref.invalidate(documentDetailProvider(documentId)),
+          ),
         ),
       ),
     );
@@ -177,18 +186,6 @@ class _LoadingBar extends StatelessWidget {
       ),
     );
   }
-}
-
-String _cleanError(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  final message = error.toString().replaceFirst('ApiError:', '').trim();
-  if (message.isEmpty) {
-    return 'Document details could not be loaded right now. Please try again.';
-  }
-  return message;
 }
 
 class _DocumentHeroCard extends StatelessWidget {
@@ -618,6 +615,8 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
   }
 
   Future<void> _pickAndStageUpload(BuildContext context) async {
+    if (_isUploading) return;
+
     final controller = ref.read(documentAttachmentControllerProvider);
     final result = await controller.pickDocuments();
 
@@ -663,18 +662,15 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
 
       ref.invalidate(documentDetailProvider(document.id));
       ref.invalidate(documentsProvider);
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!context.mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!context.mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Document upload failed',
+        fallbackMessage:
             'Document upload could not be completed right now. Please try again.',
-          ),
-        ),
       );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
       if (mounted) {
         setState(() => _isUploading = false);
@@ -699,11 +695,21 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
       return;
     }
 
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!context.mounted) return;
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!context.mounted) return;
 
-    if (!opened) {
-      _showSnack(context, 'Document link could not be opened right now.');
+      if (!opened) {
+        _showSnack(context, 'Document link could not be opened right now.');
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Document link unavailable',
+        fallbackMessage: 'Document link could not be opened right now.',
+      );
+      _showSnack(context, failure.message);
     }
   }
 
@@ -712,7 +718,7 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
     if (uri == null) return null;
 
     if (uri.hasScheme) {
-      return uri;
+      return _isAllowedWebScheme(uri.scheme) ? uri : null;
     }
 
     if (!url.startsWith('/')) {
@@ -725,6 +731,11 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
     }
 
     return baseUri.resolve(url);
+  }
+
+  bool _isAllowedWebScheme(String scheme) {
+    final normalized = scheme.toLowerCase();
+    return normalized == 'https' || normalized == 'http';
   }
 
   void _showSnack(BuildContext context, String message) {
