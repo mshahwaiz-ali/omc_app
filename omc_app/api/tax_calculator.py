@@ -23,15 +23,38 @@ FILER_STATUSES = {
 @frappe.whitelist(allow_guest=True)
 def get_tax_calculator_config(tax_year=None, income_type=None):
     settings = _get_settings()
+    if settings.get("_configuration_error"):
+        return {
+            "enabled": False,
+            "reason": "missing_settings",
+            "message": (
+                "Tax calculator setup is incomplete. Calculator settings are not available. "
+                "Please contact OMC support or ask an administrator to configure them."
+            ),
+        }
     if not settings.get("calculator_enabled"):
-        return {"enabled": False, "message": "Tax calculator is currently disabled."}
+        return {
+            "enabled": False,
+            "reason": "disabled",
+            "message": "Tax calculator is currently disabled by an administrator.",
+        }
 
     user = _current_user()
     if user == "Guest" and not settings.get("allow_guest_calculation"):
         return {"enabled": False, "message": "Please login to use the tax calculator."}
 
     year = _get_tax_year(tax_year or settings.get("default_tax_year"))
-    fields = _get_input_fields(year.name if year else None)
+    if not year:
+        return {
+            "enabled": False,
+            "reason": "missing_tax_year",
+            "message": (
+                "Tax calculator is not configured. No active tax year is available. "
+                "Please contact OMC support or ask an administrator to configure one."
+            ),
+        }
+
+    fields = _get_input_fields(year.name)
 
     return {
         "enabled": True,
@@ -60,8 +83,12 @@ def get_tax_calculator_config(tax_year=None, income_type=None):
 def calculate_tax(**kwargs):
     data = _extract_payload(kwargs)
     settings = _get_settings()
+    if settings.get("_configuration_error"):
+        frappe.throw(
+            "Tax calculator settings are not configured. Please contact OMC support."
+        )
     if not settings.get("calculator_enabled"):
-        frappe.throw("Tax calculator is currently disabled.")
+        frappe.throw("Tax calculator is currently disabled by an administrator.")
 
     user = _current_user()
     if user == "Guest" and not settings.get("allow_guest_calculation"):
@@ -89,7 +116,10 @@ def calculate_tax(**kwargs):
 
     slab = _match_slab(year.name, income_type, filer_status, taxable_income)
     if not slab:
-        frappe.throw("No matching tax slab is configured for this income.")
+        frappe.throw(
+            "No active tax slab matches the selected tax year, income type, filer status, and amount."
+        )
+    _validate_slab_configuration(slab)
 
     tax_before_credits = _calculate_slab_tax(taxable_income, slab)
     final_tax = max(0, tax_before_credits - adjustments["credits"])
@@ -356,19 +386,7 @@ def _get_settings():
         doc = frappe.get_single("OMC Tax Calculator Settings")
         return doc.as_dict()
     except Exception:
-        return {
-            "calculator_enabled": 1,
-            "allow_guest_calculation": 1,
-            "show_advanced_mode": 1,
-            "show_breakdown": 1,
-            "show_filer_comparison": 1,
-            "show_tax_health_score": 1,
-            "save_logged_in_calculations": 1,
-            "guest_cta_title": "Create account to save this estimate",
-            "guest_cta_button": "Create Account",
-            "customer_cta_title": "Need OMC to verify and file this?",
-            "customer_cta_button": "Start Tax Filing Service",
-        }
+        return {"_configuration_error": True}
 
 
 def _get_tax_year(name=None):
@@ -467,6 +485,24 @@ def _match_slab(tax_year, income_type, filer_status, taxable_income, allow_fallb
         return _match_slab(tax_year, income_type, "Active Filer", taxable_income, allow_fallback=False)
 
     return None
+
+
+def _validate_slab_configuration(slab):
+    from_amount = flt(slab.from_amount)
+    to_amount = flt(slab.to_amount)
+    rate_percent = flt(slab.rate_percent)
+    amount_over = flt(
+        slab.amount_over if slab.amount_over is not None else slab.from_amount
+    )
+
+    if from_amount < 0 or to_amount < 0:
+        frappe.throw("Tax slab configuration is invalid: amount boundaries cannot be negative.")
+    if to_amount and to_amount < from_amount:
+        frappe.throw("Tax slab configuration is invalid: upper amount is below lower amount.")
+    if rate_percent < 0 or rate_percent > 100:
+        frappe.throw("Tax slab configuration is invalid: tax rate must be between 0 and 100.")
+    if amount_over < 0:
+        frappe.throw("Tax slab configuration is invalid: amount-over threshold cannot be negative.")
 
 
 def _calculate_slab_tax(taxable_income, slab):
