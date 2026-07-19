@@ -5,7 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
@@ -19,6 +19,10 @@ import '../data/settings_repository.dart';
 final appPackageInfoProvider = FutureProvider<PackageInfo>((ref) {
   return PackageInfo.fromPlatform();
 });
+
+bool _settingsPreferenceSaveInFlight = false;
+bool _settingsAccountRequestInFlight = false;
+bool _settingsLogoutInFlight = false;
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -118,13 +122,20 @@ class SettingsScreen extends ConsumerWidget {
                     _savePreferences(context, ref, updatedPreferences),
               ),
               loading: () => const _PreferencesLoadingSection(),
-              error: (error, _) => _PreferencesSection(
-                preferences: const SettingsPreferences(),
-                errorMessage: _settingsErrorMessage(error),
-                onRetry: () => ref.invalidate(settingsPreferencesProvider),
-                onToggle: (updatedPreferences) =>
-                    _savePreferences(context, ref, updatedPreferences),
-              ),
+              error: (error, _) {
+                final failure = AppFailureClassifier.classify(
+                  error,
+                  fallbackTitle: 'Preferences unavailable',
+                  fallbackMessage:
+                      'Notification preferences could not be loaded right now.',
+                );
+                return _PreferencesSection(
+                  preferences: const SettingsPreferences(),
+                  errorMessage: failure.message,
+                  onRetry: () => ref.invalidate(settingsPreferencesProvider),
+                  onToggle: null,
+                );
+              },
             ),
             const SizedBox(height: 20),
             _SettingsSection(
@@ -210,17 +221,24 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     SettingsPreferences preferences,
   ) async {
+    if (_settingsPreferenceSaveInFlight) return;
+    _settingsPreferenceSaveInFlight = true;
+
     try {
       await ref.read(settingsRepositoryProvider).savePreferences(preferences);
       if (!context.mounted) return;
       ref.invalidate(settingsPreferencesProvider);
       _showSnack(context, 'Settings preferences updated.');
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!context.mounted) return;
-      _showSnack(context, error.message);
-    } catch (_) {
-      if (!context.mounted) return;
-      _showSnack(context, 'Could not update settings preferences yet.');
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Preferences not updated',
+        fallbackMessage: 'Could not update settings preferences right now.',
+      );
+      _showSnack(context, failure.message);
+    } finally {
+      _settingsPreferenceSaveInFlight = false;
     }
   }
 
@@ -250,7 +268,9 @@ class SettingsScreen extends ConsumerWidget {
 
     final cleanMessage = message?.trim();
     if (cleanMessage == null || cleanMessage.isEmpty) return;
+    if (!context.mounted || _settingsAccountRequestInFlight) return;
 
+    _settingsAccountRequestInFlight = true;
     try {
       await ref
           .read(supportRepositoryProvider)
@@ -259,7 +279,15 @@ class SettingsScreen extends ConsumerWidget {
       _showSnack(context, '$title submitted to OMC support.');
     } catch (error) {
       if (!context.mounted) return;
-      _showSnack(context, _settingsErrorMessage(error));
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Request not submitted',
+        fallbackMessage:
+            'Your account request could not be submitted right now.',
+      );
+      _showSnack(context, failure.message);
+    } finally {
+      _settingsAccountRequestInFlight = false;
     }
   }
 
@@ -311,11 +339,28 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
 
-    if (shouldLogout != true || !context.mounted) return;
-    await ref.read(authControllerProvider.notifier).logout();
-    ref.invalidate(profileSummaryProvider);
-    if (!context.mounted) return;
-    context.go('/login');
+    if (shouldLogout != true || !context.mounted || _settingsLogoutInFlight) {
+      return;
+    }
+
+    _settingsLogoutInFlight = true;
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
+      ref.invalidate(profileSummaryProvider);
+      if (!context.mounted) return;
+      context.go('/login');
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Logout incomplete',
+        fallbackMessage:
+            'The session could not be cleared right now. Please try again.',
+      );
+      _showSnack(context, failure.message);
+    } finally {
+      _settingsLogoutInFlight = false;
+    }
   }
 
   Future<void> _showPolicySheet(
@@ -365,8 +410,15 @@ class SettingsScreen extends ConsumerWidget {
   }) async {
     final uri = _safeExternalUri(url);
     if (uri != null) {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (opened) return;
+      try {
+        final opened = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (opened) return;
+      } catch (_) {
+        // Fall back to the backend-provided policy text below.
+      }
     }
 
     if (!context.mounted) return;
@@ -381,13 +433,6 @@ class SettingsScreen extends ConsumerWidget {
     if (uri == null || !uri.hasScheme || uri.host.trim().isEmpty) return null;
     if (uri.scheme != 'https' && uri.scheme != 'http') return null;
     return uri;
-  }
-
-  String _settingsErrorMessage(Object error) {
-    if (error is ApiError && error.message.trim().isNotEmpty) {
-      return error.message.trim();
-    }
-    return 'Settings preferences could not be loaded right now. Please try again.';
   }
 
   void _showSnack(BuildContext context, String message) {
@@ -456,7 +501,7 @@ class _PreferencesSection extends StatelessWidget {
   final SettingsPreferences preferences;
   final String? errorMessage;
   final VoidCallback onRetry;
-  final ValueChanged<SettingsPreferences> onToggle;
+  final ValueChanged<SettingsPreferences>? onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -471,39 +516,55 @@ class _PreferencesSection extends StatelessWidget {
         _SwitchTile(
           title: 'Service updates',
           value: preferences.serviceUpdatesEnabled,
-          onChanged: (value) =>
-              onToggle(preferences.copyWith(serviceUpdatesEnabled: value)),
+          onChanged: onToggle == null
+              ? null
+              : (value) => onToggle!(
+                  preferences.copyWith(serviceUpdatesEnabled: value),
+                ),
         ),
         _SwitchTile(
           title: 'Document reminders',
           value: preferences.documentRemindersEnabled,
-          onChanged: (value) =>
-              onToggle(preferences.copyWith(documentRemindersEnabled: value)),
+          onChanged: onToggle == null
+              ? null
+              : (value) => onToggle!(
+                  preferences.copyWith(documentRemindersEnabled: value),
+                ),
         ),
         _SwitchTile(
           title: 'Payment alerts',
           value: preferences.paymentAlertsEnabled,
-          onChanged: (value) =>
-              onToggle(preferences.copyWith(paymentAlertsEnabled: value)),
+          onChanged: onToggle == null
+              ? null
+              : (value) => onToggle!(
+                  preferences.copyWith(paymentAlertsEnabled: value),
+                ),
         ),
         _SwitchTile(
           title: 'Tax alerts',
           value: preferences.taxAlertsEnabled,
-          onChanged: (value) =>
-              onToggle(preferences.copyWith(taxAlertsEnabled: value)),
+          onChanged: onToggle == null
+              ? null
+              : (value) =>
+                    onToggle!(preferences.copyWith(taxAlertsEnabled: value)),
         ),
         _SwitchTile(
           title: 'Email notifications',
           value: preferences.emailNotificationsEnabled,
-          onChanged: (value) =>
-              onToggle(preferences.copyWith(emailNotificationsEnabled: value)),
+          onChanged: onToggle == null
+              ? null
+              : (value) => onToggle!(
+                  preferences.copyWith(emailNotificationsEnabled: value),
+                ),
         ),
         _SwitchTile(
           title: 'WhatsApp notifications',
           value: preferences.whatsAppNotificationsEnabled,
-          onChanged: (value) => onToggle(
-            preferences.copyWith(whatsAppNotificationsEnabled: value),
-          ),
+          onChanged: onToggle == null
+              ? null
+              : (value) => onToggle!(
+                  preferences.copyWith(whatsAppNotificationsEnabled: value),
+                ),
         ),
       ],
     );
@@ -600,7 +661,7 @@ class _SwitchTile extends StatelessWidget {
 
   final String title;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) {
