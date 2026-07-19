@@ -51,7 +51,10 @@ wait_for_apt_lock(){
     elapsed=$((elapsed + interval))
   done
 
-  ((elapsed > 0)) && ok "apt/dpkg lock released after ${elapsed}s"
+  if ((elapsed > 0)); then
+    ok "apt/dpkg lock released after ${elapsed}s"
+  fi
+  return 0
 }
 
 apt_run(){ wait_for_apt_lock; "${SUDO[@]}" apt-get -o DPkg::Lock::Timeout=60 "$@"; }
