@@ -391,6 +391,33 @@ def _assign_role_if_exists(user_doc, role_name):
     user_doc.save(ignore_permissions=True)
 
 
+def _normalize_signup_user(user_doc):
+    if not user_doc:
+        return
+
+    existing_roles = {row.role for row in (user_doc.roles or [])}
+    is_internal_account = bool(existing_roles.intersection(access.INTERNAL_ROLES))
+
+    if (
+        not is_internal_account
+        and frappe.db.exists("Role", access.CUSTOMER_ROLE)
+        and access.CUSTOMER_ROLE not in existing_roles
+    ):
+        user_doc.append("roles", {"role": access.CUSTOMER_ROLE})
+
+    user_doc.roles = [
+        row for row in (user_doc.roles or []) if row.role not in access.LEGACY_ROLES
+    ]
+    final_roles = {row.role for row in (user_doc.roles or [])}
+    user_doc.user_type = (
+        "System User"
+        if final_roles.intersection(access.INTERNAL_ROLES)
+        else "Website User"
+    )
+    user_doc.save(ignore_permissions=True)
+    frappe.clear_cache(user=user_doc.name)
+
+
 def _assert_internal_workspace_access():
     user = _current_user()
 
@@ -469,7 +496,7 @@ def sign_up(**kwargs):
     else:
         user = frappe.get_doc("User", email)
 
-    _assign_role_if_exists(user, "OMC Customer Applicant")
+    _normalize_signup_user(user)
 
     profile_name = frappe.db.get_value("OMC Customer Profile", {"user": email}, "name")
     if not profile_name:

@@ -10,6 +10,14 @@ import '../../../core/widgets/premium_card.dart';
 import '../data/auth_repository.dart';
 import 'auth_entry_widgets.dart';
 
+typedef SignupSubmit =
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> data);
+
+final signupSubmitProvider = Provider<SignupSubmit>((ref) {
+  final repository = ref.read(authRepositoryProvider);
+  return (data) => repository.signUp(data: data);
+});
+
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
@@ -67,16 +75,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _submit() async {
-    if (!(_accountFormKey.currentState?.validate() ?? false)) {
-      setState(() => _step = 0);
-      return;
-    }
-    if (!(_verificationFormKey.currentState?.validate() ?? false)) {
-      setState(() => _step = 1);
-      return;
-    }
+    // Earlier steps are validated before navigation. Only the security form is
+    // mounted on the final step, so revalidating unmounted forms would always
+    // stop submission before the repository call.
     if (!(_securityFormKey.currentState?.validate() ?? false)) {
-      setState(() => _step = 2);
       return;
     }
 
@@ -97,30 +99,26 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
 
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .signUp(
-            data: {
-              'full_name': _fullNameController.text.trim(),
-              'first_name': _firstNameFromFullName(_fullNameController.text),
-              'last_name': _lastNameFromFullName(_fullNameController.text),
-              'email': _emailController.text.trim(),
-              'phone': _toPakistanPhoneNumber(_mobileController.text),
-              'mobile': _toPakistanPhoneNumber(_mobileController.text),
-              'whatsapp_no': _toPakistanPhoneNumber(_whatsappController.text),
-              'cnic': _normalizeCnic(_cnicController.text),
-              'customer_type': _selectedRole,
-              'register_as': _selectedRole,
-              'address': _addressController.text.trim(),
-              'password': _passwordController.text,
-              'confirm_password': _confirmPasswordController.text,
-              if (_selectedRole == 'Tax Associate') ...{
-                'education': _educationController.text.trim(),
-                'experience': _experienceController.text.trim(),
-                'remarks': _remarksController.text.trim(),
-              },
-            },
-          );
+      await ref.read(signupSubmitProvider)({
+        'full_name': _fullNameController.text.trim(),
+        'first_name': _firstNameFromFullName(_fullNameController.text),
+        'last_name': _lastNameFromFullName(_fullNameController.text),
+        'email': _emailController.text.trim(),
+        'phone': _toPakistanPhoneNumber(_mobileController.text),
+        'mobile': _toPakistanPhoneNumber(_mobileController.text),
+        'whatsapp_no': _toPakistanPhoneNumber(_whatsappController.text),
+        'cnic': _normalizeCnic(_cnicController.text),
+        'customer_type': _selectedRole,
+        'register_as': _selectedRole,
+        'address': _addressController.text.trim(),
+        'password': _passwordController.text,
+        'confirm_password': _confirmPasswordController.text,
+        if (_selectedRole == 'Tax Associate') ...{
+          'education': _educationController.text.trim(),
+          'experience': _experienceController.text.trim(),
+          'remarks': _remarksController.text.trim(),
+        },
+      });
 
       if (!mounted) return;
 
@@ -690,12 +688,13 @@ class _SecurityStep extends StatelessWidget {
             },
           ),
           const SizedBox(height: 14),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+          Material(
+            color: const Color(0xFFF8FAFC),
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE5EAF2)),
+              side: const BorderSide(color: Color(0xFFE5EAF2)),
             ),
+            clipBehavior: Clip.antiAlias,
             child: CheckboxListTile(
               value: acceptedTerms,
               onChanged: onTermsChanged,
