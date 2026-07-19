@@ -5,9 +5,9 @@ app_description = "OMC mobile backend app for ERPNext/Frappe"
 app_email = "alishahwaiz96@gmail.com"
 app_license = "mit"
 
-# Install the canonical OMC role and permission model on new sites.
-after_install = "omc_app.setup.roles.after_install"
-after_migrate = "omc_app.setup.roles.after_migrate"
+# Install the canonical OMC role model and supported Website Settings branding.
+after_install = "omc_app.setup.lifecycle.after_install"
+after_migrate = "omc_app.setup.lifecycle.after_migrate"
 
 # Secure mobile API method overrides
 # ----------------------------------
@@ -50,5 +50,5 @@ has_permission = {
 doc_events = {
     "OMC Task": {
         "validate": "omc_app.permissions.validate_task_assignment",
-    },
+    }
 }
