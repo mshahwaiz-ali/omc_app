@@ -86,22 +86,12 @@ class AuthRepository {
     final text = user?.toString().trim();
     if (text == null || text.isEmpty) return null;
 
-    final rolesValue = data['roles'];
-    final roles = rolesValue is List
-        ? rolesValue.map((role) => role.toString().trim()).toSet()
-        : <String>{};
-
     final capabilities = _capabilitiesFromResponse(data);
-    final canAccessInternalWorkspace =
-        capabilities.canAccessInternalWorkspace ||
-        data['can_access_internal_workspace'] == true ||
-        data['canAccessInternalWorkspace'] == true ||
-        roles.contains('System Manager');
 
     await _secureStorageService.saveUserId(text);
     return AuthSession(
       userId: text,
-      canAccessInternalWorkspace: canAccessInternalWorkspace,
+      canAccessInternalWorkspace: capabilities.canAccessInternalWorkspace,
       capabilities: capabilities,
     );
   }
