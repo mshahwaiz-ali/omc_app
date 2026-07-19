@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../domain/internal_service_case.dart';
@@ -46,11 +46,12 @@ class InternalWorkspaceScreen extends ConsumerWidget {
 }
 
 String _backendErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  return 'Could not load internal workspace summary from the backend right now.';
+  return AppFailureClassifier.classify(
+    error,
+    fallbackTitle: 'Data unavailable',
+    fallbackMessage:
+        'Could not load internal workspace summary from the backend right now.',
+  ).message;
 }
 
 class _InternalWorkspaceUnavailable extends StatelessWidget {

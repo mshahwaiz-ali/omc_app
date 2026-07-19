@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../data/customers_repository.dart';
@@ -711,9 +711,9 @@ class _BackendUnavailableState extends StatelessWidget {
 }
 
 String _backendErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  return 'Could not load customers right now. Please try again.';
+  return AppFailureClassifier.classify(
+    error,
+    fallbackTitle: 'Data unavailable',
+    fallbackMessage: 'Could not load customers right now. Please try again.',
+  ).message;
 }

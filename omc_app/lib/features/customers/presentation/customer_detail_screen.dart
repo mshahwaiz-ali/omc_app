@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
@@ -53,11 +53,12 @@ class CustomerDetailScreen extends ConsumerWidget {
 }
 
 String _backendErrorMessage(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-
-  return 'Could not load customer details right now. Please try again.';
+  return AppFailureClassifier.classify(
+    error,
+    fallbackTitle: 'Data unavailable',
+    fallbackMessage:
+        'Could not load customer details right now. Please try again.',
+  ).message;
 }
 
 class _CustomerDetailBody extends StatelessWidget {

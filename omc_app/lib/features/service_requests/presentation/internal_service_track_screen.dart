@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
@@ -1346,9 +1346,9 @@ String _titleCase(String value) => value.isEmpty
     : '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
 
 String _cleanError(Object error) {
-  if (error is ApiError && error.message.trim().isNotEmpty) {
-    return error.message.trim();
-  }
-  final value = error.toString().replaceFirst('ApiError:', '').trim();
-  return value.isEmpty ? 'Service requests are unavailable right now.' : value;
+  return AppFailureClassifier.classify(
+    error,
+    fallbackTitle: 'Service requests unavailable',
+    fallbackMessage: 'Service requests are unavailable right now.',
+  ).message;
 }
