@@ -32,7 +32,7 @@ info "OMC app source: $APP_SOURCE_DIR"
 info "Node.js major version: $NODE_MAJOR"
 
 export DEBIAN_FRONTEND=noninteractive
-"${SUDO[@]}" apt-get update
+apt_run update
 apt_install_missing \
   git curl ca-certificates gnupg build-essential pkg-config \
   python3 python3-dev python3-pip python3-venv python3-setuptools pipx \
