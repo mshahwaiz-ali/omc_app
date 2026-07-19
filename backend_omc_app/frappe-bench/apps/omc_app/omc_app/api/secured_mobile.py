@@ -6,7 +6,14 @@ server-side capability checks for internal-only service case actions.
 
 import frappe
 
-from omc_app.api import mobile
+from omc_app.api import access, mobile
+
+
+def _require_capability(*capability_names, message):
+    capabilities = access.get_mobile_capabilities()
+    if not any(capabilities.get(name) for name in capability_names):
+        frappe.throw(message, frappe.PermissionError)
+    return capabilities
 
 
 @frappe.whitelist()
@@ -147,7 +154,7 @@ def _apply_service_case_capabilities(service_case, can_access_internal_workspace
     if can_access_internal_workspace is None:
         can_access_internal_workspace = mobile._can_access_internal_workspace()
 
-    capabilities = mobile.get_mobile_capabilities()
+    capabilities = access.get_mobile_capabilities()
     case_id = _service_request_id(service_case)
 
     service_case["id"] = case_id
@@ -157,10 +164,15 @@ def _apply_service_case_capabilities(service_case, can_access_internal_workspace
     service_case["can_update_status"] = capabilities["can_update_service_status"]
     service_case["can_review_documents"] = capabilities["can_review_documents"]
     service_case["can_review_payments"] = capabilities.get("can_review_payments", False)
-    service_case["can_view_internal_notes"] = can_access_internal_workspace
-    service_case["can_cancel"] = _can_customer_cancel_service_case(case_id, service_case.get("status"))
+    service_case["can_view_internal_notes"] = bool(
+        capabilities.get("can_view_internal_notes")
+    )
+    service_case["can_cancel"] = _can_customer_cancel_service_case(
+        case_id,
+        service_case.get("status"),
+    )
 
-    if not can_access_internal_workspace:
+    if not capabilities.get("can_view_internal_notes"):
         service_case["remarks"] = ""
 
 
@@ -611,11 +623,21 @@ def cancel_service_request(case_id=None, name=None, service_request=None, reques
     request = frappe.get_doc("OMC Service Request", resolved_case_id)
     user = frappe.session.user
     can_access_internal_workspace = mobile._can_access_internal_workspace()
-    customer_profile = None if can_access_internal_workspace else mobile.get_current_customer_profile()
-    owns_request = bool(customer_profile and getattr(request, "customer_profile", None) == customer_profile.name)
+    customer_profile = (
+        None
+        if can_access_internal_workspace
+        else mobile.get_current_customer_profile()
+    )
+    owns_request = bool(
+        customer_profile
+        and getattr(request, "customer_profile", None) == customer_profile.name
+    )
 
-    if user != "Administrator" and not owns_request and not can_access_internal_workspace:
-        frappe.throw("You cannot cancel this service request.")
+    if user != "Administrator" and not owns_request:
+        frappe.throw(
+            "Only the owning customer can cancel this service request.",
+            frappe.PermissionError,
+        )
 
     if not _can_customer_cancel_service_case(request.name, request.status):
         frappe.throw("This request can no longer be cancelled from the app. Please contact OMC support.")
@@ -633,7 +655,11 @@ def cancel_service_request(case_id=None, name=None, service_request=None, reques
 def update_service_case_status(case_id=None, name=None, service_request=None, request_id=None, status=None, note=None, expected_completion_date=None):
     """Allow only internal workspace users to update service case status."""
 
-    mobile.require_omc_staff(mobile.SERVICE_STATUS_ROLES, "You do not have permission to update service case status.")
+    _require_capability(
+        "can_update_service_status",
+        "can_update_assigned_service_status",
+        message="You do not have permission to update service case status.",
+    )
     resolved_case_id = case_id or name or service_request or request_id
     return mobile.update_service_case_status(case_id=resolved_case_id, status=status, note=note, expected_completion_date=expected_completion_date)
 
@@ -642,6 +668,9 @@ def update_service_case_status(case_id=None, name=None, service_request=None, re
 def update_service_document_status(document_id=None, document=None, name=None, status=None, remarks=None):
     """Allow only internal workspace users to approve/reject documents."""
 
-    mobile.require_omc_staff(mobile.DOCUMENT_REVIEW_ROLES, "You do not have permission to review service documents.")
+    _require_capability(
+        "can_review_documents",
+        message="You do not have permission to review service documents.",
+    )
     resolved_document_id = document_id or document or name
     return mobile.update_service_document_status(document_id=resolved_document_id, status=status, remarks=remarks)

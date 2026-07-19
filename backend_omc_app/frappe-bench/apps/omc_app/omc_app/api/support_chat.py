@@ -2,6 +2,7 @@ import re
 
 import frappe
 
+from omc_app.api import access
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _can_access_internal_workspace,
@@ -14,6 +15,17 @@ from omc_app.api.mobile import (
 SUPPORT_MESSAGE_DOCTYPE = "OMC Support Ticket Message"
 ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "doc", "docx"}
 MAX_SUPPORT_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _capabilities():
+    return access.get_mobile_capabilities()
+
+
+def _require_capability(capability, message):
+    capabilities = _capabilities()
+    if not capabilities.get(capability):
+        frappe.throw(message, frappe.PermissionError)
+    return capabilities
 
 
 def _clean_file_reference(value):
@@ -297,7 +309,8 @@ def _support_ticket_to_dict(ticket):
     raw_message = re.sub(r"--- Reply from\s*", "--- Reply from ", raw_message)
     raw_message = re.sub(r"\s+at\s*(\d{4}-\d{2}-\d{2})", r" at \1", raw_message)
     messages = _support_ticket_messages(ticket)
-    capabilities = _get_mobile_capabilities()
+    capabilities = _capabilities()
+    is_internal = _can_access_internal_workspace()
     last_message = messages[-1]["message"] if messages else raw_message
 
     return {
@@ -318,8 +331,18 @@ def _support_ticket_to_dict(ticket):
         "closed_on": str(ticket.closed_on) if ticket.closed_on else "",
         "created_at": str(ticket.creation) if ticket.creation else "",
         "updated_at": str(ticket.modified) if ticket.modified else "",
-        "can_update_status": capabilities["can_update_support_ticket_status"],
-        "can_reply": ticket.status not in ["Closed", "Cancelled"],
+        "can_update_status": bool(
+            capabilities.get("can_update_support_ticket_status")
+        ),
+        "can_assign": bool(capabilities.get("can_assign_support_tickets")),
+        "can_reply": (
+            ticket.status not in ["Closed", "Cancelled"]
+            and (
+                capabilities.get("can_reply_support_tickets")
+                if is_internal
+                else capabilities.get("can_view_support_tickets")
+            )
+        ),
     }
 
 
@@ -329,6 +352,10 @@ def _assert_support_ticket_access(ticket):
         frappe.throw("You do not have permission to access this support ticket", frappe.PermissionError)
 
     if _can_access_internal_workspace(user):
+        _require_capability(
+            "can_view_support_tickets",
+            "You do not have permission to access support tickets.",
+        )
         return user, None
 
     profile = _assert_approved_customer()
@@ -347,6 +374,10 @@ def _support_ticket_filters_for_current_user():
         return user, None, None
 
     if _can_access_internal_workspace(user):
+        _require_capability(
+            "can_view_support_tickets",
+            "You do not have permission to view support tickets.",
+        )
         return user, None, {}
 
     profile = _assert_approved_customer()
@@ -390,6 +421,12 @@ def create_support_ticket(**kwargs):
         frappe.throw("message or attachment is required")
 
     user = _current_user()
+    capabilities = _capabilities()
+    if not capabilities.get("can_create_support_ticket"):
+        frappe.throw(
+            "You do not have permission to create support tickets.",
+            frappe.PermissionError,
+        )
     profile = _assert_approved_customer()
     reference_service_request = kwargs.get("reference_service_request") or kwargs.get("service_request") or kwargs.get("case_id")
 
@@ -538,6 +575,11 @@ def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
 
     _ensure_initial_message_record(ticket)
     is_internal_user = _can_access_internal_workspace(user)
+    if is_internal_user:
+        _require_capability(
+            "can_reply_support_tickets",
+            "You do not have permission to reply to support tickets.",
+        )
     sender_type = "Support" if is_internal_user else "Customer"
     _create_support_message(ticket, message=message, attachment=attachment, sender_type=sender_type)
 
@@ -579,7 +621,14 @@ def update_support_ticket_status(ticket_id=None, status=None, remarks=None, **kw
     ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
     user, _profile = _assert_support_ticket_access(ticket)
     if not _can_access_internal_workspace(user):
-        frappe.throw("You do not have permission to update support ticket status.", frappe.PermissionError)
+        frappe.throw(
+            "You do not have permission to update support ticket status.",
+            frappe.PermissionError,
+        )
+    _require_capability(
+        "can_update_support_ticket_status",
+        "You do not have permission to update support ticket status.",
+    )
 
     old_status = ticket.status or ""
     ticket.status = status
@@ -622,7 +671,14 @@ def assign_support_ticket(ticket_id=None, assigned_to=None, **kwargs):
     ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
     user, _profile = _assert_support_ticket_access(ticket)
     if not _can_access_internal_workspace(user):
-        frappe.throw("You do not have permission to assign support tickets.", frappe.PermissionError)
+        frappe.throw(
+            "You do not have permission to assign support tickets.",
+            frappe.PermissionError,
+        )
+    _require_capability(
+        "can_assign_support_tickets",
+        "You do not have permission to assign support tickets.",
+    )
 
     previous_user = ticket.assigned_to or ""
     ticket.assigned_to = assigned_to

@@ -3,17 +3,123 @@ import frappe
 from omc_app.api import mobile
 from omc_app.setup.roles import (
     ACTIVE_PORTAL_ROLES,
+    ACTIVE_STAFF_ROLES,
     ADMIN_ROLE,
+    BUSINESS_PARTNER_ROLE,
+    CONSULTANT_ROLE,
     CUSTOMER_ROLE,
+    DOCUMENT_REVIEWER_ROLE,
+    FINANCE_REVIEWER_ROLE,
     LEGACY_CLIENT_ROLES,
     LEGACY_ROLES,
     MANAGER_ROLE,
+    SUPPORT_AGENT_ROLE,
     SYSTEM_ROLE,
+    TAX_ASSOCIATE_ROLE,
 )
 
-INTERNAL_ROLES = {SYSTEM_ROLE, ADMIN_ROLE, MANAGER_ROLE}
+INTERNAL_ROLES = {SYSTEM_ROLE} | ACTIVE_STAFF_ROLES
 ADMIN_ROLES = {SYSTEM_ROLE, ADMIN_ROLE}
-MANAGER_ROLES = ADMIN_ROLES | {MANAGER_ROLE}
+
+INTERNAL_CAPABILITY_KEYS = (
+    "can_access_internal_workspace",
+    "can_manage_customers",
+    "can_view_all_customers",
+    "can_view_relevant_customers",
+    "can_manage_leads",
+    "can_manage_tasks",
+    "can_manage_assigned_tasks",
+    "can_view_all_service_cases",
+    "can_view_relevant_service_cases",
+    "can_view_assigned_service_cases",
+    "can_create_service_for_customer",
+    "can_update_service_status",
+    "can_update_assigned_service_status",
+    "can_view_document_queue",
+    "can_view_document_summaries",
+    "can_view_document_attachments",
+    "can_review_documents",
+    "can_view_payment_queue",
+    "can_view_payment_summaries",
+    "can_view_payment_receipts",
+    "can_review_payments",
+    "can_view_support_tickets",
+    "can_reply_support_tickets",
+    "can_update_support_ticket_status",
+    "can_assign_support_tickets",
+    "can_view_internal_notes",
+    "can_manage_settings",
+)
+
+ROLE_CAPABILITIES = {
+    ADMIN_ROLE: set(INTERNAL_CAPABILITY_KEYS),
+    MANAGER_ROLE: set(INTERNAL_CAPABILITY_KEYS) - {"can_manage_settings"},
+    SUPPORT_AGENT_ROLE: {
+        "can_access_internal_workspace",
+        "can_manage_leads",
+        "can_view_support_tickets",
+        "can_reply_support_tickets",
+        "can_update_support_ticket_status",
+        "can_assign_support_tickets",
+        "can_view_relevant_customers",
+        "can_view_relevant_service_cases",
+        "can_view_internal_notes",
+        "can_manage_assigned_tasks",
+        "can_create_service_for_customer",
+    },
+    DOCUMENT_REVIEWER_ROLE: {
+        "can_access_internal_workspace",
+        "can_view_document_queue",
+        "can_view_document_summaries",
+        "can_view_document_attachments",
+        "can_review_documents",
+        "can_view_relevant_customers",
+        "can_view_relevant_service_cases",
+        "can_view_internal_notes",
+        "can_manage_assigned_tasks",
+    },
+    FINANCE_REVIEWER_ROLE: {
+        "can_access_internal_workspace",
+        "can_view_payment_queue",
+        "can_view_payment_summaries",
+        "can_view_payment_receipts",
+        "can_review_payments",
+        "can_view_relevant_customers",
+        "can_view_relevant_service_cases",
+        "can_view_internal_notes",
+        "can_manage_assigned_tasks",
+    },
+    CONSULTANT_ROLE: {
+        "can_access_internal_workspace",
+        "can_view_assigned_service_cases",
+        "can_update_assigned_service_status",
+        "can_manage_assigned_tasks",
+        "can_view_relevant_customers",
+        "can_view_document_summaries",
+        "can_view_document_attachments",
+        "can_view_internal_notes",
+    },
+    TAX_ASSOCIATE_ROLE: {
+        "can_access_internal_workspace",
+        "can_view_assigned_service_cases",
+        "can_update_assigned_service_status",
+        "can_manage_assigned_tasks",
+        "can_view_relevant_customers",
+        "can_view_document_summaries",
+        "can_view_document_attachments",
+        "can_view_internal_notes",
+    },
+    BUSINESS_PARTNER_ROLE: {
+        "can_access_internal_workspace",
+        "can_view_assigned_service_cases",
+        "can_update_assigned_service_status",
+        "can_manage_assigned_tasks",
+        "can_view_relevant_customers",
+        "can_view_document_summaries",
+        "can_view_document_attachments",
+        "can_view_internal_notes",
+    },
+}
 
 
 def _current_user():
@@ -60,17 +166,18 @@ def _normalize_user_roles(user_id):
 def _canonical_capabilities(user=None):
     user = user or _current_user()
     roles = _roles(user)
-    is_guest = not user or user == "Guest"
-    is_internal = bool(roles.intersection(INTERNAL_ROLES))
-    is_admin = bool(roles.intersection(ADMIN_ROLES))
-    is_manager = bool(roles.intersection(MANAGER_ROLES))
-
-    if not is_internal:
+    if not roles.intersection(INTERNAL_ROLES):
         return None
 
-    return {
+    enabled = {"can_access_internal_workspace"}
+    if SYSTEM_ROLE in roles:
+        enabled.update(INTERNAL_CAPABILITY_KEYS)
+    for role in roles:
+        enabled.update(ROLE_CAPABILITIES.get(role, set()))
+
+    capabilities = {
         "access_state": "internal",
-        "is_guest": is_guest,
+        "is_guest": False,
         "is_pending": False,
         "is_approved_customer": False,
         "can_view_public_catalogue": True,
@@ -84,31 +191,16 @@ def _canonical_capabilities(user=None):
         "can_upload_payment_receipt": False,
         "can_upload_payment_receipts": False,
         "can_create_support_ticket": False,
-        "can_view_support_tickets": False,
         "can_view_customer_dashboard": False,
         "can_access_customer_dashboard": False,
         "can_view_customer_notifications": False,
-        "can_access_internal_workspace": True,
-        "can_update_service_status": is_manager,
-        "can_review_documents": is_manager,
-        "can_review_payments": is_manager,
-        "can_update_support_ticket_status": is_manager,
-        "can_manage_customers": is_manager,
-        "can_manage_leads": is_manager,
-        "can_manage_tasks": is_manager,
-        "can_view_internal_notes": True,
-        "can_manage_settings": is_admin or MANAGER_ROLE in roles,
     }
+    capabilities.update({key: key in enabled for key in INTERNAL_CAPABILITY_KEYS})
+    return capabilities
 
 
 @frappe.whitelist(allow_guest=True)
 def sign_up(**kwargs):
-    """Public signup creates/keeps a customer profile only.
-
-    Register-as/customer-type values stay as profile metadata. They never become
-    permission roles. The only role assigned by public signup is OMC Customer,
-    and existing internal users keep their internal roles.
-    """
     result = mobile.sign_up(**kwargs)
     email = (
         (result.get("user") or {}).get("email")
@@ -132,9 +224,7 @@ def sign_up(**kwargs):
         user_doc.roles = [row for row in user_doc.roles if row.role not in LEGACY_ROLES]
         final_roles = {row.role for row in user_doc.roles}
         user_doc.user_type = (
-            "System User"
-            if final_roles.intersection(INTERNAL_ROLES)
-            else "Website User"
+            "System User" if final_roles.intersection(INTERNAL_ROLES) else "Website User"
         )
         user_doc.save(ignore_permissions=True)
         frappe.clear_cache(user=email)

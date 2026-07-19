@@ -4,7 +4,7 @@ from urllib.parse import quote
 
 import frappe
 
-from omc_app.api import mobile
+from omc_app.api import access, mobile
 
 
 PAYMENT_ACCOUNT_DOCTYPE = "OMC Payment Account"
@@ -236,9 +236,20 @@ def _ensure_available_payments(profile=None):
         _ensure_payment_for_case(service_case)
 
 
-def _payment_dict(payment, capabilities=None):
-    service_case = frappe.get_doc("OMC Service Request", payment.service_request) if payment.service_request else None
-    support = _payment_support_payload(payment=payment, service_case=service_case)
+def _payment_dict(payment, capabilities=None, *, customer_view=False):
+    capabilities = capabilities or {}
+    service_case = (
+        frappe.get_doc("OMC Service Request", payment.service_request)
+        if payment.service_request
+        else None
+    )
+    support = (
+        _payment_support_payload(payment=payment, service_case=service_case)
+        if customer_view
+        else {}
+    )
+    can_view_receipt = bool(capabilities.get("can_view_payment_receipts"))
+    can_review = bool(capabilities.get("can_review_payments"))
 
     return {
         "name": payment.name,
@@ -251,21 +262,39 @@ def _payment_dict(payment, capabilities=None):
         "status": payment.status or "Pending",
         "due_date": str(payment.due_date) if payment.due_date else "",
         "paid_on": str(payment.paid_on) if payment.paid_on else "",
-        "payment_reference": payment.payment_reference or "",
-        "receipt_url": payment.receipt_attachment or "",
-        "remarks": payment.remarks or "",
-        "can_review_payments": (capabilities or {}).get("can_review_payments", False),
+        "payment_reference": (
+            payment.payment_reference or ""
+            if customer_view or can_view_receipt
+            else ""
+        ),
+        "receipt_url": (
+            payment.receipt_attachment or ""
+            if customer_view or can_view_receipt
+            else ""
+        ),
+        "remarks": payment.remarks or "" if customer_view or can_review else "",
+        "can_review_payments": can_review,
         **support,
     }
 
 
 @frappe.whitelist()
 def get_payments():
-    profile = None if mobile._can_access_internal_workspace() else mobile._assert_approved_customer()
-    capabilities = mobile._get_mobile_capabilities(profile=profile)
+    is_internal = mobile._can_access_internal_workspace()
+    profile = None if is_internal else mobile._assert_approved_customer()
+    capabilities = access.get_mobile_capabilities()
 
-    _ensure_available_payments(profile=profile)
+    if is_internal and not (
+        capabilities.get("can_view_payment_queue")
+        or capabilities.get("can_view_payment_summaries")
+        or capabilities.get("can_review_payments")
+    ):
+        frappe.throw(
+            "You do not have permission to view payments.",
+            frappe.PermissionError,
+        )
 
+    # Read endpoints must never create payment records or mutate workflow state.
     service_request_names = [row.name for row in _accessible_service_requests(profile=profile)]
     if not service_request_names:
         return {"payments": []}
@@ -282,7 +311,11 @@ def get_payments():
 
     return {
         "payments": [
-            _payment_dict(frappe.get_doc(PAYMENT_DOCTYPE, name), capabilities=capabilities)
+            _payment_dict(
+                frappe.get_doc(PAYMENT_DOCTYPE, name),
+                capabilities=capabilities,
+                customer_view=profile is not None,
+            )
             for name in payment_names
         ]
     }
@@ -301,14 +334,29 @@ def get_payment(payment_id=None, name=None):
     if not payment.visible_to_customer:
         frappe.throw("Payment not found", frappe.DoesNotExistError)
 
-    profile = None if mobile._can_access_internal_workspace() else mobile._assert_approved_customer()
-    capabilities = mobile._get_mobile_capabilities(profile=profile)
+    is_internal = mobile._can_access_internal_workspace()
+    profile = None if is_internal else mobile._assert_approved_customer()
+    capabilities = access.get_mobile_capabilities()
     service_case = frappe.get_doc("OMC Service Request", payment.service_request)
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
         frappe.throw("You do not have permission to access this payment", frappe.PermissionError)
 
-    return _payment_dict(payment, capabilities=capabilities)
+    if is_internal and not (
+        capabilities.get("can_view_payment_summaries")
+        or capabilities.get("can_view_payment_receipts")
+        or capabilities.get("can_review_payments")
+    ):
+        frappe.throw(
+            "You do not have permission to access this payment.",
+            frappe.PermissionError,
+        )
+
+    return _payment_dict(
+        payment,
+        capabilities=capabilities,
+        customer_view=profile is not None,
+    )
 
 
 @frappe.whitelist()
@@ -325,7 +373,22 @@ def upload_payment_receipt_file(payment_id=None, name=None, file_name=None, cont
         frappe.throw("Payment not found", frappe.DoesNotExistError)
 
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
-    _assert_payment_customer_access(payment)
+    profile, _service_case = _assert_payment_customer_access(payment)
+    if profile is None:
+        frappe.throw(
+            "Payment receipt upload is a customer action.",
+            frappe.PermissionError,
+        )
+
+    capabilities = access.get_mobile_capabilities()
+    if not (
+        capabilities.get("can_upload_payment_receipt")
+        or capabilities.get("can_upload_payment_receipts")
+    ):
+        frappe.throw(
+            "You do not have permission to upload payment receipts.",
+            frappe.PermissionError,
+        )
 
     extension = _file_extension(file_name)
     if extension not in ALLOWED_RECEIPT_EXTENSIONS:
