@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../data/auth_repository.dart';
 import 'auth_state.dart';
 
@@ -49,14 +50,9 @@ class AuthController extends Notifier<AuthState> {
         canAccessInternalWorkspace: session.canAccessInternalWorkspace,
         capabilities: session.capabilities,
       );
-    } on ApiError catch (error) {
+    } catch (error) {
       await _authRepository.clearSession();
-      state = AuthState.unauthenticated(message: error.message);
-    } catch (_) {
-      await _authRepository.clearSession();
-      state = const AuthState.unauthenticated(
-        message: 'Unable to login right now. Please try again.',
-      );
+      state = AuthState.unauthenticated(message: _safeLoginMessage(error));
     }
   }
 
@@ -102,14 +98,47 @@ class AuthController extends Notifier<AuthState> {
     if (didChange) state = nextState;
   }
 
-  Future<void> continueAsGuest() async {
-    await _authRepository.clearSession();
-    state = const AuthState.guest();
-    await _authRepository.createGuestSession();
+  Future<bool> continueAsGuest() async {
+    try {
+      await _authRepository.clearSession();
+      await _authRepository.createGuestSession();
+      state = const AuthState.guest();
+      return true;
+    } catch (error) {
+      state = AuthState.unauthenticated(
+        message: AppFailureClassifier.classify(
+          error,
+          fallbackTitle: 'Guest access unavailable',
+          fallbackMessage:
+              'Guest access could not be started right now. Please try again.',
+        ).message,
+      );
+      return false;
+    }
   }
 
   Future<void> logout() async {
     await _authRepository.logout();
     state = const AuthState.unauthenticated();
+  }
+
+  String _safeLoginMessage(Object error) {
+    if (error is ApiError) {
+      final message = error.message.trim();
+      final lower = message.toLowerCase();
+      if (error.statusCode == 401 ||
+          lower.contains('incorrect') ||
+          lower.contains('invalid login') ||
+          lower.contains('invalid password') ||
+          lower.contains('authentication failed')) {
+        return 'Wrong email or password. Please try again.';
+      }
+    }
+
+    return AppFailureClassifier.classify(
+      error,
+      fallbackTitle: 'Sign in unavailable',
+      fallbackMessage: 'Unable to login right now. Please try again.',
+    ).message;
   }
 }

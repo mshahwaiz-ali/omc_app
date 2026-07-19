@@ -23,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   bool _obscurePassword = true;
   bool _submitted = false;
+  bool _guestSubmissionInFlight = false;
   String? _loginError;
 
   @override
@@ -33,6 +34,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    if (_submitted || _guestSubmissionInFlight) return;
+
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
 
@@ -42,7 +45,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _loginError = null;
     });
 
-    await ref.read(authControllerProvider.notifier).login(
+    await ref
+        .read(authControllerProvider.notifier)
+        .login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
@@ -72,13 +77,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         lower.contains('login failed')) {
       return 'Wrong email or password. Please try again.';
     }
-    return value;
+    return 'Sign in could not be completed right now. Please try again.';
   }
 
   Future<void> _continueAsGuest() async {
-    await ref.read(authControllerProvider.notifier).continueAsGuest();
+    if (_submitted || _guestSubmissionInFlight) return;
+
+    setState(() {
+      _guestSubmissionInFlight = true;
+      _loginError = null;
+    });
+
+    final started = await ref
+        .read(authControllerProvider.notifier)
+        .continueAsGuest();
+
     if (!mounted) return;
-    context.go('/home');
+    if (started) {
+      context.go('/home');
+      return;
+    }
+
+    final authState = ref.read(authControllerProvider);
+    setState(() {
+      _guestSubmissionInFlight = false;
+      _loginError =
+          authState.message ??
+          'Guest access could not be started right now. Please try again.';
+    });
   }
 
   void _openSupport() {
@@ -146,7 +172,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final isLoading =
-        _submitted && authState.status == AuthStatus.authenticating;
+        (_submitted && authState.status == AuthStatus.authenticating) ||
+        _guestSubmissionInFlight;
     final loginErrorMessage = _loginError ?? authState.message;
 
     return AuthEntryScaffold(
@@ -192,9 +219,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 labelText: 'Password',
                 prefixIcon: const Icon(Icons.lock_outline_rounded),
                 suffixIcon: IconButton(
-                  tooltip: _obscurePassword
-                      ? 'Show password'
-                      : 'Hide password',
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   onPressed: () {
                     setState(() => _obscurePassword = !_obscurePassword);
                   },
@@ -222,9 +247,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             if (loginErrorMessage != null &&
                 loginErrorMessage.trim().isNotEmpty) ...[
               const SizedBox(height: 2),
-              AuthErrorBanner(
-                message: _normalizeLoginError(loginErrorMessage),
-              ),
+              AuthErrorBanner(message: _normalizeLoginError(loginErrorMessage)),
               const SizedBox(height: 16),
             ],
             AppButton(

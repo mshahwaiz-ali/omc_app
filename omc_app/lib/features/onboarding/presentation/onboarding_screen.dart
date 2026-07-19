@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_logo.dart';
 import '../data/onboarding_repository.dart';
 
@@ -18,6 +19,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pageController = PageController();
   int _index = 0;
+  bool _isFinishing = false;
 
   @override
   void dispose() {
@@ -26,10 +28,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _finish() async {
-    final preferences = await ref.read(preferencesServiceProvider.future);
-    await preferences.setHasCompletedOnboarding(true);
-    if (!mounted) return;
-    context.go('/login');
+    if (_isFinishing) return;
+
+    setState(() => _isFinishing = true);
+    try {
+      final preferences = await ref.read(preferencesServiceProvider.future);
+      await preferences.setHasCompletedOnboarding(true);
+      if (!mounted) return;
+      context.go('/login');
+    } catch (error) {
+      if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Could not continue',
+        fallbackMessage:
+            'Onboarding could not be completed right now. Please try again.',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
+      setState(() => _isFinishing = false);
+    }
   }
 
   void _next(List<OnboardingSlide> slides) {
@@ -65,7 +84,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       const OmcLogo.symbol(size: 42, borderRadius: 0),
                       const Spacer(),
                       TextButton(
-                        onPressed: _finish,
+                        onPressed: _isFinishing ? null : _finish,
                         child: const Text('Skip'),
                       ),
                     ],
@@ -91,13 +110,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: () => _next(slides),
+                      onPressed: _isFinishing ? null : () => _next(slides),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(isLast ? 'Get started' : 'Continue'),
-                          const SizedBox(width: 10),
-                          const Icon(Icons.arrow_forward_rounded, size: 20),
+                          if (_isFinishing)
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            )
+                          else ...[
+                            Text(isLast ? 'Get started' : 'Continue'),
+                            const SizedBox(width: 10),
+                            const Icon(Icons.arrow_forward_rounded, size: 20),
+                          ],
                         ],
                       ),
                     ),
@@ -196,7 +226,7 @@ class _SlideImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = slide.imageUrl;
+    final imageUrl = _resolvedImageUrl(slide.imageUrl);
 
     return Stack(
       alignment: Alignment.center,
@@ -219,10 +249,10 @@ class _SlideImage extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.all(26),
-          child: imageUrl == null || imageUrl.isEmpty
+          child: imageUrl == null
               ? Image.asset(slide.assetPath, fit: BoxFit.contain)
               : Image.network(
-                  _absoluteUrl(imageUrl),
+                  imageUrl,
                   fit: BoxFit.contain,
                   errorBuilder: (_, _, _) {
                     return Image.asset(slide.assetPath, fit: BoxFit.contain);
@@ -233,12 +263,25 @@ class _SlideImage extends StatelessWidget {
     );
   }
 
-  String _absoluteUrl(String value) {
-    if (value.startsWith('http://') || value.startsWith('https://')) {
-      return value;
+  String? _resolvedImageUrl(String? value) {
+    final clean = value?.trim();
+    if (clean == null || clean.isEmpty) return null;
+
+    final parsed = Uri.tryParse(clean);
+    if (parsed != null && parsed.hasScheme) {
+      return _isAllowedWebScheme(parsed.scheme) ? parsed.toString() : null;
     }
-    if (value.startsWith('/')) return '${ApiConfig.currentBaseUrl}$value';
-    return '${ApiConfig.currentBaseUrl}/$value';
+
+    final resolved = clean.startsWith('/')
+        ? Uri.tryParse('${ApiConfig.currentBaseUrl}$clean')
+        : Uri.tryParse('${ApiConfig.currentBaseUrl}/$clean');
+    if (resolved == null || !_isAllowedWebScheme(resolved.scheme)) return null;
+    return resolved.toString();
+  }
+
+  bool _isAllowedWebScheme(String scheme) {
+    final normalized = scheme.toLowerCase();
+    return normalized == 'https' || normalized == 'http';
   }
 }
 

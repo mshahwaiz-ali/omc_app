@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/auth_repository.dart';
@@ -75,6 +75,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting || _submittedSuccessfully) return;
+
     // Earlier steps are validated before navigation. Only the security form is
     // mounted on the final step, so revalidating unmounted forms would always
     // stop submission before the repository call.
@@ -125,15 +127,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       setState(() {
         _submittedSuccessfully = true;
       });
-    } on ApiError catch (error) {
+    } catch (error) {
       if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Account not created',
+        fallbackMessage:
+            'Unable to create account right now. Your entered information was retained.',
+      );
       setState(() {
-        _submitError = error.message;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _submitError = 'Unable to create account right now. Please try again.';
+        _submitError = failure.message;
       });
     } finally {
       if (mounted) {

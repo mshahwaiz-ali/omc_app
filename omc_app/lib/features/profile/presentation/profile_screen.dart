@@ -23,10 +23,7 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(profileSummaryProvider);
-            await ref.read(profileSummaryProvider.future);
-          },
+          onRefresh: () => _refreshProfile(context, ref, showSuccess: false),
           child: profileAsync.when(
             data: (profile) {
               if (profile == null) {
@@ -66,6 +63,33 @@ String _profileErrorMessage(Object error) {
     fallbackMessage:
         'Full customer profile is unavailable right now. Please try again.',
   ).message;
+}
+
+Future<void> _refreshProfile(
+  BuildContext context,
+  WidgetRef ref, {
+  required bool showSuccess,
+}) async {
+  try {
+    ref.invalidate(profileSummaryProvider);
+    await ref.read(profileSummaryProvider.future);
+
+    if (!context.mounted || !showSuccess) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile data refreshed.')));
+  } catch (error) {
+    if (!context.mounted) return;
+    final failure = AppFailureClassifier.classify(
+      error,
+      fallbackTitle: 'Profile refresh failed',
+      fallbackMessage:
+          'Profile data could not be refreshed right now. Please try again.',
+    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(failure.message)));
+  }
 }
 
 class _ProfileLoadingView extends StatelessWidget {
@@ -363,13 +387,7 @@ class _ProfileContent extends StatelessWidget {
               hint: 'Example: I need help with my profile, login, or account.',
               submitLabel: 'Submit support request',
             ),
-            onRefresh: () async {
-              ref.invalidate(profileSummaryProvider);
-              _showBackendPendingSnack(context, 'Refreshing profile data...');
-              await ref.read(profileSummaryProvider.future);
-              if (!context.mounted) return;
-              _showBackendPendingSnack(context, 'Profile data refreshed.');
-            },
+            onRefresh: () => _refreshProfile(context, ref, showSuccess: true),
           )
         else
           PremiumCard(
@@ -905,9 +923,7 @@ class _ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cleanAvatarUrl = avatarUrl?.trim();
-    final hasImage = cleanAvatarUrl != null && cleanAvatarUrl.isNotEmpty;
-    final imageUrl = hasImage ? ApiConfig.resolveFileUrl(cleanAvatarUrl) : null;
+    final imageUrl = _safeProfileImageUrl(avatarUrl);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -981,6 +997,21 @@ class _ProfileAvatar extends StatelessWidget {
       ],
     );
   }
+}
+
+String? _safeProfileImageUrl(String? value) {
+  final clean = value?.trim();
+  if (clean == null || clean.isEmpty) return null;
+
+  final resolved = ApiConfig.resolveFileUrl(clean);
+  if (resolved == null || resolved.trim().isEmpty) return null;
+
+  final uri = Uri.tryParse(resolved);
+  if (uri == null || !uri.hasScheme || uri.host.trim().isEmpty) return null;
+
+  final scheme = uri.scheme.toLowerCase();
+  if (scheme != 'https' && scheme != 'http') return null;
+  return uri.toString();
 }
 
 String _initials(String value) {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/core_providers.dart';
 import '../../../app/theme.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_logo.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -16,6 +17,9 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _isResolving = false;
+  String? _startupError;
+
   @override
   void initState() {
     super.initState();
@@ -27,34 +31,116 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _resolveSession() async {
-    final results = await Future.wait<Object>([
-      ref
-          .read(authControllerProvider.notifier)
-          .checkSession()
-          .then((_) => true),
-      ref.read(preferencesServiceProvider.future),
-      Future<void>.delayed(const Duration(milliseconds: 700)).then((_) => true),
-    ]);
+    if (_isResolving) return;
 
-    if (!mounted) return;
+    setState(() {
+      _isResolving = true;
+      _startupError = null;
+    });
 
-    final authState = ref.read(authControllerProvider);
-    final preferences = results[1] as dynamic;
-    final hasCompletedOnboarding = preferences.hasCompletedOnboarding == true;
-    final nextLocation = authState.status == AuthStatus.authenticated
-        ? '/home'
-        : hasCompletedOnboarding
-        ? '/login'
-        : '/onboarding';
+    try {
+      final results = await Future.wait<Object>([
+        ref
+            .read(authControllerProvider.notifier)
+            .checkSession()
+            .then((_) => true),
+        ref.read(preferencesServiceProvider.future),
+        Future<void>.delayed(
+          const Duration(milliseconds: 700),
+        ).then((_) => true),
+      ]);
 
-    context.go(nextLocation);
+      if (!mounted) return;
+
+      final authState = ref.read(authControllerProvider);
+      final preferences = results[1] as dynamic;
+      final hasCompletedOnboarding = preferences.hasCompletedOnboarding == true;
+      final nextLocation = authState.status == AuthStatus.authenticated
+          ? '/home'
+          : hasCompletedOnboarding
+          ? '/login'
+          : '/onboarding';
+
+      context.go(nextLocation);
+    } catch (error) {
+      if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'App could not start',
+        fallbackMessage:
+            'OMC could not prepare the app right now. Please try again.',
+      );
+      setState(() {
+        _isResolving = false;
+        _startupError = failure.message;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFFBFCFE),
-      body: SafeArea(child: Center(child: _SplashContent())),
+    return Scaffold(
+      backgroundColor: const Color(0xFFFBFCFE),
+      body: SafeArea(
+        child: Center(
+          child: _startupError == null
+              ? const _SplashContent()
+              : _SplashFailure(
+                  message: _startupError!,
+                  onRetry: _resolveSession,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SplashFailure extends StatelessWidget {
+  const _SplashFailure({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(28),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const OmcLogo.symbol(size: 76, borderRadius: 0),
+            const SizedBox(height: 26),
+            const Text(
+              'OMC could not start',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 22),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

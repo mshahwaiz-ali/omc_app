@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/widgets/route_failure_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/login_screen.dart';
@@ -48,6 +49,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     refreshListenable: routerRefreshNotifier,
+    errorBuilder: (context, state) => RouteFailureScreen(
+      onGoHome: () => context.go('/home'),
+      onGoBack: Navigator.of(context).canPop()
+          ? () => Navigator.of(context).pop()
+          : null,
+    ),
     redirect: (context, state) {
       final authState = ref.read(authControllerProvider);
       final location = state.matchedLocation;
