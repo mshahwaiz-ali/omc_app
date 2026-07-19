@@ -16,3 +16,4 @@ omc_app.patches.finalize_omc_role_model
 omc_app.patches.add_service_document_archive_fields
 omc_app.patches.simplify_omc_roles_20260710
 omc_app.patches.sync_canonical_roles_20260712
+omc_app.patches.activate_role_capability_model_20260719

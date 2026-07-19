@@ -1,33 +1,31 @@
 import frappe
 
 CUSTOMER_ROLE = "OMC Customer"
-BUSINESS_PARTNER_ROLE = "OMC Business Partner"
-TAX_ASSOCIATE_ROLE = "OMC Tax Associate"
 ADMIN_ROLE = "OMC Admin"
 MANAGER_ROLE = "OMC Manager"
+SUPPORT_AGENT_ROLE = "OMC Support Agent"
+DOCUMENT_REVIEWER_ROLE = "OMC Document Reviewer"
+FINANCE_REVIEWER_ROLE = "OMC Finance Reviewer"
+CONSULTANT_ROLE = "OMC Consultant"
+TAX_ASSOCIATE_ROLE = "OMC Tax Associate"
+BUSINESS_PARTNER_ROLE = "OMC Business Partner"
 SYSTEM_ROLE = "System Manager"
 
-ACTIVE_PORTAL_ROLES = {
-    CUSTOMER_ROLE,
-    BUSINESS_PARTNER_ROLE,
-    TAX_ASSOCIATE_ROLE,
-}
+ACTIVE_PORTAL_ROLES = {CUSTOMER_ROLE}
 ACTIVE_STAFF_ROLES = {
     ADMIN_ROLE,
     MANAGER_ROLE,
+    SUPPORT_AGENT_ROLE,
+    DOCUMENT_REVIEWER_ROLE,
+    FINANCE_REVIEWER_ROLE,
+    CONSULTANT_ROLE,
+    TAX_ASSOCIATE_ROLE,
+    BUSINESS_PARTNER_ROLE,
 }
 ACTIVE_OMC_ROLES = ACTIVE_PORTAL_ROLES | ACTIVE_STAFF_ROLES
 
-LEGACY_CLIENT_ROLES = {
-    "OMC Customer Applicant",
-}
-LEGACY_STAFF_ROLES = {
-    "OMC Customer Support",
-    "OMC Support Agent",
-    "OMC Document Reviewer",
-    "OMC Finance Reviewer",
-    "OMC Consultant",
-}
+LEGACY_CLIENT_ROLES = {"OMC Customer Applicant"}
+LEGACY_STAFF_ROLES = {"OMC Customer Support"}
 LEGACY_ROLES = LEGACY_CLIENT_ROLES | LEGACY_STAFF_ROLES
 
 PERMISSION_FIELDS = (
@@ -63,10 +61,7 @@ def _ensure_role(role_name, *, desk_access, disabled):
         role.is_custom = 1
         role.insert(ignore_permissions=True)
 
-    values = {
-        "desk_access": 1 if desk_access else 0,
-        "is_custom": 1,
-    }
+    values = {"desk_access": 1 if desk_access else 0, "is_custom": 1}
     if _meta_has_field("Role", "disabled"):
         values["disabled"] = 1 if disabled else 0
     frappe.db.set_value("Role", role_name, values, update_modified=False)
@@ -193,22 +188,20 @@ def _remove_role_docperms(role_names):
     if not role_names:
         return
     for name in frappe.get_all(
-        "DocPerm",
-        filters={"role": ["in", sorted(role_names)]},
-        pluck="name",
+        "DocPerm", filters={"role": ["in", sorted(role_names)]}, pluck="name"
     ):
         frappe.delete_doc("DocPerm", name, ignore_permissions=True, force=True)
 
 
 def _apply_permissions():
-    # Portal roles are API-controlled and intentionally receive no broad Desk
-    # DocPerm rows.
-    _remove_role_docperms(ACTIVE_PORTAL_ROLES | LEGACY_ROLES)
+    # Customer and specialist staff access is enforced through guarded APIs.
+    # Specialist DocPerms are added only after each DocType has an explicit,
+    # reviewed baseline in the role-plan permission inventory.
+    _remove_role_docperms(ACTIVE_PORTAL_ROLES | (ACTIVE_STAFF_ROLES - {ADMIN_ROLE, MANAGER_ROLE}) | LEGACY_ROLES)
 
     for row in _omc_doctypes():
         doctype = row.name
         is_submittable = bool(int(row.is_submittable or 0))
-
         if doctype == "OMC Mobile Quick Action":
             admin_values = _mobile_quick_action_admin_permission()
             manager_values = _mobile_quick_action_manager_permission()
@@ -221,11 +214,7 @@ def _apply_permissions():
 
 
 def sync_canonical_roles():
-    """Synchronize the verified OMC role model without committing.
-
-    The caller owns the transaction. This function is safe to run repeatedly,
-    does not alter User/Has Role records, and never modifies Administrator.
-    """
+    """Synchronize canonical OMC roles without committing the transaction."""
     for role_name in sorted(ACTIVE_PORTAL_ROLES):
         _ensure_role(role_name, desk_access=False, disabled=False)
 
@@ -240,4 +229,8 @@ def sync_canonical_roles():
 
 
 def after_install():
+    sync_canonical_roles()
+
+
+def after_migrate():
     sync_canonical_roles()

@@ -3,6 +3,8 @@ import re
 import frappe
 from frappe.utils.file_manager import save_file
 
+from omc_app.api import access
+
 
 def _items_response(key, items=None):
     return {key: items or []}
@@ -3507,9 +3509,74 @@ def _lead_to_dict(lead):
     }
 
 
+
+def _canonical_capabilities():
+    return access.get_mobile_capabilities()
+
+
+def _require_canonical_capability(*capability_names, message):
+    capabilities = _canonical_capabilities()
+    if not any(capabilities.get(name) for name in capability_names):
+        frappe.throw(message, frappe.PermissionError)
+    return capabilities
+
+
+def _assigned_record_names(reference_type, user=None):
+    user = user or _current_user()
+    if not user or user == "Guest":
+        return []
+    return frappe.get_all(
+        "ToDo",
+        filters={
+            "reference_type": reference_type,
+            "allocated_to": user,
+            "status": ["!=", "Cancelled"],
+        },
+        pluck="reference_name",
+    )
+
+
+def _relevant_customer_names(user=None):
+    user = user or _current_user()
+    names = set()
+
+    service_request_names = _assigned_record_names("OMC Service Request", user)
+    if service_request_names:
+        names.update(
+            frappe.get_all(
+                "OMC Service Request",
+                filters={"name": ["in", service_request_names]},
+                pluck="customer_profile",
+            )
+        )
+
+    if _has_doctype("OMC Task"):
+        names.update(
+            frappe.get_all(
+                "OMC Task",
+                filters={"assigned_to": user},
+                pluck="customer_profile",
+            )
+        )
+
+    if _has_doctype("OMC Support Ticket"):
+        names.update(
+            frappe.get_all(
+                "OMC Support Ticket",
+                filters={"assigned_to": user},
+                pluck="customer_profile",
+            )
+        )
+
+    return sorted(name for name in names if name)
+
 @frappe.whitelist()
 def get_leads():
     _assert_internal_workspace_access()
+    _require_canonical_capability(
+        "can_manage_leads",
+        message="You do not have permission to view leads.",
+    )
     leads = frappe.get_all(
         "OMC Lead",
         fields=[
@@ -3560,6 +3627,10 @@ def get_leads():
 @frappe.whitelist()
 def get_lead(lead_id=None):
     _assert_internal_workspace_access()
+    _require_canonical_capability(
+        "can_manage_leads",
+        message="You do not have permission to view leads.",
+    )
     if not lead_id:
         frappe.throw("lead_id is required")
 
@@ -3676,10 +3747,27 @@ def _customer_profile_to_dict(profile):
 
 @frappe.whitelist()
 def get_customers():
-    _assert_internal_workspace_access()
+    user = _assert_internal_workspace_access()
+    capabilities = _require_canonical_capability(
+        "can_manage_customers",
+        "can_view_all_customers",
+        "can_view_relevant_customers",
+        message="You do not have permission to view customers.",
+    )
+
+    filters = {}
+    if not (
+        capabilities.get("can_manage_customers")
+        or capabilities.get("can_view_all_customers")
+    ):
+        relevant_names = _relevant_customer_names(user)
+        if not relevant_names:
+            return {"customers": []}
+        filters["name"] = ["in", relevant_names]
 
     customer_names = frappe.get_all(
         "OMC Customer Profile",
+        filters=filters,
         pluck="name",
         order_by="modified desc",
         limit_page_length=100,
@@ -3697,12 +3785,27 @@ def get_customers():
 
 @frappe.whitelist()
 def get_customer(customer_id=None):
-    _assert_internal_workspace_access()
+    user = _assert_internal_workspace_access()
+    capabilities = _require_canonical_capability(
+        "can_manage_customers",
+        "can_view_all_customers",
+        "can_view_relevant_customers",
+        message="You do not have permission to view customers.",
+    )
     if not customer_id:
         frappe.throw("customer_id is required")
 
     if not frappe.db.exists("OMC Customer Profile", customer_id):
         frappe.throw("Customer not found", frappe.DoesNotExistError)
+
+    if not (
+        capabilities.get("can_manage_customers")
+        or capabilities.get("can_view_all_customers")
+    ) and customer_id not in _relevant_customer_names(user):
+        frappe.throw(
+            "You do not have permission to view this customer.",
+            frappe.PermissionError,
+        )
 
     profile = frappe.get_doc("OMC Customer Profile", customer_id)
     return {"customer": _customer_profile_to_dict(profile)}
@@ -3728,9 +3831,19 @@ def _task_to_dict(task):
 
 @frappe.whitelist()
 def get_tasks():
-    _assert_internal_workspace_access()
+    user = _assert_internal_workspace_access()
+    capabilities = _require_canonical_capability(
+        "can_manage_tasks",
+        "can_manage_assigned_tasks",
+        message="You do not have permission to view tasks.",
+    )
+    filters = {}
+    if not capabilities.get("can_manage_tasks"):
+        filters["assigned_to"] = user
+
     tasks = frappe.get_all(
         "OMC Task",
+        filters=filters,
         fields=[
             "name",
             "title",
@@ -3774,7 +3887,12 @@ def get_tasks():
 
 @frappe.whitelist()
 def get_task(task_id=None):
-    _assert_internal_workspace_access()
+    user = _assert_internal_workspace_access()
+    capabilities = _require_canonical_capability(
+        "can_manage_tasks",
+        "can_manage_assigned_tasks",
+        message="You do not have permission to view tasks.",
+    )
     if not task_id:
         frappe.throw("task_id is required")
 
@@ -3782,6 +3900,14 @@ def get_task(task_id=None):
         frappe.throw("Task not found", frappe.DoesNotExistError)
 
     task = frappe.get_doc("OMC Task", task_id)
+    if (
+        not capabilities.get("can_manage_tasks")
+        and (task.assigned_to or "") != user
+    ):
+        frappe.throw(
+            "You do not have permission to view this task.",
+            frappe.PermissionError,
+        )
     return {"task": _task_to_dict(task)}
 
 

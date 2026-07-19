@@ -7,6 +7,7 @@ app_license = "mit"
 
 # Install the canonical OMC role and permission model on new sites.
 after_install = "omc_app.setup.roles.after_install"
+after_migrate = "omc_app.setup.roles.after_migrate"
 
 # Secure mobile API method overrides
 # ----------------------------------

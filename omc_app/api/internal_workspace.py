@@ -7,7 +7,26 @@ OMC Service Document as the child review object.
 
 import frappe
 
-from omc_app.api import mobile
+from omc_app.api import access, mobile
+
+
+def _capabilities():
+    return access.get_mobile_capabilities()
+
+
+def _assigned_case_names(user=None):
+    user = user or frappe.session.user
+    if not user or user == "Guest":
+        return []
+    return frappe.get_all(
+        "ToDo",
+        filters={
+            "reference_type": "OMC Service Request",
+            "allocated_to": user,
+            "status": ["!=", "Cancelled"],
+        },
+        pluck="reference_name",
+    )
 
 
 SERVICE_CASE_FIELDS = [
@@ -41,9 +60,31 @@ def get_service_cases(
 ):
     """Return a staff-safe service-case queue with document summaries."""
 
-    mobile._assert_internal_workspace_access()
+    user = mobile._assert_internal_workspace_access()
+    capabilities = _capabilities()
+    if not any(
+        capabilities.get(name)
+        for name in (
+            "can_view_all_service_cases",
+            "can_view_relevant_service_cases",
+            "can_view_assigned_service_cases",
+        )
+    ):
+        frappe.throw(
+            "You do not have permission to view internal service cases.",
+            frappe.PermissionError,
+        )
 
     filters = {}
+    if not capabilities.get("can_view_all_service_cases"):
+        assigned_names = _assigned_case_names(user)
+        if not assigned_names:
+            return {
+                "cases": [],
+                "summary": _queue_summary([]),
+                "capabilities": capabilities,
+            }
+        filters["name"] = ["in", assigned_names]
     if case_id:
         filters["name"] = case_id
     if status:
@@ -68,7 +109,7 @@ def get_service_cases(
     return {
         "cases": cases,
         "summary": _queue_summary(cases),
-        "capabilities": mobile.get_mobile_capabilities(),
+        "capabilities": capabilities,
     }
 
 
@@ -80,10 +121,12 @@ def create_service_request_for_customer(**kwargs):
     may create staff records. Customer users still use mobile.create_service.
     """
 
-    mobile.require_omc_staff(
-        mobile.SYSTEM_OVERRIDE_ROLES | mobile.OMC_ADMIN_ROLES | mobile.OMC_SUPPORT_ROLES,
-        "You do not have permission to create service requests for customers.",
-    )
+    capabilities = _capabilities()
+    if not capabilities.get("can_create_service_for_customer"):
+        frappe.throw(
+            "You do not have permission to create service requests for customers.",
+            frappe.PermissionError,
+        )
 
     customer_profile = (kwargs.get("customer_profile") or kwargs.get("customer_id") or "").strip()
     service_id = (kwargs.get("service_id") or kwargs.get("service") or "").strip()
@@ -128,6 +171,7 @@ def create_service_request_for_customer(**kwargs):
 
 
 def _case_to_queue_item(row):
+    capabilities = _capabilities()
     case_id = row.name
     docs = _service_documents(case_id)
     required_templates = mobile._service_required_documents(row.service)
@@ -156,8 +200,13 @@ def _case_to_queue_item(row):
         "missing_documents_count": doc_summary["pending"] + doc_summary["rejected"],
         "document_summary": doc_summary,
         "document_summary_label": _document_summary_label(doc_summary),
-        "can_review_documents": mobile._has_any_role(roles=mobile.DOCUMENT_REVIEW_ROLES),
-        "can_update_status": mobile._has_any_role(roles=mobile.SERVICE_STATUS_ROLES),
+        "can_review_documents": bool(
+            capabilities.get("can_review_documents")
+        ),
+        "can_update_status": bool(
+            capabilities.get("can_update_service_status")
+            or capabilities.get("can_update_assigned_service_status")
+        ),
     }
 
 
