@@ -23,6 +23,7 @@ override_whitelisted_methods = {
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
     "omc_app.api.mobile.update_service_document_status": "omc_app.api.secured_mobile.update_service_document_status",
     "omc_app.api.tax_calculator.calculate_tax": "omc_app.api.tax_calculator_guard.calculate_tax",
+    "omc_app.api.expense.upload_expense_receipt": "omc_app.api.expense_guard.upload_expense_receipt",
 }
 
 
