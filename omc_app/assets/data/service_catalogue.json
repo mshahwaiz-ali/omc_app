@@ -58,8 +58,7 @@
       "Draft return is prepared",
       "Final filing is submitted after confirmation"
     ],
-    "supportMessage": "I want help with business or freelancer income tax return filing.",
-    "wizardType": "business"
+    "supportMessage": "I want help with business or freelancer income tax return filing."
   },
   {
     "id": "ntn-registration",
@@ -88,8 +87,7 @@
       "FBR NTN profile is created or updated",
       "NTN confirmation is shared"
     ],
-    "supportMessage": "I want help with NTN registration.",
-    "wizardType": "ntn"
+    "supportMessage": "I want help with NTN registration."
   },
   {
     "id": "iris-profile-update",
@@ -119,8 +117,7 @@
       "OMC updates IRIS profile",
       "Confirmation is shared"
     ],
-    "supportMessage": "I want help with IRIS profile update.",
-    "wizardType": "iris"
+    "supportMessage": "I want help with IRIS profile update."
   },
   {
     "id": "gst-registration",
@@ -152,8 +149,7 @@
       "Application is prepared and submitted",
       "Registration status is tracked and shared"
     ],
-    "supportMessage": "I want help with GST / Sales Tax registration.",
-    "wizardType": "gst"
+    "supportMessage": "I want help with GST / Sales Tax registration."
   },
   {
     "id": "business-incorporation",
@@ -184,8 +180,7 @@
       "OMC reviews structure and requirements",
       "Application is prepared and processed"
     ],
-    "supportMessage": "I want help with business incorporation.",
-    "wizardType": "business"
+    "supportMessage": "I want help with business incorporation."
   },
   {
     "id": "pseb-freelancer",
@@ -304,7 +299,6 @@
       "Fee and timeline are shared",
       "Work starts after confirmation"
     ],
-    "supportMessage": "I need help with another tax or business service.",
-    "wizardType": "business"
+    "supportMessage": "I need help with another tax or business service."
   }
 ]

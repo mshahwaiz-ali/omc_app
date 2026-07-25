@@ -76,9 +76,7 @@ ServiceVisual serviceVisualFor(ServiceItem service) {
 }
 
 ServiceVisual _legacyVisualFor(ServiceItem service) {
-  final source =
-      '${service.category} ${service.title} ${service.wizardType ?? ''}'
-          .toLowerCase();
+  final source = '${service.category} ${service.title}'.toLowerCase();
 
   if (source.contains('visa') || source.contains('immigration')) {
     return const ServiceVisual(

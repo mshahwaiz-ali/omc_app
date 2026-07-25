@@ -22,8 +22,6 @@ class ServiceItem {
     this.requiredDocuments = const [],
     this.requiredDocumentDetails = const [],
     this.supportMessage,
-    this.wizardType,
-    this.wizardConfig = const {},
     this.formSchema = const [],
     this.stages = const [],
   });
@@ -46,8 +44,6 @@ class ServiceItem {
   final List<String> requiredDocuments;
   final List<Map<String, dynamic>> requiredDocumentDetails;
   final String? supportMessage;
-  final String? wizardType;
-  final Map<String, dynamic> wizardConfig;
   final List<ServiceTemplateField> formSchema;
   final List<ServiceStageTemplate> stages;
 
@@ -144,16 +140,6 @@ class ServiceItem {
         'supportMessage',
         'support_message',
         'whatsapp_message',
-      ]),
-      wizardType: _readNullableString(json, [
-        'wizardType',
-        'wizard_type',
-        'request_wizard_type',
-      ]),
-      wizardConfig: _readMap(json, [
-        'wizardConfig',
-        'wizard_config',
-        'request_wizard_config',
       ]),
       requirements: _readStringList(json, [
         'requirements',
@@ -297,45 +283,7 @@ class ServiceItem {
       ]).trim();
     }
 
-    if (item is Map) {
-      final normalized = item.map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
-      return _readString(normalized, [
-        'title',
-        'label',
-        'name',
-        'description',
-        'document_title',
-        'step',
-      ]).trim();
-    }
-
     return item.toString().trim();
-  }
-
-  static Map<String, dynamic> _readMap(
-    Map<String, dynamic> json,
-    List<String> keys,
-  ) {
-    for (final key in keys) {
-      final value = json[key];
-
-      if (value is Map<String, dynamic>) {
-        return value;
-      }
-
-      if (value is Map) {
-        return value.map((key, value) => MapEntry(key.toString(), value));
-      }
-
-      if (value is String && value.trim().isNotEmpty) {
-        final decoded = _tryDecodeJsonMap(value);
-        if (decoded != null) return decoded;
-      }
-    }
-
-    return const {};
   }
 
   static List<String> _tryDecodeJsonList(String value) {
@@ -345,20 +293,6 @@ class ServiceItem {
     } catch (_) {
       return const [];
     }
-  }
-
-  static Map<String, dynamic>? _tryDecodeJsonMap(String value) {
-    try {
-      final decoded = jsonDecode(value);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) {
-        return decoded.map((key, value) => MapEntry(key.toString(), value));
-      }
-    } catch (_) {
-      return null;
-    }
-
-    return null;
   }
 
   static String _readString(Map<String, dynamic> json, List<String> keys) {

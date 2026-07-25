@@ -59,11 +59,6 @@ class ServiceRequestPayload {
       'description': _buildRequestDescription(normalizedDetails),
     };
 
-    final normalizedWizardType = service.wizardType?.trim();
-    if (normalizedWizardType != null && normalizedWizardType.isNotEmpty) {
-      data['wizard_type'] = normalizedWizardType;
-    }
-
     final normalizedTaxId = taxId.trim();
     if (normalizedTaxId.isNotEmpty) {
       data['tax_id'] = normalizedTaxId;
@@ -118,14 +113,6 @@ class ServiceRequestPayload {
           .toList(growable: false);
     }
 
-    if (service.wizardConfig.isNotEmpty) {
-      data['wizard_config'] = service.wizardConfig;
-      data['service_metadata'] = {
-        'wizard_type': normalizedWizardType ?? '',
-        'wizard_config': service.wizardConfig,
-      };
-    }
-
     if (attachments.isNotEmpty) {
       data['attachments'] = attachments
           .map(
@@ -174,9 +161,6 @@ class ServiceRequestPayload {
     if (service.hasBackendTemplate) {
       if (lines.isNotEmpty) lines.add('');
       lines.add('Request form used backend service template configuration.');
-    } else if (service.wizardConfig.isNotEmpty) {
-      if (lines.isNotEmpty) lines.add('');
-      lines.add('Request form used backend wizard configuration.');
     }
 
     return lines.join('\n').trim();

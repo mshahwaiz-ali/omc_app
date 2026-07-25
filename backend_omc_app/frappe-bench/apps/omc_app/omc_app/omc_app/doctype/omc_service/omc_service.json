@@ -24,8 +24,6 @@
   "estimated_duration",
   "completion_time",
   "request_configuration_section",
-  "wizard_type",
-  "wizard_config",
   "support_message",
   "publishing_section",
   "sort_order",
@@ -126,24 +124,12 @@
    "label": "Support Message"
   },
   {
-   "fieldname": "wizard_type",
-   "fieldtype": "Select",
-   "label": "Wizard Type",
-   "options": "\nTax\nGST\nBusiness"
-  },
-  {
    "default": "slate",
    "fieldname": "color_family",
    "fieldtype": "Select",
    "label": "Accent Family",
    "options": "\nnavy\nblue\nteal\ngreen\namber\norange\nviolet\nindigo\nslate\nburgundy",
    "description": "Restrained semantic accent used for the service icon treatment."
-  },
-  {
-   "fieldname": "wizard_config",
-   "fieldtype": "Code",
-   "label": "Wizard Config JSON",
-   "options": "JSON"
   },
   {
    "fieldname": "identity_section",

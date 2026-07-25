@@ -22,8 +22,6 @@
   "sort_order",
   "is_featured",
   "support_message",
-  "wizard_type",
-  "wizard_config",
   "is_active"
  ],
  "fields": [
@@ -115,18 +113,6 @@
    "fieldname": "support_message",
    "fieldtype": "Small Text",
    "label": "Support Message"
-  },
-  {
-   "fieldname": "wizard_type",
-   "fieldtype": "Select",
-   "label": "Wizard Type",
-   "options": "\nTax\nGST\nBusiness"
-  },
-  {
-   "fieldname": "wizard_config",
-   "fieldtype": "Code",
-   "label": "Wizard Config JSON",
-   "options": "JSON"
   }
  ],
  "index_web_pages_for_search": 1,

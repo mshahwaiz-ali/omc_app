@@ -82,7 +82,7 @@ class ServiceDetailScreen extends ConsumerWidget {
 
         final service = matchedService;
         final tone = _serviceDetailTone(service);
-        final wizardLabel = serviceCatalogueWizardBadgeLabel(service);
+        final String? wizardLabel = null;
         final subtitle = (service.shortDescription ?? service.description ?? '')
             .trim();
 
@@ -188,9 +188,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                                 : Icons.add_rounded,
                             size: 19,
                           ),
-                          label: Text(
-                            _startRequestLabel(service, capabilities),
-                          ),
+                          label: Text(_startRequestLabel(capabilities)),
                         ),
                       ),
                     ],
@@ -267,6 +265,14 @@ class ServiceDetailScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  String _startRequestLabel(AuthCapabilities capabilities) {
+    if (capabilities.isGuest) return 'Create account to start';
+    if (capabilities.canCreateServiceForCustomer) {
+      return 'Start for customer';
+    }
+    return 'Start request';
   }
 
   bool _canStartService(AuthCapabilities capabilities) {
@@ -1266,35 +1272,4 @@ String serviceCatalogueErrorMessage(Object error) {
     return 'The server returned an error while loading services.';
   }
   return 'Unable to load the service catalogue right now.';
-}
-
-String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {
-  final raw = service.wizardType?.trim();
-  if (raw == null || raw.isEmpty) {
-    return service.hasBackendTemplate ? 'Service Wizard' : null;
-  }
-  switch (raw.toLowerCase()) {
-    case 'tax':
-      return 'Tax Wizard';
-    case 'gst':
-      return 'GST Wizard';
-    case 'business':
-      return 'Business Wizard';
-    default:
-      return '${_titleCase(raw)} Wizard';
-  }
-}
-
-String _startRequestLabel(ServiceItem service, AuthCapabilities capabilities) {
-  if (capabilities.isGuest) return 'Sign up to request';
-  if (capabilities.isPending) return 'View approval status';
-  return 'Start service';
-}
-
-String _titleCase(String value) {
-  return value
-      .split(RegExp(r'\s+'))
-      .where((word) => word.isNotEmpty)
-      .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
-      .join(' ');
 }

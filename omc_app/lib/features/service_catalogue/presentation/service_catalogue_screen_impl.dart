@@ -1154,23 +1154,6 @@ String serviceCatalogueErrorMessage(Object error) {
   return 'Unable to load the service catalogue right now.';
 }
 
-String? serviceCatalogueWizardBadgeLabel(ServiceItem service) {
-  final raw = service.wizardType?.trim();
-  if (raw == null || raw.isEmpty) {
-    return service.hasBackendTemplate ? 'Service Wizard' : null;
-  }
-  switch (raw.toLowerCase()) {
-    case 'tax':
-      return 'Tax Wizard';
-    case 'gst':
-      return 'GST Wizard';
-    case 'business':
-      return 'Business Wizard';
-    default:
-      return '${_titleCase(raw)} Wizard';
-  }
-}
-
 String _titleCase(String value) {
   return value
       .split(RegExp(r'\s+'))

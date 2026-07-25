@@ -140,8 +140,6 @@ class ServiceCatalogueRepository {
             : service.requiredDocuments,
         requiredDocumentDetails: service.requiredDocumentDetails,
         supportMessage: service.supportMessage,
-        wizardType: service.wizardType,
-        wizardConfig: service.wizardConfig,
         formSchema: template.formSchema,
         stages: template.stages,
       );
