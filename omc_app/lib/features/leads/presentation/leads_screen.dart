@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../app/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/resilience/app_failure.dart';
@@ -769,7 +771,7 @@ class _LeadsHeader extends StatelessWidget {
             FilledButton.icon(
               onPressed: onAddLead,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFD71937),
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(
@@ -850,7 +852,7 @@ class _HeaderCountBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 66),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F3),
+        color: AppTheme.primarySoft,
         borderRadius: BorderRadius.circular(16),
       ),
       alignment: Alignment.center,
@@ -978,7 +980,7 @@ class _LeadStatusFilters extends StatelessWidget {
             label: 'All',
             count: totalCount,
             selected: selectedStatus == null,
-            color: const Color(0xFFD71937),
+            color: AppTheme.primary,
             onTap: () => onChanged(null),
           ),
           for (final status in statuses) ...[
@@ -1094,7 +1096,7 @@ class _LeadOverviewGrid extends StatelessWidget {
               label: 'Total Leads',
               caption: 'All time',
               icon: Icons.groups_2_outlined,
-              color: const Color(0xFFD71937),
+              color: AppTheme.primary,
             ),
             _LeadMetricCard(
               width: itemWidth,
@@ -1590,9 +1592,7 @@ class _LeadListFooter extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFD71937).withValues(alpha: 0.16),
-        ),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.16)),
       ),
       child: Row(
         children: [
@@ -1638,7 +1638,7 @@ class _LeadListFooter extends StatelessWidget {
           FilledButton.icon(
             onPressed: onAddLead,
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFD71937),
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
@@ -1702,7 +1702,7 @@ Map<LeadStatus, int> _statusCounts(List<LeadItem> leads) {
 Color _leadStatusColor(LeadStatus status) {
   switch (status) {
     case LeadStatus.newLead:
-      return const Color(0xFFD71937);
+      return AppTheme.primary;
     case LeadStatus.contacted:
       return const Color(0xFF2563EB);
     case LeadStatus.qualified:
