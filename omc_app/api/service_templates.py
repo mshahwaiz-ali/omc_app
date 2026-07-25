@@ -65,7 +65,7 @@ def _required_document_to_dict(row):
     }
 
 
-def get_template_for_service(service_name):
+def get_template_for_service(service_name, public_only=False):
     fields = []
     if _has_doctype("OMC Service Form Field"):
         fields = [
@@ -92,11 +92,15 @@ def get_template_for_service(service_name):
 
     stages = []
     if _has_doctype("OMC Service Stage Template"):
+        stage_filters = {"service": service_name, "is_active": 1}
+        if public_only:
+            stage_filters["is_customer_visible"] = 1
+
         stages = [
             _stage_to_dict(row)
             for row in frappe.get_all(
                 "OMC Service Stage Template",
-                filters={"service": service_name, "is_active": 1},
+                filters=stage_filters,
                 fields=[
                     "name",
                     "stage_title",
@@ -146,4 +150,4 @@ def get_service_template(service_id=None, service=None):
     if not frappe.db.exists("OMC Service", service_name):
         frappe.throw("Service not found", frappe.DoesNotExistError)
 
-    return get_template_for_service(service_name)
+    return get_template_for_service(service_name, public_only=True)
