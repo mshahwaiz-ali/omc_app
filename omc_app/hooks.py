@@ -18,6 +18,8 @@ override_whitelisted_methods = {
     "omc_app.api.mobile.get_mobile_capabilities": "omc_app.api.access.get_mobile_capabilities",
     "omc_app.api.mobile.get_session_user": "omc_app.api.access.get_session_user",
     "omc_app.api.mobile.get_mobile_app_config": "omc_app.api.branding_config.get_mobile_app_config",
+    "omc_app.api.mobile.get_service_catalogue": "omc_app.api.public_catalogue.get_service_catalogue",
+    "omc_app.api.mobile.get_service_detail": "omc_app.api.public_catalogue.get_service_detail",
     "omc_app.api.mobile.get_service_cases": "omc_app.api.secured_mobile.get_service_cases",
     "omc_app.api.mobile.get_service_case": "omc_app.api.secured_mobile.get_service_case",
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
@@ -33,7 +35,7 @@ permission_query_conditions = {
     "OMC Customer Profile": "omc_app.permissions.customer_profile_query",
     "OMC Task": "omc_app.permissions.task_query",
     "OMC Service Document": "omc_app.permissions.service_document_query",
-    "OMC Service Payment": "omc_app.permissions.service_payment_query",
+    "OMC Service Payment": "omc_app.permissions.payment_query",
     "OMC Support Ticket": "omc_app.permissions.support_ticket_query",
     "OMC Lead": "omc_app.permissions.lead_query",
 }
