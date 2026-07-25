@@ -50,29 +50,42 @@ IconData serviceIconFor(String? key) {
   return _serviceIcons[_normalizeKey(key)] ?? _serviceIcons['general_service']!;
 }
 
-Color serviceAccentFor(String? family) {
-  return _serviceAccents[_normalizeKey(family)] ?? _serviceAccents['slate']!;
+Color serviceAccentFor(String? value) {
+  return _parseHexColor(value) ??
+      _serviceAccents[_normalizeKey(value)] ??
+      _serviceAccents['slate']!;
 }
 
 ServiceVisual serviceVisualFor(ServiceItem service) {
   final normalizedIcon = _normalizeKey(service.iconKey);
-  final normalizedFamily = _normalizeKey(service.colorFamily);
-
+  final customColor = _parseHexColor(service.colorFamily);
+  final presetColor = _serviceAccents[_normalizeKey(service.colorFamily)];
+  final backendColor = customColor ?? presetColor;
   final hasBackendIcon = _serviceIcons.containsKey(normalizedIcon);
-  final hasBackendColor = _serviceAccents.containsKey(normalizedFamily);
 
-  if (hasBackendIcon || hasBackendColor) {
+  if (hasBackendIcon || backendColor != null) {
     return ServiceVisual(
       icon: hasBackendIcon
           ? _serviceIcons[normalizedIcon]!
           : _legacyVisualFor(service).icon,
-      color: hasBackendColor
-          ? _serviceAccents[normalizedFamily]!
-          : _legacyVisualFor(service).color,
+      color: backendColor ?? _legacyVisualFor(service).color,
     );
   }
 
   return _legacyVisualFor(service);
+}
+
+Color? _parseHexColor(String? value) {
+  final raw = (value ?? '').trim();
+  if (raw.isEmpty) return null;
+
+  final normalized = raw.startsWith('#') ? raw.substring(1) : raw;
+  if (!RegExp(r'^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$').hasMatch(normalized)) {
+    return null;
+  }
+
+  final argb = normalized.length == 6 ? 'FF$normalized' : normalized;
+  return Color(int.parse(argb, radix: 16));
 }
 
 ServiceVisual _legacyVisualFor(ServiceItem service) {
