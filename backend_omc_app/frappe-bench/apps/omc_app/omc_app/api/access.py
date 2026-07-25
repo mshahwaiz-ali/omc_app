@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils import validate_email_address
 
 from omc_app.api import mobile
 from omc_app.setup.roles import (
@@ -119,6 +120,26 @@ ROLE_CAPABILITIES = {
     },
 }
 
+SIGNUP_TEXT_LIMITS = {
+    "full_name": 140,
+    "name": 140,
+    "phone": 40,
+    "mobile": 40,
+    "whatsapp_no": 40,
+    "whatsapp": 40,
+    "company_name": 140,
+    "company": 140,
+    "cnic": 40,
+    "ntn": 40,
+    "register_as": 80,
+    "customer_type": 80,
+    "address": 500,
+    "education": 500,
+    "experience": 1000,
+    "remarks": 2000,
+    "notes": 2000,
+}
+
 
 def _current_user():
     user = frappe.session.user if getattr(frappe, "session", None) else "Guest"
@@ -172,10 +193,50 @@ def _canonical_capabilities(user=None):
     return capabilities
 
 
+def _bounded_signup_text(value, fieldname, max_length):
+    text = str(value or "").strip()
+    if len(text) > max_length:
+        frappe.throw(
+            f"{fieldname} must be {max_length} characters or fewer",
+            frappe.ValidationError,
+        )
+    return text
+
+
+def _validated_signup_kwargs(kwargs):
+    data = dict(kwargs or {})
+    email = _bounded_signup_text(
+        data.get("email") or data.get("user"),
+        "email",
+        254,
+    ).lower()
+    if not email or not validate_email_address(email, throw=False):
+        frappe.throw("A valid email address is required", frappe.ValidationError)
+
+    password = data.get("password") or data.get("new_password")
+    if password is not None and not isinstance(password, str):
+        frappe.throw("Password must be text", frappe.ValidationError)
+    if password and len(password) > 128:
+        frappe.throw(
+            "Password must be 128 characters or fewer",
+            frappe.ValidationError,
+        )
+
+    data["email"] = email
+    for fieldname, max_length in SIGNUP_TEXT_LIMITS.items():
+        if fieldname in data:
+            data[fieldname] = _bounded_signup_text(
+                data.get(fieldname),
+                fieldname,
+                max_length,
+            )
+    return data
+
+
 @frappe.whitelist(allow_guest=True)
 def sign_up(**kwargs):
-    """Compatibility route for the canonical mobile signup implementation."""
-    return mobile.sign_up(**kwargs)
+    """Validate public input before delegating to the mobile signup workflow."""
+    return mobile.sign_up(**_validated_signup_kwargs(kwargs))
 
 
 @frappe.whitelist()
