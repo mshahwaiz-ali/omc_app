@@ -147,7 +147,7 @@ def get_service_template(service_id=None, service=None):
     service_name = _service_name(service_id or service)
     if not service_name:
         frappe.throw("service_id is required")
-    if not frappe.db.exists("OMC Service", service_name):
+    if not frappe.db.exists("OMC Service", {"name": service_name, "is_active": 1}):
         frappe.throw("Service not found", frappe.DoesNotExistError)
 
     return get_template_for_service(service_name, public_only=True)
