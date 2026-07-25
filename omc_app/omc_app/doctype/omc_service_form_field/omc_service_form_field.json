@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:OMC-SFF-.#####",
+ "autoname": "OMC-SFF-.#####",
  "creation": "2026-07-08 00:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -9,7 +9,7 @@
  "field_order": ["service", "fieldname", "label", "fieldtype", "options", "placeholder", "description", "is_required", "default_value", "depends_on", "sort_order", "is_active"],
  "fields": [
   {"fieldname": "service", "fieldtype": "Link", "in_list_view": 1, "label": "Service", "options": "OMC Service", "reqd": 1},
-  {"fieldname": "fieldname", "fieldtype": "Data", "in_list_view": 1, "label": "Fieldname", "reqd": 1},
+  {"description": "Automatically generated from the label.", "fieldname": "fieldname", "fieldtype": "Data", "hidden": 1, "label": "Fieldname", "no_copy": 1, "read_only": 1},
   {"fieldname": "label", "fieldtype": "Data", "in_list_view": 1, "label": "Label", "reqd": 1},
   {"default": "Data", "fieldname": "fieldtype", "fieldtype": "Select", "in_list_view": 1, "label": "Field Type", "options": "Data\nSmall Text\nText\nSelect\nCheck\nDate\nDatetime\nCurrency\nInt\nFloat\nPhone\nEmail\nAttach", "reqd": 1},
   {"fieldname": "options", "fieldtype": "Small Text", "label": "Options"},
