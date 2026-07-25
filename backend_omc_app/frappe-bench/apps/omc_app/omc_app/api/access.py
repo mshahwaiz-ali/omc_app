@@ -10,8 +10,6 @@ from omc_app.setup.roles import (
     CUSTOMER_ROLE,
     DOCUMENT_REVIEWER_ROLE,
     FINANCE_REVIEWER_ROLE,
-    LEGACY_CLIENT_ROLES,
-    LEGACY_ROLES,
     MANAGER_ROLE,
     SUPPORT_AGENT_ROLE,
     SYSTEM_ROLE,
@@ -138,31 +136,6 @@ def is_internal_user(user=None):
     return bool(_roles(user).intersection(INTERNAL_ROLES))
 
 
-def _normalize_user_roles(user_id):
-    if not user_id or user_id in {"Guest", "Administrator"}:
-        return
-    if not frappe.db.exists("User", user_id):
-        return
-
-    roles = _roles(user_id)
-    user_doc = frappe.get_doc("User", user_id)
-    existing = {row.role for row in (user_doc.roles or [])}
-
-    if roles.intersection(LEGACY_CLIENT_ROLES) and CUSTOMER_ROLE not in existing:
-        user_doc.append("roles", {"role": CUSTOMER_ROLE})
-
-    user_doc.roles = [row for row in user_doc.roles if row.role not in LEGACY_ROLES]
-    final_roles = {row.role for row in user_doc.roles}
-
-    if final_roles.intersection(INTERNAL_ROLES):
-        user_doc.user_type = "System User"
-    elif final_roles.intersection(ACTIVE_PORTAL_ROLES):
-        user_doc.user_type = "Website User"
-
-    user_doc.save(ignore_permissions=True)
-    frappe.clear_cache(user=user_id)
-
-
 def _canonical_capabilities(user=None):
     user = user or _current_user()
     roles = _roles(user)
@@ -208,7 +181,6 @@ def sign_up(**kwargs):
 @frappe.whitelist()
 def get_mobile_capabilities(user=None):
     user = user or _current_user()
-    _normalize_user_roles(user)
 
     canonical = _canonical_capabilities(user)
     if canonical is not None:
@@ -220,7 +192,6 @@ def get_mobile_capabilities(user=None):
 @frappe.whitelist()
 def get_session_user():
     user = _current_user()
-    _normalize_user_roles(user)
     roles = sorted(_roles(user))
     capabilities = get_mobile_capabilities(user=user)
 

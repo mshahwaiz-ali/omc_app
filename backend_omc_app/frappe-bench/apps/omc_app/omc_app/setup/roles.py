@@ -289,6 +289,55 @@ def _remove_role_docperms(role_names):
         frappe.delete_doc("DocPerm", name, ignore_permissions=True, force=True)
 
 
+def _migrate_legacy_user_roles():
+    """Migrate legacy user roles during install/migrate, never during API reads."""
+    assignments = frappe.get_all(
+        "Has Role",
+        filters={"role": ["in", sorted(LEGACY_ROLES)]},
+        fields=["parent", "role"],
+        order_by="parent asc",
+    )
+    roles_by_user = {}
+    for assignment in assignments:
+        roles_by_user.setdefault(assignment.parent, set()).add(assignment.role)
+
+    for user_id, legacy_roles in roles_by_user.items():
+        if not user_id or user_id in {"Guest", "Administrator"}:
+            continue
+        if not frappe.db.exists("User", user_id):
+            continue
+
+        user_doc = frappe.get_doc("User", user_id)
+        existing_roles = {row.role for row in (user_doc.roles or [])}
+        changed = False
+
+        if legacy_roles.intersection(LEGACY_CLIENT_ROLES) and CUSTOMER_ROLE not in existing_roles:
+            user_doc.append("roles", {"role": CUSTOMER_ROLE})
+            changed = True
+
+        filtered_roles = [
+            row for row in (user_doc.roles or []) if row.role not in LEGACY_ROLES
+        ]
+        if len(filtered_roles) != len(user_doc.roles or []):
+            user_doc.roles = filtered_roles
+            changed = True
+
+        final_roles = {row.role for row in (user_doc.roles or [])}
+        expected_user_type = None
+        if final_roles.intersection(ACTIVE_STAFF_ROLES | {SYSTEM_ROLE}):
+            expected_user_type = "System User"
+        elif final_roles.intersection(ACTIVE_PORTAL_ROLES):
+            expected_user_type = "Website User"
+
+        if expected_user_type and user_doc.user_type != expected_user_type:
+            user_doc.user_type = expected_user_type
+            changed = True
+
+        if changed:
+            user_doc.save(ignore_permissions=True)
+            frappe.clear_cache(user=user_id)
+
+
 def _apply_permissions():
     # Rebuild every OMC role baseline idempotently. API capabilities remain the
     # authoritative action layer; these DocPerms only expose the matching Desk
@@ -333,6 +382,7 @@ def sync_canonical_roles():
     for role_name in sorted(LEGACY_ROLES):
         _ensure_role(role_name, desk_access=False, disabled=True)
 
+    _migrate_legacy_user_roles()
     _apply_permissions()
     frappe.clear_cache()
 
