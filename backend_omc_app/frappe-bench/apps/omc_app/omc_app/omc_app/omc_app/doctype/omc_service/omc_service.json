@@ -7,21 +7,27 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "identity_section",
   "service_id",
   "title",
   "category",
-  "description",
   "short_description",
+  "description",
+  "mobile_appearance_section",
   "icon",
-  "estimated_duration",
-  "completion_time",
+  "color_family",
+  "pricing_duration_section",
   "base_price",
   "currency",
   "fee_label",
   "government_fee_label",
+  "estimated_duration",
+  "completion_time",
+  "request_configuration_section",
+  "support_message",
+  "publishing_section",
   "sort_order",
   "is_featured",
-  "support_message",
   "is_active"
  ],
  "fields": [
@@ -53,9 +59,12 @@
    "label": "Description"
   },
   {
+   "default": "general_service",
+   "description": "Stable semantic icon key used by mobile clients.",
    "fieldname": "icon",
-   "fieldtype": "Data",
-   "label": "Icon"
+   "fieldtype": "Select",
+   "label": "Service Icon",
+   "options": "\nbusiness_setup\ncompany_registration\ntax_filing\ntax_registration\ngst\naccounting\naudit\ndocuments\ncertificate\nlegal\nvisa\npayroll\npayments\ncompliance\nconsultation\nlicensing\ntrademark\nbookkeeping\nbanking\ngeneral_service"
   },
   {
    "fieldname": "estimated_duration",
@@ -116,6 +125,38 @@
    "fieldname": "support_message",
    "fieldtype": "Small Text",
    "label": "Support Message"
+  },
+  {
+   "default": "#526173",
+   "description": "Choose a preset colour or enter a custom hex colour for the service icon treatment.",
+   "fieldname": "color_family",
+   "fieldtype": "Color",
+   "label": "Accent Color"
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "mobile_appearance_section",
+   "fieldtype": "Section Break",
+   "label": "Mobile Appearance"
+  },
+  {
+   "fieldname": "pricing_duration_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing and Duration"
+  },
+  {
+   "fieldname": "request_configuration_section",
+   "fieldtype": "Section Break",
+   "label": "Request Configuration"
+  },
+  {
+   "fieldname": "publishing_section",
+   "fieldtype": "Section Break",
+   "label": "Publishing"
   }
  ],
  "index_web_pages_for_search": 1,
