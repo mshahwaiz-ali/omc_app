@@ -10,7 +10,7 @@
  "fields": [
   {"fieldname": "service", "fieldtype": "Link", "in_list_view": 1, "label": "Service", "options": "OMC Service", "reqd": 1},
   {"fieldname": "stage_title", "fieldtype": "Data", "in_list_view": 1, "label": "Stage Title", "reqd": 1},
-  {"fieldname": "stage_key", "fieldtype": "Data", "label": "Stage Key"},
+  {"description": "Automatically generated from the stage title.", "fieldname": "stage_key", "fieldtype": "Data", "hidden": 1, "label": "Stage Key", "no_copy": 1, "read_only": 1},
   {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
   {"default": "0", "fieldname": "sort_order", "fieldtype": "Int", "in_list_view": 1, "label": "Sort Order"},
   {"default": "1", "fieldname": "is_customer_visible", "fieldtype": "Check", "in_list_view": 1, "label": "Customer Visible"},
