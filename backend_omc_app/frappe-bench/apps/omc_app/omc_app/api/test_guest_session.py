@@ -73,6 +73,29 @@ class TestGuestSessionBoundaries(FrappeTestCase):
         self.assertFalse(doc.converted_user)
         self.assertFalse(doc.converted_customer_profile)
 
+    def test_rejects_oversized_guest_identifiers(self):
+        with self.assertRaises(frappe.ValidationError):
+            guest_session.create_guest_session(device_id="x" * 141)
+
+        with self.assertRaises(frappe.ValidationError):
+            guest_session.create_guest_session(
+                device_id=self._device_id(),
+                app_version="v" * 141,
+            )
+
+    def test_rejects_oversized_interested_services(self):
+        with self.assertRaises(frappe.ValidationError):
+            guest_session.create_guest_session(
+                device_id=self._device_id(),
+                interested_services=["service"] * 21,
+            )
+
+        with self.assertRaises(frappe.ValidationError):
+            guest_session.create_guest_session(
+                device_id=self._device_id(),
+                interested_services=["x" * 121],
+            )
+
     def test_authenticated_conversion_uses_server_session_identity(self):
         created = self._create()
         session_id = created["guest_session"]["session_id"]
