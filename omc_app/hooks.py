@@ -22,11 +22,16 @@ override_whitelisted_methods = {
     "omc_app.api.mobile.get_service_detail": "omc_app.api.public_catalogue.get_service_detail",
     "omc_app.api.mobile.update_profile": "omc_app.api.profile_guard.update_profile",
     "omc_app.api.mobile.update_contact_info": "omc_app.api.profile_guard.update_contact_info",
+    "omc_app.api.mobile.create_service": "omc_app.api.service_request_guard.create_service",
     "omc_app.api.mobile.get_service_cases": "omc_app.api.secured_mobile.get_service_cases",
     "omc_app.api.mobile.get_service_case": "omc_app.api.secured_mobile.get_service_case",
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
     "omc_app.api.mobile.update_service_document_status": "omc_app.api.secured_mobile.update_service_document_status",
     "omc_app.api.tax_calculator.calculate_tax": "omc_app.api.tax_calculator_guard.calculate_tax",
+    "omc_app.api.expense.create_expense_entry": "omc_app.api.expense_write_guard.create_expense_entry",
+    "omc_app.api.expense.update_expense_entry": "omc_app.api.expense_write_guard.update_expense_entry",
+    "omc_app.api.expense.bulk_sync_expense_entries": "omc_app.api.expense_write_guard.bulk_sync_expense_entries",
+    "omc_app.api.expense.save_expense_budget": "omc_app.api.expense_write_guard.save_expense_budget",
     "omc_app.api.expense.upload_expense_receipt": "omc_app.api.expense_guard.upload_expense_receipt",
 }
 
