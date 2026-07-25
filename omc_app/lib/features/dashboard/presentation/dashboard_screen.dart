@@ -24,7 +24,7 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        top: false,
+        bottom: false,
         child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(homeDashboardSummaryProvider);
