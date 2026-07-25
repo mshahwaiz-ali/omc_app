@@ -26,9 +26,13 @@
  ],
  "fields": [
   {
+   "description": "Automatically generated from the service title.",
    "fieldname": "service_id",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Service ID",
+   "no_copy": 1,
+   "read_only": 1,
    "reqd": 1,
    "unique": 1
   },
