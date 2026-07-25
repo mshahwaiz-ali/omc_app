@@ -59,12 +59,12 @@
    "label": "Description"
   },
   {
+   "default": "general_service",
+   "description": "Stable semantic icon key used by mobile clients.",
    "fieldname": "icon",
    "fieldtype": "Select",
    "label": "Service Icon",
-   "options": "\nbusiness_setup\ncompany_registration\ntax_filing\ntax_registration\ngst\naccounting\naudit\ndocuments\ncertificate\nlegal\nvisa\npayroll\npayments\ncompliance\nconsultation\nlicensing\ntrademark\nbookkeeping\nbanking\ngeneral_service",
-   "default": "general_service",
-   "description": "Stable semantic icon key used by mobile clients."
+   "options": "\nbusiness_setup\ncompany_registration\ntax_filing\ntax_registration\ngst\naccounting\naudit\ndocuments\ncertificate\nlegal\nvisa\npayroll\npayments\ncompliance\nconsultation\nlicensing\ntrademark\nbookkeeping\nbanking\ngeneral_service"
   },
   {
    "fieldname": "estimated_duration",
@@ -127,12 +127,11 @@
    "label": "Support Message"
   },
   {
-   "default": "slate",
+   "default": "#526173",
+   "description": "Choose a preset colour or enter a custom hex colour for the service icon treatment.",
    "fieldname": "color_family",
-   "fieldtype": "Select",
-   "label": "Accent Family",
-   "options": "\nnavy\nblue\nteal\ngreen\namber\norange\nviolet\nindigo\nslate\nburgundy",
-   "description": "Restrained semantic accent used for the service icon treatment."
+   "fieldtype": "Color",
+   "label": "Accent Color"
   },
   {
    "fieldname": "identity_section",
