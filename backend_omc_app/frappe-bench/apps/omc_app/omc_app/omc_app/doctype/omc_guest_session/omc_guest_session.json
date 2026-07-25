@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:OMC-GS-.#####",
+ "autoname": "OMC-GS-.#####",
  "creation": "2026-07-08 00:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
