@@ -1,51 +1,95 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Start or refresh an existing OMC Frappe production deployment.
+#
+# This script is intentionally runtime-only. It does not:
+# - install packages;
+# - create or recreate a Bench;
+# - create or recreate a site or database;
+# - install the OMC app;
+# - run migrations or build assets;
+# - modify Nginx or Supervisor configuration;
+# - delete files or runtime data.
+#
+# BENCH_DIR may be overridden when the deployed Bench lives elsewhere:
+#   BENCH_DIR=/path/to/frappe-bench ./production.sh
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+DEFAULT_BENCH_DIR="$(cd "$SCRIPT_DIR/../frappe-bench" && pwd)"
+BENCH_DIR="${BENCH_DIR:-$DEFAULT_BENCH_DIR}"
 
-load_config
-setup_log production
-need_sudo
+if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+  SUDO=()
+elif command -v sudo >/dev/null 2>&1; then
+  SUDO=(sudo)
+else
+  printf 'ERROR: sudo is required when production.sh is not run as root.\n' >&2
+  exit 1
+fi
 
-BENCH_DIR="${BENCH_DIR:-}"
+fail() {
+  printf 'ERROR: %s\n' "$*" >&2
+  exit 1
+}
 
-[[ -n "$BENCH_DIR" ]] || die "BENCH_DIR is not set in deploy/config/production.env"
-[[ -d "$BENCH_DIR" ]] || die "bench directory not found: $BENCH_DIR"
-[[ -d "$BENCH_DIR/sites" ]] || die "not a runnable Bench directory (sites/ missing): $BENCH_DIR"
-[[ -f "$BENCH_DIR/sites/apps.txt" ]] || die "Bench apps list missing: $BENCH_DIR/sites/apps.txt"
+info() {
+  printf '\n==> %s\n' "$*"
+}
 
-have supervisorctl || die "supervisorctl is not installed or not available in PATH"
-have systemctl || die "systemctl is required"
+[[ -d "$BENCH_DIR" ]] || fail "Bench directory not found: $BENCH_DIR"
+[[ -d "$BENCH_DIR/sites" ]] || fail "Not a runnable Bench directory: $BENCH_DIR/sites is missing"
+[[ -f "$BENCH_DIR/sites/apps.txt" ]] || fail "Bench apps list is missing: $BENCH_DIR/sites/apps.txt"
+[[ -x "$BENCH_DIR/env/bin/python" ]] || fail "Bench Python is missing: $BENCH_DIR/env/bin/python"
 
-info "bench: $BENCH_DIR"
+command -v supervisorctl >/dev/null 2>&1 || fail "supervisorctl is not installed"
+command -v systemctl >/dev/null 2>&1 || fail "systemctl is not installed"
+command -v nginx >/dev/null 2>&1 || fail "nginx is not installed"
 
-supervisor_status="$(${SUDO[@]} supervisorctl status 2>&1 || true)"
-printf '%s\n' "$supervisor_status"
+info "Using Bench: $BENCH_DIR"
 
-if grep -qE '^[^[:space:]]+[[:space:]]+RUNNING([[:space:]]|$)' <<<"$supervisor_status"; then
-  info "production processes are running; restarting Supervisor programs"
+info "Ensuring the Supervisor service is running"
+if ! "${SUDO[@]}" systemctl is-active --quiet supervisor; then
+  "${SUDO[@]}" systemctl start supervisor
+fi
+
+info "Refreshing Supervisor configuration"
+"${SUDO[@]}" supervisorctl reread
+"${SUDO[@]}" supervisorctl update
+
+info "Starting or restarting Frappe production processes"
+SUPERVISOR_STATUS="$("${SUDO[@]}" supervisorctl status 2>&1 || true)"
+printf '%s\n' "$SUPERVISOR_STATUS"
+
+if grep -qE '^[^[:space:]]+[[:space:]]+RUNNING([[:space:]]|$)' <<<"$SUPERVISOR_STATUS"; then
   "${SUDO[@]}" supervisorctl restart all
 else
-  info "production processes are stopped; starting Supervisor programs"
   "${SUDO[@]}" supervisorctl start all
 fi
 
+info "Validating Nginx configuration"
+"${SUDO[@]}" nginx -t
+
+info "Starting or reloading Nginx"
 if "${SUDO[@]}" systemctl is-active --quiet nginx; then
-  info "Nginx is running; reloading configuration"
-  "${SUDO[@]}" nginx -t
   "${SUDO[@]}" systemctl reload nginx
 else
-  info "Nginx is stopped; validating configuration and starting it"
-  "${SUDO[@]}" nginx -t
   "${SUDO[@]}" systemctl start nginx
 fi
 
-info "final Supervisor status"
+info "Checking Redis availability"
+if command -v redis-cli >/dev/null 2>&1; then
+  REDIS_REPLY="$(redis-cli ping 2>/dev/null || true)"
+  [[ "$REDIS_REPLY" == "PONG" ]] || fail "Redis did not answer PONG"
+  printf 'Redis: %s\n' "$REDIS_REPLY"
+else
+  printf 'Redis check skipped: redis-cli is not installed.\n'
+fi
+
+info "Final Supervisor status"
 "${SUDO[@]}" supervisorctl status
 
-info "final Nginx status"
+info "Final Nginx status"
 "${SUDO[@]}" systemctl is-active nginx
 
-ok "Frappe production services are active"
+printf '\nOMC Frappe production services are active.\n'
