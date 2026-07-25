@@ -43,28 +43,31 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
         .canManageLeads;
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () {
-          ref.invalidate(leadsProvider);
-          return ref.read(leadsProvider.future);
-        },
-        child: leadsAsync.when(
-          data: (leads) => _LeadsContent(
-            leads: leads,
-            query: _query,
-            statusFilter: _statusFilter,
-            onQueryChanged: (value) => setState(() => _query = value),
-            onStatusChanged: (value) => setState(() => _statusFilter = value),
-            onAddLead: canCreateLeads ? _showCreateLeadSheet : null,
-          ),
-          loading: () => _LeadsLoadingView(
-            onAddLead: canCreateLeads ? _showCreateLeadSheet : null,
-          ),
-          error: (error, _) => _BackendUnavailableState(
-            icon: Icons.trending_up_rounded,
-            title: 'Leads unavailable',
-            message: _backendErrorMessage(error),
-            onRetry: () => ref.invalidate(leadsProvider),
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: () {
+            ref.invalidate(leadsProvider);
+            return ref.read(leadsProvider.future);
+          },
+          child: leadsAsync.when(
+            data: (leads) => _LeadsContent(
+              leads: leads,
+              query: _query,
+              statusFilter: _statusFilter,
+              onQueryChanged: (value) => setState(() => _query = value),
+              onStatusChanged: (value) => setState(() => _statusFilter = value),
+              onAddLead: canCreateLeads ? _showCreateLeadSheet : null,
+            ),
+            loading: () => _LeadsLoadingView(
+              onAddLead: canCreateLeads ? _showCreateLeadSheet : null,
+            ),
+            error: (error, _) => _BackendUnavailableState(
+              icon: Icons.trending_up_rounded,
+              title: 'Leads unavailable',
+              message: _backendErrorMessage(error),
+              onRetry: () => ref.invalidate(leadsProvider),
+            ),
           ),
         ),
       ),

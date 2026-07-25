@@ -47,44 +47,50 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFD),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(tasksProvider);
-          await ref.read(tasksProvider.future);
-        },
-        child: tasksAsync.when(
-          data: (tasks) => _TasksContent(
-            tasks: tasks,
-            query: _query,
-            statusFilter: _statusFilter,
-            priorityFilter: _priorityFilter,
-            onQueryChanged: (value) {
-              setState(() => _query = value);
-            },
-            onStatusChanged: (value) {
-              setState(() => _statusFilter = value);
-            },
-            onOpenFilters: () => _showFilterSheet(tasks),
-            onClearFilters: _clearFilters,
-            onAddTask: canCreateTasks ? _showCreateTaskSheet : null,
-          ),
-          loading: () => _TasksLoadingView(
-            onAddTask: canCreateTasks ? _showCreateTaskSheet : null,
-          ),
-          error: (error, _) => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 150),
-            children: [
-              const _TasksPageHeader(metaLabel: 'Unavailable', onAddTask: null),
-              const SizedBox(height: 28),
-              PremiumEmptyState(
-                icon: Icons.cloud_off_rounded,
-                title: 'Tasks unavailable',
-                message: _backendErrorMessage(error),
-                actionLabel: 'Try again',
-                onAction: () => ref.invalidate(tasksProvider),
-              ),
-            ],
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(tasksProvider);
+            await ref.read(tasksProvider.future);
+          },
+          child: tasksAsync.when(
+            data: (tasks) => _TasksContent(
+              tasks: tasks,
+              query: _query,
+              statusFilter: _statusFilter,
+              priorityFilter: _priorityFilter,
+              onQueryChanged: (value) {
+                setState(() => _query = value);
+              },
+              onStatusChanged: (value) {
+                setState(() => _statusFilter = value);
+              },
+              onOpenFilters: () => _showFilterSheet(tasks),
+              onClearFilters: _clearFilters,
+              onAddTask: canCreateTasks ? _showCreateTaskSheet : null,
+            ),
+            loading: () => _TasksLoadingView(
+              onAddTask: canCreateTasks ? _showCreateTaskSheet : null,
+            ),
+            error: (error, _) => ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 150),
+              children: [
+                const _TasksPageHeader(
+                  metaLabel: 'Unavailable',
+                  onAddTask: null,
+                ),
+                const SizedBox(height: 28),
+                PremiumEmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Tasks unavailable',
+                  message: _backendErrorMessage(error),
+                  actionLabel: 'Try again',
+                  onAction: () => ref.invalidate(tasksProvider),
+                ),
+              ],
+            ),
           ),
         ),
       ),
