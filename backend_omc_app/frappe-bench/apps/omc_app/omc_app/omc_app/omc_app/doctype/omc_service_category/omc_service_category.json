@@ -16,9 +16,13 @@
  ],
  "fields": [
   {
+   "description": "Automatically generated from the category title.",
    "fieldname": "category_name",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Category Name",
+   "no_copy": 1,
+   "read_only": 1,
    "reqd": 1,
    "unique": 1
   },
@@ -34,9 +38,12 @@
    "label": "Description"
   },
   {
+   "default": "general_service",
+   "description": "Stable semantic icon key used by mobile clients.",
    "fieldname": "icon",
-   "fieldtype": "Data",
-   "label": "Icon"
+   "fieldtype": "Select",
+   "label": "Category Icon",
+   "options": "\nbusiness_setup\ncompany_registration\ntax_filing\ntax_registration\ngst\naccounting\naudit\ndocuments\ncertificate\nlegal\nvisa\npayroll\npayments\ncompliance\nconsultation\nlicensing\ntrademark\nbookkeeping\nbanking\ngeneral_service"
   },
   {
    "default": "0",
