@@ -1,1237 +1,1389 @@
-# OMC App — Product & Client Workflow Guide
+# OMC App — Detailed Product, Workflow, and Operations Guide
 
-## Introduction
+## 1. Purpose of this document
 
-OMC App is a customer service and compliance portal for OMC House.
+This document explains the OMC App in practical business language.
 
-Customers use the mobile app to explore OMC services, create an account, submit service requests, upload documents, track request status, view payment/receipt updates, receive notifications, contact support, use a tax calculator, and manage basic expense tracking.
+It is intended for:
 
-OMC staff use the Frappe Desk/backend to manage the business operation behind the app. Staff can review new customer profiles, approve or reject users, manage services, update service requests, review uploaded documents, review payment receipts, handle support tickets, manage leads, assign tasks, and maintain customer history.
+- OMC House management;
+- client representatives;
+- operations staff;
+- support, document, finance, and service teams;
+- developers and deployment engineers;
+- testers performing role-based verification.
 
-The main goal is simple:
+The guide describes:
+
+- what the platform does;
+- who can use each part;
+- how customer and staff workflows connect;
+- how each major feature behaves;
+- what OMC manages from Frappe Desk;
+- which security and access rules apply;
+- how the platform should be tested before release.
+
+For installation commands and engineering setup, see [`README.md`](README.md).
+
+For the complete role and capability matrix, see [`docs/app_role.md`](docs/app_role.md).
+
+---
+
+# 2. Executive summary
+
+OMC App is a full-stack digital service platform for OMC House.
+
+It combines:
+
+1. a Flutter application for guests, customers, and authorised internal users;
+2. a custom Frappe backend for data, workflows, permissions, and operations;
+3. Frappe Desk for controlled business administration;
+4. backend-managed content, services, cases, documents, payments, support, and customer records.
+
+The operating model is:
 
 ```text
-Customer uses mobile app.
-OMC team manages everything from Frappe Desk.
-Both sides stay connected through the same backend records.
+Customer or staff member uses the Flutter app
+                    |
+                    | Secure API requests
+                    v
+             Custom OMC backend
+                    |
+                    | Business rules and permissions
+                    v
+        Frappe Desk and OMC operational records
+```
+
+The customer experience should feel simple. The backend remains strict.
+
+> The app may hide or lock a feature for user experience, but the backend must independently enforce every protected action.
+
+---
+
+# 3. Client-facing explanation
+
+OMC House provides customers with a digital portal where they can:
+
+- browse available OMC services;
+- understand service requirements;
+- create an account;
+- wait for approval where verification is required;
+- request services;
+- upload supporting documents;
+- track the progress of their cases;
+- review payment instructions and receipt status;
+- receive notifications;
+- contact support;
+- use tax and expense tools;
+- manage their profile and settings.
+
+OMC staff manage the business workflow from Frappe Desk and authorised internal modules, including:
+
+- customer onboarding and approval;
+- service catalogue management;
+- service-case processing;
+- document review;
+- payment-receipt review;
+- support tickets;
+- leads;
+- operational tasks;
+- notifications and customer-facing content.
+
+The mobile app and Frappe Desk use the same backend records, which keeps customers and staff aligned.
+
+---
+
+# 4. Platform sides
+
+## 4.1 Customer side
+
+The customer side supports three core states:
+
+- Guest;
+- Pending Customer;
+- Approved Customer.
+
+Each state receives a different set of routes, actions, and records.
+
+## 4.2 Internal side
+
+The internal side is used by authorised OMC personnel.
+
+Internal access is capability-based. A staff member does not receive every action simply because the internal shell is visible.
+
+For example:
+
+- a Document Reviewer may review documents but not payments;
+- a Finance Reviewer may review payment receipts but not documents;
+- a Support Agent may manage support tickets but not application settings;
+- a Consultant may access assigned cases but not every customer record;
+- an Admin may manage the full OMC application.
+
+## 4.3 Shared backend
+
+Both sides use the same Frappe backend for:
+
+- users and sessions;
+- customer profiles;
+- services;
+- service requests;
+- document records;
+- payment records;
+- support tickets;
+- notifications;
+- leads;
+- tasks;
+- tax configuration;
+- expense data;
+- content and settings.
+
+---
+
+# 5. User types and access states
+
+## 5.1 Guest
+
+A guest has not signed in.
+
+### Guest users can
+
+- open the app;
+- view public home content;
+- browse active services;
+- open public service details;
+- read approved FAQs and knowledge content;
+- use guest-safe tax tools;
+- view contact and support information;
+- open login and signup.
+
+### Guest users cannot
+
+- create service requests;
+- upload customer documents;
+- view customer dashboards;
+- track private service cases;
+- view payments;
+- view customer notifications;
+- access customer support history;
+- view another user's data;
+- access internal workspace features.
+
+### Expected app behaviour
+
+When a guest opens a protected route, the app should redirect or show a clear access message without exposing private data.
+
+Suggested wording:
+
+```text
+Sign in or create an account to continue.
 ```
 
 ---
 
-## Simple Client-Facing Explanation
+## 5.2 Pending Customer
 
-OMC House mobile app is a digital service portal where customers can:
+A Pending Customer has registered but has not yet been approved by OMC.
 
-* Browse OMC services
-* Create an account
-* Wait for OMC approval
-* Request services
-* Upload required documents
-* Track service progress
-* View payment instructions/status
-* Upload payment receipt/proof
-* Raise support tickets
-* Receive notifications
-* Use tax calculator and expense tracker
-* Read knowledge/news/help content
-
-OMC staff can manage the full backend workflow from Frappe Desk:
-
-* Customer profiles
-* Signup approvals
-* Service catalogue
-* Service requests
-* Required documents
-* Uploaded files
-* Payment/receipt tracking
-* Support tickets
-* Leads
-* Tasks
-* Notifications
-* Knowledge/news content
-
----
-
-## Main User Types
-
-### 1. Guest User
-
-A guest is anyone who opens the app without login/signup.
-
-Guest users can:
-
-* Open the app
-* Browse public home content
-* View services catalogue
-* Open service details
-* Read knowledge/news/help content
-* Use tax calculator
-* View support/contact information
-* Go to login/signup
-
-Guest users cannot:
-
-* Create service requests
-* Upload documents
-* View customer dashboard
-* Track personal service cases
-* View customer documents
-* View customer payments
-* Create customer-specific support tickets
-* View customer-specific notifications
-* Access internal workspace
-
-When a guest tries to open a locked feature, the app should show a clear message:
-
-```text
-Please create an account or subscribe to access this feature.
-```
-
----
-
-### 2. Signup / Pending Review User
-
-A pending user is someone who has created an account but is not yet approved by OMC.
-
-During signup, the customer may provide:
-
-| Field                        | Purpose                                                   |
-| ---------------------------- | --------------------------------------------------------- |
-| Full name                    | Customer/applicant identity                               |
-| Email                        | Login ID                                                  |
-| Mobile number                | Contact                                                   |
-| WhatsApp number              | Communication                                             |
-| CNIC                         | Verification                                              |
-| Register as                  | Customer, Consultant, Business Partner, or Tax Associate  |
-| Address                      | Contact/address record                                    |
-| Password                     | App login                                                 |
-| Education/experience/remarks | Extra review info for Tax Associate or partner-type users |
-
-After signup, the account is not automatically approved.
-
-Initial status:
+Typical state:
 
 ```text
 customer_status = Pending
 approval_status = Pending Review
 ```
 
-Pending users can:
+### Pending customers can
 
-* Login
-* View limited profile/status
-* Browse public services
-* Read knowledge/news
-* Use tax calculator
-* See that account is under review
+- sign in;
+- view their own profile;
+- view approval status;
+- browse active public services;
+- read public content;
+- use guest-safe utilities;
+- update allowed profile fields;
+- sign out and manage local settings.
 
-Pending users cannot:
+### Pending customers cannot
 
-* Create service request
-* Upload documents
-* Track My Services
-* Access customer dashboard
-* Create customer-specific support ticket
-* Access internal workspace
+- create a service request;
+- upload service documents;
+- view private case history;
+- view payment records;
+- submit payment receipts;
+- create customer-specific support tickets;
+- access internal tools.
 
-Recommended message:
+Suggested message:
 
 ```text
-Your account is under review. OMC team will verify your profile before enabling service access.
+Your account is under review. OMC will enable service access after verification.
 ```
 
 ---
 
-### 3. Approved Customer
+## 5.3 Approved Customer
 
-An approved customer is a verified customer whose profile has been approved by OMC staff.
+An Approved Customer has passed OMC verification.
 
-Approved status:
+Typical state:
 
 ```text
 customer_status = Active
 approval_status = Approved
 ```
 
-Approved customers can:
+### Approved customers can
 
-* View dashboard
-* Browse services
-* Create service requests
-* Upload required documents
-* Track service progress
-* View documents
-* View payment instructions/status
-* Upload payment receipt/proof if payment tracking is enabled
-* Receive notifications
-* Create support tickets
-* View support ticket replies/status
-* Update profile/settings
-* Use tax calculator
-* Use expense tracker
-* Read knowledge/news content
+- access the customer dashboard;
+- browse services;
+- create service requests;
+- upload required documents;
+- track their own cases;
+- view their own documents;
+- view their own payment information where enabled;
+- upload payment receipts where enabled;
+- receive notifications;
+- create and follow support tickets;
+- manage profile and preferences;
+- use tax and expense tools;
+- read customer-safe content.
+
+### Ownership rule
+
+An Approved Customer may only access records attached to their own customer profile.
+
+They must never be able to:
+
+- view another customer;
+- view another customer's service request;
+- view another customer's documents;
+- view another customer's payments;
+- view another customer's support tickets;
+- see internal notes;
+- review documents;
+- review payments;
+- update internal case status;
+- manage leads or internal tasks.
 
 ---
 
-### 4. Consultant / Business Partner / Tax Associate
+## 5.4 Internal OMC roles
 
-These users can apply through signup, but they should not get automatic full access.
+| Role | Primary responsibility |
+|---|---|
+| OMC Admin | Full OMC application administration and operations |
+| OMC Manager | Operational oversight, customers, cases, tasks, and reviews |
+| OMC Support Agent | Support tickets, leads, and customer communication |
+| OMC Document Reviewer | Document queue, attachments, approval, and rejection |
+| OMC Finance Reviewer | Payment queue, receipt review, approval, and rejection |
+| OMC Consultant | Assigned service cases and assigned tasks |
+| OMC Tax Associate | Assigned tax-related service work |
+| OMC Business Partner | Assigned partner-managed work |
+| OMC Customer | Customer portal identity, still subject to approval state |
 
-Recommended workflow:
+Internal access should always combine:
 
 ```text
-User signs up as Consultant / Business Partner / Tax Associate
-  ↓
-Profile is created as Pending Review
-  ↓
-OMC team reviews from Frappe Desk
-  ↓
-OMC team verifies role and documents
-  ↓
-OMC team approves, rejects, or changes user type
-  ↓
-Approved access is given according to role
+Role
++ capability
++ record scope
++ user status
 ```
 
-Example:
-
-* User selects “Consultant”
-* OMC team checks profile
-* If user is actually a customer, OMC can change role/type to Customer
-* After approval, customer features unlock
-
 ---
 
-### 5. OMC Admin / Staff
+# 6. User approval workflow
 
-OMC staff use Frappe Desk or internal workspace to manage backend work.
-
-Typical staff roles:
-
-| Role                  | Main Work                                          |
-| --------------------- | -------------------------------------------------- |
-| OMC Admin             | Full OMC control, users, roles, services, settings |
-| OMC Manager           | Service cases, customer follow-up, operations      |
-| OMC Support Agent     | Support tickets and replies                        |
-| OMC Document Reviewer | Uploaded document review                           |
-| OMC Finance Reviewer  | Payment receipt review                             |
-| OMC Consultant        | Assigned customer/service work                     |
-| OMC Business Partner  | Partner workflow                                   |
-| OMC Tax Associate     | Tax-related workflow                               |
-| System Manager        | Frappe/system administration                       |
-
----
-
-## User Approval Model
-
-This is the recommended approval model for client explanation:
+The recommended onboarding model is:
 
 ```text
-Signup
-  ↓
-OMC Customer Profile: Pending Review
-  ↓
-OMC Admin reviews in Frappe Desk
-  ↓
-Decision:
-  ├── Keep Pending → user sees under-review/limited access
-  ├── Reject → user remains blocked or receives rejection notice
-  ├── Approve as Customer → services/docs/payments/support unlock
-  ├── Approve as Consultant / Partner / Tax Associate → role-specific access
-  └── Approve as OMC Staff → internal role/workspace access
+User submits signup
+        |
+        v
+Frappe User and OMC Customer Profile are created or linked
+        |
+        v
+Profile remains Pending Review
+        |
+        v
+OMC staff review identity, contact details, and requested registration type
+        |
+        +--> Keep Pending
+        +--> Reject
+        +--> Approve as Customer
+        +--> Approve for an internal or partner role
+        +--> Correct the requested user type before approval
 ```
 
-This protects OMC from random users creating service requests without verification.
+This model prevents unverified users from immediately creating cases or uploading protected information.
+
+## 6.1 Signup information
+
+Signup may include:
+
+| Field | Purpose |
+|---|---|
+| Full name | Customer or applicant identity |
+| Email | Login identity |
+| Mobile number | Contact |
+| WhatsApp number | Communication |
+| CNIC or identifier | Verification where required |
+| Registration type | Customer, Consultant, Business Partner, or Tax Associate |
+| Address | Contact record |
+| Password | Account access |
+| Education, experience, or remarks | Additional review information where relevant |
+
+Input is bounded and validated before account creation.
+
+## 6.2 Profile updates
+
+Customers may update supported profile fields such as name, phone, company, or identifiers within defined limits.
+
+Account email is not changed through normal profile-edit endpoints. Email changes require a separate controlled account process.
 
 ---
 
-## Final Access Rules
+# 7. Navigation model
 
-| User Type                            | Service Catalogue | Service Request   | Documents     | Payments        | Support Ticket    | Internal Workspace |
-| ------------------------------------ | ----------------- | ----------------- | ------------- | --------------- | ----------------- | ------------------ |
-| Guest                                | Yes               | No                | No            | No              | No / contact only | No                 |
-| Pending User                         | Yes               | No                | No            | No              | No / limited      | No                 |
-| Approved Customer                    | Yes               | Yes               | Yes           | Yes, if enabled | Yes               | No                 |
-| Consultant / Partner / Tax Associate | Role-specific     | Role-specific     | Role-specific | Role-specific   | Role-specific     | If approved        |
-| OMC Staff                            | Backend/internal  | Internal workflow | Review/manage | Review/manage   | Manage            | Yes                |
+The exact navigation may change by screen size and role, but the customer experience is organised around the following areas.
 
----
+| Area | Purpose |
+|---|---|
+| Home | Summary, greetings, shortcuts, featured content, and current actions |
+| Services | Browse active services and open details |
+| Cases / My Services | View and track submitted service requests |
+| Documents | View document requirements and upload status |
+| More | Profile, payments, support, notifications, knowledge, tax, expenses, and settings |
 
-## Main App Navigation
+Visibility is state-dependent:
 
-The customer app can be explained with five main navigation areas:
-
-| Area                | Purpose                                                                                         |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| Home                | Main entry point, shortcuts, public/customer summary                                            |
-| Services            | Browse OMC services and request service                                                         |
-| Track / My Services | Track service requests and progress                                                             |
-| Docs                | View/upload customer documents                                                                  |
-| More                | Profile, settings, payments, support, notifications, knowledge, tax calculator, expense tracker |
-
-The exact visibility depends on user status:
-
-* Guest sees public options.
-* Pending user sees limited access.
-* Approved customer sees full customer features.
-* Staff sees internal features if role allows.
+- Guests see public modules;
+- Pending Customers see public modules plus profile and approval status;
+- Approved Customers see customer workflows;
+- Internal users see only modules allowed by capabilities.
 
 ---
 
-## Full Customer Journey
+# 8. End-to-end customer journey
 
 ```text
 Guest opens app
-  ↓
-Explores services, knowledge/news, tax calculator, support contact
-  ↓
-Tries to create service request
-  ↓
-App asks user to signup/login
-  ↓
-User signs up
-  ↓
-Profile is created as Pending Review
-  ↓
-OMC team reviews user in Frappe Desk
-  ↓
-OMC team approves customer
-  ↓
-Customer gets full app access
-  ↓
-Customer selects a service
-  ↓
-Customer submits service request
-  ↓
-Customer uploads documents
-  ↓
-OMC team processes case
-  ↓
-OMC team updates status/timeline
-  ↓
+        |
+        v
+Browses services and public content
+        |
+        v
+Attempts a protected action
+        |
+        v
+Signs up or logs in
+        |
+        v
+Account enters Pending Review
+        |
+        v
+OMC reviews and approves account
+        |
+        v
+Customer selects an active service
+        |
+        v
+Customer submits a service request
+        |
+        v
+Required documents are uploaded
+        |
+        v
+OMC assigns and processes the case
+        |
+        v
+Statuses, notes, and next actions are updated
+        |
+        v
 Customer receives notifications
-  ↓
-Payment/receipt tracking if required
-  ↓
-Support ticket if customer needs help
-  ↓
-Service completed
+        |
+        v
+Payment and receipt review occurs if needed
+        |
+        v
+Case is completed or cancelled
 ```
 
 ---
 
-# Feature-by-Feature Product Guide
+# 9. Feature-by-feature guide
 
-## 1. Home
+## 9.1 Home
 
-Home is the main entry point of the mobile app.
+Home is the main entry point.
 
-For guests, Home works like a public preview of OMC services and useful tools.
+### Guest Home
 
-For approved customers, Home works like a customer dashboard with quick access to:
+Guest Home may show:
 
-* Services
-* Track / My Services
-* Documents
-* Payments
-* Notifications
-* Support
-* Profile
-* Settings
-* Knowledge/news
-* Tax calculator
-* Expense tracker
+- OMC introduction;
+- active featured services;
+- public announcements;
+- FAQs or knowledge highlights;
+- tax calculator shortcut;
+- login and signup actions;
+- contact options.
 
-OMC staff can control much of the content from Frappe Desk if services, banners, knowledge articles, FAQs, and announcements are backend-driven.
+### Customer Home
+
+Approved Customer Home may show:
+
+- time-based greeting;
+- open cases;
+- actions required;
+- missing documents;
+- payment reminders;
+- recent notifications;
+- service shortcuts;
+- support shortcut;
+- tax and expense tools.
+
+### Internal Home
+
+Internal Home should show role-relevant operational data only, such as:
+
+- assigned tasks;
+- assigned cases;
+- review queues;
+- support queue;
+- lead activity;
+- current workload;
+- urgent or overdue items.
+
+Home should not show fake statuses derived from list position or placeholder calculations. Operational status must come from real backend records.
 
 ---
 
-## 2. Services
+## 9.2 Service catalogue
 
-Services should be controlled from Frappe Desk, not hardcoded in the app.
+The service catalogue is controlled from the backend.
 
-OMC staff can manage service records from Frappe Desk, including:
+OMC staff can configure:
 
-| Service Field          | Purpose                          |
-| ---------------------- | -------------------------------- |
-| Service title          | Name shown in app                |
-| Description            | Service explanation              |
-| Category               | Service grouping                 |
-| Price/fee label        | Fee or “Contact OMC for pricing” |
-| Completion time        | Expected processing time         |
-| Required documents     | Documents customer must upload   |
-| Service icon           | Visual identity                  |
-| Featured status        | Highlight service in app         |
-| Active/inactive status | Show/hide service                |
-| Sort order             | Control display order            |
-| Instructions           | Customer guidance                |
+| Field | Purpose |
+|---|---|
+| Service title | Name shown to users |
+| Description | Customer-facing explanation |
+| Category | Grouping and filtering |
+| Fee label | Price or contact instruction |
+| Completion time | Expected duration |
+| Required documents | Upload requirements |
+| Icon or visual | Service identity |
+| Featured flag | Home or catalogue promotion |
+| Active flag | Public availability |
+| Sort order | Display priority |
+| Instructions | Customer guidance |
 
-Customer flow:
+### Public catalogue rules
+
+Public service APIs expose active services only.
+
+Internal-only configuration, implementation details, and non-customer-safe fields are not returned publicly.
+
+### Customer flow
 
 ```text
 Open Services
-  ↓
-Select service
-  ↓
-Read details, fees, time, required documents
-  ↓
-Create request if approved
+    |
+    v
+Filter or search
+    |
+    v
+Open service details
+    |
+    v
+Review requirements, fees, expected time, and documents
+    |
+    v
+Start request if account is approved
 ```
-
-OMC benefit:
-
-* Services can be updated from Desk.
-* App redeploy is not required for normal service updates.
-* New/seasonal services can be added quickly.
-* Pricing and instructions stay controlled by OMC.
 
 ---
 
-## 3. Service Request
+## 9.3 Service details
 
-Service request is the core business workflow.
+Service details provide the information required before a request is started.
 
-Customer side:
+The screen may include:
+
+- service title;
+- category;
+- summary;
+- detailed description;
+- price or fee guidance;
+- expected completion time;
+- required documents;
+- instructions;
+- customer eligibility information;
+- primary call to action.
+
+The app should not expose internal workflow configuration or hidden stages.
+
+Inactive services cannot be requested through the guarded backend flow.
+
+---
+
+## 9.4 Service request creation
+
+A service request is the central customer-to-operations record.
+
+### Preconditions
+
+Before creation, the backend verifies:
+
+- the user is authenticated;
+- the customer profile is approved and active;
+- the selected service exists;
+- the service is active;
+- supplied fields are valid and within limits;
+- the requested priority is supported.
+
+### Customer-provided information
+
+A request may contain:
+
+- service selection;
+- request title;
+- description;
+- contact phone;
+- contact email;
+- supported priority;
+- service-specific answers;
+- supporting files where applicable.
+
+### Active request behaviour
+
+When an active request already exists for the same service, the app may warn the user and offer:
+
+- Resume existing request;
+- Start new request.
+
+The backend remains responsible for deciding whether duplicates are permitted.
+
+### Initial result
+
+After successful submission:
+
+- a service request is created;
+- the request belongs to the customer profile;
+- timeline or history records may be created;
+- the request appears in Cases / My Services;
+- staff can process it from Desk or authorised internal modules.
+
+---
+
+## 9.5 Cases / My Services
+
+Cases lets customers follow their submitted requests.
+
+A case card may show:
+
+- service title;
+- request reference;
+- current status;
+- priority;
+- created date;
+- last update;
+- expected completion;
+- customer action required;
+- document or payment indicators.
+
+### Case detail
+
+The case detail may show:
+
+- service information;
+- customer-visible status;
+- progress summary;
+- next step;
+- required documents;
+- uploaded documents;
+- payment status;
+- customer-visible timeline;
+- support options.
+
+### Status guidance
+
+Typical statuses include:
+
+| Status | Meaning |
+|---|---|
+| Open | Request has been created |
+| Waiting for Customer | OMC needs information, documents, or action |
+| In Progress | OMC is processing the request |
+| Under Review | Work is being checked or finalised |
+| Completed | Service work is finished |
+| Cancelled | Request is no longer active |
+
+Customer-facing wording should remain simple even when internal operations use more detailed stages.
+
+---
+
+## 9.6 Documents
+
+Documents support evidence collection and verification.
+
+### Customer view
+
+Customers may see:
+
+- required document name;
+- description;
+- required or optional status;
+- upload state;
+- review state;
+- rejection reason or reviewer remarks where customer-safe;
+- replace or upload action where allowed.
+
+### Upload rules
+
+Protected document uploads use file upload handling rather than direct user-controlled URLs.
+
+The backend verifies:
+
+- authentication;
+- customer ownership;
+- service-request relationship;
+- allowed upload context;
+- file association;
+- prevention of cross-request reuse.
+
+A file linked to one request must not be silently reused for another request.
+
+### Internal review
+
+Document Reviewers, Managers, and Admins may review documents according to capability.
+
+Review actions may include:
+
+- approve;
+- reject;
+- request replacement;
+- add remarks;
+- update review status.
+
+Finance Reviewers and unrelated staff should not automatically receive document-review access.
+
+---
+
+## 9.7 Payments and receipts
+
+Payment records track amounts or instructions connected to a service request.
+
+Customers may see:
+
+- payment title;
+- amount or fee guidance;
+- due date;
+- payment status;
+- payment instructions;
+- receipt-upload action where enabled;
+- receipt-review result.
+
+### Receipt upload
+
+Receipt files must be uploaded through the protected multipart flow.
+
+Direct receipt URL injection is rejected.
+
+### Internal review
+
+Finance Reviewers, Managers, and Admins may:
+
+- view payment queue;
+- open allowed receipt files;
+- approve or reject receipts;
+- add review remarks;
+- update payment status.
+
+Document Reviewers do not receive finance authority by default.
+
+---
+
+## 9.8 Notifications
+
+Notifications communicate important events.
+
+Examples:
+
+- account approval;
+- request created;
+- case status changed;
+- customer action required;
+- document accepted or rejected;
+- payment due;
+- receipt accepted or rejected;
+- support reply;
+- service completed.
+
+Customer notification access requires an exact customer-profile or recipient-user match.
+
+A user must not be able to retrieve notifications belonging to another user.
+
+---
+
+## 9.9 Support tickets
+
+Support lets approved customers request help.
+
+### Customer actions
+
+Customers may:
+
+- create a ticket;
+- choose a category;
+- describe the issue;
+- connect the ticket to a case where supported;
+- view replies;
+- follow status;
+- add further customer replies where allowed.
+
+### Staff actions
+
+Support Agents, Managers, and Admins may:
+
+- view support queues;
+- reply;
+- change status;
+- assign tickets;
+- view relevant customer and service context;
+- escalate issues.
+
+Support Agents should not receive unrelated document, finance, or settings access.
+
+---
+
+## 9.10 Leads
+
+Leads represent prospective customers or business opportunities.
+
+Authorised staff may:
+
+- create leads;
+- update contact and status;
+- assign ownership;
+- record follow-up;
+- convert or link records where supported;
+- view lead history.
+
+Lead access is primarily intended for Admins, Managers, and Support Agents with the appropriate capability.
+
+---
+
+## 9.11 Tasks
+
+Tasks organise internal work.
+
+A task may contain:
+
+- title;
+- description;
+- assigned user;
+- related customer;
+- related case;
+- due date;
+- priority;
+- status;
+- internal notes.
+
+Internal tasks can only be assigned to enabled System Users.
+
+Assignment-scoped users normally see and manage only their assigned tasks.
+
+---
+
+## 9.12 Profile
+
+Profile allows a user to manage supported personal and business details.
+
+Typical fields include:
+
+- full name;
+- phone;
+- mobile number;
+- WhatsApp number;
+- CNIC or identifier;
+- NTN or tax identifier;
+- company;
+- address;
+- registration type;
+- approval status.
+
+Profile input is bounded. Non-scalar or oversized values are rejected.
+
+The account email is protected from mutation through standard profile endpoints.
+
+---
+
+## 9.13 Settings
+
+Customer settings may include:
+
+- appearance preference;
+- notification preference;
+- local app preference;
+- privacy and policy links;
+- logout;
+- app version information.
+
+Admin-only backend configuration is separate from customer settings.
+
+---
+
+## 9.14 Tax calculator
+
+The tax calculator provides an estimate based on supported inputs and backend tax configuration.
+
+Typical inputs may include:
+
+- income type;
+- filer status;
+- monthly or annual mode;
+- income amount;
+- advanced numeric fields.
+
+### Safety rules
+
+Before calculation, the public guard enforces:
+
+- maximum payload size;
+- maximum number of advanced fields;
+- valid field names;
+- supported income types;
+- supported filer statuses;
+- supported income modes;
+- finite numeric values;
+- non-negative amounts;
+- maximum supported amount;
+- rejection of nested or malformed numeric structures.
+
+The calculator is an estimate and should not be presented as a substitute for professional advice or an official tax filing result.
+
+---
+
+## 9.15 Expense tracker
+
+The expense tracker lets a customer record and review personal expense information.
+
+Typical capabilities:
+
+- create expense;
+- edit expense;
+- view list and totals;
+- categorise expenses;
+- record payment method;
+- add merchant and notes;
+- attach a receipt;
+- synchronise bounded batches;
+- define budget alerts.
+
+### Validation rules
+
+- amount must be finite;
+- amount must be greater than zero;
+- amount must remain within the supported maximum;
+- text and identifiers are bounded;
+- bulk sync has entry-count and payload-size limits;
+- each bulk entry must be an object;
+- budget alert threshold must remain between 0 and 100;
+- receipt upload must use the protected file endpoint.
+
+Expense data is customer-owned and must not be exposed across accounts.
+
+---
+
+## 9.16 Knowledge, FAQs, banners, and announcements
+
+Public and customer content may be controlled through Frappe records.
+
+Benefits:
+
+- content can be updated without rebuilding the app;
+- inactive content can be hidden;
+- sort order can be controlled;
+- customer-safe content can be separated from internal records;
+- OMC can publish service guidance, FAQs, and announcements centrally.
+
+---
+
+# 10. Internal operations model
+
+## 10.1 Customer approval
+
+Authorised staff review new profiles and decide whether to:
+
+- keep pending;
+- approve;
+- reject;
+- correct user type;
+- assign a role;
+- request more information.
+
+Approval must update both customer status and approval status consistently.
+
+## 10.2 Case management
+
+Authorised staff can:
+
+- open a case;
+- assign staff;
+- change status;
+- set expected completion;
+- request customer action;
+- update customer-visible notes;
+- maintain internal notes;
+- review related documents;
+- review related payments;
+- complete or cancel the case.
+
+## 10.3 Review separation
+
+Document and finance review are separate domains.
+
+This separation reduces unnecessary access to attachments and payment evidence.
+
+## 10.4 Assignment scope
+
+Consultants, Tax Associates, and Business Partners normally receive assigned or relevant records only.
+
+They should not automatically see:
+
+- all customers;
+- all service cases;
+- all support tickets;
+- all documents;
+- all payment information;
+- global settings.
+
+---
+
+# 11. Capability model
+
+The backend returns canonical capabilities used by Flutter and backend methods.
+
+Examples include:
 
 ```text
-Customer selects service
-  ↓
-Fills request form/details
-  ↓
-Submits request
-  ↓
-Request appears in Track/My Services
+can_access_internal_workspace
+can_manage_customers
+can_manage_leads
+can_manage_tasks
+can_manage_assigned_tasks
+can_view_all_service_cases
+can_view_assigned_service_cases
+can_update_service_status
+can_update_assigned_service_status
+can_view_document_queue
+can_view_document_attachments
+can_review_documents
+can_view_payment_queue
+can_view_payment_receipts
+can_review_payments
+can_view_support_tickets
+can_reply_support_tickets
+can_update_support_ticket_status
+can_assign_support_tickets
+can_view_internal_notes
+can_manage_settings
 ```
 
-Frappe Desk side:
+The frontend uses these values for visibility and navigation.
 
-OMC staff can open the created service request and manage:
+The backend uses independent checks for actual authorisation.
 
-* Customer
-* Service
-* Request title/details
-* Status
-* Priority
-* Assigned staff
-* Expected completion
-* Internal notes
-* Customer-visible notes
-* Required documents
-* Timeline updates
-* Payment records
-* Support references
-
-Recommended service statuses:
-
-| Status               | Meaning                                |
-| -------------------- | -------------------------------------- |
-| Open                 | Request created                        |
-| Waiting for Customer | OMC needs documents/info from customer |
-| In Progress          | OMC team is working                    |
-| Under Review         | Case is being checked/finalized        |
-| Completed            | Service completed                      |
-| Cancelled            | Request cancelled                      |
-
-Customer should see simple tracking status, not internal complexity.
+Unknown authenticated routes and unknown access levels should fail closed.
 
 ---
 
-## 4. Track / My Services
+# 12. Security and privacy model
 
-Track/My Services lets customers follow their submitted service requests.
+## 12.1 Backend-first security
 
-Customer can see:
+The backend verifies:
 
-* Service title
-* Request status
-* Priority
-* Created date
-* Expected completion
-* Progress
-* Next step
-* Required documents
-* Missing documents
-* Timeline/history
-* Customer action required
+- authentication;
+- customer approval state;
+- internal capabilities;
+- ownership;
+- assignment;
+- file relationships;
+- active service state;
+- valid input shape and size.
 
-OMC staff updates status from Frappe Desk. Customer sees updates in the app.
+## 12.2 Public endpoint safety
 
-Recommended progress mapping:
+Public endpoints return customer-safe data only.
 
-| Status               | Approx. Progress |
-| -------------------- | ---------------: |
-| Open                 |              10% |
-| Waiting for Customer |              35% |
-| In Progress          |              60% |
-| Under Review         |              80% |
-| Completed            |             100% |
-| Cancelled            |               0% |
+Examples:
+
+- active services only;
+- active public templates only;
+- customer-visible stages only;
+- no internal wizard configuration;
+- bounded tax requests;
+- bounded signup data.
+
+## 12.3 Protected write guards
+
+Sensitive write routes are passed through validation guards for:
+
+- signup;
+- profile changes;
+- service-request creation;
+- expense creation and updates;
+- expense bulk sync;
+- budget settings;
+- receipt upload;
+- tax calculation.
+
+## 12.4 Secrets and runtime data
+
+The repository must not contain:
+
+- production passwords;
+- API secrets;
+- site configuration;
+- database dumps;
+- private files;
+- local `.env` credentials;
+- logs;
+- generated runtime state.
 
 ---
 
-## 5. Documents
+# 13. Data ownership summary
 
-Documents are linked to service requests and customer profiles.
+| Record type | Customer access | Internal access |
+|---|---|---|
+| Customer Profile | Own profile only | Capability and role scoped |
+| Service Request | Own requests only | All, relevant, or assigned scope |
+| Service Document | Own request documents | Review or related-case scope |
+| Payment | Own request payments | Finance, Manager, or Admin scope |
+| Notification | Exact recipient match | Operational access where required |
+| Support Ticket | Own tickets | Support capability scope |
+| Expense | Own expenses | No broad internal access by default |
+| Task | None unless exposed | All or assigned scope |
+| Lead | No customer access | Lead-management capability |
 
-Customer side:
+---
+
+# 14. Backend-controlled versus app-controlled behaviour
+
+## Backend-controlled
+
+- user state;
+- approval status;
+- capabilities;
+- service availability;
+- service content;
+- case records;
+- document requirements;
+- document review;
+- payment review;
+- support records;
+- notifications;
+- tax rules;
+- permission decisions.
+
+## App-controlled
+
+- layout;
+- visual hierarchy;
+- loading and empty states;
+- responsive design;
+- local navigation presentation;
+- formatting;
+- local appearance preference;
+- user-friendly error display.
+
+The app should never invent authoritative operational status.
+
+---
+
+# 15. Error and empty-state expectations
+
+The app should communicate failures clearly without exposing internal stack traces.
+
+Recommended categories:
+
+| Situation | User-facing response |
+|---|---|
+| No internet | Connection message with retry |
+| Session expired | Ask user to sign in again |
+| Pending approval | Explain account is under review |
+| Permission denied | Explain feature is unavailable |
+| No records | Show a useful empty state and next action |
+| Invalid form | Highlight fields and validation message |
+| Upload failed | Preserve context and offer retry |
+| Backend unavailable | Show temporary service message |
+| Record not found | Return safely to the relevant list |
+
+Internal error details should remain in server logs, not customer-facing UI.
+
+---
+
+# 16. Operational lifecycle examples
+
+## 16.1 Document-required service
 
 ```text
-Open document section
-  ↓
-View required/missing documents
-  ↓
-Upload PDF/image/document
-  ↓
-Wait for OMC review
-  ↓
-See approved/rejected/uploaded status
+Customer submits request
+        |
+        v
+Required document list is created or loaded
+        |
+        v
+Customer uploads files
+        |
+        v
+Document Reviewer checks files
+        |
+        +--> Approved
+        +--> Rejected with customer-safe reason
+        +--> Replacement requested
+        |
+        v
+Case continues
 ```
 
-OMC Desk side:
-
-Staff can review uploaded documents and mark:
-
-* Pending
-* Uploaded
-* Approved
-* Rejected
-
-If rejected, OMC should provide a reason so the customer can upload the corrected file.
-
-Recommended rules:
-
-* Files should be private.
-* Files should be linked to the correct customer and service request.
-* Only approved customers should upload service documents.
-* Staff should review documents from Desk/internal workflow.
-
-Supported document examples:
-
-* CNIC
-* NTN certificate
-* Business registration
-* Tax documents
-* Forms
-* Receipts
-* Supporting evidence
-* PDFs/images/documents required by a service
-
----
-
-## 6. Payments
-
-Payment module should be explained carefully.
-
-The app is not a direct payment gateway by default.
-
-Current intended use:
+## 16.2 Payment-required service
 
 ```text
-OMC creates payment/due record
-  ↓
-Customer sees amount/instructions/status
-  ↓
-Customer uploads receipt/proof
-  ↓
-OMC staff reviews receipt in Desk
-  ↓
-Payment status is updated
+Case reaches payment stage
+        |
+        v
+Payment instruction is shown
+        |
+        v
+Customer uploads receipt
+        |
+        v
+Finance Reviewer checks receipt
+        |
+        +--> Approved
+        +--> Rejected with reason
+        |
+        v
+Case proceeds or waits for customer
 ```
 
-Payment statuses can include:
-
-* Pending
-* Receipt Submitted
-* Under Review
-* Paid
-* Rejected
-* Cancelled
-
-OMC Desk side:
-
-Staff can manage:
-
-* Customer
-* Service request
-* Amount
-* Currency
-* Due date
-* Payment instructions
-* Receipt/proof
-* Review status
-* Rejection reason if any
-* Internal remarks
-
-If OMC does not want payment tracking now, the Payments section can remain hidden/disabled.
-
----
-
-## 7. Support
-
-Support gives customers a structured help channel instead of scattered WhatsApp messages.
-
-Customer side:
+## 16.3 Support escalation
 
 ```text
-Open Support
-  ↓
-View contact channels / FAQs
-  ↓
-Create support ticket
-  ↓
-Select topic and priority
-  ↓
-Add message
-  ↓
-Track replies/status
-```
-
-OMC Desk side:
-
-Staff can manage:
-
-* Support ticket subject
-* Customer
-* Service request reference, if any
-* Topic
-* Priority
-* Status
-* Replies
-* Internal notes
-* Assigned support person
-
-Support statuses:
-
-* Open
-* Waiting for Customer
-* Resolved
-* Closed
-* Cancelled
-
-Support topics can include:
-
-* Income Tax
-* POS & Digital Invoicing
-* Sales Tax
-* Technical Support
-* Payment Support
-* General Support
-
----
-
-## 8. Notifications
-
-Notifications keep customers updated.
-
-Notifications can be related to:
-
-* Service request updates
-* Document approval/rejection
-* Payment receipt status
-* Support ticket replies
-* General announcements
-* Tax alerts
-* Reminders
-
-Customer side:
-
-* View notification list
-* Open notification detail
-* Read update
-* Tap related action if available
-
-OMC Desk side:
-
-Notifications can be created or triggered when staff updates:
-
-* Service status
-* Document status
-* Payment receipt status
-* Support ticket status
-* Announcement/tax alert
-
-Recommended behavior:
-
-* Customer should only see notifications relevant to their own profile.
-* Staff/internal notifications should not leak to customers.
-* Customer-visible flag should control what appears in the app.
-
----
-
-## 9. Knowledge, News, FAQs, and Tax Alerts
-
-Knowledge/news content should be backend-driven.
-
-OMC staff can manage content from Frappe Desk, such as:
-
-| Content Type        | Purpose                                     |
-| ------------------- | ------------------------------------------- |
-| Knowledge Article   | Tax guides, service education, help content |
-| Tax Alert           | FBR/tax updates and reminders               |
-| App Banner          | Home screen promotional/info banner         |
-| Announcement        | General OMC updates                         |
-| FAQ                 | Frequently asked questions                  |
-| Service Category    | Service grouping                            |
-| Subscription Plan   | Paid/locked packages if needed              |
-| Feature Access Rule | Which user/role can access which feature    |
-
-Customer/guest side:
-
-* Read public articles
-* View tax awareness content
-* See app banners
-* Read FAQs
-* Learn about services before signup
-
-OMC benefit:
-
-* Content can be changed from Desk.
-* App update is not required for normal content changes.
-* OMC can use the app as an authority/news channel.
-
----
-
-## 10. Tax Calculator
-
-Tax calculator is a customer utility.
-
-Guest and customers can use it to get a quick estimate.
-
-Important client explanation:
-
-```text
-Tax calculator gives an estimate only.
-Final filing/advice should be verified by OMC team.
-```
-
-OMC benefit:
-
-* Useful free tool for customer engagement.
-* Helps users understand tax impact.
-* Can lead customers toward OMC tax services.
-
----
-
-## 11. Personal Expense Tracker
-
-Expense tracker is a customer utility feature.
-
-Customer can track:
-
-* Income
-* Expenses
-* Categories
-* Monthly summary
-* Balance
-
-Client explanation:
-
-```text
-Expense tracker helps customers maintain simple personal finance records inside the app.
-```
-
-Future premium option:
-
-* Advanced reports
-* Export
-* Business expense categories
-* Subscription-based finance tools
-
----
-
-## 12. Profile
-
-Profile stores customer identity and verification data.
-
-Customer profile can include:
-
-* Full name
-* Email
-* Phone
-* WhatsApp
-* CNIC
-* NTN
-* Company name
-* Address
-* Register-as type
-* Customer type
-* Approval status
-* Customer status
-* Notes/remarks
-* Verification decision
-
-OMC Desk side:
-
-Staff uses customer profile to:
-
-* Review new signup
-* Verify identity
-* Approve/reject customer
-* Change user type/role
-* View linked service requests
-* View linked documents
-* View support history
-* View payment history
-* View activity/notes
-
----
-
-## 13. Settings
-
-Settings are customer-specific preferences.
-
-Customer can manage:
-
-* Service update notifications
-* Document reminders
-* Payment alerts
-* Tax alerts
-* Email notifications
-* WhatsApp notifications
-* Theme
-* Language
-
-OMC benefit:
-
-* Better customer communication control
-* Customer can choose what alerts they want
-* Preferences remain linked to the customer profile
-
----
-
-## 14. Internal Workspace / Frappe Desk
-
-Internal workspace is for OMC staff only.
-
-It can show operational summaries such as:
-
-* Leads
-* Customers
-* Tasks
-* Open service requests
-* Pending documents
-* Payment dues
-* Support tickets
-* Unread notifications
-
-Frappe Desk is the main backend control area where OMC staff can open lists/forms and update records.
-
-Main Desk modules/records:
-
-| Desk Record                   | What Staff Does                          |
-| ----------------------------- | ---------------------------------------- |
-| OMC Customer Profile          | Review, approve, reject, update customer |
-| OMC Service                   | Create/update service catalogue          |
-| OMC Service Required Document | Define required docs per service         |
-| OMC Service Request           | Process customer requests                |
-| OMC Service Document          | Review uploaded documents                |
-| OMC Service Payment           | Track dues and review receipts           |
-| OMC Notification              | Send/view customer updates               |
-| OMC Support Ticket            | Reply and update support cases           |
-| OMC Support Channel           | Manage WhatsApp/phone/email              |
-| OMC Support Topic             | Manage support categories                |
-| OMC Lead                      | Track potential customers                |
-| OMC Task                      | Assign follow-ups                        |
-| OMC Knowledge Article         | Manage guide/help content                |
-| OMC FAQ                       | Manage FAQs                              |
-| OMC App Banner                | Manage home banners                      |
-| OMC Announcement              | Publish announcements                    |
-
----
-
-# Frappe Desk Operating Flow
-
-## A. Managing New Signup Requests
-
-When a user signs up:
-
-1. Open Frappe Desk.
-2. Go to `OMC Customer Profile`.
-3. Open profiles with `Pending Review`.
-4. Check:
-
-   * Name
-   * Email
-   * Phone
-   * WhatsApp
-   * CNIC
-   * NTN
-   * Address
-   * Register-as type
-   * Education/experience if applicable
-5. Verify customer/applicant.
-6. Decide:
-
-   * Keep Pending
-   * Approve as Customer
-   * Approve as Consultant
-   * Approve as Business Partner
-   * Approve as Tax Associate
-   * Reject / request more information
-7. Save profile.
-8. Customer access updates in app.
-
-Recommended approval statuses:
-
-| Status             | Meaning                      |
-| ------------------ | ---------------------------- |
-| Pending Review     | Waiting for OMC verification |
-| Approved           | Customer/user verified       |
-| Rejected           | User not approved            |
-| More Info Required | OMC needs more details       |
-
----
-
-## B. Managing Services
-
-OMC staff can manage services from Desk.
-
-Steps:
-
-1. Open `OMC Service`.
-2. Create or edit service.
-3. Fill:
-
-   * Title
-   * Description
-   * Category
-   * Fee label
-   * Completion time
-   * Instructions
-   * Featured status
-   * Active status
-   * Sort order
-4. Add required document rules in `OMC Service Required Document`.
-5. Save.
-6. App service catalogue updates from backend.
-
-This lets OMC add/edit services without releasing a new app version.
-
----
-
-## C. Managing Service Requests
-
-When an approved customer creates a service request:
-
-1. Staff opens `OMC Service Request`.
-2. Finds new/open requests.
-3. Reviews:
-
-   * Customer
-   * Service
-   * Request details
-   * Priority
-   * Documents
-   * Contact information
-4. Assigns staff if needed.
-5. Updates status:
-
-   * Open
-   * Waiting for Customer
-   * In Progress
-   * Under Review
-   * Completed
-   * Cancelled
-6. Adds customer-visible note/timeline update if needed.
-7. Saves.
-8. Customer sees updated tracking in app.
-
----
-
-## D. Managing Documents
-
-When a customer uploads a document:
-
-1. Staff opens `OMC Service Document`.
-2. Filters by:
-
-   * Pending
-   * Uploaded
-   * Service request
-   * Customer
-3. Opens uploaded document.
-4. Reviews file.
-5. Sets status:
-
-   * Approved
-   * Rejected
-   * More Info Required
-6. Adds rejection/review remarks if needed.
-7. Saves.
-8. Customer sees updated document status.
-
----
-
-## E. Managing Payments / Receipts
-
-If payment tracking is enabled:
-
-1. Staff creates `OMC Service Payment` against a service request.
-2. Adds:
-
-   * Amount
-   * Currency
-   * Due date
-   * Payment instructions
-   * Remarks
-3. Customer sees payment due in app.
-4. Customer uploads receipt/proof.
-5. Staff opens payment record.
-6. Reviews receipt.
-7. Updates status:
-
-   * Under Review
-   * Paid
-   * Rejected
-   * Cancelled
-8. Adds remarks/rejection reason if needed.
-9. Saves.
-10. Customer sees payment status update.
-
-Important:
-
-```text
-Payment module is for tracking dues and receipts.
-It is not direct payment gateway collection unless OMC decides to add that later.
+Customer creates support ticket
+        |
+        v
+Support Agent receives ticket
+        |
+        v
+Agent reviews relevant customer and case context
+        |
+        +--> Replies
+        +--> Updates status
+        +--> Assigns or escalates
+        |
+        v
+Customer receives reply and notification
 ```
 
 ---
 
-## F. Managing Support Tickets
+# 17. Client administration responsibilities
 
-When customer creates a ticket:
+OMC should maintain the following in Frappe Desk:
 
-1. Staff opens `OMC Support Ticket`.
-2. Filters open tickets.
-3. Opens ticket.
-4. Reviews:
+- active services;
+- service categories;
+- service descriptions;
+- required documents;
+- fee guidance;
+- expected completion times;
+- customer approvals;
+- staff users and roles;
+- staff assignments;
+- case statuses;
+- document reviews;
+- payment reviews;
+- support queues;
+- lead follow-up;
+- tasks;
+- public FAQs and knowledge content;
+- tax configuration;
+- system settings and branding where supported.
 
-   * Customer
-   * Subject
-   * Message
-   * Topic
-   * Priority
-   * Related service request
-5. Replies to customer.
-6. Updates status:
+OMC should also maintain operational policies for:
 
-   * Open
-   * Waiting for Customer
-   * Resolved
-   * Closed
-   * Cancelled
-7. Saves.
-8. Customer sees reply/status in app.
-
----
-
-## G. Managing Leads and Tasks
-
-OMC can use leads/tasks for internal follow-up.
-
-Leads:
-
-* New potential customer
-* Service interest
-* Phone/email/company
-* Source
-* Notes
-
-Tasks:
-
-* Assigned staff
-* Due date
-* Priority
-* Linked customer
-* Linked service request
-* Linked support ticket
-* Status
-
-Example:
-
-```text
-Customer requests tax filing service
-  ↓
-OMC Manager creates task for Tax Associate
-  ↓
-Tax Associate follows up
-  ↓
-Task marked completed
-```
+- customer verification;
+- document retention;
+- payment evidence retention;
+- role assignment;
+- staff offboarding;
+- backup and restore;
+- incident response.
 
 ---
 
-## H. Managing Content
+# 18. Release validation matrix
 
-OMC can manage public app content from Desk.
+A release is not complete until real user-state and role testing is performed.
 
-Content types:
+## 18.1 Guest tests
 
-* Knowledge articles
-* Tax alerts
-* FAQs
-* App banners
-* Announcements
-* Service categories
-* Subscription/package content if used
+Verify that a guest can:
 
-Flow:
+- browse active services;
+- open public service details;
+- read public content;
+- use approved utilities;
+- open login and signup.
 
-```text
-OMC staff creates/updates content in Desk
-  ↓
-Marks content active/public
-  ↓
-Customer app fetches latest content
-  ↓
-Guest/customer sees updated content
-```
+Verify that a guest cannot:
 
----
+- create requests;
+- view customer records;
+- upload protected files;
+- access internal routes.
 
-# Complete 0-to-100 Business Flow
+## 18.2 Pending Customer tests
 
-```text
-1. Guest opens OMC app
-2. Guest browses services and public content
-3. Guest uses tax calculator/support contact
-4. Guest tries locked feature
-5. App asks for signup/login
-6. User signs up
-7. Profile becomes Pending Review
-8. OMC staff reviews profile in Frappe Desk
-9. OMC approves/rejects/keeps pending
-10. Approved customer gets full access
-11. Customer creates service request
-12. OMC staff opens service request in Desk
-13. OMC staff reviews request and required documents
-14. Customer uploads documents
-15. OMC staff approves/rejects documents
-16. OMC staff updates service status/timeline
-17. Customer tracks progress in app
-18. OMC creates payment/due record if needed
-19. Customer uploads receipt/proof
-20. OMC reviews receipt
-21. Customer receives notifications
-22. Customer creates support ticket if needed
-23. OMC replies/resolves support ticket
-24. Service is completed
-25. Customer history remains saved in backend
-```
+Verify that a pending user can:
 
----
+- sign in;
+- view profile and approval state;
+- browse public content.
 
-# Business Value
+Verify that approved-only actions remain blocked.
 
-## For Customers
+## 18.3 Approved Customer tests
 
-| Benefit                | Explanation                               |
-| ---------------------- | ----------------------------------------- |
-| Easy service request   | Customer can request services from mobile |
-| Clear document process | Required documents are visible            |
-| Status tracking        | Customer knows where the case stands      |
-| Receipt upload         | Payment proof can be submitted from app   |
-| Support history        | Tickets and replies stay organized        |
-| Notifications          | Customer gets updates                     |
-| Tax calculator         | Useful public/customer utility            |
-| Expense tracker        | Extra value inside app                    |
-| Knowledge/news         | Customer can learn from OMC content       |
+Verify that an approved customer can:
 
-## For OMC Team
+- create a request for an active service;
+- view only their own cases;
+- upload files to their own request;
+- view only their own payments;
+- receive their own notifications;
+- create and view their own support tickets;
+- create and update their own expenses.
 
-| Benefit                    | Explanation                                                          |
-| -------------------------- | -------------------------------------------------------------------- |
-| Less manual WhatsApp chaos | Work moves into structured records                                   |
-| Customer data organized    | Profiles and service history stay linked                             |
-| Document review workflow   | Uploaded files attach to customer/service                            |
-| Payment tracking           | Receipt review becomes traceable                                     |
-| Service timeline           | Staff and customer both see progress                                 |
-| Support tickets            | Help requests are structured                                         |
-| Backend-controlled content | Services/content can change without app update                       |
-| Role-based staff work      | OMC can separate admin, support, document, finance, and service work |
+Attempt cross-customer access and confirm denial.
+
+## 18.4 Internal role tests
+
+For every internal role, verify:
+
+- visible modules;
+- allowed records;
+- allowed actions;
+- assignment scope;
+- attachment access;
+- denied modules;
+- denied mutations;
+- internal-note visibility;
+- settings access.
+
+## 18.5 File tests
+
+Verify:
+
+- allowed file upload;
+- wrong-customer upload denial;
+- wrong-request upload denial;
+- cross-request reuse denial;
+- receipt URL injection denial;
+- reviewer attachment access boundaries.
+
+## 18.6 API tests
+
+Verify:
+
+- unauthenticated protected calls fail;
+- inactive services cannot be requested;
+- oversized payloads fail;
+- malformed numeric values fail;
+- unsupported enum values fail;
+- unknown routes fail closed;
+- valid payloads still succeed.
 
 ---
 
-# Common Client Scenarios
+# 19. Deployment and handover expectations
 
-## Scenario 1: Guest wants to request a service
+Before production handover, confirm:
 
-Guest can browse service details, but when they try to create a request, the app asks them to signup/login. Service requests require approval.
+- production domain uses HTTPS;
+- API base URL is correct in the Flutter build;
+- Frappe site is migrated;
+- assets are built;
+- Supervisor processes are healthy;
+- nginx is healthy;
+- Redis and database are healthy;
+- private files remain private;
+- backup jobs are configured;
+- restore steps are documented;
+- role smoke tests are completed;
+- customer signup and approval are tested;
+- document and receipt uploads are tested;
+- Android APK or app bundle is tested against production.
 
-## Scenario 2: User signs up and tries to use full app
-
-The user can log in, but full customer features remain locked until OMC approves the profile from Frappe Desk.
-
-## Scenario 3: Consultant applies
-
-Consultant profile is created as pending. OMC reviews the application, verifies the role, and approves/rejects or changes the type before access is given.
-
-## Scenario 4: Customer uploads wrong document
-
-OMC staff rejects the document and adds remarks. Customer sees rejected status and uploads the corrected document.
-
-## Scenario 5: Payment proof is uploaded
-
-Customer uploads receipt. OMC staff reviews it from Desk and marks payment as Paid, Rejected, Under Review, or Cancelled.
-
-## Scenario 6: Customer needs help
-
-Customer opens Support, creates a ticket, and follows replies/status from the app. OMC staff replies from Desk/internal workflow.
-
-## Scenario 7: OMC wants to add a new service
-
-OMC staff creates a new `OMC Service` record in Desk, adds details and required documents, marks it active, and the app can show it without app redeployment.
+Routine deployment should update the existing app without recreating the Bench, site, or database.
 
 ---
 
-# FAQs
+# 20. Current implementation status
 
-## Is this app only for customers?
+The current platform includes:
 
-No. It has customer-facing mobile features and backend/internal staff workflows.
+- Flutter customer and internal modules;
+- public, pending, approved, and internal access states;
+- capability-driven navigation;
+- backend ownership and assignment checks;
+- service catalogue and service details;
+- customer signup and approval flow;
+- service-request creation and tracking;
+- document upload and review;
+- payment and receipt workflows;
+- notifications;
+- support;
+- leads and tasks;
+- profile and settings;
+- tax calculator;
+- expense tracker;
+- backend security guards for sensitive public and authenticated writes;
+- deployment assets and validation scripts;
+- focused Flutter and backend tests.
 
-## Can a guest use the app?
+Repository hardening and local static validation have been completed for the current codebase.
 
-Yes. Guests can browse public services, knowledge/news, tax calculator, and support contact information.
+The remaining release sequence is environment-specific:
 
-## Can a guest create service requests?
-
-No. Service request creation requires an approved customer profile.
-
-## Does signup immediately approve the customer?
-
-No. Signup creates a pending profile. OMC staff must approve the customer from Frappe Desk.
-
-## Can pending users use customer features?
-
-No. Pending users get limited access until approval.
-
-## Can consultants, partners, or tax associates apply?
-
-Yes. They can apply, but OMC must review and approve their role before access is granted.
-
-## Does the app collect payments directly?
-
-Not by default. Payment module is for payment due/status and receipt/proof tracking. Direct payment gateway collection can be added later if required.
-
-## Can OMC update services without app update?
-
-Yes. Services should be managed from Frappe Desk, so OMC can update service cards/content without releasing a new app version.
-
-## Are uploaded documents public?
-
-No. Customer documents should be private and linked to the correct customer/service request.
-
-## Can customers see staff/internal data?
-
-No. Internal records and workspace are role-gated and should only be visible to authorized OMC staff.
+1. update the production server from GitHub `main`;
+2. migrate and rebuild the existing Frappe deployment;
+3. restart services safely;
+4. perform live API and role smoke tests;
+5. build and test the Android release against production.
 
 ---
 
-# Final Pitch
+# 21. Final product summary
 
-OMC App is a customer service and compliance portal where customers can request OMC services, upload documents, track progress, submit payment proof, receive updates, and contact support from mobile.
+OMC App is not only a mobile interface. It is a connected operations platform.
 
-OMC staff manage the full operation from Frappe Desk: customer approvals, service catalogue, service cases, documents, payments, support tickets, leads, tasks, notifications, and content.
+For customers, it provides a clear way to discover services, submit requests, provide documents, follow progress, handle payments, and obtain support.
 
-The system reduces manual follow-up, centralizes customer history, improves transparency, and gives OMC full backend control over the customer service workflow.
+For OMC, it provides controlled customer onboarding, structured case processing, specialised review queues, assignment-based staff access, and centralised operational records.
+
+The platform is designed around four rules:
+
+1. keep the customer experience simple;
+2. keep operational data centralised;
+3. give each role only the access it needs;
+4. enforce trust and permissions in the backend.
+
+---
+
+**OMC App connects customers and OMC operations through one secure, role-aware, and auditable service workflow.**
