@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils import get_datetime, now_datetime
 
 from omc_app.api.mobile import _current_user
 from omc_app.api.access_v2 import _capabilities as _get_mobile_capabilities
@@ -242,7 +243,7 @@ def _style(value):
 
 
 def _allowed_for_access(row, capabilities, user):
-    access_level = (row.get("access_level") or "Public").strip().lower()
+    access_level = (row.get("access_level") or "").strip().lower()
     if access_level == "public":
         return True
     if access_level == "logged in":
@@ -251,6 +252,22 @@ def _allowed_for_access(row, capabilities, user):
         return bool(capabilities.get("is_approved_customer"))
     if access_level == "internal staff":
         return bool(capabilities.get("can_access_internal_workspace"))
+    return False
+
+
+def _allowed_for_schedule(row, current_time=None):
+    current_time = current_time or now_datetime()
+    starts_on = row.get("starts_on")
+    ends_on = row.get("ends_on")
+
+    try:
+        if starts_on and current_time < get_datetime(starts_on):
+            return False
+        if ends_on and current_time > get_datetime(ends_on):
+            return False
+    except (TypeError, ValueError):
+        return False
+
     return True
 
 
@@ -355,6 +372,7 @@ def get_mobile_quick_actions():
             for row in rows
             if _allowed_for_access(row, capabilities, user)
             and _allowed_for_capability(row, capabilities)
+            and _allowed_for_schedule(row)
         ]
         if not actions:
             actions = _fallback_actions(capabilities)
