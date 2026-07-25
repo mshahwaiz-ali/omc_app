@@ -8,6 +8,16 @@ def _clean_text(value, default=""):
     return text or default
 
 
+def _bounded_text(value, *, fieldname, max_length, default=""):
+    text = _clean_text(value, default)
+    if len(text) > max_length:
+        frappe.throw(
+            f"{fieldname} must be {max_length} characters or fewer",
+            frappe.ValidationError,
+        )
+    return text
+
+
 def _normalize_platform(value):
     platform = _clean_text(value, "unknown").lower()
     return platform if platform in {"android", "ios", "web", "unknown"} else "unknown"
@@ -16,12 +26,34 @@ def _normalize_platform(value):
 def _normalize_interested_services(value):
     if value is None:
         return ""
+
     if isinstance(value, str):
-        return value.strip()
-    if isinstance(value, (list, tuple, set)):
-        cleaned = [str(item).strip() for item in value if str(item).strip()]
-        return json.dumps(cleaned)
-    return str(value).strip()
+        normalized = value.strip()
+    elif isinstance(value, (list, tuple, set)):
+        if len(value) > 20:
+            frappe.throw(
+                "interested_services may contain at most 20 items",
+                frappe.ValidationError,
+            )
+        cleaned = []
+        for item in value:
+            text = _bounded_text(
+                item,
+                fieldname="interested_services item",
+                max_length=120,
+            )
+            if text:
+                cleaned.append(text)
+        normalized = json.dumps(cleaned)
+    else:
+        normalized = str(value).strip()
+
+    if len(normalized) > 2000:
+        frappe.throw(
+            "interested_services must be 2000 characters or fewer",
+            frappe.ValidationError,
+        )
+    return normalized
 
 
 def _guest_session_to_dict(doc):
@@ -42,7 +74,11 @@ def _guest_session_to_dict(doc):
 
 @frappe.whitelist(allow_guest=True)
 def create_guest_session(**kwargs):
-    device_id = _clean_text(kwargs.get("device_id"))
+    device_id = _bounded_text(
+        kwargs.get("device_id"),
+        fieldname="device_id",
+        max_length=140,
+    )
     if not device_id:
         frappe.throw("device_id is required")
 
@@ -57,7 +93,11 @@ def create_guest_session(**kwargs):
         doc.first_active_on = now
 
     doc.platform = _normalize_platform(kwargs.get("platform"))
-    doc.app_version = _clean_text(kwargs.get("app_version"))
+    doc.app_version = _bounded_text(
+        kwargs.get("app_version"),
+        fieldname="app_version",
+        max_length=140,
+    )
     doc.last_active_on = now
 
     interested_services = _normalize_interested_services(kwargs.get("interested_services"))
@@ -77,8 +117,16 @@ def create_guest_session(**kwargs):
 
 @frappe.whitelist(allow_guest=True)
 def update_guest_activity(**kwargs):
-    session_id = _clean_text(kwargs.get("session_id") or kwargs.get("name"))
-    device_id = _clean_text(kwargs.get("device_id"))
+    session_id = _bounded_text(
+        kwargs.get("session_id") or kwargs.get("name"),
+        fieldname="session_id",
+        max_length=140,
+    )
+    device_id = _bounded_text(
+        kwargs.get("device_id"),
+        fieldname="device_id",
+        max_length=140,
+    )
 
     doc = None
     if session_id:
@@ -115,7 +163,11 @@ def update_guest_activity(**kwargs):
     if platform is not None:
         doc.platform = _normalize_platform(platform)
 
-    app_version = _clean_text(kwargs.get("app_version"))
+    app_version = _bounded_text(
+        kwargs.get("app_version"),
+        fieldname="app_version",
+        max_length=140,
+    )
     if app_version:
         doc.app_version = app_version
 
