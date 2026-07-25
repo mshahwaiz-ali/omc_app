@@ -189,9 +189,6 @@ def _service_to_catalogue_dict(service, include_required_documents=False):
         "feeLabel": _service_fee_label(service),
         "government_fee_label": getattr(service, "government_fee_label", None) or "",
         "support_message": getattr(service, "support_message", None) or "",
-        "wizard_type": getattr(service, "wizard_type", None) or "",
-        "wizardType": getattr(service, "wizard_type", None) or "",
-        "wizard_config": getattr(service, "wizard_config", None) or "",
         "is_featured": int(service.is_featured or 0),
         "required_documents": [
             doc.get("title") or doc.get("document_title") or ""
@@ -951,8 +948,6 @@ def get_service_catalogue():
             "fee_label",
             "government_fee_label",
             "support_message",
-            "wizard_type",
-            "wizard_config",
             "is_featured",
         ],
         order_by="sort_order asc, modified desc",

@@ -185,7 +185,7 @@ def _service_color_family(service_name):
         service = frappe.db.get_value(
             "OMC Service",
             service_name,
-            ["color_family", "wizard_type", "title"],
+            ["color_family", "title"],
             as_dict=True,
         )
     except Exception:
@@ -198,9 +198,6 @@ def _service_color_family(service_name):
     if color_family:
         return color_family
 
-    wizard_type = (service.get("wizard_type") or "").strip()
-    if wizard_type:
-        return _family_from_text(wizard_type)
 
     return _family_from_text(service.get("title") or service_name)
 

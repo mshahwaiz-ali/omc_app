@@ -8,7 +8,6 @@ def _public_service_payload(service, include_required_documents=False):
         service,
         include_required_documents=include_required_documents,
     )
-    payload.pop("wizard_config", None)
     return payload
 
 
@@ -33,8 +32,6 @@ def get_service_catalogue():
             "fee_label",
             "government_fee_label",
             "support_message",
-            "wizard_type",
-            "wizard_config",
             "is_featured",
         ],
         order_by="sort_order asc, modified desc",
