@@ -128,7 +128,7 @@ List<String> _readStringList(Map<String, dynamic> json, List<String> keys) {
     final value = json[key];
     if (value is List) {
       return value
-          .map((item) => item.toString().trim())
+          .map(_readStringListItem)
           .where((item) => item.isNotEmpty)
           .toList(growable: false);
     }
@@ -142,6 +142,24 @@ List<String> _readStringList(Map<String, dynamic> json, List<String> keys) {
   }
 
   return const [];
+}
+
+String _readStringListItem(dynamic item) {
+  if (item is Map) {
+    final normalized = item.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+
+    return _readString(normalized, [
+      'title',
+      'document_title',
+      'label',
+      'description',
+      'name',
+    ]);
+  }
+
+  return item?.toString().trim() ?? '';
 }
 
 String _readString(
