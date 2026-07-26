@@ -2572,7 +2572,7 @@ def _default_support_channels():
         {
             "channel_type": "whatsapp",
             "label": "WhatsApp support",
-            "value": "923001234567",
+            "value": "923122114116",
             "subtitle": "Fastest option for service and document queries",
             "is_active": 1,
             "sort_order": 1,
@@ -2580,7 +2580,7 @@ def _default_support_channels():
         {
             "channel_type": "phone",
             "label": "Call OMC",
-            "value": "+923001234567",
+            "value": "+923122114116",
             "subtitle": "Talk to OMC support during business hours",
             "is_active": 1,
             "sort_order": 2,

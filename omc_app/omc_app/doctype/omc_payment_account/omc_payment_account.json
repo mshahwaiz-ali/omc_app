@@ -85,7 +85,7 @@
    "label": "Support & Instructions"
   },
   {
-   "description": "Use international format, for example 923001234567. This is used for the customer WhatsApp CTA.",
+   "description": "Use international format, for example 923122114116. This is used for the customer WhatsApp CTA.",
    "fieldname": "whatsapp_number",
    "fieldtype": "Data",
    "in_list_view": 1,
