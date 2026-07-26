@@ -124,13 +124,27 @@ class ServiceCatalogueRepository {
         return service;
       }
 
+      final templateRequirements = template.formSchema
+          .where((field) => field.isRequired)
+          .map((field) => field.label.trim())
+          .where((label) => label.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+
       return ServiceItem(
         id: service.id,
         title: service.title,
         category: service.category,
+        categoryId: service.categoryId,
         feeLabel: service.feeLabel,
         completionTime: service.completionTime,
-        requirements: service.requirements,
+        basePrice: service.basePrice,
+        currency: service.currency,
+        iconKey: service.iconKey,
+        colorFamily: service.colorFamily,
+        requirements: templateRequirements.isNotEmpty
+            ? templateRequirements
+            : service.requirements,
         governmentFeeLabel: service.governmentFeeLabel,
         description: service.description,
         shortDescription: service.shortDescription,

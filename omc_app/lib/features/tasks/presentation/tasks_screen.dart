@@ -565,8 +565,8 @@ class _TasksContent extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 154),
       children: [
         _TasksPageHeader(
-          metaLabel: tasks.isEmpty ? null : '${tasks.length}',
-          onAddTask: tasks.isEmpty ? null : onAddTask,
+          metaLabel: tasks.isEmpty ? 'Empty' : '${tasks.length}',
+          onAddTask: onAddTask,
         ),
         if (tasks.isEmpty) ...[
           const SizedBox(height: 24),
@@ -580,6 +580,7 @@ class _TasksContent extends StatelessWidget {
         ] else ...[
           const SizedBox(height: 16),
           _SearchBar(
+            query: query,
             onChanged: onQueryChanged,
             onOpenFilters: onOpenFilters,
             filtersActive: statusFilter != 'All' || priorityFilter != 'All',
@@ -677,82 +678,74 @@ class _TasksPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tasks',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 30,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.8,
+            _TaskHeaderBackButton(
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/more');
+                }
+              },
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tasks',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: const Color(0xFF10182D),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.7,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Track assigned work, due dates and priorities.',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 14,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(height: 4),
+                    Text(
+                      'Track assignments, deadlines and team priorities.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             if (metaLabel != null) ...[
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFE8EE),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  metaLabel!,
-                  style: const TextStyle(
-                    color: Color(0xFFE11D48),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
+              const SizedBox(width: 10),
+              _TaskHeaderCountBadge(label: metaLabel!),
             ],
           ],
         ),
         if (onAddTask != null) ...[
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
-              onPressed: onAddTask,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFE11D48),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(0, 42),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: onAddTask,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              icon: const Icon(Icons.add_rounded, size: 19),
-              label: const Text(
-                'Add task',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
+            ),
+            icon: const Icon(Icons.add_rounded, size: 21),
+            label: const Text(
+              'Add task',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         ],
@@ -761,79 +754,207 @@ class _TasksPageHeader extends StatelessWidget {
   }
 }
 
-class _SearchBar extends StatelessWidget {
+class _TaskHeaderBackButton extends StatelessWidget {
+  const _TaskHeaderBackButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(color: Color(0xFFE8ECF3)),
+      ),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(15),
+        child: const SizedBox(
+          width: 46,
+          height: 46,
+          child: Icon(Icons.arrow_back_rounded, color: Color(0xFF111827)),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskHeaderCountBadge extends StatelessWidget {
+  const _TaskHeaderCountBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 66),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppTheme.primarySoft,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppTheme.primary,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchBar extends StatefulWidget {
   const _SearchBar({
+    required this.query,
     required this.onChanged,
     required this.onOpenFilters,
     required this.filtersActive,
   });
 
+  final String query;
   final ValueChanged<String> onChanged;
   final VoidCallback onOpenFilters;
   final bool filtersActive;
 
   @override
+  State<_SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends State<_SearchBar> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.query);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SearchBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.query != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.query,
+        selection: TextSelection.collapsed(offset: widget.query.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4E8EF)),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 13),
-          const Icon(
-            Icons.search_rounded,
-            color: AppTheme.textSecondary,
-            size: 20,
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: TextField(
-              onChanged: onChanged,
-              decoration: const InputDecoration(
-                hintText: 'Search task, assignee, status or case...',
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _controller,
+            onChanged: (value) {
+              widget.onChanged(value);
+              setState(() {});
+            },
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Search task, assignee, status or case...',
+              hintStyle: const TextStyle(
+                color: Color(0xFF7B8AA4),
+                fontWeight: FontWeight.w500,
+              ),
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(left: 8, right: 4),
+                child: Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFF172033),
+                  size: 25,
+                ),
+              ),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 52,
+                minHeight: 54,
+              ),
+              suffixIcon: _controller.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      onPressed: () {
+                        _controller.clear();
+                        widget.onChanged('');
+                        setState(() {});
+                      },
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 18,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(color: Color(0xFFE5EAF1)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(
+                  color: AppTheme.primary,
+                  width: 1.4,
+                ),
               ),
             ),
           ),
-          Container(
-            width: 38,
-            height: 38,
-            margin: const EdgeInsets.only(right: 5),
-            decoration: BoxDecoration(
-              color: filtersActive
-                  ? Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.08)
-                  : const Color(0xFFF7F8FA),
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(
-                color: filtersActive
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.22)
-                    : const Color(0xFFE4E8EF),
+        ),
+        const SizedBox(width: 10),
+        Material(
+          color: widget.filtersActive ? AppTheme.primarySoft : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: widget.onOpenFilters,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: widget.filtersActive
+                      ? AppTheme.primary.withValues(alpha: 0.28)
+                      : const Color(0xFFE5EAF1),
+                ),
               ),
-            ),
-            child: IconButton(
-              tooltip: 'Task filters',
-              onPressed: onOpenFilters,
-              icon: Icon(
-                Icons.tune_rounded,
-                color: filtersActive
-                    ? Theme.of(context).colorScheme.primary
-                    : AppTheme.textPrimary,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.tune_rounded,
+                    color: widget.filtersActive
+                        ? AppTheme.primary
+                        : const Color(0xFF172033),
+                  ),
+                  if (widget.filtersActive)
+                    const Positioned(
+                      right: 10,
+                      top: 10,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: SizedBox(width: 7, height: 7),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -76,6 +76,9 @@ Future<void> showOmcMoreSheet({
         companyName: companyName,
         customerStatus: customerStatus,
         avatarUrl: avatarUrl,
+        onOpenProfile: isGuest
+            ? null
+            : () => _closeThen(sheetContext, onOpenProfile),
       );
     },
   );
@@ -255,6 +258,7 @@ class _MoreSheetContent extends StatelessWidget {
     required this.companyName,
     required this.customerStatus,
     required this.avatarUrl,
+    required this.onOpenProfile,
   });
 
   final List<OmcSheetAction> actions;
@@ -263,6 +267,7 @@ class _MoreSheetContent extends StatelessWidget {
   final String? companyName;
   final String? customerStatus;
   final String? avatarUrl;
+  final VoidCallback? onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -281,6 +286,7 @@ class _MoreSheetContent extends StatelessWidget {
               companyName: companyName,
               customerStatus: customerStatus,
               avatarUrl: avatarUrl,
+              onTap: onOpenProfile,
             ),
             if (capabilities.isGuest ||
                 capabilities.isPending ||
@@ -323,12 +329,14 @@ class _MoreHeader extends StatelessWidget {
     this.companyName,
     this.customerStatus,
     this.avatarUrl,
+    this.onTap,
   });
 
   final String? displayName;
   final String? companyName;
   final String? customerStatus;
   final String? avatarUrl;
+  final VoidCallback? onTap;
 
   String get _headerSubtitle {
     final company = _cleanLabel(companyName);
@@ -353,51 +361,68 @@ class _MoreHeader extends StatelessWidget {
         : cleanAvatarUrl.startsWith('http')
         ? cleanAvatarUrl
         : '${ApiConfig.baseUrl}${cleanAvatarUrl.startsWith('/') ? '' : '/'}$cleanAvatarUrl';
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OmcPremium.canvas,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: OmcPremium.softShadow,
-      ),
-      child: Row(
-        children: [
-          _MoreHeaderAvatar(
-            avatarUrl: resolvedAvatarUrl,
-            initials: _initials(displayName),
+    final radius = BorderRadius.circular(22);
+
+    return Material(
+      color: OmcPremium.canvas,
+      borderRadius: radius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(color: AppTheme.border),
+            boxShadow: OmcPremium.softShadow,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _cleanLabel(displayName) ?? 'OMC Workspace',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.25,
-                  ),
+          child: Row(
+            children: [
+              _MoreHeaderAvatar(
+                avatarUrl: resolvedAvatarUrl,
+                initials: _initials(displayName),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _cleanLabel(displayName) ?? 'OMC Workspace',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.25,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _headerSubtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  _headerSubtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondary,
+                  size: 22,
                 ),
               ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

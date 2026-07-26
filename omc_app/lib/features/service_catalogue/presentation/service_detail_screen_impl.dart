@@ -126,18 +126,20 @@ class ServiceDetailScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      _ChecklistCard(
-                        title: 'Requirements',
-                        subtitle:
-                            'Basic information OMC needs for this service.',
-                        emptyMessage:
-                            'OMC will confirm requirements after reviewing your case.',
-                        items: service.requirements,
-                        icon: Icons.fact_check_outlined,
-                        accent: _ink,
-                      ),
-                      const SizedBox(height: 12),
+                      if (service.requirements.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        _ChecklistCard(
+                          title: 'Requirements',
+                          subtitle:
+                              'Basic information OMC needs for this service.',
+                          emptyMessage: '',
+                          items: service.requirements,
+                          icon: Icons.fact_check_outlined,
+                          accent: _ink,
+                        ),
+                        const SizedBox(height: 12),
+                      ] else
+                        const SizedBox(height: 14),
                       _ChecklistCard(
                         title: 'Required documents',
                         subtitle:
