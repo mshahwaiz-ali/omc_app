@@ -117,7 +117,9 @@ class _ServiceCatalogueScreenState
                 ],
                 if (_shouldShowMyRequests(capabilities)) ...[
                   const SizedBox(height: 14),
-                  _MyRequestsShortcut(onTap: () => context.go('/my-services')),
+                  _MyRequestsShortcut(
+                    onTap: () => context.push('/my-services'),
+                  ),
                 ],
                 const SizedBox(height: 20),
                 _SectionHeader(
@@ -242,7 +244,7 @@ class _ServiceCatalogueScreenState
       context.go('/support');
     } else if (capabilities.isInternal &&
         capabilities.canAccessInternalWorkspace) {
-      context.go('/internal-workspace');
+      context.push('/internal-workspace');
     }
   }
 

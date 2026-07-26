@@ -1,8 +1,8 @@
 class SupportConfig {
   const SupportConfig._();
 
-  static const String whatsappNumber = '923001234567';
-  static const String phoneNumber = '+923001234567';
+  static const String whatsappNumber = '923122114116';
+  static const String phoneNumber = '+923122114116';
   static const String email = 'support@omchouse.com';
 
   static const String whatsappMessage =

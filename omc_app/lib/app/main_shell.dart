@@ -48,6 +48,24 @@ class _MainShellState extends ConsumerState<MainShell> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant MainShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.initialIndex == widget.initialIndex) return;
+
+    final nextIndex = _normalTabIndex(widget.initialIndex);
+    if (_currentIndex != nextIndex) {
+      setState(() => _currentIndex = nextIndex);
+    }
+
+    if (widget.initialIndex == 4) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showMoreSheet();
+      });
+    }
+  }
+
   int _normalTabIndex(int index) => index >= 0 && index <= 3 ? index : 0;
 
   void _selectTab(int index) {
