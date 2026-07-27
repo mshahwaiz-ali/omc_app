@@ -1,0 +1,144 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../app/providers/core_providers.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/network/api_error.dart';
+import '../../../core/network/frappe_client.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
+import 'referral_summary.dart';
+
+final referralRepositoryProvider = Provider<ReferralRepository>((ref) {
+  return ReferralRepository(ref.watch(frappeClientProvider));
+});
+
+final referralSummaryProvider = FutureProvider<ReferralSummary?>((ref) async {
+  final auth = ref.watch(authControllerProvider);
+  if (auth.status != AuthStatus.authenticated ||
+      !auth.capabilities.isInternal) {
+    return null;
+  }
+
+  try {
+    return await ref.watch(referralRepositoryProvider).fetchSummary();
+  } on ApiError catch (error) {
+    final code = (error.code ?? '').toLowerCase();
+    final message = error.message.toLowerCase();
+    final denied =
+        code.contains('permission') ||
+        code.contains('403') ||
+        message.contains('permission') ||
+        message.contains('not permitted');
+
+    if (denied) return null;
+    rethrow;
+  }
+});
+
+class ReferralRepository {
+  const ReferralRepository(this._client);
+
+  final FrappeClient _client;
+
+  Future<ReferralSummary> fetchSummary() async {
+    final response = await _client.getMethod(
+      ApiConfig.getMyReferralSummaryMethod,
+    );
+    return ReferralSummary.fromResponse(response);
+  }
+
+  Future<List<ReferralCustomer>> fetchReferrals({
+    String? search,
+    int limitStart = 0,
+    int limitPageLength = 50,
+  }) async {
+    final queryParameters = <String, dynamic>{
+      'limit_start': limitStart,
+      'limit_page_length': limitPageLength,
+    };
+
+    final cleanSearch = search?.trim();
+    if (cleanSearch != null && cleanSearch.isNotEmpty) {
+      queryParameters['search'] = cleanSearch;
+    }
+
+    final response = await _client.getMethod(
+      ApiConfig.getMyReferralsMethod,
+      queryParameters: queryParameters,
+    );
+
+    final message = response['message'];
+    final source = message is Map<String, dynamic> ? message : response;
+    final items = source['items'];
+
+    if (items is! List) return const [];
+
+    return items
+        .whereType<Map>()
+        .map(
+          (item) => ReferralCustomer.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .where((item) => item.id.isNotEmpty)
+        .toList(growable: false);
+  }
+}
+
+class ReferralCustomer {
+  const ReferralCustomer({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.phone,
+    required this.customerStatus,
+    required this.approvalStatus,
+    required this.consentGranted,
+    required this.customerOrigin,
+  });
+
+  final String id;
+  final String fullName;
+  final String email;
+  final String phone;
+  final String customerStatus;
+  final String approvalStatus;
+  final bool consentGranted;
+  final String customerOrigin;
+
+  factory ReferralCustomer.fromJson(Map<String, dynamic> json) {
+    return ReferralCustomer(
+      id: _string(json['customer_id']),
+      fullName: _string(json['full_name']),
+      email: _string(json['email']),
+      phone: _string(json['phone']),
+      customerStatus: _string(json['customer_status']),
+      approvalStatus: _string(json['approval_status']),
+      consentGranted: _bool(json['consent_granted']),
+      customerOrigin: _string(json['customer_origin']),
+    );
+  }
+
+  String get displayName => fullName.isEmpty ? id : fullName;
+
+  String get contactLine {
+    final values = <String>[
+      if (phone.isNotEmpty) phone,
+      if (email.isNotEmpty) email,
+    ];
+
+    return values.isEmpty ? 'No contact details available' : values.join(' • ');
+  }
+
+  static String _string(Object? value) => value?.toString().trim() ?? '';
+
+  static bool _bool(Object? value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+
+    return const {
+      '1',
+      'true',
+      'yes',
+      'on',
+    }.contains(_string(value).toLowerCase());
+  }
+}

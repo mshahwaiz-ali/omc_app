@@ -26,6 +26,7 @@ import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/payments/presentation/payment_detail_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
+import '../features/profile/presentation/my_referrals_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
@@ -357,6 +358,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'profile',
         builder: (context, state) =>
             _withShell(ShellNavScaffold.moreIndex, const ProfileScreen()),
+      ),
+      GoRoute(
+        path: '/profile/referrals',
+        name: 'my-referrals',
+        builder: (context, state) =>
+            _withShell(ShellNavScaffold.moreIndex, const MyReferralsScreen()),
       ),
       GoRoute(
         path: '/expense-tracker',

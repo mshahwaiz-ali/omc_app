@@ -103,6 +103,10 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
     return !capabilities.isGuest;
   }
 
+  if (location == '/profile/referrals') {
+    return capabilities.isInternal;
+  }
+
   if (location == '/tax-calculator/history') {
     return !capabilities.isGuest && capabilities.canUseTaxCalculator;
   }

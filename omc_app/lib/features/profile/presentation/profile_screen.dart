@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/theme.dart';
@@ -11,7 +12,9 @@ import '../../auth/application/auth_controller.dart';
 import '../../support/data/support_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/profile_summary.dart';
+import '../data/referral_repository.dart';
 import 'widgets/profile_action_card.dart';
+import 'widgets/referral_summary_card.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -373,6 +376,10 @@ class _ProfileContent extends StatelessWidget {
             ),
           ],
         ),
+        if (isInternal) ...[
+          const SizedBox(height: 20),
+          _ReferralProfileSection(ref: ref),
+        ],
         const SizedBox(height: 20),
         if (!isInternal)
           ProfileActionCard(
@@ -597,6 +604,76 @@ Company: ${profile.companyName ?? 'Not available'}'''
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _ReferralProfileSection extends StatelessWidget {
+  const _ReferralProfileSection({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final referralAsync = ref.watch(referralSummaryProvider);
+
+    return referralAsync.when(
+      data: (summary) {
+        if (summary == null || !summary.isUsable) {
+          return const SizedBox.shrink();
+        }
+        return ReferralSummaryCard(
+          summary: summary,
+          onRefresh: () => ref.invalidate(referralSummaryProvider),
+          onViewReferrals: () => context.push('/profile/referrals'),
+        );
+      },
+      loading: () => const PremiumCard(
+        padding: EdgeInsets.all(18),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.2),
+            ),
+            SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'Loading referral details...',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      error: (error, _) => PremiumCard(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            const Icon(Icons.info_outline_rounded, color: AppTheme.textMuted),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Referral details could not be loaded right now.',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Retry referral details',
+              onPressed: () => ref.invalidate(referralSummaryProvider),
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

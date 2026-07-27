@@ -185,6 +185,10 @@ class ApiConfig {
 
   static const String customersMethod = 'omc_app.api.mobile.get_customers';
   static const String customerDetailMethod = 'omc_app.api.mobile.get_customer';
+  static const String getMyReferralSummaryMethod =
+      'omc_app.api.referrals.get_my_referral_summary';
+  static const String getMyReferralsMethod =
+      'omc_app.api.referrals.get_my_referrals';
 
   static const String leadsMethod = 'omc_app.api.mobile.get_leads';
   static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
