@@ -14,6 +14,7 @@ OMC App brings service discovery, customer onboarding, case management, document
 - [Platform architecture](#platform-architecture)
 - [User access model](#user-access-model)
 - [Main capabilities](#main-capabilities)
+- [Automated service lifecycle](#automated-service-lifecycle)
 - [Security model](#security-model)
 - [Technology stack](#technology-stack)
 - [Repository structure](#repository-structure)
@@ -214,7 +215,10 @@ See [`docs/app_role.md`](docs/app_role.md) for the complete role architecture, c
 - active-service validation;
 - bounded title, description, phone, email, and priority values;
 - ownership-scoped customer views;
-- internal assignment and status workflows;
+- automatic staff assignment with explicit, referral, service-default, role, and manager-fallback precedence;
+- least-loaded eligible staff selection for configured service roles;
+- duplicate-safe Frappe ToDo creation for assigned requests;
+- internal assignment notifications and audit timeline entries;
 - customer-visible progress and action requirements.
 
 ### Documents
@@ -223,12 +227,20 @@ See [`docs/app_role.md`](docs/app_role.md) for the complete role architecture, c
 - service-request ownership validation;
 - prevention of cross-request file reuse;
 - document review queues;
-- reviewer-specific capabilities and attachment access.
+- reviewer-specific capabilities and attachment access;
+- rejection automatically returns the request to `Waiting for Customer`;
+- final required-document approval automatically evaluates payment eligibility;
+- reviewer reminders for uploaded documents that remain unreviewed.
 
 ### Payments
 
 - payment and receipt tracking;
+- automatic payment creation after all required documents are approved;
+- service-owned amount and currency, with zero or missing prices rejected;
+- duplicate active-payment prevention;
 - finance review workflow;
+- receipt submission notifications for Finance Reviewers, Managers, and assigned staff;
+- automatic request transitions for `Paid`, `Rejected`, and `Under Review`;
 - role-specific receipt visibility;
 - protected payment mutations and review actions.
 
@@ -266,6 +278,96 @@ Public tax requests are validated before the canonical calculator runs:
 - exact profile or recipient-user matching;
 - backend-driven FAQs, knowledge, announcements, and onboarding content;
 - public content separated from authenticated and internal data.
+
+---
+
+## Automated service lifecycle
+
+The backend coordinates the service lifecycle after human review decisions. Documents and payment receipts are never auto-approved; automation begins only after an authorised reviewer records a decision.
+
+```text
+Request created
+    |
+    +--> assignee resolved
+    |       explicit assignee
+    |       -> valid referral owner
+    |       -> service default assignee
+    |       -> least-loaded eligible role user
+    |       -> OMC Manager fallback
+    |
+    +--> duplicate-safe ToDo created
+    +--> assignee notified
+    |
+Customer uploads required documents
+    |
+Reviewer approves or rejects
+    |
+    +--> Rejected
+    |       -> Waiting for Customer
+    |       -> customer notification
+    |
+    +--> All required documents approved
+            -> positive service price validated
+            -> one Pending payment created
+            -> Waiting for Payment
+            -> customer notification
+
+Customer submits receipt
+    |
+    +--> finance and operational reviewers notified
+    +--> delayed-review reminders scheduled
+    |
+Reviewer marks payment
+    |
+    +--> Paid
+    |       -> In Progress
+    |       -> customer and assigned staff notified
+    |
+    +--> Rejected
+            -> Waiting for Customer
+            -> replacement receipt required
+
+Completion requested
+    |
+    +--> required documents must be approved
+    +--> active payments must be Paid
+    +--> rejected documents and receipts must be resolved
+    |
+    +--> open ToDos closed
+    +--> closed_on recorded
+    +--> completion timeline and customer notification created
+```
+
+### Scheduled reminders and escalations
+
+Frappe scheduler hooks run workflow checks:
+
+- hourly checks for uploaded documents awaiting review;
+- hourly checks for submitted receipts awaiting finance review;
+- hourly alerts for unassigned service requests;
+- daily customer reminders for `Waiting for Customer`;
+- daily payment reminders for `Waiting for Payment`;
+- daily overdue escalation to the assignee, OMC Managers, and OMC Admins;
+- notification deduplication prevents repeated alerts inside the configured window.
+
+The scheduler must be enabled on each deployed site:
+
+```bash
+bench --site <site> enable-scheduler
+bench --site <site> scheduler status
+```
+
+### Human approval boundaries
+
+Automation does not:
+
+- approve customer documents;
+- approve payment receipts;
+- invent or override service prices;
+- create zero-value payments;
+- bypass backend capabilities or record ownership;
+- complete a request with unresolved document or payment blockers.
+
 
 ---
 
@@ -400,6 +502,10 @@ backend_omc_app/frappe-bench/apps/omc_app/omc_app/
 │   ├── secured_mobile.py
 │   ├── service_request_guard.py
 │   ├── service_templates.py
+│   ├── assisted_service.py
+│   ├── customer_documents.py
+│   ├── payments.py
+│   ├── workflow_automation.py
 │   ├── tax_calculator.py
 │   └── tax_calculator_guard.py
 ├── setup/roles.py
@@ -510,6 +616,26 @@ Do not commit:
 
 Deployment templates and scripts live under [`backend_omc_app/deploy/`](backend_omc_app/deploy/).
 
+
+### Workflow configuration
+
+Each active service that requires payment must have:
+
+- a positive `base_price`;
+- a valid `currency`;
+- required-document templates configured where applicable;
+- an optional `default_assignee`;
+- an optional `default_assignment_role`.
+
+Supported automatic-assignment roles are:
+
+- `OMC Consultant`;
+- `OMC Tax Associate`;
+- `OMC Business Partner`;
+- `OMC Manager`.
+
+A service with a zero or missing price will not produce an automatic payment. The backend logs a configuration error instead of creating an invalid customer payment.
+
 ---
 
 ## Validation
@@ -549,6 +675,17 @@ Focused permission suite:
 bench --site omc.local run-tests \
   --app omc_app \
   --module omc_app.api.test_permissions
+```
+
+
+Focused workflow suites:
+
+```bash
+bench --site omc.local run-tests   --app omc_app   --module omc_app.api.test_workflow_automation
+
+bench --site omc.local run-tests   --app omc_app   --module omc_app.api.test_workflow_assignment
+
+bench --site omc.local run-tests   --app omc_app   --module omc_app.api.test_workflow_completion
 ```
 
 ### Repository hygiene
@@ -610,8 +747,9 @@ Run only the commands appropriate for the actual server layout. Do not recreate 
 - Supervisor-managed Frappe processes;
 - nginx reverse proxy and asset serving;
 - scheduled database and private-file backups;
+- enabled Frappe scheduler for workflow reminders and escalations;
 - a tested restore procedure;
-- post-deployment API, login, upload, and role smoke tests;
+- post-deployment API, login, upload, assignment, payment, scheduler, and role smoke tests;
 - Android build verification against the production API endpoint.
 
 ---
@@ -633,12 +771,17 @@ The platform currently includes:
 - implemented Flutter customer and internal modules;
 - capability-driven navigation and backend authorisation;
 - customer ownership and internal assignment boundaries;
+- automated service assignment with referral, service-default, role, and least-loaded selection;
+- document-review-driven payment creation with price and duplicate safeguards;
+- automated payment lifecycle transitions and reviewer/customer notifications;
+- scheduled reminders for pending reviews, customer action, payment, unassigned work, and overdue requests;
+- completion safeguards, ToDo closure, audit timeline entries, and feedback notifications;
 - hardened public catalogue, signup, profile, service-request, expense, receipt-upload, quick-action, and tax-calculator entry points;
-- focused backend access tests;
+- focused backend access and workflow tests;
 - Flutter unit and route-access tests;
 - production deployment assets and verification scripts.
 
-Local static validation, guarded-input checks, Flutter tests, Flutter analysis, hook imports, and repository secret-tracking checks have been completed against the current codebase.
+Local static validation, guarded-input checks, Flutter tests, Flutter analysis, migrations, hook imports, workflow-focused tests, the full backend test suite, and repository secret-tracking checks are part of the current validation workflow. Results must be taken from actual command output and must not be assumed.
 
 The remaining release workflow is environment-specific:
 
