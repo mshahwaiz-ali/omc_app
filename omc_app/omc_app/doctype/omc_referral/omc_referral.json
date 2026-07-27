@@ -33,39 +33,44 @@
    "label": "Identity"
   },
   {
+   "default": "OMC-REF-.YY..MM..DD.-.#####",
    "fieldname": "naming_series",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Referral ID Series",
    "options": "OMC-REF-.YY..MM..DD.-.#####",
-   "default": "OMC-REF-.YY..MM..DD.-.#####",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "referral_code",
    "fieldtype": "Data",
-   "label": "Referral Code",
-   "reqd": 1,
-   "unique": 1,
-   "search_index": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1
-  },
-  {
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "label": "Status",
-   "options": "Registered\nPending Review\nApproved\nConverted\nInactive\nRevoked",
-   "default": "Registered",
    "in_list_view": 1,
    "in_standard_filter": 1,
+   "label": "Referral Code",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1,
+   "unique": 1
+  },
+  {
+   "default": "Registered",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Registered\nPending Review\nApproved\nConverted\nInactive\nRevoked",
+   "read_only": 1,
    "search_index": 1
   },
   {
+   "default": "1",
    "fieldname": "is_active",
    "fieldtype": "Check",
-   "label": "Is Active",
-   "default": "1",
    "in_standard_filter": 1,
+   "label": "Is Active",
+   "read_only": 1,
    "search_index": 1
   },
   {
@@ -76,38 +81,43 @@
   {
    "fieldname": "referrer_user",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Referrer User",
    "options": "User",
+   "read_only": 1,
    "reqd": 1,
-   "search_index": 1,
-   "in_list_view": 1
+   "search_index": 1
   },
   {
    "fieldname": "referrer_employee_profile",
    "fieldtype": "Data",
-   "label": "Referrer Employee Profile"
+   "label": "Referrer Employee Profile",
+   "read_only": 1
   },
   {
    "fieldname": "referred_customer_profile",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Referred Customer Profile",
    "options": "OMC Customer Profile",
-   "search_index": 1,
-   "in_list_view": 1
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "referred_app_user",
    "fieldtype": "Link",
    "label": "Referred App User",
    "options": "User",
+   "read_only": 1,
    "search_index": 1
   },
   {
+   "default": "App Signup",
    "fieldname": "source",
    "fieldtype": "Select",
    "label": "Source",
    "options": "App Signup\nWalk-in\nImported\nStaff Created\nAdmin Linked",
-   "default": "App Signup"
+   "read_only": 1
   },
   {
    "fieldname": "consent_section",
@@ -115,15 +125,17 @@
    "label": "Consent"
   },
   {
+   "default": "0",
    "fieldname": "consent_granted",
    "fieldtype": "Check",
    "label": "Consent Granted",
-   "default": "0"
+   "read_only": 1
   },
   {
    "fieldname": "consent_timestamp",
    "fieldtype": "Datetime",
-   "label": "Consent Timestamp"
+   "label": "Consent Timestamp",
+   "read_only": 1
   },
   {
    "fieldname": "lifecycle_section",
@@ -133,27 +145,32 @@
   {
    "fieldname": "signup_date",
    "fieldtype": "Datetime",
-   "label": "Signup Date"
+   "label": "Signup Date",
+   "read_only": 1
   },
   {
    "fieldname": "approved_date",
    "fieldtype": "Datetime",
-   "label": "Approved Date"
+   "label": "Approved Date",
+   "read_only": 1
   },
   {
    "fieldname": "converted_date",
    "fieldtype": "Datetime",
-   "label": "Converted Date"
+   "label": "Converted Date",
+   "read_only": 1
   },
   {
    "fieldname": "revoked_date",
    "fieldtype": "Datetime",
-   "label": "Revoked Date"
+   "label": "Revoked Date",
+   "read_only": 1
   },
   {
    "fieldname": "notes",
    "fieldtype": "Small Text",
-   "label": "Notes"
+   "label": "Notes",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
@@ -163,16 +180,11 @@
  "naming_rule": "By \"Naming Series\" field",
  "permissions": [
   {
-   "role": "System Manager",
-   "read": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1,
-   "report": 1,
    "export": 1,
    "print": 1,
-   "email": 1,
-   "share": 1
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
   }
  ],
  "search_fields": "referral_code,referrer_user,referred_customer_profile,referred_app_user,status",
@@ -180,11 +192,5 @@
  "sort_order": "DESC",
  "states": [],
  "title_field": "referral_code",
- "track_changes": 1,
- "creation": "2026-07-27 16:24:18.555116",
- "modified": "2026-07-27 16:24:18.555116",
- "modified_by": "Administrator",
- "owner": "Administrator",
- "editable_grid": 1,
- "row_format": "Dynamic"
+ "track_changes": 1
 }
