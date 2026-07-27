@@ -62,6 +62,30 @@ class TestPermissionQueryConditions(FrappeTestCase):
                     "",
                 )
 
+    def test_customer_service_request_query_includes_own_identity(self):
+        with patch.object(permissions, "_roles", return_value=set()):
+            query = permissions.service_request_query(
+                user="customer@example.com",
+            )
+
+        self.assertIn("requested_for_customer", query)
+        self.assertIn("submitted_by_user", query)
+        self.assertIn("linked_app_user", query)
+        self.assertIn("customer@example.com", query)
+
+    def test_field_role_query_includes_live_referral_scope(self):
+        query = self._query_for(
+            permissions.service_request_query,
+            CONSULTANT_ROLE,
+            user="consultant@example.com",
+        )
+
+        self.assertIn("referral_owner", query)
+        self.assertIn("referral_record", query)
+        self.assertIn("referral_assistance_consent", query)
+        self.assertIn("is_active", query)
+        self.assertIn("assigned_staff", query)
+
     def test_field_roles_are_assignment_scoped(self):
         for role in (
             CONSULTANT_ROLE,

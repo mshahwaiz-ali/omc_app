@@ -770,6 +770,24 @@ class _CardHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (serviceCase.internalCustomerModeLabel != null ||
+                  serviceCase.internalSubmissionLabel != null) ...[
+                const SizedBox(height: 7),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (serviceCase.internalCustomerModeLabel != null)
+                      _CaseContextChip(
+                        label: serviceCase.internalCustomerModeLabel!,
+                      ),
+                    if (serviceCase.internalSubmissionLabel != null)
+                      _CaseContextChip(
+                        label: serviceCase.internalSubmissionLabel!,
+                      ),
+                  ],
+                ),
+              ],
               if (reference.isNotEmpty) ...[
                 const SizedBox(height: 5),
                 Text(
@@ -787,6 +805,32 @@ class _CardHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CaseContextChip extends StatelessWidget {
+  const _CaseContextChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: OmcPremium.services.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: OmcPremium.services.withValues(alpha: 0.14)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: OmcPremium.services,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }

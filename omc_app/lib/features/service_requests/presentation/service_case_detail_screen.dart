@@ -90,6 +90,12 @@ class _ServiceCaseDetailScreenState
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
                     children: [
                       _CaseHero(serviceCase: serviceCase),
+                      if (serviceCase.customerAssistanceLabel != null) ...[
+                        const SizedBox(height: 12),
+                        _AssistedRequestNotice(
+                          label: serviceCase.customerAssistanceLabel!,
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       _ProgressCard(serviceCase: serviceCase),
                       if (serviceCase.customerActionRequired) ...[
@@ -382,6 +388,45 @@ class _ServiceCaseDetailScreenState
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message.trim())));
+  }
+}
+
+class _AssistedRequestNotice extends StatelessWidget {
+  const _AssistedRequestNotice({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F7F4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD8E9DF)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.support_agent_rounded,
+            size: 20,
+            color: Color(0xFF168D49),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 12.5,
+                height: 1.3,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

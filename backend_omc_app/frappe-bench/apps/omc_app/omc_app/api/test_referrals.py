@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import frappe
@@ -53,3 +54,49 @@ class TestReferralBackend(FrappeTestCase):
         self.assertEqual(profile.referred_by, "staff@example.com")
         self.assertEqual(profile.referral_code_used, "OMC-ABC234")
         self.assertEqual(profile.referral_assistance_consent, 1)
+
+class TestReferralConsentRevocation(FrappeTestCase):
+    def test_customer_can_revoke_assistance_without_deleting_relationship(self):
+        profile = SimpleNamespace(
+            name="CUST-1",
+            referral_assistance_consent=1,
+            referral_record="REF-1",
+            referred_by="staff@example.com",
+            save=lambda **kwargs: None,
+        )
+
+        with (
+            patch.object(
+                referrals,
+                "_require_login",
+                return_value="customer@example.com",
+            ),
+            patch.object(
+                referrals,
+                "_customer_profile_for_user",
+                return_value=profile,
+            ),
+        ):
+            result = referrals.revoke_my_referral_assistance_consent()
+
+        self.assertEqual(profile.referral_assistance_consent, 0)
+        self.assertEqual(profile.referral_record, "REF-1")
+        self.assertEqual(profile.referred_by, "staff@example.com")
+        self.assertEqual(result["consent_granted"], 0)
+        self.assertTrue(result["referral_relationship_preserved"])
+
+    def test_revoke_requires_customer_profile(self):
+        with (
+            patch.object(
+                referrals,
+                "_require_login",
+                return_value="missing@example.com",
+            ),
+            patch.object(
+                referrals,
+                "_customer_profile_for_user",
+                return_value=None,
+            ),
+            self.assertRaises(frappe.DoesNotExistError),
+        ):
+            referrals.revoke_my_referral_assistance_consent()

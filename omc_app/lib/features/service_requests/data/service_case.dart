@@ -22,6 +22,9 @@ class ServiceCase {
     this._progressPercent,
     this.currentStage,
     this.customerProfile,
+    this.customerMode,
+    this.submissionMode,
+    this.createdOnBehalf = false,
     this.customerName,
     this.customerEmail,
     this.customerPhone,
@@ -59,6 +62,9 @@ class ServiceCase {
   final int? _progressPercent;
   final String? currentStage;
   final String? customerProfile;
+  final String? customerMode;
+  final String? submissionMode;
+  final bool createdOnBehalf;
   final String? customerName;
   final String? customerEmail;
   final String? customerPhone;
@@ -246,6 +252,33 @@ class ServiceCase {
     if (profile != null && profile.isNotEmpty) return profile;
 
     return 'Customer';
+  }
+
+  bool get isAssistedRequest {
+    if (createdOnBehalf) return true;
+    final mode = customerMode?.trim().toLowerCase() ?? '';
+    final submission = submissionMode?.trim().toLowerCase() ?? '';
+    return (mode.isNotEmpty && mode != 'self') ||
+        submission.contains('on behalf') ||
+        submission.contains('assisted');
+  }
+
+  String? get customerAssistanceLabel {
+    if (!isAssistedRequest) return null;
+    return 'Created by OMC on your behalf';
+  }
+
+  String? get internalCustomerModeLabel {
+    final mode = customerMode?.trim();
+    if (mode != null && mode.isNotEmpty && mode.toLowerCase() != 'self') {
+      return mode;
+    }
+    return null;
+  }
+
+  String? get internalSubmissionLabel {
+    final value = submissionMode?.trim();
+    return value == null || value.isEmpty ? null : value;
   }
 
   bool get isClosed {
