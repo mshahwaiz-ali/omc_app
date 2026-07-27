@@ -129,3 +129,118 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             self.assertRaises(frappe.ValidationError),
         ):
             assisted_service.create_request(service_id="SERVICE-1")
+
+    def test_customer_selection_modes_follow_role_scope(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="consultant@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Consultant"},
+            ),
+            patch.object(
+                assisted_service,
+                "_require_internal_assist",
+                return_value={"can_create_service_for_customer": True},
+            ),
+        ):
+            result = assisted_service.get_customer_selection_options()
+
+        self.assertEqual(
+            result["modes"],
+            ["My Referral", "Walk-in Customer"],
+        )
+        self.assertTrue(result["capabilities"]["can_use_my_referrals"])
+        self.assertFalse(result["capabilities"]["can_search_all_customers"])
+
+    def test_referral_picker_is_scoped_and_consented(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="consultant@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Consultant"},
+            ),
+            patch.object(
+                assisted_service,
+                "_require_internal_assist",
+                return_value={"can_create_service_for_customer": True},
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "get_all",
+                return_value=[],
+            ) as get_all,
+        ):
+            assisted_service.get_customer_selection_options(
+                customer_mode="My Referral",
+                search="Ayesha",
+            )
+
+        filters = get_all.call_args.kwargs["filters"]
+        self.assertEqual(filters["referred_by"], "consultant@example.com")
+        self.assertEqual(filters["referral_assistance_consent"], 1)
+        self.assertEqual(filters["is_active"], 1)
+
+    def test_specialist_cannot_search_all_customers(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="consultant@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Consultant"},
+            ),
+            patch.object(
+                assisted_service,
+                "_require_internal_assist",
+                return_value={"can_create_service_for_customer": True},
+            ),
+            self.assertRaises(frappe.PermissionError),
+        ):
+            assisted_service.get_customer_selection_options(
+                customer_mode="Existing Customer"
+            )
+
+    def test_specialist_walk_in_list_is_creator_scoped(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="support@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Support Agent"},
+            ),
+            patch.object(
+                assisted_service,
+                "_require_internal_assist",
+                return_value={"can_create_service_for_customer": True},
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "get_all",
+                return_value=[],
+            ) as get_all,
+        ):
+            assisted_service.get_customer_selection_options(
+                customer_mode="Walk-in Customer"
+            )
+
+        self.assertEqual(
+            get_all.call_args.kwargs["filters"],
+            {"created_by_user": "support@example.com"},
+        )

@@ -90,6 +90,7 @@ ROLE_CAPABILITIES = {
     },
     CONSULTANT_ROLE: {
         "can_access_internal_workspace",
+        "can_create_service_for_customer",
         "can_view_assigned_service_cases",
         "can_update_assigned_service_status",
         "can_manage_assigned_tasks",
@@ -100,6 +101,7 @@ ROLE_CAPABILITIES = {
     },
     TAX_ASSOCIATE_ROLE: {
         "can_access_internal_workspace",
+        "can_create_service_for_customer",
         "can_view_assigned_service_cases",
         "can_update_assigned_service_status",
         "can_manage_assigned_tasks",
@@ -110,6 +112,7 @@ ROLE_CAPABILITIES = {
     },
     BUSINESS_PARTNER_ROLE: {
         "can_access_internal_workspace",
+        "can_create_service_for_customer",
         "can_view_assigned_service_cases",
         "can_update_assigned_service_status",
         "can_manage_assigned_tasks",
