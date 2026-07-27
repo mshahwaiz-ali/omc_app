@@ -25,6 +25,18 @@
   "register_as",
   "customer_type",
   "address",
+  "acquisition_section",
+  "acquisition_source",
+  "acquisition_source_detail",
+  "referral_record",
+  "referred_by",
+  "referral_code_used",
+  "referral_assistance_consent",
+  "referral_consent_timestamp",
+  "referral_consent_version",
+  "customer_origin",
+  "linked_app_user",
+  "manual_customer_status",
   "review_section",
   "education",
   "experience",
@@ -161,6 +173,84 @@
    "label": "Address"
   },
   {
+   "fieldname": "acquisition_section",
+   "fieldtype": "Section Break",
+   "label": "Acquisition and Referral"
+  },
+  {
+   "fieldname": "acquisition_source",
+   "fieldtype": "Select",
+   "label": "Acquisition Source",
+   "options": "Unknown\nExisting\nReferral\nWebsite\nSocial Media\nAdvertisement\nExisting Customer\nEvent\nOther",
+   "default": "Unknown",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "acquisition_source_detail",
+   "fieldtype": "Data",
+   "label": "Acquisition Source Detail"
+  },
+  {
+   "fieldname": "referral_record",
+   "fieldtype": "Link",
+   "label": "Referral Record",
+   "options": "OMC Referral",
+   "search_index": 1
+  },
+  {
+   "fieldname": "referred_by",
+   "fieldtype": "Link",
+   "label": "Referred By",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "referral_code_used",
+   "fieldtype": "Data",
+   "label": "Referral Code Used",
+   "read_only": 1
+  },
+  {
+   "fieldname": "referral_assistance_consent",
+   "fieldtype": "Check",
+   "label": "Referral Assistance Consent",
+   "default": "0"
+  },
+  {
+   "fieldname": "referral_consent_timestamp",
+   "fieldtype": "Datetime",
+   "label": "Referral Consent Timestamp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "referral_consent_version",
+   "fieldtype": "Data",
+   "label": "Referral Consent Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_origin",
+   "fieldtype": "Select",
+   "label": "Customer Origin",
+   "options": "App Signup\nWalk-in\nImported\nStaff Created",
+   "default": "App Signup",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "linked_app_user",
+   "fieldtype": "Link",
+   "label": "Linked App User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "manual_customer_status",
+   "fieldtype": "Select",
+   "label": "Manual Customer Status",
+   "options": "\nUnregistered\nInvited\nSignup Pending\nLinked\nDuplicate Review\nArchived"
+  },
+  {
    "fieldname": "review_section",
    "fieldtype": "Section Break",
    "label": "Review Details"
@@ -214,7 +304,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "full_name,email,phone,company_name,ntn,cnic",
+ "search_fields": "full_name,email,phone,company_name,ntn,cnic,referral_code_used,referred_by",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

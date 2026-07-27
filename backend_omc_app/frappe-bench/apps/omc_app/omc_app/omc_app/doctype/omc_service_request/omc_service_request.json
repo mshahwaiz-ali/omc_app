@@ -21,6 +21,19 @@
   "requested_by",
   "contact_email",
   "contact_phone",
+  "assisted_request_section",
+  "requested_for_customer",
+  "manual_customer",
+  "customer_mode",
+  "submission_mode",
+  "submitted_by_user",
+  "submitted_by_internal_user",
+  "referral_owner",
+  "referral_record",
+  "created_on_behalf",
+  "customer_consent_reference",
+  "assigned_staff",
+  "source_channel",
   "timeline_section",
   "expected_completion_date",
   "closed_on",
@@ -131,6 +144,99 @@
    "label": "Contact Phone"
   },
   {
+   "fieldname": "assisted_request_section",
+   "fieldtype": "Section Break",
+   "label": "Assisted Request Context"
+  },
+  {
+   "fieldname": "requested_for_customer",
+   "fieldtype": "Link",
+   "label": "Requested For Customer",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "manual_customer",
+   "fieldtype": "Link",
+   "label": "Manual Customer",
+   "options": "OMC Manual Customer",
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer_mode",
+   "fieldtype": "Select",
+   "label": "Customer Mode",
+   "options": "Self\nMy Referral\nExisting Customer\nWalk-in Customer",
+   "default": "Self",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "submission_mode",
+   "fieldtype": "Select",
+   "label": "Submission Mode",
+   "options": "Customer Self-Service\nStaff on Behalf\nAdmin on Behalf\nWalk-in Assisted",
+   "default": "Customer Self-Service",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "submitted_by_user",
+   "fieldtype": "Link",
+   "label": "Submitted By User",
+   "options": "User",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "submitted_by_internal_user",
+   "fieldtype": "Link",
+   "label": "Submitted By Internal User",
+   "options": "User",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "referral_owner",
+   "fieldtype": "Link",
+   "label": "Referral Owner",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "referral_record",
+   "fieldtype": "Link",
+   "label": "Referral Record",
+   "options": "OMC Referral",
+   "search_index": 1
+  },
+  {
+   "fieldname": "created_on_behalf",
+   "fieldtype": "Check",
+   "label": "Created On Behalf",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_consent_reference",
+   "fieldtype": "Data",
+   "label": "Customer Consent Reference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assigned_staff",
+   "fieldtype": "Link",
+   "label": "Assigned Staff",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "source_channel",
+   "fieldtype": "Select",
+   "label": "Source Channel",
+   "options": "Mobile App\nDesk\nWebsite\nWalk-in\nImported\nAPI"
+  },
+  {
    "fieldname": "timeline_section",
    "fieldtype": "Section Break",
    "label": "Timeline"
@@ -190,7 +296,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "title,customer_name,service,status,priority",
+ "search_fields": "title,customer_name,service,status,priority,requested_for_customer,manual_customer,referral_owner",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
