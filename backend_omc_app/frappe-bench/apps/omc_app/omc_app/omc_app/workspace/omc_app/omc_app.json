@@ -193,6 +193,26 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Referrals",
+   "link_count": 0,
+   "link_to": "OMC Referral",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Manual Customers",
+   "link_count": 0,
+   "link_to": "OMC Manual Customer",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Mobile Content",
    "link_count": 0,
    "link_type": "DocType",
@@ -205,16 +225,6 @@
    "label": "App Banners",
    "link_count": 0,
    "link_to": "OMC App Banner",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Onboarding Slides",
-   "link_count": 0,
-   "link_to": "OMC Onboarding Slide",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -294,16 +304,6 @@
    "label": "Tax Years",
    "link_count": 0,
    "link_to": "OMC Tax Year",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Tax Slabs",
-   "link_count": 0,
-   "link_to": "OMC Tax Slab",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -447,7 +447,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-07-09 15:15:45.177480",
+ "modified": "2026-07-27 19:48:56.609046",
  "modified_by": "Administrator",
  "module": "OMC App",
  "name": "OMC App",
