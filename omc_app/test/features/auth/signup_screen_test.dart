@@ -54,6 +54,12 @@ void main() {
       'Karachi, Pakistan',
     );
 
+    final acquisitionSource = find.byType(DropdownButtonFormField<String>);
+    await tester.ensureVisible(acquisitionSource);
+    await tester.tap(acquisitionSource);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Website').last);
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Continue'));
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
@@ -88,6 +94,10 @@ void main() {
     expect(calls.single, containsPair('customer_type', 'Customer'));
     expect(calls.single, containsPair('register_as', 'Customer'));
     expect(calls.single, containsPair('address', 'Karachi, Pakistan'));
+    expect(calls.single, containsPair('acquisition_source', 'Website'));
+    expect(calls.single, containsPair('acquisition_source_detail', ''));
+    expect(calls.single.containsKey('referral_code'), isFalse);
+    expect(calls.single.containsKey('referral_assistance_consent'), isFalse);
     expect(calls.single, containsPair('password', 'StrongPass123!'));
     expect(calls.single, containsPair('confirm_password', 'StrongPass123!'));
 
