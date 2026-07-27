@@ -6,6 +6,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
+import 'referral_detail.dart';
 import 'referral_summary.dart';
 
 final referralRepositoryProvider = Provider<ReferralRepository>((ref) {
@@ -81,6 +82,19 @@ class ReferralRepository {
         .where((item) => item.id.isNotEmpty)
         .toList(growable: false);
   }
+
+  Future<ReferralDetail> fetchReferralDetail(String customerProfile) async {
+    final cleanId = customerProfile.trim();
+    if (cleanId.isEmpty) {
+      throw const ApiError(message: 'Customer profile is required.');
+    }
+
+    final response = await _client.getMethod(
+      ApiConfig.getMyReferralDetailMethod,
+      queryParameters: {'customer_profile': cleanId},
+    );
+    return ReferralDetail.fromResponse(response);
+  }
 }
 
 class ReferralCustomer {
@@ -93,6 +107,10 @@ class ReferralCustomer {
     required this.approvalStatus,
     required this.consentGranted,
     required this.customerOrigin,
+    required this.totalServices,
+    required this.selfCreatedServices,
+    required this.referrerCreatedServices,
+    required this.statusCounts,
   });
 
   final String id;
@@ -103,8 +121,17 @@ class ReferralCustomer {
   final String approvalStatus;
   final bool consentGranted;
   final String customerOrigin;
+  final int totalServices;
+  final int selfCreatedServices;
+  final int referrerCreatedServices;
+  final Map<String, int> statusCounts;
 
   factory ReferralCustomer.fromJson(Map<String, dynamic> json) {
+    final counts = json['service_counts'];
+    final countMap = counts is Map
+        ? Map<String, dynamic>.from(counts)
+        : const <String, dynamic>{};
+
     return ReferralCustomer(
       id: _string(json['customer_id']),
       fullName: _string(json['full_name']),
@@ -114,6 +141,10 @@ class ReferralCustomer {
       approvalStatus: _string(json['approval_status']),
       consentGranted: _bool(json['consent_granted']),
       customerOrigin: _string(json['customer_origin']),
+      totalServices: _int(countMap['total_services']),
+      selfCreatedServices: _int(countMap['self_created_services']),
+      referrerCreatedServices: _int(countMap['referrer_created_services']),
+      statusCounts: _intMap(json['service_status_counts']),
     );
   }
 
@@ -130,6 +161,12 @@ class ReferralCustomer {
 
   static String _string(Object? value) => value?.toString().trim() ?? '';
 
+  static int _int(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(_string(value)) ?? 0;
+  }
+
   static bool _bool(Object? value) {
     if (value is bool) return value;
     if (value is num) return value != 0;
@@ -140,5 +177,10 @@ class ReferralCustomer {
       'yes',
       'on',
     }.contains(_string(value).toLowerCase());
+  }
+
+  static Map<String, int> _intMap(Object? value) {
+    if (value is! Map) return const {};
+    return value.map((key, item) => MapEntry(key.toString(), _int(item)));
   }
 }
