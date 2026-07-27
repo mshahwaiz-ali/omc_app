@@ -1,0 +1,190 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "naming_series",
+  "referral_code",
+  "status",
+  "is_active",
+  "relationship_section",
+  "referrer_user",
+  "referrer_employee_profile",
+  "referred_customer_profile",
+  "referred_app_user",
+  "source",
+  "consent_section",
+  "consent_granted",
+  "consent_timestamp",
+  "lifecycle_section",
+  "signup_date",
+  "approved_date",
+  "converted_date",
+  "revoked_date",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Referral ID Series",
+   "options": "OMC-REF-.YY..MM..DD.-.#####",
+   "default": "OMC-REF-.YY..MM..DD.-.#####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "referral_code",
+   "fieldtype": "Data",
+   "label": "Referral Code",
+   "reqd": 1,
+   "unique": 1,
+   "search_index": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Registered\nPending Review\nApproved\nConverted\nInactive\nRevoked",
+   "default": "Registered",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "default": "1",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "relationship_section",
+   "fieldtype": "Section Break",
+   "label": "Relationship"
+  },
+  {
+   "fieldname": "referrer_user",
+   "fieldtype": "Link",
+   "label": "Referrer User",
+   "options": "User",
+   "reqd": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "referrer_employee_profile",
+   "fieldtype": "Data",
+   "label": "Referrer Employee Profile"
+  },
+  {
+   "fieldname": "referred_customer_profile",
+   "fieldtype": "Link",
+   "label": "Referred Customer Profile",
+   "options": "OMC Customer Profile",
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "referred_app_user",
+   "fieldtype": "Link",
+   "label": "Referred App User",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "App Signup\nWalk-in\nImported\nStaff Created\nAdmin Linked",
+   "default": "App Signup"
+  },
+  {
+   "fieldname": "consent_section",
+   "fieldtype": "Section Break",
+   "label": "Consent"
+  },
+  {
+   "fieldname": "consent_granted",
+   "fieldtype": "Check",
+   "label": "Consent Granted",
+   "default": "0"
+  },
+  {
+   "fieldname": "consent_timestamp",
+   "fieldtype": "Datetime",
+   "label": "Consent Timestamp"
+  },
+  {
+   "fieldname": "lifecycle_section",
+   "fieldtype": "Section Break",
+   "label": "Lifecycle"
+  },
+  {
+   "fieldname": "signup_date",
+   "fieldtype": "Datetime",
+   "label": "Signup Date"
+  },
+  {
+   "fieldname": "approved_date",
+   "fieldtype": "Datetime",
+   "label": "Approved Date"
+  },
+  {
+   "fieldname": "converted_date",
+   "fieldtype": "Datetime",
+   "label": "Converted Date"
+  },
+  {
+   "fieldname": "revoked_date",
+   "fieldtype": "Datetime",
+   "label": "Revoked Date"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "module": "OMC App",
+ "name": "OMC Referral",
+ "naming_rule": "By \"Naming Series\" field",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  }
+ ],
+ "search_fields": "referral_code,referrer_user,referred_customer_profile,referred_app_user,status",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "referral_code",
+ "track_changes": 1,
+ "creation": "2026-07-27 16:24:18.555116",
+ "modified": "2026-07-27 16:24:18.555116",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "editable_grid": 1,
+ "row_format": "Dynamic"
+}
