@@ -7,7 +7,7 @@ OMC Service Document as the child review object.
 
 import frappe
 
-from omc_app.api import access, mobile
+from omc_app.api import access, assisted_service, mobile
 
 
 def _capabilities():
@@ -115,59 +115,10 @@ def get_service_cases(
 
 @frappe.whitelist()
 def create_service_request_for_customer(**kwargs):
-    """Create an OMC Service Request on behalf of a customer/profile.
-
-    This is internal-only and does not bypass backend permission checks for who
-    may create staff records. Customer users still use mobile.create_service.
-    """
-
-    capabilities = _capabilities()
-    if not capabilities.get("can_create_service_for_customer"):
-        frappe.throw(
-            "You do not have permission to create service requests for customers.",
-            frappe.PermissionError,
-        )
-
-    customer_profile = (kwargs.get("customer_profile") or kwargs.get("customer_id") or "").strip()
-    service_id = (kwargs.get("service_id") or kwargs.get("service") or "").strip()
-
-    if not customer_profile:
-        frappe.throw("customer_profile is required")
-    if not frappe.db.exists("OMC Customer Profile", customer_profile):
-        frappe.throw("Customer profile not found", frappe.DoesNotExistError)
-    if not service_id:
-        frappe.throw("service_id is required")
-
-    service_name = frappe.db.get_value("OMC Service", {"service_id": service_id}, "name") or service_id
-    if not frappe.db.exists("OMC Service", service_name):
-        frappe.throw("Service not found", frappe.DoesNotExistError)
-
-    profile = frappe.get_doc("OMC Customer Profile", customer_profile)
-    service_doc = frappe.get_doc("OMC Service", service_name)
-
-    doc = frappe.new_doc("OMC Service Request")
-    doc.service = service_name
-    doc.service_title = service_doc.title or ""
-    doc.title = (kwargs.get("title") or service_doc.title or "Service Request").strip()
-    doc.description = kwargs.get("description") or ""
-    doc.priority = kwargs.get("priority") or "Medium"
-    doc.status = kwargs.get("status") or "Open"
-    doc.customer_profile = profile.name
-    doc.customer_name = profile.full_name or ""
-    doc.contact_email = kwargs.get("contact_email") or profile.email or ""
-    doc.contact_phone = kwargs.get("contact_phone") or profile.phone or ""
-    doc.insert(ignore_permissions=True)
-
-    mobile._create_service_timeline_entry(
-        service_request=doc.name,
-        event_type="Request Created",
-        title="Request Created by OMC",
-        description=kwargs.get("note") or "OMC team created this service request.",
-        visible_to_customer=1,
-    )
-
-    frappe.db.commit()
-    return {"created": True, "case": _case_to_queue_item(doc)}
+    """Create an assisted service request using the canonical authority."""
+    if not kwargs.get("customer_mode"):
+        kwargs["customer_mode"] = "Existing Customer"
+    return assisted_service.create_request(**kwargs)
 
 
 def _case_to_queue_item(row):
