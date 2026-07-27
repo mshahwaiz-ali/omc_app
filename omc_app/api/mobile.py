@@ -1444,6 +1444,7 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
         "Open",
         "In Progress",
         "Waiting for Customer",
+        "Waiting for Payment",
         "Completed",
         "Cancelled",
     ]
@@ -1456,6 +1457,16 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
 
     doc = frappe.get_doc("OMC Service Request", case_id)
     old_status = doc.status or ""
+
+    if status == "Completed":
+        from omc_app.api import workflow_automation
+
+        blockers = workflow_automation.completion_blockers(doc)
+        if blockers:
+            frappe.throw(
+                "Cannot complete this service request: " + " ".join(blockers),
+                frappe.ValidationError,
+            )
 
     doc.status = status
 
@@ -1472,6 +1483,11 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
 
     if old_status != status:
         description = note or f"Status changed from {old_status or 'Unknown'} to {status}."
+
+        if status == "Completed":
+            from omc_app.api import workflow_automation
+
+            workflow_automation.finalize_completed_case(doc)
 
         _create_service_timeline_entry(
             service_request=doc.name,

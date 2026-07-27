@@ -72,6 +72,20 @@
    "label": "Estimated Duration"
   },
   {
+   "fieldname": "default_assignee",
+   "fieldtype": "Link",
+   "label": "Default Assignee",
+   "options": "User",
+   "description": "Preferred staff member for new requests of this service."
+  },
+  {
+   "fieldname": "default_assignment_role",
+   "fieldtype": "Select",
+   "label": "Default Assignment Role",
+   "options": "\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner\nOMC Manager",
+   "description": "Fallback role used for least-loaded automatic assignment."
+  },
+  {
    "default": "0",
    "fieldname": "base_price",
    "fieldtype": "Currency",

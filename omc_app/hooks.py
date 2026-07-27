@@ -63,3 +63,14 @@ doc_events = {
         "validate": "omc_app.permissions.validate_task_assignment",
     }
 }
+
+
+# Workflow automation reminders and escalations.
+scheduler_events = {
+    "hourly": [
+        "omc_app.api.workflow_automation.run_hourly_workflow_checks",
+    ],
+    "daily": [
+        "omc_app.api.workflow_automation.run_daily_workflow_checks",
+    ],
+}

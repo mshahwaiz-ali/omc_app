@@ -462,7 +462,9 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
 
     doc.save(ignore_permissions=True)
 
+    automation = {"payment": None, "case_status": None}
     if old_status != status:
+        from omc_app.api import payments
         from omc_app.api.mobile import _create_service_timeline_entry
 
         _create_service_timeline_entry(
@@ -471,6 +473,11 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
             title=f"Document {status}",
             description=remarks or f"{doc.document_title or 'Document'} marked as {status}.",
             visible_to_customer=1,
+        )
+        automation = payments.handle_document_review(
+            doc.service_request,
+            status,
+            remarks=remarks,
         )
 
     frappe.db.commit()
@@ -481,4 +488,6 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
         "status": doc.status,
         "updated": True,
         "message": "Service document updated.",
+        "payment_id": automation.get("payment"),
+        "case_status": automation.get("case_status"),
     }
