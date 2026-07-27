@@ -14,7 +14,7 @@ after_migrate = "omc_app.setup.lifecycle.after_migrate"
 # Keep customer-facing endpoints stable while enforcing server-side guards,
 # backend-owned tracking data, and the canonical OMC role model.
 override_whitelisted_methods = {
-    "omc_app.api.mobile.sign_up": "omc_app.api.access.sign_up",
+    "omc_app.api.mobile.sign_up": "omc_app.api.signup_policy.sign_up",
     "omc_app.api.mobile.get_mobile_capabilities": "omc_app.api.access.get_mobile_capabilities",
     "omc_app.api.mobile.get_session_user": "omc_app.api.access.get_session_user",
     "omc_app.api.mobile.get_mobile_app_config": "omc_app.api.branding_config.get_mobile_app_config",
@@ -27,6 +27,7 @@ override_whitelisted_methods = {
     "omc_app.api.mobile.get_service_case": "omc_app.api.secured_mobile.get_service_case",
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
     "omc_app.api.mobile.update_service_document_status": "omc_app.api.secured_mobile.update_service_document_status",
+    "omc_app.api.referrals.validate_referral_code": "omc_app.referral_automation.validate_referral_code",
     "omc_app.api.assisted_service.get_customer_selection_options": "omc_app.api.assisted_service_policy.get_customer_selection_options",
     "omc_app.api.assisted_service.create_request": "omc_app.api.assisted_service_policy.create_request",
     "omc_app.api.internal_workspace.create_service_request_for_customer": "omc_app.api.assisted_service_policy.create_service_request_for_customer",
@@ -62,9 +63,13 @@ has_permission = {
 
 # Validate task assignment for Desk, API resource, import, and server writes.
 doc_events = {
+    "User": {
+        "after_insert": "omc_app.referral_automation.sync_user_referral_code",
+        "on_update": "omc_app.referral_automation.sync_user_referral_code",
+    },
     "OMC Task": {
         "validate": "omc_app.permissions.validate_task_assignment",
-    }
+    },
 }
 
 
