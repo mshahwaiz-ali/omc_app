@@ -6,6 +6,10 @@ class ReferralSummary {
     required this.totalReferrals,
     required this.consentedReferrals,
     required this.activeReferrals,
+    required this.totalServices,
+    required this.selfCreatedServices,
+    required this.referrerCreatedServices,
+    required this.statusCounts,
   });
 
   final String code;
@@ -14,6 +18,10 @@ class ReferralSummary {
   final int totalReferrals;
   final int consentedReferrals;
   final int activeReferrals;
+  final int totalServices;
+  final int selfCreatedServices;
+  final int referrerCreatedServices;
+  final Map<String, int> statusCounts;
 
   factory ReferralSummary.fromResponse(Map<String, dynamic> response) {
     final message = response['message'];
@@ -35,6 +43,10 @@ class ReferralSummary {
       totalReferrals: _int(countsMap['total_referrals']),
       consentedReferrals: _int(countsMap['consented_referrals']),
       activeReferrals: _int(countsMap['active_referrals']),
+      totalServices: _int(countsMap['total_services']),
+      selfCreatedServices: _int(countsMap['self_created_services']),
+      referrerCreatedServices: _int(countsMap['referrer_created_services']),
+      statusCounts: _intMap(source['status_counts']),
     );
   }
 
@@ -53,5 +65,12 @@ class ReferralSummary {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(_string(value)) ?? 0;
+  }
+
+  static Map<String, int> _intMap(Object? value) {
+    if (value is! Map) return const {};
+    return value.map(
+      (key, item) => MapEntry(key.toString(), _int(item)),
+    );
   }
 }
