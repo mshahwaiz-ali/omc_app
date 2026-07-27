@@ -144,19 +144,14 @@ class ApiConfig {
 
   static const String notificationsMethod =
       'omc_app.api.mobile.get_notifications';
-
   static const String notificationDetailMethod =
       'omc_app.api.mobile.get_notification_detail';
-
   static const String markNotificationReadMethod =
       'omc_app.api.mobile.mark_notification_read';
-
   static const String markAllNotificationsReadMethod =
       'omc_app.api.mobile.mark_all_notifications_read';
-
   static const String registerPushTokenMethod =
       'omc_app.api.mobile.register_push_token';
-
   static const String unregisterPushTokenMethod =
       'omc_app.api.mobile.unregister_push_token';
 
@@ -181,7 +176,6 @@ class ApiConfig {
       'omc_app.api.support_chat.get_support_config';
 
   static const String uploadFileMethod = 'upload_file';
-
   static const String mobileAppConfigMethod =
       'omc_app.api.mobile.get_mobile_app_config';
 
@@ -191,10 +185,11 @@ class ApiConfig {
       'omc_app.api.referrals.get_my_referral_summary';
   static const String getMyReferralsMethod =
       'omc_app.api.referrals.get_my_referrals';
+  static const String getMyReferralDetailMethod =
+      'omc_app.api.referral_analytics.get_my_referral_detail';
 
   static const String leadsMethod = 'omc_app.api.mobile.get_leads';
   static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
-
   static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
   static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
 
