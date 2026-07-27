@@ -33,6 +33,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     'Tax Associate',
   ];
 
+  static const List<String> _acquisitionSources = [
+    'Referral',
+    'Website',
+    'Social Media',
+    'Advertisement',
+    'Existing Customer',
+    'Event',
+    'Other',
+  ];
+
   final _accountFormKey = GlobalKey<FormState>();
   final _verificationFormKey = GlobalKey<FormState>();
   final _securityFormKey = GlobalKey<FormState>();
@@ -46,6 +56,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _educationController = TextEditingController();
   final _experienceController = TextEditingController();
   final _remarksController = TextEditingController();
+  final _referralCodeController = TextEditingController();
+  final _acquisitionSourceDetailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -55,8 +67,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _obscureConfirmPassword = true;
   bool _submittedSuccessfully = false;
   bool _whatsappSameAsMobile = false;
+  bool _referralAssistanceConsent = false;
+  bool _isValidatingReferral = false;
   int _step = 0;
   String _selectedRole = _roles.first;
+  String? _selectedAcquisitionSource;
+  String? _referralValidationMessage;
+  bool? _referralCodeValid;
   String? _submitError;
 
   @override
@@ -70,9 +87,88 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _educationController.dispose();
     _experienceController.dispose();
     _remarksController.dispose();
+    _referralCodeController.dispose();
+    _acquisitionSourceDetailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<bool> _validateReferralBeforeSubmit() async {
+    if (_selectedAcquisitionSource != 'Referral') return true;
+
+    final code = _referralCodeController.text.trim().toUpperCase().replaceAll(
+      ' ',
+      '',
+    );
+
+    if (code.isEmpty) {
+      setState(() {
+        _referralCodeValid = false;
+        _referralValidationMessage = 'Referral code is required.';
+      });
+      return false;
+    }
+
+    if (!_referralAssistanceConsent) {
+      setState(() {
+        _referralCodeValid = false;
+        _referralValidationMessage = 'Referral assistance consent is required.';
+      });
+      return false;
+    }
+
+    setState(() {
+      _isValidatingReferral = true;
+      _referralValidationMessage = null;
+    });
+
+    try {
+      final response = await ref
+          .read(authRepositoryProvider)
+          .validateReferralCode(referralCode: code);
+
+      final message = response['message'];
+      final data = message is Map<String, dynamic> ? message : response;
+      final valid =
+          data['valid'] == true ||
+          data['valid'] == 1 ||
+          data['valid']?.toString().toLowerCase() == 'true';
+
+      if (!mounted) return false;
+
+      setState(() {
+        _referralCodeValid = valid;
+        _referralValidationMessage = valid
+            ? 'Referral code verified.'
+            : 'Referral code is invalid or inactive.';
+        final normalized = data['referral_code']?.toString().trim() ?? '';
+        if (valid && normalized.isNotEmpty) {
+          _referralCodeController.text = normalized;
+        }
+      });
+
+      return valid;
+    } catch (error) {
+      if (!mounted) return false;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Referral not verified',
+        fallbackMessage:
+            'Referral code could not be verified right now. Please try again.',
+      );
+      setState(() {
+        _referralCodeValid = false;
+        _referralValidationMessage = failure.message;
+      });
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isValidatingReferral = false;
+        });
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -96,6 +192,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     FocusScope.of(context).unfocus();
 
+    if (!await _validateReferralBeforeSubmit()) {
+      if (mounted) {
+        setState(() {
+          _step = 1;
+          _submitError =
+              _referralValidationMessage ?? 'Referral validation failed.';
+        });
+      }
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
       _submitError = null;
@@ -114,6 +221,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         'customer_type': _selectedRole,
         'register_as': _selectedRole,
         'address': _addressController.text.trim(),
+        'acquisition_source': _selectedAcquisitionSource ?? '',
+        'acquisition_source_detail': _acquisitionSourceDetailController.text
+            .trim(),
+        if (_selectedAcquisitionSource == 'Referral') ...{
+          'referral_code': _referralCodeController.text
+              .trim()
+              .toUpperCase()
+              .replaceAll(' ', ''),
+          'referral_assistance_consent': _referralAssistanceConsent ? 1 : 0,
+        },
         'password': _passwordController.text,
         'confirm_password': _confirmPasswordController.text,
         if (_selectedRole == 'Tax Associate') ...{
@@ -321,6 +438,37 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     educationController: _educationController,
                     experienceController: _experienceController,
                     remarksController: _remarksController,
+                    acquisitionSources: _acquisitionSources,
+                    selectedAcquisitionSource: _selectedAcquisitionSource,
+                    onAcquisitionSourceChanged: (source) {
+                      setState(() {
+                        _selectedAcquisitionSource = source;
+                        _referralValidationMessage = null;
+                        _referralCodeValid = null;
+                        if (source != 'Referral') {
+                          _referralAssistanceConsent = false;
+                          _referralCodeController.clear();
+                        }
+                        if (source != 'Other') {
+                          _acquisitionSourceDetailController.clear();
+                        }
+                      });
+                    },
+                    referralCodeController: _referralCodeController,
+                    acquisitionSourceDetailController:
+                        _acquisitionSourceDetailController,
+                    referralAssistanceConsent: _referralAssistanceConsent,
+                    onReferralConsentChanged: (value) {
+                      setState(() {
+                        _referralAssistanceConsent = value;
+                        _referralValidationMessage = null;
+                        _referralCodeValid = null;
+                      });
+                    },
+                    referralCodeValid: _referralCodeValid,
+                    referralValidationMessage: _referralValidationMessage,
+                    isValidatingReferral: _isValidatingReferral,
+                    onValidateReferral: _validateReferralBeforeSubmit,
                     requiredValidator: _required,
                     cnicValidator: _cnicValidator,
                   ),
@@ -542,6 +690,17 @@ class _VerificationStep extends StatelessWidget {
     required this.educationController,
     required this.experienceController,
     required this.remarksController,
+    required this.acquisitionSources,
+    required this.selectedAcquisitionSource,
+    required this.onAcquisitionSourceChanged,
+    required this.referralCodeController,
+    required this.acquisitionSourceDetailController,
+    required this.referralAssistanceConsent,
+    required this.onReferralConsentChanged,
+    required this.referralCodeValid,
+    required this.referralValidationMessage,
+    required this.isValidatingReferral,
+    required this.onValidateReferral,
     required this.requiredValidator,
     required this.cnicValidator,
   });
@@ -553,6 +712,17 @@ class _VerificationStep extends StatelessWidget {
   final TextEditingController educationController;
   final TextEditingController experienceController;
   final TextEditingController remarksController;
+  final List<String> acquisitionSources;
+  final String? selectedAcquisitionSource;
+  final ValueChanged<String?> onAcquisitionSourceChanged;
+  final TextEditingController referralCodeController;
+  final TextEditingController acquisitionSourceDetailController;
+  final bool referralAssistanceConsent;
+  final ValueChanged<bool> onReferralConsentChanged;
+  final bool? referralCodeValid;
+  final String? referralValidationMessage;
+  final bool isValidatingReferral;
+  final Future<bool> Function() onValidateReferral;
   final String? Function(String?, String) requiredValidator;
   final String? Function(String?) cnicValidator;
 
@@ -596,6 +766,123 @@ class _VerificationStep extends StatelessWidget {
             ),
             validator: (value) => requiredValidator(value, 'Address'),
           ),
+          const SizedBox(height: 18),
+          const _StepTitle(
+            title: 'How did you hear about OMC?',
+            subtitle: 'This helps OMC understand which channels are working.',
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: selectedAcquisitionSource,
+            decoration: const InputDecoration(
+              labelText: 'Source',
+              prefixIcon: Icon(Icons.campaign_outlined),
+            ),
+            items: acquisitionSources
+                .map(
+                  (source) => DropdownMenuItem<String>(
+                    value: source,
+                    child: Text(source),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: onAcquisitionSourceChanged,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Please select a source.'
+                : null,
+          ),
+          if (selectedAcquisitionSource == 'Other') ...[
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: acquisitionSourceDetailController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Please specify',
+                prefixIcon: Icon(Icons.edit_note_outlined),
+              ),
+              validator: (value) => requiredValidator(value, 'Source details'),
+            ),
+          ],
+          if (selectedAcquisitionSource == 'Referral') ...[
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: referralCodeController,
+              textCapitalization: TextCapitalization.characters,
+              textInputAction: TextInputAction.next,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 -]')),
+                LengthLimitingTextInputFormatter(12),
+              ],
+              onChanged: (value) {
+                final normalized = value.toUpperCase().replaceAll(' ', '');
+                if (normalized != value) {
+                  referralCodeController.value = TextEditingValue(
+                    text: normalized,
+                    selection: TextSelection.collapsed(
+                      offset: normalized.length,
+                    ),
+                  );
+                }
+              },
+              decoration: InputDecoration(
+                labelText: 'Referral code',
+                hintText: 'OMC-A7K9Q2',
+                prefixIcon: const Icon(Icons.confirmation_number_outlined),
+                suffixIcon: isValidatingReferral
+                    ? const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : IconButton(
+                        tooltip: 'Verify referral code',
+                        onPressed: () => onValidateReferral(),
+                        icon: const Icon(Icons.verified_outlined),
+                      ),
+              ),
+              validator: (value) => requiredValidator(value, 'Referral code'),
+            ),
+            if (referralValidationMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                referralValidationMessage!,
+                style: TextStyle(
+                  color: referralCodeValid == true
+                      ? const Color(0xFF067647)
+                      : const Color(0xFFB42318),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Material(
+              color: const Color(0xFFF8FAFC),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFFE5EAF2)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: CheckboxListTile(
+                value: referralAssistanceConsent,
+                onChanged: (value) => onReferralConsentChanged(value ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: const EdgeInsets.only(left: 4, right: 10),
+                title: const Text(
+                  'I consent to the referring OMC staff member assisting with my service requests.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
           if (isTaxAssociate) ...[
             const SizedBox(height: 14),
             TextFormField(

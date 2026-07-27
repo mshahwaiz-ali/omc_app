@@ -180,6 +180,15 @@ class AuthRepository {
     return _frappeClient.postMethod(ApiConfig.signUpMethod, data: data);
   }
 
+  Future<Map<String, dynamic>> validateReferralCode({
+    required String referralCode,
+  }) {
+    return _frappeClient.getMethod(
+      ApiConfig.validateReferralCodeMethod,
+      queryParameters: {'referral_code': referralCode},
+    );
+  }
+
   Future<void> createGuestSession() async {
     try {
       final deviceId = await _guestDeviceId();

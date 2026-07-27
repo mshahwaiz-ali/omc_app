@@ -62,6 +62,8 @@ class ApiConfig {
   static const String googleLoginMethod =
       'omc_app.api.mobile.google_mobile_login';
   static const String signUpMethod = 'omc_app.api.access.sign_up';
+  static const String validateReferralCodeMethod =
+      'omc_app.api.referrals.validate_referral_code';
   static const String getSessionUserMethod =
       'omc_app.api.access_v2.get_session_user';
   static const String createGuestSessionMethod =
