@@ -28,6 +28,8 @@ override_whitelisted_methods = {
     "omc_app.api.mobile.update_service_case_status": "omc_app.api.secured_mobile.update_service_case_status",
     "omc_app.api.mobile.update_service_document_status": "omc_app.api.secured_mobile.update_service_document_status",
     "omc_app.api.referrals.validate_referral_code": "omc_app.referral_automation.validate_referral_code",
+    "omc_app.api.referrals.get_my_referral_summary": "omc_app.api.referral_analytics.get_my_referral_summary",
+    "omc_app.api.referrals.get_my_referrals": "omc_app.api.referral_analytics.get_my_referrals",
     "omc_app.api.assisted_service.get_customer_selection_options": "omc_app.api.assisted_service_policy.get_customer_selection_options",
     "omc_app.api.assisted_service.create_request": "omc_app.api.assisted_service_policy.create_request",
     "omc_app.api.internal_workspace.create_service_request_for_customer": "omc_app.api.assisted_service_policy.create_service_request_for_customer",
@@ -61,7 +63,7 @@ has_permission = {
     "OMC Lead": "omc_app.permissions.lead_has_permission",
 }
 
-# Validate task assignment for Desk, API resource, import, and server writes.
+# Validate task assignment and keep eligible internal referral codes in sync.
 doc_events = {
     "User": {
         "after_insert": "omc_app.referral_automation.sync_user_referral_code",
