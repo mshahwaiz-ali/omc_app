@@ -80,13 +80,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         user.append("roles", {"role": "OMC Consultant"})
         user.insert(ignore_permissions=True)
 
-        doc = frappe.new_doc("OMC Referral")
-        doc.referral_code = referrals.generate_unique_referral_code()
-        doc.referrer_user = staff_email
-        doc.status = "Approved"
-        doc.is_active = 1
-        doc.source = "Staff Created"
-        doc.insert(ignore_permissions=True)
+        doc = referrals.get_or_create_owner_record(staff_email)
         self.created_referrals.append(doc.name)
         return doc
 
