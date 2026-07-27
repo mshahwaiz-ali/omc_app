@@ -94,7 +94,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Open\nIn Progress\nWaiting for Customer\nCompleted\nCancelled",
+   "options": "Open\nIn Progress\nWaiting for Customer\nWaiting for Payment\nCompleted\nCancelled",
    "search_index": 1
   },
   {

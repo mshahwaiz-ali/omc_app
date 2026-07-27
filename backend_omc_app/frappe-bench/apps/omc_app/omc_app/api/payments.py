@@ -138,6 +138,78 @@ def _payment_support_payload(payment=None, service_case=None):
     }
 
 
+
+def _notify_customer(service_case, *, title, message, notification_type="Service"):
+    if not getattr(service_case, "customer_profile", None):
+        return None
+    return mobile._create_customer_notification(
+        customer_profile=service_case.customer_profile,
+        title=title,
+        message=message,
+        notification_type=notification_type,
+        reference_doctype="OMC Service Request",
+        reference_name=service_case.name,
+    )
+
+
+def _set_case_status(service_case, status):
+    if not service_case or service_case.status in {"Completed", "Cancelled"}:
+        return False
+    if service_case.status == status:
+        return False
+    service_case.status = status
+    service_case.save(ignore_permissions=True)
+    return True
+
+
+
+def _payment_reviewer_users(service_case=None):
+    users = set()
+
+    assigned_staff = getattr(service_case, "assigned_staff", None)
+    if assigned_staff and assigned_staff != "Guest":
+        users.add(assigned_staff)
+
+    role_users = frappe.get_all(
+        "Has Role",
+        filters={
+            "role": ["in", ["OMC Admin", "OMC Manager"]],
+            "parenttype": "User",
+        },
+        pluck="parent",
+    )
+    users.update(user for user in role_users if user and user != "Guest")
+
+    if not users:
+        return []
+
+    enabled_users = frappe.get_all(
+        "User",
+        filters={
+            "name": ["in", list(users)],
+            "enabled": 1,
+        },
+        pluck="name",
+    )
+    return sorted(set(enabled_users))
+
+
+def _notify_payment_reviewers(service_case, *, title, message):
+    notifications = []
+    for user in _payment_reviewer_users(service_case):
+        notification = mobile._create_customer_notification(
+            recipient_user=user,
+            title=title,
+            message=message,
+            notification_type="Payment",
+            reference_doctype="OMC Service Request",
+            reference_name=service_case.name,
+        )
+        if notification:
+            notifications.append(notification.name)
+    return notifications
+
+
 def _approved_required_documents(service_case):
     required_templates = mobile._service_required_documents(service_case.service)
     required_templates = [row for row in required_templates if row.get("is_required")]
@@ -201,28 +273,104 @@ def _ensure_payment_for_case(service_case):
     if not _approved_required_documents(service_case):
         return None
 
-    service = frappe.get_doc("OMC Service", service_case.service) if service_case.service and frappe.db.exists("OMC Service", service_case.service) else None
+    service = (
+        frappe.get_doc("OMC Service", service_case.service)
+        if service_case.service
+        and frappe.db.exists("OMC Service", service_case.service)
+        else None
+    )
+    amount = frappe.utils.flt(getattr(service, "base_price", None) or 0)
+    if amount <= 0:
+        frappe.log_error(
+            message=(
+                f"Payment was not opened for service request {service_case.name} "
+                "because the linked service has no positive base price."
+            ),
+            title="OMC Payment Automation Configuration",
+        )
+        return None
 
     payment = frappe.new_doc(PAYMENT_DOCTYPE)
     payment.service_request = service_case.name
-    payment.payment_title = f"{service_case.service_title or getattr(service, 'title', None) or service_case.title or 'Service'} Payment"
-    payment.amount = getattr(service, "base_price", None) or 0
+    payment.payment_title = (
+        f"{service_case.service_title or getattr(service, 'title', None) or service_case.title or 'Service'} Payment"
+    )
+    payment.amount = amount
     payment.currency = getattr(service, "currency", None) or "PKR"
     payment.status = "Pending"
     payment.visible_to_customer = 1
     payment.remarks = "Payment opened after required documents were approved."
     payment.insert(ignore_permissions=True)
 
+    _set_case_status(service_case, "Waiting for Payment")
+
+    message = (
+        f"Your required documents are approved. Payment of "
+        f"{payment.currency} {payment.amount:g} is now available."
+    )
     mobile._create_service_timeline_entry(
         service_request=service_case.name,
         event_type="Payment Updated",
         title="Payment Opened",
-        description="Payment is now available. Contact OMC for payment details and upload your receipt after payment.",
+        description=message,
         visible_to_customer=1,
+    )
+    _notify_customer(
+        service_case,
+        title="Payment is ready",
+        message=message,
+        notification_type="Payment",
     )
 
     frappe.db.commit()
     return payment.name
+
+
+def handle_document_review(service_request, status, remarks=None):
+    if not service_request or not frappe.db.exists(
+        "OMC Service Request", service_request
+    ):
+        return {"payment": None, "case_status": None}
+
+    service_case = frappe.get_doc("OMC Service Request", service_request)
+    normalized = _clean_text(status).lower()
+    payment_name = None
+
+    if normalized == "rejected":
+        changed = _set_case_status(service_case, "Waiting for Customer")
+        message = remarks or (
+            "A document needs correction. Review the rejection reason and upload "
+            "a replacement document."
+        )
+        _notify_customer(
+            service_case,
+            title="Document needs attention",
+            message=message,
+            notification_type="Document",
+        )
+        if changed:
+            mobile._create_service_timeline_entry(
+                service_request=service_case.name,
+                event_type="Status Updated",
+                title="Waiting for Customer",
+                description="The request is waiting for a corrected document.",
+                visible_to_customer=1,
+            )
+
+    elif normalized == "approved":
+        payment_name = _ensure_payment_for_case(service_case)
+        if not payment_name:
+            _notify_customer(
+                service_case,
+                title="Document approved",
+                message=remarks or "Your document has been approved.",
+                notification_type="Document",
+            )
+
+    return {
+        "payment": payment_name,
+        "case_status": service_case.status,
+    }
 
 
 def _accessible_service_requests(profile=None):
@@ -430,12 +578,25 @@ def upload_payment_receipt_file(payment_id=None, name=None, file_name=None, cont
     payment.status = "Receipt Submitted"
     payment.save(ignore_permissions=True)
 
+    receipt_message = (
+        remarks
+        or f"Receipt submitted for {payment.payment_title or 'payment'} and is waiting for OMC review."
+    )
     mobile._create_service_timeline_entry(
         service_request=payment.service_request,
         event_type="Payment Updated",
         title="Payment Receipt Submitted",
-        description=remarks or f"Receipt submitted for {payment.payment_title or 'payment'} and is waiting for OMC review.",
+        description=receipt_message,
         visible_to_customer=1,
+    )
+    _set_case_status(_service_case, "Waiting for Payment")
+    _notify_payment_reviewers(
+        _service_case,
+        title="Payment receipt submitted",
+        message=(
+            f"A receipt has been submitted for {payment.payment_title or payment.name}. "
+            "Review it in the payment queue."
+        ),
     )
 
     frappe.db.commit()
@@ -514,6 +675,52 @@ def review_payment_receipt(
         "OMC Service Request",
         payment.service_request,
     )
+    case_transition_status = None
+
+    if status == "Paid":
+        if _set_case_status(service_case, "In Progress"):
+            case_transition_status = "In Progress"
+            mobile._create_service_timeline_entry(
+                service_request=service_case.name,
+                event_type="Status Updated",
+                title="Work Started",
+                description=(
+                    "Payment has been confirmed and work on your service request "
+                    "is now in progress."
+                ),
+                visible_to_customer=1,
+            )
+            if getattr(service_case, "assigned_staff", None):
+                mobile._create_customer_notification(
+                    recipient_user=service_case.assigned_staff,
+                    title="Payment confirmed - start work",
+                    message=(
+                        f"Payment for {service_case.name} has been confirmed. "
+                        "The request is ready for processing."
+                    ),
+                    notification_type="Payment",
+                    reference_doctype="OMC Service Request",
+                    reference_name=service_case.name,
+                )
+
+    elif status == "Rejected":
+        if _set_case_status(service_case, "Waiting for Customer"):
+            case_transition_status = "Waiting for Customer"
+            mobile._create_service_timeline_entry(
+                service_request=service_case.name,
+                event_type="Status Updated",
+                title="Waiting for Customer",
+                description=(
+                    "The payment receipt needs correction or replacement before "
+                    "work can continue."
+                ),
+                visible_to_customer=1,
+            )
+
+    elif status == "Under Review":
+        if _set_case_status(service_case, "Waiting for Payment"):
+            case_transition_status = "Waiting for Payment"
+
     mobile._create_customer_notification(
         customer_profile=service_case.customer_profile,
         title=timeline_title,
@@ -534,5 +741,7 @@ def review_payment_receipt(
         "receipt_url": payment.receipt_attachment or "",
         "payment_reference": payment.payment_reference or "",
         "remarks": payment.remarks or "",
+        "case_status": service_case.status,
+        "case_transition_status": case_transition_status,
         "message": "Payment receipt reviewed.",
     }

@@ -1,0 +1,348 @@
+from __future__ import annotations
+
+import frappe
+from frappe.utils import add_days, add_to_date, getdate, now_datetime
+
+from omc_app.api import mobile
+
+OPEN_CASE_STATUSES = [
+    "Open",
+    "In Progress",
+    "Waiting for Customer",
+    "Waiting for Payment",
+]
+REVIEW_PAYMENT_STATUSES = ["Receipt Submitted", "Under Review"]
+REVIEW_DOCUMENT_STATUSES = ["Uploaded"]
+
+
+def _notification_exists(
+    *,
+    title,
+    reference_doctype,
+    reference_name,
+    recipient_user=None,
+    customer_profile=None,
+    since=None,
+):
+    filters = {
+        "title": title,
+        "reference_doctype": reference_doctype,
+        "reference_name": reference_name,
+    }
+    if recipient_user:
+        filters["recipient_user"] = recipient_user
+    if customer_profile:
+        filters["customer_profile"] = customer_profile
+    if since:
+        filters["creation"] = [">=", since]
+    return bool(frappe.db.exists("OMC Notification", filters))
+
+
+def _notify_once(
+    *,
+    title,
+    message,
+    notification_type,
+    reference_doctype,
+    reference_name,
+    recipient_user=None,
+    customer_profile=None,
+    dedupe_hours=24,
+):
+    since = add_to_date(now_datetime(), hours=-dedupe_hours)
+    if _notification_exists(
+        title=title,
+        reference_doctype=reference_doctype,
+        reference_name=reference_name,
+        recipient_user=recipient_user,
+        customer_profile=customer_profile,
+        since=since,
+    ):
+        return None
+
+    return mobile._create_customer_notification(
+        customer_profile=customer_profile,
+        recipient_user=recipient_user,
+        title=title,
+        message=message,
+        notification_type=notification_type,
+        reference_doctype=reference_doctype,
+        reference_name=reference_name,
+    )
+
+
+def _reviewer_users():
+    users = frappe.get_all(
+        "Has Role",
+        filters={
+            "role": ["in", ["OMC Admin", "OMC Manager"]],
+            "parenttype": "User",
+        },
+        pluck="parent",
+    )
+    if not users:
+        return []
+
+    return frappe.get_all(
+        "User",
+        filters={
+            "name": ["in", list(set(users))],
+            "enabled": 1,
+            "user_type": "System User",
+        },
+        pluck="name",
+    )
+
+
+def _notify_reviewers_once(*, title, message, reference_doctype, reference_name):
+    created = []
+    for user in _reviewer_users():
+        notification = _notify_once(
+            title=title,
+            message=message,
+            notification_type="Workflow",
+            reference_doctype=reference_doctype,
+            reference_name=reference_name,
+            recipient_user=user,
+        )
+        if notification:
+            created.append(notification.name)
+    return created
+
+
+def run_hourly_workflow_checks():
+    review_documents = frappe.get_all(
+        "OMC Service Document",
+        filters={
+            "status": ["in", REVIEW_DOCUMENT_STATUSES],
+            "modified": ["<=", add_to_date(now_datetime(), hours=-4)],
+        },
+        fields=["name", "service_request", "document_title"],
+        limit_page_length=500,
+    )
+    for document in review_documents:
+        _notify_reviewers_once(
+            title="Document review pending",
+            message=(
+                f"{document.document_title or 'A document'} for "
+                f"{document.service_request} is waiting for review."
+            ),
+            reference_doctype="OMC Service Document",
+            reference_name=document.name,
+        )
+
+    review_payments = frappe.get_all(
+        "OMC Service Payment",
+        filters={
+            "status": ["in", REVIEW_PAYMENT_STATUSES],
+            "modified": ["<=", add_to_date(now_datetime(), hours=-2)],
+        },
+        fields=["name", "service_request", "payment_title"],
+        limit_page_length=500,
+    )
+    for payment in review_payments:
+        _notify_reviewers_once(
+            title="Payment review pending",
+            message=(
+                f"{payment.payment_title or 'A payment receipt'} for "
+                f"{payment.service_request} is waiting for review."
+            ),
+            reference_doctype="OMC Service Payment",
+            reference_name=payment.name,
+        )
+
+    unassigned = frappe.get_all(
+        "OMC Service Request",
+        filters={
+            "status": ["in", OPEN_CASE_STATUSES],
+            "assigned_staff": ["is", "not set"],
+            "creation": ["<=", add_to_date(now_datetime(), hours=-1)],
+        },
+        fields=["name", "title"],
+        limit_page_length=500,
+    )
+    for service_case in unassigned:
+        _notify_reviewers_once(
+            title="Unassigned service request",
+            message=f"{service_case.name} — {service_case.title or 'Service Request'}",
+            reference_doctype="OMC Service Request",
+            reference_name=service_case.name,
+        )
+
+
+def run_daily_workflow_checks():
+    cases = frappe.get_all(
+        "OMC Service Request",
+        filters={"status": ["in", OPEN_CASE_STATUSES]},
+        fields=[
+            "name",
+            "title",
+            "status",
+            "customer_profile",
+            "assigned_staff",
+            "expected_completion_date",
+            "modified",
+        ],
+        limit_page_length=1000,
+    )
+
+    today = getdate()
+    for service_case in cases:
+        if service_case.status == "Waiting for Customer":
+            _notify_once(
+                title="Action required on your service request",
+                message=(
+                    f"{service_case.name} needs information or a corrected item "
+                    "from you."
+                ),
+                notification_type="Reminder",
+                reference_doctype="OMC Service Request",
+                reference_name=service_case.name,
+                customer_profile=service_case.customer_profile,
+                dedupe_hours=72,
+            )
+
+        if service_case.status == "Waiting for Payment":
+            _notify_once(
+                title="Payment pending",
+                message=f"Payment is pending for {service_case.name}.",
+                notification_type="Payment",
+                reference_doctype="OMC Service Request",
+                reference_name=service_case.name,
+                customer_profile=service_case.customer_profile,
+                dedupe_hours=72,
+            )
+
+        due_date = (
+            getdate(service_case.expected_completion_date)
+            if service_case.expected_completion_date
+            else None
+        )
+        if due_date and due_date < today:
+            recipients = set(_reviewer_users())
+            if service_case.assigned_staff:
+                recipients.add(service_case.assigned_staff)
+            for user in recipients:
+                _notify_once(
+                    title="Service request overdue",
+                    message=(
+                        f"{service_case.name} passed its expected completion date "
+                        f"of {due_date}."
+                    ),
+                    notification_type="Escalation",
+                    reference_doctype="OMC Service Request",
+                    reference_name=service_case.name,
+                    recipient_user=user,
+                    dedupe_hours=24,
+                )
+
+
+def completion_blockers(service_case):
+    blockers = []
+
+    required_templates = mobile._service_required_documents(service_case.service)
+    required_templates = [
+        row for row in required_templates if row.get("is_required")
+    ]
+    if required_templates:
+        approved = frappe.get_all(
+            "OMC Service Document",
+            filters={
+                "service_request": service_case.name,
+                "status": "Approved",
+                "attachment": ["is", "set"],
+            },
+            fields=["document_title", "document_type"],
+        )
+        approved_keys = {
+            (
+                (row.document_title or "").strip().lower(),
+                (row.document_type or "").strip().lower(),
+            )
+            for row in approved
+        }
+        for template in required_templates:
+            key = (
+                (
+                    template.get("title")
+                    or template.get("document_title")
+                    or ""
+                ).strip().lower(),
+                (
+                    template.get("type")
+                    or template.get("document_type")
+                    or ""
+                ).strip().lower(),
+            )
+            if key not in approved_keys:
+                blockers.append("Required documents are not fully approved.")
+                break
+
+    active_payments = frappe.get_all(
+        "OMC Service Payment",
+        filters={
+            "service_request": service_case.name,
+            "status": ["not in", ["Cancelled"]],
+        },
+        fields=["status"],
+    )
+    if active_payments and any(
+        (payment.status or "") != "Paid" for payment in active_payments
+    ):
+        blockers.append("Required payment has not been confirmed.")
+
+    rejected_documents = frappe.db.count(
+        "OMC Service Document",
+        filters={
+            "service_request": service_case.name,
+            "status": "Rejected",
+        },
+    )
+    if rejected_documents:
+        blockers.append("Rejected documents still require resolution.")
+
+    rejected_payments = frappe.db.count(
+        "OMC Service Payment",
+        filters={
+            "service_request": service_case.name,
+            "status": "Rejected",
+        },
+    )
+    if rejected_payments:
+        blockers.append("Rejected payment receipts still require resolution.")
+
+    return blockers
+
+
+def finalize_completed_case(service_case):
+    frappe.db.set_value(
+        "ToDo",
+        {
+            "reference_type": "OMC Service Request",
+            "reference_name": service_case.name,
+            "status": ["not in", ["Closed", "Cancelled"]],
+        },
+        "status",
+        "Closed",
+        update_modified=False,
+    )
+
+    message = (
+        f"{service_case.title or service_case.name} has been completed. "
+        "Please review the completed service and share your feedback."
+    )
+    mobile._create_service_timeline_entry(
+        service_request=service_case.name,
+        event_type="Completed",
+        title="Service Completed",
+        description=message,
+        visible_to_customer=1,
+    )
+    mobile._create_customer_notification(
+        customer_profile=service_case.customer_profile,
+        title="Service completed",
+        message=message,
+        notification_type="Service",
+        reference_doctype="OMC Service Request",
+        reference_name=service_case.name,
+    )
