@@ -45,14 +45,21 @@ def _todo_condition(reference_type, reference_expression, user=None):
     )
 
 
-def service_request_query(user=None):
+def _service_request_scope_conditions(table, user=None, roles=None):
     user = _user(user)
-    roles = _roles(user)
-    if roles.intersection(PRIVILEGED_ROLES):
-        return ""
-
-    table = "`tabOMC Service Request`"
-    conditions = []
+    roles = roles if roles is not None else _roles(user)
+    escaped_user = frappe.db.escape(user)
+    conditions = [
+        f"{table}.requested_for_customer = {escaped_user}",
+        f"{table}.submitted_by_user = {escaped_user}",
+        (
+            "exists (select 1 from `tabOMC Customer Profile` customer "
+            f"where customer.name = {table}.customer_profile "
+            f"and (customer.linked_app_user = {escaped_user} "
+            f"or customer.user = {escaped_user} "
+            f"or customer.email = {escaped_user}))"
+        ),
+    ]
 
     if SUPPORT_AGENT_ROLE in roles:
         conditions.append(
@@ -70,8 +77,33 @@ def service_request_query(user=None):
             f"where sp.service_request = {table}.name)"
         )
     if roles.intersection(FIELD_ROLES):
-        conditions.append(_todo_condition("OMC Service Request", f"{table}.name", user))
+        conditions.extend(
+            [
+                _todo_condition("OMC Service Request", f"{table}.name", user),
+                f"{table}.assigned_staff = {escaped_user}",
+                (
+                    f"{table}.referral_owner = {escaped_user} "
+                    "and exists (select 1 from `tabOMC Customer Profile` customer "
+                    f"where customer.name = {table}.customer_profile "
+                    f"and customer.referred_by = {escaped_user} "
+                    f"and customer.referral_record = {table}.referral_record "
+                    "and ifnull(customer.referral_assistance_consent, 0) = 1 "
+                    "and ifnull(customer.is_active, 0) = 1)"
+                ),
+            ]
+        )
 
+    return conditions
+
+
+def service_request_query(user=None):
+    user = _user(user)
+    roles = _roles(user)
+    if roles.intersection(PRIVILEGED_ROLES):
+        return ""
+
+    table = "`tabOMC Service Request`"
+    conditions = _service_request_scope_conditions(table, user, roles)
     return " or ".join(f"({condition})" for condition in conditions) or "1=0"
 
 

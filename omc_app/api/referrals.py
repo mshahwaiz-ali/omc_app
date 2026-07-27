@@ -43,6 +43,18 @@ def _require_referral_owner() -> str:
     return user
 
 
+def _customer_profile_for_user(user: str):
+    for filters in (
+        {"linked_app_user": user},
+        {"user": user},
+        {"email": user},
+    ):
+        name = frappe.db.get_value("OMC Customer Profile", filters, "name")
+        if name:
+            return frappe.get_doc("OMC Customer Profile", name)
+    return None
+
+
 def normalize_referral_code(value: str | None) -> str:
     text = str(value or "").strip().upper().replace(" ", "")
     if not text:
@@ -231,6 +243,33 @@ def get_my_referrals(search: str | None = None, limit_start: int = 0, limit_page
         ],
         "limit_start": limit_start,
         "limit_page_length": limit_page_length,
+    }
+
+
+@frappe.whitelist()
+def revoke_my_referral_assistance_consent():
+    user = _require_login()
+    profile = _customer_profile_for_user(user)
+    if not profile:
+        frappe.throw("Customer profile not found.", frappe.DoesNotExistError)
+
+    had_consent = int(profile.referral_assistance_consent or 0)
+    profile.referral_assistance_consent = 0
+    profile.save(ignore_permissions=True)
+
+    return {
+        "success": True,
+        "customer_id": profile.name,
+        "consent_granted": 0,
+        "consent_was_active": had_consent,
+        "referral_relationship_preserved": bool(
+            profile.referral_record or profile.referred_by
+        ),
+        "message": (
+            "Referral assistance access has been revoked."
+            if had_consent
+            else "Referral assistance access was already revoked."
+        ),
     }
 
 
