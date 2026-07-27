@@ -138,6 +138,11 @@ SIGNUP_TEXT_LIMITS = {
     "experience": 1000,
     "remarks": 2000,
     "notes": 2000,
+    "acquisition_source": 80,
+    "acquisition_source_detail": 500,
+    "referral_code": 40,
+    "submitted_referral_code": 40,
+    "referral_consent_version": 40,
 }
 
 

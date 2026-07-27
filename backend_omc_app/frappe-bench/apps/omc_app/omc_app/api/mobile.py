@@ -3,7 +3,8 @@ import re
 import frappe
 from frappe.utils.file_manager import save_file
 
-from omc_app.api import access
+from omc_app.api import access, referrals
+from omc_app.setup.roles import LEGACY_ROLES
 
 
 def _items_response(key, items=None):
@@ -403,7 +404,7 @@ def _normalize_signup_user(user_doc):
         user_doc.append("roles", {"role": access.CUSTOMER_ROLE})
 
     user_doc.roles = [
-        row for row in (user_doc.roles or []) if row.role not in access.LEGACY_ROLES
+        row for row in (user_doc.roles or []) if row.role not in LEGACY_ROLES
     ]
     final_roles = {row.role for row in (user_doc.roles or [])}
     user_doc.user_type = (
@@ -462,6 +463,63 @@ def sign_up(**kwargs):
     education = (kwargs.get("education") or "").strip()
     experience = (kwargs.get("experience") or "").strip()
     remarks = (kwargs.get("remarks") or kwargs.get("notes") or "").strip()
+    acquisition_source = (kwargs.get("acquisition_source") or "").strip()
+    acquisition_source_detail = (kwargs.get("acquisition_source_detail") or "").strip()
+    submitted_referral_code = (
+        kwargs.get("referral_code")
+        or kwargs.get("submitted_referral_code")
+        or ""
+    )
+    consent_value = kwargs.get("referral_assistance_consent")
+    if consent_value is None:
+        consent_value = kwargs.get("referral_consent")
+    referral_assistance_consent = str(consent_value or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+    allowed_sources = {
+        "",
+        "Referral",
+        "Website",
+        "Social Media",
+        "Advertisement",
+        "Existing Customer",
+        "Event",
+        "Other",
+    }
+    if acquisition_source not in allowed_sources:
+        frappe.throw("Invalid acquisition source.", frappe.ValidationError)
+
+    if acquisition_source == "Other" and not acquisition_source_detail:
+        frappe.throw(
+            "Please specify how you heard about OMC.",
+            frappe.ValidationError,
+        )
+
+    normalized_referral_code = referrals.normalize_referral_code(
+        submitted_referral_code
+    )
+    if acquisition_source == "Referral":
+        if not normalized_referral_code:
+            frappe.throw("Referral code is required.", frappe.ValidationError)
+        if not referral_assistance_consent:
+            frappe.throw(
+                "Referral assistance consent is required.",
+                frappe.ValidationError,
+            )
+        if not referrals.resolve_active_referral(normalized_referral_code):
+            frappe.throw(
+                "Referral code is invalid or inactive.",
+                frappe.ValidationError,
+            )
+    elif normalized_referral_code:
+        frappe.throw(
+            "Select Referral as the acquisition source to use a referral code.",
+            frappe.ValidationError,
+        )
 
     if not email:
         frappe.throw("email is required")
@@ -545,6 +603,21 @@ def sign_up(**kwargs):
     _set_if_has_field(profile, "education", education)
     _set_if_has_field(profile, "experience", experience)
     _set_if_has_field(profile, "remarks", remarks)
+    _set_if_has_field(profile, "acquisition_source", acquisition_source)
+    _set_if_has_field(
+        profile,
+        "acquisition_source_detail",
+        acquisition_source_detail,
+    )
+    _set_if_has_field(profile, "customer_origin", "App Signup")
+    _set_if_has_field(profile, "linked_app_user", email)
+
+    if acquisition_source == "Referral":
+        referrals.apply_referral_to_customer(
+            profile,
+            normalized_referral_code,
+            consent_granted=referral_assistance_consent,
+        )
 
     if profile.is_new():
         profile.insert(ignore_permissions=True)
@@ -582,6 +655,14 @@ def sign_up(**kwargs):
             "remarks": profile.get("remarks") or "",
             "customer_status": profile.customer_status or "",
             "approval_status": profile.approval_status or "",
+            "acquisition_source": profile.get("acquisition_source") or "",
+            "acquisition_source_detail": (
+                profile.get("acquisition_source_detail") or ""
+            ),
+            "referral_code_used": profile.get("referral_code_used") or "",
+            "referral_assistance_consent": int(
+                profile.get("referral_assistance_consent") or 0
+            ),
         },
         "access_state": _customer_access_state(user=email, profile=profile),
         "capabilities": _get_mobile_capabilities(user=email, profile=profile),
