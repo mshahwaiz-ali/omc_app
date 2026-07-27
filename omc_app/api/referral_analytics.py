@@ -4,7 +4,7 @@ from collections import Counter, defaultdict
 
 import frappe
 
-from omc_app.api import referrals
+from omc_app import referral_automation
 
 
 SERVICE_REQUEST_FIELDS = [
@@ -38,9 +38,12 @@ def _current_user() -> str:
 
 
 def _owner_record(user: str):
-    record = referrals.get_or_create_owner_record(user)
+    record = referral_automation.ensure_referral_code_for_user(user)
     if not record:
-        frappe.throw("Referral account not found.", frappe.DoesNotExistError)
+        frappe.throw(
+            "You do not have an eligible internal referral account.",
+            frappe.PermissionError,
+        )
     return record
 
 
@@ -51,10 +54,7 @@ def _owned_customer_profile(user: str, customer_profile: str):
 
     name = frappe.db.get_value(
         "OMC Customer Profile",
-        {
-            "name": customer_profile,
-            "referred_by": user,
-        },
+        {"name": customer_profile, "referred_by": user},
         "name",
     )
     if not name:
@@ -68,9 +68,12 @@ def _owned_customer_profile(user: str, customer_profile: str):
 def _request_kind(row, owner: str) -> str:
     if not int(row.created_on_behalf or 0):
         return "self"
-    if _text(row.referral_owner) == owner and _text(row.submitted_by_internal_user) == owner:
+    if (
+        _text(row.referral_owner) == owner
+        and _text(row.submitted_by_internal_user) == owner
+    ):
         return "referrer"
-    return "other"
+    return "legacy"
 
 
 def _request_item(row, owner: str) -> dict:
@@ -110,9 +113,8 @@ def _aggregate_requests(rows, owner: str) -> dict:
     for row in rows:
         item = _request_item(row, owner)
         items.append(item)
-
         status = item["status"] or "Unknown"
-        kind = "self" if item["created_by_customer"] else "referrer" if item["created_by_referrer"] else "other"
+        kind = _request_kind(row, owner)
         status_counts[status] += 1
         kind_counts[kind] += 1
 
@@ -127,18 +129,17 @@ def _aggregate_requests(rows, owner: str) -> dict:
         elif kind == "referrer":
             bucket["referrer_created"] += 1
 
-    services = []
-    for bucket in service_buckets.values():
-        services.append(
-            {
-                "service": bucket["service"],
-                "service_title": bucket["service_title"],
-                "total": bucket["total"],
-                "self_created": bucket["self_created"],
-                "referrer_created": bucket["referrer_created"],
-                "status_counts": dict(bucket["status_counts"]),
-            }
-        )
+    services = [
+        {
+            "service": bucket["service"],
+            "service_title": bucket["service_title"],
+            "total": bucket["total"],
+            "self_created": bucket["self_created"],
+            "referrer_created": bucket["referrer_created"],
+            "status_counts": dict(bucket["status_counts"]),
+        }
+        for bucket in service_buckets.values()
+    ]
     services.sort(key=lambda item: (-item["total"], item["service_title"]))
 
     return {
@@ -146,7 +147,6 @@ def _aggregate_requests(rows, owner: str) -> dict:
             "total_services": len(rows),
             "self_created_services": kind_counts["self"],
             "referrer_created_services": kind_counts["referrer"],
-            "other_created_services": kind_counts["other"],
         },
         "status_counts": dict(status_counts),
         "services": services,
@@ -163,15 +163,8 @@ def get_my_referral_summary():
         filters={"referred_by": user, "referral_record": record.name},
         fields=[
             "name",
-            "full_name",
-            "email",
-            "phone",
-            "customer_status",
-            "approval_status",
             "referral_assistance_consent",
             "is_active",
-            "creation",
-            "modified",
         ],
         order_by="modified desc",
     )
