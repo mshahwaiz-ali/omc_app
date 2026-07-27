@@ -5,6 +5,8 @@ class ProfileSummary {
     required this.displayName,
     required this.email,
     this.phone,
+    this.whatsappNo,
+    this.address,
     this.customerType,
     this.cnic,
     this.ntn,
@@ -19,6 +21,8 @@ class ProfileSummary {
   final String displayName;
   final String email;
   final String? phone;
+  final String? whatsappNo;
+  final String? address;
   final String? customerType;
   final String? cnic;
   final String? ntn;

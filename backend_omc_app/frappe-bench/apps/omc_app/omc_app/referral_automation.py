@@ -6,7 +6,7 @@ from omc_app.api import referrals
 from omc_app.referral_capabilities import REFERRAL_OWNER_ROLES
 
 
-ELIGIBLE_REFERRAL_ROLES = frozenset(REFERRAL_OWNER_ROLES | {"OMC Admin", "OMC Manager"})
+ELIGIBLE_REFERRAL_ROLES = frozenset(REFERRAL_OWNER_ROLES)
 
 
 def _roles(user: str) -> set[str]:
@@ -30,10 +30,72 @@ def is_eligible_referral_owner(user: str) -> bool:
     return bool(_roles(user).intersection(ELIGIBLE_REFERRAL_ROLES))
 
 
+def _customer_profile_name(user: str) -> str | None:
+    for filters in (
+        {"linked_app_user": user},
+        {"user": user},
+        {"email": user},
+    ):
+        name = frappe.db.get_value("OMC Customer Profile", filters, "name")
+        if name:
+            return name
+    return None
+
+
+def _sync_profile_referral_code(user: str, code: str = "") -> None:
+    profile_name = _customer_profile_name(user)
+    if not profile_name:
+        return
+    current = frappe.db.get_value(
+        "OMC Customer Profile",
+        profile_name,
+        "own_referral_code",
+    ) or ""
+    if current != code:
+        frappe.db.set_value(
+            "OMC Customer Profile",
+            profile_name,
+            "own_referral_code",
+            code,
+            update_modified=False,
+        )
+
+
 def ensure_referral_code_for_user(user: str):
     if not is_eligible_referral_owner(user):
+        existing = frappe.db.get_value(
+            "OMC Referral",
+            {"referrer_user": user},
+            ["name", "is_active"],
+            as_dict=True,
+        )
+        if existing and int(existing.is_active or 0):
+            frappe.db.set_value(
+                "OMC Referral",
+                existing.name,
+                {
+                    "is_active": 0,
+                    "status": "Inactive",
+                },
+                update_modified=False,
+            )
+        _sync_profile_referral_code(user, "")
         return None
-    return referrals.get_or_create_owner_record(user)
+
+    record = referrals.get_or_create_owner_record(user)
+    if not int(record.is_active or 0) or (record.status or "") != "Approved":
+        frappe.db.set_value(
+            "OMC Referral",
+            record.name,
+            {
+                "is_active": 1,
+                "status": "Approved",
+            },
+            update_modified=False,
+        )
+        record.reload()
+    _sync_profile_referral_code(user, record.referral_code)
+    return record
 
 
 def sync_user_referral_code(doc, method=None):

@@ -16,6 +16,8 @@ import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../documents/data/document_attachment.dart';
+import '../../profile/data/profile_repository.dart';
+import '../../profile/data/profile_summary.dart';
 import '../../service_catalogue/application/service_catalogue_controller.dart';
 import '../../service_catalogue/data/service_item.dart';
 import '../../service_templates/data/service_template.dart';
@@ -45,7 +47,8 @@ class _ServiceRequestDraftScreenState
   final Map<String, bool> _checkValues = {};
   final List<DocumentAttachment> _attachments = [];
 
-  bool _prefilledEmail = false;
+  bool _customerProfilePrefillScheduled = false;
+  bool _customerProfilePrefilled = false;
   AssistedCustomerDraftSelection? _assistedSelection;
   bool _isPickingDocuments = false;
   bool _isSubmitting = false;
@@ -88,7 +91,11 @@ class _ServiceRequestDraftScreenState
 
   @override
   Widget build(BuildContext context) {
-    _prefillEmail();
+    final authState = ref.watch(authControllerProvider);
+    final profileAsync = authState.capabilities.isInternal
+        ? null
+        : ref.watch(profileSummaryProvider);
+    final customerProfile = profileAsync?.asData?.value;
 
     final servicesAsync = ref.watch(serviceCatalogueProvider);
 
@@ -124,6 +131,7 @@ class _ServiceRequestDraftScreenState
         }
 
         final fields = _templateFields(service);
+        _scheduleCustomerProfilePrefill(customerProfile, fields);
 
         final completedFields = _completedFieldCount(fields);
         final totalFields = fields.length + 4;
@@ -212,18 +220,67 @@ class _ServiceRequestDraftScreenState
     );
   }
 
-  void _prefillEmail() {
-    if (_prefilledEmail) return;
-    final authState = ref.read(authControllerProvider);
-    if (authState.capabilities.isInternal) {
-      _prefilledEmail = true;
+  void _scheduleCustomerProfilePrefill(
+    ProfileSummary? profile,
+    List<ServiceTemplateField> fields,
+  ) {
+    if (_customerProfilePrefilled ||
+        _customerProfilePrefillScheduled ||
+        profile == null) {
       return;
     }
-    final userId = authState.userId;
-    if (userId != null && userId.contains('@')) {
-      _emailController.text = userId;
+
+    _customerProfilePrefillScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _customerProfilePrefillScheduled = false;
+      if (!mounted || _customerProfilePrefilled) return;
+      if (ref.read(authControllerProvider).capabilities.isInternal) return;
+
+      _setIfEmpty(_nameController, profile.displayName);
+      _setIfEmpty(_phoneController, profile.phone);
+      _setIfEmpty(_emailController, profile.email);
+      _setIfEmpty(_taxIdController, profile.cnic ?? profile.ntn);
+
+      final profileValues = <String, String?>{
+        'full_name': profile.displayName,
+        'customer_name': profile.displayName,
+        'email': profile.email,
+        'email_id': profile.email,
+        'phone': profile.phone,
+        'mobile': profile.phone,
+        'mobile_no': profile.phone,
+        'whatsapp': profile.whatsappNo,
+        'whatsapp_no': profile.whatsappNo,
+        'cnic': profile.cnic,
+        'ntn': profile.ntn,
+        'tax_id': profile.cnic ?? profile.ntn,
+        'address': profile.address,
+        'company': profile.companyName,
+        'company_name': profile.companyName,
+      };
+
+      for (final field in fields) {
+        final key = field.fieldname.trim().toLowerCase();
+        final value = profileValues[key]?.trim();
+        if (value == null || value.isEmpty) continue;
+        if (_isCheckField(field) || _isSelectField(field)) continue;
+        _setIfEmpty(_controllerFor(field), value);
+      }
+
+      _customerProfilePrefilled = true;
+      setState(() {});
+    });
+  }
+
+  void _setIfEmpty(TextEditingController controller, String? value) {
+    final cleanValue = value?.trim();
+    if (controller.text.trim().isNotEmpty ||
+        cleanValue == null ||
+        cleanValue.isEmpty ||
+        cleanValue == 'Not available') {
+      return;
     }
-    _prefilledEmail = true;
+    controller.text = cleanValue;
   }
 
   void _onAssistedSelectionChanged(AssistedCustomerDraftSelection? selection) {

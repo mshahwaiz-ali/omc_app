@@ -23,3 +23,4 @@ omc_app.patches.add_referral_assisted_service_schema
 omc_app.patches.add_referral_workspace_links
 omc_app.patches.fix_referral_workspace_placement
 omc_app.patches.backfill_internal_referral_codes
+omc_app.patches.enforce_referral_owner_model

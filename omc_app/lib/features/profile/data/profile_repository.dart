@@ -177,7 +177,13 @@ class ProfileRepository {
           ) ??
           fallback.displayName,
       email: email ?? fallback.email,
-      phone: _nullableString(profile['phone'] ?? profile['mobile_no']),
+      phone: _nullableString(
+        profile['phone'] ?? profile['mobile'] ?? profile['mobile_no'],
+      ),
+      whatsappNo: _nullableString(
+        profile['whatsapp_no'] ?? profile['whatsapp'],
+      ),
+      address: _nullableString(profile['address']),
       customerType: _nullableString(
         profile['customer_type'] ?? profile['user_type'],
       ),

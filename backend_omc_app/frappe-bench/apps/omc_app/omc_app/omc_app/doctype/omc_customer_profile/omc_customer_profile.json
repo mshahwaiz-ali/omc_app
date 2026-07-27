@@ -30,6 +30,7 @@
   "acquisition_source_detail",
   "referral_record",
   "referred_by",
+  "own_referral_code",
   "referral_code_used",
   "referral_assistance_consent",
   "referral_consent_timestamp",
@@ -206,6 +207,15 @@
    "search_index": 1
   },
   {
+   "fieldname": "own_referral_code",
+   "fieldtype": "Data",
+   "label": "My Referral Code",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "description": "Permanent referral code assigned to an eligible internal OMC staff user."
+  },
+  {
    "fieldname": "referral_code_used",
    "fieldtype": "Data",
    "label": "Referral Code Used",
@@ -304,7 +314,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "full_name,email,phone,company_name,ntn,cnic,referral_code_used,referred_by",
+ "search_fields": "full_name,email,phone,company_name,ntn,cnic,referral_code_used,referred_by,own_referral_code",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

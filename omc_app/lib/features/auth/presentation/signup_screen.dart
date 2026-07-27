@@ -76,6 +76,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool? _referralCodeValid;
   String? _submitError;
 
+  bool get _isCustomer => _selectedRole == 'Customer';
+
   @override
   void dispose() {
     _fullNameController.dispose();
@@ -95,7 +97,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<bool> _validateReferralBeforeSubmit() async {
-    if (_selectedAcquisitionSource != 'Referral') return true;
+    if (!_isCustomer || _selectedAcquisitionSource != 'Referral') {
+      return true;
+    }
 
     final code = _referralCodeController.text.trim().toUpperCase().replaceAll(
       ' ',
@@ -221,10 +225,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         'customer_type': _selectedRole,
         'register_as': _selectedRole,
         'address': _addressController.text.trim(),
-        'acquisition_source': _selectedAcquisitionSource ?? '',
-        'acquisition_source_detail': _acquisitionSourceDetailController.text
-            .trim(),
-        if (_selectedAcquisitionSource == 'Referral') ...{
+        'acquisition_source': _isCustomer
+            ? (_selectedAcquisitionSource ?? '')
+            : '',
+        'acquisition_source_detail': _isCustomer
+            ? _acquisitionSourceDetailController.text.trim()
+            : '',
+        if (_isCustomer && _selectedAcquisitionSource == 'Referral') ...{
           'referral_code': _referralCodeController.text
               .trim()
               .toUpperCase()
@@ -374,13 +381,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     if (_submittedSuccessfully) {
-      return const _SignupSuccessScreen();
+      return _SignupSuccessScreen(isCustomer: _isCustomer);
     }
 
     return AuthEntryScaffold(
       title: 'Create your OMC account',
-      subtitle:
-          'Choose your role, submit details, and OMC will review access before protected services open.',
+      subtitle: _isCustomer
+          ? 'Create your customer account and start using OMC services.'
+          : 'Choose your role, submit details, and OMC will review access before protected services open.',
       leading: IconButton(
         tooltip: 'Back to login',
         onPressed: _isSubmitting ? null : () => context.go('/login'),
@@ -406,6 +414,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     onRoleChanged: (role) {
                       setState(() {
                         _selectedRole = role;
+                        _submitError = null;
+                        if (role != 'Customer') {
+                          _selectedAcquisitionSource = null;
+                          _acquisitionSourceDetailController.clear();
+                          _referralCodeController.clear();
+                          _referralAssistanceConsent = false;
+                          _referralValidationMessage = null;
+                          _referralCodeValid = null;
+                        }
                       });
                     },
                     fullNameController: _fullNameController,
@@ -474,6 +491,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   _ => _SecurityStep(
                     formKey: _securityFormKey,
+                    isCustomer: _isCustomer,
                     passwordController: _passwordController,
                     confirmPasswordController: _confirmPasswordController,
                     obscurePassword: _obscurePassword,
@@ -767,121 +785,125 @@ class _VerificationStep extends StatelessWidget {
             validator: (value) => requiredValidator(value, 'Address'),
           ),
           const SizedBox(height: 18),
-          const _StepTitle(
-            title: 'How did you hear about OMC?',
-            subtitle: 'This helps OMC understand which channels are working.',
-          ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            initialValue: selectedAcquisitionSource,
-            decoration: const InputDecoration(
-              labelText: 'Source',
-              prefixIcon: Icon(Icons.campaign_outlined),
+          if (selectedRole == 'Customer') ...[
+            const _StepTitle(
+              title: 'How did you hear about OMC?',
+              subtitle: 'This helps OMC understand which channels are working.',
             ),
-            items: acquisitionSources
-                .map(
-                  (source) => DropdownMenuItem<String>(
-                    value: source,
-                    child: Text(source),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: onAcquisitionSourceChanged,
-            validator: (value) => value == null || value.trim().isEmpty
-                ? 'Please select a source.'
-                : null,
-          ),
-          if (selectedAcquisitionSource == 'Other') ...[
             const SizedBox(height: 14),
-            TextFormField(
-              controller: acquisitionSourceDetailController,
-              textInputAction: TextInputAction.next,
+            DropdownButtonFormField<String>(
+              initialValue: selectedAcquisitionSource,
               decoration: const InputDecoration(
-                labelText: 'Please specify',
-                prefixIcon: Icon(Icons.edit_note_outlined),
+                labelText: 'Source',
+                prefixIcon: Icon(Icons.campaign_outlined),
               ),
-              validator: (value) => requiredValidator(value, 'Source details'),
-            ),
-          ],
-          if (selectedAcquisitionSource == 'Referral') ...[
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: referralCodeController,
-              textCapitalization: TextCapitalization.characters,
-              textInputAction: TextInputAction.next,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 -]')),
-                LengthLimitingTextInputFormatter(12),
-              ],
-              onChanged: (value) {
-                final normalized = value.toUpperCase().replaceAll(' ', '');
-                if (normalized != value) {
-                  referralCodeController.value = TextEditingValue(
-                    text: normalized,
-                    selection: TextSelection.collapsed(
-                      offset: normalized.length,
+              items: acquisitionSources
+                  .map(
+                    (source) => DropdownMenuItem<String>(
+                      value: source,
+                      child: Text(source),
                     ),
-                  );
-                }
-              },
-              decoration: InputDecoration(
-                labelText: 'Referral code',
-                hintText: 'OMC-A7K9Q2',
-                prefixIcon: const Icon(Icons.confirmation_number_outlined),
-                suffixIcon: isValidatingReferral
-                    ? const Padding(
-                        padding: EdgeInsets.all(14),
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : IconButton(
-                        tooltip: 'Verify referral code',
-                        onPressed: () => onValidateReferral(),
-                        icon: const Icon(Icons.verified_outlined),
-                      ),
-              ),
-              validator: (value) => requiredValidator(value, 'Referral code'),
+                  )
+                  .toList(growable: false),
+              onChanged: onAcquisitionSourceChanged,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Please select a source.'
+                  : null,
             ),
-            if (referralValidationMessage != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                referralValidationMessage!,
-                style: TextStyle(
-                  color: referralCodeValid == true
-                      ? const Color(0xFF067647)
-                      : const Color(0xFFB42318),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+            if (selectedAcquisitionSource == 'Other') ...[
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: acquisitionSourceDetailController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Please specify',
+                  prefixIcon: Icon(Icons.edit_note_outlined),
                 ),
+                validator: (value) =>
+                    requiredValidator(value, 'Source details'),
               ),
             ],
-            const SizedBox(height: 8),
-            Material(
-              color: const Color(0xFFF8FAFC),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Color(0xFFE5EAF2)),
+            if (selectedAcquisitionSource == 'Referral') ...[
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: referralCodeController,
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.next,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 -]')),
+                  LengthLimitingTextInputFormatter(12),
+                ],
+                onChanged: (value) {
+                  final normalized = value.toUpperCase().replaceAll(' ', '');
+                  if (normalized != value) {
+                    referralCodeController.value = TextEditingValue(
+                      text: normalized,
+                      selection: TextSelection.collapsed(
+                        offset: normalized.length,
+                      ),
+                    );
+                  }
+                },
+                decoration: InputDecoration(
+                  labelText: 'Referral code',
+                  hintText: 'OMC-XXXXXX',
+                  prefixIcon: const Icon(Icons.confirmation_number_outlined),
+                  suffixIcon: isValidatingReferral
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          tooltip: 'Verify referral code',
+                          onPressed: () => onValidateReferral(),
+                          icon: const Icon(Icons.verified_outlined),
+                        ),
+                ),
+                validator: (value) => requiredValidator(value, 'Referral code'),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: CheckboxListTile(
-                value: referralAssistanceConsent,
-                onChanged: (value) => onReferralConsentChanged(value ?? false),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: const EdgeInsets.only(left: 4, right: 10),
-                title: const Text(
-                  'I consent to the referring OMC staff member assisting with my service requests.',
+              if (referralValidationMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  referralValidationMessage!,
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12.5,
-                    height: 1.35,
+                    color: referralCodeValid == true
+                        ? const Color(0xFF067647)
+                        : const Color(0xFFB42318),
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+              ],
+              const SizedBox(height: 8),
+              Material(
+                color: const Color(0xFFF8FAFC),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: Color(0xFFE5EAF2)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: CheckboxListTile(
+                  value: referralAssistanceConsent,
+                  onChanged: (value) =>
+                      onReferralConsentChanged(value ?? false),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: const EdgeInsets.only(left: 4, right: 10),
+                  title: const Text(
+                    'I consent to the referring OMC staff member assisting with my service requests.',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12.5,
+                      height: 1.35,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ],
           if (isTaxAssociate) ...[
             const SizedBox(height: 14),
@@ -926,6 +948,7 @@ class _VerificationStep extends StatelessWidget {
 class _SecurityStep extends StatelessWidget {
   const _SecurityStep({
     required this.formKey,
+    required this.isCustomer,
     required this.passwordController,
     required this.confirmPasswordController,
     required this.obscurePassword,
@@ -939,6 +962,7 @@ class _SecurityStep extends StatelessWidget {
   });
 
   final GlobalKey<FormState> formKey;
+  final bool isCustomer;
   final TextEditingController passwordController;
   final TextEditingController confirmPasswordController;
   final bool obscurePassword;
@@ -957,9 +981,11 @@ class _SecurityStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _StepTitle(
-            title: 'Security and review',
-            subtitle: 'Set a password and confirm the account review process.',
+          _StepTitle(
+            title: isCustomer ? 'Secure your account' : 'Security and review',
+            subtitle: isCustomer
+                ? 'Set a password to activate your customer account.'
+                : 'Set a password and confirm the account review process.',
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -1030,9 +1056,11 @@ class _SecurityStep extends StatelessWidget {
               onChanged: onTermsChanged,
               contentPadding: const EdgeInsets.only(left: 4, right: 10),
               controlAffinity: ListTileControlAffinity.leading,
-              title: const Text(
-                'I confirm my details are correct and understand my account will be reviewed before protected services are enabled.',
-                style: TextStyle(
+              title: Text(
+                isCustomer
+                    ? 'I confirm my details are correct and agree to create my OMC customer account.'
+                    : 'I confirm my details are correct and understand my account will be reviewed before protected services are enabled.',
+                style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12.5,
                   height: 1.35,
@@ -1041,8 +1069,10 @@ class _SecurityStep extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          const _ReviewNotice(),
+          if (!isCustomer) ...[
+            const SizedBox(height: 12),
+            const _ReviewNotice(),
+          ],
         ],
       ),
     );
@@ -1295,14 +1325,19 @@ class _LoginFooter extends StatelessWidget {
 }
 
 class _SignupSuccessScreen extends StatelessWidget {
-  const _SignupSuccessScreen();
+  const _SignupSuccessScreen({required this.isCustomer});
+
+  final bool isCustomer;
 
   @override
   Widget build(BuildContext context) {
     return AuthEntryScaffold(
-      title: 'Account submitted for review',
-      subtitle:
-          'Your account is under review. OMC team will verify your profile before enabling service access.',
+      title: isCustomer
+          ? 'Customer account created'
+          : 'Account submitted for review',
+      subtitle: isCustomer
+          ? 'Your customer account is active. You can sign in now.'
+          : 'Your account is under review. OMC team will verify your profile before enabling service access.',
       child: PremiumCard(
         padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
         child: Column(
@@ -1322,18 +1357,22 @@ class _SignupSuccessScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              'We received your details.',
-              style: TextStyle(
+            Text(
+              isCustomer
+                  ? 'Your account is ready.'
+                  : 'We received your details.',
+              style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 21,
                 fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Login after approval to access protected services, documents, payments and tracking.',
-              style: TextStyle(
+            Text(
+              isCustomer
+                  ? 'Sign in to request services, upload documents and track your cases.'
+                  : 'Login after approval to access protected services, documents, payments and tracking.',
+              style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 14,
                 height: 1.4,
