@@ -20,6 +20,7 @@ import '../../service_catalogue/application/service_catalogue_controller.dart';
 import '../../service_catalogue/data/service_item.dart';
 import '../../service_templates/data/service_template.dart';
 import '../data/service_request_repository.dart';
+import 'assisted_customer_card.dart';
 
 class ServiceRequestDraftScreen extends ConsumerStatefulWidget {
   const ServiceRequestDraftScreen({super.key, required this.serviceId});
@@ -45,6 +46,7 @@ class _ServiceRequestDraftScreenState
   final List<DocumentAttachment> _attachments = [];
 
   bool _prefilledEmail = false;
+  AssistedCustomerDraftSelection? _assistedSelection;
   bool _isPickingDocuments = false;
   bool _isSubmitting = false;
 
@@ -149,6 +151,15 @@ class _ServiceRequestDraftScreenState
                     service: service,
                     onChange: () => context.go('/services'),
                   ),
+                  if (ref
+                      .watch(authControllerProvider)
+                      .capabilities
+                      .isInternal) ...[
+                    const SizedBox(height: 12),
+                    AssistedCustomerCard(
+                      onChanged: _onAssistedSelectionChanged,
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _ContactDetailsCard(
                     nameController: _nameController,
@@ -213,6 +224,20 @@ class _ServiceRequestDraftScreenState
       _emailController.text = userId;
     }
     _prefilledEmail = true;
+  }
+
+  void _onAssistedSelectionChanged(AssistedCustomerDraftSelection? selection) {
+    _assistedSelection = selection;
+    final customer = selection?.customer;
+    if (customer != null) {
+      _nameController.text = customer.fullName;
+      _phoneController.text = customer.phone;
+      _emailController.text = customer.email;
+      if (customer.cnic.isNotEmpty) {
+        _taxIdController.text = customer.cnic;
+      }
+    }
+    if (mounted) setState(() {});
   }
 
   ServiceItem? _findService(List<ServiceItem> services) {
@@ -356,6 +381,14 @@ class _ServiceRequestDraftScreenState
       return;
     }
 
+    final capabilities = ref.read(authControllerProvider).capabilities;
+    if (capabilities.isInternal && _assistedSelection == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select the request customer first.')),
+      );
+      return;
+    }
+
     final repository = ref.read(serviceRequestRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
     final dynamicDetails = _dynamicValues(fields);
@@ -377,6 +410,12 @@ class _ServiceRequestDraftScreenState
           remarks: _remarksController.text,
           additionalDetails: additionalDetails,
           attachments: _attachments,
+          customerId: _assistedSelection?.customerId,
+          customerName: _assistedSelection?.customer?.fullName,
+          customerMode: _assistedSelection?.mode,
+          customerConsentReference: _assistedSelection?.consentReference,
+          city: _assistedSelection?.city,
+          address: _assistedSelection?.address,
         ),
       );
 

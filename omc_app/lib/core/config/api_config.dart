@@ -71,6 +71,8 @@ class ApiConfig {
 
   static const String createServiceMethod =
       'omc_app.api.service_requests.create_service';
+  static const String assistedCustomerSelectionMethod =
+      'omc_app.api.assisted_service.get_customer_selection_options';
   static const String createLeadMethod = 'omc_app.api.mobile.create_lead';
   static const String dashboardDataMethod =
       'omc_app.api.dashboard.get_dashboard_data';

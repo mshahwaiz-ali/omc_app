@@ -28,6 +28,10 @@ class ServiceRequestPayload {
     required this.attachments,
     this.customerId,
     this.customerName,
+    this.customerMode,
+    this.customerConsentReference,
+    this.city,
+    this.address,
   });
 
   final ServiceItem service;
@@ -40,6 +44,10 @@ class ServiceRequestPayload {
   final List<DocumentAttachment> attachments;
   final String? customerId;
   final String? customerName;
+  final String? customerMode;
+  final String? customerConsentReference;
+  final String? city;
+  final String? address;
 
   Map<String, dynamic> toJson() {
     final normalizedDetails = _normalizedAdditionalDetails();
@@ -73,6 +81,27 @@ class ServiceRequestPayload {
     final normalizedCustomerName = customerName?.trim();
     if (normalizedCustomerName != null && normalizedCustomerName.isNotEmpty) {
       data['customer_name'] = normalizedCustomerName;
+    }
+
+    final normalizedCustomerMode = customerMode?.trim();
+    if (normalizedCustomerMode != null && normalizedCustomerMode.isNotEmpty) {
+      data['customer_mode'] = normalizedCustomerMode;
+    }
+
+    final normalizedConsentReference = customerConsentReference?.trim();
+    if (normalizedConsentReference != null &&
+        normalizedConsentReference.isNotEmpty) {
+      data['customer_consent_reference'] = normalizedConsentReference;
+    }
+
+    final normalizedCity = city?.trim();
+    if (normalizedCity != null && normalizedCity.isNotEmpty) {
+      data['city'] = normalizedCity;
+    }
+
+    final normalizedAddress = address?.trim();
+    if (normalizedAddress != null && normalizedAddress.isNotEmpty) {
+      data['address'] = normalizedAddress;
     }
 
     final normalizedRemarks = remarks.trim();
@@ -200,6 +229,122 @@ class ServiceRequestPayload {
   }
 }
 
+class AssistedCustomerOption {
+  const AssistedCustomerOption({
+    required this.mode,
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.phone,
+    this.cnic = '',
+    this.city = '',
+    this.customerStatus = '',
+    this.approvalStatus = '',
+    this.consentGranted = false,
+    this.isManualCustomer = false,
+  });
+
+  final String mode;
+  final String id;
+  final String fullName;
+  final String email;
+  final String phone;
+  final String cnic;
+  final String city;
+  final String customerStatus;
+  final String approvalStatus;
+  final bool consentGranted;
+  final bool isManualCustomer;
+
+  factory AssistedCustomerOption.fromJson(Map<String, dynamic> json) {
+    final manualId = _staticString(json['manual_customer_id']);
+    final customerId = _staticString(json['customer_id']);
+
+    return AssistedCustomerOption(
+      mode: _staticString(json['customer_mode']),
+      id: manualId.isNotEmpty ? manualId : customerId,
+      fullName: _staticString(json['full_name']),
+      email: _staticString(json['email']),
+      phone: _staticString(json['phone']),
+      cnic: _staticString(json['cnic']),
+      city: _staticString(json['city']),
+      customerStatus: _staticString(json['customer_status']),
+      approvalStatus: _staticString(json['approval_status']),
+      consentGranted: _staticBool(json['consent_granted']),
+      isManualCustomer: manualId.isNotEmpty,
+    );
+  }
+
+  String get subtitle {
+    final parts = <String>[
+      if (phone.isNotEmpty) phone,
+      if (email.isNotEmpty) email,
+      if (city.isNotEmpty) city,
+    ];
+    return parts.join(' • ');
+  }
+}
+
+class AssistedCustomerSelection {
+  const AssistedCustomerSelection({
+    required this.modes,
+    required this.items,
+    this.selectedMode,
+  });
+
+  final List<String> modes;
+  final List<AssistedCustomerOption> items;
+  final String? selectedMode;
+
+  factory AssistedCustomerSelection.fromResponse(
+    Map<String, dynamic> response,
+  ) {
+    final message = response['message'];
+    final source = message is Map<String, dynamic> ? message : response;
+    final rawModes = source['modes'];
+    final rawItems = source['items'];
+
+    return AssistedCustomerSelection(
+      modes: rawModes is List
+          ? rawModes
+                .map(_staticString)
+                .where((value) => value.isNotEmpty)
+                .toList(growable: false)
+          : const [],
+      items: rawItems is List
+          ? rawItems
+                .whereType<Map>()
+                .map(
+                  (item) => AssistedCustomerOption.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ),
+                )
+                .where((item) => item.id.isNotEmpty)
+                .toList(growable: false)
+          : const [],
+      selectedMode: _nullableStaticString(source['selected_mode']),
+    );
+  }
+}
+
+String _staticString(Object? value) => value?.toString().trim() ?? '';
+
+String? _nullableStaticString(Object? value) {
+  final text = _staticString(value);
+  return text.isEmpty ? null : text;
+}
+
+bool _staticBool(Object? value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  return const {
+    '1',
+    'true',
+    'yes',
+    'on',
+  }.contains(_staticString(value).toLowerCase());
+}
+
 class ServiceRequestResult {
   const ServiceRequestResult({required this.raw, this.requestId});
 
@@ -214,6 +359,34 @@ class ServiceRequestRepository {
   const ServiceRequestRepository._(this._frappeClient);
 
   final FrappeClient _frappeClient;
+
+  Future<AssistedCustomerSelection> getAssistedCustomerSelection({
+    String? customerMode,
+    String? search,
+    int limitStart = 0,
+    int limitPageLength = 50,
+  }) async {
+    final queryParameters = <String, dynamic>{
+      'limit_start': limitStart,
+      'limit_page_length': limitPageLength,
+    };
+
+    final cleanMode = customerMode?.trim();
+    final cleanSearch = search?.trim();
+    if (cleanMode != null && cleanMode.isNotEmpty) {
+      queryParameters['customer_mode'] = cleanMode;
+    }
+    if (cleanSearch != null && cleanSearch.isNotEmpty) {
+      queryParameters['search'] = cleanSearch;
+    }
+
+    final response = await _frappeClient.getMethod(
+      ApiConfig.assistedCustomerSelectionMethod,
+      queryParameters: queryParameters,
+    );
+
+    return AssistedCustomerSelection.fromResponse(response);
+  }
 
   Future<ServiceRequestResult> createServiceRequest(
     ServiceRequestPayload payload,
