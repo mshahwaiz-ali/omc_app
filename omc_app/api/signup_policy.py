@@ -82,5 +82,5 @@ def sign_up(**kwargs):
     )
     result["profile"] = profile_data
     result["access_state"] = "approved"
-    result["capabilities"] = access.get_mobile_capabilities(user=email, profile=profile)
+    result["capabilities"] = access.get_mobile_capabilities(user=email)
     return result

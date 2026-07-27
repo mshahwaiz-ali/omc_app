@@ -5,7 +5,7 @@ import secrets
 import frappe
 from frappe.utils import now_datetime
 
-from omc_app.referral_capabilities import REFERRAL_ADMIN_ROLES, REFERRAL_OWNER_ROLES
+from omc_app.referral_capabilities import REFERRAL_OWNER_ROLES
 
 CODE_PREFIX = "OMC-"
 CODE_LENGTH = 6
@@ -35,7 +35,7 @@ def _require_login() -> str:
 
 def _require_referral_owner() -> str:
     user = _require_login()
-    if not _roles(user).intersection(REFERRAL_OWNER_ROLES | REFERRAL_ADMIN_ROLES):
+    if not _roles(user).intersection(REFERRAL_OWNER_ROLES):
         frappe.throw(
             "You do not have permission to manage a referral code.",
             frappe.PermissionError,
@@ -139,7 +139,7 @@ def resolve_active_referral(code: str | None):
     if not int(user_enabled or 0):
         return None
 
-    if not _roles(doc.referrer_user).intersection(REFERRAL_OWNER_ROLES | REFERRAL_ADMIN_ROLES):
+    if not _roles(doc.referrer_user).intersection(REFERRAL_OWNER_ROLES):
         return None
 
     return doc

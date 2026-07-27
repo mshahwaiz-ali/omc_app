@@ -149,6 +149,26 @@ def customer_profile_query(user=None):
     return " or ".join(f"({condition})" for condition in conditions) or "1=0"
 
 
+
+def referral_query(user=None):
+    user = _user(user)
+    roles = _roles(user)
+    if roles.intersection(PRIVILEGED_ROLES):
+        return ""
+    if roles.intersection(FIELD_ROLES):
+        return f"`tabOMC Referral`.referrer_user = {_escaped_user(user)}"
+    return "1=0"
+
+
+def referral_has_permission(doc, user=None, permission_type=None):
+    if permission_type not in {None, "read"}:
+        return None
+    return _record_matches_query(
+        "OMC Referral",
+        doc.name,
+        referral_query(user),
+    )
+
 def task_query(user=None):
     user = _user(user)
     if _privileged(user):

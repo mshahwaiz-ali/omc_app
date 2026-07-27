@@ -47,6 +47,7 @@ override_whitelisted_methods = {
 permission_query_conditions = {
     "OMC Service Request": "omc_app.permissions.service_request_query",
     "OMC Customer Profile": "omc_app.permissions.customer_profile_query",
+    "OMC Referral": "omc_app.permissions.referral_query",
     "OMC Task": "omc_app.permissions.task_query",
     "OMC Service Document": "omc_app.permissions.service_document_query",
     "OMC Service Payment": "omc_app.permissions.service_payment_query",
@@ -57,6 +58,7 @@ permission_query_conditions = {
 has_permission = {
     "OMC Service Request": "omc_app.permissions.service_request_has_permission",
     "OMC Customer Profile": "omc_app.permissions.customer_profile_has_permission",
+    "OMC Referral": "omc_app.permissions.referral_has_permission",
     "OMC Task": "omc_app.permissions.task_has_permission",
     "OMC Service Document": "omc_app.permissions.service_document_has_permission",
     "OMC Service Payment": "omc_app.permissions.service_payment_has_permission",
