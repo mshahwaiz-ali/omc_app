@@ -5,6 +5,8 @@ import frappe
 from omc_app.api import access, mobile
 from omc_app.referral_capabilities import (
     ALL_CUSTOMER_ASSIST_ROLES,
+    REFERRAL_ADMIN_ROLES,
+    REFERRAL_OWNER_ROLES,
     WALK_IN_CUSTOMER_ROLES,
 )
 
@@ -172,6 +174,191 @@ def _request_response(doc) -> dict:
         "manual_customer": doc.manual_customer or "",
     }
 
+
+
+def _pagination(limit_start=0, limit_page_length=20):
+    try:
+        start = max(int(limit_start or 0), 0)
+        length = min(max(int(limit_page_length or 20), 1), 100)
+    except (TypeError, ValueError):
+        frappe.throw("Invalid pagination values.", frappe.ValidationError)
+    return start, length
+
+
+def _customer_item(row, *, mode: str) -> dict:
+    return {
+        "customer_mode": mode,
+        "customer_id": row.name,
+        "full_name": row.full_name or "",
+        "email": row.email or "",
+        "phone": row.phone or "",
+        "customer_status": row.customer_status or "",
+        "approval_status": row.approval_status or "",
+        "consent_granted": int(row.referral_assistance_consent or 0),
+        "customer_origin": row.customer_origin or "",
+        "linked_app_user": row.linked_app_user or "",
+        "modified": str(row.modified or ""),
+    }
+
+
+def _manual_customer_item(row) -> dict:
+    return {
+        "customer_mode": "Walk-in Customer",
+        "manual_customer_id": row.name,
+        "full_name": row.full_name or "",
+        "email": row.email or "",
+        "phone": row.mobile or "",
+        "cnic": row.cnic or "",
+        "city": row.city or "",
+        "verification_status": row.verification_status or "",
+        "conversion_status": row.conversion_status or "",
+        "customer_origin": row.customer_origin or "",
+        "modified": str(row.modified or ""),
+    }
+
+
+def _search_or_filters(term: str, fields: tuple[str, ...]):
+    term = _text(term)
+    if not term:
+        return None
+    like = f"%{term}%"
+    return {field: ["like", like] for field in fields}
+
+
+@frappe.whitelist()
+def get_customer_selection_options(
+    customer_mode=None,
+    search=None,
+    limit_start=0,
+    limit_page_length=20,
+):
+    user = _current_user()
+    roles = _roles(user)
+    capabilities = _require_internal_assist(user)
+    start, length = _pagination(limit_start, limit_page_length)
+
+    modes = []
+    if roles.intersection(REFERRAL_OWNER_ROLES | REFERRAL_ADMIN_ROLES):
+        modes.append("My Referral")
+    if roles.intersection(ALL_CUSTOMER_ASSIST_ROLES):
+        modes.append("Existing Customer")
+    if roles.intersection(WALK_IN_CUSTOMER_ROLES):
+        modes.append("Walk-in Customer")
+
+    selected_mode = _text(customer_mode)
+    if not selected_mode:
+        return {
+            "modes": modes,
+            "items": [],
+            "limit_start": start,
+            "limit_page_length": length,
+            "capabilities": {
+                "can_create_service_for_customer": bool(
+                    capabilities.get("can_create_service_for_customer")
+                ),
+                "can_use_my_referrals": "My Referral" in modes,
+                "can_search_all_customers": "Existing Customer" in modes,
+                "can_use_walk_in_customers": "Walk-in Customer" in modes,
+            },
+        }
+
+    if selected_mode not in modes:
+        frappe.throw(
+            "You do not have permission to use this customer mode.",
+            frappe.PermissionError,
+        )
+
+    if selected_mode == "My Referral":
+        filters = {
+            "referred_by": user,
+            "referral_assistance_consent": 1,
+            "is_active": 1,
+        }
+        rows = frappe.get_all(
+            "OMC Customer Profile",
+            filters=filters,
+            or_filters=_search_or_filters(
+                search,
+                ("name", "full_name", "email", "phone", "cnic"),
+            ),
+            fields=[
+                "name",
+                "full_name",
+                "email",
+                "phone",
+                "customer_status",
+                "approval_status",
+                "referral_assistance_consent",
+                "customer_origin",
+                "linked_app_user",
+                "modified",
+            ],
+            order_by="modified desc",
+            limit_start=start,
+            limit_page_length=length,
+        )
+        items = [_customer_item(row, mode=selected_mode) for row in rows]
+    elif selected_mode == "Existing Customer":
+        rows = frappe.get_all(
+            "OMC Customer Profile",
+            filters={"is_active": 1},
+            or_filters=_search_or_filters(
+                search,
+                ("name", "full_name", "email", "phone", "cnic"),
+            ),
+            fields=[
+                "name",
+                "full_name",
+                "email",
+                "phone",
+                "customer_status",
+                "approval_status",
+                "referral_assistance_consent",
+                "customer_origin",
+                "linked_app_user",
+                "modified",
+            ],
+            order_by="modified desc",
+            limit_start=start,
+            limit_page_length=length,
+        )
+        items = [_customer_item(row, mode=selected_mode) for row in rows]
+    else:
+        filters = {}
+        if not roles.intersection(ALL_CUSTOMER_ASSIST_ROLES):
+            filters["created_by_user"] = user
+        rows = frappe.get_all(
+            "OMC Manual Customer",
+            filters=filters,
+            or_filters=_search_or_filters(
+                search,
+                ("name", "full_name", "email", "mobile", "cnic", "city"),
+            ),
+            fields=[
+                "name",
+                "full_name",
+                "email",
+                "mobile",
+                "cnic",
+                "city",
+                "verification_status",
+                "conversion_status",
+                "customer_origin",
+                "modified",
+            ],
+            order_by="modified desc",
+            limit_start=start,
+            limit_page_length=length,
+        )
+        items = [_manual_customer_item(row) for row in rows]
+
+    return {
+        "modes": modes,
+        "selected_mode": selected_mode,
+        "items": items,
+        "limit_start": start,
+        "limit_page_length": length,
+    }
 
 def create_request(**kwargs):
     user = _current_user()
