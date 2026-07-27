@@ -814,17 +814,27 @@ class _QuickActions extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final action = actions[index];
-          return OutlinedButton.icon(
-            onPressed: () => context.go(action.route),
-            icon: Icon(action.icon, size: 17),
-            label: Text(action.label),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _ink,
-              backgroundColor: Colors.white,
-              side: const BorderSide(color: Color(0xFFDDE3EB)),
-              padding: const EdgeInsets.symmetric(horizontal: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+          return ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
+            child: OutlinedButton.icon(
+              onPressed: () => context.go(action.route),
+              icon: Icon(action.icon, size: 17),
+              label: Text(
+                action.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _ink,
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: Color(0xFFDDE3EB)),
+                minimumSize: const Size(0, 43),
+                maximumSize: const Size(220, 43),
+                padding: const EdgeInsets.symmetric(horizontal: 13),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           );

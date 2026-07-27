@@ -299,6 +299,11 @@ class _MainShellState extends ConsumerState<MainShell> {
         path: '/customers',
         capabilities: capabilities,
       ),
+      onOpenMyReferrals: () => _openWhenAllowed(
+        allowed: canAccessRoute('/my-referrals', capabilities),
+        path: '/my-referrals',
+        capabilities: capabilities,
+      ),
       onOpenLeads: () => _openWhenAllowed(
         allowed: canAccessRoute('/leads', capabilities),
         path: '/leads',

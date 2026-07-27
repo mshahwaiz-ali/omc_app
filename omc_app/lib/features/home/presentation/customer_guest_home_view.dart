@@ -988,31 +988,41 @@ class _QuickActionStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final visible = actions.take(5).toList(growable: false);
 
-    return SizedBox(
-      height: 122,
-      child: Row(
-        children: [
-          for (var index = 0; index < 5; index++) ...[
-            if (index > 0) const SizedBox(width: 8),
-            Expanded(
-              child: index >= visible.length
-                  ? const SizedBox.shrink()
-                  : _QuickActionTile(
-                      action: visible[index],
-                      locked: !isActionAllowed(visible[index]),
-                      onTap: () {
-                        final action = visible[index];
-                        if (isActionAllowed(action)) {
-                          onAction(action);
-                        } else {
-                          onLockedAction(action);
-                        }
-                      },
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 560;
+        final columns = compact ? 3 : 5;
+        final rows = (visible.length / columns).ceil().clamp(1, 2);
+        final height = rows * 112.0 + (rows - 1) * 8.0;
+
+        return SizedBox(
+          height: height,
+          child: GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: compact ? 0.92 : 0.86,
             ),
-          ],
-        ],
-      ),
+            itemCount: visible.length,
+            itemBuilder: (context, index) {
+              final action = visible[index];
+              return _QuickActionTile(
+                action: action,
+                locked: !isActionAllowed(action),
+                onTap: () {
+                  if (isActionAllowed(action)) {
+                    onAction(action);
+                  } else {
+                    onLockedAction(action);
+                  }
+                },
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -1142,15 +1152,25 @@ class _SummaryStrip extends StatelessWidget {
 
     return _SurfaceCard(
       radius: 25,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 17),
-      child: Row(
-        children: [
-          for (var index = 0; index < items.length; index++) ...[
-            if (index > 0)
-              Container(width: 1, height: 49, color: const Color(0xFFE4E6EA)),
-            Expanded(child: items[index]),
-          ],
-        ],
+      padding: const EdgeInsets.all(10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 700;
+          final columns = compact ? 2 : 4;
+
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: compact ? 2.25 : 2.05,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, index) => items[index],
+          );
+        },
       ),
     );
   }
@@ -1173,10 +1193,13 @@ class _SummaryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 7),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: background.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             width: 39,
@@ -1188,12 +1211,15 @@ class _SummaryItem extends StatelessWidget {
             child: Icon(icon, size: 20, color: color),
           ),
           const SizedBox(width: 8),
-          Flexible(
+          Expanded(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _navy,
                     fontSize: 17,

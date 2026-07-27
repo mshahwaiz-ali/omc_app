@@ -56,6 +56,7 @@ def _owned_customer_profile(user: str, customer_profile: str):
         "OMC Customer Profile",
         {"name": customer_profile, "referred_by": user},
         "name",
+        ignore=True,
     )
     if not name:
         frappe.throw(
@@ -167,6 +168,7 @@ def get_my_referral_summary():
             "is_active",
         ],
         order_by="modified desc",
+        ignore_permissions=True,
     )
 
     profile_names = [row.name for row in profiles]
@@ -177,6 +179,7 @@ def get_my_referral_summary():
             filters={"customer_profile": ["in", profile_names]},
             fields=SERVICE_REQUEST_FIELDS,
             order_by="creation desc",
+            ignore_permissions=True,
         )
 
     analytics = _aggregate_requests(requests, user)
@@ -245,6 +248,7 @@ def get_my_referrals(search=None, limit_start=0, limit_page_length=20):
         order_by="modified desc",
         limit_start=start,
         limit_page_length=length,
+        ignore_permissions=True,
     )
 
     items = []
@@ -254,6 +258,7 @@ def get_my_referrals(search=None, limit_start=0, limit_page_length=20):
             filters={"customer_profile": profile.name},
             fields=SERVICE_REQUEST_FIELDS,
             order_by="creation desc",
+            ignore_permissions=True,
         )
         analytics = _aggregate_requests(rows, user)
         items.append(
@@ -299,6 +304,7 @@ def get_my_referral_detail(customer_profile=None):
         filters={"customer_profile": profile.name},
         fields=SERVICE_REQUEST_FIELDS,
         order_by="creation desc",
+        ignore_permissions=True,
     )
     analytics = _aggregate_requests(rows, user)
 

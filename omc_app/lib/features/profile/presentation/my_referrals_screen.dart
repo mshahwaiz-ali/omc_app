@@ -77,9 +77,9 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
     if (code.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: code));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Referral code copied.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Referral code copied.')));
   }
 
   void _openDetail(ReferralCustomer customer) {
@@ -118,7 +118,8 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
                 onRetry: _load,
               )
             else ...[
-              if (_summary != null) _ReferralCodeCard(summary: _summary!, onCopy: _copyCode),
+              if (_summary != null)
+                _ReferralCodeCard(summary: _summary!, onCopy: _copyCode),
               const SizedBox(height: 14),
               if (_summary != null) _SummaryGrid(summary: _summary!),
               const SizedBox(height: 18),
@@ -392,7 +393,10 @@ class _ReferralCustomerCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary,
+              ),
             ],
           ),
         ),

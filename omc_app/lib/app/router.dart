@@ -27,6 +27,7 @@ import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/payments/presentation/payment_detail_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
 import '../features/profile/presentation/my_referrals_screen.dart';
+import '../features/profile/presentation/referral_detail_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
@@ -50,12 +51,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     refreshListenable: routerRefreshNotifier,
-    errorBuilder: (context, state) => RouteFailureScreen(
-      onGoHome: () => context.go('/home'),
-      onGoBack: Navigator.of(context).canPop()
-          ? () => Navigator.of(context).pop()
-          : null,
-    ),
+    errorBuilder: (context, state) =>
+        RouteFailureScreen(onGoHome: () => context.go('/home'), onGoBack: null),
     redirect: (context, state) {
       final authState = ref.read(authControllerProvider);
       final location = state.matchedLocation;
@@ -360,10 +357,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             _withShell(ShellNavScaffold.moreIndex, const ProfileScreen()),
       ),
       GoRoute(
-        path: '/profile/referrals',
+        path: '/my-referrals',
         name: 'my-referrals',
         builder: (context, state) =>
             _withShell(ShellNavScaffold.moreIndex, const MyReferralsScreen()),
+      ),
+      GoRoute(
+        path: '/my-referrals/:customerId',
+        name: 'my-referral-detail',
+        builder: (context, state) {
+          final customerId = Uri.decodeComponent(
+            state.pathParameters['customerId'] ?? '',
+          );
+          final customerName = state.uri.queryParameters['name'] ?? '';
+
+          return _withShell(
+            ShellNavScaffold.moreIndex,
+            ReferralDetailScreen(
+              customerProfile: customerId,
+              customerName: customerName,
+            ),
+          );
+        },
       ),
       GoRoute(
         path: '/expense-tracker',

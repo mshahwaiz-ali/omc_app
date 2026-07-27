@@ -214,6 +214,12 @@ class ShellNavScaffold extends ConsumerWidget {
       onOpenInternalCases: () =>
           context.go('/internal-workspace/service-cases'),
       onOpenCustomers: () => context.go('/customers'),
+      onOpenMyReferrals: () => _openWhenAllowed(
+        context: context,
+        allowed: canAccessRoute('/my-referrals', capabilities),
+        path: '/my-referrals',
+        capabilities: capabilities,
+      ),
       onOpenLeads: () => context.go('/leads'),
       onOpenTasks: () => context.go('/tasks'),
       onLogout: authState.status == AuthStatus.guest

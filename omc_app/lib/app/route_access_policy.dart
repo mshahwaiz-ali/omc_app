@@ -99,6 +99,12 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.canManageTasks || capabilities.canManageAssignedTasks;
   }
 
+  if (location == '/my-referrals' || location.startsWith('/my-referrals/')) {
+    return capabilities.isInternal &&
+        capabilities.canViewRelevantCustomers &&
+        !capabilities.canViewAllCustomers;
+  }
+
   if (location == '/profile' || location == '/settings') {
     return !capabilities.isGuest;
   }
