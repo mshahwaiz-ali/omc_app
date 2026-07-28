@@ -383,8 +383,7 @@ class _ProfileContent extends StatelessWidget {
         const SizedBox(height: 20),
         if (!isInternal)
           ProfileActionCard(
-            onEditProfile: () => _submitProfileUpdateRequest(context, ref),
-            onUpdateContact: () => _submitContactUpdateRequest(context, ref),
+            onManageProfile: () => context.push('/profile/edit'),
             onContactSupport: () => _showProfileRequestSheet(
               context,
               ref,
@@ -483,39 +482,6 @@ class _ProfileContent extends StatelessWidget {
     } finally {
       _profilePhotoUploadInFlight = false;
     }
-  }
-
-  Future<void> _submitProfileUpdateRequest(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    await _showProfileRequestSheet(
-      context,
-      ref,
-      title: 'Edit profile request',
-      topic: 'Profile update request',
-      label: 'What profile details should OMC update?',
-      hint:
-          'Example: Update my company name to ABC Pvt Ltd and NTN to 1234567-8.',
-      submitLabel: 'Submit profile request',
-      includeProfileSnapshot: true,
-    );
-  }
-
-  Future<void> _submitContactUpdateRequest(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    await _showProfileRequestSheet(
-      context,
-      ref,
-      title: 'Update contact info',
-      topic: 'Contact update request',
-      label: 'What contact details should OMC update?',
-      hint: 'Example: Change my phone number to 03XXXXXXXXX.',
-      submitLabel: 'Submit contact request',
-      includeProfileSnapshot: true,
-    );
   }
 
   Future<void> _showProfileRequestSheet(

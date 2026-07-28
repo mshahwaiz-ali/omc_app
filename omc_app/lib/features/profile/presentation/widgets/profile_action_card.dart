@@ -5,15 +5,13 @@ import '../../../../core/widgets/premium_card.dart';
 
 class ProfileActionCard extends StatelessWidget {
   const ProfileActionCard({
-    required this.onEditProfile,
-    required this.onUpdateContact,
+    required this.onManageProfile,
     required this.onContactSupport,
     required this.onRefresh,
     super.key,
   });
 
-  final VoidCallback onEditProfile;
-  final VoidCallback onUpdateContact;
+  final VoidCallback onManageProfile;
   final VoidCallback onContactSupport;
   final VoidCallback onRefresh;
 
@@ -26,20 +24,15 @@ class ProfileActionCard extends StatelessWidget {
         children: [
           const Text(
             'Account actions',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 19,
+              fontSize: 18,
               fontWeight: FontWeight.w900,
-              letterSpacing: -0.15,
             ),
           ),
           const SizedBox(height: 5),
           const Text(
-            'Request profile updates, refresh customer data, or contact OMC support.',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            'Manage your details, refresh account data, or contact OMC support.',
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12,
@@ -49,31 +42,24 @@ class ProfileActionCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _ProfileActionTile(
-            icon: Icons.edit_outlined,
-            title: 'Edit profile',
-            subtitle: 'Submit updated customer profile details',
-            onTap: onEditProfile,
-          ),
-          const SizedBox(height: 10),
-          _ProfileActionTile(
-            icon: Icons.phone_iphone_outlined,
-            title: 'Update contact info',
-            subtitle: 'Request phone or email verification changes',
-            onTap: onUpdateContact,
-          ),
-          const SizedBox(height: 10),
-          _ProfileActionTile(
-            icon: Icons.support_agent_rounded,
-            title: 'Contact OMC support',
-            subtitle: 'Get help with profile or account issues',
-            onTap: onContactSupport,
+            icon: Icons.manage_accounts_outlined,
+            title: 'Manage profile',
+            subtitle: 'Update personal, contact, business and tax details',
+            onTap: onManageProfile,
           ),
           const SizedBox(height: 10),
           _ProfileActionTile(
             icon: Icons.refresh_rounded,
-            title: 'Refresh account data',
-            subtitle: 'Reload latest profile information',
+            title: 'Refresh account',
+            subtitle: 'Reload the latest profile details from OMC',
             onTap: onRefresh,
+          ),
+          const SizedBox(height: 10),
+          _ProfileActionTile(
+            icon: Icons.support_agent_rounded,
+            title: 'Contact support',
+            subtitle: 'Get help with verified identity or account access',
+            onTap: onContactSupport,
           ),
         ],
       ),
@@ -96,75 +82,58 @@ class _ProfileActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.035),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.07)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.primary.withValues(alpha: 0.08),
+    return Material(
+      color: const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: const Color(0xFFE5EAF2)),
+                ),
+                child: Icon(icon, size: 20, color: AppTheme.textPrimary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Icon(icon, color: AppTheme.primary, size: 21),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
+              const Icon(
                 Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
-                size: 20,
+                color: AppTheme.textMuted,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

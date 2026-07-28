@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../core/widgets/route_failure_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
+import '../features/auth/presentation/email_verification_screen.dart';
+import '../features/auth/presentation/forgot_password_screen.dart';
+import '../features/auth/presentation/reset_password_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/auth/presentation/under_review_screen.dart';
@@ -28,6 +31,7 @@ import '../features/payments/presentation/payment_detail_screen.dart';
 import '../features/payments/presentation/payments_screen.dart';
 import '../features/profile/presentation/my_referrals_screen.dart';
 import '../features/profile/presentation/referral_detail_screen.dart';
+import '../features/profile/presentation/edit_profile_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
@@ -59,8 +63,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final isSplash = location == '/';
       final isOnboardingRoute = location == '/onboarding';
+      final isVerificationRoute = location == '/verify-email';
+      final isPasswordRecoveryRoute =
+          location == '/forgot-password' || location == '/reset-password';
       final isAuthRoute =
-          location == '/login' || location == '/signup' || isOnboardingRoute;
+          location == '/login' ||
+          location == '/signup' ||
+          isOnboardingRoute ||
+          isVerificationRoute ||
+          isPasswordRecoveryRoute;
       final isUnderReviewRoute = location == '/under-review';
 
       if (authState.status == AuthStatus.checking) {
@@ -108,9 +119,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
+        path: '/forgot-password',
+        name: 'forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        name: 'reset-password',
+        builder: (context, state) => ResetPasswordScreen(
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
+      ),
+      GoRoute(
         path: '/signup',
         name: 'signup',
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        name: 'verify-email',
+        builder: (context, state) => EmailVerificationScreen(
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/under-review',
@@ -355,6 +385,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'profile',
         builder: (context, state) =>
             _withShell(ShellNavScaffold.moreIndex, const ProfileScreen()),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        name: 'edit-profile',
+        builder: (context, state) =>
+            _withShell(ShellNavScaffold.moreIndex, const EditProfileScreen()),
       ),
       GoRoute(
         path: '/my-referrals',

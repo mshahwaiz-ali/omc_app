@@ -103,8 +103,8 @@ class FrappeClient {
   }) async {
     try {
       final response = await _dioClient.instance.post<Map<String, dynamic>>(
-        '${ApiConfig.apiMethodPath}/${ApiConfig.loginMethod}',
-        data: {'usr': email, 'pwd': password},
+        '${ApiConfig.apiMethodPath}/${ApiConfig.multiIdentifierLoginMethod}',
+        data: {'identifier': email, 'password': password},
       );
 
       final data = _readResponseMap(response.data);

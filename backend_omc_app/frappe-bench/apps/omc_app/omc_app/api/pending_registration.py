@@ -1,0 +1,370 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import secrets
+from dataclasses import dataclass
+from datetime import timedelta
+
+import frappe
+from frappe.utils import add_to_date, get_datetime, get_url, now_datetime
+
+
+PENDING_REGISTRATION_DOCTYPE = "OMC Pending Registration"
+TOKEN_TTL_MINUTES = 30
+RESEND_COOLDOWN_SECONDS = 60
+ACTIVE_PENDING_STATUSES = ("Pending",)
+GENERIC_PUBLIC_MESSAGE = (
+    "If the details are eligible, a verification email will be sent shortly."
+)
+VERIFICATION_METHOD = "omc_app.api.pending_registration.verify_registration"
+
+
+@dataclass(frozen=True)
+class PendingRegistrationSecret:
+    registration_name: str
+    verification_token: str
+
+
+def _token_digest(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _verification_url(token: str) -> str:
+    return get_url("/verify-email?token=" + token)
+
+
+def _verification_email_html(username: str, verification_url: str) -> str:
+    safe_username = frappe.utils.escape_html(username)
+    safe_url = frappe.utils.escape_html(verification_url)
+    return f"""
+    <div style="background:#f5f7fa;padding:32px 16px;font-family:Arial,sans-serif;">
+      <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;padding:32px;">
+        <div style="font-size:13px;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;">
+          OMC
+        </div>
+        <h1 style="margin:12px 0 8px;color:#0f172a;font-size:26px;line-height:1.2;">
+          Verify your email
+        </h1>
+        <p style="margin:0 0 18px;color:#475569;font-size:15px;line-height:1.6;">
+          Hello {safe_username}, confirm this email address to continue creating your OMC account.
+        </p>
+        <a href="{safe_url}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;">
+          Verify email
+        </a>
+        <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
+          This link expires in {TOKEN_TTL_MINUTES} minutes. If you did not request this account, you can ignore this email.
+        </p>
+      </div>
+    </div>
+    """
+
+
+def _send_verification_email(email: str, username: str, token: str) -> None:
+    verification_url = _verification_url(token)
+    frappe.sendmail(
+        recipients=[email],
+        subject="Verify your OMC account",
+        message=_verification_email_html(username, verification_url),
+        now=False,
+    )
+
+
+def _rotate_token(doc) -> str:
+    token = secrets.token_urlsafe(32)
+    now = now_datetime()
+    doc.token_digest = _token_digest(token)
+    doc.expires_at = add_to_date(now, minutes=TOKEN_TTL_MINUTES)
+    doc.resend_after = add_to_date(now, seconds=RESEND_COOLDOWN_SECONDS)
+    doc.attempt_count = int(doc.attempt_count or 0) + 1
+    doc.last_attempt_at = now
+    doc.save(ignore_permissions=True)
+    return token
+
+
+def _public_payload(data: dict) -> dict:
+    blocked = {
+        "password",
+        "new_password",
+        "confirm_password",
+        "verification_token",
+        "token",
+    }
+    return {key: value for key, value in data.items() if key not in blocked}
+
+
+def _existing_pending(filters: dict):
+    names = frappe.get_all(
+        PENDING_REGISTRATION_DOCTYPE,
+        filters={**filters, "status": ["in", list(ACTIVE_PENDING_STATUSES)]},
+        pluck="name",
+        order_by="modified desc",
+        limit=1,
+    )
+    return frappe.get_doc(PENDING_REGISTRATION_DOCTYPE, names[0]) if names else None
+
+
+def _supersede_existing(email: str, username: str) -> None:
+    names = frappe.get_all(
+        PENDING_REGISTRATION_DOCTYPE,
+        filters={
+            "status": ["in", list(ACTIVE_PENDING_STATUSES)],
+            "email": email,
+        },
+        pluck="name",
+    )
+    username_names = frappe.get_all(
+        PENDING_REGISTRATION_DOCTYPE,
+        filters={
+            "status": ["in", list(ACTIVE_PENDING_STATUSES)],
+            "username": username,
+        },
+        pluck="name",
+    )
+    for name in set(names + username_names):
+        frappe.db.set_value(
+            PENDING_REGISTRATION_DOCTYPE,
+            name,
+            {
+                "status": "Superseded",
+                "token_digest": secrets.token_hex(32),
+            },
+            update_modified=True,
+        )
+
+
+def create_pending_registration(data: dict) -> PendingRegistrationSecret:
+    from omc_app.api import access
+
+    validated = access._validated_signup_kwargs(data)
+    email = validated["email"]
+    full_name = (
+        validated.get("full_name")
+        or validated.get("name")
+        or email
+    ).strip()
+
+    submitted_username = validated.get("username")
+    if submitted_username:
+        username = access.validate_username(submitted_username)
+    else:
+        username = access.suggest_username(
+            full_name=full_name,
+            email=email,
+        )["username"]
+
+    password = validated.get("password") or validated.get("new_password")
+    if not password:
+        frappe.throw("A password is required", frappe.ValidationError)
+    if len(password) < 8:
+        frappe.throw(
+            "Password must be at least 8 characters long",
+            frappe.ValidationError,
+        )
+
+    if frappe.db.exists("User", email):
+        frappe.throw(
+            "An account with this email already exists. Please sign in.",
+            frappe.DuplicateEntryError,
+        )
+    if frappe.db.exists("OMC Customer Profile", {"email": email}):
+        frappe.throw(
+            "An account with this email already exists. Please sign in.",
+            frappe.DuplicateEntryError,
+        )
+    if frappe.db.exists("OMC Customer Profile", {"username": username}):
+        frappe.throw("Username is already taken.", frappe.DuplicateEntryError)
+
+    _supersede_existing(email, username)
+
+    token = secrets.token_urlsafe(32)
+    now = now_datetime()
+    expires_at = add_to_date(now, minutes=TOKEN_TTL_MINUTES)
+    resend_after = add_to_date(now, seconds=RESEND_COOLDOWN_SECONDS)
+
+    payload = _public_payload(validated)
+    payload["username"] = username
+    payload["email"] = email
+
+    doc = frappe.new_doc(PENDING_REGISTRATION_DOCTYPE)
+    doc.email = email
+    doc.username = username
+    doc.status = "Pending"
+    doc.expires_at = expires_at
+    doc.resend_after = resend_after
+    doc.token_digest = _token_digest(token)
+    doc.payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    doc.password_secret = password
+    doc.insert(ignore_permissions=True)
+
+    return PendingRegistrationSecret(
+        registration_name=doc.name,
+        verification_token=token,
+    )
+
+
+@frappe.whitelist(allow_guest=True)
+def start_registration(**kwargs):
+    secret = create_pending_registration(dict(kwargs or {}))
+    doc = frappe.get_doc(PENDING_REGISTRATION_DOCTYPE, secret.registration_name)
+    _send_verification_email(
+        doc.email,
+        doc.username,
+        secret.verification_token,
+    )
+    frappe.db.commit()
+
+    return {
+        "message": GENERIC_PUBLIC_MESSAGE,
+        "verification_required": True,
+        "resend_after": doc.resend_after,
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+def resend_verification(email: str | None = None):
+    normalized_email = str(email or "").strip().lower()
+    if not normalized_email:
+        return {"message": GENERIC_PUBLIC_MESSAGE}
+
+    doc = _existing_pending({"email": normalized_email})
+    if not doc:
+        return {"message": GENERIC_PUBLIC_MESSAGE}
+
+    now = now_datetime()
+    if doc.resend_after and get_datetime(doc.resend_after) > now:
+        return {
+            "message": GENERIC_PUBLIC_MESSAGE,
+            "resend_after": doc.resend_after,
+        }
+
+    token = _rotate_token(doc)
+    _send_verification_email(doc.email, doc.username, token)
+    frappe.db.commit()
+
+    return {
+        "message": GENERIC_PUBLIC_MESSAGE,
+        "resend_after": doc.resend_after,
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+def verify_registration(token: str | None = None):
+    token = str(token or "").strip()
+    if not token:
+        return {
+            "ok": False,
+            "status": "invalid_or_expired",
+            "message": "This verification link is invalid or has expired.",
+        }
+
+    name = frappe.db.get_value(
+        PENDING_REGISTRATION_DOCTYPE,
+        {"token_digest": _token_digest(token)},
+        "name",
+    )
+    if not name:
+        return {
+            "ok": False,
+            "status": "invalid_or_expired",
+            "message": "This verification link is invalid or has expired.",
+        }
+
+    doc = frappe.get_doc(PENDING_REGISTRATION_DOCTYPE, name)
+
+    if doc.status == "Activated":
+        return {
+            "ok": True,
+            "status": "activated",
+            "message": "Your email is verified. You can sign in now.",
+        }
+
+    if doc.status not in ("Pending", "Verified"):
+        return {
+            "ok": False,
+            "status": "invalid_or_expired",
+            "message": "This verification link is invalid or has expired.",
+        }
+
+    if get_datetime(doc.expires_at) <= now_datetime():
+        doc.status = "Expired"
+        doc.token_digest = secrets.token_hex(32)
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        return {
+            "ok": False,
+            "status": "invalid_or_expired",
+            "message": "This verification link is invalid or has expired.",
+        }
+
+    # Mark the token as consumed before account creation. The canonical signup
+    # method commits the transaction, so this state also protects against
+    # double activation if a request is retried during or after that commit.
+    if doc.status == "Pending":
+        doc.status = "Verified"
+        doc.verified_at = now_datetime()
+        doc.save(ignore_permissions=True)
+
+    from omc_app.api import mobile
+
+    payload = read_pending_payload(doc)
+    payload["password"] = read_pending_password(doc)
+    payload["username"] = doc.username
+    payload["email"] = doc.email
+
+    user_exists = frappe.db.exists("User", doc.email)
+    profile_exists = frappe.db.exists(
+        "OMC Customer Profile",
+        {"email": doc.email},
+    )
+
+    if not user_exists or not profile_exists:
+        mobile.sign_up(**payload)
+
+    doc.reload()
+    doc.status = "Activated"
+    doc.activated_user = (
+        doc.email if frappe.db.exists("User", doc.email) else None
+    )
+    doc.token_digest = secrets.token_hex(32)
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {
+        "ok": True,
+        "status": "activated",
+        "message": "Your email is verified. You can sign in now.",
+    }
+
+
+def load_pending_registration_by_token(token: str):
+    token = str(token or "").strip()
+    if not token:
+        return None
+
+    name = frappe.db.get_value(
+        PENDING_REGISTRATION_DOCTYPE,
+        {"token_digest": _token_digest(token)},
+        "name",
+    )
+    if not name:
+        return None
+
+    doc = frappe.get_doc(PENDING_REGISTRATION_DOCTYPE, name)
+    if doc.status != "Pending":
+        return None
+
+    if get_datetime(doc.expires_at) <= now_datetime():
+        doc.status = "Expired"
+        doc.save(ignore_permissions=True)
+        return None
+
+    return doc
+
+
+def read_pending_payload(doc) -> dict:
+    return json.loads(doc.payload_json or "{}")
+
+
+def read_pending_password(doc) -> str:
+    return doc.get_password("password_secret")

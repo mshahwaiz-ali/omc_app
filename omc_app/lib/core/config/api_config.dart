@@ -58,10 +58,27 @@ class ApiConfig {
   static const String apiResourcePath = '/api/resource';
 
   static const String loginMethod = 'login';
+  static const String multiIdentifierLoginMethod =
+      'omc_app.api.auth_login.login';
+  static const String requestPasswordResetMethod =
+      'omc_app.api.password_reset.request_reset';
+  static const String resetPasswordMethod =
+      'omc_app.api.password_reset.reset_password';
+
   static const String logoutMethod = 'logout';
   static const String googleLoginMethod =
       'omc_app.api.mobile.google_mobile_login';
   static const String signUpMethod = 'omc_app.api.access.sign_up';
+  static const String startRegistrationMethod =
+      'omc_app.api.pending_registration.start_registration';
+  static const String resendVerificationMethod =
+      'omc_app.api.pending_registration.resend_verification';
+  static const String verifyRegistrationMethod =
+      'omc_app.api.pending_registration.verify_registration';
+  static const String suggestUsernameMethod =
+      'omc_app.api.access.suggest_username';
+  static const String checkUsernameAvailabilityMethod =
+      'omc_app.api.access.check_username_availability';
   static const String validateReferralCodeMethod =
       'omc_app.api.referrals.validate_referral_code';
   static const String getSessionUserMethod =
@@ -128,7 +145,8 @@ class ApiConfig {
       'omc_app.api.payments.review_payment_receipt';
 
   static const String profileMethod = 'omc_app.api.access_v2.get_profile';
-  static const String updateProfileMethod = 'omc_app.api.mobile.update_profile';
+  static const String updateProfileMethod =
+      'omc_app.api.profile_self_service.update_profile';
   static const String updateContactMethod =
       'omc_app.api.mobile.update_contact_info';
   static const String uploadProfileImageMethod =

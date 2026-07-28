@@ -82,7 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         lower.contains('user disabled') ||
         lower.contains('not permitted') ||
         lower.contains('login failed')) {
-      return 'Wrong email or password. Please try again.';
+      return 'Wrong login details or password. Please try again.';
     }
     return 'Sign in could not be completed right now. Please try again.';
   }
@@ -198,19 +198,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: [
             TextFormField(
               controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
+              keyboardType: TextInputType.text,
               textInputAction: TextInputAction.next,
               autofillHints: const [
                 AutofillHints.username,
                 AutofillHints.email,
               ],
               decoration: const InputDecoration(
-                labelText: 'Email or username',
+                labelText: 'Email, username, mobile or CNIC',
                 prefixIcon: Icon(Icons.person_outline_rounded),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Email or username is required.';
+                  return 'Email, username, mobile or CNIC is required.';
                 }
                 return null;
               },
@@ -247,7 +247,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: isLoading ? null : _openSupport,
+                onPressed: isLoading
+                    ? null
+                    : () => context.go('/forgot-password'),
                 child: const Text('Forgot password?'),
               ),
             ),

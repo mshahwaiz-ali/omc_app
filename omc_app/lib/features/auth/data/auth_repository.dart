@@ -177,7 +177,43 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>> signUp({required Map<String, dynamic> data}) {
-    return _frappeClient.postMethod(ApiConfig.signUpMethod, data: data);
+    return _frappeClient.postMethod(
+      ApiConfig.startRegistrationMethod,
+      data: data,
+    );
+  }
+
+  Future<Map<String, dynamic>> resendVerification({required String email}) {
+    return _frappeClient.postMethod(
+      ApiConfig.resendVerificationMethod,
+      data: {'email': email.trim()},
+    );
+  }
+
+  Future<Map<String, dynamic>> verifyRegistration({required String token}) {
+    return _frappeClient.getMethod(
+      ApiConfig.verifyRegistrationMethod,
+      queryParameters: {'token': token},
+    );
+  }
+
+  Future<Map<String, dynamic>> suggestUsername({
+    required String fullName,
+    required String email,
+  }) {
+    return _frappeClient.getMethod(
+      ApiConfig.suggestUsernameMethod,
+      queryParameters: {'full_name': fullName, 'email': email},
+    );
+  }
+
+  Future<Map<String, dynamic>> checkUsernameAvailability({
+    required String username,
+  }) {
+    return _frappeClient.getMethod(
+      ApiConfig.checkUsernameAvailabilityMethod,
+      queryParameters: {'username': username},
+    );
   }
 
   Future<Map<String, dynamic>> validateReferralCode({
@@ -282,5 +318,29 @@ class AuthRepository {
   String get _platformName {
     if (kIsWeb) return 'web';
     return defaultTargetPlatform.name.toLowerCase();
+  }
+
+  Future<Map<String, dynamic>> requestPasswordReset({
+    required String identifier,
+  }) {
+    return _frappeClient.postMethod(
+      ApiConfig.requestPasswordResetMethod,
+      data: {'identifier': identifier.trim()},
+    );
+  }
+
+  Future<Map<String, dynamic>> resetPassword({
+    required String token,
+    required String newPassword,
+    required String confirmPassword,
+  }) {
+    return _frappeClient.postMethod(
+      ApiConfig.resetPasswordMethod,
+      data: {
+        'token': token,
+        'new_password': newPassword,
+        'confirm_password': confirmPassword,
+      },
+    );
   }
 }

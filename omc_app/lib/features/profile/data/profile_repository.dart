@@ -117,26 +117,19 @@ class ProfileRepository {
     }
   }
 
-  Future<bool> requestProfileUpdate(Map<String, dynamic> payload) async {
+  Future<bool> saveProfileDetails(Map<String, dynamic> payload) async {
     if (payload.isEmpty) return false;
 
-    await _frappeClient.postMethod(
+    final response = await _frappeClient.postMethod(
       ApiConfig.updateProfileMethod,
       data: payload,
     );
-
-    return true;
-  }
-
-  Future<bool> requestContactUpdate(Map<String, dynamic> payload) async {
-    if (payload.isEmpty) return false;
-
-    await _frappeClient.postMethod(
-      ApiConfig.updateContactMethod,
-      data: payload,
-    );
-
-    return true;
+    final raw = response['message'];
+    final data = raw is Map<String, dynamic> ? raw : response;
+    final updated = data['updated'];
+    return updated == true ||
+        updated == 1 ||
+        updated?.toString().toLowerCase() == 'true';
   }
 
   ProfileSummary? _mapProfileResponse(

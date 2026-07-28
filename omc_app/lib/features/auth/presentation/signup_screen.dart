@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/auth_repository.dart';
 import 'auth_entry_widgets.dart';
+import 'signup_steps.dart';
 
 typedef SignupSubmit =
     Future<Map<String, dynamic>> Function(Map<String, dynamic> data);
@@ -26,14 +26,14 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  static const List<String> _roles = [
+  static const roles = <String>[
     'Customer',
     'Consultant',
     'Business Partner',
     'Tax Associate',
   ];
 
-  static const List<String> _acquisitionSources = [
+  static const acquisitionSources = <String>[
     'Referral',
     'Website',
     'Social Media',
@@ -43,12 +43,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     'Other',
   ];
 
-  final _accountFormKey = GlobalKey<FormState>();
-  final _verificationFormKey = GlobalKey<FormState>();
+  final _roleFormKey = GlobalKey<FormState>();
+  final _detailsFormKey = GlobalKey<FormState>();
+  final _preferencesFormKey = GlobalKey<FormState>();
   final _securityFormKey = GlobalKey<FormState>();
 
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _mobileController = TextEditingController();
   final _whatsappController = TextEditingController();
   final _cnicController = TextEditingController();
@@ -66,34 +68,138 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _submittedSuccessfully = false;
-  bool _whatsappSameAsMobile = false;
+  bool _whatsappSameAsMobile = true;
+  bool _referralExpanded = false;
   bool _referralAssistanceConsent = false;
   bool _isValidatingReferral = false;
+  bool _isCheckingUsername = false;
+  bool _usernameEdited = false;
+  bool? _usernameAvailable;
+  String? _usernameMessage;
   int _step = 0;
-  String _selectedRole = _roles.first;
+  String _selectedRole = roles.first;
   String? _selectedAcquisitionSource;
   String? _referralValidationMessage;
   bool? _referralCodeValid;
   String? _submitError;
+  String _submittedEmail = '';
 
   bool get _isCustomer => _selectedRole == 'Customer';
 
   @override
   void dispose() {
-    _fullNameController.dispose();
-    _emailController.dispose();
-    _mobileController.dispose();
-    _whatsappController.dispose();
-    _cnicController.dispose();
-    _addressController.dispose();
-    _educationController.dispose();
-    _experienceController.dispose();
-    _remarksController.dispose();
-    _referralCodeController.dispose();
-    _acquisitionSourceDetailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
+    for (final controller in <TextEditingController>[
+      _fullNameController,
+      _emailController,
+      _usernameController,
+      _mobileController,
+      _whatsappController,
+      _cnicController,
+      _addressController,
+      _educationController,
+      _experienceController,
+      _remarksController,
+      _referralCodeController,
+      _acquisitionSourceDetailController,
+      _passwordController,
+      _confirmPasswordController,
+    ]) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  String _normalizeUsername(String value) {
+    var normalized = value.trim().toLowerCase();
+    normalized = normalized.replaceAll(RegExp(r'[^a-z0-9._]+'), '.');
+    normalized = normalized.replaceAll(RegExp(r'[._]{2,}'), '.');
+    normalized = normalized.replaceAll(RegExp(r'^[._]+|[._]+$'), '');
+    return normalized;
+  }
+
+  String? _usernameValidator(String? value) {
+    final username = _normalizeUsername(value ?? '');
+    if (username.isEmpty) {
+      return 'Username is required.';
+    }
+    if (username.length < 4 || username.length > 30) {
+      return 'Use 4–30 characters.';
+    }
+    if (!RegExp(r'^[a-z0-9][a-z0-9._]*[a-z0-9]$').hasMatch(username)) {
+      return 'Use lowercase letters, numbers, dots or underscores.';
+    }
+    if (_usernameAvailable == false) {
+      return 'Choose another username.';
+    }
+    return null;
+  }
+
+  Future<void> _suggestUsername() async {
+    if (_usernameEdited || _fullNameController.text.trim().isEmpty) {
+      return;
+    }
+    try {
+      final response = await ref
+          .read(authRepositoryProvider)
+          .suggestUsername(
+            fullName: _fullNameController.text.trim(),
+            email: _emailController.text.trim(),
+          );
+      final message = response['message'];
+      final data = message is Map<String, dynamic> ? message : response;
+      final suggestion = data['username']?.toString().trim() ?? '';
+      if (!mounted || suggestion.isEmpty || _usernameEdited) {
+        return;
+      }
+      setState(() {
+        _usernameController.text = suggestion;
+        _usernameAvailable = data['available'] == true;
+        _usernameMessage = 'Username available.';
+      });
+    } catch (_) {}
+  }
+
+  Future<bool> _checkUsernameAvailability() async {
+    final username = _normalizeUsername(_usernameController.text);
+    _usernameController.text = username;
+    if (_usernameValidator(username) != null && username.length < 4) {
+      return false;
+    }
+    setState(() {
+      _isCheckingUsername = true;
+      _usernameMessage = null;
+    });
+    try {
+      final response = await ref
+          .read(authRepositoryProvider)
+          .checkUsernameAvailability(username: username);
+      final message = response['message'];
+      final data = message is Map<String, dynamic> ? message : response;
+      final available = data['available'] == true || data['available'] == 1;
+      if (!mounted) {
+        return false;
+      }
+      setState(() {
+        _usernameAvailable = available;
+        _usernameMessage = available
+            ? 'Username available.'
+            : 'Username already taken.';
+      });
+      return available;
+    } catch (error) {
+      if (!mounted) {
+        return false;
+      }
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Username not checked',
+        fallbackMessage: 'Could not check username right now.',
+      );
+      setState(() => _usernameMessage = failure.message);
+      return false;
+    } finally {
+      if (mounted) setState(() => _isCheckingUsername = false);
+    }
   }
 
   Future<bool> _validateReferralBeforeSubmit() async {
@@ -105,7 +211,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       ' ',
       '',
     );
-
     if (code.isEmpty) {
       setState(() {
         _referralCodeValid = false;
@@ -113,7 +218,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       });
       return false;
     }
-
     if (!_referralAssistanceConsent) {
       setState(() {
         _referralCodeValid = false;
@@ -126,21 +230,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _isValidatingReferral = true;
       _referralValidationMessage = null;
     });
-
     try {
       final response = await ref
           .read(authRepositoryProvider)
           .validateReferralCode(referralCode: code);
-
       final message = response['message'];
       final data = message is Map<String, dynamic> ? message : response;
       final valid =
           data['valid'] == true ||
           data['valid'] == 1 ||
           data['valid']?.toString().toLowerCase() == 'true';
-
-      if (!mounted) return false;
-
+      if (!mounted) {
+        return false;
+      }
       setState(() {
         _referralCodeValid = valid;
         _referralValidationMessage = valid
@@ -151,10 +253,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           _referralCodeController.text = normalized;
         }
       });
-
       return valid;
     } catch (error) {
-      if (!mounted) return false;
+      if (!mounted) {
+        return false;
+      }
       final failure = AppFailureClassifier.classify(
         error,
         fallbackTitle: 'Referral not verified',
@@ -167,27 +270,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       });
       return false;
     } finally {
-      if (mounted) {
-        setState(() {
-          _isValidatingReferral = false;
-        });
-      }
+      if (mounted) setState(() => _isValidatingReferral = false);
     }
   }
 
   Future<void> _submit() async {
-    if (_isSubmitting || _submittedSuccessfully) return;
-
-    // Earlier steps are validated before navigation. Only the security form is
-    // mounted on the final step, so revalidating unmounted forms would always
-    // stop submission before the repository call.
+    if (_isSubmitting || _submittedSuccessfully) {
+      return;
+    }
     if (!(_securityFormKey.currentState?.validate() ?? false)) {
       return;
     }
-
     if (!_acceptedTerms) {
       setState(() {
-        _step = 2;
         _submitError =
             'Please accept the terms and review process before creating an account.';
       });
@@ -195,11 +290,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
 
     FocusScope.of(context).unfocus();
-
     if (!await _validateReferralBeforeSubmit()) {
       if (mounted) {
         setState(() {
-          _step = 1;
+          _step = 2;
+          _referralExpanded = true;
           _submitError =
               _referralValidationMessage ?? 'Referral validation failed.';
         });
@@ -211,16 +306,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _isSubmitting = true;
       _submitError = null;
     });
-
     try {
       await ref.read(signupSubmitProvider)({
         'full_name': _fullNameController.text.trim(),
         'first_name': _firstNameFromFullName(_fullNameController.text),
         'last_name': _lastNameFromFullName(_fullNameController.text),
         'email': _emailController.text.trim(),
+        'username': _normalizeUsername(_usernameController.text),
         'phone': _toPakistanPhoneNumber(_mobileController.text),
         'mobile': _toPakistanPhoneNumber(_mobileController.text),
-        'whatsapp_no': _toPakistanPhoneNumber(_whatsappController.text),
+        'whatsapp_no': _toPakistanPhoneNumber(
+          _whatsappSameAsMobile
+              ? _mobileController.text
+              : _whatsappController.text,
+        ),
         'cnic': _normalizeCnic(_cnicController.text),
         'customer_type': _selectedRole,
         'register_as': _selectedRole,
@@ -246,1007 +345,316 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           'remarks': _remarksController.text.trim(),
         },
       });
-
-      if (!mounted) return;
-
-      setState(() {
-        _submittedSuccessfully = true;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      final failure = AppFailureClassifier.classify(
-        error,
-        fallbackTitle: 'Account not created',
-        fallbackMessage:
-            'Unable to create account right now. Your entered information was retained.',
-      );
-      setState(() {
-        _submitError = failure.message;
-      });
-    } finally {
       if (mounted) {
         setState(() {
-          _isSubmitting = false;
+          _submittedEmail = _emailController.text.trim();
+          _submittedSuccessfully = true;
         });
       }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Registration not started',
+        fallbackMessage:
+            'Unable to start email verification right now. Your entered information was retained.',
+      );
+      setState(() => _submitError = failure.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  void _nextStep() {
-    final key = switch (_step) {
-      0 => _accountFormKey,
-      1 => _verificationFormKey,
-      _ => _securityFormKey,
-    };
-
-    if (!(key.currentState?.validate() ?? false)) return;
+  Future<void> _nextStep() async {
+    final key = <GlobalKey<FormState>>[
+      _roleFormKey,
+      _detailsFormKey,
+      _preferencesFormKey,
+      _securityFormKey,
+    ][_step];
+    if (!(key.currentState?.validate() ?? false)) {
+      return;
+    }
+    if (_step == 1 && !await _checkUsernameAvailability()) {
+      return;
+    }
     setState(() {
       _submitError = null;
-      _step = (_step + 1).clamp(0, 2);
+      _step = (_step + 1).clamp(0, 3);
+    });
+  }
+
+  void _previousStep() {
+    setState(() {
+      _submitError = null;
+      _step = (_step - 1).clamp(0, 3);
     });
   }
 
   String _firstNameFromFullName(String value) {
     final parts = value.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return value.trim();
-    return parts.first;
+    return parts.isEmpty || parts.first.isEmpty ? value.trim() : parts.first;
   }
 
   String _lastNameFromFullName(String value) {
     final parts = value.trim().split(RegExp(r'\s+'));
-    if (parts.length <= 1) return '';
-    return parts.skip(1).join(' ');
+    return parts.length <= 1 ? '' : parts.skip(1).join(' ');
   }
 
-  String _normalizeCnic(String value) {
-    return value.replaceAll(RegExp(r'\D'), '');
-  }
+  String _normalizeCnic(String value) => value.replaceAll(RegExp(r'\D'), '');
 
   String _toPakistanPhoneNumber(String value) {
     var digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.startsWith('92')) {
-      digits = digits.substring(2);
-    }
-    if (digits.startsWith('0')) {
-      digits = digits.substring(1);
-    }
+    if (digits.startsWith('92')) digits = digits.substring(2);
+    if (digits.startsWith('0')) digits = digits.substring(1);
     return '+92$digits';
   }
 
-  String? _pakistanPhoneValidator(String? value, String label) {
-    final requiredMessage = _required(value, label);
-    if (requiredMessage != null) return requiredMessage;
-
-    var digits = value!.replaceAll(RegExp(r'\D'), '');
-    if (digits.startsWith('92')) {
-      digits = digits.substring(2);
-    }
-    if (digits.startsWith('0')) {
-      digits = digits.substring(1);
-    }
-
-    if (digits.length != 10) {
-      return 'Invalid number.';
-    }
-    if (!digits.startsWith('3')) {
-      return 'Invalid number.';
-    }
-
-    return null;
-  }
-
   String? _required(String? value, String label) {
-    if (value == null || value.trim().isEmpty) {
-      return '$label is required.';
-    }
-    return null;
+    return value == null || value.trim().isEmpty ? '$label is required.' : null;
   }
 
   String? _emailValidator(String? value) {
-    final requiredMessage = _required(value, 'Email');
-    if (requiredMessage != null) return requiredMessage;
-
-    final email = value!.trim();
-    final isValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
-    if (!isValid) {
-      return 'Invalid email address.';
+    final required = _required(value, 'Email');
+    if (required != null) {
+      return required;
     }
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value!.trim())
+        ? null
+        : 'Invalid email address.';
+  }
 
-    return null;
+  String? _pakistanPhoneValidator(String? value, String label) {
+    final required = _required(value, label);
+    if (required != null) {
+      return required;
+    }
+    var digits = value!.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('92')) digits = digits.substring(2);
+    if (digits.startsWith('0')) digits = digits.substring(1);
+    return digits.length == 10 && digits.startsWith('3')
+        ? null
+        : 'Invalid number.';
   }
 
   String? _cnicValidator(String? value) {
-    final requiredMessage = _required(value, 'CNIC');
-    if (requiredMessage != null) return requiredMessage;
-
-    final digits = value!.replaceAll(RegExp(r'\D'), '');
-    if (digits.length != 13) {
-      return 'CNIC must be exactly 13 digits.';
+    final required = _required(value, 'CNIC');
+    if (required != null) {
+      return required;
     }
-
-    return null;
+    return value!.replaceAll(RegExp(r'\D'), '').length == 13
+        ? null
+        : 'CNIC must be exactly 13 digits.';
   }
 
   String? _passwordValidator(String? value) {
-    final requiredMessage = _required(value, 'Password');
-    if (requiredMessage != null) return requiredMessage;
-
-    if (value!.length < 8) {
-      return 'Password must be at least 8 characters.';
+    final required = _required(value, 'Password');
+    if (required != null) {
+      return required;
     }
-
-    return null;
+    return value!.length >= 8
+        ? null
+        : 'Password must be at least 8 characters.';
   }
 
   @override
   Widget build(BuildContext context) {
     if (_submittedSuccessfully) {
-      return _SignupSuccessScreen(isCustomer: _isCustomer);
+      return PendingRegistrationSuccessScreen(email: _submittedEmail);
     }
 
     return AuthEntryScaffold(
-      title: 'Create your OMC account',
-      subtitle: _isCustomer
-          ? 'Create your customer account and start using OMC services.'
-          : 'Choose your role, submit details, and OMC will review access before protected services open.',
+      title: 'Create your account',
+      subtitle: 'A focused four-step setup for your OMC access.',
       leading: IconButton(
-        tooltip: 'Back to login',
-        onPressed: _isSubmitting ? null : () => context.go('/login'),
+        tooltip: _step == 0 ? 'Back to login' : 'Previous step',
+        onPressed: _isSubmitting
+            ? null
+            : _step == 0
+            ? () => context.go('/login')
+            : _previousStep,
         icon: const Icon(Icons.arrow_back_rounded),
       ),
-      footer: _LoginFooter(isSubmitting: _isSubmitting),
+      footer: SignupLoginFooter(isSubmitting: _isSubmitting),
       child: PremiumCard(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+        padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _SignupStepper(step: _step),
-            const SizedBox(height: 22),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              child: KeyedSubtree(
-                key: ValueKey(_step),
-                child: switch (_step) {
-                  0 => _AccountStep(
-                    formKey: _accountFormKey,
-                    roles: _roles,
-                    selectedRole: _selectedRole,
-                    onRoleChanged: (role) {
-                      setState(() {
-                        _selectedRole = role;
-                        _submitError = null;
-                        if (role != 'Customer') {
-                          _selectedAcquisitionSource = null;
-                          _acquisitionSourceDetailController.clear();
-                          _referralCodeController.clear();
-                          _referralAssistanceConsent = false;
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: SignupProgress(step: _step),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: KeyedSubtree(
+                  key: ValueKey(_step),
+                  child: switch (_step) {
+                    0 => SignupRoleStep(
+                      formKey: _roleFormKey,
+                      roles: roles,
+                      selectedRole: _selectedRole,
+                      onRoleChanged: (role) {
+                        setState(() {
+                          _selectedRole = role;
+                          _submitError = null;
+                          if (role != 'Customer') {
+                            _selectedAcquisitionSource = null;
+                            _acquisitionSourceDetailController.clear();
+                            _referralCodeController.clear();
+                            _referralAssistanceConsent = false;
+                            _referralExpanded = false;
+                            _referralValidationMessage = null;
+                            _referralCodeValid = null;
+                          }
+                        });
+                      },
+                    ),
+                    1 => SignupDetailsStep(
+                      formKey: _detailsFormKey,
+                      selectedRole: _selectedRole,
+                      fullNameController: _fullNameController,
+                      emailController: _emailController,
+                      usernameController: _usernameController,
+                      usernameAvailable: _usernameAvailable,
+                      usernameMessage: _usernameMessage,
+                      isCheckingUsername: _isCheckingUsername,
+                      onUsernameChanged: (value) {
+                        _usernameEdited = true;
+                        final normalized = _normalizeUsername(value);
+                        if (normalized != value) {
+                          _usernameController.value = TextEditingValue(
+                            text: normalized,
+                            selection: TextSelection.collapsed(
+                              offset: normalized.length,
+                            ),
+                          );
+                        }
+                        setState(() {
+                          _usernameAvailable = null;
+                          _usernameMessage = null;
+                        });
+                      },
+                      onSuggestUsername: _suggestUsername,
+                      onCheckUsername: _checkUsernameAvailability,
+                      usernameValidator: _usernameValidator,
+                      mobileController: _mobileController,
+                      whatsappController: _whatsappController,
+                      cnicController: _cnicController,
+                      addressController: _addressController,
+                      educationController: _educationController,
+                      experienceController: _experienceController,
+                      remarksController: _remarksController,
+                      whatsappSameAsMobile: _whatsappSameAsMobile,
+                      onWhatsappSameAsMobileChanged: (value) {
+                        setState(() {
+                          _whatsappSameAsMobile = value;
+                          if (value) {
+                            _whatsappController.text = _mobileController.text;
+                          }
+                        });
+                      },
+                      onMobileChanged: (value) {
+                        if (_whatsappSameAsMobile) {
+                          _whatsappController.text = value;
+                        }
+                      },
+                      requiredValidator: _required,
+                      emailValidator: _emailValidator,
+                      phoneValidator: _pakistanPhoneValidator,
+                      cnicValidator: _cnicValidator,
+                    ),
+                    2 => SignupPreferencesStep(
+                      formKey: _preferencesFormKey,
+                      isCustomer: _isCustomer,
+                      acquisitionSources: acquisitionSources,
+                      selectedAcquisitionSource: _selectedAcquisitionSource,
+                      onAcquisitionSourceChanged: (source) {
+                        setState(() {
+                          _selectedAcquisitionSource = source;
+                          _referralExpanded = source == 'Referral';
                           _referralValidationMessage = null;
                           _referralCodeValid = null;
-                        }
-                      });
-                    },
-                    fullNameController: _fullNameController,
-                    emailController: _emailController,
-                    mobileController: _mobileController,
-                    whatsappController: _whatsappController,
-                    whatsappSameAsMobile: _whatsappSameAsMobile,
-                    onWhatsappSameAsMobileChanged: (value) {
-                      setState(() {
-                        _whatsappSameAsMobile = value;
-                        if (value) {
-                          _whatsappController.text = _mobileController.text;
-                        }
-                      });
-                    },
-                    onMobileChanged: (value) {
-                      if (_whatsappSameAsMobile) {
-                        _whatsappController.text = value;
-                      }
-                    },
-                    requiredValidator: _required,
-                    emailValidator: _emailValidator,
-                    phoneValidator: _pakistanPhoneValidator,
-                  ),
-                  1 => _VerificationStep(
-                    formKey: _verificationFormKey,
-                    selectedRole: _selectedRole,
-                    cnicController: _cnicController,
-                    addressController: _addressController,
-                    educationController: _educationController,
-                    experienceController: _experienceController,
-                    remarksController: _remarksController,
-                    acquisitionSources: _acquisitionSources,
-                    selectedAcquisitionSource: _selectedAcquisitionSource,
-                    onAcquisitionSourceChanged: (source) {
-                      setState(() {
-                        _selectedAcquisitionSource = source;
-                        _referralValidationMessage = null;
-                        _referralCodeValid = null;
-                        if (source != 'Referral') {
-                          _referralAssistanceConsent = false;
-                          _referralCodeController.clear();
-                        }
-                        if (source != 'Other') {
-                          _acquisitionSourceDetailController.clear();
-                        }
-                      });
-                    },
-                    referralCodeController: _referralCodeController,
-                    acquisitionSourceDetailController:
-                        _acquisitionSourceDetailController,
-                    referralAssistanceConsent: _referralAssistanceConsent,
-                    onReferralConsentChanged: (value) {
-                      setState(() {
-                        _referralAssistanceConsent = value;
-                        _referralValidationMessage = null;
-                        _referralCodeValid = null;
-                      });
-                    },
-                    referralCodeValid: _referralCodeValid,
-                    referralValidationMessage: _referralValidationMessage,
-                    isValidatingReferral: _isValidatingReferral,
-                    onValidateReferral: _validateReferralBeforeSubmit,
-                    requiredValidator: _required,
-                    cnicValidator: _cnicValidator,
-                  ),
-                  _ => _SecurityStep(
-                    formKey: _securityFormKey,
-                    isCustomer: _isCustomer,
-                    passwordController: _passwordController,
-                    confirmPasswordController: _confirmPasswordController,
-                    obscurePassword: _obscurePassword,
-                    obscureConfirmPassword: _obscureConfirmPassword,
-                    acceptedTerms: _acceptedTerms,
-                    onTogglePassword: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                    onToggleConfirmPassword: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
-                    onTermsChanged: _isSubmitting
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _acceptedTerms = value ?? false;
-                            });
-                          },
-                    requiredValidator: _required,
-                    passwordValidator: _passwordValidator,
-                  ),
-                },
-              ),
-            ),
-            if (_submitError != null && _submitError!.trim().isNotEmpty) ...[
-              const SizedBox(height: 16),
-              AuthErrorBanner(message: _submitError!),
-            ],
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                if (_step > 0) ...[
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isSubmitting
-                          ? null
-                          : () {
-                              setState(() {
-                                _submitError = null;
-                                _step = (_step - 1).clamp(0, 2);
-                              });
-                            },
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      label: const Text('Back'),
+                          if (source != 'Referral') {
+                            _referralAssistanceConsent = false;
+                            _referralCodeController.clear();
+                          }
+                          if (source != 'Other') {
+                            _acquisitionSourceDetailController.clear();
+                          }
+                        });
+                      },
+                      referralExpanded: _referralExpanded,
+                      onReferralExpandedChanged: (expanded) {
+                        setState(() {
+                          _referralExpanded = expanded;
+                          if (expanded) {
+                            _selectedAcquisitionSource = 'Referral';
+                          } else if (_selectedAcquisitionSource == 'Referral') {
+                            _selectedAcquisitionSource = null;
+                            _referralCodeController.clear();
+                            _referralAssistanceConsent = false;
+                            _referralValidationMessage = null;
+                            _referralCodeValid = null;
+                          }
+                        });
+                      },
+                      referralCodeController: _referralCodeController,
+                      acquisitionSourceDetailController:
+                          _acquisitionSourceDetailController,
+                      referralAssistanceConsent: _referralAssistanceConsent,
+                      onReferralConsentChanged: (value) {
+                        setState(() {
+                          _referralAssistanceConsent = value;
+                          _referralValidationMessage = null;
+                          _referralCodeValid = null;
+                        });
+                      },
+                      referralCodeValid: _referralCodeValid,
+                      referralValidationMessage: _referralValidationMessage,
+                      isValidatingReferral: _isValidatingReferral,
+                      onValidateReferral: _validateReferralBeforeSubmit,
+                      requiredValidator: _required,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  flex: 2,
-                  child: AppButton(
-                    label: _step == 2 ? 'Create account' : 'Continue',
-                    icon: _step == 2
-                        ? Icons.person_add_alt_1_rounded
-                        : Icons.arrow_forward_rounded,
-                    isLoading: _isSubmitting,
-                    onPressed: _isSubmitting
-                        ? null
-                        : _step == 2
-                        ? _submit
-                        : _nextStep,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AccountStep extends StatelessWidget {
-  const _AccountStep({
-    required this.formKey,
-    required this.roles,
-    required this.selectedRole,
-    required this.onRoleChanged,
-    required this.fullNameController,
-    required this.emailController,
-    required this.mobileController,
-    required this.whatsappController,
-    required this.whatsappSameAsMobile,
-    required this.onWhatsappSameAsMobileChanged,
-    required this.onMobileChanged,
-    required this.requiredValidator,
-    required this.emailValidator,
-    required this.phoneValidator,
-  });
-
-  final GlobalKey<FormState> formKey;
-  final List<String> roles;
-  final String selectedRole;
-  final ValueChanged<String> onRoleChanged;
-  final TextEditingController fullNameController;
-  final TextEditingController emailController;
-  final TextEditingController mobileController;
-  final TextEditingController whatsappController;
-  final bool whatsappSameAsMobile;
-  final ValueChanged<bool> onWhatsappSameAsMobileChanged;
-  final ValueChanged<String> onMobileChanged;
-  final String? Function(String?, String) requiredValidator;
-  final String? Function(String?) emailValidator;
-  final String? Function(String?, String) phoneValidator;
-
-  @override
-  Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _StepTitle(
-            title: 'Account type',
-            subtitle: 'Select how you want to use OMC.',
-          ),
-          const SizedBox(height: 14),
-          for (final role in roles) ...[
-            _RoleCard(
-              role: role,
-              selected: selectedRole == role,
-              onTap: () => onRoleChanged(role),
-            ),
-            const SizedBox(height: 10),
-          ],
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: fullNameController,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.name],
-            decoration: const InputDecoration(
-              labelText: 'Full name',
-              prefixIcon: Icon(Icons.badge_outlined),
-            ),
-            validator: (value) => requiredValidator(value, 'Full name'),
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: emailController,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.email],
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email_outlined),
-            ),
-            validator: emailValidator,
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: mobileController,
-            keyboardType: TextInputType.phone,
-            onChanged: onMobileChanged,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.telephoneNumber],
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            maxLength: 10,
-            decoration: const InputDecoration(
-              labelText: 'Mobile number',
-              hintText: '300 1234567',
-              counterText: '',
-              prefixIcon: Icon(Icons.phone_outlined),
-              prefixText: '+92 ',
-            ),
-            validator: (value) => phoneValidator(value, 'Mobile number'),
-          ),
-          const SizedBox(height: 14),
-          CheckboxListTile(
-            value: whatsappSameAsMobile,
-            onChanged: (value) => onWhatsappSameAsMobileChanged(value ?? false),
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            dense: true,
-            title: const Text(
-              'WhatsApp number is same as mobile',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: whatsappController,
-            enabled: !whatsappSameAsMobile,
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.done,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            maxLength: 10,
-            decoration: const InputDecoration(
-              labelText: 'WhatsApp number',
-              hintText: '300 1234567',
-              counterText: '',
-              prefixIcon: Icon(Icons.chat_outlined),
-              prefixText: '+92 ',
-            ),
-            validator: (value) => phoneValidator(value, 'WhatsApp number'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VerificationStep extends StatelessWidget {
-  const _VerificationStep({
-    required this.formKey,
-    required this.selectedRole,
-    required this.cnicController,
-    required this.addressController,
-    required this.educationController,
-    required this.experienceController,
-    required this.remarksController,
-    required this.acquisitionSources,
-    required this.selectedAcquisitionSource,
-    required this.onAcquisitionSourceChanged,
-    required this.referralCodeController,
-    required this.acquisitionSourceDetailController,
-    required this.referralAssistanceConsent,
-    required this.onReferralConsentChanged,
-    required this.referralCodeValid,
-    required this.referralValidationMessage,
-    required this.isValidatingReferral,
-    required this.onValidateReferral,
-    required this.requiredValidator,
-    required this.cnicValidator,
-  });
-
-  final GlobalKey<FormState> formKey;
-  final String selectedRole;
-  final TextEditingController cnicController;
-  final TextEditingController addressController;
-  final TextEditingController educationController;
-  final TextEditingController experienceController;
-  final TextEditingController remarksController;
-  final List<String> acquisitionSources;
-  final String? selectedAcquisitionSource;
-  final ValueChanged<String?> onAcquisitionSourceChanged;
-  final TextEditingController referralCodeController;
-  final TextEditingController acquisitionSourceDetailController;
-  final bool referralAssistanceConsent;
-  final ValueChanged<bool> onReferralConsentChanged;
-  final bool? referralCodeValid;
-  final String? referralValidationMessage;
-  final bool isValidatingReferral;
-  final Future<bool> Function() onValidateReferral;
-  final String? Function(String?, String) requiredValidator;
-  final String? Function(String?) cnicValidator;
-
-  @override
-  Widget build(BuildContext context) {
-    final isTaxAssociate = selectedRole == 'Tax Associate';
-
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _StepTitle(
-            title: 'Verification details',
-            subtitle: 'These details help OMC verify your profile.',
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: cnicController,
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.next,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9-]')),
-              LengthLimitingTextInputFormatter(15),
-            ],
-            decoration: const InputDecoration(
-              labelText: 'CNIC',
-              prefixIcon: Icon(Icons.credit_card_outlined),
-            ),
-            validator: cnicValidator,
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: addressController,
-            textInputAction: TextInputAction.next,
-            minLines: 1,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Address',
-              prefixIcon: Icon(Icons.location_on_outlined),
-            ),
-            validator: (value) => requiredValidator(value, 'Address'),
-          ),
-          const SizedBox(height: 18),
-          if (selectedRole == 'Customer') ...[
-            const _StepTitle(
-              title: 'How did you hear about OMC?',
-              subtitle: 'This helps OMC understand which channels are working.',
-            ),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              initialValue: selectedAcquisitionSource,
-              decoration: const InputDecoration(
-                labelText: 'Source',
-                prefixIcon: Icon(Icons.campaign_outlined),
-              ),
-              items: acquisitionSources
-                  .map(
-                    (source) => DropdownMenuItem<String>(
-                      value: source,
-                      child: Text(source),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: onAcquisitionSourceChanged,
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Please select a source.'
-                  : null,
-            ),
-            if (selectedAcquisitionSource == 'Other') ...[
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: acquisitionSourceDetailController,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Please specify',
-                  prefixIcon: Icon(Icons.edit_note_outlined),
-                ),
-                validator: (value) =>
-                    requiredValidator(value, 'Source details'),
-              ),
-            ],
-            if (selectedAcquisitionSource == 'Referral') ...[
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: referralCodeController,
-                textCapitalization: TextCapitalization.characters,
-                textInputAction: TextInputAction.next,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 -]')),
-                  LengthLimitingTextInputFormatter(12),
-                ],
-                onChanged: (value) {
-                  final normalized = value.toUpperCase().replaceAll(' ', '');
-                  if (normalized != value) {
-                    referralCodeController.value = TextEditingValue(
-                      text: normalized,
-                      selection: TextSelection.collapsed(
-                        offset: normalized.length,
+                    _ => SignupSecurityStep(
+                      formKey: _securityFormKey,
+                      isCustomer: _isCustomer,
+                      passwordController: _passwordController,
+                      confirmPasswordController: _confirmPasswordController,
+                      obscurePassword: _obscurePassword,
+                      obscureConfirmPassword: _obscureConfirmPassword,
+                      acceptedTerms: _acceptedTerms,
+                      onTogglePassword: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                      onToggleConfirmPassword: () => setState(
+                        () =>
+                            _obscureConfirmPassword = !_obscureConfirmPassword,
                       ),
-                    );
-                  }
-                },
-                decoration: InputDecoration(
-                  labelText: 'Referral code',
-                  hintText: 'OMC-XXXXXX',
-                  prefixIcon: const Icon(Icons.confirmation_number_outlined),
-                  suffixIcon: isValidatingReferral
-                      ? const Padding(
-                          padding: EdgeInsets.all(14),
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : IconButton(
-                          tooltip: 'Verify referral code',
-                          onPressed: () => onValidateReferral(),
-                          icon: const Icon(Icons.verified_outlined),
-                        ),
-                ),
-                validator: (value) => requiredValidator(value, 'Referral code'),
-              ),
-              if (referralValidationMessage != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  referralValidationMessage!,
-                  style: TextStyle(
-                    color: referralCodeValid == true
-                        ? const Color(0xFF067647)
-                        : const Color(0xFFB42318),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 8),
-              Material(
-                color: const Color(0xFFF8FAFC),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: Color(0xFFE5EAF2)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: CheckboxListTile(
-                  value: referralAssistanceConsent,
-                  onChanged: (value) =>
-                      onReferralConsentChanged(value ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: const EdgeInsets.only(left: 4, right: 10),
-                  title: const Text(
-                    'I consent to the referring OMC staff member assisting with my service requests.',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12.5,
-                      height: 1.35,
-                      fontWeight: FontWeight.w800,
+                      onTermsChanged: _isSubmitting
+                          ? null
+                          : (value) =>
+                                setState(() => _acceptedTerms = value ?? false),
+                      requiredValidator: _required,
+                      passwordValidator: _passwordValidator,
                     ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-          if (isTaxAssociate) ...[
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: educationController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Education',
-                prefixIcon: Icon(Icons.school_outlined),
-              ),
-              validator: (value) => requiredValidator(value, 'Education'),
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: experienceController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Experience',
-                prefixIcon: Icon(Icons.timeline_outlined),
-              ),
-              validator: (value) => requiredValidator(value, 'Experience'),
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: remarksController,
-              textInputAction: TextInputAction.done,
-              minLines: 1,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Remarks',
-                prefixIcon: Icon(Icons.notes_outlined),
-              ),
-              validator: (value) => requiredValidator(value, 'Remarks'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SecurityStep extends StatelessWidget {
-  const _SecurityStep({
-    required this.formKey,
-    required this.isCustomer,
-    required this.passwordController,
-    required this.confirmPasswordController,
-    required this.obscurePassword,
-    required this.obscureConfirmPassword,
-    required this.acceptedTerms,
-    required this.onTogglePassword,
-    required this.onToggleConfirmPassword,
-    required this.onTermsChanged,
-    required this.requiredValidator,
-    required this.passwordValidator,
-  });
-
-  final GlobalKey<FormState> formKey;
-  final bool isCustomer;
-  final TextEditingController passwordController;
-  final TextEditingController confirmPasswordController;
-  final bool obscurePassword;
-  final bool obscureConfirmPassword;
-  final bool acceptedTerms;
-  final VoidCallback onTogglePassword;
-  final VoidCallback onToggleConfirmPassword;
-  final ValueChanged<bool?>? onTermsChanged;
-  final String? Function(String?, String) requiredValidator;
-  final String? Function(String?) passwordValidator;
-
-  @override
-  Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _StepTitle(
-            title: isCustomer ? 'Secure your account' : 'Security and review',
-            subtitle: isCustomer
-                ? 'Set a password to activate your customer account.'
-                : 'Set a password and confirm the account review process.',
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: passwordController,
-            obscureText: obscurePassword,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.newPassword],
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline_rounded),
-              suffixIcon: IconButton(
-                tooltip: obscurePassword ? 'Show password' : 'Hide password',
-                onPressed: onTogglePassword,
-                icon: Icon(
-                  obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+                  },
                 ),
               ),
             ),
-            validator: passwordValidator,
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: confirmPasswordController,
-            obscureText: obscureConfirmPassword,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.newPassword],
-            decoration: InputDecoration(
-              labelText: 'Confirm password',
-              prefixIcon: const Icon(Icons.lock_person_outlined),
-              suffixIcon: IconButton(
-                tooltip: obscureConfirmPassword
-                    ? 'Show password'
-                    : 'Hide password',
-                onPressed: onToggleConfirmPassword,
-                icon: Icon(
-                  obscureConfirmPassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
+            if (_submitError != null && _submitError!.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: AuthErrorBanner(message: _submitError!),
               ),
-            ),
-            validator: (value) {
-              final requiredMessage = requiredValidator(
-                value,
-                'Confirm password',
-              );
-              if (requiredMessage != null) return requiredMessage;
-
-              if (value != passwordController.text) {
-                return 'Passwords do not match.';
-              }
-
-              return null;
-            },
-          ),
-          const SizedBox(height: 14),
-          Material(
-            color: const Color(0xFFF8FAFC),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: const BorderSide(color: Color(0xFFE5EAF2)),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: CheckboxListTile(
-              value: acceptedTerms,
-              onChanged: onTermsChanged,
-              contentPadding: const EdgeInsets.only(left: 4, right: 10),
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(
-                isCustomer
-                    ? 'I confirm my details are correct and agree to create my OMC customer account.'
-                    : 'I confirm my details are correct and understand my account will be reviewed before protected services are enabled.',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-          if (!isCustomer) ...[
-            const SizedBox(height: 12),
-            const _ReviewNotice(),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SignupStepper extends StatelessWidget {
-  const _SignupStepper({required this.step});
-
-  final int step;
-
-  @override
-  Widget build(BuildContext context) {
-    const labels = ['Account', 'Verify', 'Secure'];
-
-    return Row(
-      children: [
-        for (var i = 0; i < labels.length; i++) ...[
-          Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: i <= step
-                    ? AppTheme.primary.withValues(alpha: i == step ? 1 : 0.10)
-                    : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                labels[i],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: i == step
-                      ? Colors.white
-                      : i < step
-                      ? AppTheme.primary
-                      : AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-          if (i != labels.length - 1) const SizedBox(width: 8),
-        ],
-      ],
-    );
-  }
-}
-
-class _StepTitle extends StatelessWidget {
-  const _StepTitle({required this.title, required this.subtitle});
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 13.5,
-            height: 1.35,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RoleCard extends StatelessWidget {
-  const _RoleCard({
-    required this.role,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String role;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = switch (role) {
-      'Consultant' => (
-        Icons.support_agent_rounded,
-        'Work with OMC service and customer workflows.',
-      ),
-      'Business Partner' => (
-        Icons.handshake_outlined,
-        'Collaborate on referrals and partner-led services.',
-      ),
-      'Tax Associate' => (
-        Icons.calculate_outlined,
-        'Submit credentials for tax associate access.',
-      ),
-      _ => (
-        Icons.person_outline_rounded,
-        'Request services and track your own account.',
-      ),
-    };
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.primary.withValues(alpha: 0.08)
-              : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected ? AppTheme.primary : const Color(0xFFE5EAF2),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: selected
-                    ? AppTheme.primary.withValues(alpha: 0.14)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(data.$1, color: AppTheme.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    role,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    data.$2,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12.5,
-                      height: 1.25,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              selected
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              color: selected ? AppTheme.primary : const Color(0xFF94A3B8),
+            SignupBottomActions(
+              step: _step,
+              isSubmitting: _isSubmitting,
+              onBack: _previousStep,
+              onContinue: _step == 3 ? _submit : _nextStep,
             ),
           ],
         ),
@@ -1255,135 +663,118 @@ class _RoleCard extends StatelessWidget {
   }
 }
 
-class _ReviewNotice extends StatelessWidget {
-  const _ReviewNotice();
+class PendingRegistrationSuccessScreen extends ConsumerStatefulWidget {
+  const PendingRegistrationSuccessScreen({required this.email, super.key});
+
+  final String email;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFED7AA)),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.schedule_rounded, color: Color(0xFFEA580C), size: 20),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Your account is under review. OMC team will verify your profile before enabling service access.',
-              style: TextStyle(
-                color: Color(0xFF9A3412),
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  ConsumerState<PendingRegistrationSuccessScreen> createState() =>
+      _PendingRegistrationSuccessScreenState();
 }
 
-class _LoginFooter extends StatelessWidget {
-  const _LoginFooter({required this.isSubmitting});
+class _PendingRegistrationSuccessScreenState
+    extends ConsumerState<PendingRegistrationSuccessScreen> {
+  bool _resending = false;
+  String? _message;
 
-  final bool isSubmitting;
+  Future<void> _resend() async {
+    if (_resending) return;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text(
-            'Already registered?',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          TextButton(
-            onPressed: isSubmitting ? null : () => context.go('/login'),
-            child: const Text('Login'),
-          ),
-        ],
-      ),
-    );
+    setState(() {
+      _resending = true;
+      _message = null;
+    });
+
+    try {
+      final response = await ref
+          .read(authRepositoryProvider)
+          .resendVerification(email: widget.email);
+      final raw = response['message'];
+      final data = raw is Map<String, dynamic> ? raw : response;
+
+      if (!mounted) return;
+
+      setState(() {
+        _message = data['message']?.toString().trim().isNotEmpty == true
+            ? data['message'].toString().trim()
+            : 'If eligible, another verification email will be sent shortly.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Email not resent',
+        fallbackMessage:
+            'The verification email could not be resent right now.',
+      );
+
+      setState(() {
+        _message = failure.message;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _resending = false;
+        });
+      }
+    }
   }
-}
-
-class _SignupSuccessScreen extends StatelessWidget {
-  const _SignupSuccessScreen({required this.isCustomer});
-
-  final bool isCustomer;
 
   @override
   Widget build(BuildContext context) {
     return AuthEntryScaffold(
-      title: isCustomer
-          ? 'Customer account created'
-          : 'Account submitted for review',
-      subtitle: isCustomer
-          ? 'Your customer account is active. You can sign in now.'
-          : 'Your account is under review. OMC team will verify your profile before enabling service access.',
+      title: 'Check your email',
+      subtitle:
+          'Your account will be created after you verify your email address.',
       child: PremiumCard(
-        padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+        padding: const EdgeInsets.all(22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              width: 76,
-              height: 76,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Icon(
-                Icons.check_circle_outline_rounded,
-                color: Color(0xFF16A34A),
-                size: 38,
-              ),
-            ),
+            const Icon(Icons.outgoing_mail, color: Color(0xFF2563EB), size: 44),
             const SizedBox(height: 18),
             Text(
-              isCustomer
-                  ? 'Your account is ready.'
-                  : 'We received your details.',
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 21,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isCustomer
-                  ? 'Sign in to request services, upload documents and track your cases.'
-                  : 'Login after approval to access protected services, documents, payments and tracking.',
+              'Open the verification link sent to ${widget.email}. The link expires in 30 minutes.',
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 14,
-                height: 1.4,
+                height: 1.45,
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (_message != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _message!,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12.5,
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
             const SizedBox(height: 22),
             AppButton(
               label: 'Go to Login',
               icon: Icons.login_rounded,
               onPressed: () => context.go('/login'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _resending ? null : _resend,
+              icon: _resending
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
+              label: Text(
+                _resending ? 'Sending...' : 'Resend verification email',
+              ),
             ),
           ],
         ),

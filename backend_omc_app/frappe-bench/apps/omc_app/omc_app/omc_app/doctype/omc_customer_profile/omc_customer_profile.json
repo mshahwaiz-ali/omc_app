@@ -12,6 +12,7 @@
   "user",
   "full_name",
   "email",
+  "username",
   "phone",
   "whatsapp_no",
   "status_section",
@@ -81,6 +82,14 @@
    "label": "Email",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "username",
+   "fieldtype": "Data",
+   "label": "Username",
+   "unique": 1,
+   "search_index": 1,
+   "description": "Normalized public login identifier. Frappe User remains email-based."
   },
   {
    "fieldname": "phone",
