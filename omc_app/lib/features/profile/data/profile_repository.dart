@@ -185,6 +185,13 @@ class ProfileRepository {
       companyName: _nullableString(
         profile['company_name'] ?? profile['company'],
       ),
+      username: _nullableString(profile['username']),
+      registerAs: _nullableString(
+        profile['register_as'] ?? profile['role'] ?? profile['account_type'],
+      ),
+      education: _nullableString(profile['education']),
+      experience: _nullableString(profile['experience']),
+      remarks: _nullableString(profile['remarks'] ?? profile['notes']),
       approvalStatus: _nullableString(profile['approval_status']),
       // Keep the backend User.user_image URL stable during ordinary reads.
       // A fresh cache-buster is only returned immediately after an upload.

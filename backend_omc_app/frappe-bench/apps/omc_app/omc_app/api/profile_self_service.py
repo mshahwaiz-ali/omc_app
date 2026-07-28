@@ -34,7 +34,15 @@ LOCKED_FIELDS = {
 }
 AUDIT_DOCTYPE = "OMC Profile Change Log"
 
-INTERNAL_ALLOWED_FIELDS = {"full_name", "phone"}
+INTERNAL_ALLOWED_FIELDS = {
+    "full_name",
+    "phone",
+    "whatsapp_no",
+    "address",
+    "education",
+    "experience",
+    "remarks",
+}
 
 
 def _current_user() -> str:
@@ -142,27 +150,63 @@ def _create_audit(
 
 
 
-def _internal_profile_payload(*, user: str, user_doc=None) -> dict:
+def _existing_profile_for_user(user: str):
+    profile_name = frappe.db.get_value(
+        "OMC Customer Profile",
+        {"linked_app_user": user},
+        "name",
+    )
+    if not profile_name:
+        profile_name = frappe.db.get_value(
+            "OMC Customer Profile",
+            {"email": user},
+            "name",
+        )
+    return frappe.get_doc("OMC Customer Profile", profile_name) if profile_name else None
+
+
+def _internal_profile_payload(*, user: str, user_doc=None, profile=None) -> dict:
     user_doc = user_doc or frappe.get_doc("User", user)
-    capabilities = mobile._get_mobile_capabilities(user=user, profile=None)
+    profile = profile or _existing_profile_for_user(user)
+    capabilities = mobile._get_mobile_capabilities(user=user, profile=profile)
+
+    def profile_value(fieldname: str) -> str:
+        if not profile or not profile.meta.has_field(fieldname):
+            return ""
+        return str(profile.get(fieldname) or "")
+
+    roles = [
+        role
+        for role in frappe.get_roles(user)
+        if role not in {"All", "Desk User", "Guest"}
+    ]
 
     return {
         "full_name": str(
-            user_doc.get("full_name") or user_doc.get("first_name") or ""
+            user_doc.get("full_name")
+            or profile_value("full_name")
+            or user_doc.get("first_name")
+            or ""
         ),
         "email": str(user_doc.get("email") or user),
-        "phone": str(user_doc.get("mobile_no") or ""),
-        "whatsapp_no": "",
-        "address": "",
-        "company_name": "",
-        "cnic": "",
-        "ntn": "",
+        "username": str(user_doc.get("username") or profile_value("username")),
+        "phone": str(user_doc.get("mobile_no") or profile_value("phone")),
+        "whatsapp_no": profile_value("whatsapp_no"),
+        "address": profile_value("address"),
+        "education": profile_value("education"),
+        "experience": profile_value("experience"),
+        "remarks": profile_value("remarks"),
+        "register_as": profile_value("register_as") or (roles[0] if roles else "Internal"),
+        "customer_type": profile_value("customer_type"),
+        "company_name": profile_value("company_name"),
+        "cnic": profile_value("cnic"),
+        "ntn": profile_value("ntn"),
         "avatar_url": str(user_doc.get("user_image") or ""),
         "profile_image": str(user_doc.get("user_image") or ""),
         "user_image": str(user_doc.get("user_image") or ""),
-        "customer_id": "",
+        "customer_id": str(profile.name if profile else ""),
         "customer_status": "Internal",
-        "approval_status": "",
+        "approval_status": profile_value("approval_status"),
         "access_state": capabilities["access_state"],
         "capabilities": capabilities,
         **capabilities,
@@ -181,6 +225,7 @@ def _update_internal_profile(*, user: str, payload: dict[str, str]):
         frappe.throw(_("User account was not found."), ValidationError)
 
     user_doc = frappe.get_doc("User", user)
+    profile = _existing_profile_for_user(user)
     changed_fields: list[str] = []
 
     if "full_name" in payload:
@@ -196,22 +241,68 @@ def _update_internal_profile(*, user: str, payload: dict[str, str]):
             user_doc.mobile_no = phone
             changed_fields.append("phone")
 
+    profile_fields = {
+        "full_name",
+        "phone",
+        "whatsapp_no",
+        "address",
+        "education",
+        "experience",
+        "remarks",
+    }
+    profile_required_fields = {
+        "whatsapp_no",
+        "address",
+        "education",
+        "experience",
+        "remarks",
+    }
+    requested_profile_fields = profile_fields.intersection(payload)
+    requested_profile_only_fields = profile_required_fields.intersection(payload)
+
+    if requested_profile_only_fields and not profile:
+        frappe.throw(
+            _("Your professional profile record was not found. Contact OMC support."),
+            ValidationError,
+        )
+
+    if profile:
+        for fieldname in requested_profile_fields:
+            if not profile.meta.has_field(fieldname):
+                continue
+            value = payload[fieldname]
+            if str(profile.get(fieldname) or "").strip() == value:
+                continue
+            profile.set(fieldname, value)
+            if fieldname not in changed_fields:
+                changed_fields.append(fieldname)
+
     if not changed_fields:
         return {
             "updated": False,
             "updated_fields": [],
             "message": "No profile details changed.",
-            "profile": _internal_profile_payload(user=user, user_doc=user_doc),
+            "profile": _internal_profile_payload(
+                user=user,
+                user_doc=user_doc,
+                profile=profile,
+            ),
         }
 
     user_doc.save(ignore_permissions=True)
+    if profile:
+        profile.save(ignore_permissions=True)
     frappe.db.commit()
 
     return {
         "updated": True,
         "updated_fields": changed_fields,
         "message": "Profile updated successfully.",
-        "profile": _internal_profile_payload(user=user, user_doc=user_doc),
+        "profile": _internal_profile_payload(
+            user=user,
+            user_doc=user_doc,
+            profile=profile,
+        ),
     }
 
 

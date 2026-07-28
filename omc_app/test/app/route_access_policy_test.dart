@@ -92,7 +92,9 @@ void main() {
       );
 
       expect(canAccessRoute('/profile', pending), isTrue);
+      expect(canAccessRoute('/profile/edit', pending), isTrue);
       expect(canAccessRoute('/settings', pending), isTrue);
+      expect(canAccessRoute('/change-password', pending), isTrue);
       expect(canAccessRoute('/tax-calculator/history', pending), isTrue);
     });
 

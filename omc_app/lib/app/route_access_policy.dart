@@ -105,7 +105,10 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
         !capabilities.canViewAllCustomers;
   }
 
-  if (location == '/profile' || location == '/settings') {
+  if (location == '/profile' ||
+      location == '/profile/edit' ||
+      location == '/settings' ||
+      location == '/change-password') {
     return !capabilities.isGuest;
   }
 

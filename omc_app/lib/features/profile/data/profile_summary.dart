@@ -11,6 +11,11 @@ class ProfileSummary {
     this.cnic,
     this.ntn,
     this.companyName,
+    this.username,
+    this.registerAs,
+    this.education,
+    this.experience,
+    this.remarks,
     this.approvalStatus,
     this.status,
     this.avatarUrl,
@@ -27,6 +32,11 @@ class ProfileSummary {
   final String? cnic;
   final String? ntn;
   final String? companyName;
+  final String? username;
+  final String? registerAs;
+  final String? education;
+  final String? experience;
+  final String? remarks;
   final String? approvalStatus;
   final String? status;
   final String? avatarUrl;

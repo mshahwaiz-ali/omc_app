@@ -84,26 +84,46 @@ class _ProfileEditorOverview extends ConsumerWidget {
                 label: 'Mobile',
                 value: _displayValue(profile.phone),
               ),
-              if (!isInternal) ...[
-                _ProfileValueRow(
-                  label: 'WhatsApp',
-                  value: _displayValue(profile.whatsappNo),
-                ),
-                _ProfileValueRow(
-                  label: 'Address',
-                  value: _displayValue(profile.address),
-                  maxLines: 2,
-                ),
-              ],
+              _ProfileValueRow(
+                label: 'WhatsApp',
+                value: _displayValue(profile.whatsappNo),
+              ),
+              _ProfileValueRow(
+                label: 'Address',
+                value: _displayValue(profile.address),
+                maxLines: 2,
+              ),
             ],
-            onEdit: () => isInternal
-                ? _openInternalContactSheet(context, ref, profile)
-                : _openContactSheet(context, ref, profile),
+            onEdit: () => _openContactSheet(context, ref, profile),
           ),
           const SizedBox(height: 14),
-          if (isInternal)
-            _InternalAccountCard(profile: profile)
-          else ...[
+          if (isInternal) ...[
+            _ProfileEditSectionCard(
+              icon: Icons.workspace_premium_outlined,
+              title: 'Professional information',
+              subtitle: 'Your qualifications and working profile.',
+              rows: [
+                _ProfileValueRow(
+                  label: 'Education',
+                  value: _displayValue(profile.education),
+                  maxLines: 2,
+                ),
+                _ProfileValueRow(
+                  label: 'Experience',
+                  value: _displayValue(profile.experience),
+                  maxLines: 3,
+                ),
+                _ProfileValueRow(
+                  label: 'Remarks',
+                  value: _displayValue(profile.remarks),
+                  maxLines: 3,
+                ),
+              ],
+              onEdit: () => _openProfessionalSheet(context, ref, profile),
+            ),
+            const SizedBox(height: 14),
+            _InternalAccountCard(profile: profile),
+          ] else ...[
             _ProfileEditSectionCard(
               icon: Icons.business_center_outlined,
               title: 'Business & tax details',
@@ -344,15 +364,35 @@ class _InternalAccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PremiumCard(
       padding: EdgeInsets.zero,
-      child: ListTile(
-        leading: const Icon(Icons.admin_panel_settings_outlined),
-        title: const Text(
-          'Account identity',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
-        subtitle: Text(profile.email),
-        trailing: const Icon(Icons.lock_outline_rounded, size: 20),
-        onTap: () => _showLockedIdentityInfo(context),
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.admin_panel_settings_outlined),
+            title: const Text(
+              'Account identity',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            subtitle: const Text('Protected staff account details'),
+            trailing: const Icon(Icons.lock_outline_rounded, size: 20),
+            onTap: () => _showLockedIdentityInfo(context),
+          ),
+          const Divider(height: 1),
+          _LockedValueTile(label: 'Email', value: profile.email),
+          const Divider(height: 1),
+          _LockedValueTile(
+            label: 'Username',
+            value: _displayValue(profile.username),
+          ),
+          const Divider(height: 1),
+          _LockedValueTile(
+            label: 'Account type',
+            value: _displayValue(profile.registerAs),
+          ),
+          if ((profile.cnic?.trim() ?? '').isNotEmpty) ...[
+            const Divider(height: 1),
+            _LockedValueTile(label: 'CNIC', value: profile.cnic!),
+          ],
+        ],
       ),
     );
   }
@@ -460,32 +500,6 @@ Future<void> _openPersonalSheet(
   controller.dispose();
 }
 
-Future<void> _openInternalContactSheet(
-  BuildContext context,
-  WidgetRef ref,
-  ProfileSummary profile,
-) async {
-  final phone = TextEditingController(text: profile.phone ?? '');
-
-  await _showEditSheet(
-    context: context,
-    ref: ref,
-    title: 'Contact information',
-    subtitle: 'Update the mobile number linked to your staff account.',
-    fields: [
-      _SheetTextField(
-        controller: phone,
-        label: 'Mobile number',
-        icon: Icons.phone_outlined,
-        keyboardType: TextInputType.phone,
-      ),
-    ],
-    payloadBuilder: () => {'phone': phone.text.trim()},
-  );
-
-  phone.dispose();
-}
-
 Future<void> _openContactSheet(
   BuildContext context,
   WidgetRef ref,
@@ -532,6 +546,58 @@ Future<void> _openContactSheet(
   phone.dispose();
   whatsapp.dispose();
   address.dispose();
+}
+
+Future<void> _openProfessionalSheet(
+  BuildContext context,
+  WidgetRef ref,
+  ProfileSummary profile,
+) async {
+  final education = TextEditingController(text: profile.education ?? '');
+  final experience = TextEditingController(text: profile.experience ?? '');
+  final remarks = TextEditingController(text: profile.remarks ?? '');
+
+  await _showEditSheet(
+    context: context,
+    ref: ref,
+    title: 'Professional information',
+    subtitle: 'Keep your qualifications and working profile up to date.',
+    fields: [
+      _SheetTextField(
+        controller: education,
+        label: 'Education',
+        icon: Icons.school_outlined,
+        textCapitalization: TextCapitalization.sentences,
+        minLines: 2,
+        maxLines: 4,
+      ),
+      _SheetTextField(
+        controller: experience,
+        label: 'Experience',
+        icon: Icons.timeline_outlined,
+        textCapitalization: TextCapitalization.sentences,
+        minLines: 2,
+        maxLines: 5,
+      ),
+      _SheetTextField(
+        controller: remarks,
+        label: 'Remarks',
+        icon: Icons.notes_outlined,
+        textCapitalization: TextCapitalization.sentences,
+        minLines: 2,
+        maxLines: 5,
+      ),
+    ],
+    payloadBuilder: () => {
+      'education': education.text.trim(),
+      'experience': experience.text.trim(),
+      'remarks': remarks.text.trim(),
+    },
+  );
+
+  education.dispose();
+  experience.dispose();
+  remarks.dispose();
 }
 
 Future<void> _openBusinessSheet(
@@ -976,13 +1042,26 @@ String _displayValue(String? value) {
 }
 
 int _profileCompletion(ProfileSummary profile) {
-  final values = [
-    profile.displayName,
-    profile.phone,
-    profile.whatsappNo,
-    profile.address,
-    profile.companyName,
-  ];
+  final isInternal =
+      profile.capabilities.canAccessInternalWorkspace ||
+      profile.capabilities.isInternal;
+  final values = isInternal
+      ? [
+          profile.displayName,
+          profile.phone,
+          profile.whatsappNo,
+          profile.address,
+          profile.education,
+          profile.experience,
+          profile.remarks,
+        ]
+      : [
+          profile.displayName,
+          profile.phone,
+          profile.whatsappNo,
+          profile.address,
+          profile.companyName,
+        ];
 
   final completed = values.where((value) {
     final clean = value?.trim() ?? '';
