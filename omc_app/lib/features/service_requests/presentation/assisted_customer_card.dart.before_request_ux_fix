@@ -37,7 +37,7 @@ class AssistedCustomerCard extends ConsumerStatefulWidget {
 }
 
 class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
-  final _customerController = TextEditingController();
+  final _searchController = TextEditingController();
   final _consentController = TextEditingController();
   final _cityController = TextEditingController();
   final _addressController = TextEditingController();
@@ -63,7 +63,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
     _consentController.removeListener(_emit);
     _cityController.removeListener(_emit);
     _addressController.removeListener(_emit);
-    _customerController.dispose();
+    _searchController.dispose();
     _consentController.dispose();
     _cityController.dispose();
     _addressController.dispose();
@@ -78,7 +78,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
     try {
       final selection = await ref
           .read(serviceRequestRepositoryProvider)
-          .getAssistedCustomerSelection(limitPageLength: 100);
+          .getAssistedCustomerSelection();
       if (!mounted) return;
       final firstMode = selection.modes.isEmpty ? null : selection.modes.first;
       setState(() {
@@ -86,7 +86,9 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
         _selectedMode = firstMode;
         _loading = false;
       });
-      if (firstMode != null) await _loadItems();
+      if (firstMode != null) {
+        await _loadItems();
+      }
     } catch (error) {
       if (!mounted) return;
       final failure = AppFailureClassifier.classify(
@@ -109,7 +111,6 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
       setState(() {
         _items = const [];
         _selectedCustomer = null;
-        _customerController.clear();
         _loading = false;
       });
       _emit();
@@ -120,7 +121,6 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
       _loading = true;
       _error = null;
       _selectedCustomer = null;
-      _customerController.clear();
     });
     widget.onChanged(null);
 
@@ -129,7 +129,7 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
           .read(serviceRequestRepositoryProvider)
           .getAssistedCustomerSelection(
             customerMode: mode,
-            limitPageLength: 100,
+            search: _searchController.text,
           );
       if (!mounted) return;
       setState(() {
@@ -178,16 +178,32 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Request customer',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+          const Row(
+            children: [
+              Icon(Icons.group_add_outlined, size: 20),
+              SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Request customer',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Choose who this request is being created for.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 3),
-          const Text(
-            'Choose who this request is being created for.',
-            style: TextStyle(fontSize: 12),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           if (_loading && _modes.isEmpty)
             const Center(child: CircularProgressIndicator())
           else if (_error != null && _modes.isEmpty) ...[
@@ -201,7 +217,6 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
           ] else ...[
             DropdownButtonFormField<String>(
               initialValue: _selectedMode,
-              isExpanded: true,
               items: _modes
                   .map(
                     (mode) => DropdownMenuItem(value: mode, child: Text(mode)),
@@ -244,44 +259,61 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
                 ),
               ),
             ] else ...[
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  return DropdownMenu<AssistedCustomerOption>(
-                    controller: _customerController,
-                    width: constraints.maxWidth,
-                    enableFilter: true,
-                    enableSearch: true,
-                    requestFocusOnTap: true,
-                    leadingIcon: const Icon(Icons.search_rounded),
-                    label: const Text('Search and select customer'),
-                    hintText: 'Type name, phone, email or customer ID',
-                    dropdownMenuEntries: _items
-                        .map(
-                          (
-                            customer,
-                          ) => DropdownMenuEntry<AssistedCustomerOption>(
-                            value: customer,
-                            label: customer.subtitle.isEmpty
-                                ? customer.fullName
-                                : '${customer.fullName} — ${customer.subtitle}',
-                          ),
-                        )
-                        .toList(growable: false),
-                    onSelected: (customer) {
-                      setState(() => _selectedCustomer = customer);
-                      _emit();
-                    },
-                  );
-                },
-              ),
-              if (_loading) ...[
-                const SizedBox(height: 8),
-                const LinearProgressIndicator(),
-              ],
-              if (_error != null) ...[const SizedBox(height: 8), Text(_error!)],
-              if (!_loading && _error == null && _items.isEmpty) ...[
-                const SizedBox(height: 8),
-                const Text('No eligible customers found.'),
+              if (_selectedCustomer != null)
+                _SelectedCustomerCard(
+                  customer: _selectedCustomer!,
+                  onChange: () {
+                    setState(() {
+                      _selectedCustomer = null;
+                      _items = const [];
+                      _error = null;
+                    });
+                    widget.onChanged(null);
+                  },
+                )
+              else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _loadItems(),
+                        decoration: const InputDecoration(
+                          labelText: 'Search and select customer',
+                          hintText: 'Name, phone, email or customer ID',
+                          prefixIcon: Icon(Icons.search_rounded),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      onPressed: _loading ? null : _loadItems,
+                      icon: const Icon(Icons.search_rounded),
+                      tooltip: 'Search',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (_loading)
+                  const LinearProgressIndicator()
+                else if (_error != null)
+                  Text(_error!)
+                else if (_items.isEmpty)
+                  const Text('No eligible customers found.')
+                else
+                  ..._items.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _CustomerSearchResult(
+                        customer: item,
+                        onTap: () {
+                          setState(() => _selectedCustomer = item);
+                          _emit();
+                        },
+                      ),
+                    ),
+                  ),
               ],
               if (_selectedMode == 'Existing Customer') ...[
                 const SizedBox(height: 10),
@@ -304,6 +336,108 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
               ],
             ],
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomerSearchResult extends StatelessWidget {
+  const _CustomerSearchResult({required this.customer, required this.onTap});
+
+  final AssistedCustomerOption customer;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.person_outline_rounded, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    customer.fullName,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  if (customer.subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      customer.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedCustomerCard extends StatelessWidget {
+  const _SelectedCustomerCard({required this.customer, required this.onChange});
+
+  final AssistedCustomerOption customer;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.person_rounded, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Selected customer',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  customer.fullName,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                if (customer.subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    customer.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          TextButton(onPressed: onChange, child: const Text('Change')),
         ],
       ),
     );

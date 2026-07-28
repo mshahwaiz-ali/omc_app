@@ -624,7 +624,7 @@ class _ReferralProfileSection extends StatelessWidget {
         return ReferralSummaryCard(
           summary: summary,
           onRefresh: () => ref.invalidate(referralSummaryProvider),
-          onViewReferrals: () => context.push('/my-referrals'),
+          onViewReferrals: () => context.push('/profile/referrals'),
         );
       },
       loading: () => const PremiumCard(

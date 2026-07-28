@@ -150,6 +150,14 @@ class ApiConfig {
       'omc_app.api.mobile.mark_notification_read';
   static const String markAllNotificationsReadMethod =
       'omc_app.api.mobile.mark_all_notifications_read';
+  static const String dismissNotificationMethod =
+      'omc_app.api.mobile.dismiss_notification';
+  static const String restoreNotificationMethod =
+      'omc_app.api.mobile.restore_notification';
+  static const String markNotificationUnreadMethod =
+      'omc_app.api.mobile.mark_notification_unread';
+  static const String unreadNotificationCountMethod =
+      'omc_app.api.mobile.get_unread_notification_count';
   static const String registerPushTokenMethod =
       'omc_app.api.mobile.register_push_token';
   static const String unregisterPushTokenMethod =

@@ -1076,32 +1076,9 @@ def _create_service_timeline_entry(
     event_type="Update",
     visible_to_customer=1,
 ):
-    event_type_aliases = {
-        "": "Update",
-        "update": "Update",
-        "request created": "Request Created",
-        "created": "Request Created",
-        "status updated": "Status Updated",
-        "status update": "Status Updated",
-        "document uploaded": "Document Uploaded",
-        "document upload": "Document Uploaded",
-        "payment updated": "Payment Updated",
-        "payment update": "Payment Updated",
-        "payment": "Payment Updated",
-        "internal note": "Internal Note",
-        "assignment": "Internal Note",
-        "assigned": "Internal Note",
-        "customer message": "Customer Message",
-        "message": "Customer Message",
-    }
-    normalized_event_type = event_type_aliases.get(
-        str(event_type or "").strip().lower(),
-        "Update",
-    )
-
     entry = frappe.new_doc("OMC Service Timeline")
     entry.service_request = service_request
-    entry.event_type = normalized_event_type
+    entry.event_type = event_type
     entry.title = title
     entry.description = description or ""
     entry.event_time = frappe.utils.now_datetime()
@@ -1175,16 +1152,6 @@ def create_service(**kwargs):
         title="Request Created",
         description="Your service request has been created successfully.",
         visible_to_customer=1,
-    )
-
-    _create_service_notification(
-        doc,
-        title="Request received",
-        message=(
-            f"Your {doc.title or doc.service_title or 'service'} request "
-            f"{doc.name} has been received. OMC will review it shortly."
-        ),
-        notification_type="Service Update",
     )
 
     frappe.db.commit()
@@ -1538,30 +1505,6 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
             visible_to_customer=1,
         )
 
-    if old_status != status:
-        status_messages = {
-            "Open": "Your service request is open and awaiting review.",
-            "In Progress": "OMC has started working on your service request.",
-            "Waiting for Customer": (
-                "OMC needs information or action from you. "
-                "Open the request to review the next step."
-            ),
-            "Waiting for Payment": (
-                "A payment step is pending for your service request."
-            ),
-            "Completed": "Your service request has been completed.",
-            "Cancelled": "Your service request has been cancelled.",
-        }
-        _create_service_notification(
-            doc,
-            title=f"Service status: {status}",
-            message=note or status_messages.get(
-                status,
-                f"Your service request status changed to {status}.",
-            ),
-            notification_type="Service Update",
-        )
-
     frappe.db.commit()
 
     return {
@@ -1861,18 +1804,6 @@ def upload_service_document(**kwargs):
         visible_to_customer=1,
     )
 
-    _create_service_notification(
-        service_case,
-        title="Document received",
-        message=(
-            f"{document_title} was uploaded successfully and is ready "
-            "for OMC review."
-        ),
-        notification_type="Document Request",
-        reference_doctype="OMC Service Document",
-        reference_name=doc.name,
-    )
-
     frappe.db.commit()
 
     return {
@@ -1899,65 +1830,11 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
     # Compatibility wrapper for the canonical document review endpoint.
     from omc_app.api import customer_documents
 
-    old_status = ""
-    document = None
-    if document_id and frappe.db.exists("OMC Service Document", document_id):
-        document = frappe.get_doc("OMC Service Document", document_id)
-        old_status = (document.status or "").strip()
-
-    result = customer_documents.update_service_document_status(
+    return customer_documents.update_service_document_status(
         document_id=document_id,
         status=status,
         remarks=remarks,
     )
-
-    if document_id and frappe.db.exists("OMC Service Document", document_id):
-        document = frappe.get_doc("OMC Service Document", document_id)
-        new_status = (document.status or "").strip()
-        if new_status and new_status != old_status:
-            service_request = frappe.get_doc(
-                "OMC Service Request",
-                document.service_request,
-            )
-            document_title = (
-                document.document_title
-                or document.document_type
-                or "Document"
-            )
-            normalized_status = new_status.lower()
-
-            if normalized_status == "approved":
-                title = "Document approved"
-                message = f"{document_title} has been approved by OMC."
-            elif normalized_status == "rejected":
-                title = "Document needs correction"
-                message = (
-                    remarks
-                    or document.remarks
-                    or (
-                        f"{document_title} was not approved. "
-                        "Please upload a corrected document."
-                    )
-                )
-            else:
-                title = f"Document status: {new_status}"
-                message = (
-                    remarks
-                    or document.remarks
-                    or f"{document_title} status changed to {new_status}."
-                )
-
-            _create_service_notification(
-                service_request,
-                title=title,
-                message=message,
-                notification_type="Document Request",
-                reference_doctype="OMC Service Document",
-                reference_name=document.name,
-            )
-            frappe.db.commit()
-
-    return result
 
 @frappe.whitelist()
 def get_documents():
@@ -2839,80 +2716,6 @@ def get_notification_detail(notification_id=None):
 
 
 
-
-# OMC automatic service notification engine
-def _service_notification_recipient(service_request):
-    if isinstance(service_request, str):
-        if not frappe.db.exists("OMC Service Request", service_request):
-            return None, None, None
-        service_request = frappe.get_doc("OMC Service Request", service_request)
-
-    customer_profile = (
-        getattr(service_request, "customer_profile", None) or ""
-    ).strip()
-    recipient_user = (
-        getattr(service_request, "requested_by", None) or ""
-    ).strip()
-
-    if customer_profile:
-        recipient_user = ""
-
-    return service_request, customer_profile or None, recipient_user or None
-
-
-def _create_service_notification(
-    service_request,
-    *,
-    title,
-    message,
-    notification_type="Service Update",
-    reference_doctype="OMC Service Request",
-    reference_name=None,
-):
-    service_request, customer_profile, recipient_user = (
-        _service_notification_recipient(service_request)
-    )
-    if not service_request or not (customer_profile or recipient_user):
-        return None
-
-    clean_title = (title or "Service update").strip()
-    clean_message = (
-        message or "There is a new update on your service request."
-    ).strip()
-    resolved_reference = (
-        reference_name
-        or getattr(service_request, "name", None)
-        or ""
-    )
-
-    filters = {
-        "visible_to_customer": 1,
-        "title": clean_title,
-        "message": clean_message,
-        "reference_doctype": reference_doctype,
-        "reference_name": resolved_reference,
-        "creation": [">=", frappe.utils.add_to_date(None, minutes=-10)],
-    }
-    if customer_profile:
-        filters["customer_profile"] = customer_profile
-    else:
-        filters["recipient_user"] = recipient_user
-
-    existing = frappe.db.exists("OMC Notification", filters)
-    if existing:
-        return frappe.get_doc("OMC Notification", existing)
-
-    return _create_customer_notification(
-        customer_profile=customer_profile,
-        recipient_user=recipient_user,
-        title=clean_title,
-        message=clean_message,
-        notification_type=notification_type,
-        reference_doctype=reference_doctype,
-        reference_name=resolved_reference,
-    )
-
-
 def _create_customer_notification(
     customer_profile=None,
     recipient_user=None,
@@ -2925,29 +2728,12 @@ def _create_customer_notification(
     if not title:
         return None
 
-    notification_type_aliases = {
-        "": "General",
-        "general": "General",
-        "service": "Service Request",
-        "service request": "Service Request",
-        "service update": "Service Request",
-        "document": "Document",
-        "document request": "Document",
-        "payment": "Payment",
-        "payment alert": "Payment",
-        "support": "Support",
-    }
-    normalized_notification_type = notification_type_aliases.get(
-        str(notification_type or "").strip().lower(),
-        "General",
-    )
-
     notification = frappe.new_doc("OMC Notification")
     notification.customer_profile = customer_profile or None
     notification.recipient_user = recipient_user or None
     notification.title = title
     notification.message = message or ""
-    notification.notification_type = normalized_notification_type
+    notification.notification_type = notification_type or "General"
     notification.reference_doctype = reference_doctype or None
     notification.reference_name = reference_name or None
     if notification.meta.has_field("mobile_route"):

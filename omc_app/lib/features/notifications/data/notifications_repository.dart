@@ -70,6 +70,39 @@ class NotificationsRepository {
     await _frappeClient.postMethod(ApiConfig.markAllNotificationsReadMethod);
   }
 
+  Future<void> dismissNotification(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) {
+      throw const ApiError(message: 'Missing backend notification reference.');
+    }
+    await _frappeClient.postMethod(
+      ApiConfig.dismissNotificationMethod,
+      data: {'notification_id': id, 'name': id},
+    );
+  }
+
+  Future<void> restoreNotification(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) {
+      throw const ApiError(message: 'Missing backend notification reference.');
+    }
+    await _frappeClient.postMethod(
+      ApiConfig.restoreNotificationMethod,
+      data: {'notification_id': id, 'name': id},
+    );
+  }
+
+  Future<void> markNotificationAsUnread(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) {
+      throw const ApiError(message: 'Missing backend notification reference.');
+    }
+    await _frappeClient.postMethod(
+      ApiConfig.markNotificationUnreadMethod,
+      data: {'notification_id': id, 'name': id},
+    );
+  }
+
   Future<NotificationItem?> fetchNotificationDetail(
     String notificationId,
   ) async {

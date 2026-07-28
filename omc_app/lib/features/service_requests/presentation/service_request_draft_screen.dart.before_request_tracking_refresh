@@ -17,8 +17,6 @@ import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../profile/data/profile_summary.dart';
-import '../../internal_workspace/presentation/internal_workspace_providers.dart';
-import '../data/service_case_repository.dart';
 import '../../service_catalogue/application/service_catalogue_controller.dart';
 import '../../service_catalogue/data/service_item.dart';
 import '../../service_templates/data/service_template.dart';
@@ -436,8 +434,6 @@ class _ServiceRequestDraftScreenState
         const SnackBar(content: Text('Service request submitted to OMC.')),
       );
       if (requestId != null && requestId.isNotEmpty) {
-        await _refreshRequestTracking(requestId);
-        if (!mounted) return;
         _openSubmittedRequest(requestId);
       } else {
         context.go(_requestHomeRoute());
@@ -465,42 +461,11 @@ class _ServiceRequestDraftScreenState
     }
   }
 
-  Future<void> _refreshRequestTracking(String requestId) async {
-    final capabilities = ref.read(authControllerProvider).capabilities;
-
-    ref.invalidate(serviceCasesProvider);
-    ref.invalidate(serviceCaseDetailProvider(requestId));
-
-    if (capabilities.isInternal) {
-      ref.invalidate(internalServiceCasesProvider);
-      ref.invalidate(internalWorkspaceSummaryProvider);
-
-      try {
-        await Future.wait([
-          ref.read(internalServiceCasesProvider.future),
-          ref.read(internalWorkspaceSummaryProvider.future),
-        ]);
-      } catch (_) {
-        // Destination screens keep their own loading and retry behaviour.
-      }
-      return;
-    }
-
-    try {
-      await Future.wait([
-        ref.read(serviceCasesProvider.future),
-        ref.read(serviceCaseDetailProvider(requestId).future),
-      ]);
-    } catch (_) {
-      // Destination screens keep their own loading and retry behaviour.
-    }
-  }
-
   void _openSubmittedRequest(String requestId) {
     final encodedRequestId = Uri.encodeComponent(requestId);
     final capabilities = ref.read(authControllerProvider).capabilities;
     if (capabilities.isInternal) {
-      context.go('/my-services/$encodedRequestId');
+      context.go('/internal-workspace/service-cases/$encodedRequestId');
       return;
     }
     context.go('/my-services/$encodedRequestId');

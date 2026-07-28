@@ -16,7 +16,10 @@
   "mobile_route",
   "is_read",
   "read_on",
-  "visible_to_customer"
+  "visible_to_customer",
+  "is_dismissed",
+  "dismissed_on",
+  "expires_on"
  ],
  "fields": [
   {
@@ -88,6 +91,25 @@
    "fieldname": "visible_to_customer",
    "fieldtype": "Check",
    "label": "Visible To Customer"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_dismissed",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Dismissed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dismissed_on",
+   "fieldtype": "Datetime",
+   "label": "Dismissed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expires_on",
+   "fieldtype": "Datetime",
+   "label": "Expires On"
   }
  ],
  "index_web_pages_for_search": 1,
