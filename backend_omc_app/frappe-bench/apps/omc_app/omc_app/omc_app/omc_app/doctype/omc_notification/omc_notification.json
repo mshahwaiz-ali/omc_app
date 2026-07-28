@@ -51,7 +51,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Notification Type",
-   "options": "General\nService Request\nDocument\nPayment\nSupport",
+   "options": "General\\nService Request\\nDocument\\nPayment\\nTax\\nSupport",
    "reqd": 1
   },
   {

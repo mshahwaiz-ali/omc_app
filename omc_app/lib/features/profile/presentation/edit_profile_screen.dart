@@ -48,6 +48,9 @@ class _ProfileEditorOverview extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final completion = _profileCompletion(profile);
+    final isInternal =
+        profile.capabilities.canAccessInternalWorkspace ||
+        profile.capabilities.isInternal;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -73,40 +76,53 @@ class _ProfileEditorOverview extends ConsumerWidget {
           _ProfileEditSectionCard(
             icon: Icons.contact_phone_outlined,
             title: 'Contact information',
-            subtitle: 'How OMC can reach you about services and documents.',
+            subtitle: isInternal
+                ? 'Your staff account contact number.'
+                : 'How OMC can reach you about services and documents.',
             rows: [
               _ProfileValueRow(
                 label: 'Mobile',
                 value: _displayValue(profile.phone),
               ),
-              _ProfileValueRow(
-                label: 'WhatsApp',
-                value: _displayValue(profile.whatsappNo),
-              ),
-              _ProfileValueRow(
-                label: 'Address',
-                value: _displayValue(profile.address),
-                maxLines: 2,
-              ),
+              if (!isInternal) ...[
+                _ProfileValueRow(
+                  label: 'WhatsApp',
+                  value: _displayValue(profile.whatsappNo),
+                ),
+                _ProfileValueRow(
+                  label: 'Address',
+                  value: _displayValue(profile.address),
+                  maxLines: 2,
+                ),
+              ],
             ],
-            onEdit: () => _openContactSheet(context, ref, profile),
+            onEdit: () => isInternal
+                ? _openInternalContactSheet(context, ref, profile)
+                : _openContactSheet(context, ref, profile),
           ),
           const SizedBox(height: 14),
-          _ProfileEditSectionCard(
-            icon: Icons.business_center_outlined,
-            title: 'Business & tax details',
-            subtitle: 'Company details and your protected tax identifier.',
-            rows: [
-              _ProfileValueRow(
-                label: 'Company',
-                value: _displayValue(profile.companyName),
-              ),
-              _ProfileValueRow(label: 'NTN', value: _displayValue(profile.ntn)),
-            ],
-            onEdit: () => _openBusinessSheet(context, ref, profile),
-          ),
-          const SizedBox(height: 14),
-          _LockedIdentityCard(profile: profile),
+          if (isInternal)
+            _InternalAccountCard(profile: profile)
+          else ...[
+            _ProfileEditSectionCard(
+              icon: Icons.business_center_outlined,
+              title: 'Business & tax details',
+              subtitle: 'Company details and your protected tax identifier.',
+              rows: [
+                _ProfileValueRow(
+                  label: 'Company',
+                  value: _displayValue(profile.companyName),
+                ),
+                _ProfileValueRow(
+                  label: 'NTN',
+                  value: _displayValue(profile.ntn),
+                ),
+              ],
+              onEdit: () => _openBusinessSheet(context, ref, profile),
+            ),
+            const SizedBox(height: 14),
+            _LockedIdentityCard(profile: profile),
+          ],
           const SizedBox(height: 18),
           Text(
             'Changes are applied immediately and recorded in your account history.',
@@ -319,6 +335,29 @@ class _ProfileValueRow extends StatelessWidget {
   }
 }
 
+class _InternalAccountCard extends StatelessWidget {
+  const _InternalAccountCard({required this.profile});
+
+  final ProfileSummary profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        leading: const Icon(Icons.admin_panel_settings_outlined),
+        title: const Text(
+          'Account identity',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: Text(profile.email),
+        trailing: const Icon(Icons.lock_outline_rounded, size: 20),
+        onTap: () => _showLockedIdentityInfo(context),
+      ),
+    );
+  }
+}
+
 class _LockedIdentityCard extends StatelessWidget {
   const _LockedIdentityCard({required this.profile});
 
@@ -419,6 +458,32 @@ Future<void> _openPersonalSheet(
   );
 
   controller.dispose();
+}
+
+Future<void> _openInternalContactSheet(
+  BuildContext context,
+  WidgetRef ref,
+  ProfileSummary profile,
+) async {
+  final phone = TextEditingController(text: profile.phone ?? '');
+
+  await _showEditSheet(
+    context: context,
+    ref: ref,
+    title: 'Contact information',
+    subtitle: 'Update the mobile number linked to your staff account.',
+    fields: [
+      _SheetTextField(
+        controller: phone,
+        label: 'Mobile number',
+        icon: Icons.phone_outlined,
+        keyboardType: TextInputType.phone,
+      ),
+    ],
+    payloadBuilder: () => {'phone': phone.text.trim()},
+  );
+
+  phone.dispose();
 }
 
 Future<void> _openContactSheet(

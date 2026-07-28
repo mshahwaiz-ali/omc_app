@@ -60,59 +60,84 @@ def _profile_email_by_field(fieldname: str, values: tuple[str, ...]) -> str | No
     return None
 
 
+def _enabled_user_name(identifier: str) -> str | None:
+    clean = str(identifier or "").strip()
+    if not clean:
+        return None
+
+    direct = frappe.db.get_value(
+        "User",
+        {"name": clean, "enabled": 1},
+        "name",
+    )
+    if direct:
+        return str(direct).strip()
+
+    lowered = clean.lower()
+    for fieldname in ("email", "username"):
+        user = frappe.db.get_value(
+            "User",
+            {fieldname: lowered, "enabled": 1},
+            "name",
+        )
+        if user:
+            return str(user).strip()
+
+    return None
+
+
 def resolve_login_email(identifier: str) -> str | None:
     clean = str(identifier or "").strip()
     if not clean:
         return None
 
+    user = _enabled_user_name(clean)
+    if user:
+        return user
+
     lowered = clean.lower()
-
-    if "@" in lowered:
-        user = frappe.db.get_value(
-            "User",
-            {"name": lowered, "enabled": 1},
-            "name",
-        )
-        return str(user).strip().lower() if user else None
-
     username = re.sub(r"[^a-z0-9._-]", "", lowered)
     if username:
-        email = _profile_email_by_field("username", (username,))
-        if email:
-            return email
+        profile_email = _profile_email_by_field("username", (username,))
+        user = _enabled_user_name(profile_email or "")
+        if user:
+            return user
 
     digits = _digits(clean)
     if len(digits) == 13:
-        email = _profile_email_by_field("cnic", (digits,))
-        if email:
-            return email
+        profile_email = _profile_email_by_field("cnic", (digits,))
+        user = _enabled_user_name(profile_email or "")
+        if user:
+            return user
 
     mobile_values = _mobile_candidates(clean)
     for fieldname in ("mobile", "mobile_no", "phone"):
-        email = _profile_email_by_field(fieldname, mobile_values)
-        if email:
-            return email
+        profile_email = _profile_email_by_field(fieldname, mobile_values)
+        user = _enabled_user_name(profile_email or "")
+        if user:
+            return user
 
     return None
 
 
 @frappe.whitelist(allow_guest=True)
 def login(identifier: str | None = None, password: str | None = None):
-    email = resolve_login_email(str(identifier or ""))
+    user = resolve_login_email(str(identifier or ""))
     secret = str(password or "")
 
-    if not email or not secret:
+    if not user or not secret:
         frappe.throw(_(GENERIC_LOGIN_ERROR), AuthenticationError)
 
     try:
         manager = LoginManager()
-        manager.authenticate(user=email, pwd=secret)
+        manager.authenticate(user=user, pwd=secret)
         manager.post_login()
     except AuthenticationError:
         frappe.throw(_(GENERIC_LOGIN_ERROR), AuthenticationError)
 
+    email = frappe.db.get_value("User", user, "email") or user
     return {
         "message": "Logged In",
         "user": frappe.session.user,
-        "email": email,
+        "email": str(email).strip().lower(),
     }

@@ -320,6 +320,21 @@ class AuthRepository {
     return defaultTargetPlatform.name.toLowerCase();
   }
 
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) {
+    return _frappeClient.postMethod(
+      ApiConfig.changePasswordMethod,
+      data: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'confirm_password': confirmPassword,
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> requestPasswordReset({
     required String identifier,
   }) {

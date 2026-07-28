@@ -61,27 +61,17 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Profile preferences',
-                  subtitle:
-                      accountName ?? 'Customer identity and account details',
-                  trailing: approvalStatus ?? accountStatus ?? 'Ready',
-                  onTap: () => context.push('/profile'),
+                  subtitle: 'Edit personal, contact and business details',
+                  trailing: 'Edit',
+                  onTap: () => context.push('/profile/edit'),
                 ),
                 const _DividerIndent(),
                 _SettingsTile(
                   icon: Icons.lock_outline_rounded,
                   title: 'Security',
-                  subtitle: 'Password, device and account protection',
-                  trailing: 'Secure',
-                  onTap: () => _showAccountRequestSheet(
-                    context,
-                    ref,
-                    title: 'Security request',
-                    topic: 'Account security / password change',
-                    label: 'What do you need help with?',
-                    hint:
-                        'Example: I want to change my password or secure my account.',
-                    submitLabel: 'Submit security request',
-                  ),
+                  subtitle: 'Change your password and protect your account',
+                  trailing: 'Manage',
+                  onTap: () => context.push('/change-password'),
                 ),
                 const _DividerIndent(),
                 _SettingsTile(
@@ -665,12 +655,16 @@ class _SwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return SwitchListTile.adaptive(
       contentPadding: const EdgeInsets.symmetric(horizontal: 18),
       title: Text(title, style: _TextStyles.tileTitle),
       value: value,
       onChanged: onChanged,
-      activeThumbColor: OmcPremium.track,
+      activeThumbColor: Colors.white,
+      activeTrackColor: colors.primary,
+      inactiveThumbColor: Colors.white,
+      inactiveTrackColor: const Color(0xFFD9DEE7),
     );
   }
 }

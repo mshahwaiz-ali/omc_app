@@ -190,9 +190,7 @@ List<OmcSheetAction> _moreActions({
         ),
       );
     }
-    if (capabilities.canManageSettings) {
-      items.add(action('Settings', Icons.settings_outlined, onOpenSettings));
-    }
+    items.add(action('Settings', Icons.settings_outlined, onOpenSettings));
 
     items.add(
       action('Logout', Icons.logout_rounded, onLogout, isDestructive: true),

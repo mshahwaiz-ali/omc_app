@@ -36,6 +36,7 @@ import '../features/profile/presentation/profile_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
 import '../features/service_requests/presentation/service_request_draft_screen.dart';
+import '../features/settings/presentation/change_password_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import '../features/support/presentation/support_screen.dart';
@@ -411,6 +412,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'settings',
         builder: (context, state) =>
             _withShell(ShellNavScaffold.moreIndex, const SettingsScreen()),
+      ),
+      GoRoute(
+        path: '/change-password',
+        name: 'change-password',
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const ChangePasswordScreen(),
+        ),
       ),
       GoRoute(
         path: '/internal-workspace',

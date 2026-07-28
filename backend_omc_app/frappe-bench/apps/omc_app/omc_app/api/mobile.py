@@ -3652,6 +3652,91 @@ def _settings_preferences_to_dict(preferences):
     }
 
 
+_NOTIFICATION_PREFERENCE_FIELDS = {
+    "general": "service_updates_enabled",
+    "service": "service_updates_enabled",
+    "service request": "service_updates_enabled",
+    "support": "service_updates_enabled",
+    "document": "document_reminders_enabled",
+    "payment": "payment_alerts_enabled",
+    "tax": "tax_alerts_enabled",
+}
+
+
+def _normalized_notification_type(notification_type=None):
+    clean = " ".join(str(notification_type or "General").strip().lower().replace("_", " ").split())
+    return clean or "general"
+
+
+def _notification_preference_field(notification_type=None, channel="push"):
+    normalized_channel = str(channel or "push").strip().lower()
+    if normalized_channel == "email":
+        return "email_notifications_enabled"
+    if normalized_channel in {"whatsapp", "whats_app", "whats app"}:
+        return "whatsapp_notifications_enabled"
+
+    return _NOTIFICATION_PREFERENCE_FIELDS.get(
+        _normalized_notification_type(notification_type),
+        "service_updates_enabled",
+    )
+
+
+def _notification_delivery_enabled(
+    notification_type=None,
+    *,
+    customer_profile=None,
+    user=None,
+    channel="push",
+):
+    profile = customer_profile
+    if isinstance(profile, str):
+        if not frappe.db.exists("OMC Customer Profile", profile):
+            return True
+        profile = frappe.get_doc("OMC Customer Profile", profile)
+
+    if profile is None and user:
+        profile = _get_customer_profile_for_user(user)
+
+    if profile is None:
+        return True
+
+    preferences = _get_customer_preferences(profile)
+    fieldname = _notification_preference_field(notification_type, channel)
+    return _preference_bool(preferences, fieldname)
+
+
+def _active_push_tokens_for_notification(
+    notification_type=None,
+    *,
+    customer_profile=None,
+    user=None,
+):
+    if not _notification_delivery_enabled(
+        notification_type,
+        customer_profile=customer_profile,
+        user=user,
+        channel="push",
+    ):
+        return []
+
+    filters = {"is_active": 1}
+    if customer_profile:
+        filters["customer_profile"] = (
+            customer_profile.name if hasattr(customer_profile, "name") else customer_profile
+        )
+    elif user:
+        filters["user"] = user
+    else:
+        return []
+
+    return frappe.get_all(
+        "OMC Push Token",
+        filters=filters,
+        fields=["name", "token", "platform", "device_id", "user", "customer_profile"],
+        order_by="modified desc",
+    )
+
+
 
 
 

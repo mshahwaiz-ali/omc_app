@@ -195,7 +195,7 @@ class SignupDetailsStep extends StatelessWidget {
             enableSuggestions: false,
             decoration: InputDecoration(
               labelText: 'Username',
-              hintText: 'muhammad.shahwaiz',
+              hintText: 'ali.khan',
               prefixIcon: const Icon(Icons.alternate_email_rounded),
               suffixIcon: isCheckingUsername
                   ? const Padding(
