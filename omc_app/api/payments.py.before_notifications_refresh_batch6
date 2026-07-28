@@ -238,15 +238,7 @@ def _payment_support_payload(payment=None, service_case=None):
 
 
 
-def _notify_customer(
-    service_case,
-    *,
-    title,
-    message,
-    notification_type="Service",
-    reference_doctype="OMC Service Request",
-    reference_name=None,
-):
+def _notify_customer(service_case, *, title, message, notification_type="Service"):
     if not getattr(service_case, "customer_profile", None):
         return None
     return mobile._create_customer_notification(
@@ -254,8 +246,8 @@ def _notify_customer(
         title=title,
         message=message,
         notification_type=notification_type,
-        reference_doctype=reference_doctype,
-        reference_name=reference_name or service_case.name,
+        reference_doctype="OMC Service Request",
+        reference_name=service_case.name,
     )
 
 
@@ -427,8 +419,6 @@ def _ensure_payment_for_case(service_case):
         title="Payment is ready",
         message=message,
         notification_type="Payment",
-        reference_doctype=PAYMENT_DOCTYPE,
-        reference_name=payment.name,
     )
 
     frappe.db.commit()

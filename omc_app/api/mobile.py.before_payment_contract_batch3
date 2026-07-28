@@ -1304,141 +1304,6 @@ def _split_service_documents(documents, required_document_templates=None):
     return required_documents, submitted_documents, missing_documents
 
 
-def _service_case_payment_contract(
-    service_case,
-    *,
-    documents,
-    required_document_templates,
-):
-    required_templates = [
-        template
-        for template in required_document_templates or []
-        if template.get("is_required")
-    ]
-
-    approved_documents = [
-        document
-        for document in documents or []
-        if (document.get("status") or "").strip().lower() == "approved"
-        and bool(document.get("file_url") or document.get("attachment"))
-    ]
-
-    documents_complete = True
-    for template in required_templates:
-        template_title = (
-            template.get("title") or template.get("document_title") or ""
-        ).strip().lower()
-        template_type = (
-            template.get("type") or template.get("document_type") or ""
-        ).strip().lower()
-
-        matched = False
-        for document in approved_documents:
-            document_title = (
-                document.get("title") or document.get("document_title") or ""
-            ).strip().lower()
-            document_type = (
-                document.get("type") or document.get("document_type") or ""
-            ).strip().lower()
-
-            if template_title and document_title == template_title:
-                matched = True
-                break
-            if template_type and document_type == template_type:
-                matched = True
-                break
-
-        if not matched:
-            documents_complete = False
-            break
-
-    payment_rows = frappe.get_all(
-        "OMC Service Payment",
-        filters={
-            "service_request": service_case.name,
-            "visible_to_customer": 1,
-            "status": ["not in", ["Cancelled"]],
-        },
-        fields=[
-            "name",
-            "status",
-            "amount",
-            "currency",
-            "receipt_attachment",
-        ],
-        order_by="creation desc",
-        limit=1,
-    )
-    payment = payment_rows[0] if payment_rows else None
-    payment_id = payment.name if payment else ""
-    payment_status = (payment.status or "").strip() if payment else ""
-    normalized_payment_status = payment_status.lower()
-
-    normalized_case_status = (service_case.status or "").strip().lower()
-    case_closed = normalized_case_status in {"completed", "cancelled"}
-
-    service_amount = 0
-    if service_case.service and frappe.db.exists("OMC Service", service_case.service):
-        service_amount = frappe.utils.flt(
-            frappe.db.get_value(
-                "OMC Service",
-                service_case.service,
-                "base_price",
-            )
-            or 0
-        )
-
-    payment_eligible = (
-        documents_complete
-        and not case_closed
-        and service_amount > 0
-        and normalized_payment_status != "paid"
-    )
-
-    if case_closed:
-        payment_block_reason = "case_closed"
-        next_action = "view_case"
-    elif not documents_complete:
-        payment_block_reason = "required_documents_not_approved"
-        has_uploaded_unapproved = any(
-            bool(document.get("file_url") or document.get("attachment"))
-            and (document.get("status") or "").strip().lower() != "approved"
-            for document in documents or []
-        )
-        next_action = (
-            "await_document_review"
-            if has_uploaded_unapproved
-            else "upload_documents"
-        )
-    elif service_amount <= 0:
-        payment_block_reason = "service_fee_not_configured"
-        next_action = "contact_support"
-    elif normalized_payment_status == "paid":
-        payment_block_reason = "payment_completed"
-        next_action = "service_processing"
-    elif normalized_payment_status in {"receipt submitted", "under review"}:
-        payment_block_reason = "receipt_under_review"
-        next_action = "await_payment_review"
-    elif normalized_payment_status == "rejected":
-        payment_block_reason = "receipt_rejected"
-        next_action = "resubmit_payment_receipt"
-    elif payment_id:
-        payment_block_reason = ""
-        next_action = "complete_payment"
-    else:
-        payment_block_reason = "payment_not_opened"
-        next_action = "await_payment_opening"
-
-    return {
-        "documents_complete": bool(documents_complete),
-        "payment_eligible": bool(payment_eligible),
-        "payment_id": payment_id,
-        "payment_status": payment_status,
-        "payment_block_reason": payment_block_reason,
-        "next_action": next_action,
-    }
-
-
 def _service_case_scope_names(capabilities, user=None):
     user = user or _current_user()
 
@@ -1744,11 +1609,6 @@ def get_service_case(case_id=None):
     customer_action_required = missing_documents_count > 0 or (
         (service_case.status or "").strip().lower() == "waiting for customer"
     )
-    payment_contract = _service_case_payment_contract(
-        service_case,
-        documents=documents,
-        required_document_templates=required_document_templates,
-    )
 
     return {
         "case": {
@@ -1765,7 +1625,6 @@ def get_service_case(case_id=None):
             "current_stage": service_case.status or "",
             "next_step": _service_case_next_step(service_case.status, missing_documents),
             "customer_action_required": customer_action_required,
-            **payment_contract,
             "required_documents_count": required_documents_count,
             "submitted_documents_count": submitted_documents_count,
             "missing_documents_count": missing_documents_count,

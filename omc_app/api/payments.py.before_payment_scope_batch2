@@ -28,105 +28,6 @@ def _clean_text(value):
     return (value or "").strip()
 
 
-def _current_user():
-    user = frappe.session.user if getattr(frappe, "session", None) else "Guest"
-    return user or "Guest"
-
-
-def _customer_profile_name_for_user(user):
-    if not user or user == "Guest":
-        return None
-
-    for filters in (
-        {"linked_app_user": user},
-        {"user": user},
-        {"email": user},
-    ):
-        profile_name = frappe.db.get_value(
-            "OMC Customer Profile",
-            filters,
-            "name",
-        )
-        if profile_name:
-            return profile_name
-
-    return None
-
-
-def _owned_referral_profile_names(user):
-    if not user or user == "Guest":
-        return []
-
-    return frappe.get_all(
-        "OMC Customer Profile",
-        filters={
-            "referred_by": user,
-            "referral_assistance_consent": 1,
-        },
-        pluck="name",
-    )
-
-
-def _accessible_service_request_names(*, profile=None, internal_user=None):
-    if profile:
-        return set(
-            frappe.get_all(
-                "OMC Service Request",
-                filters={"customer_profile": profile.name},
-                pluck="name",
-            )
-        )
-
-    user = internal_user or _current_user()
-    if not user or user == "Guest":
-        return set()
-
-    accessible = set()
-
-    own_profile_name = _customer_profile_name_for_user(user)
-    if own_profile_name:
-        accessible.update(
-            frappe.get_all(
-                "OMC Service Request",
-                filters={"customer_profile": own_profile_name},
-                pluck="name",
-            )
-        )
-
-    referral_profiles = _owned_referral_profile_names(user)
-    if referral_profiles:
-        accessible.update(
-            frappe.get_all(
-                "OMC Service Request",
-                filters={
-                    "customer_mode": "My Referral",
-                    "referral_owner": user,
-                    "customer_profile": ["in", referral_profiles],
-                },
-                pluck="name",
-            )
-        )
-
-    return accessible
-
-
-def _assert_service_request_payment_access(
-    service_request,
-    *,
-    profile=None,
-    internal_user=None,
-):
-    accessible = _accessible_service_request_names(
-        profile=profile,
-        internal_user=internal_user,
-    )
-    if service_request not in accessible:
-        frappe.throw(
-            "You do not have permission to access this payment.",
-            frappe.PermissionError,
-        )
-
-
 def _first_payment_account():
     if not mobile._has_doctype(PAYMENT_ACCOUNT_DOCTYPE):
         return None
@@ -238,15 +139,7 @@ def _payment_support_payload(payment=None, service_case=None):
 
 
 
-def _notify_customer(
-    service_case,
-    *,
-    title,
-    message,
-    notification_type="Service",
-    reference_doctype="OMC Service Request",
-    reference_name=None,
-):
+def _notify_customer(service_case, *, title, message, notification_type="Service"):
     if not getattr(service_case, "customer_profile", None):
         return None
     return mobile._create_customer_notification(
@@ -254,8 +147,8 @@ def _notify_customer(
         title=title,
         message=message,
         notification_type=notification_type,
-        reference_doctype=reference_doctype,
-        reference_name=reference_name or service_case.name,
+        reference_doctype="OMC Service Request",
+        reference_name=service_case.name,
     )
 
 
@@ -427,8 +320,6 @@ def _ensure_payment_for_case(service_case):
         title="Payment is ready",
         message=message,
         notification_type="Payment",
-        reference_doctype=PAYMENT_DOCTYPE,
-        reference_name=payment.name,
     )
 
     frappe.db.commit()
@@ -482,25 +373,15 @@ def handle_document_review(service_request, status, remarks=None):
     }
 
 
-def _accessible_service_requests(profile=None, internal_user=None):
-    names = _accessible_service_request_names(
-        profile=profile,
-        internal_user=internal_user,
-    )
-    if not names:
-        return []
+def _accessible_service_requests(profile=None):
+    filters = {}
+    if profile:
+        filters["customer_profile"] = profile.name
 
     return frappe.get_all(
         "OMC Service Request",
-        filters={"name": ["in", list(names)]},
-        fields=[
-            "name",
-            "title",
-            "service",
-            "service_title",
-            "customer_profile",
-            "status",
-        ],
+        filters=filters,
+        fields=["name", "title", "service", "service_title", "customer_profile", "status"],
         order_by="modified desc",
     )
 
@@ -528,30 +409,6 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
     can_view_receipt = bool(capabilities.get("can_view_payment_receipts"))
     can_review = bool(capabilities.get("can_review_payments"))
 
-    customer_profile = (
-        frappe.get_doc("OMC Customer Profile", service_case.customer_profile)
-        if service_case
-        and service_case.customer_profile
-        and frappe.db.exists("OMC Customer Profile", service_case.customer_profile)
-        else None
-    )
-    current_user = _current_user()
-    own_profile_name = _customer_profile_name_for_user(current_user)
-    scope_type = (
-        "own"
-        if customer_view
-        or (
-            own_profile_name
-            and service_case
-            and service_case.customer_profile == own_profile_name
-        )
-        else "referral"
-        if service_case
-        and service_case.referral_owner == current_user
-        and (service_case.customer_mode or "").strip() == "My Referral"
-        else ""
-    )
-
     return {
         "name": payment.name,
         "payment_id": payment.name,
@@ -575,15 +432,6 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
         ),
         "remarks": payment.remarks or "" if customer_view or can_review else "",
         "can_review_payments": can_review,
-        "customer_profile": (
-            service_case.customer_profile if service_case else ""
-        ),
-        "customer_name": (
-            customer_profile.full_name
-            if customer_profile
-            else getattr(service_case, "customer_name", "") or ""
-        ),
-        "scope_type": scope_type,
         **support,
     }
 
@@ -605,14 +453,7 @@ def get_payments():
         )
 
     # Read endpoints must never create payment records or mutate workflow state.
-    internal_user = _current_user() if is_internal else None
-    service_request_names = [
-        row.name
-        for row in _accessible_service_requests(
-            profile=profile,
-            internal_user=internal_user,
-        )
-    ]
+    service_request_names = [row.name for row in _accessible_service_requests(profile=profile)]
     if not service_request_names:
         return {"payments": []}
 
@@ -656,11 +497,8 @@ def get_payment(payment_id=None, name=None):
     capabilities = access.get_mobile_capabilities()
     service_case = frappe.get_doc("OMC Service Request", payment.service_request)
 
-    _assert_service_request_payment_access(
-        service_case.name,
-        profile=profile,
-        internal_user=_current_user() if is_internal else None,
-    )
+    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
+        frappe.throw("You do not have permission to access this payment", frappe.PermissionError)
 
     if is_internal and not (
         capabilities.get("can_view_payment_summaries")
@@ -801,14 +639,6 @@ def review_payment_receipt(
         frappe.throw("Payment not found", frappe.DoesNotExistError)
 
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
-    service_case = frappe.get_doc(
-        "OMC Service Request",
-        payment.service_request,
-    )
-    _assert_service_request_payment_access(
-        service_case.name,
-        internal_user=_current_user(),
-    )
     old_status = payment.status or ""
 
     if status in {"Paid", "Rejected"} and not payment.receipt_attachment:
@@ -841,6 +671,10 @@ def review_payment_receipt(
         visible_to_customer=1,
     )
 
+    service_case = frappe.get_doc(
+        "OMC Service Request",
+        payment.service_request,
+    )
     case_transition_status = None
 
     if status == "Paid":
