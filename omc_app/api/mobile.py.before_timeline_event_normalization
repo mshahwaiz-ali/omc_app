@@ -1076,32 +1076,9 @@ def _create_service_timeline_entry(
     event_type="Update",
     visible_to_customer=1,
 ):
-    event_type_aliases = {
-        "": "Update",
-        "update": "Update",
-        "request created": "Request Created",
-        "created": "Request Created",
-        "status updated": "Status Updated",
-        "status update": "Status Updated",
-        "document uploaded": "Document Uploaded",
-        "document upload": "Document Uploaded",
-        "payment updated": "Payment Updated",
-        "payment update": "Payment Updated",
-        "payment": "Payment Updated",
-        "internal note": "Internal Note",
-        "assignment": "Internal Note",
-        "assigned": "Internal Note",
-        "customer message": "Customer Message",
-        "message": "Customer Message",
-    }
-    normalized_event_type = event_type_aliases.get(
-        str(event_type or "").strip().lower(),
-        "Update",
-    )
-
     entry = frappe.new_doc("OMC Service Timeline")
     entry.service_request = service_request
-    entry.event_type = normalized_event_type
+    entry.event_type = event_type
     entry.title = title
     entry.description = description or ""
     entry.event_time = frappe.utils.now_datetime()
