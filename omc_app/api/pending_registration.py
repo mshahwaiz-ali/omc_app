@@ -2,18 +2,23 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import secrets
 from dataclasses import dataclass
 from datetime import timedelta
 
 import frappe
-from frappe.utils import add_to_date, get_datetime, get_url, now_datetime
+from frappe.utils import add_to_date, get_datetime, now_datetime
+
+from omc_app.api.auth_links import verification_links
 
 
 PENDING_REGISTRATION_DOCTYPE = "OMC Pending Registration"
 TOKEN_TTL_MINUTES = 30
 RESEND_COOLDOWN_SECONDS = 60
 ACTIVE_PENDING_STATUSES = ("Pending",)
+TERMINAL_STATUSES = ("Activated", "Expired", "Superseded", "Cancelled")
+TERMINAL_STATUSES = ("Activated", "Expired", "Superseded", "Cancelled")
 GENERIC_PUBLIC_MESSAGE = (
     "If the details are eligible, a verification email will be sent shortly."
 )
@@ -30,13 +35,14 @@ def _token_digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def _verification_url(token: str) -> str:
-    return get_url("/verify-email?token=" + token)
-
-
-def _verification_email_html(username: str, verification_url: str) -> str:
+def _verification_email_html(
+    username: str,
+    app_url: str,
+    web_url: str,
+) -> str:
     safe_username = frappe.utils.escape_html(username)
-    safe_url = frappe.utils.escape_html(verification_url)
+    safe_app_url = frappe.utils.escape_html(app_url)
+    safe_web_url = frappe.utils.escape_html(web_url)
     return f"""
     <div style="background:#f5f7fa;padding:32px 16px;font-family:Arial,sans-serif;">
       <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;padding:32px;">
@@ -49,10 +55,13 @@ def _verification_email_html(username: str, verification_url: str) -> str:
         <p style="margin:0 0 18px;color:#475569;font-size:15px;line-height:1.6;">
           Hello {safe_username}, confirm this email address to continue creating your OMC account.
         </p>
-        <a href="{safe_url}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;">
-          Verify email
+        <a href="{safe_app_url}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;">
+          Open OMC app
         </a>
-        <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
+        <p style="margin:16px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
+          App not installed? <a href="{safe_web_url}" style="color:#0f766e;font-weight:700;">Continue in your browser</a>.
+        </p>
+        <p style="margin:12px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
           This link expires in {TOKEN_TTL_MINUTES} minutes. If you did not request this account, you can ignore this email.
         </p>
       </div>
@@ -61,11 +70,15 @@ def _verification_email_html(username: str, verification_url: str) -> str:
 
 
 def _send_verification_email(email: str, username: str, token: str) -> None:
-    verification_url = _verification_url(token)
+    links = verification_links(token)
     frappe.sendmail(
         recipients=[email],
         subject="Verify your OMC account",
-        message=_verification_email_html(username, verification_url),
+        message=_verification_email_html(
+            username,
+            links["app_url"],
+            links["web_url"],
+        ),
         now=False,
     )
 
@@ -82,6 +95,22 @@ def _rotate_token(doc) -> str:
     return token
 
 
+def _cooldown_seconds(resend_after=None) -> int:
+    if not resend_after:
+        return RESEND_COOLDOWN_SECONDS
+
+    remaining = (get_datetime(resend_after) - now_datetime()).total_seconds()
+    return max(0, math.ceil(remaining))
+
+
+def _resend_payload(*, resend_after=None) -> dict:
+    return {
+        "message": GENERIC_PUBLIC_MESSAGE,
+        "resend_after": resend_after,
+        "cooldown_seconds": _cooldown_seconds(resend_after),
+    }
+
+
 def _public_payload(data: dict) -> dict:
     blocked = {
         "password",
@@ -91,6 +120,56 @@ def _public_payload(data: dict) -> dict:
         "token",
     }
     return {key: value for key, value in data.items() if key not in blocked}
+
+
+def _sanitized_payload(doc) -> str:
+    return json.dumps(
+        {
+            "email": str(doc.email or "").strip().lower(),
+            "username": str(doc.username or "").strip().lower(),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def sanitize_registration(doc, *, status: str | None = None) -> None:
+    """Remove recoverable secrets once a registration reaches a terminal state."""
+    if status is not None:
+        doc.status = status
+    if doc.status not in TERMINAL_STATUSES:
+        frappe.throw(
+            "Pending registration secrets can only be cleared for terminal states.",
+            frappe.ValidationError,
+        )
+    doc.password_secret = ""
+    doc.payload_json = _sanitized_payload(doc)
+    doc.token_digest = secrets.token_hex(32)
+
+
+def _sanitized_payload(doc) -> str:
+    return json.dumps(
+        {
+            "email": str(doc.email or "").strip().lower(),
+            "username": str(doc.username or "").strip().lower(),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def sanitize_registration(doc, *, status: str | None = None) -> None:
+    """Remove recoverable secrets once a registration reaches a terminal state."""
+    if status is not None:
+        doc.status = status
+    if doc.status not in TERMINAL_STATUSES:
+        frappe.throw(
+            "Pending registration secrets can only be cleared for terminal states.",
+            frappe.ValidationError,
+        )
+    doc.password_secret = ""
+    doc.payload_json = _sanitized_payload(doc)
+    doc.token_digest = secrets.token_hex(32)
 
 
 def _existing_pending(filters: dict):
@@ -122,15 +201,9 @@ def _supersede_existing(email: str, username: str) -> None:
         pluck="name",
     )
     for name in set(names + username_names):
-        frappe.db.set_value(
-            PENDING_REGISTRATION_DOCTYPE,
-            name,
-            {
-                "status": "Superseded",
-                "token_digest": secrets.token_hex(32),
-            },
-            update_modified=True,
-        )
+        doc = frappe.get_doc(PENDING_REGISTRATION_DOCTYPE, name)
+        sanitize_registration(doc, status="Superseded")
+        doc.save(ignore_permissions=True)
 
 
 def create_pending_registration(data: dict) -> PendingRegistrationSecret:
@@ -215,9 +288,8 @@ def start_registration(**kwargs):
     frappe.db.commit()
 
     return {
-        "message": GENERIC_PUBLIC_MESSAGE,
+        **_resend_payload(resend_after=doc.resend_after),
         "verification_required": True,
-        "resend_after": doc.resend_after,
     }
 
 
@@ -225,27 +297,21 @@ def start_registration(**kwargs):
 def resend_verification(email: str | None = None):
     normalized_email = str(email or "").strip().lower()
     if not normalized_email:
-        return {"message": GENERIC_PUBLIC_MESSAGE}
+        return _resend_payload()
 
     doc = _existing_pending({"email": normalized_email})
     if not doc:
-        return {"message": GENERIC_PUBLIC_MESSAGE}
+        return _resend_payload()
 
     now = now_datetime()
     if doc.resend_after and get_datetime(doc.resend_after) > now:
-        return {
-            "message": GENERIC_PUBLIC_MESSAGE,
-            "resend_after": doc.resend_after,
-        }
+        return _resend_payload(resend_after=doc.resend_after)
 
     token = _rotate_token(doc)
     _send_verification_email(doc.email, doc.username, token)
     frappe.db.commit()
 
-    return {
-        "message": GENERIC_PUBLIC_MESSAGE,
-        "resend_after": doc.resend_after,
-    }
+    return _resend_payload(resend_after=doc.resend_after)
 
 
 @frappe.whitelist(allow_guest=True)
@@ -287,8 +353,7 @@ def verify_registration(token: str | None = None):
         }
 
     if get_datetime(doc.expires_at) <= now_datetime():
-        doc.status = "Expired"
-        doc.token_digest = secrets.token_hex(32)
+        sanitize_registration(doc, status="Expired")
         doc.save(ignore_permissions=True)
         frappe.db.commit()
         return {
@@ -322,11 +387,10 @@ def verify_registration(token: str | None = None):
         mobile.sign_up(**payload)
 
     doc.reload()
-    doc.status = "Activated"
     doc.activated_user = (
         doc.email if frappe.db.exists("User", doc.email) else None
     )
-    doc.token_digest = secrets.token_hex(32)
+    sanitize_registration(doc, status="Activated")
     doc.save(ignore_permissions=True)
     frappe.db.commit()
 
@@ -355,8 +419,9 @@ def load_pending_registration_by_token(token: str):
         return None
 
     if get_datetime(doc.expires_at) <= now_datetime():
-        doc.status = "Expired"
+        sanitize_registration(doc, status="Expired")
         doc.save(ignore_permissions=True)
+        frappe.db.commit()
         return None
 
     return doc

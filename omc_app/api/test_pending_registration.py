@@ -88,6 +88,11 @@ class TestPendingRegistration(FrappeTestCase):
         )
         self.assertNotIn("verification_token", result)
         self.assertNotIn("registration_id", result)
+        self.assertGreater(result["cooldown_seconds"], 0)
+        self.assertLessEqual(
+            result["cooldown_seconds"],
+            pending_registration.RESEND_COOLDOWN_SECONDS,
+        )
         sendmail.assert_called_once()
         call = sendmail.call_args.kwargs
         self.assertEqual(call["recipients"], [payload["email"]])
@@ -118,6 +123,11 @@ class TestPendingRegistration(FrappeTestCase):
         )
         self.assertNotEqual(doc.token_digest, original_digest)
         self.assertEqual(doc.attempt_count, 1)
+        self.assertGreater(result["cooldown_seconds"], 0)
+        self.assertLessEqual(
+            result["cooldown_seconds"],
+            pending_registration.RESEND_COOLDOWN_SECONDS,
+        )
         sendmail.assert_called_once()
 
     @patch("omc_app.api.pending_registration.frappe.sendmail")
@@ -138,6 +148,11 @@ class TestPendingRegistration(FrappeTestCase):
             pending_registration.GENERIC_PUBLIC_MESSAGE,
         )
         self.assertEqual(doc.token_digest, original_digest)
+        self.assertGreater(result["cooldown_seconds"], 0)
+        self.assertLessEqual(
+            result["cooldown_seconds"],
+            pending_registration.RESEND_COOLDOWN_SECONDS,
+        )
         sendmail.assert_not_called()
 
     @patch("omc_app.api.pending_registration.frappe.sendmail")
@@ -148,6 +163,10 @@ class TestPendingRegistration(FrappeTestCase):
         self.assertEqual(
             result["message"],
             pending_registration.GENERIC_PUBLIC_MESSAGE,
+        )
+        self.assertEqual(
+            result["cooldown_seconds"],
+            pending_registration.RESEND_COOLDOWN_SECONDS,
         )
         sendmail.assert_not_called()
 
@@ -170,6 +189,11 @@ class TestPendingRegistration(FrappeTestCase):
         self.assertEqual(result["status"], "activated")
         self.assertEqual(doc.status, "Activated")
         self.assertFalse(doc.activated_user)
+        self.assertFalse(doc.get_password("password_secret", raise_exception=False))
+        self.assertEqual(
+            json.loads(doc.payload_json),
+            {"email": payload["email"], "username": payload["username"]},
+        )
         sign_up.assert_called_once()
         call = sign_up.call_args.kwargs
         self.assertEqual(call["email"], payload["email"])
@@ -233,4 +257,11 @@ class TestPendingRegistration(FrappeTestCase):
         )
 
         self.assertEqual(first_doc.status, "Superseded")
+        self.assertFalse(
+            first_doc.get_password("password_secret", raise_exception=False)
+        )
+        self.assertEqual(
+            json.loads(first_doc.payload_json),
+            {"email": payload["email"], "username": payload["username"]},
+        )
         self.assertEqual(second_doc.status, "Pending")

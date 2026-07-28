@@ -6,9 +6,10 @@ import secrets
 import frappe
 from frappe import _
 from frappe.exceptions import ValidationError
-from frappe.utils import add_to_date, escape_html, get_datetime, get_url, now_datetime
+from frappe.utils import add_to_date, escape_html, get_datetime, now_datetime
 from frappe.utils.password import update_password
 
+from omc_app.api.auth_links import password_reset_links
 from omc_app.api.auth_login import resolve_login_email
 
 
@@ -23,12 +24,9 @@ def _digest(token: str) -> str:
     return hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()
 
 
-def _reset_url(token: str) -> str:
-    return get_url("/reset-password?token=" + token)
-
-
-def _email_html(reset_url: str) -> str:
-    safe_url = escape_html(reset_url)
+def _email_html(app_url: str, web_url: str) -> str:
+    safe_app_url = escape_html(app_url)
+    safe_web_url = escape_html(web_url)
     return f"""
     <div style="background:#f5f7fa;padding:32px 16px;font-family:Arial,sans-serif;">
       <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;padding:32px;">
@@ -41,10 +39,13 @@ def _email_html(reset_url: str) -> str:
         <p style="margin:0 0 18px;color:#475569;font-size:15px;line-height:1.6;">
           Use the secure link below to choose a new password.
         </p>
-        <a href="{safe_url}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;">
-          Reset password
+        <a href="{safe_app_url}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;">
+          Open OMC app
         </a>
-        <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
+        <p style="margin:16px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
+          App not installed? <a href="{safe_web_url}" style="color:#0f766e;font-weight:700;">Continue in your browser</a>.
+        </p>
+        <p style="margin:12px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
           This link expires in {TOKEN_TTL_MINUTES} minutes. If you did not request this change, ignore this email.
         </p>
       </div>
@@ -87,10 +88,11 @@ def request_reset(identifier: str | None = None):
         return {"message": GENERIC_MESSAGE}
 
     token, _doc = _create_reset(user)
+    links = password_reset_links(token)
     frappe.sendmail(
         recipients=[user],
         subject="Reset your OMC password",
-        message=_email_html(_reset_url(token)),
+        message=_email_html(links["app_url"], links["web_url"]),
         now=False,
     )
     frappe.db.commit()
