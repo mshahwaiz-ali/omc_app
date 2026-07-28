@@ -1,0 +1,132 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:omc_app/app/auth_route_redirect.dart';
+import 'package:omc_app/features/auth/application/auth_state.dart';
+
+void main() {
+  const pending = AuthCapabilities(accessState: AccountAccessState.pending);
+  const approved = AuthCapabilities(accessState: AccountAccessState.approved);
+  const internal = AuthCapabilities(
+    accessState: AccountAccessState.internal,
+    canAccessInternalWorkspace: true,
+  );
+
+  String? redirect(
+    AuthStatus status,
+    String location, {
+    AuthCapabilities capabilities = AuthCapabilities.guest,
+  }) {
+    return resolveAuthRouteRedirect(
+      status: status,
+      capabilities: capabilities,
+      location: location,
+    );
+  }
+
+  group('token-consumption routes', () {
+    for (final route in const ['/verify-email', '/reset-password']) {
+      test('$route survives every auth state', () {
+        for (final status in AuthStatus.values) {
+          final capabilities = status == AuthStatus.authenticated
+              ? approved
+              : AuthCapabilities.guest;
+          expect(
+            redirect(status, route, capabilities: capabilities),
+            isNull,
+            reason: '$route must remain available during $status',
+          );
+        }
+      });
+    }
+  });
+
+  group('session checking', () {
+    test('keeps splash and redirects protected routes to splash', () {
+      expect(redirect(AuthStatus.checking, '/'), isNull);
+      expect(redirect(AuthStatus.checking, '/documents'), '/');
+    });
+  });
+
+  group('unauthenticated users', () {
+    test('may open anonymous entry routes', () {
+      for (final route in const [
+        '/',
+        '/onboarding',
+        '/login',
+        '/signup',
+        '/forgot-password',
+      ]) {
+        expect(redirect(AuthStatus.unauthenticated, route), isNull);
+      }
+    });
+
+    test('are redirected from protected and review routes', () {
+      expect(redirect(AuthStatus.unauthenticated, '/documents'), '/login');
+      expect(redirect(AuthStatus.unauthenticated, '/under-review'), '/login');
+    });
+  });
+
+  group('guest users', () {
+    test('may open anonymous routes but not under-review', () {
+      expect(redirect(AuthStatus.guest, '/login'), isNull);
+      expect(redirect(AuthStatus.guest, '/forgot-password'), isNull);
+      expect(redirect(AuthStatus.guest, '/under-review'), '/home');
+    });
+
+    test('leave splash for home', () {
+      expect(redirect(AuthStatus.guest, '/'), '/home');
+    });
+  });
+
+  group('authenticated users', () {
+    test('pending users land on under-review from auth entry routes', () {
+      for (final route in const [
+        '/',
+        '/login',
+        '/signup',
+        '/forgot-password',
+      ]) {
+        expect(
+          redirect(AuthStatus.authenticated, route, capabilities: pending),
+          '/under-review',
+        );
+      }
+    });
+
+    test('pending users may remain on under-review', () {
+      expect(
+        redirect(
+          AuthStatus.authenticated,
+          '/under-review',
+          capabilities: pending,
+        ),
+        isNull,
+      );
+    });
+
+    test('approved and internal users cannot remain on under-review', () {
+      expect(
+        redirect(
+          AuthStatus.authenticated,
+          '/under-review',
+          capabilities: approved,
+        ),
+        '/home',
+      );
+      expect(
+        redirect(
+          AuthStatus.authenticated,
+          '/under-review',
+          capabilities: internal,
+        ),
+        '/home',
+      );
+    });
+
+    test('approved users leave login for home', () {
+      expect(
+        redirect(AuthStatus.authenticated, '/login', capabilities: approved),
+        '/home',
+      );
+    });
+  });
+}

@@ -23,6 +23,7 @@ class _EmailVerificationScreenState
     extends ConsumerState<EmailVerificationScreen> {
   bool _loading = true;
   bool _activated = false;
+  bool _canRetry = false;
   String _message = 'Verifying your email...';
 
   @override
@@ -36,10 +37,17 @@ class _EmailVerificationScreenState
     if (token.isEmpty) {
       setState(() {
         _loading = false;
+        _canRetry = false;
         _message = 'This verification link is invalid or has expired.';
       });
       return;
     }
+
+    setState(() {
+      _loading = true;
+      _canRetry = false;
+      _message = 'Verifying your email...';
+    });
 
     try {
       final response = await ref
@@ -58,6 +66,7 @@ class _EmailVerificationScreenState
       setState(() {
         _loading = false;
         _activated = ok && status == 'activated';
+        _canRetry = false;
         _message = data['message']?.toString().trim().isNotEmpty == true
             ? data['message'].toString().trim()
             : _activated
@@ -76,6 +85,7 @@ class _EmailVerificationScreenState
 
       setState(() {
         _loading = false;
+        _canRetry = true;
         _message = failure.message;
       });
     }
@@ -116,10 +126,18 @@ class _EmailVerificationScreenState
                 ),
               ),
               const SizedBox(height: 22),
-              AppButton(
-                label: _activated ? 'Continue to Login' : 'Back to Login',
-                icon: Icons.login_rounded,
+              if (_canRetry) ...[
+                AppButton(
+                  label: 'Try Again',
+                  icon: Icons.refresh_rounded,
+                  onPressed: _verify,
+                ),
+                const SizedBox(height: 10),
+              ],
+              OutlinedButton.icon(
                 onPressed: () => context.go('/login'),
+                icon: const Icon(Icons.login_rounded),
+                label: Text(_activated ? 'Continue to Login' : 'Back to Login'),
               ),
             ],
           ],

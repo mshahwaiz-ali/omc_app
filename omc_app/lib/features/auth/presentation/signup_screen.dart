@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -83,6 +85,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool? _referralCodeValid;
   String? _submitError;
   String _submittedEmail = '';
+  int _submittedCooldownSeconds = 60;
 
   bool get _isCustomer => _selectedRole == 'Customer';
 
@@ -307,7 +310,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _submitError = null;
     });
     try {
-      await ref.read(signupSubmitProvider)({
+      final response = await ref.read(signupSubmitProvider)({
         'full_name': _fullNameController.text.trim(),
         'first_name': _firstNameFromFullName(_fullNameController.text),
         'last_name': _lastNameFromFullName(_fullNameController.text),
@@ -345,9 +348,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           'remarks': _remarksController.text.trim(),
         },
       });
+      final raw = response['message'];
+      final data = raw is Map<String, dynamic> ? raw : response;
+      final cooldownSeconds =
+          int.tryParse(data['cooldown_seconds']?.toString() ?? '') ?? 60;
+
       if (mounted) {
         setState(() {
           _submittedEmail = _emailController.text.trim();
+          _submittedCooldownSeconds = cooldownSeconds.clamp(0, 3600);
           _submittedSuccessfully = true;
         });
       }
@@ -462,7 +471,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     if (_submittedSuccessfully) {
-      return PendingRegistrationSuccessScreen(email: _submittedEmail);
+      return PendingRegistrationSuccessScreen(
+        email: _submittedEmail,
+        initialCooldownSeconds: _submittedCooldownSeconds,
+      );
     }
 
     return AuthEntryScaffold(
@@ -664,9 +676,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 }
 
 class PendingRegistrationSuccessScreen extends ConsumerStatefulWidget {
-  const PendingRegistrationSuccessScreen({required this.email, super.key});
+  const PendingRegistrationSuccessScreen({
+    required this.email,
+    required this.initialCooldownSeconds,
+    super.key,
+  });
 
   final String email;
+  final int initialCooldownSeconds;
 
   @override
   ConsumerState<PendingRegistrationSuccessScreen> createState() =>
@@ -677,9 +694,48 @@ class _PendingRegistrationSuccessScreenState
     extends ConsumerState<PendingRegistrationSuccessScreen> {
   bool _resending = false;
   String? _message;
+  Timer? _cooldownTimer;
+  late int _cooldownSeconds;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCooldown(widget.initialCooldownSeconds);
+  }
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCooldown(int seconds) {
+    _cooldownTimer?.cancel();
+    _cooldownSeconds = seconds.clamp(0, 3600);
+    if (_cooldownSeconds == 0) return;
+
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_cooldownSeconds <= 1) {
+        timer.cancel();
+        setState(() => _cooldownSeconds = 0);
+        return;
+      }
+      setState(() => _cooldownSeconds -= 1);
+    });
+  }
+
+  String get _cooldownLabel {
+    final minutes = (_cooldownSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_cooldownSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
 
   Future<void> _resend() async {
-    if (_resending) return;
+    if (_resending || _cooldownSeconds > 0) return;
 
     setState(() {
       _resending = true;
@@ -695,11 +751,15 @@ class _PendingRegistrationSuccessScreenState
 
       if (!mounted) return;
 
+      final cooldownSeconds =
+          int.tryParse(data['cooldown_seconds']?.toString() ?? '') ?? 60;
+
       setState(() {
         _message = data['message']?.toString().trim().isNotEmpty == true
             ? data['message'].toString().trim()
             : 'If eligible, another verification email will be sent shortly.';
       });
+      _startCooldown(cooldownSeconds);
     } catch (error) {
       if (!mounted) return;
 
@@ -764,7 +824,7 @@ class _PendingRegistrationSuccessScreenState
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
-              onPressed: _resending ? null : _resend,
+              onPressed: _resending || _cooldownSeconds > 0 ? null : _resend,
               icon: _resending
                   ? const SizedBox(
                       width: 16,
@@ -773,7 +833,11 @@ class _PendingRegistrationSuccessScreenState
                     )
                   : const Icon(Icons.refresh_rounded),
               label: Text(
-                _resending ? 'Sending...' : 'Resend verification email',
+                _resending
+                    ? 'Sending...'
+                    : _cooldownSeconds > 0
+                    ? 'Resend available in $_cooldownLabel'
+                    : 'Resend verification email',
               ),
             ),
           ],

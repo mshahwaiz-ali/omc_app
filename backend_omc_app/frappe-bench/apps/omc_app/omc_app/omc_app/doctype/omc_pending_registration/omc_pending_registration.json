@@ -92,8 +92,7 @@
    "fieldtype": "Password",
    "hidden": 1,
    "label": "Password Secret",
-   "no_copy": 1,
-   "reqd": 1
+   "no_copy": 1
   },
   {
    "fieldname": "payload_section",

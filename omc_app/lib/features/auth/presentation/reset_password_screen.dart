@@ -111,6 +111,45 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasToken = widget.token.trim().isNotEmpty;
+
+    if (!hasToken) {
+      return AuthEntryScaffold(
+        title: 'Invalid reset link',
+        subtitle: 'This password reset link is missing or no longer valid.',
+        leading: IconButton(
+          tooltip: 'Back to login',
+          onPressed: () => context.go('/login'),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        child: PremiumCard(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Icon(Icons.link_off_rounded, size: 44),
+              const SizedBox(height: 18),
+              const Text(
+                'Request a new password reset email to continue securely.',
+              ),
+              const SizedBox(height: 22),
+              AppButton(
+                label: 'Request New Link',
+                icon: Icons.outgoing_mail,
+                onPressed: () => context.go('/forgot-password'),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/login'),
+                icon: const Icon(Icons.login_rounded),
+                label: const Text('Back to Login'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return AuthEntryScaffold(
       title: _completed ? 'Password updated' : 'Create a new password',
       subtitle: _completed

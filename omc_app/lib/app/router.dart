@@ -44,8 +44,8 @@ import '../features/tasks/presentation/task_detail_screen.dart';
 import '../features/tasks/presentation/tasks_screen.dart';
 import '../features/tax_calculator/presentation/tax_calculation_history_screen.dart';
 import '../features/tax_calculator/presentation/tax_calculator_screen.dart';
+import 'auth_route_redirect.dart';
 import 'main_shell.dart';
-import 'route_access_policy.dart';
 import 'shell_nav_scaffold.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -59,48 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         RouteFailureScreen(onGoHome: () => context.go('/home'), onGoBack: null),
     redirect: (context, state) {
       final authState = ref.read(authControllerProvider);
-      final location = state.matchedLocation;
-
-      final isSplash = location == '/';
-      final isOnboardingRoute = location == '/onboarding';
-      final isVerificationRoute = location == '/verify-email';
-      final isPasswordRecoveryRoute =
-          location == '/forgot-password' || location == '/reset-password';
-      final isAuthRoute =
-          location == '/login' ||
-          location == '/signup' ||
-          isOnboardingRoute ||
-          isVerificationRoute ||
-          isPasswordRecoveryRoute;
-      final isUnderReviewRoute = location == '/under-review';
-
-      if (authState.status == AuthStatus.checking) {
-        return isSplash ? null : '/';
-      }
-
-      if (authState.status == AuthStatus.unauthenticated) {
-        return isAuthRoute || isSplash ? null : '/login';
-      }
-
-      if (authState.status == AuthStatus.guest) {
-        if (isSplash) return '/home';
-        if (isAuthRoute) return null;
-        return isGuestAllowedRoute(location) ? null : '/home';
-      }
-
-      if (authState.status == AuthStatus.authenticated) {
-        if (isAuthRoute || isSplash) return '/home';
-        if (isUnderReviewRoute) {
-          return authState.capabilities.isPending ? null : '/home';
-        }
-
-        final hasRouteAccess = canAccessRoute(location, authState.capabilities);
-        if (hasRouteAccess) return null;
-
-        return authState.capabilities.isPending ? '/under-review' : '/home';
-      }
-
-      return null;
+      return resolveAuthRouteRedirect(
+        status: authState.status,
+        capabilities: authState.capabilities,
+        location: state.matchedLocation,
+      );
     },
     routes: [
       GoRoute(

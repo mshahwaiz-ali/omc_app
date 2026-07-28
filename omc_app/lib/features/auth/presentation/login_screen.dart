@@ -55,7 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
     final authState = ref.read(authControllerProvider);
     if (authState.status == AuthStatus.authenticated) {
-      context.go('/home');
+      context.go(authState.capabilities.isPending ? '/under-review' : '/home');
       return;
     }
 

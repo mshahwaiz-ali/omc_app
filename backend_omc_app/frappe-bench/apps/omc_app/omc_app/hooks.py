@@ -82,6 +82,7 @@ doc_events = {
 scheduler_events = {
     "hourly": [
         "omc_app.api.workflow_automation.run_hourly_workflow_checks",
+        "omc_app.api.auth_cleanup.cleanup_pending_registrations",
     ],
     "daily": [
         "omc_app.api.workflow_automation.run_daily_workflow_checks",
