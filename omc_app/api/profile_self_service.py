@@ -34,6 +34,8 @@ LOCKED_FIELDS = {
 }
 AUDIT_DOCTYPE = "OMC Profile Change Log"
 
+INTERNAL_ALLOWED_FIELDS = {"full_name", "phone"}
+
 
 def _current_user() -> str:
     user = str(frappe.session.user or "").strip()
@@ -138,10 +140,89 @@ def _create_audit(
     ).insert(ignore_permissions=True)
 
 
+
+
+def _internal_profile_payload(*, user: str, user_doc=None) -> dict:
+    user_doc = user_doc or frappe.get_doc("User", user)
+    capabilities = mobile._get_mobile_capabilities(user=user, profile=None)
+
+    return {
+        "full_name": str(
+            user_doc.get("full_name") or user_doc.get("first_name") or ""
+        ),
+        "email": str(user_doc.get("email") or user),
+        "phone": str(user_doc.get("mobile_no") or ""),
+        "whatsapp_no": "",
+        "address": "",
+        "company_name": "",
+        "cnic": "",
+        "ntn": "",
+        "avatar_url": str(user_doc.get("user_image") or ""),
+        "profile_image": str(user_doc.get("user_image") or ""),
+        "user_image": str(user_doc.get("user_image") or ""),
+        "customer_id": "",
+        "customer_status": "Internal",
+        "approval_status": "",
+        "access_state": capabilities["access_state"],
+        "capabilities": capabilities,
+        **capabilities,
+    }
+
+
+def _update_internal_profile(*, user: str, payload: dict[str, str]):
+    unsupported = sorted(set(payload) - INTERNAL_ALLOWED_FIELDS)
+    if unsupported:
+        frappe.throw(
+            _("Internal accounts can only update full name and mobile number."),
+            ValidationError,
+        )
+
+    if not frappe.db.exists("User", user):
+        frappe.throw(_("User account was not found."), ValidationError)
+
+    user_doc = frappe.get_doc("User", user)
+    changed_fields: list[str] = []
+
+    if "full_name" in payload:
+        full_name = payload["full_name"]
+        if str(user_doc.get("full_name") or "").strip() != full_name:
+            user_doc.first_name = full_name
+            user_doc.full_name = full_name
+            changed_fields.append("full_name")
+
+    if "phone" in payload:
+        phone = payload["phone"]
+        if str(user_doc.get("mobile_no") or "").strip() != phone:
+            user_doc.mobile_no = phone
+            changed_fields.append("phone")
+
+    if not changed_fields:
+        return {
+            "updated": False,
+            "updated_fields": [],
+            "message": "No profile details changed.",
+            "profile": _internal_profile_payload(user=user, user_doc=user_doc),
+        }
+
+    user_doc.save(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {
+        "updated": True,
+        "updated_fields": changed_fields,
+        "message": "Profile updated successfully.",
+        "profile": _internal_profile_payload(user=user, user_doc=user_doc),
+    }
+
+
 @frappe.whitelist()
 def update_profile(**kwargs):
     user = _current_user()
     payload = _clean_payload(kwargs)
+
+    if mobile._can_access_internal_workspace(user):
+        return _update_internal_profile(user=user, payload=payload)
+
     profile = mobile._get_customer_profile_for_user(user)
 
     before = _snapshot(profile)

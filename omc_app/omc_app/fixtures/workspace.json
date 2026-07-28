@@ -193,6 +193,36 @@
    },
    {
     "hidden": 0,
+    "is_query_report": 1,
+    "label": "My Referrals",
+    "link_count": 0,
+    "link_to": "My Referrals",
+    "link_type": "Report",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Referral Codes",
+    "link_count": 0,
+    "link_to": "OMC Referral",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Manual Customers",
+    "link_count": 0,
+    "link_to": "OMC Manual Customer",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
     "is_query_report": 0,
     "label": "Mobile Content",
     "link_count": 0,
@@ -285,16 +315,6 @@
     "label": "Tax Years",
     "link_count": 0,
     "link_to": "OMC Tax Year",
-    "link_type": "DocType",
-    "onboard": 0,
-    "type": "Link"
-   },
-   {
-    "hidden": 0,
-    "is_query_report": 0,
-    "label": "Tax Slabs",
-    "link_count": 0,
-    "link_to": "OMC Tax Slab",
     "link_type": "DocType",
     "onboard": 0,
     "type": "Link"
@@ -404,6 +424,16 @@
     "label": "Tasks",
     "link_count": 0,
     "link_to": "OMC Task",
+    "link_type": "DocType",
+    "onboard": 0,
+    "type": "Link"
+   },
+   {
+    "hidden": 0,
+    "is_query_report": 0,
+    "label": "Expense Budget",
+    "link_count": 0,
+    "link_to": "OMC Expense Budget",
     "link_type": "DocType",
     "onboard": 0,
     "type": "Link"
