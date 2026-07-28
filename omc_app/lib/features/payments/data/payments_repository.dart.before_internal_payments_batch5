@@ -250,9 +250,6 @@ class PaymentsRepository {
       ),
       status: _statusFromValue(json['status']),
       canReviewPayments: _boolValue(json['can_review_payments']),
-      customerName: _nullableString(json['customer_name']),
-      customerProfile: _nullableString(json['customer_profile']),
-      scopeType: _nullableString(json['scope_type']),
     );
   }
 

@@ -365,12 +365,6 @@ class ServiceCaseRepository {
           _boolValue(json['can_view_internal_notes']),
       canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
       canCancel: _boolValue(json['can_cancel']),
-      documentsComplete: _boolValue(json['documents_complete']),
-      paymentEligible: _boolValue(json['payment_eligible']),
-      paymentId: _nullableString(json['payment_id']),
-      paymentStatus: _nullableString(json['payment_status']),
-      paymentBlockReason: _nullableString(json['payment_block_reason']),
-      nextAction: _nullableString(json['next_action']),
     );
   }
 

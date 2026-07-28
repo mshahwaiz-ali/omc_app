@@ -11,9 +11,6 @@ import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
-import '../../internal_workspace/presentation/internal_workspace_providers.dart';
-import '../../notifications/data/notifications_repository.dart';
-import '../../service_requests/data/service_case_repository.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
 import 'widgets/payment_action_card.dart';
@@ -721,20 +718,6 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
             payment.status == PaymentStatus.underReview);
   }
 
-  void _invalidatePaymentRelatedState() {
-    ref
-      ..invalidate(paymentDetailProvider(payment.id))
-      ..invalidate(paymentsProvider)
-      ..invalidate(notificationsProvider)
-      ..invalidate(serviceCasesProvider)
-      ..invalidate(internalServiceCasesProvider);
-
-    final caseId = payment.serviceReference?.trim();
-    if (caseId != null && caseId.isNotEmpty) {
-      ref.invalidate(serviceCaseDetailProvider(caseId));
-    }
-  }
-
   Future<void> _reviewPaymentReceipt(
     BuildContext context,
     String status,
@@ -756,7 +739,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
         SnackBar(content: Text('Payment marked as $status.')),
       );
 
-      _invalidatePaymentRelatedState();
+      ref.invalidate(paymentDetailProvider(payment.id));
+      ref.invalidate(paymentsProvider);
     } catch (error) {
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(
@@ -821,7 +805,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
 
       messenger.showSnackBar(SnackBar(content: Text(message)));
 
-      _invalidatePaymentRelatedState();
+      ref.invalidate(paymentDetailProvider(payment.id));
+      ref.invalidate(paymentsProvider);
     } catch (error) {
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(

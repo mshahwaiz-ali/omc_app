@@ -25,9 +25,6 @@ class PaymentItem {
     this.serviceReference,
     this.remarks,
     this.canReviewPayments = false,
-    this.customerName,
-    this.customerProfile,
-    this.scopeType,
   });
 
   final String id;
@@ -45,23 +42,6 @@ class PaymentItem {
   final String? remarks;
   final PaymentStatus status;
   final bool canReviewPayments;
-  final String? customerName;
-  final String? customerProfile;
-  final String? scopeType;
-
-  bool get isReferralPayment => scopeType?.trim().toLowerCase() == 'referral';
-
-  bool get isOwnPayment => scopeType?.trim().toLowerCase() == 'own';
-
-  String get customerLabel {
-    final name = customerName?.trim();
-    if (name != null && name.isNotEmpty) return name;
-
-    final profile = customerProfile?.trim();
-    if (profile != null && profile.isNotEmpty) return profile;
-
-    return isReferralPayment ? 'Referral customer' : 'My payment';
-  }
 
   bool get requiresAction =>
       status == PaymentStatus.pending ||

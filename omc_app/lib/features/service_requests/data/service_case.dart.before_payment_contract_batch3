@@ -40,12 +40,6 @@ class ServiceCase {
     this.canReviewDocuments = false,
     this.canViewInternalNotes = false,
     this.canCancel = false,
-    this.documentsComplete = false,
-    this.paymentEligible = false,
-    this.paymentId,
-    this.paymentStatus,
-    this.paymentBlockReason,
-    this.nextAction,
   });
 
   final String id;
@@ -86,17 +80,6 @@ class ServiceCase {
   final bool canReviewDocuments;
   final bool canViewInternalNotes;
   final bool canCancel;
-  final bool documentsComplete;
-  final bool paymentEligible;
-  final String? paymentId;
-  final String? paymentStatus;
-  final String? paymentBlockReason;
-  final String? nextAction;
-
-  bool get hasPayment {
-    final value = paymentId?.trim();
-    return value != null && value.isNotEmpty;
-  }
 
   /// Backend values remain accepted, but the customer-facing percentage should
   /// be based on current records, not on timeline step count.

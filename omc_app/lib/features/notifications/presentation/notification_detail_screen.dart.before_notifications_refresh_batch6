@@ -9,9 +9,6 @@ import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
-import '../../internal_workspace/presentation/internal_workspace_providers.dart';
-import '../../payments/data/payments_repository.dart';
-import '../../service_requests/data/service_case_repository.dart';
 import '../data/notification_item.dart';
 import '../data/notifications_repository.dart';
 
@@ -215,8 +212,6 @@ class _NotificationDetailBodyState
   }
 
   void _openRelatedRecord(BuildContext context, NotificationItem notification) {
-    _invalidateRelatedState(notification);
-
     final actionUrl = notification.actionUrl?.trim();
     if (actionUrl != null && actionUrl.isNotEmpty) {
       _openActionUrl(context, actionUrl);
@@ -246,29 +241,6 @@ class _NotificationDetailBodyState
           'This notification type does not have a specific app destination yet.',
         );
         return;
-    }
-  }
-
-  void _invalidateRelatedState(NotificationItem notification) {
-    ref
-      ..invalidate(notificationsProvider)
-      ..invalidate(paymentsProvider)
-      ..invalidate(serviceCasesProvider)
-      ..invalidate(internalServiceCasesProvider);
-
-    final reference = notification.reference?.trim();
-    if (reference == null || reference.isEmpty) return;
-
-    switch (notification.type) {
-      case AppNotificationType.paymentAlert:
-        ref.invalidate(paymentDetailProvider(reference));
-        break;
-      case AppNotificationType.documentRequest:
-      case AppNotificationType.serviceUpdate:
-        ref.invalidate(serviceCaseDetailProvider(reference));
-        break;
-      case AppNotificationType.general:
-        break;
     }
   }
 

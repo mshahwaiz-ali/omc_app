@@ -238,15 +238,7 @@ def _payment_support_payload(payment=None, service_case=None):
 
 
 
-def _notify_customer(
-    service_case,
-    *,
-    title,
-    message,
-    notification_type="Service",
-    reference_doctype="OMC Service Request",
-    reference_name=None,
-):
+def _notify_customer(service_case, *, title, message, notification_type="Service"):
     if not getattr(service_case, "customer_profile", None):
         return None
     return mobile._create_customer_notification(
@@ -254,8 +246,8 @@ def _notify_customer(
         title=title,
         message=message,
         notification_type=notification_type,
-        reference_doctype=reference_doctype,
-        reference_name=reference_name or service_case.name,
+        reference_doctype="OMC Service Request",
+        reference_name=service_case.name,
     )
 
 
@@ -427,8 +419,6 @@ def _ensure_payment_for_case(service_case):
         title="Payment is ready",
         message=message,
         notification_type="Payment",
-        reference_doctype=PAYMENT_DOCTYPE,
-        reference_name=payment.name,
     )
 
     frappe.db.commit()
@@ -528,30 +518,6 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
     can_view_receipt = bool(capabilities.get("can_view_payment_receipts"))
     can_review = bool(capabilities.get("can_review_payments"))
 
-    customer_profile = (
-        frappe.get_doc("OMC Customer Profile", service_case.customer_profile)
-        if service_case
-        and service_case.customer_profile
-        and frappe.db.exists("OMC Customer Profile", service_case.customer_profile)
-        else None
-    )
-    current_user = _current_user()
-    own_profile_name = _customer_profile_name_for_user(current_user)
-    scope_type = (
-        "own"
-        if customer_view
-        or (
-            own_profile_name
-            and service_case
-            and service_case.customer_profile == own_profile_name
-        )
-        else "referral"
-        if service_case
-        and service_case.referral_owner == current_user
-        and (service_case.customer_mode or "").strip() == "My Referral"
-        else ""
-    )
-
     return {
         "name": payment.name,
         "payment_id": payment.name,
@@ -575,15 +541,6 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
         ),
         "remarks": payment.remarks or "" if customer_view or can_review else "",
         "can_review_payments": can_review,
-        "customer_profile": (
-            service_case.customer_profile if service_case else ""
-        ),
-        "customer_name": (
-            customer_profile.full_name
-            if customer_profile
-            else getattr(service_case, "customer_name", "") or ""
-        ),
-        "scope_type": scope_type,
         **support,
     }
 
