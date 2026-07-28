@@ -1,3 +1,5 @@
+import re
+
 import frappe
 from frappe.utils import validate_email_address
 
@@ -146,8 +148,49 @@ SIGNUP_TEXT_LIMITS = {
     "referral_code": 40,
     "submitted_referral_code": 40,
     "referral_consent_version": 40,
+    "username": 30,
 }
 
+
+_RESERVED_USERNAMES = {"admin", "administrator", "api", "app", "help", "login", "logout", "omc", "omchouse", "root", "support", "system", "user", "www"}
+_USERNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._]{2,28}[a-z0-9]$")
+
+def normalize_username(value):
+    text = str(value or "").strip().lower()
+    text = re.sub(r"[^a-z0-9._]+", ".", text)
+    return re.sub(r"[._]{2,}", ".", text).strip("._")
+
+def validate_username(value):
+    username = normalize_username(value)
+    if not username or not _USERNAME_PATTERN.fullmatch(username):
+        frappe.throw("Username must be 4 to 30 characters using lowercase letters, numbers, dots or underscores.", frappe.ValidationError)
+    if username in _RESERVED_USERNAMES:
+        frappe.throw("This username is reserved.", frappe.ValidationError)
+    return username
+
+def username_exists(username):
+    username = normalize_username(username)
+    return bool(username and (frappe.db.exists("OMC Customer Profile", {"username": username}) or frappe.db.exists("User", username)))
+
+@frappe.whitelist(allow_guest=True)
+def suggest_username(full_name=None, email=None):
+    source = str(full_name or "").strip() or str(email or "").split("@", 1)[0]
+    base = normalize_username(source) or "omc.user"
+    if len(base) < 4:
+        base = f"{base}.user"
+    base = base[:30].strip("._")
+    candidate = base
+    suffix = 1
+    while username_exists(candidate) or candidate in _RESERVED_USERNAMES:
+        suffix += 1
+        tail = f".{suffix}"
+        candidate = f"{base[:30-len(tail)]}{tail}"
+    return {"username": candidate, "available": True}
+
+@frappe.whitelist(allow_guest=True)
+def check_username_availability(username=None):
+    normalized = validate_username(username)
+    return {"username": normalized, "available": not username_exists(normalized)}
 
 def _current_user():
     user = frappe.session.user if getattr(frappe, "session", None) else "Guest"
@@ -231,6 +274,8 @@ def _validated_signup_kwargs(kwargs):
         )
 
     data["email"] = email
+    if "username" in data:
+        data["username"] = validate_username(data.get("username"))
     for fieldname, max_length in SIGNUP_TEXT_LIMITS.items():
         if fieldname in data:
             data[fieldname] = _bounded_signup_text(

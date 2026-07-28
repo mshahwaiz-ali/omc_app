@@ -452,6 +452,14 @@ def sign_up(**kwargs):
     email = (kwargs.get("email") or kwargs.get("user") or "").strip().lower()
     password = kwargs.get("password") or kwargs.get("new_password")
     full_name = (kwargs.get("full_name") or kwargs.get("name") or "").strip()
+    submitted_username = kwargs.get("username")
+    if submitted_username:
+        username = access.validate_username(submitted_username)
+    else:
+        username = access.suggest_username(
+            full_name=full_name,
+            email=email,
+        )["username"]
     phone = (kwargs.get("phone") or kwargs.get("mobile") or "").strip()
     whatsapp_no = (kwargs.get("whatsapp_no") or kwargs.get("whatsapp") or "").strip()
     company_name = (kwargs.get("company_name") or kwargs.get("company") or "").strip()
@@ -537,6 +545,9 @@ def sign_up(**kwargs):
         frappe.db.exists("OMC Customer Profile", {"user": email})
         or frappe.db.exists("OMC Customer Profile", {"email": email})
     )
+    if access.username_exists(username):
+        frappe.throw("Username is already taken.", frappe.DuplicateEntryError)
+
     if frappe.db.exists("User", email) or existing_profile:
         frappe.throw(
             "An account with this email already exists. Please sign in.",
@@ -588,6 +599,7 @@ def sign_up(**kwargs):
     profile.full_name = full_name or profile.full_name
     profile.email = email
     profile.user = email
+    _set_if_has_field(profile, "username", username)
     if phone:
         profile.phone = phone
     if company_name:
@@ -642,6 +654,7 @@ def sign_up(**kwargs):
             "customer_id": profile.name,
             "full_name": profile.full_name or "",
             "email": profile.email or "",
+            "username": profile.get("username") or "",
             "phone": profile.phone or "",
             "whatsapp_no": profile.get("whatsapp_no") or "",
             "company_name": profile.company_name or "",
@@ -852,77 +865,29 @@ def upload_profile_image():
 
 @frappe.whitelist()
 def update_profile(**kwargs):
-    profile = _get_customer_profile_for_user()
+    """Backward-compatible wrapper around the canonical secure profile API."""
+    from omc_app.api import profile_self_service
 
-    allowed_fields = ["full_name", "phone", "cnic", "ntn", "company_name"]
-    updated_fields = []
-
-    for fieldname in allowed_fields:
-        if fieldname in kwargs:
-            profile.set(fieldname, kwargs.get(fieldname))
-            updated_fields.append(fieldname)
-
-    if updated_fields:
-        profile.save(ignore_permissions=True)
-        frappe.db.commit()
-
-    return {
-        "message": "Profile updated." if updated_fields else "No profile fields changed.",
-        "updated": bool(updated_fields),
-        "updated_fields": updated_fields,
-    }
+    return profile_self_service.update_profile(**kwargs)
 
 
 @frappe.whitelist()
 def update_contact_info(**kwargs):
-    profile = _get_customer_profile_for_user()
+    """Preserve legacy aliases without bypassing protected profile fields."""
+    from omc_app.api import profile_self_service
 
-    field_map = {
-        "full_name": "full_name",
+    alias_map = {
         "name": "full_name",
-        "phone": "phone",
         "mobile": "phone",
-        "email": "email",
-        "cnic": "cnic",
-        "ntn": "ntn",
-        "company_name": "company_name",
         "company": "company_name",
     }
+    payload = dict(kwargs or {})
 
-    updated_fields = []
+    for alias, canonical in alias_map.items():
+        if alias in payload and canonical not in payload:
+            payload[canonical] = payload.pop(alias)
 
-    for incoming_field, profile_field in field_map.items():
-        if incoming_field not in kwargs:
-            continue
-
-        value = kwargs.get(incoming_field)
-        if value is None:
-            continue
-
-        value = str(value).strip()
-        if profile.get(profile_field) != value:
-            profile.set(profile_field, value)
-            if profile_field not in updated_fields:
-                updated_fields.append(profile_field)
-
-    if updated_fields:
-        profile.save(ignore_permissions=True)
-        frappe.db.commit()
-
-    return {
-        "message": "Contact information updated." if updated_fields else "No contact information changed.",
-        "updated": bool(updated_fields),
-        "updated_fields": updated_fields,
-        "profile": {
-            "customer_id": profile.name,
-            "full_name": profile.full_name or "",
-            "email": profile.email or "",
-            "phone": profile.phone or "",
-            "company_name": profile.company_name or "",
-            "cnic": profile.cnic or "",
-            "ntn": profile.ntn or "",
-        },
-    }
+    return profile_self_service.update_profile(**payload)
 
 
 @frappe.whitelist()
