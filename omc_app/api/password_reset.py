@@ -15,6 +15,8 @@ from omc_app.api.auth_login import resolve_login_email
 
 DOCTYPE = "OMC Password Reset"
 TOKEN_TTL_MINUTES = 30
+RESET_REQUEST_COOLDOWN_SECONDS = 60
+RESET_IDENTIFIER_MAX_LENGTH = 254
 GENERIC_MESSAGE = (
     "If the account is eligible, password reset instructions will be sent shortly."
 )
@@ -81,10 +83,34 @@ def _create_reset(user: str) -> tuple[str, object]:
     return token, doc
 
 
+def _is_reset_request_cooling_down(user: str) -> bool:
+    rows = frappe.get_all(
+        DOCTYPE,
+        filters={"user": user},
+        fields=["requested_at"],
+        order_by="requested_at desc",
+        limit=1,
+    )
+    if not rows or not rows[0].get("requested_at"):
+        return False
+
+    elapsed_seconds = (
+        now_datetime() - get_datetime(rows[0]["requested_at"])
+    ).total_seconds()
+    return elapsed_seconds < RESET_REQUEST_COOLDOWN_SECONDS
+
+
 @frappe.whitelist(allow_guest=True)
 def request_reset(identifier: str | None = None):
-    user = resolve_login_email(str(identifier or ""))
-    if not user:
+    normalized_identifier = str(identifier or "").strip()
+    if (
+        not normalized_identifier
+        or len(normalized_identifier) > RESET_IDENTIFIER_MAX_LENGTH
+    ):
+        return {"message": GENERIC_MESSAGE}
+
+    user = resolve_login_email(normalized_identifier)
+    if not user or _is_reset_request_cooling_down(user):
         return {"message": GENERIC_MESSAGE}
 
     token, _doc = _create_reset(user)

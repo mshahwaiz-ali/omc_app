@@ -11,6 +11,20 @@ class TestPasswordReset(FrappeTestCase):
         super().setUp()
         self.created = []
         self.test_user = "password-reset-test@example.com"
+
+        stale_resets = frappe.get_all(
+            "OMC Password Reset",
+            filters={"user": self.test_user},
+            pluck="name",
+        )
+        for name in stale_resets:
+            frappe.delete_doc(
+                "OMC Password Reset",
+                name,
+                force=True,
+                ignore_permissions=True,
+            )
+
         if not frappe.db.exists("User", self.test_user):
             user = frappe.get_doc(
                 {
@@ -70,6 +84,41 @@ class TestPasswordReset(FrappeTestCase):
         result = password_reset.request_reset("unknown")
 
         self.assertEqual(result["message"], password_reset.GENERIC_MESSAGE)
+        sendmail.assert_not_called()
+
+    @patch("omc_app.api.password_reset.frappe.sendmail")
+    @patch("omc_app.api.password_reset.resolve_login_email")
+    def test_request_reset_cooldown_is_generic_and_suppresses_email(
+        self,
+        resolve,
+        sendmail,
+    ):
+        resolve.return_value = self.test_user
+
+        first = password_reset.request_reset("demo-user")
+        second = password_reset.request_reset("demo-user")
+
+        self.assertEqual(first["message"], password_reset.GENERIC_MESSAGE)
+        self.assertEqual(second["message"], password_reset.GENERIC_MESSAGE)
+        sendmail.assert_called_once()
+
+        names = frappe.get_all(
+            "OMC Password Reset",
+            filters={"user": self.test_user},
+            pluck="name",
+        )
+        self.assertEqual(len(names), 1)
+        self.created.extend(names)
+
+    @patch("omc_app.api.password_reset.frappe.sendmail")
+    @patch("omc_app.api.password_reset.resolve_login_email")
+    def test_oversized_identifier_is_generic_without_lookup(self, resolve, sendmail):
+        result = password_reset.request_reset(
+            "x" * (password_reset.RESET_IDENTIFIER_MAX_LENGTH + 1)
+        )
+
+        self.assertEqual(result["message"], password_reset.GENERIC_MESSAGE)
+        resolve.assert_not_called()
         sendmail.assert_not_called()
 
     @patch("omc_app.api.password_reset.update_password")
