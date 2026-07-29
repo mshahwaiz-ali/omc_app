@@ -612,24 +612,6 @@ def generate_expense_report(month=None):
         "message": "PDF report generation hook is ready; attach print/PDF workflow in the next report phase.",
     }
 
-
-@frappe.whitelist()
-def share_expense_report_with_consultant(month=None, note=None):
-    profile = _profile()
-    if not _feature_available("expense_consultant_sharing_enabled", True):
-        frappe.throw("Consultant sharing is disabled by OMC.", frappe.PermissionError)
-
-    summary = get_expense_summary(month=month)
-    return {
-        "shared": True,
-        "customer_profile": profile.name,
-        "month": str(frappe.utils.get_first_day(month or frappe.utils.today())),
-        "note": note or "",
-        "summary": summary,
-        "message": "Expense summary marked ready for consultant review.",
-    }
-
-
 def _summary(entries):
     income = 0.0
     expenses = 0.0
