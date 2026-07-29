@@ -2445,11 +2445,38 @@ def _notification_mobile_route(notification):
     return saved_route
 
 
+def _notification_page_value(value, *, default, minimum, maximum):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(parsed, maximum))
+
+
 @frappe.whitelist()
-def get_notifications():
+def get_notifications(start=0, limit=50):
+    start = _notification_page_value(
+        start,
+        default=0,
+        minimum=0,
+        maximum=100000,
+    )
+    limit = _notification_page_value(
+        limit,
+        default=50,
+        minimum=1,
+        maximum=100,
+    )
+
     user = _current_user()
     if user == "Guest":
-        return {"notifications": []}
+        return {
+            "notifications": [],
+            "start": start,
+            "limit": limit,
+            "has_more": False,
+            "next_start": None,
+        }
 
     profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
 
@@ -2464,7 +2491,13 @@ def get_notifications():
     elif user and user != "Guest":
         filters["recipient_user"] = user
     else:
-        return {"notifications": []}
+        return {
+            "notifications": [],
+            "start": start,
+            "limit": limit,
+            "has_more": False,
+            "next_start": None,
+        }
 
     notification_fields = [
         "name",
@@ -2480,15 +2513,21 @@ def get_notifications():
     if _doctype_has_field("OMC Notification", "mobile_route"):
         notification_fields.append("mobile_route")
 
-    notifications = frappe.get_all(
+    rows = frappe.get_all(
         "OMC Notification",
         filters=filters,
         fields=notification_fields,
         order_by="creation desc",
+        limit_start=start,
+        limit_page_length=limit + 1,
     )
+    has_more = len(rows) > limit
+    notifications = rows[:limit]
 
-    return {
-        "notifications": [
+    items = []
+    for notification in notifications:
+        mobile_route = _notification_mobile_route(notification)
+        items.append(
             {
                 "name": notification.name,
                 "title": notification.title or "",
@@ -2496,14 +2535,20 @@ def get_notifications():
                 "type": notification.notification_type or "",
                 "reference_doctype": notification.reference_doctype or "",
                 "reference_name": notification.reference_name or "",
-                "mobile_route": _notification_mobile_route(notification),
-                "action_url": _notification_mobile_route(notification),
+                "mobile_route": mobile_route,
+                "action_url": mobile_route,
                 "is_read": int(notification.is_read or 0),
                 "created_at": _format_datetime(notification.creation),
                 "read_on": str(notification.read_on) if notification.read_on else "",
             }
-            for notification in notifications
-        ]
+        )
+
+    return {
+        "notifications": items,
+        "start": start,
+        "limit": limit,
+        "has_more": has_more,
+        "next_start": start + limit if has_more else None,
     }
 
 
