@@ -538,23 +538,6 @@ class _PreferencesSection extends StatelessWidget {
               : (value) =>
                     onToggle!(preferences.copyWith(taxAlertsEnabled: value)),
         ),
-        _SwitchTile(
-          title: 'Email notifications',
-          value: preferences.emailNotificationsEnabled,
-          onChanged: onToggle == null
-              ? null
-              : (value) => onToggle!(
-                  preferences.copyWith(emailNotificationsEnabled: value),
-                ),
-        ),
-        _SwitchTile(
-          title: 'WhatsApp notifications',
-          value: preferences.whatsAppNotificationsEnabled,
-          onChanged: onToggle == null
-              ? null
-              : (value) => onToggle!(
-                  preferences.copyWith(whatsAppNotificationsEnabled: value),
-                ),
         ),
       ],
     );
