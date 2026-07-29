@@ -513,7 +513,7 @@ omc_app.api.guest_session.update_guest_activity
 ### Profile / Settings
 
 ```text
-omc_app.api.mobile.get_profile
+omc_app.api.access_v2.get_profile
 omc_app.api.mobile.update_profile
 omc_app.api.mobile.update_contact_info
 omc_app.api.mobile.get_settings_preferences
@@ -542,8 +542,8 @@ omc_app.api.secured_mobile.update_service_case_status
 ### Documents
 
 ```text
-omc_app.api.mobile.get_documents
-omc_app.api.mobile.get_document
+omc_app.api.customer_documents.get_documents
+omc_app.api.customer_documents.get_document
 omc_app.api.mobile.upload_service_document
 omc_app.api.secured_mobile.update_service_document_status
 ```
@@ -551,10 +551,10 @@ omc_app.api.secured_mobile.update_service_document_status
 ### Payments
 
 ```text
-omc_app.api.mobile.get_payments
-omc_app.api.mobile.get_payment
+omc_app.api.payments.get_payments
+omc_app.api.payments.get_payment
 omc_app.api.mobile.upload_payment_receipt
-omc_app.api.mobile.review_payment_receipt
+omc_app.api.payments.review_payment_receipt
 ```
 
 ### Knowledge / Banners / FAQs
@@ -982,3 +982,5 @@ Before marking backend production-ready:
 ## License
 
 MIT
+
+> Compatibility note: legacy `omc_app.api.mobile.*` aliases remain available for older clients, but current integrations should use the canonical endpoints documented above.

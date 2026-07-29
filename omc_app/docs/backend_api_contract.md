@@ -189,7 +189,7 @@ Preferred response:
   }
 }
 Documents
-omc_app.api.mobile.get_documents
+omc_app.api.customer_documents.get_documents
 
 Used by:
 
@@ -212,7 +212,7 @@ Preferred response:
   }
 }
 Payments
-omc_app.api.mobile.get_payments
+omc_app.api.payments.get_payments
 
 Used by:
 
@@ -235,7 +235,7 @@ Preferred response:
   }
 }
 Profile
-omc_app.api.mobile.get_profile
+omc_app.api.access_v2.get_profile
 
 Used by:
 
@@ -429,3 +429,5 @@ Avoid exposing raw internal errors to mobile users.
 Use permission checks on every method.
 Filter records by authenticated user/customer unless the user has internal roles.
 Keep date strings ISO-like where possible, for example 2026-07-05.
+
+> Compatibility note: legacy `omc_app.api.mobile.*` aliases remain available for older clients, but current integrations should use the canonical endpoints documented above.
