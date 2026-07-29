@@ -121,3 +121,8 @@ key.properties
 
 # Local source snapshots belong in Git history, not the tree.
 *.before_*
+
+# Local source snapshots and editor backups
+*.bak.*
+*.rej
+*~
