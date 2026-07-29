@@ -18,17 +18,23 @@ import '../features/service_requests/presentation/my_services_screen.dart';
 import 'navigation/omc_bottom_nav.dart';
 import 'navigation/omc_more_sheet.dart';
 import 'navigation/omc_quick_actions_sheet.dart';
+import 'providers/effective_capabilities_provider.dart';
 import 'route_access_policy.dart';
+import '../core/resilience/app_failure.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({
     this.initialIndex = 0,
     this.initialServiceQuery = '',
+    this.showAccessDeniedNotice = false,
+    this.showMoreOnLoad = false,
     super.key,
   });
 
   final int initialIndex;
   final String initialServiceQuery;
+  final bool showAccessDeniedNotice;
+  final bool showMoreOnLoad;
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
@@ -36,14 +42,21 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   late int _currentIndex;
+  bool _isMoreSheetOpen = false;
+  bool _isLoggingOut = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = _normalTabIndex(widget.initialIndex);
-    if (widget.initialIndex == 4) {
+    if (widget.showMoreOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showMoreSheet();
+        if (mounted) _showMoreSheet(fromRoute: true);
+      });
+    }
+    if (widget.showAccessDeniedNotice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showLockedSnack(_currentCapabilities());
       });
     }
   }
@@ -52,17 +65,23 @@ class _MainShellState extends ConsumerState<MainShell> {
   void didUpdateWidget(covariant MainShell oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    if (!oldWidget.showMoreOnLoad && widget.showMoreOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showMoreSheet(fromRoute: true);
+      });
+    }
+
+    if (!oldWidget.showAccessDeniedNotice && widget.showAccessDeniedNotice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showLockedSnack(_currentCapabilities());
+      });
+    }
+
     if (oldWidget.initialIndex == widget.initialIndex) return;
 
     final nextIndex = _normalTabIndex(widget.initialIndex);
     if (_currentIndex != nextIndex) {
       setState(() => _currentIndex = nextIndex);
-    }
-
-    if (widget.initialIndex == 4) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showMoreSheet();
-      });
     }
   }
 
@@ -94,11 +113,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   AuthCapabilities _currentCapabilities() {
-    final profile = ref
-        .read(profileSummaryProvider)
-        .maybeWhen(data: (profile) => profile, orElse: () => null);
-    return profile?.capabilities ??
-        ref.read(authControllerProvider).capabilities;
+    return ref.read(effectiveCapabilitiesProvider);
   }
 
   bool _isInternal(AuthCapabilities capabilities) {
@@ -161,10 +176,28 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   Future<void> _logout() async {
-    await ref.read(authControllerProvider.notifier).logout();
-    ref.invalidate(profileSummaryProvider);
-    if (!mounted) return;
-    context.go('/login');
+    if (_isLoggingOut) return;
+
+    _isLoggingOut = true;
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
+      ref.invalidate(profileSummaryProvider);
+      if (!mounted) return;
+      context.go('/login');
+    } catch (error) {
+      if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Logout incomplete',
+        fallbackMessage:
+            'The session could not be cleared right now. Please try again.',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      _isLoggingOut = false;
+    }
   }
 
   void _openPath(String path) => context.push(path);
@@ -224,111 +257,118 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  void _showMoreSheet() {
+  Future<void> _showMoreSheet({bool fromRoute = false}) async {
+    if (_isMoreSheetOpen) return;
+    _isMoreSheetOpen = true;
+
     final authState = ref.read(authControllerProvider);
     final profile = ref
         .read(profileSummaryProvider)
         .maybeWhen(data: (profile) => profile, orElse: () => null);
     final mobileConfig =
         ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
-    final capabilities = profile?.capabilities ?? authState.capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     final unreadNotifications =
         ref.read(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
 
-    showOmcMoreSheet(
-      context: context,
-      features: mobileConfig.features,
-      capabilities: capabilities,
-      unreadNotifications: unreadNotifications,
-      isGuest: authState.status == AuthStatus.guest,
-      displayName: profile?.displayName ?? authState.displayName,
-      companyName: profile?.companyName ?? authState.companyName,
-      customerStatus: profile?.status ?? authState.customerStatus,
-      avatarUrl: profile?.avatarUrl ?? authState.avatarUrl,
-      onOpenDashboard: () => _openWhenAllowed(
-        allowed: canAccessRoute('/dashboard', capabilities),
-        path: '/dashboard',
+    try {
+      await showOmcMoreSheet(
+        context: context,
+        features: mobileConfig.features,
         capabilities: capabilities,
-      ),
-      onOpenDocuments: () => _openWhenAllowed(
-        allowed: _canOpenDocuments(capabilities),
-        path: '/documents',
-        capabilities: capabilities,
-      ),
-      onOpenPayments: () => _openWhenAllowed(
-        allowed: canAccessRoute('/payments', capabilities),
-        path: '/payments',
-        capabilities: capabilities,
-      ),
-      onOpenNotifications: () => _openWhenAllowed(
-        allowed: canAccessRoute('/notifications', capabilities),
-        path: '/notifications',
-        capabilities: capabilities,
-      ),
-      onOpenTaxCalculator: () => _openPath('/tax-calculator'),
-      onOpenExpenseTracker: () => _openPath('/expense-tracker'),
-      onOpenBudget: () => _openWhenAllowed(
-        allowed: canAccessRoute('/expense-budget', capabilities),
-        path: '/expense-budget',
-        capabilities: capabilities,
-      ),
-      onOpenKnowledge: () => _openPath('/knowledge'),
-      onOpenSupport: () => _openPath('/support'),
-      onOpenProfile: () => _openWhenAllowed(
-        allowed: canAccessRoute('/profile', capabilities),
-        path: '/profile',
-        capabilities: capabilities,
-      ),
-      onOpenSettings: () => _openWhenAllowed(
-        allowed: canAccessRoute('/settings', capabilities),
-        path: '/settings',
-        capabilities: capabilities,
-      ),
-      onOpenInternalWorkspace: () => _openWhenAllowed(
-        allowed: capabilities.canAccessInternalWorkspace,
-        path: '/internal-workspace',
-        capabilities: capabilities,
-      ),
-      onOpenInternalCases: () => _openWhenAllowed(
-        allowed: _canOpenInternalCases(capabilities),
-        path: '/internal-workspace/service-cases',
-        capabilities: capabilities,
-      ),
-      onOpenCustomers: () => _openWhenAllowed(
-        allowed: canAccessRoute('/customers', capabilities),
-        path: '/customers',
-        capabilities: capabilities,
-      ),
-      onOpenMyReferrals: () => _openWhenAllowed(
-        allowed: canAccessRoute('/my-referrals', capabilities),
-        path: '/my-referrals',
-        capabilities: capabilities,
-      ),
-      onOpenLeads: () => _openWhenAllowed(
-        allowed: canAccessRoute('/leads', capabilities),
-        path: '/leads',
-        capabilities: capabilities,
-      ),
-      onOpenTasks: () => _openWhenAllowed(
-        allowed: canAccessRoute('/tasks', capabilities),
-        path: '/tasks',
-        capabilities: capabilities,
-      ),
-      onLogout: authState.status == AuthStatus.guest
-          ? () => context.go('/login')
-          : _logout,
-    );
+        unreadNotifications: unreadNotifications,
+        isGuest: authState.status == AuthStatus.guest,
+        displayName: profile?.displayName ?? authState.displayName,
+        companyName: profile?.companyName ?? authState.companyName,
+        customerStatus: profile?.status ?? authState.customerStatus,
+        avatarUrl: profile?.avatarUrl ?? authState.avatarUrl,
+        onOpenDashboard: () => _openWhenAllowed(
+          allowed: canAccessRoute('/dashboard', capabilities),
+          path: '/dashboard',
+          capabilities: capabilities,
+        ),
+        onOpenDocuments: () => _openWhenAllowed(
+          allowed: _canOpenDocuments(capabilities),
+          path: '/documents',
+          capabilities: capabilities,
+        ),
+        onOpenPayments: () => _openWhenAllowed(
+          allowed: canAccessRoute('/payments', capabilities),
+          path: '/payments',
+          capabilities: capabilities,
+        ),
+        onOpenNotifications: () => _openWhenAllowed(
+          allowed: canAccessRoute('/notifications', capabilities),
+          path: '/notifications',
+          capabilities: capabilities,
+        ),
+        onOpenTaxCalculator: () => _openPath('/tax-calculator'),
+        onOpenExpenseTracker: () => _openPath('/expense-tracker'),
+        onOpenBudget: () => _openWhenAllowed(
+          allowed: canAccessRoute('/expense-budget', capabilities),
+          path: '/expense-budget',
+          capabilities: capabilities,
+        ),
+        onOpenKnowledge: () => _openPath('/knowledge'),
+        onOpenSupport: () => _openPath('/support'),
+        onOpenProfile: () => _openWhenAllowed(
+          allowed: canAccessRoute('/profile', capabilities),
+          path: '/profile',
+          capabilities: capabilities,
+        ),
+        onOpenSettings: () => _openWhenAllowed(
+          allowed: canAccessRoute('/settings', capabilities),
+          path: '/settings',
+          capabilities: capabilities,
+        ),
+        onOpenInternalWorkspace: () => _openWhenAllowed(
+          allowed: capabilities.canAccessInternalWorkspace,
+          path: '/internal-workspace',
+          capabilities: capabilities,
+        ),
+        onOpenInternalCases: () => _openWhenAllowed(
+          allowed: _canOpenInternalCases(capabilities),
+          path: '/internal-workspace/service-cases',
+          capabilities: capabilities,
+        ),
+        onOpenCustomers: () => _openWhenAllowed(
+          allowed: canAccessRoute('/customers', capabilities),
+          path: '/customers',
+          capabilities: capabilities,
+        ),
+        onOpenMyReferrals: () => _openWhenAllowed(
+          allowed: canAccessRoute('/my-referrals', capabilities),
+          path: '/my-referrals',
+          capabilities: capabilities,
+        ),
+        onOpenLeads: () => _openWhenAllowed(
+          allowed: canAccessRoute('/leads', capabilities),
+          path: '/leads',
+          capabilities: capabilities,
+        ),
+        onOpenTasks: () => _openWhenAllowed(
+          allowed: canAccessRoute('/tasks', capabilities),
+          path: '/tasks',
+          capabilities: capabilities,
+        ),
+        onLogout: authState.status == AuthStatus.guest
+            ? () => context.go('/login')
+            : _logout,
+      );
+    } finally {
+      _isMoreSheetOpen = false;
+    }
+
+    if (!mounted || !fromRoute) return;
+    final state = GoRouterState.of(context);
+    if (state.uri.path == '/more') {
+      context.go('/home');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
-    final profileSummary = ref.watch(profileSummaryProvider);
-    final profile = profileSummary.maybeWhen(
-      data: (profile) => profile,
-      orElse: () => null,
-    );
-    final capabilities = profile?.capabilities ?? authState.capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final unreadNotifications =
         ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
     final mobileConfig =

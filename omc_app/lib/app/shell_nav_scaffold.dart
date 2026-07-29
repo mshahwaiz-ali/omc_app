@@ -12,7 +12,11 @@ import '../features/profile/data/profile_repository.dart';
 import 'navigation/omc_bottom_nav.dart';
 import 'navigation/omc_more_sheet.dart';
 import 'navigation/omc_quick_actions_sheet.dart';
+import 'providers/effective_capabilities_provider.dart';
 import 'route_access_policy.dart';
+import '../core/resilience/app_failure.dart';
+
+bool _shellLogoutInFlight = false;
 
 class ShellNavScaffold extends ConsumerWidget {
   const ShellNavScaffold({
@@ -32,11 +36,7 @@ class ShellNavScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref
-        .watch(profileSummaryProvider)
-        .maybeWhen(data: (profile) => profile, orElse: () => null);
-    final authState = ref.watch(authControllerProvider);
-    final capabilities = profile?.capabilities ?? authState.capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final unreadNotifications =
         ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
     final mobileConfig =
@@ -148,7 +148,7 @@ class ShellNavScaffold extends ConsumerWidget {
     final profile = ref
         .read(profileSummaryProvider)
         .maybeWhen(data: (profile) => profile, orElse: () => null);
-    final capabilities = profile?.capabilities ?? authState.capabilities;
+    final capabilities = ref.read(effectiveCapabilitiesProvider);
     final mobileConfig =
         ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final unreadNotifications =
@@ -242,10 +242,28 @@ class ShellNavScaffold extends ConsumerWidget {
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
-    await ref.read(authControllerProvider.notifier).logout();
-    ref.invalidate(profileSummaryProvider);
-    if (!context.mounted) return;
-    context.go('/login');
+    if (_shellLogoutInFlight) return;
+
+    _shellLogoutInFlight = true;
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
+      ref.invalidate(profileSummaryProvider);
+      if (!context.mounted) return;
+      context.go('/login');
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Logout incomplete',
+        fallbackMessage:
+            'The session could not be cleared right now. Please try again.',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      _shellLogoutInFlight = false;
+    }
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {

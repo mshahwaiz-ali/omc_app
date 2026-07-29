@@ -70,6 +70,10 @@ void main() {
     test('keeps public guest routes available', () {
       expect(canAccessRoute('/services', AuthCapabilities.guest), isTrue);
       expect(
+        canAccessRoute('/expense-tracker', AuthCapabilities.guest),
+        isTrue,
+      );
+      expect(
         canAccessRoute(
           '/services/mainland-company-setup',
           AuthCapabilities.guest,
@@ -83,6 +87,30 @@ void main() {
         ),
         isFalse,
       );
+    });
+
+    test('keeps expense tracker customer-only for authenticated roles', () {
+      const approvedCustomer = AuthCapabilities(
+        accessState: AccountAccessState.approved,
+      );
+      const internalUser = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canAccessInternalWorkspace: true,
+      );
+
+      expect(canAccessRoute('/expense-tracker', approvedCustomer), isTrue);
+      expect(canAccessRoute('/expense-tracker', internalUser), isFalse);
+    });
+
+    test('uses my-referrals as the only referrals route', () {
+      const referralUser = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canViewRelevantCustomers: true,
+      );
+
+      expect(canAccessRoute('/my-referrals', referralUser), isTrue);
+      expect(canAccessRoute('/my-referrals/CUST-0001', referralUser), isTrue);
+      expect(canAccessRoute('/profile/referrals', referralUser), isFalse);
     });
 
     test('allows authenticated account routes explicitly', () {

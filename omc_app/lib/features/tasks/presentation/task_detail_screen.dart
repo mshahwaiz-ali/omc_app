@@ -37,7 +37,9 @@ class TaskDetailScreen extends ConsumerWidget {
           icon: Icons.task_alt_rounded,
           title: 'Task detail unavailable',
           message:
-              'Task $taskId could not be loaded right now. Please try again later.',
+              'Task $taskId could not be loaded right now. Please try again.',
+          actionLabel: 'Try again',
+          onAction: () => ref.invalidate(taskDetailProvider(taskId)),
         ),
       ),
     );

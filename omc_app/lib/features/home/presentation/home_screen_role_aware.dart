@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/widgets/omc_identity_header.dart';
@@ -58,7 +59,7 @@ class HomeScreen extends ConsumerWidget {
       data: (value) => value,
       orElse: () => null,
     );
-    final capabilities = profile?.capabilities ?? authState.capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final mode = _HomeMode.fromCapabilities(capabilities);
     final dashboardAsync = mode.isInternal || mode.isCustomer
         ? ref.watch(homeDashboardSummaryProvider)
@@ -86,6 +87,20 @@ class HomeScreen extends ConsumerWidget {
             ),
           )
         : _customerQuickActions();
+    final homeLoadMessage = dashboardAsync.hasError
+        ? 'Home data could not be refreshed. Some information may be unavailable.'
+        : quickActionsAsync.hasError && mode.isInternal
+        ? 'Quick actions could not be refreshed. Existing options remain available.'
+        : null;
+
+    void retryHomeLoad() {
+      if (dashboardAsync.hasError) {
+        ref.invalidate(homeDashboardSummaryProvider);
+      }
+      if (quickActionsAsync.hasError && mode.isInternal) {
+        ref.invalidate(mobileQuickActionsProvider);
+      }
+    }
 
     if (!mode.isInternal) {
       return CustomerGuestHomeView(
@@ -97,6 +112,8 @@ class HomeScreen extends ConsumerWidget {
         isGuest: capabilities.isGuest,
         isPending: capabilities.isPending,
         isRejected: capabilities.isRejected,
+        loadMessage: homeLoadMessage,
+        onRetryHomeLoad: retryHomeLoad,
         onRefresh: () async {
           ref.invalidate(homeDashboardSummaryProvider);
           ref.invalidate(mobileQuickActionsProvider);
@@ -185,6 +202,8 @@ class HomeScreen extends ConsumerWidget {
         summary: summary,
         quickActions: quickActions,
         capabilities: capabilities,
+        loadMessage: homeLoadMessage,
+        onRetryHomeLoad: retryHomeLoad,
         onOpenNotifications: () =>
             _openNotifications(context, capabilities, onOpenNotifications),
       );

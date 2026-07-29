@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omc_app/app/route_failure_recovery.dart';
 import 'package:omc_app/core/widgets/route_failure_screen.dart';
 
 void main() {
@@ -12,7 +13,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: RouteFailureScreen(
-          onGoHome: () => wentHome = true,
+          primaryActionLabel: 'Go to home',
+          recoveryKind: RouteFailureRecoveryKind.home,
+          onPrimaryAction: () => wentHome = true,
           onGoBack: () => wentBack = true,
         ),
       ),
@@ -34,7 +37,13 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(home: RouteFailureScreen(onGoHome: () {})),
+      MaterialApp(
+        home: RouteFailureScreen(
+          primaryActionLabel: 'Go to home',
+          recoveryKind: RouteFailureRecoveryKind.home,
+          onPrimaryAction: () {},
+        ),
+      ),
     );
 
     expect(find.text('Go to home'), findsOneWidget);

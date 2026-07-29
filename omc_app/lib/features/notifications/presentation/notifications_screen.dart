@@ -22,6 +22,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   _NotificationFilter _filter = _NotificationFilter.all;
   final Set<String> _hiddenIds = <String>{};
+  final Set<String> _mutationIds = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +128,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   Future<bool> _dismiss(NotificationItem item) async {
+    if (_mutationIds.contains(item.id)) return false;
+
+    _mutationIds.add(item.id);
     setState(() => _hiddenIds.add(item.id));
     try {
       await ref
@@ -150,10 +154,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       if (mounted) setState(() => _hiddenIds.remove(item.id));
       _showError(error);
       return false;
+    } finally {
+      _mutationIds.remove(item.id);
     }
   }
 
   Future<void> _restore(NotificationItem item) async {
+    if (_mutationIds.contains(item.id)) return;
+
+    _mutationIds.add(item.id);
     try {
       await ref
           .read(notificationsRepositoryProvider)
@@ -162,6 +171,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       await _refresh();
     } catch (error) {
       _showError(error);
+    } finally {
+      _mutationIds.remove(item.id);
     }
   }
 

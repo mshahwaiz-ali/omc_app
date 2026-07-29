@@ -2,6 +2,7 @@ import '../features/auth/application/auth_state.dart';
 import 'route_access_policy.dart';
 
 const _tokenConsumptionRoutes = <String>{'/verify-email', '/reset-password'};
+const _accessDeniedHome = '/home?notice=access-denied';
 
 const _anonymousEntryRoutes = <String>{
   '/onboarding',
@@ -39,7 +40,7 @@ String? resolveAuthRouteRedirect({
   if (status == AuthStatus.guest) {
     if (isSplash) return '/home';
     if (isAnonymousEntryRoute) return null;
-    return isGuestAllowedRoute(location) ? null : '/home';
+    return isGuestAllowedRoute(location) ? null : _accessDeniedHome;
   }
 
   if (status == AuthStatus.authenticated) {
@@ -53,7 +54,7 @@ String? resolveAuthRouteRedirect({
     }
 
     if (canAccessRoute(location, capabilities)) return null;
-    return authenticatedHome;
+    return authenticatedHome == '/home' ? _accessDeniedHome : authenticatedHome;
   }
 
   // AuthStatus.authenticating retains the current route while the explicit

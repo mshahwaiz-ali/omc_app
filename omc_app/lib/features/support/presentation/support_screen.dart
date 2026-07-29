@@ -147,6 +147,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   }
 
   Future<void> _submitSupportTicket() async {
+    if (_isSubmitting) return;
+
     final capabilities = ref.read(authControllerProvider).capabilities;
     if (!capabilities.canCreateSupportTicket) {
       _showSnack(_lockedAccessMessage(capabilities));

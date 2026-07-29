@@ -15,6 +15,7 @@ import '../../auth/application/auth_state.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/expense_tracker_repository.dart';
 import '../domain/expense_transaction.dart';
+import '../../../core/resilience/app_failure.dart';
 
 final expenseTrackerConfigProvider = FutureProvider<ExpenseTrackerConfig>((
   ref,
@@ -71,8 +72,8 @@ class ExpenseTransactionsController
     }
 
     final next = _sort([nextTransaction, ...current]);
-    state = AsyncData(next);
     await _repository.saveTransactions(next);
+    state = AsyncData(next);
     return nextTransaction;
   }
 
@@ -93,8 +94,8 @@ class ExpenseTransactionsController
           .map((item) => item.id == transaction.id ? nextTransaction : item)
           .toList(growable: false),
     );
-    state = AsyncData(next);
     await _repository.saveTransactions(next);
+    state = AsyncData(next);
     return nextTransaction;
   }
 
@@ -141,20 +142,19 @@ class ExpenseTransactionsController
     final next = current.where((item) => item.id != id).toList(growable: false);
 
     if (sync) await _repository.deleteSyncedTransaction(id);
-
-    state = AsyncData(next);
     await _repository.saveTransactions(next);
+    state = AsyncData(next);
   }
 
   Future<void> replaceAll(List<ExpenseTransaction> transactions) async {
     final next = _sort(transactions);
-    state = AsyncData(next);
     await _repository.saveTransactions(next);
+    state = AsyncData(next);
   }
 
   Future<void> clearAll() async {
-    state = const AsyncData([]);
     await _repository.clearTransactions();
+    state = const AsyncData([]);
   }
 
   List<ExpenseTransaction> _sort(List<ExpenseTransaction> transactions) {
@@ -371,65 +371,126 @@ class ExpenseTrackerScreen extends ConsumerWidget {
 
   void _showImportDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
+    var importing = false;
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Import backup JSON'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: TextField(
-            controller: controller,
-            minLines: 8,
-            maxLines: 12,
-            decoration: const InputDecoration(
-              hintText: 'Paste exported JSON here...',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Import backup JSON'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: TextField(
+              controller: controller,
+              minLines: 8,
+              maxLines: 12,
+              enabled: !importing,
+              decoration: const InputDecoration(
+                hintText: 'Paste exported JSON here...',
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              try {
-                final decoded = jsonDecode(controller.text.trim());
-                if (decoded is! List) {
-                  throw const FormatException('Backup must be a list.');
-                }
-                final transactions = decoded
-                    .whereType<Map>()
-                    .map(
-                      (item) => ExpenseTransaction.fromJson(
-                        Map<String, dynamic>.from(item),
-                      ),
+          actions: [
+            TextButton(
+              onPressed: importing
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: importing
+                  ? null
+                  : () async {
+                      if (importing) return;
+
+                      late final List<ExpenseTransaction> transactions;
+                      try {
+                        final decoded = jsonDecode(controller.text.trim());
+                        if (decoded is! List) {
+                          throw const FormatException('Backup must be a list.');
+                        }
+                        transactions = decoded
+                            .whereType<Map>()
+                            .map(
+                              (item) => ExpenseTransaction.fromJson(
+                                Map<String, dynamic>.from(item),
+                              ),
+                            )
+                            .where(
+                              (item) => item.id.isNotEmpty && item.amount > 0,
+                            )
+                            .toList(growable: false);
+                      } on FormatException {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Invalid backup JSON. Please check format.',
+                            ),
+                          ),
+                        );
+                        return;
+                      } catch (_) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Invalid backup JSON. Please check format.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => importing = true);
+                      try {
+                        await ref
+                            .read(expenseTransactionsProvider.notifier)
+                            .replaceAll(transactions);
+
+                        if (!dialogContext.mounted || !context.mounted) return;
+                        Navigator.of(dialogContext).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Imported ${transactions.length} transactions.',
+                            ),
+                          ),
+                        );
+                      } catch (error) {
+                        if (!context.mounted) return;
+                        final failure = AppFailureClassifier.classify(
+                          error,
+                          fallbackTitle: 'Import not completed',
+                          fallbackMessage:
+                              'The backup was valid, but its transactions could not be saved right now.',
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(failure.message)),
+                        );
+                      } finally {
+                        if (dialogContext.mounted) {
+                          setDialogState(() => importing = false);
+                        }
+                      }
+                    },
+              child: importing
+                  ? const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 8),
+                        Text('Importing...'),
+                      ],
                     )
-                    .where((item) => item.id.isNotEmpty && item.amount > 0)
-                    .toList(growable: false);
-                ref
-                    .read(expenseTransactionsProvider.notifier)
-                    .replaceAll(transactions);
-                Navigator.of(dialogContext).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Imported ${transactions.length} transactions.',
-                    ),
-                  ),
-                );
-              } catch (_) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Invalid backup JSON. Please check format.'),
-                  ),
-                );
-              }
-            },
-            child: const Text('Import'),
-          ),
-        ],
+                  : const Text('Import'),
+            ),
+          ],
+        ),
       ),
     ).whenComplete(controller.dispose);
   }
@@ -462,8 +523,26 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       ),
     );
 
-    if (shouldDelete == true) {
-      ref.read(expenseTransactionsProvider.notifier).remove(id, sync: sync);
+    if (shouldDelete != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(expenseTransactionsProvider.notifier)
+          .remove(id, sync: sync);
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Transaction archived.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Transaction not archived',
+        fallbackMessage:
+            'The transaction could not be archived right now. No local data was removed.',
+      );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     }
   }
 
@@ -488,8 +567,24 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       ),
     );
 
-    if (shouldClear == true) {
-      ref.read(expenseTransactionsProvider.notifier).clearAll();
+    if (shouldClear != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(expenseTransactionsProvider.notifier).clearAll();
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Local tracker cleared.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Local data not cleared',
+        fallbackMessage:
+            'Local expense data could not be cleared right now. Your records remain available.',
+      );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     }
   }
 }
@@ -1354,6 +1449,7 @@ class _TransactionSheet extends StatefulWidget {
 
 class _TransactionSheetState extends State<_TransactionSheet> {
   final _formKey = GlobalKey<FormState>();
+  bool _isSaving = false;
   late final TextEditingController _amountController;
   late final TextEditingController _categoryController;
   late final TextEditingController _accountController;
@@ -1643,7 +1739,8 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                   ? 'Save transaction'
                   : 'Update transaction',
               icon: Icons.check_rounded,
-              onPressed: _save,
+              isLoading: _isSaving,
+              onPressed: _isSaving ? null : _save,
             ),
             const SizedBox(height: 4),
           ],
@@ -1684,8 +1781,13 @@ class _TransactionSheetState extends State<_TransactionSheet> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
+
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _isSaving = true);
 
     final existing = widget.transaction;
     final transaction = ExpenseTransaction(
@@ -1717,15 +1819,31 @@ class _TransactionSheetState extends State<_TransactionSheet> {
       synced: existing?.synced ?? false,
     );
 
-    final saved = await widget.onSave(transaction);
+    try {
+      final saved = await widget.onSave(transaction);
 
-    final receipt = _selectedReceiptFile;
-    if (receipt != null && widget.onAttachReceipt != null) {
-      await widget.onAttachReceipt!(saved, receipt);
+      final receipt = _selectedReceiptFile;
+      if (receipt != null && widget.onAttachReceipt != null) {
+        await widget.onAttachReceipt!(saved, receipt);
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Transaction not saved',
+        fallbackMessage:
+            'The transaction could not be saved right now. Your entered details were retained.',
+      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
-
-    if (!mounted) return;
-    Navigator.of(context).pop();
   }
 }
 
@@ -1779,21 +1897,20 @@ class _MiniChip extends StatelessWidget {
 }
 
 class _IconBox extends StatelessWidget {
-  const _IconBox({required this.icon, this.size = 42});
+  const _IconBox({required this.icon});
   final IconData icon;
-  final double size;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: size,
-      height: size,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
         color: AppTheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(size >= 40 ? 15 : 12),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: AppTheme.primary.withValues(alpha: 0.08)),
       ),
-      child: Icon(icon, color: AppTheme.primary, size: size >= 40 ? 22 : 18),
+      child: Icon(icon, color: AppTheme.primary, size: 22),
     );
   }
 }

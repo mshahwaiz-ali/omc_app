@@ -21,6 +21,8 @@ class CustomerGuestHomeView extends StatelessWidget {
     required this.isGuest,
     required this.isPending,
     required this.isRejected,
+    required this.loadMessage,
+    required this.onRetryHomeLoad,
     required this.onRefresh,
     required this.onNotifications,
     required this.onAvatar,
@@ -45,6 +47,8 @@ class CustomerGuestHomeView extends StatelessWidget {
   final bool isGuest;
   final bool isPending;
   final bool isRejected;
+  final String? loadMessage;
+  final VoidCallback onRetryHomeLoad;
 
   final Future<void> Function() onRefresh;
   final VoidCallback onNotifications;
@@ -79,6 +83,16 @@ class CustomerGuestHomeView extends StatelessWidget {
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
+                  if (loadMessage != null)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      sliver: SliverToBoxAdapter(
+                        child: _HomeLoadNotice(
+                          message: loadMessage!,
+                          onRetry: onRetryHomeLoad,
+                        ),
+                      ),
+                    ),
                   const SliverToBoxAdapter(child: SizedBox(height: 17)),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1846,4 +1860,47 @@ _ActivityPalette _activityPalette(HomeDashboardActivity activity) {
     color: _orange,
     background: Color(0xFFFFF3E7),
   );
+}
+
+class _HomeLoadNotice extends StatelessWidget {
+  const _HomeLoadNotice({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        child: Row(
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Try again')),
+          ],
+        ),
+      ),
+    );
+  }
 }

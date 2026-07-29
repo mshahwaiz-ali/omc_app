@@ -8,6 +8,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_state.dart';
+import '../../../core/resilience/app_failure.dart';
 
 class UnderReviewScreen extends ConsumerStatefulWidget {
   const UnderReviewScreen({super.key});
@@ -57,8 +58,23 @@ class _UnderReviewScreenState extends ConsumerState<UnderReviewScreen> {
     if (_loggingOut || _refreshing) return;
 
     setState(() => _loggingOut = true);
-    await ref.read(authControllerProvider.notifier).logout();
-    if (mounted) context.go('/login');
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
+      if (!mounted) return;
+      context.go('/login');
+    } catch (error) {
+      if (!mounted) return;
+
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Sign out incomplete',
+        fallbackMessage:
+            'Your session could not be cleared right now. Please try again.',
+      );
+      setState(() => _statusMessage = failure.message);
+    } finally {
+      if (mounted) setState(() => _loggingOut = false);
+    }
   }
 
   void _showSupport() {

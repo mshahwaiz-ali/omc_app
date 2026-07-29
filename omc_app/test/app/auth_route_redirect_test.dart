@@ -69,11 +69,21 @@ void main() {
     test('may open anonymous routes but not under-review', () {
       expect(redirect(AuthStatus.guest, '/login'), isNull);
       expect(redirect(AuthStatus.guest, '/forgot-password'), isNull);
-      expect(redirect(AuthStatus.guest, '/under-review'), '/home');
+      expect(
+        redirect(AuthStatus.guest, '/under-review'),
+        '/home?notice=access-denied',
+      );
     });
 
-    test('leave splash for home', () {
+    test('leave splash for home without a denial notice', () {
       expect(redirect(AuthStatus.guest, '/'), '/home');
+    });
+
+    test('receive feedback when a protected route is denied', () {
+      expect(
+        redirect(AuthStatus.guest, '/documents'),
+        '/home?notice=access-denied',
+      );
     });
   });
 
@@ -122,10 +132,21 @@ void main() {
       );
     });
 
-    test('approved users leave login for home', () {
+    test('approved users leave login for home without a denial notice', () {
       expect(
         redirect(AuthStatus.authenticated, '/login', capabilities: approved),
         '/home',
+      );
+    });
+
+    test('approved users receive feedback for capability-denied routes', () {
+      expect(
+        redirect(
+          AuthStatus.authenticated,
+          '/internal-workspace',
+          capabilities: approved,
+        ),
+        '/home?notice=access-denied',
       );
     });
   });

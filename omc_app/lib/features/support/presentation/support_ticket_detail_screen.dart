@@ -202,6 +202,8 @@ class _SupportTicketChatBodyState
         withData: true,
       );
 
+      if (!mounted) return;
+
       final file = result?.files.single;
       if (file == null) return;
 

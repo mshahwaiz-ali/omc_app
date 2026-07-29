@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../app/route_failure_recovery.dart';
 import '../../app/theme.dart';
 
 class RouteFailureScreen extends StatelessWidget {
-  const RouteFailureScreen({required this.onGoHome, this.onGoBack, super.key});
+  const RouteFailureScreen({
+    required this.primaryActionLabel,
+    required this.recoveryKind,
+    required this.onPrimaryAction,
+    this.onGoBack,
+    super.key,
+  });
 
-  final VoidCallback onGoHome;
+  final String primaryActionLabel;
+  final RouteFailureRecoveryKind recoveryKind;
+  final VoidCallback onPrimaryAction;
   final VoidCallback? onGoBack;
 
   @override
@@ -59,9 +68,14 @@ class RouteFailureScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: onGoHome,
-                      icon: const Icon(Icons.home_rounded),
-                      label: const Text('Go to home'),
+                      onPressed: onPrimaryAction,
+                      icon: Icon(switch (recoveryKind) {
+                        RouteFailureRecoveryKind.home => Icons.home_rounded,
+                        RouteFailureRecoveryKind.signIn => Icons.login_rounded,
+                        RouteFailureRecoveryKind.accountStatus =>
+                          Icons.fact_check_outlined,
+                      }),
+                      label: Text(primaryActionLabel),
                     ),
                   ),
                   if (onGoBack != null) ...[

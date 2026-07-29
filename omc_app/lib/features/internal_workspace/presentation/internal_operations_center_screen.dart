@@ -3433,17 +3433,10 @@ class _OperationsError extends StatelessWidget {
 }
 
 class _OperationsEmpty extends StatelessWidget {
-  const _OperationsEmpty({
-    required this.title,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
+  const _OperationsEmpty({required this.title, required this.message});
 
   final String title;
   final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -3472,14 +3465,6 @@ class _OperationsEmpty extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: onAction,
-              icon: const Icon(Icons.open_in_new_rounded),
-              label: Text(actionLabel!),
-            ),
-          ],
         ],
       ),
     );

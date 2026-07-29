@@ -47,6 +47,8 @@ import '../features/tax_calculator/presentation/tax_calculation_history_screen.d
 import '../features/tax_calculator/presentation/tax_calculator_screen.dart';
 import 'auth_route_redirect.dart';
 import 'main_shell.dart';
+import 'route_failure_recovery.dart';
+import 'providers/effective_capabilities_provider.dart';
 import 'shell_nav_scaffold.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -56,13 +58,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     refreshListenable: routerRefreshNotifier,
-    errorBuilder: (context, state) =>
-        RouteFailureScreen(onGoHome: () => context.go('/home'), onGoBack: null),
+    errorBuilder: (context, state) {
+      final authState = ref.read(authControllerProvider);
+      final recovery = resolveRouteFailureRecovery(
+        status: authState.status,
+        capabilities: ref.read(effectiveCapabilitiesProvider),
+      );
+      final navigator = Navigator.of(context);
+
+      return RouteFailureScreen(
+        primaryActionLabel: recovery.label,
+        recoveryKind: recovery.kind,
+        onPrimaryAction: () => context.go(recovery.location),
+        onGoBack: navigator.canPop() ? navigator.pop : null,
+      );
+    },
     redirect: (context, state) {
       final authState = ref.read(authControllerProvider);
+      final capabilities = ref.read(effectiveCapabilitiesProvider);
       return resolveAuthRouteRedirect(
         status: authState.status,
-        capabilities: authState.capabilities,
+        capabilities: capabilities,
         location: state.matchedLocation,
       );
     },
@@ -114,7 +130,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         name: 'home',
-        builder: (context, state) => const MainShell(),
+        builder: (context, state) => MainShell(
+          showAccessDeniedNotice:
+              state.uri.queryParameters['notice'] == 'access-denied',
+        ),
       ),
       GoRoute(
         path: '/services',
@@ -132,7 +151,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/more',
         name: 'more',
-        builder: (context, state) => const MainShell(initialIndex: 4),
+        builder: (context, state) => const MainShell(showMoreOnLoad: true),
       ),
       GoRoute(
         path: '/services/:serviceId',
@@ -486,18 +505,24 @@ Widget _withShell(int selectedIndex, Widget child) {
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(this._ref) {
-    _subscription = _ref.listen<AuthState>(
+    _authSubscription = _ref.listen<AuthState>(
       authControllerProvider,
+      (_, _) => notifyListeners(),
+    );
+    _capabilitiesSubscription = _ref.listen<AuthCapabilities>(
+      effectiveCapabilitiesProvider,
       (_, _) => notifyListeners(),
     );
   }
 
   final Ref _ref;
-  late final ProviderSubscription<AuthState> _subscription;
+  late final ProviderSubscription<AuthState> _authSubscription;
+  late final ProviderSubscription<AuthCapabilities> _capabilitiesSubscription;
 
   @override
   void dispose() {
-    _subscription.close();
+    _authSubscription.close();
+    _capabilitiesSubscription.close();
     super.dispose();
   }
 }

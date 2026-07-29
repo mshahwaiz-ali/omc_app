@@ -22,6 +22,8 @@ class InternalHomeView extends ConsumerWidget {
     required this.summary,
     required this.quickActions,
     required this.capabilities,
+    required this.loadMessage,
+    required this.onRetryHomeLoad,
     required this.onOpenNotifications,
   });
 
@@ -30,6 +32,8 @@ class InternalHomeView extends ConsumerWidget {
   final HomeDashboardSummary summary;
   final List<MobileQuickAction> quickActions;
   final AuthCapabilities capabilities;
+  final String? loadMessage;
+  final VoidCallback onRetryHomeLoad;
   final VoidCallback onOpenNotifications;
 
   @override
@@ -52,8 +56,23 @@ class InternalHomeView extends ConsumerWidget {
               parent: BouncingScrollPhysics(),
             ),
             slivers: [
+              if (loadMessage != null)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: _HomeLoadNotice(
+                      message: loadMessage!,
+                      onRetry: onRetryHomeLoad,
+                    ),
+                  ),
+                ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  loadMessage == null ? 18 : 12,
+                  20,
+                  0,
+                ),
                 sliver: SliverToBoxAdapter(
                   child: _Header(
                     displayName: displayName,
@@ -1626,4 +1645,47 @@ _Visual _activityVisual(HomeDashboardActivity activity) {
     accent: _muted,
     soft: Color(0xFFF2F4F7),
   );
+}
+
+class _HomeLoadNotice extends StatelessWidget {
+  const _HomeLoadNotice({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        child: Row(
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Try again')),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -17,6 +17,12 @@ bool isGuestAllowedRoute(String location) {
 }
 
 bool canAccessRoute(String location, AuthCapabilities capabilities) {
+  // The expense tracker is guest-accessible and customer-only. Handle its
+  // authenticated role restriction before the broader public-route shortcut.
+  if (location == '/expense-tracker') {
+    return !capabilities.isInternal;
+  }
+
   if (isGuestAllowedRoute(location)) return true;
 
   if (_isServiceRequestRoute(location)) {
@@ -63,10 +69,6 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
         capabilities.canAssignSupportTickets;
   }
 
-  if (location == '/expense-tracker') {
-    return !capabilities.isInternal;
-  }
-
   if (location == '/expense-budget') {
     return capabilities.isApproved;
   }
@@ -110,10 +112,6 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
       location == '/settings' ||
       location == '/change-password') {
     return !capabilities.isGuest;
-  }
-
-  if (location == '/profile/referrals') {
-    return capabilities.isInternal;
   }
 
   if (location == '/tax-calculator/history') {

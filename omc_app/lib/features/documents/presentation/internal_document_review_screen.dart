@@ -161,6 +161,7 @@ class _InternalDocumentReviewScreenState
     );
     controller.dispose();
 
+    if (!mounted || _busyDocumentId != null) return;
     if (remarks == null) return;
     await _reviewDocument(document, 'Rejected', remarks: remarks);
   }
