@@ -13,6 +13,8 @@ OPEN_CASE_STATUSES = [
 ]
 REVIEW_PAYMENT_STATUSES = ["Receipt Submitted", "Under Review"]
 REVIEW_DOCUMENT_STATUSES = ["Uploaded"]
+HOURLY_BATCH_SIZE = 500
+DAILY_BATCH_SIZE = 500
 
 
 def _notification_exists(
@@ -94,9 +96,16 @@ def _reviewer_users():
     )
 
 
-def _notify_reviewers_once(*, title, message, reference_doctype, reference_name):
+def _notify_reviewers_once(
+    *,
+    title,
+    message,
+    reference_doctype,
+    reference_name,
+    reviewers=None,
+):
     created = []
-    for user in _reviewer_users():
+    for user in reviewers if reviewers is not None else _reviewer_users():
         notification = _notify_once(
             title=title,
             message=message,
@@ -111,6 +120,15 @@ def _notify_reviewers_once(*, title, message, reference_doctype, reference_name)
 
 
 def run_hourly_workflow_checks():
+    reviewers = _reviewer_users()
+    summary = {
+        "reviewers": len(reviewers),
+        "documents_scanned": 0,
+        "payments_scanned": 0,
+        "unassigned_scanned": 0,
+        "notifications_created": 0,
+    }
+
     review_documents = frappe.get_all(
         "OMC Service Document",
         filters={
@@ -118,17 +136,21 @@ def run_hourly_workflow_checks():
             "modified": ["<=", add_to_date(now_datetime(), hours=-4)],
         },
         fields=["name", "service_request", "document_title"],
-        limit_page_length=500,
+        limit_page_length=HOURLY_BATCH_SIZE,
     )
+    summary["documents_scanned"] = len(review_documents)
     for document in review_documents:
-        _notify_reviewers_once(
-            title="Document review pending",
-            message=(
-                f"{document.document_title or 'A document'} for "
-                f"{document.service_request} is waiting for review."
-            ),
-            reference_doctype="OMC Service Document",
-            reference_name=document.name,
+        summary["notifications_created"] += len(
+            _notify_reviewers_once(
+                title="Document review pending",
+                message=(
+                    f"{document.document_title or 'A document'} for "
+                    f"{document.service_request} is waiting for review."
+                ),
+                reference_doctype="OMC Service Document",
+                reference_name=document.name,
+                reviewers=reviewers,
+            )
         )
 
     review_payments = frappe.get_all(
@@ -138,17 +160,21 @@ def run_hourly_workflow_checks():
             "modified": ["<=", add_to_date(now_datetime(), hours=-2)],
         },
         fields=["name", "service_request", "payment_title"],
-        limit_page_length=500,
+        limit_page_length=HOURLY_BATCH_SIZE,
     )
+    summary["payments_scanned"] = len(review_payments)
     for payment in review_payments:
-        _notify_reviewers_once(
-            title="Payment review pending",
-            message=(
-                f"{payment.payment_title or 'A payment receipt'} for "
-                f"{payment.service_request} is waiting for review."
-            ),
-            reference_doctype="OMC Service Payment",
-            reference_name=payment.name,
+        summary["notifications_created"] += len(
+            _notify_reviewers_once(
+                title="Payment review pending",
+                message=(
+                    f"{payment.payment_title or 'A payment receipt'} for "
+                    f"{payment.service_request} is waiting for review."
+                ),
+                reference_doctype="OMC Service Payment",
+                reference_name=payment.name,
+                reviewers=reviewers,
+            )
         )
 
     unassigned = frappe.get_all(
@@ -159,15 +185,21 @@ def run_hourly_workflow_checks():
             "creation": ["<=", add_to_date(now_datetime(), hours=-1)],
         },
         fields=["name", "title"],
-        limit_page_length=500,
+        limit_page_length=HOURLY_BATCH_SIZE,
     )
+    summary["unassigned_scanned"] = len(unassigned)
     for service_case in unassigned:
-        _notify_reviewers_once(
-            title="Unassigned service request",
-            message=f"{service_case.name} — {service_case.title or 'Service Request'}",
-            reference_doctype="OMC Service Request",
-            reference_name=service_case.name,
+        summary["notifications_created"] += len(
+            _notify_reviewers_once(
+                title="Unassigned service request",
+                message=f"{service_case.name} — {service_case.title or 'Service Request'}",
+                reference_doctype="OMC Service Request",
+                reference_name=service_case.name,
+                reviewers=reviewers,
+            )
         )
+
+    return summary
 
 
 def run_daily_workflow_checks():
@@ -183,35 +215,49 @@ def run_daily_workflow_checks():
             "expected_completion_date",
             "modified",
         ],
-        limit_page_length=1000,
+        order_by="modified asc",
+        limit_page_length=DAILY_BATCH_SIZE,
     )
 
+    reviewers = set(_reviewer_users())
+    summary = {
+        "cases_scanned": len(cases),
+        "reviewers": len(reviewers),
+        "customer_reminders_created": 0,
+        "overdue_escalations_created": 0,
+        "missing_customer_profile": 0,
+    }
     today = getdate()
-    for service_case in cases:
-        if service_case.status == "Waiting for Customer":
-            _notify_once(
-                title="Action required on your service request",
-                message=(
-                    f"{service_case.name} needs information or a corrected item "
-                    "from you."
-                ),
-                notification_type="Reminder",
-                reference_doctype="OMC Service Request",
-                reference_name=service_case.name,
-                customer_profile=service_case.customer_profile,
-                dedupe_hours=72,
-            )
 
-        if service_case.status == "Waiting for Payment":
-            _notify_once(
-                title="Payment pending",
-                message=f"Payment is pending for {service_case.name}.",
-                notification_type="Payment",
-                reference_doctype="OMC Service Request",
-                reference_name=service_case.name,
-                customer_profile=service_case.customer_profile,
-                dedupe_hours=72,
-            )
+    for service_case in cases:
+        if service_case.status in {"Waiting for Customer", "Waiting for Payment"}:
+            if not service_case.customer_profile:
+                summary["missing_customer_profile"] += 1
+            elif service_case.status == "Waiting for Customer":
+                notification = _notify_once(
+                    title="Action required on your service request",
+                    message=(
+                        f"{service_case.name} needs information or a corrected item "
+                        "from you."
+                    ),
+                    notification_type="Reminder",
+                    reference_doctype="OMC Service Request",
+                    reference_name=service_case.name,
+                    customer_profile=service_case.customer_profile,
+                    dedupe_hours=72,
+                )
+                summary["customer_reminders_created"] += int(bool(notification))
+            else:
+                notification = _notify_once(
+                    title="Payment pending",
+                    message=f"Payment is pending for {service_case.name}.",
+                    notification_type="Payment",
+                    reference_doctype="OMC Service Request",
+                    reference_name=service_case.name,
+                    customer_profile=service_case.customer_profile,
+                    dedupe_hours=72,
+                )
+                summary["customer_reminders_created"] += int(bool(notification))
 
         due_date = (
             getdate(service_case.expected_completion_date)
@@ -219,11 +265,11 @@ def run_daily_workflow_checks():
             else None
         )
         if due_date and due_date < today:
-            recipients = set(_reviewer_users())
+            recipients = set(reviewers)
             if service_case.assigned_staff:
                 recipients.add(service_case.assigned_staff)
             for user in recipients:
-                _notify_once(
+                notification = _notify_once(
                     title="Service request overdue",
                     message=(
                         f"{service_case.name} passed its expected completion date "
@@ -235,6 +281,9 @@ def run_daily_workflow_checks():
                     recipient_user=user,
                     dedupe_hours=24,
                 )
+                summary["overdue_escalations_created"] += int(bool(notification))
+
+    return summary
 
 
 def completion_blockers(service_case):
