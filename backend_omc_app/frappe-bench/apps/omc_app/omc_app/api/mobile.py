@@ -2425,24 +2425,24 @@ def get_faqs(category=None):
 
 def _notification_mobile_route(notification):
     saved_route = getattr(notification, "mobile_route", None) or ""
-    if saved_route:
-        return saved_route
-
     reference_doctype = (notification.reference_doctype or "").strip()
     reference_name = (notification.reference_name or "").strip()
-    if not reference_doctype or not reference_name:
-        return ""
 
-    if reference_doctype == "OMC Service Request":
-        return f"/my-services/{reference_name}"
-    if reference_doctype == "OMC Service Document":
-        return f"/documents/{reference_name}"
-    if reference_doctype == "OMC Service Payment":
-        return f"/payments/{reference_name}"
-    if reference_doctype == "OMC Support Ticket":
-        return f"/support-tickets/{reference_name}"
+    supported_routes = {
+        "OMC Service Request": "/my-services/{name}",
+        "OMC Service Document": "/documents/{name}",
+        "OMC Service Payment": "/payments/{name}",
+        "OMC Support Ticket": "/support-tickets/{name}",
+    }
 
-    return ""
+    if reference_doctype in supported_routes and reference_name:
+        if not frappe.db.exists(reference_doctype, reference_name):
+            return ""
+        return saved_route or supported_routes[reference_doctype].format(
+            name=reference_name
+        )
+
+    return saved_route
 
 
 @frappe.whitelist()
@@ -2776,6 +2776,8 @@ def mark_all_notifications_read():
         "visible_to_customer": 1,
         "is_read": 0,
     }
+    if _doctype_has_field("OMC Notification", "is_dismissed"):
+        filters["is_dismissed"] = 0
 
     if profile:
         filters["customer_profile"] = profile.name
@@ -2879,6 +2881,61 @@ def _service_notification_recipient(service_request):
     return service_request, customer_profile or None, recipient_user or None
 
 
+def cleanup_notifications():
+    """Delete expired and old terminal notification rows in bounded batches."""
+    now = frappe.utils.now_datetime()
+    deleted = {"expired": 0, "dismissed": 0, "read": 0}
+
+    policies = (
+        ("expired", {"expires_on": ["<=", now]}),
+        (
+            "dismissed",
+            {
+                "is_dismissed": 1,
+                "dismissed_on": [
+                    "<=",
+                    frappe.utils.add_to_date(now, days=-30),
+                ],
+            },
+        ),
+        (
+            "read",
+            {
+                "is_read": 1,
+                "read_on": [
+                    "<=",
+                    frappe.utils.add_to_date(now, days=-180),
+                ],
+            },
+        ),
+    )
+
+    deleted_names = set()
+    for key, filters in policies:
+        names = frappe.get_all(
+            "OMC Notification",
+            filters=filters,
+            pluck="name",
+            limit_page_length=500,
+        )
+        for name in names:
+            if name in deleted_names:
+                continue
+            frappe.delete_doc(
+                "OMC Notification",
+                name,
+                ignore_permissions=True,
+                force=True,
+            )
+            deleted_names.add(name)
+            deleted[key] += 1
+
+    if deleted_names:
+        frappe.db.commit()
+
+    deleted["total"] = len(deleted_names)
+    return deleted
+
 def _create_service_notification(
     service_request,
     *,
@@ -2966,6 +3023,24 @@ def _create_customer_notification(
         notification_type=normalized_notification_type,
     ):
         return None
+
+    dedupe_filters = {
+        "visible_to_customer": 1,
+        "title": title,
+        "message": message or "",
+        "notification_type": normalized_notification_type,
+        "reference_doctype": reference_doctype or "",
+        "reference_name": reference_name or "",
+        "creation": [">=", frappe.utils.add_to_date(None, minutes=-10)],
+    }
+    if customer_profile:
+        dedupe_filters["customer_profile"] = customer_profile
+    elif recipient_user:
+        dedupe_filters["recipient_user"] = recipient_user
+
+    existing = frappe.db.exists("OMC Notification", dedupe_filters)
+    if existing:
+        return frappe.get_doc("OMC Notification", existing)
 
     notification = frappe.new_doc("OMC Notification")
     notification.customer_profile = customer_profile or None

@@ -426,6 +426,7 @@ def get_dashboard_data():
                 **({"customer_profile": profile.name} if profile else {}),
                 "visible_to_customer": 1,
                 "is_read": 0,
+                "is_dismissed": 0,
             },
         ),
         "document_summary": document_summary,
