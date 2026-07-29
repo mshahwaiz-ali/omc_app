@@ -43,6 +43,7 @@ class TestNotificationOwnershipAuthority(FrappeTestCase):
     @patch("omc_app.api.mobile.frappe.db.commit")
     @patch("omc_app.api.mobile.frappe.db.set_value")
     @patch("omc_app.api.mobile.frappe.get_all")
+    @patch("omc_app.api.mobile._doctype_has_field")
     @patch("omc_app.api.mobile._assert_approved_customer")
     @patch("omc_app.api.mobile._can_access_internal_workspace")
     @patch("omc_app.api.mobile._current_user")
@@ -51,6 +52,7 @@ class TestNotificationOwnershipAuthority(FrappeTestCase):
         current_user,
         can_access_internal,
         approved_customer,
+        has_field,
         get_all,
         set_value,
         commit,
@@ -58,6 +60,7 @@ class TestNotificationOwnershipAuthority(FrappeTestCase):
         current_user.return_value = "customer@example.com"
         can_access_internal.return_value = False
         approved_customer.return_value = SimpleNamespace(name="CUST-0001")
+        has_field.return_value = True
         get_all.return_value = ["NOTIF-0001"]
 
         result = mobile.mark_all_notifications_read()
@@ -67,6 +70,7 @@ class TestNotificationOwnershipAuthority(FrappeTestCase):
             filters={
                 "visible_to_customer": 1,
                 "is_read": 0,
+                "is_dismissed": 0,
                 "customer_profile": "CUST-0001",
             },
             pluck="name",

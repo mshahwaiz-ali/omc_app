@@ -86,6 +86,7 @@ scheduler_events = {
     ],
     "daily": [
         "omc_app.api.workflow_automation.run_daily_workflow_checks",
+        "omc_app.api.mobile.cleanup_notifications",
     ],
 }
 
