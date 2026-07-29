@@ -9,10 +9,10 @@ from omc_app.api import payment_mutation_guard
 
 
 class TestPaymentMutationGuard(FrappeTestCase):
-    def _payment(self, *, status="Pending"):
+    def _payment(self, *, status="Pending", service_request="OMC-SR-TEST"):
         return SimpleNamespace(
             name="OMC-PAY-TEST",
-            service_request="OMC-SR-TEST",
+            service_request=service_request,
             status=status,
             remarks="",
             payment_reference="",
@@ -55,6 +55,28 @@ class TestPaymentMutationGuard(FrappeTestCase):
 
         with self.assertRaises(frappe.ValidationError):
             payment_mutation_guard._load_mutable_payment("OMC-PAY-TEST")
+
+    def test_blank_parent_reference_is_hidden_as_missing_payment(self):
+        with self.assertRaises(frappe.DoesNotExistError):
+            payment_mutation_guard._load_parent_status(
+                self._payment(service_request="")
+            )
+
+    @patch("omc_app.api.payment_mutation_guard.frappe.db.exists", return_value=False)
+    def test_missing_parent_row_is_hidden_as_missing_payment(self, exists):
+        with self.assertRaises(frappe.DoesNotExistError):
+            payment_mutation_guard._load_parent_status(self._payment())
+
+        exists.assert_called_once_with(
+            "OMC Service Request",
+            "OMC-SR-TEST",
+        )
+
+    @patch("omc_app.api.payment_mutation_guard.frappe.db.get_value", return_value=None)
+    @patch("omc_app.api.payment_mutation_guard.frappe.db.exists", return_value=True)
+    def test_parent_without_status_is_hidden_as_missing_payment(self, exists, get_value):
+        with self.assertRaises(frappe.DoesNotExistError):
+            payment_mutation_guard._load_parent_status(self._payment())
 
     @patch("omc_app.api.payment_mutation_guard.payments.upload_payment_receipt_file")
     @patch("omc_app.api.payment_mutation_guard._load_mutable_payment")
@@ -105,6 +127,20 @@ class TestPaymentMutationGuard(FrappeTestCase):
         review.assert_not_called()
         noop_response.assert_called_once_with(payment)
         self.assertFalse(result["updated"])
+
+    @patch(
+        "omc_app.api.payment_mutation_guard._load_parent_status",
+        return_value=("OMC-SR-TEST", "In Progress"),
+    )
+    def test_noop_response_uses_verified_parent_status(self, load_parent_status):
+        payment = self._payment(status="Under Review")
+
+        result = payment_mutation_guard._noop_review_response(payment)
+
+        self.assertFalse(result["updated"])
+        self.assertEqual(result["case_id"], "OMC-SR-TEST")
+        self.assertEqual(result["case_status"], "In Progress")
+        load_parent_status.assert_called_once_with(payment)
 
     @patch("omc_app.api.payment_mutation_guard.payments.review_payment_receipt")
     @patch("omc_app.api.payment_mutation_guard._load_mutable_payment")
