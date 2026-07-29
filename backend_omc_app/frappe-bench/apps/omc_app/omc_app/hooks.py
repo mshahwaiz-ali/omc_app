@@ -35,6 +35,8 @@ override_whitelisted_methods = {
     "omc_app.api.support_chat.get_support_tickets": "omc_app.api.support_ticket_read_guard.get_support_tickets",
     "omc_app.api.support_chat.get_support_ticket": "omc_app.api.support_ticket_read_guard.get_support_ticket",
     "omc_app.api.support_chat.get_active_support_ticket": "omc_app.api.support_ticket_read_guard.get_active_support_ticket",
+    "omc_app.api.support_chat.get_support_unread_count": "omc_app.api.support_ticket_read_state_guard.get_support_unread_count",
+    "omc_app.api.support_chat.mark_support_ticket_read": "omc_app.api.support_ticket_read_state_guard.mark_support_ticket_read",
     "omc_app.api.mobile.update_support_ticket_status": "omc_app.api.support_ticket_guard.update_support_ticket_status",
     "omc_app.api.support_chat.update_support_ticket_status": "omc_app.api.support_ticket_guard.update_support_ticket_status",
     "omc_app.api.support_chat.assign_support_ticket": "omc_app.api.support_ticket_guard.assign_support_ticket",
