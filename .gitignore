@@ -126,3 +126,39 @@ key.properties
 *.bak.*
 *.rej
 *~
+
+# Python generated files
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Node/build output
+**/node_modules/
+**/dist/
+**/build/
+
+# Local/editor junk
+**/*.log
+**/*.swp
+**/.DS_Store
+
+# Client ERP source generated files
+erp_lead_app/**/.git/
+erp_lead_app/**/__pycache__/
+erp_lead_app/**/*.py[cod]
+erp_lead_app/**/.pytest_cache/
+erp_lead_app/**/.mypy_cache/
+erp_lead_app/**/.ruff_cache/
+erp_lead_app/**/node_modules/
+erp_lead_app/**/public/dist/
+erp_lead_app/**/dist/
+erp_lead_app/**/build/
+erp_lead_app/**/*.log
+erp_lead_app/**/*.swp
+erp_lead_app/**/.DS_Store
+
+# Private client credentials
+erp_lead_app/lead_app/lead_app/lead_app/firebase-adminsdk.json
+**/*firebase-adminsdk*.json

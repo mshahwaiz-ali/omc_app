@@ -1,0 +1,195 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "CL-.###",
+ "creation": "2025-07-13 17:26:13.321530",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "date",
+  "response",
+  "cnic_ntn",
+  "data_3",
+  "client",
+  "service_type",
+  "data_6",
+  "mobile_no",
+  "year",
+  "next_follow_ups_section",
+  "follow_up",
+  "remarks",
+  "section_break_11",
+  "lead",
+  "sales_person",
+  "column_break_xavox",
+  "caller_employee",
+  "column_break_1zz8h",
+  "calling_source",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Date"
+  },
+  {
+   "fieldname": "response",
+   "fieldtype": "Link",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Response",
+   "options": "Response"
+  },
+  {
+   "fieldname": "data_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer"
+  },
+  {
+   "fieldname": "service_type",
+   "fieldtype": "Link",
+   "label": "Service Type",
+   "options": "Task Type"
+  },
+  {
+   "fieldname": "data_6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "label": "Mobile No"
+  },
+  {
+   "default": "2025",
+   "fieldname": "year",
+   "fieldtype": "Link",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Year",
+   "options": "Year"
+  },
+  {
+   "bold": 1,
+   "fieldname": "next_follow_ups_section",
+   "fieldtype": "Section Break",
+   "label": "Next Follow Ups"
+  },
+  {
+   "fieldname": "follow_up",
+   "fieldtype": "Table",
+   "label": "Follow up",
+   "options": "Followup"
+  },
+  {
+   "fieldname": "section_break_11",
+   "fieldtype": "Section Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Calling",
+   "print_hide": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Calling",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "lead",
+   "fieldtype": "Link",
+   "label": "Lead",
+   "options": "Lead"
+  },
+  {
+   "fieldname": "column_break_xavox",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "caller_employee",
+   "fieldtype": "Link",
+   "label": "Caller Employee",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "column_break_1zz8h",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "calling_source",
+   "fieldtype": "Select",
+   "label": "Calling Source",
+   "options": "Lead\nCustomer"
+  },
+  {
+   "fetch_from": "lead.sales_person",
+   "fieldname": "sales_person",
+   "fieldtype": "Link",
+   "label": "Sales Person",
+   "options": "User"
+  },
+  {
+   "fieldname": "cnic_ntn",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "CNIC / NTN"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-07-02 23:35:47.279162",
+ "modified_by": "Administrator",
+ "module": "Selling",
+ "name": "Calling",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-06-13 20:41:03.978677",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "director_name",
+  "cnic",
+  "percentage",
+  "contact",
+  "address",
+  "secp_id",
+  "secp_password",
+  "secp_pin"
+ ],
+ "fields": [
+  {
+   "fieldname": "director_name",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Partner's Name",
+   "options": "Customer"
+  },
+  {
+   "fetch_from": "director_name.contact_no",
+   "fieldname": "contact",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Contact"
+  },
+  {
+   "fetch_from": "director_name.address",
+   "fieldname": "address",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Address"
+  },
+  {
+   "fieldname": "secp_id",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Secp ID"
+  },
+  {
+   "fieldname": "secp_password",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Secp Password"
+  },
+  {
+   "fieldname": "secp_pin",
+   "fieldtype": "Data",
+   "label": "Secp Pin"
+  },
+  {
+   "fetch_from": "director_name.tax_id",
+   "fieldname": "cnic",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Partner's CNIC"
+  },
+  {
+   "fieldname": "percentage",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Percentage"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-03-25 16:09:18.338726",
+ "modified_by": "Administrator",
+ "module": "Selling",
+ "name": "Director Information",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

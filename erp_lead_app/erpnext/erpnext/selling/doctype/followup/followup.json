@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-07-13 17:25:46.447901",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "follow_up_date",
+  "follow_up_time",
+  "column_break_57ole",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "follow_up_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Follow Up Date"
+  },
+  {
+   "fieldname": "follow_up_time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Follow Up Time"
+  },
+  {
+   "fieldname": "column_break_57ole",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-07-13 17:26:04.845189",
+ "modified_by": "Administrator",
+ "module": "Selling",
+ "name": "Followup",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

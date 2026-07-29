@@ -1,0 +1,135 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "KNOW.####",
+ "creation": "2025-04-24 13:26:49.429124",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "knowledge_type",
+  "image_section",
+  "image_title",
+  "image",
+  "column_break_4",
+  "image_description",
+  "video_section",
+  "video_title",
+  "video",
+  "column_break_9",
+  "video_description",
+  "text_section",
+  "text_title",
+  "upload_text_file",
+  "column_break_15",
+  "text_description"
+ ],
+ "fields": [
+  {
+   "bold": 1,
+   "depends_on": "eval:doc.knowledge_type==\"Image\"",
+   "fieldname": "image_section",
+   "fieldtype": "Section Break",
+   "label": "Image"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach",
+   "label": "image"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "image_description",
+   "fieldtype": "Small Text",
+   "label": "Image Description"
+  },
+  {
+   "bold": 1,
+   "depends_on": "eval:doc.knowledge_type==\"Video\"",
+   "fieldname": "video_section",
+   "fieldtype": "Section Break",
+   "label": "Video"
+  },
+  {
+   "fieldname": "video",
+   "fieldtype": "Attach",
+   "label": "Video"
+  },
+  {
+   "fieldname": "column_break_9",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "video_description",
+   "fieldtype": "Small Text",
+   "label": "Video Description"
+  },
+  {
+   "fieldname": "knowledge_type",
+   "fieldtype": "Select",
+   "label": "Knowledge Type",
+   "options": "Image\nVideo\nText"
+  },
+  {
+   "depends_on": "eval:doc.knowledge_type==\"Text\"",
+   "fieldname": "text_section",
+   "fieldtype": "Section Break",
+   "label": "Text"
+  },
+  {
+   "fieldname": "upload_text_file",
+   "fieldtype": "Attach",
+   "label": "Upload Text File"
+  },
+  {
+   "fieldname": "column_break_15",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "text_description",
+   "fieldtype": "Small Text",
+   "label": "Text Description"
+  },
+  {
+   "fieldname": "image_title",
+   "fieldtype": "Data",
+   "label": "Image Title"
+  },
+  {
+   "fieldname": "video_title",
+   "fieldtype": "Data",
+   "label": "Video Title"
+  },
+  {
+   "fieldname": "text_title",
+   "fieldtype": "Data",
+   "label": "Text Title"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-04-25 14:26:05.984450",
+ "modified_by": "Administrator",
+ "module": "CRM",
+ "name": "Knowledge",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

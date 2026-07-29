@@ -1,0 +1,40 @@
+{
+ "add_total_row": 0,
+ "columns": [],
+ "creation": "2025-09-06 20:06:49.425032",
+ "disable_prepared_report": 0,
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": "LH",
+ "modified": "2025-09-06 20:32:31.354075",
+ "modified_by": "Administrator",
+ "module": "CRM",
+ "name": "Duplicate Leads",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "SELECT \r\n    l.company_name AS business_name,\r\n    l.mobile_no,\r\n    COUNT(l.mobile_no) AS mobile_count,\r\n    l.custom_cnic,\r\n    COUNT(l.custom_cnic) AS cnic_count,\r\n    COUNT(l.name) AS total_leads,\r\n    GROUP_CONCAT(l.name SEPARATOR ', ') AS duplicate_leads\r\nFROM `tabLead` l\r\nGROUP BY l.mobile_no, l.custom_cnic\r\nHAVING COUNT(l.name) > 1\r\nORDER BY total_leads DESC\r\n",
+ "ref_doctype": "Lead",
+ "report_name": "Duplicate Leads",
+ "report_type": "Query Report",
+ "roles": [
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Lead"
+  },
+  {
+   "role": "Business Partner"
+  }
+ ]
+}

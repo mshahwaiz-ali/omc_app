@@ -1,0 +1,85 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:structure_name",
+ "creation": "2025-02-02 16:52:51.246685",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "structure_name",
+  "omc",
+  "column_break_3",
+  "sales_person",
+  "column_break_5",
+  "franchise",
+  "column_break_7",
+  "reference"
+ ],
+ "fields": [
+  {
+   "fieldname": "structure_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Structure Name",
+   "unique": 1
+  },
+  {
+   "fieldname": "omc",
+   "fieldtype": "Percent",
+   "label": "OMC"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "franchise",
+   "fieldtype": "Percent",
+   "label": "Consultant"
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference",
+   "fieldtype": "Percent",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "sales_person",
+   "fieldtype": "Percent",
+   "label": "Sales Person"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-07-21 19:13:40.759114",
+ "modified_by": "Administrator",
+ "module": "CRM",
+ "name": "Sales Team Commission Structure",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,237 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "DM-.##### ",
+ "creation": "2026-06-30 12:03:08.173525",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "customer_details_section",
+  "customer_id",
+  "column_break_yliaw",
+  "customer_name",
+  "column_break_bvkv1",
+  "cnic_ntn",
+  "column_break_mrsyp",
+  "contact_no",
+  "column_break_fghwb",
+  "service_type",
+  "section_break_yey83",
+  "all_banks_statements_received",
+  "column_break_lvreb",
+  "any_change_in_properties",
+  "column_break_mlknt",
+  "any_change_in_vehicles",
+  "column_break_ptdh0",
+  "reconciled_with_last_year_wealth",
+  "remarks_section",
+  "additional_remarks",
+  "section_break_xiya3",
+  "document_completed",
+  "column_break_pyu2g",
+  "sales_person",
+  "column_break_p2lxm",
+  "senior_tax_associates",
+  "column_break_0ygob",
+  "user_link"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_details_section",
+   "fieldtype": "Section Break",
+   "label": "Customer Details"
+  },
+  {
+   "fieldname": "customer_id",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer ID",
+   "options": "Customer"
+  },
+  {
+   "fetch_from": "customer_id.customer_name",
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name"
+  },
+  {
+   "fetch_from": "customer_id.contact_no",
+   "fieldname": "contact_no",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Contact No"
+  },
+  {
+   "fieldname": "section_break_yey83",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "N/A",
+   "fieldname": "all_banks_statements_received",
+   "fieldtype": "Select",
+   "label": "All Banks Statements Received",
+   "options": "Select\nYes\nNo\nN/A"
+  },
+  {
+   "default": "N/A",
+   "fieldname": "any_change_in_properties",
+   "fieldtype": "Select",
+   "label": "Any Change in Properties",
+   "options": "Select\nYes\nNo\nN/A"
+  },
+  {
+   "default": "N/A",
+   "fieldname": "any_change_in_vehicles",
+   "fieldtype": "Select",
+   "label": "Any Change in Vehicles",
+   "options": "Select\nYes\nNo\nN/A"
+  },
+  {
+   "default": "N/A",
+   "fieldname": "reconciled_with_last_year_wealth",
+   "fieldtype": "Select",
+   "label": "Reconciled with last year Wealth",
+   "options": "Select\nYes\nNo\nN/A"
+  },
+  {
+   "fieldname": "remarks_section",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "additional_remarks",
+   "fieldtype": "Small Text",
+   "label": "Additional Remarks"
+  },
+  {
+   "fieldname": "column_break_yliaw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_bvkv1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_mrsyp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_lvreb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_mlknt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_ptdh0",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_xiya3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "document_completed",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Document Completed",
+   "options": "\nYes"
+  },
+  {
+   "fieldname": "column_break_pyu2g",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "customer_id.sales_person",
+   "fieldname": "sales_person",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sales Person",
+   "options": "Consultant",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_p2lxm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "customer_id.senior_tax_associates",
+   "fieldname": "senior_tax_associates",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "label": "Senior Tax Associates",
+   "options": "Employee",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0ygob",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "customer_id.user_link",
+   "fieldname": "user_link",
+   "fieldtype": "Link",
+   "label": "User Link",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "customer_id.tax_id",
+   "fieldname": "cnic_ntn",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "CNIC / NTN"
+  },
+  {
+   "fieldname": "column_break_fghwb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "service_type",
+   "fieldtype": "Link",
+   "label": "Service Type",
+   "options": "Task Type"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-22 12:42:16.376840",
+ "modified_by": "Administrator",
+ "module": "CRM",
+ "name": "Document Management",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

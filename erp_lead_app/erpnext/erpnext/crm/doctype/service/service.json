@@ -1,0 +1,182 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "SERV.####",
+ "creation": "2025-07-13 16:12:44.615790",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "date",
+  "customer",
+  "lead",
+  "full_name",
+  "cnic",
+  "lead_cnic",
+  "column_break_4",
+  "mobile_no",
+  "lead_mobile",
+  "service_type",
+  "user_link",
+  "column_break_7",
+  "service_amount",
+  "discount",
+  "net_service_amount",
+  "task_created",
+  "task_link",
+  "daily_job_created",
+  "daily_job_link"
+ ],
+ "fields": [
+  {
+   "depends_on": "eval:doc.custom_customer_type==\"Customer\";",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "depends_on": "eval:doc.custom_customer_type==\"Customer\";",
+   "fetch_from": "customer.customer_name",
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer Name"
+  },
+  {
+   "depends_on": "eval:doc.custom_customer_type==\"Customer\";",
+   "fetch_from": "customer.tax_id",
+   "fieldname": "cnic",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "CNIC"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.custom_customer_type==\"Customer\";",
+   "fetch_from": "customer.mobile_no",
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Mobile No"
+  },
+  {
+   "fieldname": "service_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Service Type",
+   "options": "Task Type"
+  },
+  {
+   "fetch_from": "customer.user_link",
+   "fieldname": "user_link",
+   "fieldtype": "Link",
+   "label": "User Link",
+   "options": "User"
+  },
+  {
+   "fieldname": "column_break_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "service_type.rate",
+   "fieldname": "service_amount",
+   "fieldtype": "Currency",
+   "label": "Service Amount"
+  },
+  {
+   "fieldname": "discount",
+   "fieldtype": "Currency",
+   "label": "Discount"
+  },
+  {
+   "fieldname": "net_service_amount",
+   "fieldtype": "Currency",
+   "label": "Net Service Amount"
+  },
+  {
+   "default": "0",
+   "fieldname": "task_created",
+   "fieldtype": "Check",
+   "label": "Task Created"
+  },
+  {
+   "fieldname": "task_link",
+   "fieldtype": "Link",
+   "label": "Task Link",
+   "options": "Task"
+  },
+  {
+   "default": "0",
+   "fieldname": "daily_job_created",
+   "fieldtype": "Check",
+   "label": "Daily Job Created",
+   "read_only": 1
+  },
+  {
+   "fieldname": "daily_job_link",
+   "fieldtype": "Link",
+   "label": "Daily Job Link",
+   "options": "Daily Job",
+   "read_only": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Data",
+   "label": "Date"
+  },
+  {
+   "depends_on": "eval:doc.custom_customer_type==\"Lead\";",
+   "fieldname": "lead",
+   "fieldtype": "Data",
+   "label": "Customer"
+  },
+  {
+   "depends_on": "eval:doc.custom_customer_type==\"Lead\";",
+   "fieldname": "lead_cnic",
+   "fieldtype": "Data",
+   "label": "CNIC"
+  },
+  {
+   "depends_on": "eval:doc.custom_customer_type==\"Lead\";",
+   "fieldname": "lead_mobile",
+   "fieldtype": "Data",
+   "label": "Mobile No"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-04-16 17:53:40.959451",
+ "modified_by": "Administrator",
+ "module": "CRM",
+ "name": "Service",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
