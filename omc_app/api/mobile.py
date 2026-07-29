@@ -811,56 +811,10 @@ def get_profile():
 
 @frappe.whitelist()
 def upload_profile_image():
-    user = _current_user()
-    if not user or user == "Guest":
-        frappe.throw("Login is required to upload a profile image.", frappe.PermissionError)
+    """Backward-compatible route for canonical profile image upload."""
+    from omc_app.api import profile
 
-    uploaded_file = frappe.request.files.get("file") if getattr(frappe, "request", None) else None
-    if not uploaded_file:
-        frappe.throw("Profile image file is required.")
-
-    filename = (uploaded_file.filename or "profile-image").strip()
-    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
-    lower_filename = filename.lower()
-
-    if not any(lower_filename.endswith(ext) for ext in allowed_extensions):
-        frappe.throw("Only JPG, PNG, or WEBP profile images are allowed.")
-
-    file_content = uploaded_file.stream.read()
-    max_size_bytes = 5 * 1024 * 1024
-    if len(file_content) > max_size_bytes:
-        frappe.throw("Profile image must be 5 MB or smaller.")
-
-    profile = _get_customer_profile_for_user(user)
-
-    file_doc = save_file(
-        filename,
-        file_content,
-        "OMC Customer Profile",
-        profile.name,
-        is_private=0,
-    )
-
-    file_url = file_doc.file_url or ""
-
-    if profile.meta.has_field("profile_image"):
-        profile.profile_image = file_url
-        profile.save(ignore_permissions=True)
-
-    if frappe.db.exists("User", user):
-        user_doc = frappe.get_doc("User", user)
-        user_doc.user_image = file_url
-        user_doc.save(ignore_permissions=True)
-
-    frappe.db.commit()
-
-    return {
-        "message": "Profile image updated.",
-        "avatar_url": file_url,
-        "profile_image": file_url,
-        "user_image": file_url,
-        "customer_id": profile.name,
-    }
+    return profile.upload_profile_image()
 
 
 @frappe.whitelist()
@@ -1924,80 +1878,10 @@ def _assert_payment_receipt_upload_allowed(payment, receipt_attachment):
 
 @frappe.whitelist()
 def upload_service_document(**kwargs):
-    case_id = kwargs.get("case_id") or kwargs.get("service_request")
-    document_title = (kwargs.get("document_title") or kwargs.get("title") or "").strip()
-    document_type = (kwargs.get("document_type") or kwargs.get("type") or "General").strip()
-    attachment = kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file")
-    remarks = kwargs.get("remarks") or ""
+    """Backward-compatible route for the canonical document upload API."""
+    from omc_app.api import document_upload
 
-    if not case_id:
-        frappe.throw("case_id is required")
-
-    if not document_title:
-        frappe.throw("document_title is required")
-
-    if not frappe.db.exists("OMC Service Request", case_id):
-        frappe.throw("Service request not found", frappe.DoesNotExistError)
-
-    service_case = frappe.get_doc("OMC Service Request", case_id)
-    profile = _assert_approved_customer()
-
-    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
-        frappe.throw("You do not have permission to upload documents for this service request", frappe.PermissionError)
-
-    attachment = _assert_service_document_upload_allowed(service_case, attachment)
-
-    doc = frappe.new_doc("OMC Service Document")
-    doc.service_request = service_case.name
-    doc.document_title = document_title
-    doc.document_type = document_type
-    doc.attachment = attachment
-    doc.status = "Uploaded"
-    doc.visible_to_customer = 1
-    doc.uploaded_by = _current_user()
-    doc.uploaded_on = frappe.utils.now_datetime()
-    doc.remarks = remarks
-    doc.insert(ignore_permissions=True)
-
-    _create_service_timeline_entry(
-        service_request=service_case.name,
-        event_type="Document Uploaded",
-        title="Document Uploaded",
-        description=remarks or f"{document_title} uploaded by customer.",
-        visible_to_customer=1,
-    )
-
-    _create_service_notification(
-        service_case,
-        title="Document received",
-        message=(
-            f"{document_title} was uploaded successfully and is ready "
-            "for OMC review."
-        ),
-        notification_type="Document Request",
-        reference_doctype="OMC Service Document",
-        reference_name=doc.name,
-    )
-
-    frappe.db.commit()
-
-    return {
-        "uploaded": True,
-        "document": {
-            "name": doc.name,
-            "case_id": doc.service_request,
-            "title": doc.document_title or "",
-            "document_title": doc.document_title or "",
-            "type": doc.document_type or "",
-            "document_type": doc.document_type or "",
-            "status": doc.status or "",
-            "file_url": doc.attachment or "",
-            "attachment": doc.attachment or "",
-            "uploaded_on": _format_datetime(doc.uploaded_on),
-            "uploaded_by": doc.uploaded_by or "",
-            "remarks": doc.remarks or "",
-        },
-    }
+    return document_upload.upload_service_document(**kwargs)
 
 
 @frappe.whitelist()
@@ -3367,65 +3251,10 @@ def get_support_config():
 
 @frappe.whitelist()
 def create_support_ticket(**kwargs):
-    subject = (kwargs.get("subject") or kwargs.get("title") or "").strip()
-    message = (kwargs.get("message") or kwargs.get("description") or "").strip()
+    """Backward-compatible route for canonical support ticket creation."""
+    from omc_app.api import support_chat
 
-    if not subject:
-        frappe.throw("subject is required")
-
-    if not message:
-        frappe.throw("message is required")
-
-    user = _current_user()
-    profile = _assert_approved_customer()
-
-    reference_service_request = (
-        kwargs.get("reference_service_request")
-        or kwargs.get("service_request")
-        or kwargs.get("case_id")
-    )
-
-    if reference_service_request:
-        if not frappe.db.exists("OMC Service Request", reference_service_request):
-            frappe.throw("Reference service request not found", frappe.DoesNotExistError)
-
-        if profile:
-            request_customer = frappe.db.get_value(
-                "OMC Service Request",
-                reference_service_request,
-                "customer_profile",
-            )
-            if request_customer and request_customer != profile.name:
-                frappe.throw(
-                    "You do not have permission to reference this service request",
-                    frappe.PermissionError,
-                )
-
-    ticket = frappe.new_doc("OMC Support Ticket")
-    ticket.subject = subject
-    ticket.message = message
-    ticket.status = "Open"
-    ticket.priority = kwargs.get("priority") or "Medium"
-    ticket.customer_profile = profile.name if profile else None
-    ticket.raised_by = user if user != "Guest" else None
-    ticket.contact_email = kwargs.get("contact_email") or (profile.email if profile else "")
-    ticket.contact_phone = kwargs.get("contact_phone") or (profile.phone if profile else "")
-    ticket.reference_service_request = reference_service_request or None
-    ticket.insert(ignore_permissions=True)
-    frappe.db.commit()
-
-    return {
-        "message": "Support ticket created.",
-        "created": True,
-        "ticket": {
-            "name": ticket.name,
-            "subject": ticket.subject or "",
-            "status": ticket.status or "",
-            "priority": ticket.priority or "",
-            "reference_service_request": ticket.reference_service_request or "",
-            "raised_on": str(ticket.raised_on) if ticket.raised_on else "",
-        },
-    }
+    return support_chat.create_support_ticket(**kwargs)
 
 
 
@@ -3526,84 +3355,19 @@ def _assert_support_ticket_access(ticket):
 
 @frappe.whitelist()
 def get_support_tickets():
-    user = _current_user()
-    if user == "Guest":
-        return {"tickets": []}
+    """Backward-compatible route for the canonical support ticket list."""
+    from omc_app.api import support_chat
 
-    profile = None if _can_access_internal_workspace(user) else _assert_approved_customer()
-
-    filters = {}
-
-    if profile:
-        filters["customer_profile"] = profile.name
-    elif _can_access_internal_workspace(user):
-        filters = {}
-    elif user != "Guest":
-        filters["raised_by"] = user
-    else:
-        return {"tickets": []}
-
-    tickets = frappe.get_all(
-        "OMC Support Ticket",
-        filters=filters,
-        fields=[
-            "name",
-            "subject",
-            "message",
-            "status",
-            "priority",
-            "customer_profile",
-            "raised_by",
-            "contact_email",
-            "contact_phone",
-            "reference_service_request",
-            "raised_on",
-            "closed_on",
-            "creation",
-            "modified",
-        ],
-        order_by="modified desc",
-        limit_page_length=50,
-    )
-
-    return {
-        "tickets": [
-            {
-                "name": row.name,
-                "subject": row.subject or "",
-                "message": row.message or "",
-                "status": row.status or "",
-                "priority": row.priority or "",
-                "customer_profile": row.customer_profile or "",
-                "raised_by": row.raised_by or "",
-                "contact_email": row.contact_email or "",
-                "contact_phone": row.contact_phone or "",
-                "reference_service_request": row.reference_service_request or "",
-                "raised_on": str(row.raised_on) if row.raised_on else "",
-                "closed_on": str(row.closed_on) if row.closed_on else "",
-                "created_at": str(row.creation) if row.creation else "",
-                "updated_at": str(row.modified) if row.modified else "",
-                "can_update_status": _get_mobile_capabilities()["can_update_support_ticket_status"],
-                "can_reply": row.status not in ["Closed", "Cancelled"],
-            }
-            for row in tickets
-        ]
-    }
+    return support_chat.get_support_tickets()
 
 
 
 @frappe.whitelist()
 def get_support_ticket(ticket_id=None):
-    if not ticket_id:
-        frappe.throw("ticket_id is required")
+    """Backward-compatible route for canonical support ticket detail."""
+    from omc_app.api import support_chat
 
-    if not frappe.db.exists("OMC Support Ticket", ticket_id):
-        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
-
-    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
-    _assert_support_ticket_access(ticket)
-
-    return {"ticket": _support_ticket_to_dict(ticket)}
+    return support_chat.get_support_ticket(ticket_id=ticket_id)
 
 
 def _get_customer_preferences(profile=None):
@@ -3747,93 +3511,27 @@ def _active_push_tokens_for_notification(
 
 @frappe.whitelist()
 def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
-    ticket_id = ticket_id or kwargs.get("name")
-    message = (message or kwargs.get("reply") or kwargs.get("description") or "").strip()
+    """Backward-compatible route for canonical support replies."""
+    from omc_app.api import support_chat
 
-    if not ticket_id:
-        frappe.throw("ticket_id is required")
-
-    if not message:
-        frappe.throw("message is required")
-
-    if not frappe.db.exists("OMC Support Ticket", ticket_id):
-        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
-
-    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
-    user, _profile = _assert_support_ticket_access(ticket)
-
-    if ticket.status in ["Closed", "Cancelled"]:
-        frappe.throw("This support ticket is closed. Please reopen it before replying.")
-
-    timestamp = frappe.utils.now_datetime()
-    reply_text = f"\n\n--- Reply from {user} at {timestamp} ---\n{message}"
-
-    ticket.message = (ticket.message or "").rstrip() + reply_text
-    if ticket.status == "Resolved":
-        ticket.status = "Open"
-        ticket.closed_on = None
-
-    ticket.save(ignore_permissions=True)
-    frappe.db.commit()
-
-    return {
-        "updated": True,
-        "ticket": _support_ticket_to_dict(ticket),
-        "message": "Support reply added.",
-    }
+    return support_chat.add_support_ticket_reply(
+        ticket_id=ticket_id,
+        message=message,
+        **kwargs,
+    )
 
 
 
 @frappe.whitelist()
 def update_support_ticket_status(ticket_id=None, status=None, remarks=None):
-    require_omc_staff(SUPPORT_STAFF_ROLES, "You do not have permission to update support tickets.")
+    """Backward-compatible route for canonical support status updates."""
+    from omc_app.api import support_chat
 
-    if not ticket_id:
-        frappe.throw("ticket_id is required")
-
-    if not status:
-        frappe.throw("status is required")
-
-    allowed_statuses = ["Open", "Waiting for Customer", "Resolved", "Closed", "Cancelled"]
-    if status not in allowed_statuses:
-        frappe.throw("status must be one of: Open, Waiting for Customer, Resolved, Closed, Cancelled")
-
-    if not frappe.db.exists("OMC Support Ticket", ticket_id):
-        frappe.throw("Support ticket not found", frappe.DoesNotExistError)
-
-    ticket = frappe.get_doc("OMC Support Ticket", ticket_id)
-    old_status = ticket.status or ""
-
-    ticket.status = status
-    if status in ["Resolved", "Closed", "Cancelled"]:
-        ticket.closed_on = frappe.utils.now_datetime()
-    else:
-        ticket.closed_on = None
-
-    if remarks:
-        timestamp = frappe.utils.now_datetime()
-        ticket.message = (ticket.message or "").rstrip() + f"\n\n--- Reply from OMC Support at {timestamp} ---\n{remarks}"
-
-    ticket.save(ignore_permissions=True)
-
-    if ticket.customer_profile:
-        _create_customer_notification(
-            customer_profile=ticket.customer_profile,
-            title=f"Support Ticket {status}",
-            message=remarks or f"Your support ticket '{ticket.subject or ticket.name}' is now {status}.",
-            notification_type="Support",
-            reference_doctype="OMC Support Ticket",
-            reference_name=ticket.name,
-        )
-
-    frappe.db.commit()
-
-    return {
-        "updated": True,
-        "old_status": old_status,
-        "ticket": _support_ticket_to_dict(ticket),
-        "message": "Support ticket status updated.",
-    }
+    return support_chat.update_support_ticket_status(
+        ticket_id=ticket_id,
+        status=status,
+        remarks=remarks,
+    )
 
 
 @frappe.whitelist()
