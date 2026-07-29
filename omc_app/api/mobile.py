@@ -2883,10 +2883,15 @@ def mark_all_notifications_read():
     now = frappe.utils.now_datetime()
 
     for notification_name in notification_names:
-        notification = frappe.get_doc("OMC Notification", notification_name)
-        notification.is_read = 1
-        notification.read_on = now
-        notification.save(ignore_permissions=True)
+        frappe.db.set_value(
+            "OMC Notification",
+            notification_name,
+            {
+                "is_read": 1,
+                "read_on": now,
+            },
+            update_modified=False,
+        )
 
     if notification_names:
         frappe.db.commit()
