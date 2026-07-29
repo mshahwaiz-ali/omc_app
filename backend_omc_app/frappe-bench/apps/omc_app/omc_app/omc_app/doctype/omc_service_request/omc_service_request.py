@@ -17,7 +17,7 @@ class OMCServiceRequest(Document):
 		if self.customer_profile and not self.customer_name:
 			self.customer_name = frappe.db.get_value("OMC Customer Profile", self.customer_profile, "full_name") or ""
 
-		if self.status in {"Completed", "Cancelled"}:
+		if self._entered_terminal_status():
 			try:
 				from omc_app.api.customer_documents import archive_service_documents_for_status
 
@@ -27,3 +27,10 @@ class OMCServiceRequest(Document):
 					frappe.get_traceback(),
 					"OMC Service Document Auto Archive Failed",
 				)
+
+	def _entered_terminal_status(self):
+		if self.status not in {"Completed", "Cancelled"}:
+			return False
+
+		previous = self.get_doc_before_save()
+		return previous is None or previous.status != self.status
