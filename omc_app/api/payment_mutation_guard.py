@@ -16,6 +16,24 @@ def _payment_id(payment_id=None, name=None):
     return value
 
 
+def _load_parent_status(payment):
+    service_request = (getattr(payment, "service_request", None) or "").strip()
+    if not service_request or not frappe.db.exists(
+        "OMC Service Request",
+        service_request,
+    ):
+        frappe.throw("Payment not found", frappe.DoesNotExistError)
+
+    request_status = frappe.db.get_value(
+        "OMC Service Request",
+        service_request,
+        "status",
+    )
+    if request_status is None:
+        frappe.throw("Payment not found", frappe.DoesNotExistError)
+    return service_request, request_status
+
+
 def _load_mutable_payment(payment_id):
     if not frappe.db.exists(payments.PAYMENT_DOCTYPE, payment_id):
         frappe.throw("Payment not found", frappe.DoesNotExistError)
@@ -25,14 +43,10 @@ def _load_mutable_payment(payment_id):
     if status in TERMINAL_PAYMENT_STATUSES:
         frappe.throw(f"Payment {payment.name} is already {status} and cannot be changed.")
 
-    request_status = frappe.db.get_value(
-        "OMC Service Request",
-        payment.service_request,
-        "status",
-    )
+    service_request, request_status = _load_parent_status(payment)
     if request_status in TERMINAL_SERVICE_REQUEST_STATUSES:
         frappe.throw(
-            f"Payment cannot be changed after service request {payment.service_request} "
+            f"Payment cannot be changed after service request {service_request} "
             f"is {request_status}."
         )
     return payment
@@ -51,22 +65,18 @@ def _review_is_noop(payment, *, status, remarks=None, payment_reference=None):
 
 
 def _noop_review_response(payment):
+    service_request, request_status = _load_parent_status(payment)
     return {
         "updated": False,
         "name": payment.name,
-        "case_id": payment.service_request,
+        "case_id": service_request,
         "old_status": payment.status,
         "status": payment.status,
         "paid_on": mobile._format_datetime(payment.paid_on),
         "receipt_url": payment.receipt_attachment or "",
         "payment_reference": payment.payment_reference or "",
         "remarks": payment.remarks or "",
-        "case_status": frappe.db.get_value(
-            "OMC Service Request",
-            payment.service_request,
-            "status",
-        )
-        or "",
+        "case_status": request_status or "",
         "case_transition_status": None,
         "message": "Payment receipt already has this status.",
     }
