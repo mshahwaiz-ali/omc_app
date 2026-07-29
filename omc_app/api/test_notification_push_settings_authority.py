@@ -283,3 +283,124 @@ class TestSettingsPreferenceAuthority(FrappeTestCase):
             result["updated_fields"],
             ["payment_alerts_enabled"],
         )
+
+class TestNotificationPreferenceGating(FrappeTestCase):
+    @patch("omc_app.api.mobile.frappe.new_doc")
+    @patch("omc_app.api.mobile._notification_preference_enabled")
+    def test_disabled_customer_preference_suppresses_notification(
+        self,
+        preference_enabled,
+        new_doc,
+    ):
+        preference_enabled.return_value = False
+
+        result = mobile._create_customer_notification(
+            customer_profile="CUST-0001",
+            title="Document required",
+            message="Please upload the requested document.",
+            notification_type="Document Request",
+            reference_doctype="OMC Service Document",
+            reference_name="DOC-0001",
+        )
+
+        self.assertIsNone(result)
+        preference_enabled.assert_called_once_with(
+            customer_profile="CUST-0001",
+            notification_type="Document",
+        )
+        new_doc.assert_not_called()
+
+    @patch("omc_app.api.mobile.frappe.new_doc")
+    @patch("omc_app.api.mobile._notification_preference_enabled")
+    def test_enabled_customer_preference_allows_notification(
+        self,
+        preference_enabled,
+        new_doc,
+    ):
+        preference_enabled.return_value = True
+        notification = MagicMock()
+        notification.meta.has_field.return_value = False
+        new_doc.return_value = notification
+
+        result = mobile._create_customer_notification(
+            customer_profile="CUST-0001",
+            title="Payment update",
+            message="Your payment was received.",
+            notification_type="Payment Alert",
+            reference_doctype="OMC Service Payment",
+            reference_name="PAY-0001",
+        )
+
+        self.assertIs(result, notification)
+        preference_enabled.assert_called_once_with(
+            customer_profile="CUST-0001",
+            notification_type="Payment",
+        )
+        notification.insert.assert_called_once_with(ignore_permissions=True)
+
+    @patch("omc_app.api.mobile.frappe.new_doc")
+    @patch("omc_app.api.mobile._notification_preference_enabled")
+    def test_internal_recipient_bypasses_customer_preferences(
+        self,
+        preference_enabled,
+        new_doc,
+    ):
+        notification = MagicMock()
+        notification.meta.has_field.return_value = False
+        new_doc.return_value = notification
+
+        result = mobile._create_customer_notification(
+            recipient_user="staff@example.com",
+            title="New service request assigned",
+            message="SR-0001 has been assigned.",
+            notification_type="Service",
+            reference_doctype="OMC Service Request",
+            reference_name="SR-0001",
+        )
+
+        self.assertIs(result, notification)
+        preference_enabled.assert_not_called()
+        self.assertEqual(notification.recipient_user, "staff@example.com")
+        notification.insert.assert_called_once_with(ignore_permissions=True)
+
+    @patch("omc_app.api.mobile.frappe.db.get_value")
+    def test_type_specific_preference_field_is_used(self, get_value):
+        get_value.side_effect = ["PREF-0001", 0]
+
+        result = mobile._notification_preference_enabled(
+            customer_profile="CUST-0001",
+            notification_type="Payment",
+        )
+
+        self.assertFalse(result)
+        self.assertEqual(
+            get_value.call_args_list,
+            [
+                call(
+                    "OMC Customer Preference",
+                    {"customer_profile": "CUST-0001"},
+                    "name",
+                ),
+                call(
+                    "OMC Customer Preference",
+                    "PREF-0001",
+                    "payment_alerts_enabled",
+                ),
+            ],
+        )
+
+    @patch("omc_app.api.mobile.frappe.db.get_value")
+    def test_missing_preferences_default_to_enabled(self, get_value):
+        get_value.return_value = None
+
+        result = mobile._notification_preference_enabled(
+            customer_profile="CUST-0001",
+            notification_type="Support",
+        )
+
+        self.assertTrue(result)
+        get_value.assert_called_once_with(
+            "OMC Customer Preference",
+            {"customer_profile": "CUST-0001"},
+            "name",
+        )
