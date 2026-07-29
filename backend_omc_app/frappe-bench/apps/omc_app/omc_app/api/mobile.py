@@ -2961,6 +2961,12 @@ def _create_customer_notification(
         "General",
     )
 
+    if customer_profile and not _notification_preference_enabled(
+        customer_profile=customer_profile,
+        notification_type=normalized_notification_type,
+    ):
+        return None
+
     notification = frappe.new_doc("OMC Notification")
     notification.customer_profile = customer_profile or None
     notification.recipient_user = recipient_user or None
@@ -3472,6 +3478,41 @@ def _notification_preference_field(notification_type=None, channel="push"):
         _normalized_notification_type(notification_type),
         "service_updates_enabled",
     )
+
+
+def _notification_preference_enabled(
+    customer_profile=None,
+    notification_type=None,
+):
+    """Return whether a customer in-app notification may be created.
+
+    Internal recipient-user notifications bypass customer preferences. Existing
+    customers without a preference document retain historical enabled behavior.
+    """
+    if not customer_profile:
+        return True
+
+    preference_field = _notification_preference_field(
+        notification_type,
+        channel="push",
+    )
+    preference_name = frappe.db.get_value(
+        "OMC Customer Preference",
+        {"customer_profile": customer_profile},
+        "name",
+    )
+    if not preference_name:
+        return True
+
+    value = frappe.db.get_value(
+        "OMC Customer Preference",
+        preference_name,
+        preference_field,
+    )
+    if value is None:
+        return True
+
+    return bool(frappe.utils.cint(value))
 
 
 def _notification_delivery_enabled(
