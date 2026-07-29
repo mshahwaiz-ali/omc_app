@@ -1,31 +1,31 @@
-# OMC App — Detailed Product, Workflow, and Operations Guide
+# OMC App — Complete Product and Feature Guide
 
-## 1. Purpose of this document
+## 1. Purpose
 
-This document explains the OMC App in practical business language.
+This document explains the OMC App in practical business and operational language.
 
 It is intended for:
 
 - OMC House management;
-- client representatives;
-- operations staff;
-- support, document, finance, and service teams;
+- clients and project stakeholders;
+- customer-service teams;
+- support, document, finance, referral, and service teams;
 - developers and deployment engineers;
 - testers performing role-based verification.
 
-The guide describes:
+It explains:
 
 - what the platform does;
-- who can use each part;
-- how customer and staff workflows connect;
-- how each major feature behaves;
-- what OMC manages from Frappe Desk;
-- which security and access rules apply;
-- how the platform should be tested before release.
+- who can use each feature;
+- how the customer and staff experiences connect;
+- how the main workflows behave;
+- what remains controlled by Frappe Desk;
+- which access and security rules apply;
+- how the platform is validated before release.
 
-For installation commands and engineering setup, see [`README.md`](README.md).
+For engineering setup and deployment commands, see [`README.md`](README.md).
 
-For the complete role and capability matrix, see [`docs/app_role.md`](docs/app_role.md).
+For the canonical role and capability matrix, see [`docs/app_role.md`](docs/app_role.md).
 
 ---
 
@@ -36,153 +36,128 @@ OMC App is a full-stack digital service platform for OMC House.
 It combines:
 
 1. a Flutter application for guests, customers, and authorised internal users;
-2. a custom Frappe backend for data, workflows, permissions, and operations;
-3. Frappe Desk for controlled business administration;
-4. backend-managed content, services, cases, documents, payments, support, and customer records.
+2. a custom Frappe backend for business data, workflows, permissions, and automation;
+3. Frappe Desk for controlled operational administration;
+4. backend-managed services, customer records, cases, documents, payments, support, notifications, tax data, and expense records.
 
 The operating model is:
 
 ```text
-Customer or staff member uses the Flutter app
-                    |
-                    | Secure API requests
-                    v
-             Custom OMC backend
-                    |
-                    | Business rules and permissions
-                    v
-        Frappe Desk and OMC operational records
+Guest, customer, or staff member uses the Flutter app
+                            |
+                            | Secure API requests
+                            v
+                    Custom OMC backend
+                            |
+                            | Business rules and permissions
+                            v
+             Frappe Desk and OMC operational records
 ```
 
-The customer experience should feel simple. The backend remains strict.
+The customer interface should remain simple. The backend remains strict.
 
-> The app may hide or lock a feature for user experience, but the backend must independently enforce every protected action.
-
----
-
-# 3. Client-facing explanation
-
-OMC House provides customers with a digital portal where they can:
-
-- browse available OMC services;
-- understand service requirements;
-- create an account;
-- wait for approval where verification is required;
-- request services;
-- upload supporting documents;
-- track the progress of their cases;
-- review payment instructions and receipt status;
-- receive notifications;
-- contact support;
-- use tax and expense tools;
-- manage their profile and settings.
-
-OMC staff manage the business workflow from Frappe Desk and authorised internal modules, including:
-
-- customer onboarding and approval;
-- service catalogue management;
-- service-case processing;
-- document review;
-- payment-receipt review;
-- support tickets;
-- leads;
-- operational tasks;
-- notifications and customer-facing content.
-
-The mobile app and Frappe Desk use the same backend records, which keeps customers and staff aligned.
+> The Flutter app may hide, disable, or redirect a feature for user experience, but the Frappe backend independently enforces every protected read and action.
 
 ---
 
-# 4. Platform sides
+# 3. Platform sides
 
-## 4.1 Customer side
+## 3.1 Public and guest side
 
-The customer side supports three core states:
+The public side introduces OMC House and allows visitors to explore safe content without exposing private records.
+
+Guest-safe areas include:
+
+- public home content;
+- active service catalogue;
+- service descriptions and requirements;
+- approved FAQs and knowledge content;
+- announcements and contact details;
+- tax calculator;
+- login, signup, email verification, and password recovery.
+
+## 3.2 Customer side
+
+The customer side supports three important states:
 
 - Guest;
 - Pending Customer;
 - Approved Customer.
 
-Each state receives a different set of routes, actions, and records.
+Each state receives different routes, actions, and backend access.
 
-## 4.2 Internal side
+## 3.3 Internal side
 
 The internal side is used by authorised OMC personnel.
 
-Internal access is capability-based. A staff member does not receive every action simply because the internal shell is visible.
+Internal access is capability-based. Visibility of the internal workspace does not grant every action.
 
-For example:
+Examples:
 
-- a Document Reviewer may review documents but not payments;
-- a Finance Reviewer may review payment receipts but not documents;
-- a Support Agent may manage support tickets but not application settings;
-- a Consultant may access assigned cases but not every customer record;
-- an Admin may manage the full OMC application.
+- a Document Reviewer can review documents but cannot make finance decisions;
+- a Finance Reviewer can review receipts but cannot approve documents;
+- a Support Agent can manage support work but cannot administer the full application;
+- a Consultant can access assigned work but not every customer record;
+- an Admin can manage the full OMC application.
 
-## 4.3 Shared backend
+## 3.4 Shared backend
 
-Both sides use the same Frappe backend for:
+All sides use the same Frappe backend for:
 
 - users and sessions;
 - customer profiles;
-- services;
-- service requests;
-- document records;
-- payment records;
-- support tickets;
-- notifications;
-- leads;
-- tasks;
+- services and categories;
+- service requests and timelines;
+- document records and attachments;
+- payment records and receipts;
+- support tickets and replies;
+- notifications and push tokens;
+- referrals and leads;
+- tasks and assignments;
 - tax configuration;
-- expense data;
-- content and settings.
+- expense and budget records;
+- branding, announcements, FAQs, and application content.
+
+This shared data model keeps customers and staff aligned.
 
 ---
 
-# 5. User types and access states
+# 4. User types and access states
 
-## 5.1 Guest
+## 4.1 Guest
 
 A guest has not signed in.
 
 ### Guest users can
 
-- open the app;
+- open the application;
 - view public home content;
 - browse active services;
-- open public service details;
-- read approved FAQs and knowledge content;
+- open customer-safe service details;
+- read approved FAQs and knowledge articles;
 - use guest-safe tax tools;
-- view contact and support information;
-- open login and signup.
+- view contact information;
+- open login, signup, verification, and recovery screens.
 
 ### Guest users cannot
 
 - create service requests;
 - upload customer documents;
-- view customer dashboards;
-- track private service cases;
-- view payments;
+- track private cases;
+- view payments or receipts;
 - view customer notifications;
-- access customer support history;
-- view another user's data;
-- access internal workspace features.
+- view support history;
+- view expense records;
+- access internal workspaces;
+- read any other user's data.
 
-### Expected app behaviour
-
-When a guest opens a protected route, the app should redirect or show a clear access message without exposing private data.
-
-Suggested wording:
-
-```text
-Sign in or create an account to continue.
-```
+Protected routes redirect or show a clear access message without exposing private records.
 
 ---
 
-## 5.2 Pending Customer
+## 4.2 Pending Customer
 
-A Pending Customer has registered but has not yet been approved by OMC.
+A Pending Customer has registered but has not yet completed OMC approval.
 
 Typical state:
 
@@ -196,33 +171,26 @@ approval_status = Pending Review
 - sign in;
 - view their own profile;
 - view approval status;
+- update allowed profile fields;
+- manage notification preferences;
 - browse active public services;
 - read public content;
 - use guest-safe utilities;
-- update allowed profile fields;
-- sign out and manage local settings.
+- sign out securely.
 
 ### Pending customers cannot
 
-- create a service request;
+- start approved-only service workflows;
 - upload service documents;
 - view private case history;
-- view payment records;
-- submit payment receipts;
-- create customer-specific support tickets;
+- view or submit payments;
 - access internal tools.
 
-Suggested message:
-
-```text
-Your account is under review. OMC will enable service access after verification.
-```
+The application communicates that the account is under review rather than showing a broken or empty protected workflow.
 
 ---
 
-## 5.3 Approved Customer
-
-An Approved Customer has passed OMC verification.
+## 4.3 Approved Customer
 
 Typical state:
 
@@ -231,1159 +199,743 @@ customer_status = Active
 approval_status = Approved
 ```
 
-### Approved customers can
+Approved customers can use customer workflows such as:
 
-- access the customer dashboard;
-- browse services;
-- create service requests;
-- upload required documents;
-- track their own cases;
-- view their own documents;
-- view their own payment information where enabled;
-- upload payment receipts where enabled;
-- receive notifications;
-- create and follow support tickets;
-- manage profile and preferences;
-- use tax and expense tools;
-- read customer-safe content.
+- service requests;
+- cases and timelines;
+- documents;
+- payments and receipts;
+- support tickets;
+- notifications;
+- profile and settings;
+- expense tracking.
 
-### Ownership rule
+Every protected customer query remains ownership-scoped.
 
-An Approved Customer may only access records attached to their own customer profile.
-
-They must never be able to:
-
-- view another customer;
-- view another customer's service request;
-- view another customer's documents;
-- view another customer's payments;
-- view another customer's support tickets;
-- see internal notes;
-- review documents;
-- review payments;
-- update internal case status;
-- manage leads or internal tasks.
+> An approved customer may only read or modify records that belong to their own OMC customer profile.
 
 ---
 
-## 5.4 Internal OMC roles
+## 4.4 Internal roles
 
-| Role | Primary responsibility |
-|---|---|
-| OMC Admin | Full OMC application administration and operations |
-| OMC Manager | Operational oversight, customers, cases, tasks, and reviews |
-| OMC Support Agent | Support tickets, leads, and customer communication |
-| OMC Document Reviewer | Document queue, attachments, approval, and rejection |
-| OMC Finance Reviewer | Payment queue, receipt review, approval, and rejection |
-| OMC Consultant | Assigned service cases and assigned tasks |
-| OMC Tax Associate | Assigned tax-related service work |
-| OMC Business Partner | Assigned partner-managed work |
-| OMC Customer | Customer portal identity, still subject to approval state |
+The current role model includes:
 
-Internal access should always combine:
+- **OMC Admin** — full application administration and broad operations;
+- **OMC Manager** — operational oversight without normal Admin-only configuration authority;
+- **OMC Support Agent** — support, leads, and customer communication;
+- **OMC Document Reviewer** — document queues, attachments, and review decisions;
+- **OMC Finance Reviewer** — payment queues, receipts, and finance decisions;
+- **OMC Consultant** — assigned service cases and tasks;
+- **OMC Tax Associate** — assigned tax-related service work;
+- **OMC Business Partner** — assigned partner-managed work;
+- **OMC Customer** — customer identity governed by approval and ownership.
 
-```text
-Role
-+ capability
-+ record scope
-+ user status
-```
+Sensitive internal reads and mutations require the correct capability and record scope.
 
 ---
 
-# 6. User approval workflow
+# 5. Authentication and onboarding
 
-The recommended onboarding model is:
+## 5.1 Login
 
-```text
-User submits signup
-        |
-        v
-Frappe User and OMC Customer Profile are created or linked
-        |
-        v
-Profile remains Pending Review
-        |
-        v
-OMC staff review identity, contact details, and requested registration type
-        |
-        +--> Keep Pending
-        +--> Reject
-        +--> Approve as Customer
-        +--> Approve for an internal or partner role
-        +--> Correct the requested user type before approval
-```
+The login experience supports:
 
-This model prevents unverified users from immediately creating cases or uploading protected information.
+- canonical backend authentication;
+- identity resolution for supported login identifiers;
+- secure local session storage;
+- approval-aware post-login routing;
+- clear handling of invalid or expired sessions;
+- safe logout and local session cleanup.
 
-## 6.1 Signup information
+## 5.2 Four-step signup
 
-Signup may include:
+The signup flow is structured into four stages.
 
-| Field | Purpose |
-|---|---|
-| Full name | Customer or applicant identity |
-| Email | Login identity |
-| Mobile number | Contact |
-| WhatsApp number | Communication |
-| CNIC or identifier | Verification where required |
-| Registration type | Customer, Consultant, Business Partner, or Tax Associate |
-| Address | Contact record |
-| Password | Account access |
-| Education, experience, or remarks | Additional review information where relevant |
+### Step 1 — Account type
 
-Input is bounded and validated before account creation.
+The applicant selects one supported path:
 
-## 6.2 Profile updates
+- Customer;
+- Consultant;
+- Business Partner;
+- Tax Associate.
 
-Customers may update supported profile fields such as name, phone, company, or identifiers within defined limits.
+The selected type affects required details and the backend review pathway.
 
-Account email is not changed through normal profile-edit endpoints. Email changes require a separate controlled account process.
+### Step 2 — Basic details
 
----
-
-# 7. Navigation model
-
-The exact navigation may change by screen size and role, but the customer experience is organised around the following areas.
-
-| Area | Purpose |
-|---|---|
-| Home | Summary, greetings, shortcuts, featured content, and current actions |
-| Services | Browse active services and open details |
-| Cases / My Services | View and track submitted service requests |
-| Documents | View document requirements and upload status |
-| More | Profile, payments, support, notifications, knowledge, tax, expenses, and settings |
-
-Visibility is state-dependent:
-
-- Guests see public modules;
-- Pending Customers see public modules plus profile and approval status;
-- Approved Customers see customer workflows;
-- Internal users see only modules allowed by capabilities.
-
----
-
-# 8. End-to-end customer journey
-
-```text
-Guest opens app
-        |
-        v
-Browses services and public content
-        |
-        v
-Attempts a protected action
-        |
-        v
-Signs up or logs in
-        |
-        v
-Account enters Pending Review
-        |
-        v
-OMC reviews and approves account
-        |
-        v
-Customer selects an active service
-        |
-        v
-Customer submits a service request
-        |
-        v
-Required documents are uploaded
-        |
-        v
-OMC assigns and processes the case
-        |
-        v
-Statuses, notes, and next actions are updated
-        |
-        v
-Customer receives notifications
-        |
-        v
-Payment and receipt review occurs if needed
-        |
-        v
-Case is completed or cancelled
-```
-
----
-
-# 9. Feature-by-feature guide
-
-## 9.1 Home
-
-Home is the main entry point.
-
-### Guest Home
-
-Guest Home may show:
-
-- OMC introduction;
-- active featured services;
-- public announcements;
-- FAQs or knowledge highlights;
-- tax calculator shortcut;
-- login and signup actions;
-- contact options.
-
-### Customer Home
-
-Approved Customer Home may show:
-
-- time-based greeting;
-- open cases;
-- actions required;
-- missing documents;
-- payment reminders;
-- recent notifications;
-- service shortcuts;
-- support shortcut;
-- tax and expense tools.
-
-### Internal Home
-
-Internal Home should show role-relevant operational data only, such as:
-
-- assigned tasks;
-- assigned cases;
-- review queues;
-- support queue;
-- lead activity;
-- current workload;
-- urgent or overdue items.
-
-Home should not show fake statuses derived from list position or placeholder calculations. Operational status must come from real backend records.
-
----
-
-## 9.2 Service catalogue
-
-The service catalogue is controlled from the backend.
-
-OMC staff can configure:
-
-| Field | Purpose |
-|---|---|
-| Service title | Name shown to users |
-| Description | Customer-facing explanation |
-| Category | Grouping and filtering |
-| Fee label | Price or contact instruction |
-| Completion time | Expected duration |
-| Required documents | Upload requirements |
-| Icon or visual | Service identity |
-| Featured flag | Home or catalogue promotion |
-| Active flag | Public availability |
-| Sort order | Display priority |
-| Instructions | Customer guidance |
-
-### Public catalogue rules
-
-Public service APIs expose active services only.
-
-Internal-only configuration, implementation details, and non-customer-safe fields are not returned publicly.
-
-### Customer flow
-
-```text
-Open Services
-    |
-    v
-Filter or search
-    |
-    v
-Open service details
-    |
-    v
-Review requirements, fees, expected time, and documents
-    |
-    v
-Start request if account is approved
-```
-
----
-
-## 9.3 Service details
-
-Service details provide the information required before a request is started.
-
-The screen may include:
-
-- service title;
-- category;
-- summary;
-- detailed description;
-- price or fee guidance;
-- expected completion time;
-- required documents;
-- instructions;
-- customer eligibility information;
-- primary call to action.
-
-The app should not expose internal workflow configuration or hidden stages.
-
-Inactive services cannot be requested through the guarded backend flow.
-
----
-
-## 9.4 Service request creation
-
-A service request is the central customer-to-operations record.
-
-### Preconditions
-
-Before creation, the backend verifies:
-
-- the user is authenticated;
-- the customer profile is approved and active;
-- the selected service exists;
-- the service is active;
-- supplied fields are valid and within limits;
-- the requested priority is supported.
-
-### Customer-provided information
-
-A request may contain:
-
-- service selection;
-- request title;
-- description;
-- contact phone;
-- contact email;
-- supported priority;
-- service-specific answers;
-- supporting files where applicable.
-
-### Active request behaviour
-
-When an active request already exists for the same service, the app may warn the user and offer:
-
-- Resume existing request;
-- Start new request.
-
-The backend remains responsible for deciding whether duplicates are permitted.
-
-### Initial result
-
-After successful submission:
-
-- a service request is created;
-- the request belongs to the customer profile;
-- timeline or history records may be created;
-- the request appears in Cases / My Services;
-- staff can process it from Desk or authorised internal modules.
-
----
-
-## 9.5 Cases / My Services
-
-Cases lets customers follow their submitted requests.
-
-A case card may show:
-
-- service title;
-- request reference;
-- current status;
-- priority;
-- created date;
-- last update;
-- expected completion;
-- customer action required;
-- document or payment indicators.
-
-### Case detail
-
-The case detail may show:
-
-- service information;
-- customer-visible status;
-- progress summary;
-- next step;
-- required documents;
-- uploaded documents;
-- payment status;
-- customer-visible timeline;
-- support options.
-
-### Status guidance
-
-Typical statuses include:
-
-| Status | Meaning |
-|---|---|
-| Open | Request has been created |
-| Waiting for Customer | OMC needs information, documents, or action |
-| In Progress | OMC is processing the request |
-| Under Review | Work is being checked or finalised |
-| Completed | Service work is finished |
-| Cancelled | Request is no longer active |
-
-Customer-facing wording should remain simple even when internal operations use more detailed stages.
-
----
-
-## 9.6 Documents
-
-Documents support evidence collection and verification.
-
-### Customer view
-
-Customers may see:
-
-- required document name;
-- description;
-- required or optional status;
-- upload state;
-- review state;
-- rejection reason or reviewer remarks where customer-safe;
-- replace or upload action where allowed.
-
-### Upload rules
-
-Protected document uploads use file upload handling rather than direct user-controlled URLs.
-
-The backend verifies:
-
-- authentication;
-- customer ownership;
-- service-request relationship;
-- allowed upload context;
-- file association;
-- prevention of cross-request reuse.
-
-A file linked to one request must not be silently reused for another request.
-
-### Internal review
-
-Document Reviewers, Managers, and Admins may review documents according to capability.
-
-Review actions may include:
-
-- approve;
-- reject;
-- request replacement;
-- add remarks;
-- update review status.
-
-Finance Reviewers and unrelated staff should not automatically receive document-review access.
-
----
-
-## 9.7 Payments and receipts
-
-Payment records track amounts or instructions connected to a service request.
-
-Customers may see:
-
-- payment title;
-- amount or fee guidance;
-- due date;
-- payment status;
-- payment instructions;
-- receipt-upload action where enabled;
-- receipt-review result.
-
-### Receipt upload
-
-Receipt files must be uploaded through the protected multipart flow.
-
-Direct receipt URL injection is rejected.
-
-### Internal review
-
-Finance Reviewers, Managers, and Admins may:
-
-- view payment queue;
-- open allowed receipt files;
-- approve or reject receipts;
-- add review remarks;
-- update payment status.
-
-Document Reviewers do not receive finance authority by default.
-
----
-
-## 9.8 Notifications
-
-Notifications communicate important events.
-
-Examples:
-
-- account approval;
-- request created;
-- case status changed;
-- customer action required;
-- document accepted or rejected;
-- payment due;
-- receipt accepted or rejected;
-- support reply;
-- service completed.
-
-Customer notification access requires an exact customer-profile or recipient-user match.
-
-A user must not be able to retrieve notifications belonging to another user.
-
----
-
-## 9.9 Support tickets
-
-Support lets approved customers request help.
-
-### Customer actions
-
-Customers may:
-
-- create a ticket;
-- choose a category;
-- describe the issue;
-- connect the ticket to a case where supported;
-- view replies;
-- follow status;
-- add further customer replies where allowed.
-
-### Staff actions
-
-Support Agents, Managers, and Admins may:
-
-- view support queues;
-- reply;
-- change status;
-- assign tickets;
-- view relevant customer and service context;
-- escalate issues.
-
-Support Agents should not receive unrelated document, finance, or settings access.
-
----
-
-## 9.10 Leads
-
-Leads represent prospective customers or business opportunities.
-
-Authorised staff may:
-
-- create leads;
-- update contact and status;
-- assign ownership;
-- record follow-up;
-- convert or link records where supported;
-- view lead history.
-
-Lead access is primarily intended for Admins, Managers, and Support Agents with the appropriate capability.
-
----
-
-## 9.11 Tasks
-
-Tasks organise internal work.
-
-A task may contain:
-
-- title;
-- description;
-- assigned user;
-- related customer;
-- related case;
-- due date;
-- priority;
-- status;
-- internal notes.
-
-Internal tasks can only be assigned to enabled System Users.
-
-Assignment-scoped users normally see and manage only their assigned tasks.
-
----
-
-## 9.12 Profile
-
-Profile allows a user to manage supported personal and business details.
-
-Typical fields include:
+The form collects validated information such as:
 
 - full name;
-- phone;
+- email;
+- username;
 - mobile number;
 - WhatsApp number;
-- CNIC or identifier;
-- NTN or tax identifier;
-- company;
+- CNIC;
 - address;
-- registration type;
-- approval status.
+- professional details where required.
 
-Profile input is bounded. Non-scalar or oversized values are rejected.
+Username availability is checked before progression.
 
-The account email is protected from mutation through standard profile endpoints.
+The WhatsApp number may match the mobile number or be entered separately.
+
+### Step 3 — Referral and preferences
+
+Customers can provide:
+
+- acquisition source;
+- optional referral code;
+- optional referral-assistance consent;
+- source detail where required.
+
+Referral authority remains backend-controlled.
+
+### Step 4 — Security
+
+The user creates and confirms a password, reviews the process, and accepts the required terms.
+
+Duplicate submission is prevented while the request is in progress.
+
+## 5.3 Email verification
+
+After successful signup submission, the app shows the email-verification state:
+
+- the registered email address is displayed;
+- the user is told to open the verification link;
+- resend availability uses a cooldown;
+- repeated resend attempts are controlled;
+- the user can return to login.
+
+## 5.4 Password recovery
+
+The recovery workflow includes:
+
+- validated account identity;
+- pending-secret lifecycle handling;
+- cooldown and resend behaviour;
+- safe cleanup of temporary recovery state;
+- backend-authoritative password mutation.
 
 ---
 
-## 9.13 Settings
+# 6. Home, navigation, and dashboard
 
-Customer settings may include:
+## 6.1 Role-aware navigation
 
-- appearance preference;
-- notification preference;
-- local app preference;
-- privacy and policy links;
-- logout;
-- app version information.
+Navigation is generated from current identity, approval state, and canonical capabilities.
 
-Admin-only backend configuration is separate from customer settings.
+The application does not rely on visual hiding as a security boundary.
+
+Unknown or unsupported protected routes fail closed.
+
+## 6.2 Home experience
+
+The home screen can present:
+
+- time-aware greeting;
+- customer or staff identity;
+- key workflow shortcuts;
+- current service activity;
+- alerts and next actions;
+- backend-driven announcements or content.
+
+## 6.3 Customer dashboard
+
+The customer dashboard summarises the customer's own data, such as:
+
+- active service requests;
+- pending actions;
+- documents awaiting action;
+- payments awaiting action;
+- recent activity;
+- support or notification indicators.
+
+## 6.4 Internal operations centre
+
+Internal users receive capability-specific operational views, for example:
+
+- assigned cases;
+- document review queues;
+- payment review queues;
+- support tickets;
+- leads;
+- tasks;
+- unassigned or overdue work;
+- recent operational activity.
+
+Dashboard reads are routed through backend guards. Service activity resolves the correct service reference rather than using misleading generic metadata.
 
 ---
 
-## 9.14 Tax calculator
+# 7. Service catalogue
 
-The tax calculator provides an estimate based on supported inputs and backend tax configuration.
+The service catalogue is managed by OMC through the backend.
 
-Typical inputs may include:
+Customer-facing behaviour includes:
 
+- active categories and services;
+- clean service cards;
+- descriptions and requirements;
+- customer-safe pricing context;
+- required-document information;
+- availability and request actions.
+
+The catalogue does not fabricate request status from service-list position.
+
+Public responses exclude internal configuration and inactive service data.
+
+---
+
+# 8. Service requests and case tracking
+
+## 8.1 Customer request creation
+
+Approved customers can start a request for an active service.
+
+The request flow validates:
+
+- service availability;
+- customer approval;
+- ownership identity;
+- bounded text fields;
+- phone and email values;
+- supported priority values;
+- backend request contract.
+
+If an active request already exists, the application can offer a clear choice to resume existing work or start a new request where allowed.
+
+## 8.2 Assisted service creation
+
+Authorised internal staff can create a request for an eligible customer through the assisted-service policy.
+
+This path preserves:
+
+- customer ownership;
+- staff capability requirements;
+- referral authority;
+- assignment rules;
+- the canonical service-request payload.
+
+## 8.3 Assignment authority
+
+Assignment follows controlled precedence:
+
+1. explicit authorised assignee;
+2. valid referral owner;
+3. service default assignee;
+4. least-loaded eligible user for the configured service role;
+5. OMC Manager fallback.
+
+The backend can create duplicate-safe Frappe ToDos and operational notifications for the assignee.
+
+## 8.4 Customer case tracking
+
+Customers can see their own:
+
+- request identifier;
+- service name;
+- current status;
+- progress;
+- priority;
+- assigned context where customer-safe;
+- required actions;
+- document and payment state;
+- activity timeline;
+- completion state.
+
+## 8.5 Internal case handling
+
+Authorised staff can work on cases within capability and assignment scope.
+
+Supported actions may include:
+
+- review request details;
+- update allowed workflow state;
+- manage assignment;
+- review related documents or payments;
+- add operational context;
+- complete work when all blockers are resolved.
+
+---
+
+# 9. Document workflow
+
+## 9.1 Customer upload
+
+Customers upload documents through multipart file handling.
+
+The backend validates:
+
+- authenticated customer identity;
+- request ownership;
+- the relationship between document and request;
+- allowed file relationship;
+- prevention of cross-request file reuse.
+
+## 9.2 Document list and replacement
+
+Customers can view document requirements and current review state.
+
+Where the workflow allows it, rejected or replacement documents can be uploaded again.
+
+## 9.3 Reviewer queue
+
+Document Reviewers receive document-specific queues and attachment access.
+
+Review decisions include:
+
+- approve;
+- reject with reason;
+- return the service request to customer action where required.
+
+A rejection can move the request to `Waiting for Customer` and notify the customer.
+
+## 9.4 Payment eligibility
+
+When all required documents are approved, the backend evaluates payment eligibility.
+
+It does not create a payment unless:
+
+- required documents are approved;
+- the service has a positive payable amount;
+- the currency is valid;
+- no conflicting active payment exists.
+
+---
+
+# 10. Payment workflow
+
+## 10.1 Payment creation
+
+Payment records are created from trusted service configuration rather than user-supplied totals.
+
+Safeguards include:
+
+- positive service price requirement;
+- valid currency requirement;
+- duplicate active-payment prevention;
+- request relationship validation.
+
+## 10.2 Customer payment view
+
+Customers can see their own payment context, such as:
+
+- amount;
+- currency;
+- current payment status;
+- instructions;
+- receipt-review status;
+- required next action.
+
+## 10.3 Receipt submission
+
+Receipt uploads use protected multipart handling.
+
+Direct user-controlled receipt URL injection is rejected.
+
+After submission, relevant finance and operational reviewers are notified.
+
+## 10.4 Finance review
+
+Authorised Finance Reviewers can review receipts and record supported outcomes.
+
+Typical transitions include:
+
+- `Under Review`;
+- `Paid`;
+- `Rejected`.
+
+A paid result moves the request forward. A rejected result returns the workflow to customer action and requires a replacement receipt.
+
+Payment reads and mutations are role-specific and guarded.
+
+---
+
+# 11. Support system
+
+Customers can:
+
+- create support tickets;
+- review their own ticket history;
+- open ticket details;
+- read replies;
+- send follow-up messages where allowed;
+- see read/unread state.
+
+Authorised support staff can:
+
+- work from internal support queues;
+- open customer-safe context;
+- reply to tickets;
+- update permitted support state;
+- track read state;
+- access only records allowed by support authority.
+
+Support mutations and reads are routed through dedicated guards.
+
+---
+
+# 12. Leads and referrals
+
+## 12.1 Leads
+
+Authorised users can work with lead records according to role and scope.
+
+Lead operations are protected by capability and mutation guards.
+
+## 12.2 Referrals
+
+The referral system supports:
+
+- referral code entry during signup;
+- referral validation;
+- assistance consent;
+- referral summaries;
+- referral detail views;
+- referral-aware service assignment where valid;
+- ownership and authority checks.
+
+Referral data does not grant unrestricted access to customer records.
+
+---
+
+# 13. Tasks
+
+Operational tasks are assignment-scoped.
+
+The backend validates that task assignees are enabled System Users and that the acting user has authority.
+
+Internal users can access only the task data appropriate to their role and assignment.
+
+---
+
+# 14. Notifications
+
+## 14.1 In-app notifications
+
+The notification system supports:
+
+- ownership-safe notification lists;
+- recipient-user and customer-profile matching;
+- unread/read state;
+- pagination;
+- workflow-driven messages;
+- customer and internal recipients.
+
+## 14.2 Notification preferences
+
+Users can manage categories such as:
+
+- service updates;
+- document reminders;
+- payment alerts;
+- tax alerts.
+
+Preferences are enforced by the backend where applicable.
+
+## 14.3 Push-ready infrastructure
+
+The backend includes push-token registration and integrity controls.
+
+Notification content can be authored from backend-managed workflow data, allowing OMC to control customer communication without embedding all message text in the mobile application.
+
+## 14.4 Scheduler reminders
+
+Scheduled jobs support reminders and escalations for areas such as:
+
+- uploaded documents awaiting review;
+- submitted receipts awaiting finance review;
+- unassigned service requests;
+- customer action required;
+- payment action required;
+- overdue work.
+
+Scheduler runners isolate failures and return operational summaries rather than allowing one bad record to silently block the whole job.
+
+---
+
+# 15. Profile and settings
+
+## 15.1 Profile self-service
+
+Users can update allowed personal, contact, and business data through guarded endpoints.
+
+Protected identity fields remain controlled. For example, the account email cannot be changed through an ordinary profile-edit mutation.
+
+## 15.2 Settings
+
+The Settings area includes:
+
+- profile preferences;
+- security and password management;
+- notification preferences;
+- account deletion request;
+- legal documents;
+- application version information;
+- logout.
+
+Account deletion is submitted as a support request rather than performing an unsafe immediate destructive action.
+
+## 15.3 Legal and branding content
+
+Privacy policy, terms, branding, onboarding, and application content can be supplied by backend configuration with safe fallbacks.
+
+---
+
+# 16. Tax calculator
+
+The tax calculator can be available to guests and authenticated users.
+
+The backend remains the calculation authority.
+
+Validated inputs include:
+
+- supported tax year;
+- income mode;
 - income type;
 - filer status;
-- monthly or annual mode;
-- income amount;
-- advanced numeric fields.
+- bounded advanced inputs;
+- finite monetary values;
+- non-negative values;
+- supported payload shape.
 
-### Safety rules
-
-Before calculation, the public guard enforces:
-
-- maximum payload size;
-- maximum number of advanced fields;
-- valid field names;
-- supported income types;
-- supported filer statuses;
-- supported income modes;
-- finite numeric values;
-- non-negative amounts;
-- maximum supported amount;
-- rejection of nested or malformed numeric structures.
-
-The calculator is an estimate and should not be presented as a substitute for professional advice or an official tax filing result.
+Tax slabs are managed in the backend so multiple tax years can be supported without hard-coding every slab in the Flutter interface.
 
 ---
 
-## 9.15 Expense tracker
+# 17. Expense tracker
 
-The expense tracker lets a customer record and review personal expense information.
+The expense tracker supports customer-owned records.
 
-Typical capabilities:
+Features include:
 
-- create expense;
-- edit expense;
-- view list and totals;
-- categorise expenses;
-- record payment method;
-- add merchant and notes;
-- attach a receipt;
-- synchronise bounded batches;
-- define budget alerts.
+- expense creation and editing;
+- amount, date, category, and description;
+- positive finite amount validation;
+- expense lists and summaries;
+- budget thresholds;
+- budget-versus-actual views;
+- receipt uploads;
+- bounded bulk sync;
+- cloud/local sync integrity;
+- protected record ownership.
 
-### Validation rules
-
-- amount must be finite;
-- amount must be greater than zero;
-- amount must remain within the supported maximum;
-- text and identifiers are bounded;
-- bulk sync has entry-count and payload-size limits;
-- each bulk entry must be an object;
-- budget alert threshold must remain between 0 and 100;
-- receipt upload must use the protected file endpoint.
-
-Expense data is customer-owned and must not be exposed across accounts.
+Direct receipt URL injection is not accepted for protected uploads.
 
 ---
 
-## 9.16 Knowledge, FAQs, banners, and announcements
+# 18. Content and app configuration
 
-Public and customer content may be controlled through Frappe records.
+Customer-facing content can be managed through the backend, including:
 
-Benefits:
+- announcements;
+- FAQs;
+- knowledge articles;
+- onboarding content;
+- contact information;
+- branding configuration;
+- legal policy content;
+- service data;
+- notification fallback content.
 
-- content can be updated without rebuilding the app;
-- inactive content can be hidden;
-- sort order can be controlled;
-- customer-safe content can be separated from internal records;
-- OMC can publish service guidance, FAQs, and announcements centrally.
-
----
-
-# 10. Internal operations model
-
-## 10.1 Customer approval
-
-Authorised staff review new profiles and decide whether to:
-
-- keep pending;
-- approve;
-- reject;
-- correct user type;
-- assign a role;
-- request more information.
-
-Approval must update both customer status and approval status consistently.
-
-## 10.2 Case management
-
-Authorised staff can:
-
-- open a case;
-- assign staff;
-- change status;
-- set expected completion;
-- request customer action;
-- update customer-visible notes;
-- maintain internal notes;
-- review related documents;
-- review related payments;
-- complete or cancel the case.
-
-## 10.3 Review separation
-
-Document and finance review are separate domains.
-
-This separation reduces unnecessary access to attachments and payment evidence.
-
-## 10.4 Assignment scope
-
-Consultants, Tax Associates, and Business Partners normally receive assigned or relevant records only.
-
-They should not automatically see:
-
-- all customers;
-- all service cases;
-- all support tickets;
-- all documents;
-- all payment information;
-- global settings.
+Public content is separated from authenticated and internal operational data.
 
 ---
 
-# 11. Capability model
-
-The backend returns canonical capabilities used by Flutter and backend methods.
-
-Examples include:
+# 19. End-to-end service lifecycle
 
 ```text
-can_access_internal_workspace
-can_manage_customers
-can_manage_leads
-can_manage_tasks
-can_manage_assigned_tasks
-can_view_all_service_cases
-can_view_assigned_service_cases
-can_update_service_status
-can_update_assigned_service_status
-can_view_document_queue
-can_view_document_attachments
-can_review_documents
-can_view_payment_queue
-can_view_payment_receipts
-can_review_payments
-can_view_support_tickets
-can_reply_support_tickets
-can_update_support_ticket_status
-can_assign_support_tickets
-can_view_internal_notes
-can_manage_settings
+Customer account created
+    |
+Email verified
+    |
+OMC approval completed where required
+    |
+Customer selects active service
+    |
+Service request created
+    |
+Assignee resolved
+    |
+ToDo and operational notifications created
+    |
+Customer uploads required documents
+    |
+Document Reviewer decision
+    |
+    +--> Rejected
+    |       -> Waiting for Customer
+    |       -> replacement required
+    |
+    +--> All required documents approved
+            -> service price and currency validated
+            -> one active payment created
+            -> Waiting for Payment
+
+Customer submits receipt
+    |
+Finance review
+    |
+    +--> Rejected
+    |       -> Waiting for Customer
+    |       -> replacement receipt required
+    |
+    +--> Paid
+            -> request moves forward
+
+Operational work completed
+    |
+Completion safeguards verify:
+    - required documents approved
+    - active payments paid
+    - no unresolved rejection blockers
+    |
+Open ToDos closed
+    |
+Completion timeline and notification created
 ```
 
-The frontend uses these values for visibility and navigation.
-
-The backend uses independent checks for actual authorisation.
-
-Unknown authenticated routes and unknown access levels should fail closed.
+Human reviewers remain responsible for document and receipt decisions.
 
 ---
 
-# 12. Security and privacy model
+# 20. Security and authority model
 
-## 12.1 Backend-first security
+## 20.1 Backend-first authority
 
-The backend verifies:
+The backend enforces:
 
 - authentication;
-- customer approval state;
-- internal capabilities;
+- approval state;
+- role and capability;
 - ownership;
 - assignment;
-- file relationships;
-- active service state;
-- valid input shape and size.
+- record relationships;
+- workflow transitions;
+- validated payloads.
 
-## 12.2 Public endpoint safety
+## 20.2 Route and endpoint authority
 
-Public endpoints return customer-safe data only.
+- unknown authenticated routes are denied by default;
+- blank or unknown access levels are denied;
+- legacy mobile methods route through guarded wrappers;
+- sensitive reads use read guards;
+- sensitive writes use mutation guards;
+- endpoint authority mappings are covered by automated tests.
 
-Examples:
+## 20.3 Ownership and assignment
 
-- active services only;
-- active public templates only;
-- customer-visible stages only;
-- no internal wizard configuration;
-- bounded tax requests;
-- bounded signup data.
+- customers see only their own records;
+- Consultants, Tax Associates, and Business Partners are assignment-scoped by default;
+- Document Reviewers and Finance Reviewers operate in separate domains;
+- Support Agents receive only the customer and service context required for support;
+- Managers receive broad operational visibility without ordinary Admin-only authority.
 
-## 12.3 Protected write guards
+## 20.4 File and payload safety
 
-Sensitive write routes are passed through validation guards for:
-
-- signup;
-- profile changes;
-- service-request creation;
-- expense creation and updates;
-- expense bulk sync;
-- budget settings;
-- receipt upload;
-- tax calculation.
-
-## 12.4 Secrets and runtime data
-
-The repository must not contain:
-
-- production passwords;
-- API secrets;
-- site configuration;
-- database dumps;
-- private files;
-- local `.env` credentials;
-- logs;
-- generated runtime state.
+- text, identifier, and numeric payloads are bounded;
+- malformed, nested, unsupported, or non-finite values are rejected;
+- bulk operations have size and count limits;
+- uploaded files must match the correct customer and operational record;
+- direct protected-file URL injection is rejected;
+- secrets and runtime state remain outside tracked source code.
 
 ---
 
-# 13. Data ownership summary
+# 21. Frappe Desk responsibilities
 
-| Record type | Customer access | Internal access |
-|---|---|---|
-| Customer Profile | Own profile only | Capability and role scoped |
-| Service Request | Own requests only | All, relevant, or assigned scope |
-| Service Document | Own request documents | Review or related-case scope |
-| Payment | Own request payments | Finance, Manager, or Admin scope |
-| Notification | Exact recipient match | Operational access where required |
-| Support Ticket | Own tickets | Support capability scope |
-| Expense | Own expenses | No broad internal access by default |
-| Task | None unless exposed | All or assigned scope |
-| Lead | No customer access | Lead-management capability |
+Frappe Desk remains the administrative and operational control centre for authorised staff.
 
----
+Typical responsibilities include:
 
-# 14. Backend-controlled versus app-controlled behaviour
+- user and role administration;
+- customer approval;
+- service catalogue configuration;
+- service pricing and currency;
+- required-document templates;
+- assignment defaults;
+- tax slabs;
+- announcements and knowledge content;
+- operational record review;
+- scheduler and worker health;
+- audit and troubleshooting.
 
-## Backend-controlled
-
-- user state;
-- approval status;
-- capabilities;
-- service availability;
-- service content;
-- case records;
-- document requirements;
-- document review;
-- payment review;
-- support records;
-- notifications;
-- tax rules;
-- permission decisions.
-
-## App-controlled
-
-- layout;
-- visual hierarchy;
-- loading and empty states;
-- responsive design;
-- local navigation presentation;
-- formatting;
-- local appearance preference;
-- user-friendly error display.
-
-The app should never invent authoritative operational status.
+The mobile application does not replace controlled backend administration.
 
 ---
 
-# 15. Error and empty-state expectations
+# 22. Validation status
 
-The app should communicate failures clearly without exposing internal stack traces.
-
-Recommended categories:
-
-| Situation | User-facing response |
-|---|---|
-| No internet | Connection message with retry |
-| Session expired | Ask user to sign in again |
-| Pending approval | Explain account is under review |
-| Permission denied | Explain feature is unavailable |
-| No records | Show a useful empty state and next action |
-| Invalid form | Highlight fields and validation message |
-| Upload failed | Preserve context and offer retry |
-| Backend unavailable | Show temporary service message |
-| Record not found | Return safely to the relevant list |
-
-Internal error details should remain in server logs, not customer-facing UI.
-
----
-
-# 16. Operational lifecycle examples
-
-## 16.1 Document-required service
+The latest confirmed code-level validation on `main` includes:
 
 ```text
-Customer submits request
-        |
-        v
-Required document list is created or loaded
-        |
-        v
-Customer uploads files
-        |
-        v
-Document Reviewer checks files
-        |
-        +--> Approved
-        +--> Rejected with customer-safe reason
-        +--> Replacement requested
-        |
-        v
-Case continues
+Frappe backend: 285 tests passed
+Flutter application: 294 tests passed
+Flutter analysis: No issues found
+Repository diff check: clean
 ```
 
-## 16.2 Payment-required service
+The validated Flutter suite includes the current four-step signup flow, username availability handling, WhatsApp behaviour, canonical payload assertions, and the email-verification success state.
 
-```text
-Case reaches payment stage
-        |
-        v
-Payment instruction is shown
-        |
-        v
-Customer uploads receipt
-        |
-        v
-Finance Reviewer checks receipt
-        |
-        +--> Approved
-        +--> Rejected with reason
-        |
-        v
-Case proceeds or waits for customer
-```
+The backend suite covers authority, ownership, operational integrity, guarded reads and writes, scheduler behaviour, workflow automation, and compatibility wrappers.
 
-## 16.3 Support escalation
-
-```text
-Customer creates support ticket
-        |
-        v
-Support Agent receives ticket
-        |
-        v
-Agent reviews relevant customer and case context
-        |
-        +--> Replies
-        +--> Updates status
-        +--> Assigns or escalates
-        |
-        v
-Customer receives reply and notification
-```
+Validation must always be based on actual terminal output.
 
 ---
 
-# 17. Client administration responsibilities
+# 23. Remaining release work
 
-OMC should maintain the following in Frappe Desk:
+Code-level validation is complete for the current state, but release validation remains environment-specific.
 
-- active services;
-- service categories;
-- service descriptions;
-- required documents;
-- fee guidance;
-- expected completion times;
-- customer approvals;
-- staff users and roles;
-- staff assignments;
-- case statuses;
-- document reviews;
-- payment reviews;
-- support queues;
-- lead follow-up;
-- tasks;
-- public FAQs and knowledge content;
-- tax configuration;
-- system settings and branding where supported.
+Before final production release:
 
-OMC should also maintain operational policies for:
-
-- customer verification;
-- document retention;
-- payment evidence retention;
-- role assignment;
-- staff offboarding;
-- backup and restore;
-- incident response.
+1. build the Android release APK or App Bundle with the production HTTPS endpoint;
+2. install and launch it on a real Android device;
+3. test login, signup, services, uploads, payments, notifications, and support against production;
+4. run allowed and denied smoke tests for every supported role;
+5. verify scheduler, workers, Redis, database, nginx, and Supervisor health;
+6. verify backup and restore readiness;
+7. perform iOS archive, signing, and App Store validation on macOS with Xcode if an iOS release is required.
 
 ---
 
-# 18. Release validation matrix
+# 24. Client-facing feature summary
 
-A release is not complete until real user-state and role testing is performed.
+OMC House receives a connected platform with:
 
-## 18.1 Guest tests
-
-Verify that a guest can:
-
-- browse active services;
-- open public service details;
-- read public content;
-- use approved utilities;
-- open login and signup.
-
-Verify that a guest cannot:
-
-- create requests;
-- view customer records;
-- upload protected files;
-- access internal routes.
-
-## 18.2 Pending Customer tests
-
-Verify that a pending user can:
-
-- sign in;
-- view profile and approval state;
-- browse public content.
-
-Verify that approved-only actions remain blocked.
-
-## 18.3 Approved Customer tests
-
-Verify that an approved customer can:
-
-- create a request for an active service;
-- view only their own cases;
-- upload files to their own request;
-- view only their own payments;
-- receive their own notifications;
-- create and view their own support tickets;
-- create and update their own expenses.
-
-Attempt cross-customer access and confirm denial.
-
-## 18.4 Internal role tests
-
-For every internal role, verify:
-
-- visible modules;
-- allowed records;
-- allowed actions;
-- assignment scope;
-- attachment access;
-- denied modules;
-- denied mutations;
-- internal-note visibility;
-- settings access.
-
-## 18.5 File tests
-
-Verify:
-
-- allowed file upload;
-- wrong-customer upload denial;
-- wrong-request upload denial;
-- cross-request reuse denial;
-- receipt URL injection denial;
-- reviewer attachment access boundaries.
-
-## 18.6 API tests
-
-Verify:
-
-- unauthenticated protected calls fail;
-- inactive services cannot be requested;
-- oversized payloads fail;
-- malformed numeric values fail;
-- unsupported enum values fail;
-- unknown routes fail closed;
-- valid payloads still succeed.
-
----
-
-# 19. Deployment and handover expectations
-
-Before production handover, confirm:
-
-- production domain uses HTTPS;
-- API base URL is correct in the Flutter build;
-- Frappe site is migrated;
-- assets are built;
-- Supervisor processes are healthy;
-- nginx is healthy;
-- Redis and database are healthy;
-- private files remain private;
-- backup jobs are configured;
-- restore steps are documented;
-- role smoke tests are completed;
-- customer signup and approval are tested;
-- document and receipt uploads are tested;
-- Android APK or app bundle is tested against production.
-
-Routine deployment should update the existing app without recreating the Bench, site, or database.
-
----
-
-# 20. Current implementation status
-
-The current platform includes:
-
-- Flutter customer and internal modules;
-- public, pending, approved, and internal access states;
-- capability-driven navigation;
-- backend ownership and assignment checks;
-- service catalogue and service details;
-- customer signup and approval flow;
-- service-request creation and tracking;
-- document upload and review;
+- public service discovery;
+- structured account onboarding;
+- email verification and account approval;
+- customer profiles and preferences;
+- service-request submission;
+- customer case tracking;
+- document collection and review;
 - payment and receipt workflows;
-- notifications;
-- support;
-- leads and tasks;
-- profile and settings;
-- tax calculator;
-- expense tracker;
-- backend security guards for sensitive public and authenticated writes;
-- deployment assets and validation scripts;
-- focused Flutter and backend tests.
-
-Repository hardening and local static validation have been completed for the current codebase.
-
-The remaining release sequence is environment-specific:
-
-1. update the production server from GitHub `main`;
-2. migrate and rebuild the existing Frappe deployment;
-3. restart services safely;
-4. perform live API and role smoke tests;
-5. build and test the Android release against production.
+- support tickets and replies;
+- leads and referrals;
+- internal assignments and tasks;
+- operational dashboards;
+- in-app and push-ready notifications;
+- tax calculation;
+- expense and budget tracking;
+- backend-managed content and branding;
+- role-based security;
+- audit-friendly Frappe records;
+- automated reminders and escalations;
+- Android and iOS-capable Flutter source.
 
 ---
 
-# 21. Final product summary
+# 25. Final product statement
 
-OMC App is not only a mobile interface. It is a connected operations platform.
+OMC App is not only a collection of mobile screens. It is a controlled service-delivery system in which:
 
-For customers, it provides a clear way to discover services, submit requests, provide documents, follow progress, handle payments, and obtain support.
+- customers receive a simple self-service experience;
+- OMC teams receive role-specific operational tools;
+- Frappe remains the source of truth;
+- protected records remain ownership- and capability-scoped;
+- document and payment decisions remain human-controlled;
+- reminders and workflow transitions reduce manual follow-up;
+- automated tests protect the core contracts.
 
-For OMC, it provides controlled customer onboarding, structured case processing, specialised review queues, assignment-based staff access, and centralised operational records.
-
-The platform is designed around four rules:
-
-1. keep the customer experience simple;
-2. keep operational data centralised;
-3. give each role only the access it needs;
-4. enforce trust and permissions in the backend.
-
----
-
-**OMC App connects customers and OMC operations through one secure, role-aware, and auditable service workflow.**
+**The result is a unified customer portal and OMC operations platform designed for controlled, auditable, production deployment.**
