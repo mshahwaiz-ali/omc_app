@@ -79,11 +79,16 @@ class TestSchedulerJobs(FrappeTestCase):
             ),
             patch("omc_app.api.scheduler_jobs.frappe.log_error"),
             patch("omc_app.api.scheduler_jobs._log_completion"),
+            patch("omc_app.api.scheduler_jobs._log_run_summary") as log_summary,
         ):
-            result = scheduler_jobs._run_jobs((first, second))
+            result = scheduler_jobs._run_jobs("hourly", (first, second))
 
+        self.assertEqual(result["schedule"], "hourly")
+        self.assertEqual(result["status"], "completed_with_failures")
+        self.assertEqual(result["job_count"], 2)
         self.assertEqual(result["completed"], 1)
         self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["failed_jobs"], ["omc_app.tests.first"])
         self.assertGreaterEqual(result["duration_ms"], 0)
         rollback.assert_called_once_with()
         commit.assert_called_once_with()
@@ -92,6 +97,7 @@ class TestSchedulerJobs(FrappeTestCase):
             [item["status"] for item in result["jobs"]],
             ["failed", "completed"],
         )
+        log_summary.assert_called_once_with(result)
 
     @patch("omc_app.api.scheduler_jobs.frappe.logger")
     def test_completion_logging_is_structured(self, logger):
@@ -112,18 +118,53 @@ class TestSchedulerJobs(FrappeTestCase):
             17,
         )
 
+    @patch("omc_app.api.scheduler_jobs.frappe.logger")
+    def test_run_summary_logs_success_and_failures(self, logger):
+        summary = {
+            "schedule": "daily",
+            "status": "completed_with_failures",
+            "job_count": 2,
+            "completed": 1,
+            "failed": 1,
+            "failed_jobs": ["omc_app.tests.failed"],
+            "duration_ms": 41,
+            "jobs": [],
+        }
+
+        scheduler_jobs._log_run_summary(summary)
+
+        logger.assert_called_once_with(scheduler_jobs.LOGGER_NAME)
+        logger.return_value.info.assert_called_once_with(
+            "OMC %s scheduler run %s: %s completed, %s failed (%sms)",
+            "daily",
+            "completed_with_failures",
+            1,
+            1,
+            41,
+        )
+        logger.return_value.warning.assert_called_once_with(
+            "OMC %s scheduler failed jobs: %s",
+            "daily",
+            "omc_app.tests.failed",
+        )
+
     @patch("omc_app.api.scheduler_jobs._run_jobs")
     def test_hourly_runner_uses_canonical_jobs(self, run_jobs):
         run_jobs.return_value = {
+            "schedule": "hourly",
+            "status": "completed",
+            "job_count": 2,
             "completed": 2,
             "failed": 0,
+            "failed_jobs": [],
             "duration_ms": 1,
             "jobs": [],
         }
 
         result = scheduler_jobs.run_hourly_jobs()
 
-        jobs = run_jobs.call_args.args[0]
+        schedule, jobs = run_jobs.call_args.args
+        self.assertEqual(schedule, "hourly")
         self.assertEqual(
             jobs,
             (
@@ -136,15 +177,20 @@ class TestSchedulerJobs(FrappeTestCase):
     @patch("omc_app.api.scheduler_jobs._run_jobs")
     def test_daily_runner_uses_canonical_jobs(self, run_jobs):
         run_jobs.return_value = {
+            "schedule": "daily",
+            "status": "completed",
+            "job_count": 2,
             "completed": 2,
             "failed": 0,
+            "failed_jobs": [],
             "duration_ms": 1,
             "jobs": [],
         }
 
         result = scheduler_jobs.run_daily_jobs()
 
-        jobs = run_jobs.call_args.args[0]
+        schedule, jobs = run_jobs.call_args.args
+        self.assertEqual(schedule, "daily")
         self.assertEqual(
             jobs,
             (
