@@ -105,3 +105,102 @@ class TestLegacyMutationHookAuthority(FrappeTestCase):
             remarks="Verified",
         )
         self.assertTrue(result["updated"])
+
+class TestLegacyCanonicalDelegation(FrappeTestCase):
+    @patch("omc_app.api.document_upload.upload_service_document")
+    def test_legacy_document_upload_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"uploaded": True}
+        result = mobile.upload_service_document(
+            case_id="CASE-0001",
+            document_title="CNIC",
+            attachment="/private/files/cnic.pdf",
+        )
+
+        canonical.assert_called_once_with(
+            case_id="CASE-0001",
+            document_title="CNIC",
+            attachment="/private/files/cnic.pdf",
+        )
+        self.assertTrue(result["uploaded"])
+
+    @patch("omc_app.api.support_chat.get_support_tickets")
+    def test_legacy_support_list_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"tickets": []}
+        self.assertEqual(mobile.get_support_tickets(), {"tickets": []})
+        canonical.assert_called_once_with()
+
+    @patch("omc_app.api.support_chat.get_support_ticket")
+    def test_legacy_support_detail_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"ticket": {"name": "SUP-0001"}}
+        result = mobile.get_support_ticket(ticket_id="SUP-0001")
+
+        canonical.assert_called_once_with(ticket_id="SUP-0001")
+        self.assertEqual(result["ticket"]["name"], "SUP-0001")
+
+    @patch("omc_app.api.support_chat.create_support_ticket")
+    def test_legacy_support_create_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"created": True}
+        result = mobile.create_support_ticket(
+            subject="Help",
+            message="Need assistance",
+        )
+
+        canonical.assert_called_once_with(
+            subject="Help",
+            message="Need assistance",
+        )
+        self.assertTrue(result["created"])
+
+    @patch("omc_app.api.support_chat.add_support_ticket_reply")
+    def test_legacy_support_reply_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"updated": True}
+        result = mobile.add_support_ticket_reply(
+            ticket_id="SUP-0001",
+            message="Reply",
+            attachment="/private/files/reply.pdf",
+        )
+
+        canonical.assert_called_once_with(
+            ticket_id="SUP-0001",
+            message="Reply",
+            attachment="/private/files/reply.pdf",
+        )
+        self.assertTrue(result["updated"])
+
+    @patch("omc_app.api.support_chat.update_support_ticket_status")
+    def test_legacy_support_status_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"updated": True}
+        result = mobile.update_support_ticket_status(
+            ticket_id="SUP-0001",
+            status="Resolved",
+            remarks="Completed",
+        )
+
+        canonical.assert_called_once_with(
+            ticket_id="SUP-0001",
+            status="Resolved",
+            remarks="Completed",
+        )
+        self.assertTrue(result["updated"])
+
+    @patch("omc_app.api.profile.upload_profile_image")
+    def test_legacy_profile_image_upload_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"updated": True}
+        result = mobile.upload_profile_image()
+
+        canonical.assert_called_once_with()
+        self.assertTrue(result["updated"])
