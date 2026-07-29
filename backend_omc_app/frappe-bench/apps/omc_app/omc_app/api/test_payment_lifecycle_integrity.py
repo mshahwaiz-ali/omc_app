@@ -11,6 +11,15 @@ from omc_app.omc_app.doctype.omc_service_payment.omc_service_payment import (
 
 
 class TestPaymentLifecycleIntegrity(FrappeTestCase):
+    def _payment(self):
+        return OMCServicePayment(
+            {
+                "doctype": "OMC Service Payment",
+                "service_request": "OMC-SR-TEST",
+                "status": "Pending",
+            }
+        )
+
     def test_valid_payment_status_transition_is_allowed(self):
         _assert_payment_status_transition("Pending", "Receipt Submitted")
         _assert_payment_status_transition("Receipt Submitted", "Under Review")
@@ -27,18 +36,12 @@ class TestPaymentLifecycleIntegrity(FrappeTestCase):
         with self.assertRaises(frappe.ValidationError):
             _assert_payment_status_transition("Cancelled", "Under Review")
 
-    @patch("frappe.db.get_value", return_value="Completed")
-    def test_terminal_service_request_blocks_payment_mutation(self, get_value):
-        payment = OMCServicePayment(
-            {
-                "doctype": "OMC Service Payment",
-                "service_request": "OMC-SR-TEST",
-                "status": "Pending",
-            }
-        )
+    def test_terminal_service_request_blocks_payment_mutation(self):
+        payment = self._payment()
 
-        with self.assertRaises(frappe.ValidationError):
-            payment._assert_parent_is_mutable()
+        with patch("frappe.db.get_value", return_value="Completed") as get_value:
+            with self.assertRaises(frappe.ValidationError):
+                payment._assert_parent_is_mutable()
 
         get_value.assert_called_once_with(
             "OMC Service Request",
@@ -46,18 +49,17 @@ class TestPaymentLifecycleIntegrity(FrappeTestCase):
             "status",
         )
 
-    @patch("frappe.db.get_value", return_value="In Progress")
-    def test_non_terminal_service_request_allows_payment_mutation(self, get_value):
-        payment = OMCServicePayment(
-            {
-                "doctype": "OMC Service Payment",
-                "service_request": "OMC-SR-TEST",
-                "status": "Pending",
-            }
-        )
+    def test_non_terminal_service_request_allows_payment_mutation(self):
+        payment = self._payment()
 
-        payment._assert_parent_is_mutable()
-        get_value.assert_called_once()
+        with patch("frappe.db.get_value", return_value="In Progress") as get_value:
+            payment._assert_parent_is_mutable()
+
+        get_value.assert_called_once_with(
+            "OMC Service Request",
+            "OMC-SR-TEST",
+            "status",
+        )
 
     @patch("frappe.utils.now_datetime", return_value="2026-07-29 21:30:00")
     @patch.object(OMCServicePayment, "_assert_parent_is_mutable")
