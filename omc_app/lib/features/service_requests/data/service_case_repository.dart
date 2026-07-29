@@ -392,8 +392,8 @@ class ServiceCaseRepository {
             status: submitted.contains(title.toLowerCase())
                 ? 'Uploaded'
                 : missing.contains(title.toLowerCase())
-                ? 'Pending'
-                : 'Pending',
+                ? 'Missing'
+                : 'Required',
           ),
         )
         .toList(growable: false);

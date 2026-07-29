@@ -600,11 +600,10 @@ class _ServiceRequestCard extends StatelessWidget {
         serviceCase.documentDetails
             .where((item) => item.fileUrl != null)
             .length;
-    final progress = total == 0
-        ? (state.isCompleted ? 1.0 : 0.0)
+    final documentProgress = total == 0
+        ? null
         : (received / total).clamp(0, 1).toDouble();
     final missing = _missingCount(serviceCase);
-    final percent = (progress * 100).round();
     final route = '/my-services/${Uri.encodeComponent(serviceCase.id)}';
 
     return Material(
@@ -632,38 +631,40 @@ class _ServiceRequestCard extends StatelessWidget {
             children: [
               _CardHeader(serviceCase: serviceCase, state: state),
               const SizedBox(height: 17),
-              Row(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 8,
-                        backgroundColor: AppTheme.textPrimary.withValues(
-                          alpha: 0.06,
+              if (documentProgress != null) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: documentProgress,
+                          minHeight: 8,
+                          backgroundColor: AppTheme.textPrimary.withValues(
+                            alpha: 0.06,
+                          ),
+                          valueColor: AlwaysStoppedAnimation<Color>(tone),
                         ),
-                        valueColor: AlwaysStoppedAnimation<Color>(tone),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 13),
-                  Text(
-                    '$percent%',
-                    style: TextStyle(
-                      color: tone,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
+                    const SizedBox(width: 13),
+                    Text(
+                      '${(documentProgress * 100).round()}% documents',
+                      style: TextStyle(
+                        color: tone,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
+                  ],
+                ),
+                const SizedBox(height: 14),
+              ],
               _DocumentProgress(
                 received: received,
                 total: total,
                 missing: missing,
-                progress: progress,
+                progress: documentProgress ?? 0,
                 color: tone,
                 completed: state.isCompleted,
               ),
@@ -874,8 +875,8 @@ class _DocumentProgress extends StatelessWidget {
     if (total == 0) {
       return _SuccessPanel(
         text: completed
-            ? 'Service completed successfully'
-            : 'No documents required',
+            ? 'Service marked completed'
+            : 'No document requirements reported',
       );
     }
     final percent = (progress * 100).round();
@@ -999,8 +1000,12 @@ class _NextAction extends StatelessWidget {
   Widget build(BuildContext context) {
     if (state.isCompleted) {
       return _SuccessPanel(
-        text: 'All documents received and approved',
-        subtitle: 'Completed ${serviceCase.updatedAtLabel}',
+        text: serviceCase.documentsComplete
+            ? 'Documents complete'
+            : 'Service marked completed',
+        subtitle: serviceCase.updatedAtLabel == '-'
+            ? null
+            : 'Updated ${serviceCase.updatedAtLabel}',
       );
     }
     final next = serviceCase.nextStep?.trim();
@@ -1018,7 +1023,9 @@ class _NextAction extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w900),
                 ),
                 TextSpan(
-                  text: next?.isNotEmpty == true ? next : state.defaultNextStep,
+                  text: next?.isNotEmpty == true
+                      ? next
+                      : 'Open the case to review the latest backend details',
                 ),
               ],
             ),
@@ -1035,7 +1042,7 @@ class _NextAction extends StatelessWidget {
         const SizedBox(width: 8),
         if (serviceCase.canReviewDocuments && _needsReview(serviceCase))
           FilledButton.icon(
-            onPressed: () => context.go('/my-services/${serviceCase.id}'),
+            onPressed: () => context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
             icon: const Icon(Icons.find_in_page_outlined, size: 17),
             label: const Text('Review'),
             style: FilledButton.styleFrom(
@@ -1051,7 +1058,7 @@ class _NextAction extends StatelessWidget {
         else
           IconButton(
             tooltip: 'Open request',
-            onPressed: () => context.go('/my-services/${serviceCase.id}'),
+            onPressed: () => context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
             icon: const Icon(Icons.chevron_right_rounded),
             color: AppTheme.textSecondary,
           ),
@@ -1351,14 +1358,17 @@ _CaseState _caseState(ServiceCase item) {
       defaultNextStep: 'Review submitted documents',
     );
   }
-  return const _CaseState(
-    label: 'Open',
-    color: OmcPremium.services,
+  final visibleStatus = item.status.trim();
+  return _CaseState(
+    label: visibleStatus.isEmpty || visibleStatus == '-'
+        ? 'Status unavailable'
+        : visibleStatus,
+    color: AppTheme.textSecondary,
     isCompleted: false,
     isInProgress: false,
     isDone: false,
-    waitingLabel: 'Waiting customer',
-    defaultNextStep: 'Review request details',
+    waitingLabel: 'Status not classified',
+    defaultNextStep: 'Open the case to review the latest backend details',
   );
 }
 

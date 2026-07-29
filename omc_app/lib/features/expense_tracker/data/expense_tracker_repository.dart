@@ -501,18 +501,18 @@ class ExpenseTrackerRepository {
       filePath: filePath,
       fileBytes: fileBytes == null ? null : Uint8List.fromList(fileBytes),
       fileName: fileName,
+      method: ApiConfig.uploadExpenseReceiptMethod,
       doctype: ApiConfig.expenseReceiptUploadDoctype,
       docname: entryId,
       isPrivate: true,
     );
 
     final payload = _extractPayload(response);
-    final message = payload['message'];
-    final fileUrl = message is Map
-        ? message['file_url'] ?? message['file_url'.toString()]
-        : payload['file_url'];
+    final rawEntry = payload['entry'];
+    if (rawEntry is! Map) return '';
 
-    return fileUrl?.toString() ?? '';
+    final entry = Map<String, dynamic>.from(rawEntry);
+    return entry['receipt_file']?.toString().trim() ?? '';
   }
 
   Map<String, dynamic> _toBackendPayload(ExpenseTransaction transaction) {

@@ -2653,7 +2653,7 @@ class _DocumentsBlock extends StatelessWidget {
       icon: Icons.folder_outlined,
       trailing: TextButton(
         onPressed: () =>
-            context.go('/my-services/${Uri.encodeComponent(serviceCase.id)}'),
+            context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
         style: TextButton.styleFrom(
           foregroundColor: const Color(0xFF315F91),
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -2766,7 +2766,7 @@ class _PaymentsBlock extends StatelessWidget {
           icon: Icons.payments_outlined,
           label: 'Open payment actions',
           onTap: () =>
-              context.go('/my-services/${Uri.encodeComponent(serviceCase.id)}'),
+              context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
         ),
       ],
     );

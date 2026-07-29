@@ -31,6 +31,16 @@ final supportTicketDetailProvider =
       return repository.fetchSupportTicket(ticketId);
     });
 
+final activeSupportTicketProvider = FutureProvider<SupportTicket?>((ref) {
+  final repository = ref.watch(supportRepositoryProvider);
+  return repository.fetchActiveSupportTicket();
+});
+
+final supportUnreadCountProvider = FutureProvider<int>((ref) {
+  final repository = ref.watch(supportRepositoryProvider);
+  return repository.fetchSupportUnreadCount();
+});
+
 class SupportRepository {
   const SupportRepository({required this.frappeClient});
 
@@ -85,6 +95,59 @@ class SupportRepository {
         details: error,
       );
     }
+  }
+
+  Future<SupportTicket?> fetchActiveSupportTicket() async {
+    try {
+      final response = await frappeClient.getMethod(
+        ApiConfig.activeSupportTicketMethod,
+      );
+      return _mapTicketDetailResponse(response);
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Active support ticket could not be checked right now.',
+        code: 'active_support_ticket_unavailable',
+        details: error,
+      );
+    }
+  }
+
+  Future<int> fetchSupportUnreadCount() async {
+    try {
+      final response = await frappeClient.getMethod(
+        ApiConfig.supportUnreadCountMethod,
+      );
+      final message = response['message'];
+      final rawCount = message is Map<String, dynamic>
+          ? message['count']
+          : response['count'];
+      return _intValue(rawCount) ?? 0;
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Unread support count could not be loaded right now.',
+        code: 'support_unread_count_unavailable',
+        details: error,
+      );
+    }
+  }
+
+  Future<int> markSupportTicketRead(String ticketId) async {
+    final cleanTicketId = ticketId.trim();
+    if (cleanTicketId.isEmpty) return 0;
+
+    final response = await frappeClient.postMethod(
+      ApiConfig.markSupportTicketReadMethod,
+      data: {'ticket_id': cleanTicketId, 'name': cleanTicketId},
+    );
+    final message = response['message'];
+    final rawUpdated = message is Map<String, dynamic>
+        ? message['updated']
+        : response['updated'];
+    return _intValue(rawUpdated) ?? 0;
   }
 
   Future<String> uploadSupportTicketAttachment({

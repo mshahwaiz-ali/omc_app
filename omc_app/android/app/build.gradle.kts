@@ -10,8 +10,45 @@ plugins {
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
+val isReleaseBuild = gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true)
+}
+
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+val requiredSigningKeys = listOf(
+    "keyAlias",
+    "keyPassword",
+    "storeFile",
+    "storePassword",
+)
+
+if (isReleaseBuild) {
+    if (!keystorePropertiesFile.exists()) {
+        throw GradleException(
+            "Missing android/key.properties. Copy key.properties.example, configure the release keystore, then build again."
+        )
+    }
+
+    val missingSigningKeys = requiredSigningKeys.filter {
+        keystoreProperties.getProperty(it)?.trim().isNullOrEmpty()
+    }
+    if (missingSigningKeys.isNotEmpty()) {
+        throw GradleException(
+            "android/key.properties is incomplete. Missing: ${missingSigningKeys.joinToString(", ")}"
+        )
+    }
+
+    val releaseStoreFile = rootProject.file(
+        keystoreProperties.getProperty("storeFile")
+    )
+    if (!releaseStoreFile.isFile) {
+        throw GradleException(
+            "Release keystore file does not exist: ${releaseStoreFile.absolutePath}"
+        )
+    }
 }
 
 android {
@@ -37,31 +74,19 @@ android {
     signingConfigs {
         create("release") {
             if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = rootProject.file(
+                    keystoreProperties.getProperty("storeFile")
+                )
+                storePassword = keystoreProperties.getProperty("storePassword")
             }
         }
     }
 
     buildTypes {
         release {
-            val isReleaseBuild = gradle.startParameter.taskNames.any {
-                it.contains("Release", ignoreCase = true)
-            }
-
-            if (isReleaseBuild && !keystorePropertiesFile.exists()) {
-                throw GradleException(
-                    "Missing android/key.properties. Copy key.properties.example, configure the release keystore, then build again."
-                )
-            }
-
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

@@ -194,14 +194,20 @@ class ApiConfig {
       'omc_app.api.support_chat.get_support_tickets';
   static const String supportTicketDetailMethod =
       'omc_app.api.support_chat.get_support_ticket';
+  static const String activeSupportTicketMethod =
+      'omc_app.api.support_chat.get_active_support_ticket';
+  static const String supportUnreadCountMethod =
+      'omc_app.api.support_chat.get_support_unread_count';
+  static const String markSupportTicketReadMethod =
+      'omc_app.api.support_chat.mark_support_ticket_read';
   static const String addSupportTicketReplyMethod =
       'omc_app.api.support_chat.add_support_ticket_reply';
   static const String updateSupportTicketStatusMethod =
       'omc_app.api.support_chat.update_support_ticket_status';
   static const String uploadSupportTicketAttachmentMethod =
-      'omc_app.api.support_chat.upload_support_ticket_attachment';
+      'upload_file';
   static const String supportConfigMethod =
-      'omc_app.api.support_chat.get_support_config';
+      'omc_app.api.mobile.get_support_config';
 
   static const String uploadFileMethod = 'upload_file';
   static const String mobileAppConfigMethod =
@@ -229,25 +235,27 @@ class ApiConfig {
       'omc_app.api.internal_workspace.create_service_request_for_customer';
 
   static const String expenseConfigMethod =
-      'omc_app.api.expense_tracker.get_expense_config';
+      'omc_app.api.expense.get_expense_config';
   static const String expenseCategoriesMethod =
-      'omc_app.api.expense_tracker.get_expense_categories';
+      'omc_app.api.expense.get_expense_categories';
   static const String expenseEntriesMethod =
-      'omc_app.api.expense_tracker.get_expense_entries';
+      'omc_app.api.expense.get_expense_entries';
   static const String createExpenseEntryMethod =
-      'omc_app.api.expense_tracker.create_expense_entry';
+      'omc_app.api.expense.create_expense_entry';
   static const String bulkSyncExpenseEntriesMethod =
-      'omc_app.api.expense_tracker.bulk_sync_expense_entries';
+      'omc_app.api.expense.bulk_sync_expense_entries';
   static const String updateExpenseEntryMethod =
-      'omc_app.api.expense_tracker.update_expense_entry';
+      'omc_app.api.expense.update_expense_entry';
   static const String deleteExpenseEntryMethod =
-      'omc_app.api.expense_tracker.delete_expense_entry';
+      'omc_app.api.expense.delete_expense_entry';
   static const String expenseSummaryMethod =
-      'omc_app.api.expense_tracker.get_expense_summary';
+      'omc_app.api.expense.get_expense_summary';
   static const String expenseBudgetsMethod =
-      'omc_app.api.expense_tracker.get_expense_budgets';
+      'omc_app.api.expense.get_expense_budgets';
   static const String saveExpenseBudgetMethod =
-      'omc_app.api.expense_tracker.save_expense_budget';
+      'omc_app.api.expense.save_expense_budget';
+  static const String uploadExpenseReceiptMethod =
+      'omc_app.api.expense.upload_expense_receipt';
 
   static const String serviceRequestUploadDoctype = 'OMC Service Request';
   static const String expenseReceiptUploadDoctype = 'OMC Expense Entry';

@@ -179,7 +179,19 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         ref.watch(expenseTrackerConfigProvider).value ??
         ExpenseTrackerConfig.fallback();
     final transactionsAsync = ref.watch(expenseTransactionsProvider);
-    final shouldSync = accessMode == ExpenseTrackerAccessMode.approvedSync;
+    final storageMode =
+        ref.watch(expenseTrackerStorageModeProvider).value ??
+        ExpenseTrackerStorageMode.localOnly;
+    final canUseCloud =
+        accessMode == ExpenseTrackerAccessMode.approvedSync &&
+        config.syncAvailable;
+    final shouldSync =
+        canUseCloud &&
+        storageMode == ExpenseTrackerStorageMode.syncWithAccount;
+    final effectiveAccessMode =
+        accessMode == ExpenseTrackerAccessMode.approvedSync && !shouldSync
+        ? ExpenseTrackerAccessMode.offlineApproved
+        : accessMode;
 
     if (accessMode == ExpenseTrackerAccessMode.internalHidden) {
       return Scaffold(
@@ -204,24 +216,63 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         action: PopupMenuButton<String>(
           tooltip: 'More actions',
           icon: const Icon(Icons.more_horiz_rounded),
-          onSelected: (value) {
+          onSelected: (value) async {
             final transactions =
                 transactionsAsync.value ?? const <ExpenseTransaction>[];
+
+            if (value == 'export') {
+              _showExportDialog(context, transactions);
+              return;
+            }
+            if (value == 'import') {
+              _showImportDialog(context, ref);
+              return;
+            }
+            if (value == 'clear') {
+              _confirmClearAll(context, ref);
+              return;
+            }
+            if (value == 'storage_local') {
+              await ref
+                  .read(expenseTrackerStorageModeProvider.notifier)
+                  .setMode(ExpenseTrackerStorageMode.localOnly);
+              await ref
+                  .read(expenseTransactionsProvider.notifier)
+                  .reloadLocal();
+              return;
+            }
+            if (value == 'storage_sync') {
+              await ref
+                  .read(expenseTrackerStorageModeProvider.notifier)
+                  .setMode(ExpenseTrackerStorageMode.syncWithAccount);
+              await ref
+                  .read(expenseTransactionsProvider.notifier)
+                  .bulkSync();
+              return;
+            }
             if (value == 'refresh') {
               if (shouldSync) {
                 ref.read(expenseTransactionsProvider.notifier).loadSynced();
               } else {
                 ref.read(expenseTransactionsProvider.notifier).reloadLocal();
               }
+              return;
             }
-            if (value == 'export') _showExportDialog(context, transactions);
-            if (value == 'import') _showImportDialog(context, ref);
             if (value == 'sync') {
               ref.read(expenseTransactionsProvider.notifier).bulkSync();
             }
-            if (value == 'clear') _confirmClearAll(context, ref);
           },
           itemBuilder: (context) => [
+            if (canUseCloud && !shouldSync)
+              const PopupMenuItem(
+                value: 'storage_sync',
+                child: Text('Enable account sync'),
+              ),
+            if (canUseCloud && shouldSync)
+              const PopupMenuItem(
+                value: 'storage_local',
+                child: Text('Use local-only storage'),
+              ),
             PopupMenuItem(
               value: 'refresh',
               child: Text(
@@ -265,20 +316,20 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                 : ref.read(expenseTransactionsProvider.notifier).reloadLocal(),
           ),
           data: (transactions) => _ExpenseTrackerBody(
-            accessMode: accessMode,
+            accessMode: effectiveAccessMode,
             config: config,
             transactions: transactions,
             onManualEntry: () => _showTransactionSheet(
               context,
               ref,
-              accessMode: accessMode,
+              accessMode: effectiveAccessMode,
               config: config,
               sync: shouldSync,
             ),
             onQuickAdd: (category) => _showTransactionSheet(
               context,
               ref,
-              accessMode: accessMode,
+              accessMode: effectiveAccessMode,
               config: config,
               sync: shouldSync,
               initialCategory: category,
@@ -290,7 +341,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             onEdit: (transaction) => _showTransactionSheet(
               context,
               ref,
-              accessMode: accessMode,
+              accessMode: effectiveAccessMode,
               config: config,
               sync: shouldSync,
               transaction: transaction,
@@ -327,8 +378,9 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         transaction: transaction,
         categories: config.categories,
         initialCategory: initialCategory,
-        receiptEnabled: accessMode == ExpenseTrackerAccessMode.approvedSync,
-        onAttachReceipt: accessMode == ExpenseTrackerAccessMode.approvedSync
+        receiptEnabled:
+            sync && config.receiptUploadAvailable,
+        onAttachReceipt: sync && config.receiptUploadAvailable
             ? (saved, file) => ref
                   .read(expenseTransactionsProvider.notifier)
                   .attachReceipt(transaction: saved, file: file, sync: sync)
@@ -833,7 +885,12 @@ class _AccessBanner extends StatelessWidget {
       ExpenseTrackerAccessMode.approvedSync => (
         Icons.cloud_done_outlined,
         'Cloud tracker active',
-        'Entries and receipts can sync with OMC',
+        'Entries and receipts sync with your OMC account',
+      ),
+      ExpenseTrackerAccessMode.offlineApproved => (
+        Icons.phone_iphone_rounded,
+        'Local-only tracker',
+        'Account sync is available from the menu',
       ),
       _ => (
         Icons.lock_outline_rounded,

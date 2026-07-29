@@ -94,6 +94,24 @@ class _SupportTicketChatBodyState
   SupportTicket get ticket => widget.ticket;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _markTicketRead();
+    });
+  }
+
+  Future<void> _markTicketRead() async {
+    try {
+      await ref.read(supportRepositoryProvider).markSupportTicketRead(ticket.id);
+      ref.invalidate(supportUnreadCountProvider);
+      ref.invalidate(supportTicketsProvider);
+    } catch (_) {
+      // Read-state acknowledgement must not block ticket access.
+    }
+  }
+
+  @override
   void dispose() {
     _replyController.dispose();
     _scrollController.dispose();
@@ -118,6 +136,7 @@ class _SupportTicketChatBodyState
             onRefresh: () async {
               ref.invalidate(supportTicketDetailProvider(ticket.id));
               ref.invalidate(supportTicketsProvider);
+              await _markTicketRead();
             },
             child: ListView(
               controller: _scrollController,
@@ -323,6 +342,7 @@ class _SupportTicketChatBodyState
       });
       ref.invalidate(supportTicketDetailProvider(ticket.id));
       ref.invalidate(supportTicketsProvider);
+      ref.invalidate(supportUnreadCountProvider);
       _scrollToBottomSoon();
     } catch (error) {
       if (!context.mounted) return;

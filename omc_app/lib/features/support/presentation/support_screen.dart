@@ -159,6 +159,17 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      final activeTicket = await repository.fetchActiveSupportTicket();
+      if (!mounted) return;
+
+      if (activeTicket != null && activeTicket.id.trim().isNotEmpty) {
+        _showSnack('You already have an active support ticket.');
+        context.push(
+          '/support-tickets/${Uri.encodeComponent(activeTicket.id)}',
+        );
+        return;
+      }
+
       await repository.createSupportTicket(
         topic: _selectedTopic,
         message: _messageController.text,
@@ -166,6 +177,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       if (!mounted) return;
       setState(_messageController.clear);
       ref.invalidate(supportTicketsProvider);
+      ref.invalidate(activeSupportTicketProvider);
+      ref.invalidate(supportUnreadCountProvider);
       _showSnack('Support ticket submitted.');
     } on ApiError catch (error) {
       if (!mounted) return;
@@ -481,6 +494,7 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
     }
 
     final ticketsAsync = ref.watch(supportTicketsProvider);
+    final unreadCount = ref.watch(supportUnreadCountProvider).value ?? 0;
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -495,11 +509,36 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                       'Track active support and review closed ticket history.',
                 ),
               ),
+              if (unreadCount > 0) ...[
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '$unreadCount unread',
+                    style: const TextStyle(
+                      color: AppTheme.primary,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
               Material(
                 color: const Color(0xFFF1F4F8),
                 borderRadius: BorderRadius.circular(13),
                 child: InkWell(
-                  onTap: () => ref.invalidate(supportTicketsProvider),
+                  onTap: () {
+                    ref.invalidate(supportTicketsProvider);
+                    ref.invalidate(activeSupportTicketProvider);
+                    ref.invalidate(supportUnreadCountProvider);
+                  },
                   borderRadius: BorderRadius.circular(13),
                   child: const SizedBox(
                     width: 40,

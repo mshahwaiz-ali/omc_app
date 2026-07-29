@@ -227,8 +227,9 @@ def _ensure_category(title, transaction_type):
 
 def _entry_to_dict(entry):
     return {
-        "id": entry.name,
+        "id": entry.get("sync_id") or entry.name,
         "name": entry.name,
+        "backend_id": entry.name,
         "sync_id": entry.get("sync_id") or entry.name,
         "type": (entry.transaction_type or "Expense").lower(),
         "transaction_type": entry.transaction_type or "Expense",
@@ -257,10 +258,21 @@ def _entry_to_dict(entry):
 
 def _assert_entry_access(entry_name, profile=None):
     profile = profile or _profile()
-    if not entry_name or not frappe.db.exists("OMC Expense Entry", entry_name):
+    clean_entry_name = _clean_text(entry_name)
+    if not clean_entry_name:
         frappe.throw("Expense entry not found", frappe.DoesNotExistError)
 
-    entry = frappe.get_doc("OMC Expense Entry", entry_name)
+    resolved_name = clean_entry_name if frappe.db.exists("OMC Expense Entry", clean_entry_name) else None
+    if not resolved_name:
+        resolved_name = frappe.db.get_value(
+            "OMC Expense Entry",
+            {"customer_profile": profile.name, "sync_id": clean_entry_name},
+            "name",
+        )
+    if not resolved_name:
+        frappe.throw("Expense entry not found", frappe.DoesNotExistError)
+
+    entry = frappe.get_doc("OMC Expense Entry", resolved_name)
     if entry.customer_profile != profile.name and entry.user != frappe.session.user:
         frappe.throw("You do not have permission to access this expense entry", frappe.PermissionError)
     return entry
@@ -481,8 +493,9 @@ def delete_expense_entry(entry_id=None, name=None):
 
 
 @frappe.whitelist()
-def upload_expense_receipt(entry_id=None, file_url=None):
+def upload_expense_receipt(entry_id=None, file_url=None, name=None, docname=None, **kwargs):
     profile = _profile()
+    entry_id = entry_id or name or docname or kwargs.get("entry_id")
     if not _feature_available("expense_receipts_enabled", True):
         frappe.throw("Expense receipt upload is disabled by OMC.", frappe.PermissionError)
 

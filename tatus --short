@@ -1,0 +1,145 @@
+[1mdiff --git a/omc_app/android/app/build.gradle.kts b/omc_app/android/app/build.gradle.kts[m
+[1mindex 807403e..503bf7b 100644[m
+[1m--- a/omc_app/android/app/build.gradle.kts[m
+[1m+++ b/omc_app/android/app/build.gradle.kts[m
+[36m@@ -10,10 +10,47 @@[m [mplugins {[m
+ [m
+ val keystoreProperties = Properties()[m
+ val keystorePropertiesFile = rootProject.file("key.properties")[m
+[32m+[m[32mval isReleaseBuild = gradle.startParameter.taskNames.any {[m
+[32m+[m[32m    it.contains("Release", ignoreCase = true)[m
+[32m+[m[32m}[m
+[32m+[m
+ if (keystorePropertiesFile.exists()) {[m
+     keystoreProperties.load(FileInputStream(keystorePropertiesFile))[m
+ }[m
+ [m
+[32m+[m[32mval requiredSigningKeys = listOf([m
+[32m+[m[32m    "keyAlias",[m
+[32m+[m[32m    "keyPassword",[m
+[32m+[m[32m    "storeFile",[m
+[32m+[m[32m    "storePassword",[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mif (isReleaseBuild) {[m
+[32m+[m[32m    if (!keystorePropertiesFile.exists()) {[m
+[32m+[m[32m        throw GradleException([m
+[32m+[m[32m            "Missing android/key.properties. Copy key.properties.example, configure the release keystore, then build again."[m
+[32m+[m[32m        )[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    val missingSigningKeys = requiredSigningKeys.filter {[m
+[32m+[m[32m        keystoreProperties.getProperty(it)?.trim().isNullOrEmpty()[m
+[32m+[m[32m    }[m
+[32m+[m[32m    if (missingSigningKeys.isNotEmpty()) {[m
+[32m+[m[32m        throw GradleException([m
+[32m+[m[32m            "android/key.properties is incomplete. Missing: ${missingSigningKeys.joinToString(", ")}"[m
+[32m+[m[32m        )[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    val releaseStoreFile = rootProject.file([m
+[32m+[m[32m        keystoreProperties.getProperty("storeFile")[m
+[32m+[m[32m    )[m
+[32m+[m[32m    if (!releaseStoreFile.isFile) {[m
+[32m+[m[32m        throw GradleException([m
+[32m+[m[32m            "Release keystore file does not exist: ${releaseStoreFile.absolutePath}"[m
+[32m+[m[32m        )[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+ android {[m
+     namespace = "com.omchouse.app"[m
+     compileSdk = flutter.compileSdkVersion[m
+[36m@@ -37,31 +74,19 @@[m [mandroid {[m
+     signingConfigs {[m
+         create("release") {[m
+             if (keystorePropertiesFile.exists()) {[m
+[31m-                keyAlias = keystoreProperties["keyAlias"] as String[m
+[31m-                keyPassword = keystoreProperties["keyPassword"] as String[m
+[31m-                storeFile = file(keystoreProperties["storeFile"] as String)[m
+[31m-                storePassword = keystoreProperties["storePassword"] as String[m
+[32m+[m[32m                keyAlias = keystoreProperties.getProperty("keyAlias")[m
+[32m+[m[32m                keyPassword = keystoreProperties.getProperty("keyPassword")[m
+[32m+[m[32m                storeFile = rootProject.file([m
+[32m+[m[32m                    keystoreProperties.getProperty("storeFile")[m
+[32m+[m[32m                )[m
+[32m+[m[32m                storePassword = keystoreProperties.getProperty("storePassword")[m
+             }[m
+         }[m
+     }[m
+ [m
+     buildTypes {[m
+         release {[m
+[31m-            val isReleaseBuild = gradle.startParameter.taskNames.any {[m
+[31m-                it.contains("Release", ignoreCase = true)[m
+[31m-            }[m
+[31m-[m
+[31m-            if (isReleaseBuild && !keystorePropertiesFile.exists()) {[m
+[31m-                throw GradleException([m
+[31m-                    "Missing android/key.properties. Copy key.properties.example, configure the release keystore, then build again."[m
+[31m-                )[m
+[31m-            }[m
+[31m-[m
+[31m-            signingConfig = if (keystorePropertiesFile.exists()) {[m
+[31m-                signingConfigs.getByName("release")[m
+[31m-            } else {[m
+[31m-                signingConfigs.getByName("debug")[m
+[31m-            }[m
+[32m+[m[32m            signingConfig = signingConfigs.getByName("release")[m
+         }[m
+     }[m
+ }[m
+[1mdiff --git a/omc_app/android/app/src/main/AndroidManifest.xml b/omc_app/android/app/src/main/AndroidManifest.xml[m
+[1mindex 9085eb4..a38ef66 100644[m
+[1m--- a/omc_app/android/app/src/main/AndroidManifest.xml[m
+[1m+++ b/omc_app/android/app/src/main/AndroidManifest.xml[m
+[36m@@ -4,7 +4,9 @@[m
+     <application[m
+         android:label="OMC House"[m
+         android:name="${applicationName}"[m
+[31m-        android:icon="@mipmap/ic_launcher">[m
+[32m+[m[32m        android:icon="@mipmap/ic_launcher"[m
+[32m+[m[32m        android:usesCleartextTraffic="false"[m
+[32m+[m[32m        android:networkSecurityConfig="@xml/network_security_config">[m
+         <activity[m
+             android:name=".MainActivity"[m
+             android:exported="true"[m
+[1mdiff --git a/omc_app/ios/Runner/Info.plist b/omc_app/ios/Runner/Info.plist[m
+[1mindex 7692406..29a3df8 100644[m
+[1m--- a/omc_app/ios/Runner/Info.plist[m
+[1m+++ b/omc_app/ios/Runner/Info.plist[m
+[36m@@ -7,7 +7,7 @@[m
+ 	<key>CFBundleDevelopmentRegion</key>[m
+ 	<string>$(DEVELOPMENT_LANGUAGE)</string>[m
+ 	<key>CFBundleDisplayName</key>[m
+[31m-	<string>Omc App</string>[m
+[32m+[m	[32m<string>OMC House</string>[m
+ 	<key>CFBundleExecutable</key>[m
+ 	<string>$(EXECUTABLE_NAME)</string>[m
+ 	<key>CFBundleURLTypes</key>[m
+[36m@@ -39,6 +39,25 @@[m
+ 	<string>$(FLUTTER_BUILD_NUMBER)</string>[m
+ 	<key>LSRequiresIPhoneOS</key>[m
+ 	<true/>[m
+[32m+[m	[32m<key>NSCameraUsageDescription</key>[m
+[32m+[m	[32m<string>OMC House uses the camera only when you choose to capture a document or receipt.</string>[m
+[32m+[m	[32m<key>NSPhotoLibraryUsageDescription</key>[m
+[32m+[m	[32m<string>OMC House accesses your photo library only when you choose a document or receipt to upload.</string>[m
+[32m+[m	[32m<key>NSAppTransportSecurity</key>[m
+[32m+[m	[32m<dict>[m
+[32m+[m		[32m<key>NSAllowsArbitraryLoads</key>[m
+[32m+[m		[32m<false/>[m
+[32m+[m		[32m<key>NSExceptionDomains</key>[m
+[32m+[m		[32m<dict>[m
+[32m+[m			[32m<key>100.51.143.221</key>[m
+[32m+[m			[32m<dict>[m
+[32m+[m				[32m<key>NSExceptionAllowsInsecureHTTPLoads</key>[m
+[32m+[m				[32m<true/>[m
+[32m+[m				[32m<key>NSIncludesSubdomains</key>[m
+[32m+[m				[32m<false/>[m
+[32m+[m			[32m</dict>[m
+[32m+[m		[32m</dict>[m
+[32m+[m	[32m</dict>[m
+ 	<key>UIApplicationSceneManifest</key>[m
+ 	<dict>[m
+ 		<key>UIApplicationSupportsMultipleScenes</key>[m
