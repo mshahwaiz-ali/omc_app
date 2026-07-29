@@ -538,7 +538,6 @@ class _PreferencesSection extends StatelessWidget {
               : (value) =>
                     onToggle!(preferences.copyWith(taxAlertsEnabled: value)),
         ),
-        ),
       ],
     );
   }

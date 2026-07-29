@@ -20,6 +20,16 @@ final signupSubmitProvider = Provider<SignupSubmit>((ref) {
   return (data) => repository.signUp(data: data);
 });
 
+typedef SignupUsernameAvailabilityCheck =
+    Future<Map<String, dynamic>> Function(String username);
+
+final signupUsernameAvailabilityProvider =
+    Provider<SignupUsernameAvailabilityCheck>((ref) {
+      final repository = ref.read(authRepositoryProvider);
+      return (username) =>
+          repository.checkUsernameAvailability(username: username);
+    });
+
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
@@ -173,9 +183,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _usernameMessage = null;
     });
     try {
-      final response = await ref
-          .read(authRepositoryProvider)
-          .checkUsernameAvailability(username: username);
+      final response = await ref.read(signupUsernameAvailabilityProvider)(
+        username,
+      );
       final message = response['message'];
       final data = message is Map<String, dynamic> ? message : response;
       final available = data['available'] == true || data['available'] == 1;

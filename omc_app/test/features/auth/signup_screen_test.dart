@@ -19,10 +19,22 @@ void main() {
             calls.add(Map<String, dynamic>.from(data));
             return response.future;
           }),
+          signupUsernameAvailabilityProvider.overrideWithValue(
+            (username) async => <String, dynamic>{
+              'message': <String, dynamic>{
+                'available': true,
+                'username': username,
+              },
+            },
+          ),
         ],
         child: const MaterialApp(home: SignupScreen()),
       ),
     );
+
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
 
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Full name'),
@@ -33,18 +45,23 @@ void main() {
       'ayesha@example.com',
     );
     await tester.enterText(
+      find.widgetWithText(TextFormField, 'Username'),
+      'ayesha.khan',
+    );
+    await tester.enterText(
       find.widgetWithText(TextFormField, 'Mobile number'),
       '3063191907',
     );
+
+    await tester.tap(
+      find.widgetWithText(CheckboxListTile, 'Use this number for WhatsApp'),
+    );
+    await tester.pumpAndSettle();
+
     await tester.enterText(
       find.widgetWithText(TextFormField, 'WhatsApp number'),
       '3063191908',
     );
-
-    await tester.ensureVisible(find.text('Continue'));
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-
     await tester.enterText(
       find.widgetWithText(TextFormField, 'CNIC'),
       '42101-1234567-8',
@@ -53,6 +70,10 @@ void main() {
       find.widgetWithText(TextFormField, 'Address'),
       'Karachi, Pakistan',
     );
+
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
 
     final acquisitionSource = find.byType(DropdownButtonFormField<String>);
     await tester.ensureVisible(acquisitionSource);
@@ -87,6 +108,7 @@ void main() {
     expect(calls.single, containsPair('first_name', 'Ayesha'));
     expect(calls.single, containsPair('last_name', 'Khan'));
     expect(calls.single, containsPair('email', 'ayesha@example.com'));
+    expect(calls.single, containsPair('username', 'ayesha.khan'));
     expect(calls.single, containsPair('phone', '+923063191907'));
     expect(calls.single, containsPair('mobile', '+923063191907'));
     expect(calls.single, containsPair('whatsapp_no', '+923063191908'));
@@ -103,6 +125,13 @@ void main() {
 
     response.complete(<String, dynamic>{'message': 'Signup completed.'});
     await tester.pumpAndSettle();
-    expect(find.text('We received your details.'), findsOneWidget);
+
+    expect(find.text('Check your email'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Open the verification link sent to ayesha@example.com.',
+      ),
+      findsOneWidget,
+    );
   });
 }
