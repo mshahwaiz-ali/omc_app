@@ -66,6 +66,7 @@ has_permission = {
     "OMC Lead": "omc_app.permissions.lead_has_permission",
 }
 
+
 # Validate task assignment and keep eligible internal referral codes in sync.
 doc_events = {
     "User": {
@@ -78,15 +79,13 @@ doc_events = {
 }
 
 
-# Workflow automation reminders and escalations.
+# Workflow automation reminders, cleanup, and failure-isolated maintenance.
 scheduler_events = {
     "hourly": [
-        "omc_app.api.workflow_automation.run_hourly_workflow_checks",
-        "omc_app.api.auth_cleanup.cleanup_pending_registrations",
+        "omc_app.api.scheduler_jobs.run_hourly_jobs",
     ],
     "daily": [
-        "omc_app.api.workflow_automation.run_daily_workflow_checks",
-        "omc_app.api.mobile.cleanup_notifications",
+        "omc_app.api.scheduler_jobs.run_daily_jobs",
     ],
 }
 
