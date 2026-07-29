@@ -40,6 +40,8 @@ override_whitelisted_methods = {
     "omc_app.api.mobile.update_support_ticket_status": "omc_app.api.support_ticket_guard.update_support_ticket_status",
     "omc_app.api.support_chat.update_support_ticket_status": "omc_app.api.support_ticket_guard.update_support_ticket_status",
     "omc_app.api.support_chat.assign_support_ticket": "omc_app.api.support_ticket_guard.assign_support_ticket",
+    "omc_app.api.mobile.get_tasks": "omc_app.api.task_read_guard.get_tasks",
+    "omc_app.api.mobile.get_task": "omc_app.api.task_read_guard.get_task",
     "omc_app.api.referrals.validate_referral_code": "omc_app.referral_automation.validate_referral_code",
     "omc_app.api.referrals.get_my_referral_summary": "omc_app.api.referral_analytics.get_my_referral_summary",
     "omc_app.api.referrals.get_my_referrals": "omc_app.api.referral_analytics.get_my_referrals",
