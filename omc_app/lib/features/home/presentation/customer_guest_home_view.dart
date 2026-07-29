@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../auth/application/auth_state.dart';
+import '../../service_catalogue/data/service_item.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
 
@@ -18,6 +19,7 @@ class CustomerGuestHomeView extends StatelessWidget {
     required this.summary,
     required this.capabilities,
     required this.actions,
+    required this.searchableServices,
     required this.isGuest,
     required this.isPending,
     required this.isRejected,
@@ -27,6 +29,7 @@ class CustomerGuestHomeView extends StatelessWidget {
     required this.onNotifications,
     required this.onAvatar,
     required this.onSearch,
+    required this.onOpenSearchResult,
     required this.onAction,
     required this.isActionAllowed,
     required this.onLockedAction,
@@ -44,6 +47,7 @@ class CustomerGuestHomeView extends StatelessWidget {
   final HomeDashboardSummary summary;
   final AuthCapabilities capabilities;
   final List<MobileQuickAction> actions;
+  final List<ServiceItem> searchableServices;
   final bool isGuest;
   final bool isPending;
   final bool isRejected;
@@ -54,6 +58,7 @@ class CustomerGuestHomeView extends StatelessWidget {
   final VoidCallback onNotifications;
   final VoidCallback onAvatar;
   final ValueChanged<String> onSearch;
+  final ValueChanged<String> onOpenSearchResult;
   final ValueChanged<MobileQuickAction> onAction;
   final bool Function(MobileQuickAction) isActionAllowed;
   final ValueChanged<MobileQuickAction> onLockedAction;
@@ -111,7 +116,11 @@ class CustomerGuestHomeView extends StatelessWidget {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverToBoxAdapter(
-                      child: _SearchField(onTap: onSearch),
+                      child: _SearchField(
+                        services: searchableServices,
+                        onSubmit: onSearch,
+                        onOpenResult: onOpenSearchResult,
+                      ),
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 17)),
@@ -430,9 +439,15 @@ class _Avatar extends StatelessWidget {
 }
 
 class _SearchField extends StatefulWidget {
-  const _SearchField({required this.onTap});
+  const _SearchField({
+    required this.services,
+    required this.onSubmit,
+    required this.onOpenResult,
+  });
 
-  final ValueChanged<String> onTap;
+  final List<ServiceItem> services;
+  final ValueChanged<String> onSubmit;
+  final ValueChanged<String> onOpenResult;
 
   @override
   State<_SearchField> createState() => _SearchFieldState();
@@ -440,60 +455,294 @@ class _SearchField extends StatefulWidget {
 
 class _SearchFieldState extends State<_SearchField> {
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChanged);
+  }
 
   @override
   void dispose() {
+    _focusNode
+      ..removeListener(_handleFocusChanged)
+      ..dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _handleFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   void _submit() {
     final query = _controller.text.trim();
     if (query.isEmpty) return;
-    FocusScope.of(context).unfocus();
-    widget.onTap(query);
+
+    _focusNode.unfocus();
+    widget.onSubmit(query);
+  }
+
+  void _clear() {
+    _controller.clear();
+    setState(() => _query = '');
+    _focusNode.requestFocus();
+  }
+
+  void _open(ServiceItem service) {
+    _focusNode.unfocus();
+    widget.onOpenResult(service.id);
+  }
+
+  List<ServiceItem> get _matches {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return const <ServiceItem>[];
+
+    final words = query
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+
+    final matches = widget.services
+        .where((service) {
+          final haystack = <String>[
+            service.title,
+            service.category,
+            service.shortDescription ?? '',
+            service.description ?? '',
+            ...service.requirements,
+          ].join(' ').toLowerCase();
+
+          return words.every(haystack.contains);
+        })
+        .toList(growable: false);
+
+    matches.sort((a, b) {
+      final aTitle = a.title.toLowerCase();
+      final bTitle = b.title.toLowerCase();
+      final aStarts = aTitle.startsWith(query);
+      final bStarts = bTitle.startsWith(query);
+
+      if (aStarts != bStarts) return aStarts ? -1 : 1;
+      return a.title.compareTo(b.title);
+    });
+
+    return matches.take(5).toList(growable: false);
   }
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      onSubmitted: (_) => _submit(),
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: 'Search services, requests or tools',
-        hintStyle: const TextStyle(
-          color: Color(0xFF69717F),
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
+    final matches = _matches;
+    final showPanel = _focusNode.hasFocus && _query.trim().isNotEmpty;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          onChanged: (value) => setState(() => _query = value),
+          onSubmitted: (_) => _submit(),
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'Search services, requests or tools',
+            hintStyle: const TextStyle(
+              color: Color(0xFF69717F),
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+            prefixIcon: const Icon(
+              Icons.search_rounded,
+              size: 27,
+              color: Color(0xFF434B58),
+            ),
+            suffixIcon: _query.isEmpty
+                ? IconButton(
+                    tooltip: 'Search',
+                    onPressed: _submit,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  )
+                : IconButton(
+                    tooltip: 'Clear search',
+                    onPressed: _clear,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.95),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 18,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(28),
+              borderSide: const BorderSide(color: Color(0xFFE2E4E8)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(28),
+              borderSide: const BorderSide(color: Color(0xFFE2E4E8)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(28),
+              borderSide: const BorderSide(
+                color: Color(0xFF111827),
+                width: 1.2,
+              ),
+            ),
+          ),
         ),
-        prefixIcon: const Icon(
-          Icons.search_rounded,
-          size: 27,
-          color: Color(0xFF434B58),
-        ),
-        suffixIcon: IconButton(
-          tooltip: 'Search',
-          onPressed: _submit,
-          icon: const Icon(Icons.arrow_forward_rounded),
-        ),
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.95),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 18,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(color: Color(0xFFE2E4E8)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(color: Color(0xFFE2E4E8)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(color: Color(0xFF111827), width: 1.2),
+        if (showPanel) ...[
+          const SizedBox(height: 8),
+          Material(
+            color: Colors.white,
+            elevation: 8,
+            shadowColor: const Color(0x22000000),
+            borderRadius: BorderRadius.circular(20),
+            clipBehavior: Clip.antiAlias,
+            child: matches.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          color: Color(0xFF69717F),
+                          size: 22,
+                        ),
+                        SizedBox(width: 11),
+                        Expanded(
+                          child: Text(
+                            'No matching services found',
+                            style: TextStyle(
+                              color: Color(0xFF50617B),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var index = 0; index < matches.length; index++) ...[
+                        _SearchSuggestion(
+                          service: matches[index],
+                          onTap: () => _open(matches[index]),
+                        ),
+                        if (index < matches.length - 1)
+                          const Divider(
+                            height: 1,
+                            indent: 56,
+                            color: Color(0xFFE8EAF0),
+                          ),
+                      ],
+                      InkWell(
+                        onTap: _submit,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 13,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.search_rounded, size: 19, color: _red),
+                              SizedBox(width: 7),
+                              Text(
+                                'View all search results',
+                                style: TextStyle(
+                                  color: _red,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _SearchSuggestion extends StatelessWidget {
+  const _SearchSuggestion({required this.service, required this.onTap});
+
+  final ServiceItem service;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final shortDescription = service.shortDescription?.trim() ?? '';
+    final subtitle = shortDescription.isNotEmpty
+        ? shortDescription
+        : service.category.trim();
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(15, 12, 12, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFDECEF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.work_outline_rounded,
+                color: _red,
+                size: 19,
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    service.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _navy,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF69717F),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.north_west_rounded,
+              color: Color(0xFF69717F),
+              size: 18,
+            ),
+          ],
         ),
       ),
     );
@@ -1006,35 +1255,31 @@ class _QuickActionStrip extends StatelessWidget {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 560;
         final columns = compact ? 3 : 5;
-        final rows = (visible.length / columns).ceil().clamp(1, 2);
-        final height = rows * 112.0 + (rows - 1) * 8.0;
+        final spacing = compact ? 8.0 : 10.0;
+        final itemWidth =
+            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
 
-        return SizedBox(
-          height: height,
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: compact ? 0.92 : 0.86,
-            ),
-            itemCount: visible.length,
-            itemBuilder: (context, index) {
-              final action = visible[index];
-              return _QuickActionTile(
-                action: action,
-                locked: !isActionAllowed(action),
-                onTap: () {
-                  if (isActionAllowed(action)) {
-                    onAction(action);
-                  } else {
-                    onLockedAction(action);
-                  }
-                },
-              );
-            },
-          ),
+        return Wrap(
+          spacing: spacing,
+          runSpacing: 4,
+          children: [
+            for (final action in visible)
+              SizedBox(
+                width: itemWidth,
+                height: 74,
+                child: _QuickActionTile(
+                  action: action,
+                  locked: !isActionAllowed(action),
+                  onTap: () {
+                    if (isActionAllowed(action)) {
+                      onAction(action);
+                    } else {
+                      onLockedAction(action);
+                    }
+                  },
+                ),
+              ),
+          ],
         );
       },
     );
@@ -1057,62 +1302,57 @@ class _QuickActionTile extends StatelessWidget {
     final palette = _actionPalette(action.iconKey);
 
     return Material(
-      color: palette.background,
-      borderRadius: BorderRadius.circular(20),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(5, 17, 5, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: palette.border),
-          ),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
           child: Stack(
             clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
             children: [
               Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     _actionIcon(action.iconKey),
                     color: palette.accent,
-                    size: 29,
+                    size: 30,
                   ),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: Text(
-                      action.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF3D4E68),
-                        fontSize: 11.5,
-                        height: 1.12,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  const SizedBox(height: 6),
+                  Text(
+                    action.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF34445E),
+                      fontSize: 12,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
               if (locked)
                 Positioned(
-                  right: -1,
-                  top: -8,
+                  right: 12,
+                  top: -2,
                   child: Container(
-                    width: 22,
-                    height: 22,
+                    width: 20,
+                    height: 20,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
                       border: Border.all(color: palette.border),
                       boxShadow: const [
-                        BoxShadow(color: Color(0x14000000), blurRadius: 6),
+                        BoxShadow(color: Color(0x12000000), blurRadius: 5),
                       ],
                     ),
                     child: Icon(
                       Icons.lock_rounded,
-                      size: 12,
+                      size: 11,
                       color: palette.accent,
                     ),
                   ),
@@ -1179,7 +1419,7 @@ class _SummaryStrip extends StatelessWidget {
               crossAxisCount: columns,
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              childAspectRatio: compact ? 2.25 : 2.05,
+              childAspectRatio: compact ? 2.05 : 1.95,
             ),
             itemCount: items.length,
             itemBuilder: (context, index) => items[index],
@@ -1208,7 +1448,7 @@ class _SummaryItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: background.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(16),
@@ -1236,7 +1476,8 @@ class _SummaryItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _navy,
-                    fontSize: 17,
+                    fontSize: 19,
+                    height: 1.05,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -1246,9 +1487,9 @@ class _SummaryItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF50617B),
-                    fontSize: 9.5,
-                    height: 1.15,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11.5,
+                    height: 1.2,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],

@@ -12,8 +12,10 @@ class DocumentItem {
     this.downloadUrl,
     this.updatedAtLabel,
     this.serviceReference,
+    this.requestTitle,
     this.serviceTitle,
     this.serviceStatus,
+    this.documentType,
     this.customerProfile,
     this.customerName,
     this.customerEmail,
@@ -21,7 +23,12 @@ class DocumentItem {
     this.customerNtn,
     this.customerCnic,
     this.companyName,
+    this.customerType,
     this.source,
+    this.uploadedBy,
+    this.reviewedBy,
+    this.reviewedOnLabel,
+    this.canReviewDocuments = false,
     this.remarks,
     this.isArchived = false,
     this.archivedOnLabel,
@@ -37,8 +44,10 @@ class DocumentItem {
   final String? downloadUrl;
   final String? updatedAtLabel;
   final String? serviceReference;
+  final String? requestTitle;
   final String? serviceTitle;
   final String? serviceStatus;
+  final String? documentType;
   final String? customerProfile;
   final String? customerName;
   final String? customerEmail;
@@ -46,7 +55,12 @@ class DocumentItem {
   final String? customerNtn;
   final String? customerCnic;
   final String? companyName;
+  final String? customerType;
   final String? source;
+  final String? uploadedBy;
+  final String? reviewedBy;
+  final String? reviewedOnLabel;
+  final bool canReviewDocuments;
   final String? remarks;
   final bool isArchived;
   final String? archivedOnLabel;

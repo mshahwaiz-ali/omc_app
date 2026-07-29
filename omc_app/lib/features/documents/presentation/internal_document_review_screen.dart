@@ -45,8 +45,12 @@ class InternalDocumentReviewScreen extends ConsumerStatefulWidget {
 
 class _InternalDocumentReviewScreenState
     extends ConsumerState<InternalDocumentReviewScreen> {
+  final _searchController = TextEditingController();
   _ReviewFilter _selectedFilter = _ReviewFilter.needsReview;
   late Future<List<DocumentItem>> _documentsFuture;
+  String _query = '';
+  String? _selectedCustomerProfile;
+  String? _selectedDocumentType;
   String? _selectedServiceReference;
   String? _busyDocumentId;
 
@@ -54,6 +58,12 @@ class _InternalDocumentReviewScreenState
   void initState() {
     super.initState();
     _documentsFuture = _loadDocuments();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<List<DocumentItem>> _loadDocuments() {
@@ -70,8 +80,24 @@ class _InternalDocumentReviewScreenState
     if (_selectedFilter == filter) return;
     setState(() {
       _selectedFilter = filter;
+      _selectedCustomerProfile = null;
+      _selectedDocumentType = null;
       _selectedServiceReference = null;
       _documentsFuture = _loadDocuments();
+    });
+  }
+
+  void _selectCustomer(String? customerProfile) {
+    setState(() {
+      _selectedCustomerProfile = customerProfile;
+      _selectedServiceReference = null;
+    });
+  }
+
+  void _selectDocumentType(String? documentType) {
+    setState(() {
+      _selectedDocumentType = documentType;
+      _selectedServiceReference = null;
     });
   }
 
@@ -203,11 +229,23 @@ class _InternalDocumentReviewScreenState
               final documents = snapshot.data ?? const <DocumentItem>[];
               return _ReviewContent(
                 documents: documents,
+                searchController: _searchController,
+                query: _query,
                 selectedFilter: _selectedFilter,
+                selectedCustomerProfile: _selectedCustomerProfile,
+                selectedDocumentType: _selectedDocumentType,
                 selectedServiceReference: _selectedServiceReference,
                 busyDocumentId: _busyDocumentId,
                 canReviewDocuments: canReviewDocuments,
+                onQueryChanged: (value) =>
+                    setState(() => _query = value.trim().toLowerCase()),
+                onClearQuery: () {
+                  _searchController.clear();
+                  setState(() => _query = '');
+                },
                 onFilterSelected: _selectFilter,
+                onCustomerSelected: _selectCustomer,
+                onDocumentTypeSelected: _selectDocumentType,
                 onServiceSelected: _selectService,
                 onApprove: (document) => _reviewDocument(document, 'Approved'),
                 onReject: _rejectWithRemarks,
@@ -223,37 +261,88 @@ class _InternalDocumentReviewScreenState
 class _ReviewContent extends StatelessWidget {
   const _ReviewContent({
     required this.documents,
+    required this.searchController,
+    required this.query,
     required this.selectedFilter,
+    required this.selectedCustomerProfile,
+    required this.selectedDocumentType,
     required this.selectedServiceReference,
     required this.busyDocumentId,
     required this.canReviewDocuments,
+    required this.onQueryChanged,
+    required this.onClearQuery,
     required this.onFilterSelected,
+    required this.onCustomerSelected,
+    required this.onDocumentTypeSelected,
     required this.onServiceSelected,
     required this.onApprove,
     required this.onReject,
   });
 
   final List<DocumentItem> documents;
+  final TextEditingController searchController;
+  final String query;
   final _ReviewFilter selectedFilter;
+  final String? selectedCustomerProfile;
+  final String? selectedDocumentType;
   final String? selectedServiceReference;
   final String? busyDocumentId;
   final bool canReviewDocuments;
+  final ValueChanged<String> onQueryChanged;
+  final VoidCallback onClearQuery;
   final ValueChanged<_ReviewFilter> onFilterSelected;
+  final ValueChanged<String?> onCustomerSelected;
+  final ValueChanged<String?> onDocumentTypeSelected;
   final ValueChanged<String?> onServiceSelected;
   final ValueChanged<DocumentItem> onApprove;
   final ValueChanged<DocumentItem> onReject;
 
   @override
   Widget build(BuildContext context) {
-    final needsReview = documents.where((item) => item.isUnderReview).length;
-    final rejected = documents
+    final customerOptions = _customerOptions(documents);
+    final documentTypeOptions = _documentTypeOptions(documents);
+    final filteredDocuments = documents
+        .where((document) {
+          final matchesCustomer =
+              selectedCustomerProfile == null ||
+              document.customerProfile == selectedCustomerProfile;
+          if (!matchesCustomer) return false;
+
+          final matchesDocumentType =
+              selectedDocumentType == null ||
+              document.documentType?.trim() == selectedDocumentType;
+          if (!matchesDocumentType) return false;
+
+          if (query.isEmpty) return true;
+
+          final searchable = [
+            document.title,
+            document.documentType,
+            document.requestTitle,
+            document.serviceTitle,
+            document.serviceReference,
+            document.displayCustomerName,
+            document.customerEmail,
+            document.customerPhone,
+            document.companyName,
+            document.statusLabel,
+          ].whereType<String>().join(' ').toLowerCase();
+
+          return searchable.contains(query);
+        })
+        .toList(growable: false);
+
+    final needsReview = filteredDocuments
+        .where((item) => item.isUnderReview)
+        .length;
+    final rejected = filteredDocuments
         .where((item) => item.status == DocumentStatus.rejected)
         .length;
-    final approved = documents
+    final approved = filteredDocuments
         .where((item) => item.status == DocumentStatus.approved)
         .length;
-    final archived = documents.where((item) => item.isArchived).length;
-    final groups = _ServiceDocumentGroup.fromDocuments(documents);
+    final archived = filteredDocuments.where((item) => item.isArchived).length;
+    final groups = _ServiceDocumentGroup.fromDocuments(filteredDocuments);
     final selectedGroup = _selectedGroup(groups, selectedServiceReference);
 
     return ListView(
@@ -269,46 +358,28 @@ class _ReviewContent extends StatelessWidget {
           accentColor: _documentIndigo,
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _MetricTile(
-                icon: Icons.hourglass_top_rounded,
-                label: 'Review',
-                value: needsReview.toString(),
-                color: _reviewTeal,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _MetricTile(
-                icon: Icons.error_outline_rounded,
-                label: 'Rejected',
-                value: rejected.toString(),
-                color: _rejectedRed,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _MetricTile(
-                icon: Icons.verified_rounded,
-                label: 'Approved',
-                value: approved.toString(),
-                color: _approvedGreen,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _MetricTile(
-                icon: Icons.archive_rounded,
-                label: 'Archive',
-                value: archived.toString(),
-                color: _archivedSlate,
-              ),
-            ),
-          ],
+        _CompactMetricsStrip(
+          needsReview: needsReview,
+          rejected: rejected,
+          approved: approved,
+          archived: archived,
         ),
         const SizedBox(height: 12),
+        _InternalDocumentSearchField(
+          controller: searchController,
+          onChanged: onQueryChanged,
+          onClear: onClearQuery,
+        ),
+        const SizedBox(height: 10),
+        _WorkspaceFilterRow(
+          customerOptions: customerOptions,
+          selectedCustomerProfile: selectedCustomerProfile,
+          documentTypeOptions: documentTypeOptions,
+          selectedDocumentType: selectedDocumentType,
+          onCustomerSelected: onCustomerSelected,
+          onDocumentTypeSelected: onDocumentTypeSelected,
+        ),
+        const SizedBox(height: 10),
         _ReviewFilterBar(
           selectedFilter: selectedFilter,
           onSelected: onFilterSelected,
@@ -316,26 +387,21 @@ class _ReviewContent extends StatelessWidget {
         const SizedBox(height: 12),
         if (groups.isEmpty)
           PremiumEmptyState(
-            icon: Icons.task_alt_rounded,
-            title: 'No documents in this queue',
-            message:
-                'Switch filters or refresh when new customer uploads arrive.',
+            icon: query.isNotEmpty
+                ? Icons.search_off_rounded
+                : Icons.task_alt_rounded,
+            title: query.isNotEmpty
+                ? 'No matching documents'
+                : 'No documents in this queue',
+            message: query.isNotEmpty
+                ? 'Try another customer, search term, or queue filter.'
+                : 'Switch filters or refresh when new customer uploads arrive.',
           )
         else ...[
-          _ServiceSelectorCard(
+          _ServiceWorkspaceHeader(
             groups: groups,
-            selectedReference: selectedGroup.reference,
+            selectedGroup: selectedGroup,
             onSelected: onServiceSelected,
-          ),
-          const SizedBox(height: 12),
-          _ServiceSummaryCard(group: selectedGroup),
-          const SizedBox(height: 12),
-          PremiumListHeader(
-            icon: Icons.folder_copy_outlined,
-            title: 'Documents',
-            subtitle: selectedGroup.serviceTitle,
-            metaLabel: '${selectedGroup.documents.length} files',
-            accentColor: _documentIndigo,
           ),
           const SizedBox(height: 12),
           for (final document in selectedGroup.documents) ...[
@@ -353,6 +419,40 @@ class _ReviewContent extends StatelessWidget {
     );
   }
 
+  List<String> _documentTypeOptions(List<DocumentItem> documents) {
+    final values = documents
+        .map((document) => document.documentType?.trim())
+        .whereType<String>()
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    values.sort();
+    return values;
+  }
+
+  List<_CustomerFilterOption> _customerOptions(List<DocumentItem> documents) {
+    final options = <String, _CustomerFilterOption>{};
+
+    for (final document in documents) {
+      final profile = document.customerProfile?.trim();
+      if (profile == null || profile.isEmpty) continue;
+
+      options.putIfAbsent(
+        profile,
+        () => _CustomerFilterOption(
+          profile: profile,
+          label: document.displayCustomerName,
+          email: document.customerEmail,
+        ),
+      );
+    }
+
+    final values = options.values.toList(growable: false);
+    values.sort((a, b) => a.label.compareTo(b.label));
+    return values;
+  }
+
   _ServiceDocumentGroup _selectedGroup(
     List<_ServiceDocumentGroup> groups,
     String? selectedReference,
@@ -364,6 +464,207 @@ class _ReviewContent extends StatelessWidget {
     }
 
     return groups.first;
+  }
+}
+
+class _CustomerFilterOption {
+  const _CustomerFilterOption({
+    required this.profile,
+    required this.label,
+    required this.email,
+  });
+
+  final String profile;
+  final String label;
+  final String? email;
+}
+
+class _InternalDocumentSearchField extends StatelessWidget {
+  const _InternalDocumentSearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        style: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search customer, request, service or document',
+          hintStyle: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppTheme.textSecondary,
+          ),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear search',
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceFilterRow extends StatelessWidget {
+  const _WorkspaceFilterRow({
+    required this.customerOptions,
+    required this.selectedCustomerProfile,
+    required this.documentTypeOptions,
+    required this.selectedDocumentType,
+    required this.onCustomerSelected,
+    required this.onDocumentTypeSelected,
+  });
+
+  final List<_CustomerFilterOption> customerOptions;
+  final String? selectedCustomerProfile;
+  final List<String> documentTypeOptions;
+  final String? selectedDocumentType;
+  final ValueChanged<String?> onCustomerSelected;
+  final ValueChanged<String?> onDocumentTypeSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 620;
+
+        final customerField = _CustomerFilterField(
+          options: customerOptions,
+          selectedCustomerProfile: selectedCustomerProfile,
+          onSelected: onCustomerSelected,
+        );
+
+        final typeField = _DocumentTypeFilterField(
+          options: documentTypeOptions,
+          selectedDocumentType: selectedDocumentType,
+          onSelected: onDocumentTypeSelected,
+        );
+
+        if (compact) {
+          return Column(
+            children: [customerField, const SizedBox(height: 10), typeField],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: customerField),
+            const SizedBox(width: 10),
+            Expanded(child: typeField),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CustomerFilterField extends StatelessWidget {
+  const _CustomerFilterField({
+    required this.options,
+    required this.selectedCustomerProfile,
+    required this.onSelected,
+  });
+
+  final List<_CustomerFilterOption> options;
+  final String? selectedCustomerProfile;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: selectedCustomerProfile ?? '',
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Customer',
+        prefixIcon: Icon(Icons.person_search_rounded, color: _documentIndigo),
+      ),
+      items: [
+        const DropdownMenuItem<String>(value: '', child: Text('All customers')),
+        for (final option in options)
+          DropdownMenuItem<String>(
+            value: option.profile,
+            child: Text(
+              [
+                option.label,
+                if (option.email?.trim().isNotEmpty == true)
+                  option.email!.trim(),
+              ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: (value) =>
+          onSelected(value == null || value.isEmpty ? null : value),
+    );
+  }
+}
+
+class _DocumentTypeFilterField extends StatelessWidget {
+  const _DocumentTypeFilterField({
+    required this.options,
+    required this.selectedDocumentType,
+    required this.onSelected,
+  });
+
+  final List<String> options;
+  final String? selectedDocumentType;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: selectedDocumentType ?? '',
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Document type',
+        prefixIcon: Icon(Icons.category_outlined, color: _documentIndigo),
+      ),
+      items: [
+        const DropdownMenuItem<String>(
+          value: '',
+          child: Text('All document types'),
+        ),
+        for (final option in options)
+          DropdownMenuItem<String>(
+            value: option,
+            child: Text(option, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: (value) =>
+          onSelected(value == null || value.isEmpty ? null : value),
+    );
   }
 }
 
@@ -453,205 +754,160 @@ class _ServiceDocumentGroup {
   }
 }
 
-class _ServiceSelectorCard extends StatelessWidget {
-  const _ServiceSelectorCard({
+class _ServiceWorkspaceHeader extends StatelessWidget {
+  const _ServiceWorkspaceHeader({
     required this.groups,
-    required this.selectedReference,
+    required this.selectedGroup,
     required this.onSelected,
   });
 
   final List<_ServiceDocumentGroup> groups;
-  final String selectedReference;
+  final _ServiceDocumentGroup selectedGroup;
   final ValueChanged<String?> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      child: DropdownButtonFormField<String>(
-        initialValue: selectedReference,
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Service request',
-          prefixIcon: Icon(Icons.folder_open_rounded, color: _documentIndigo),
-        ),
-        items: groups
-            .map(
-              (group) => DropdownMenuItem<String>(
-                value: group.reference,
-                child: Text(
-                  '${group.reference} · ${group.customerName} · ${group.documents.length} docs',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            )
-            .toList(),
-        onChanged: onSelected,
-      ),
-    );
-  }
-}
-
-class _ServiceSummaryCard extends StatelessWidget {
-  const _ServiceSummaryCard({required this.group});
-
-  final _ServiceDocumentGroup group;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          DropdownButtonFormField<String>(
+            initialValue: selectedGroup.reference,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Service request',
+              prefixIcon: Icon(
+                Icons.folder_open_rounded,
+                color: _documentIndigo,
+              ),
+            ),
+            items: groups
+                .map(
+                  (group) => DropdownMenuItem<String>(
+                    value: group.reference,
+                    child: Text(
+                      '${group.customerName} · ${group.reference}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: onSelected,
+          ),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: _documentIndigo.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
+                  color: _documentIndigo.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: const Icon(
                   Icons.assignment_ind_outlined,
                   color: _documentIndigo,
-                  size: 24,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      group.customerName,
-                      maxLines: 2,
+                      selectedGroup.customerName,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
-                      '${group.serviceTitle} · ${group.reference}',
-                      maxLines: 2,
+                      selectedGroup.serviceTitle,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.35,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                       ),
+                    ),
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (selectedGroup.status != null)
+                          PremiumInfoChip(label: selectedGroup.status!),
+                        PremiumInfoChip(
+                          label: '${selectedGroup.documents.length} docs',
+                        ),
+                        if (selectedGroup.needsReview > 0)
+                          PremiumInfoChip(
+                            label: '${selectedGroup.needsReview} review',
+                            color: _reviewTeal,
+                          ),
+                        if (selectedGroup.rejected > 0)
+                          PremiumInfoChip(
+                            label: '${selectedGroup.rejected} rejected',
+                            color: _rejectedRed,
+                          ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (group.status != null) PremiumInfoChip(label: group.status!),
-              PremiumInfoChip(label: '${group.documents.length} documents'),
-              if (group.needsReview > 0)
-                PremiumInfoChip(
-                  label: '${group.needsReview} needs review',
-                  color: _reviewTeal,
-                ),
-              if (group.approved > 0)
-                PremiumInfoChip(
-                  label: '${group.approved} approved',
-                  color: _approvedGreen,
-                ),
-              if (group.rejected > 0)
-                PremiumInfoChip(
-                  label: '${group.rejected} rejected',
-                  color: _rejectedRed,
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _InfoGrid(
-            items: [
-              _InfoItem('Phone', group.customerPhone),
-              _InfoItem('Email', group.customerEmail),
-              _InfoItem('NTN', group.customerNtn),
-              _InfoItem('CNIC', group.customerCnic),
-              _InfoItem('Company', group.companyName),
-              _InfoItem('Request ID', group.reference),
-            ],
-          ),
+          const SizedBox(height: 10),
+          _CompactCustomerMeta(group: selectedGroup),
         ],
       ),
     );
   }
 }
 
-class _InfoGrid extends StatelessWidget {
-  const _InfoGrid({required this.items});
+class _CompactCustomerMeta extends StatelessWidget {
+  const _CompactCustomerMeta({required this.group});
 
-  final List<_InfoItem> items;
+  final _ServiceDocumentGroup group;
 
   @override
   Widget build(BuildContext context) {
-    final visibleItems = items
-        .where((item) => item.value != null && item.value!.trim().isNotEmpty)
-        .toList(growable: false);
+    final values = <String>[
+      if (group.customerEmail?.trim().isNotEmpty == true)
+        group.customerEmail!.trim(),
+      if (group.customerPhone?.trim().isNotEmpty == true)
+        group.customerPhone!.trim(),
+      if (group.companyName?.trim().isNotEmpty == true)
+        group.companyName!.trim(),
+      if (group.customerNtn?.trim().isNotEmpty == true)
+        'NTN ${group.customerNtn!.trim()}',
+      if (group.customerCnic?.trim().isNotEmpty == true)
+        'CNIC ${group.customerCnic!.trim()}',
+    ];
 
-    if (visibleItems.isEmpty) return const SizedBox.shrink();
+    if (values.isEmpty) return const SizedBox.shrink();
 
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        for (final item in visibleItems)
-          SizedBox(
-            width: 145,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  item.value!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
+    return Text(
+      values.join('  •  '),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: AppTheme.textSecondary,
+        fontSize: 10.5,
+        height: 1.35,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
-}
-
-class _InfoItem {
-  const _InfoItem(this.label, this.value);
-
-  final String label;
-  final String? value;
 }
 
 class _ReviewFilterBar extends StatelessWidget {
@@ -737,13 +993,14 @@ class _ReviewDocumentCard extends StatelessWidget {
         !isBusy;
     final serviceReference = document.serviceReference?.trim() ?? '';
     final canOpenCase = serviceReference.isNotEmpty;
+    final statusColor = _statusColor(document);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(18),
       onTap: () =>
           context.push('/documents/${Uri.encodeComponent(document.id)}'),
       child: PremiumCard(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(13),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -751,137 +1008,136 @@ class _ReviewDocumentCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 46,
-                  height: 46,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: _statusColor(document).withValues(alpha: 0.09),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _statusColor(document).withValues(alpha: 0.10),
-                    ),
+                    color: statusColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     document.isArchived
                         ? Icons.archive_rounded
-                        : Icons.description_rounded,
-                    color: _statusColor(document),
-                    size: 22,
+                        : Icons.description_outlined,
+                    color: statusColor,
+                    size: 19,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 11),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         document.title,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          height: 1.25,
+                          fontSize: 13,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: -0.1,
                         ),
                       ),
-                      if (document.subtitle != null) ...[
-                        const SizedBox(height: 5),
-                        Text(
-                          document.subtitle!,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12,
-                            height: 1.35,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          if (document.documentType?.trim().isNotEmpty == true)
+                            document.documentType!.trim(),
+                          document.statusLabel,
+                          if (document.updatedAtLabel?.trim().isNotEmpty ==
+                              true)
+                            document.updatedAtLabel!.trim(),
+                        ].join('  •  '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                  size: 20,
+                ),
               ],
             ),
+            if (document.remarks?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 9),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  document.remarks!.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 10.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                PremiumInfoChip(
-                  label: document.statusLabel,
-                  color: _statusColor(document),
-                ),
-                if (document.source != null)
-                  PremiumInfoChip(label: document.source!),
-                if (document.updatedAtLabel != null)
-                  PremiumInfoChip(
-                    label: 'Uploaded ${document.updatedAtLabel!}',
-                  ),
-              ],
-            ),
-            if (document.remarks != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                document.remarks!,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  height: 1.35,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: canOpenCase
-                        ? () => context.push(
-                            '/my-services/${Uri.encodeComponent(serviceReference)}',
-                          )
-                        : null,
-                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                    label: const Text('Case'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _documentNavy,
-                      side: const BorderSide(color: Color(0xFFD8DFEC)),
-                    ),
+                OutlinedButton.icon(
+                  onPressed: canOpenCase
+                      ? () => context.push(
+                          '/my-services/${Uri.encodeComponent(serviceReference)}',
+                        )
+                      : null,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                  label: const Text('Case'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    foregroundColor: _documentNavy,
+                    side: const BorderSide(color: Color(0xFFD8DFEC)),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: canReview ? onApprove : null,
-                    icon: isBusy
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check_rounded, size: 16),
-                    label: const Text('Approve'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _approvedGreen,
-                      foregroundColor: Colors.white,
-                    ),
+                FilledButton.icon(
+                  onPressed: canReview ? onApprove : null,
+                  icon: isBusy
+                      ? const SizedBox(
+                          width: 13,
+                          height: 13,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_rounded, size: 15),
+                  label: const Text('Approve'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    backgroundColor: _approvedGreen,
+                    foregroundColor: Colors.white,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: canReview ? onReject : null,
-                    icon: const Icon(Icons.close_rounded, size: 16),
-                    label: const Text('Reject'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _rejectedRed,
-                      side: BorderSide(
-                        color: _rejectedRed.withValues(alpha: 0.34),
-                      ),
+                OutlinedButton.icon(
+                  onPressed: canReview ? onReject : null,
+                  icon: const Icon(Icons.close_rounded, size: 15),
+                  label: const Text('Reject'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    foregroundColor: _rejectedRed,
+                    side: BorderSide(
+                      color: _rejectedRed.withValues(alpha: 0.34),
                     ),
                   ),
                 ),
@@ -926,8 +1182,59 @@ IconData _reviewFilterIcon(_ReviewFilter filter) {
   }
 }
 
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({
+class _CompactMetricsStrip extends StatelessWidget {
+  const _CompactMetricsStrip({
+    required this.needsReview,
+    required this.rejected,
+    required this.approved,
+    required this.archived,
+  });
+
+  final int needsReview;
+  final int rejected;
+  final int approved;
+  final int archived;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _CompactMetric(
+            icon: Icons.hourglass_top_rounded,
+            label: 'Review',
+            value: needsReview,
+            color: _reviewTeal,
+          ),
+          _CompactMetric(
+            icon: Icons.error_outline_rounded,
+            label: 'Rejected',
+            value: rejected,
+            color: _rejectedRed,
+          ),
+          _CompactMetric(
+            icon: Icons.verified_rounded,
+            label: 'Approved',
+            value: approved,
+            color: _approvedGreen,
+          ),
+          _CompactMetric(
+            icon: Icons.archive_rounded,
+            label: 'Archive',
+            value: archived,
+            color: _archivedSlate,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactMetric extends StatelessWidget {
+  const _CompactMetric({
     required this.icon,
     required this.label,
     required this.value,
@@ -936,45 +1243,29 @@ class _MetricTile extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final String value;
+  final int value;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(11),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.065),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 9),
+          Icon(icon, color: color, size: 15),
+          const SizedBox(width: 6),
           Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
+            '$value $label',
+            style: TextStyle(
+              color: color,
+              fontSize: 10.5,
               fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ],

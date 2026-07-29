@@ -1,6 +1,6 @@
 import frappe
 
-from omc_app.api import access
+from omc_app.api import access, mobile
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _can_access_internal_workspace,
@@ -311,9 +311,15 @@ def sync_service_document_customer_profile(service_request=None):
 def get_documents(show_archived=None, queue=None, customer=None, service_request=None, status=None):
     is_internal = _can_access_internal_workspace()
     profile = None if is_internal else _assert_approved_customer()
-    capabilities = _canonical_capabilities()
+    allowed_service_requests = None
+
     if is_internal:
+        _user, capabilities, allowed_service_requests = (
+            mobile._require_service_case_read_scope()
+        )
         _require_document_read_access(capabilities)
+    else:
+        capabilities = _canonical_capabilities()
 
     service_filters = {}
     if profile:
@@ -322,7 +328,17 @@ def get_documents(show_archived=None, queue=None, customer=None, service_request
         service_filters["customer_profile"] = customer
 
     if service_request:
+        if (
+            allowed_service_requests is not None
+            and service_request not in allowed_service_requests
+        ):
+            return {"documents": []}
         service_filters["name"] = service_request
+    elif allowed_service_requests is not None:
+        service_filters["name"] = [
+            "in",
+            allowed_service_requests or ["__no_service_requests__"],
+        ]
 
     service_request_names = frappe.get_all(
         "OMC Service Request",
@@ -412,9 +428,13 @@ def get_document(document_id=None):
         frappe.throw("Document not found", frappe.DoesNotExistError)
 
     profile = None if is_internal else _assert_approved_customer()
-    capabilities = _canonical_capabilities()
     if is_internal:
+        _user, capabilities, _allowed_service_requests = (
+            mobile._require_service_case_read_scope(doc.service_request)
+        )
         _require_document_read_access(capabilities)
+    else:
+        capabilities = _canonical_capabilities()
     service_case = frappe.get_doc("OMC Service Request", doc.service_request)
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:

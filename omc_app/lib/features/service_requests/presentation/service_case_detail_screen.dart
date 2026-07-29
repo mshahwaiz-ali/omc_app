@@ -2177,7 +2177,8 @@ class _CaseActionsCard extends StatelessWidget {
           return status.contains('approve') || status.contains('verified');
         });
 
-    final hasAvailablePayment = serviceCase.activePaymentTotal > 0;
+    final hasAvailablePayment =
+        serviceCase.hasPayment && serviceCase.activePaymentTotal > 0;
 
     final action = _resolveAction(
       hasMissingDocuments: hasMissingDocuments,
@@ -2189,6 +2190,7 @@ class _CaseActionsCard extends StatelessWidget {
       allDocumentsApproved: allDocumentsApproved,
 
       hasAvailablePayment: hasAvailablePayment,
+      paymentBlockReason: serviceCase.paymentBlockReason,
     );
 
     return PremiumCard(
@@ -2252,6 +2254,7 @@ class _CaseActionsCard extends StatelessWidget {
               action: action.primaryType,
               isUploading: isUploading,
               onUpload: onUploadMissingDocument,
+              paymentId: serviceCase.paymentId,
             ),
           ],
           const SizedBox(height: 16),
@@ -2312,6 +2315,7 @@ class _CaseActionsCard extends StatelessWidget {
     required bool hasPendingReview,
     required bool allDocumentsApproved,
     required bool hasAvailablePayment,
+    required String? paymentBlockReason,
   }) {
     if (hasMissingDocuments) {
       return const _ResolvedCaseAction(
@@ -2350,14 +2354,17 @@ class _CaseActionsCard extends StatelessWidget {
     }
 
     if (allDocumentsApproved) {
-      return const _ResolvedCaseAction(
-        icon: Icons.verified_outlined,
-        color: Color(0xFF168D49),
-        background: Color(0xFFE9F7EE),
-        title: 'Documents approved',
-        message:
-            'No payment action is available yet. OMC will notify you when payment is ready.',
-        primaryType: _CasePrimaryAction.none,
+      final blockedMessage = paymentBlockReason?.trim();
+
+      return _ResolvedCaseAction(
+        icon: Icons.account_balance_wallet_outlined,
+        color: AppTheme.textSecondary,
+        background: AppTheme.background,
+        title: 'Payment review is not available yet',
+        message: blockedMessage != null && blockedMessage.isNotEmpty
+            ? blockedMessage
+            : 'All required documents are approved. This option will become available when OMC generates the payment.',
+        primaryType: _CasePrimaryAction.payment,
       );
     }
 
@@ -2410,15 +2417,20 @@ class _PrimaryCaseActionButton extends StatelessWidget {
     required this.action,
     required this.isUploading,
     required this.onUpload,
+    required this.paymentId,
   });
 
   final _CasePrimaryAction action;
   final bool isUploading;
   final VoidCallback? onUpload;
+  final String? paymentId;
 
   @override
   Widget build(BuildContext context) {
     final isPayment = action == _CasePrimaryAction.payment;
+    final cleanPaymentId = paymentId?.trim();
+    final canOpenPayment =
+        isPayment && cleanPaymentId != null && cleanPaymentId.isNotEmpty;
 
     final label = switch (action) {
       _CasePrimaryAction.upload => 'Upload documents',
@@ -2433,7 +2445,11 @@ class _PrimaryCaseActionButton extends StatelessWidget {
         onPressed: isUploading
             ? null
             : isPayment
-            ? () => context.push('/payments')
+            ? canOpenPayment
+                  ? () => context.push(
+                      '/payments/${Uri.encodeComponent(cleanPaymentId)}',
+                    )
+                  : null
             : onUpload,
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFF159447),

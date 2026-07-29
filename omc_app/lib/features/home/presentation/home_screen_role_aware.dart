@@ -11,6 +11,8 @@ import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../../app/route_access_policy.dart';
 import '../../profile/data/profile_repository.dart';
+import '../../service_catalogue/application/service_catalogue_controller.dart';
+import '../../service_catalogue/data/service_item.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
 import '../application/home_action_access.dart';
@@ -54,6 +56,7 @@ class HomeScreen extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final profileAsync = ref.watch(profileSummaryProvider);
     final quickActionsAsync = ref.watch(mobileQuickActionsProvider);
+    final serviceCatalogueAsync = ref.watch(serviceCatalogueProvider);
 
     final profile = profileAsync.maybeWhen(
       data: (value) => value,
@@ -78,6 +81,12 @@ class HomeScreen extends ConsumerWidget {
     final avatarUrl = _resolveAvatarUrl(
       profile?.avatarUrl ?? authState.avatarUrl,
     );
+
+    final searchableServices = serviceCatalogueAsync
+        .maybeWhen<List<ServiceItem>>(
+          data: (value) => value,
+          orElse: () => const <ServiceItem>[],
+        );
 
     final quickActions = mode.isInternal
         ? _internalQuickActions(
@@ -109,6 +118,7 @@ class HomeScreen extends ConsumerWidget {
         summary: summary,
         capabilities: capabilities,
         actions: quickActions,
+        searchableServices: searchableServices,
         isGuest: capabilities.isGuest,
         isPending: capabilities.isPending,
         isRejected: capabilities.isRejected,
@@ -130,6 +140,8 @@ class HomeScreen extends ConsumerWidget {
         },
         onSearch: (query) =>
             context.push('/services?query=${Uri.encodeQueryComponent(query)}'),
+        onOpenSearchResult: (serviceId) =>
+            context.push('/services/${Uri.encodeComponent(serviceId)}'),
         onAction: (action) => _handleQuickAction(
           context,
           action,

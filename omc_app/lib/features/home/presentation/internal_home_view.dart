@@ -1008,69 +1008,77 @@ class _QuickActions extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () => onTap(action),
-                      borderRadius: BorderRadius.circular(17),
+                      borderRadius: BorderRadius.circular(14),
                       child: Container(
-                        constraints: const BoxConstraints(minHeight: 150),
-                        padding: const EdgeInsets.fromLTRB(12, 14, 12, 13),
+                        constraints: const BoxConstraints(minHeight: 94),
+                        padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(17),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: _border),
                         ),
-                        child: Column(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Stack(
                               clipBehavior: Clip.none,
                               children: [
                                 Container(
-                                  width: 55,
-                                  height: 55,
+                                  width: 40,
+                                  height: 40,
                                   decoration: BoxDecoration(
                                     color: visual.soft,
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
                                     visual.icon,
                                     color: visual.accent,
-                                    size: 29,
+                                    size: 21,
                                   ),
                                 ),
                                 if (badge > 0)
                                   Positioned(
-                                    right: -8,
-                                    top: -8,
+                                    right: -7,
+                                    top: -7,
                                     child: _CountBadge(count: badge),
                                   ),
                                 if (!allowed)
                                   const Positioned(
-                                    right: -7,
-                                    bottom: -7,
+                                    right: -6,
+                                    bottom: -6,
                                     child: _LockBadge(),
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 11),
-                            Text(
-                              action.title,
-                              maxLines: 2,
-                              textAlign: TextAlign.center,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _ink,
-                                fontSize: 14,
-                                height: 1.2,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              _actionSubtitle(action, summary, badge),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: visual.accent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    action.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: _ink,
+                                      fontSize: 12.5,
+                                      height: 1.15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _actionSubtitle(action, summary, badge),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: visual.accent,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

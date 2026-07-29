@@ -6,8 +6,6 @@ import '../../../app/theme.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../../core/widgets/premium_info_chip.dart';
-import '../../../core/widgets/premium_list_header.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
 
@@ -19,16 +17,16 @@ class DocumentsScreen extends ConsumerWidget {
     final documentsAsync = ref.watch(documentsProvider);
 
     return Scaffold(
+      backgroundColor: OmcPremium.canvas,
       body: SafeArea(
         child: RefreshIndicator(
+          color: OmcPremium.documents,
           onRefresh: () async {
             ref.invalidate(documentsProvider);
             await ref.read(documentsProvider.future);
           },
           child: documentsAsync.when(
-            data: (documents) => documents.isEmpty
-                ? const _EmptyDocumentsView()
-                : _DocumentsList(documents: documents),
+            data: (documents) => _DocumentsWorkspace(documents: documents),
             loading: () => const _DocumentsLoadingView(),
             error: (error, _) => _DocumentsErrorView(
               error: error,
@@ -42,177 +40,300 @@ class DocumentsScreen extends ConsumerWidget {
 }
 
 enum _DocumentFilter {
-  active('Active'),
-  needsAction('Needs Action'),
+  all('All'),
+  action('Action'),
+  review('Review'),
   approved('Approved'),
-  archived('Archived');
+  archived('Archive');
 
   const _DocumentFilter(this.label);
 
   final String label;
 }
 
-class _DocumentsList extends StatefulWidget {
-  const _DocumentsList({required this.documents});
+class _DocumentsWorkspace extends StatefulWidget {
+  const _DocumentsWorkspace({required this.documents});
 
   final List<DocumentItem> documents;
 
   @override
-  State<_DocumentsList> createState() => _DocumentsListState();
+  State<_DocumentsWorkspace> createState() => _DocumentsWorkspaceState();
 }
 
-class _DocumentsListState extends State<_DocumentsList> {
-  _DocumentFilter _selectedFilter = _DocumentFilter.active;
+class _DocumentsWorkspaceState extends State<_DocumentsWorkspace> {
+  final _searchController = TextEditingController();
+  _DocumentFilter _selectedFilter = _DocumentFilter.all;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredDocuments = _filteredDocuments(widget.documents);
-    final sections = _documentSections(filteredDocuments);
+    final visible = _filteredDocuments(widget.documents);
+    final groups = _DocumentRequestGroup.fromDocuments(visible);
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 164),
       children: [
-        _DocumentsHeader(documents: widget.documents),
-        const SizedBox(height: 12),
-        _DocumentFilterBar(
-          documents: widget.documents,
-          selectedFilter: _selectedFilter,
-          onSelected: (filter) => setState(() => _selectedFilter = filter),
-        ),
+        _Header(documents: widget.documents),
         const SizedBox(height: 16),
-        if (filteredDocuments.isEmpty)
-          _DocumentsFilteredEmptyState(filter: _selectedFilter)
+        _SearchField(
+          controller: _searchController,
+          onChanged: (value) =>
+              setState(() => _query = value.trim().toLowerCase()),
+          onClear: () {
+            _searchController.clear();
+            setState(() => _query = '');
+          },
+        ),
+        const SizedBox(height: 12),
+        _FilterBar(
+          documents: widget.documents,
+          selected: _selectedFilter,
+          onSelected: (value) => setState(() => _selectedFilter = value),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Service requests',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            Text(
+              '${groups.length} ${groups.length == 1 ? 'request' : 'requests'}',
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (widget.documents.isEmpty)
+          const _EmptyDocumentsView()
+        else if (groups.isEmpty)
+          _FilteredEmptyView(
+            hasQuery: _query.isNotEmpty,
+            filter: _selectedFilter,
+          )
         else
-          for (final section in sections) ...[
-            _DocumentSection(section: section),
-            if (section != sections.last) const SizedBox(height: 16),
+          for (var index = 0; index < groups.length; index++) ...[
+            _RequestDocumentCard(group: groups[index]),
+            if (index != groups.length - 1) const SizedBox(height: 12),
           ],
       ],
     );
   }
 
   List<DocumentItem> _filteredDocuments(List<DocumentItem> documents) {
-    switch (_selectedFilter) {
-      case _DocumentFilter.active:
-        return documents.where((item) => item.isActive).toList(growable: false);
-      case _DocumentFilter.needsAction:
-        return documents
-            .where((item) => item.requiresAction)
-            .toList(growable: false);
-      case _DocumentFilter.approved:
-        return documents
-            .where((item) => item.isApproved)
-            .toList(growable: false);
-      case _DocumentFilter.archived:
-        return documents
-            .where((item) => item.isArchived)
-            .toList(growable: false);
-    }
-  }
+    final filtered = documents
+        .where((item) {
+          final matchesFilter = switch (_selectedFilter) {
+            _DocumentFilter.all => true,
+            _DocumentFilter.action => item.requiresAction,
+            _DocumentFilter.review => item.isUnderReview,
+            _DocumentFilter.approved => item.isApproved,
+            _DocumentFilter.archived => item.isArchived,
+          };
 
-  List<_DocumentSectionData> _documentSections(List<DocumentItem> documents) {
-    final actionNeeded = documents
-        .where((item) => item.requiresAction)
-        .toList(growable: false);
-    final submitted = documents
-        .where((item) => item.isUnderReview)
-        .toList(growable: false);
-    final approved = documents
-        .where((item) => item.isApproved)
-        .toList(growable: false);
-    final archived = documents
-        .where((item) => item.isArchived)
+          if (!matchesFilter) return false;
+          if (_query.isEmpty) return true;
+
+          final searchable = [
+            item.title,
+            item.documentType,
+            item.requestTitle,
+            item.serviceTitle,
+            item.serviceReference,
+            item.statusLabel,
+          ].whereType<String>().join(' ').toLowerCase();
+
+          return searchable.contains(_query);
+        })
         .toList(growable: false);
 
-    return [
-      if (actionNeeded.isNotEmpty)
-        _DocumentSectionData(
-          title: 'Action needed',
-          subtitle: 'Missing or rejected documents to upload again.',
-          icon: Icons.priority_high_rounded,
-          documents: actionNeeded,
-        ),
-      if (submitted.isNotEmpty)
-        _DocumentSectionData(
-          title: 'Submitted',
-          subtitle: 'Uploaded documents waiting for OMC review.',
-          icon: Icons.upload_file_rounded,
-          documents: submitted,
-        ),
-      if (approved.isNotEmpty)
-        _DocumentSectionData(
-          title: 'Approved',
-          subtitle: 'Documents verified by OMC for active services.',
-          icon: Icons.verified_rounded,
-          documents: approved,
-        ),
-      if (archived.isNotEmpty)
-        _DocumentSectionData(
-          title: 'Archived',
-          subtitle: 'Documents from completed or cancelled services.',
-          icon: Icons.archive_rounded,
-          documents: archived,
-        ),
-    ];
+    filtered.sort((a, b) {
+      final actionCompare = (b.requiresAction ? 1 : 0).compareTo(
+        a.requiresAction ? 1 : 0,
+      );
+      if (actionCompare != 0) return actionCompare;
+
+      final archivedCompare = (a.isArchived ? 1 : 0).compareTo(
+        b.isArchived ? 1 : 0,
+      );
+      if (archivedCompare != 0) return archivedCompare;
+
+      return (b.updatedAtLabel ?? '').compareTo(a.updatedAtLabel ?? '');
+    });
+
+    return filtered;
   }
 }
 
-class _DocumentFilterBar extends StatelessWidget {
-  const _DocumentFilterBar({
-    required this.documents,
-    required this.selectedFilter,
-    required this.onSelected,
-  });
+class _Header extends StatelessWidget {
+  const _Header({required this.documents});
 
   final List<DocumentItem> documents;
-  final _DocumentFilter selectedFilter;
-  final ValueChanged<_DocumentFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = documents.where((item) => item.isActive).length;
+    final action = documents.where((item) => item.requiresAction).length;
+    final review = documents.where((item) => item.isUnderReview).length;
+    final approved = documents.where((item) => item.isApproved).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: OmcPremium.border),
+              ),
+              child: const Icon(
+                Icons.folder_copy_outlined,
+                color: OmcPremium.documents,
+                size: 27,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'My Documents',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 27,
+                        height: 1.05,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$active active  •  $action need action',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (documents.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _MetricTile(
+                  label: 'Action',
+                  value: action,
+                  icon: Icons.priority_high_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  label: 'Review',
+                  value: review,
+                  icon: Icons.hourglass_top_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  label: 'Approved',
+                  value: approved,
+                  icon: Icons.verified_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'My Documents',
-                  style: TextStyle(
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: OmcPremium.documents.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: OmcPremium.documents, size: 17),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$value',
+                  style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-              Text(
-                '${_countFor(selectedFilter)} shown',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                for (final filter in _DocumentFilter.values) ...[
-                  _DocumentFilterChip(
-                    label: filter.label,
-                    count: _countFor(filter),
-                    selected: selectedFilter == filter,
-                    onTap: () => onSelected(filter),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(width: 8),
-                ],
+                ),
               ],
             ),
           ),
@@ -220,23 +341,114 @@ class _DocumentFilterBar extends StatelessWidget {
       ),
     );
   }
+}
 
-  int _countFor(_DocumentFilter filter) {
-    switch (filter) {
-      case _DocumentFilter.active:
-        return documents.where((item) => item.isActive).length;
-      case _DocumentFilter.needsAction:
-        return documents.where((item) => item.requiresAction).length;
-      case _DocumentFilter.approved:
-        return documents.where((item) => item.isApproved).length;
-      case _DocumentFilter.archived:
-        return documents.where((item) => item.isArchived).length;
-    }
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: OmcPremium.border),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        style: const TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search document, service or request ID',
+          hintStyle: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppTheme.textSecondary,
+          ),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear search',
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        ),
+      ),
+    );
   }
 }
 
-class _DocumentFilterChip extends StatelessWidget {
-  const _DocumentFilterChip({
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({
+    required this.documents,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<DocumentItem> documents;
+  final _DocumentFilter selected;
+  final ValueChanged<_DocumentFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          for (final filter in _DocumentFilter.values) ...[
+            _FilterChip(
+              label: filter.label,
+              count: _countFor(filter),
+              selected: selected == filter,
+              onTap: () => onSelected(filter),
+            ),
+            if (filter != _DocumentFilter.values.last) const SizedBox(width: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  int _countFor(_DocumentFilter filter) {
+    return switch (filter) {
+      _DocumentFilter.all => documents.length,
+      _DocumentFilter.action =>
+        documents.where((item) => item.requiresAction).length,
+      _DocumentFilter.review =>
+        documents.where((item) => item.isUnderReview).length,
+      _DocumentFilter.approved =>
+        documents.where((item) => item.isApproved).length,
+      _DocumentFilter.archived =>
+        documents.where((item) => item.isArchived).length,
+    };
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
     required this.label,
     required this.count,
     required this.selected,
@@ -251,46 +463,379 @@ class _DocumentFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChoiceChip(
-      label: Text('$label $count'),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: OmcPremium.documents.withValues(alpha: 0.12),
+      showCheckmark: false,
+      label: Text('$label  $count'),
+      selectedColor: OmcPremium.documents.withValues(alpha: 0.11),
+      backgroundColor: Colors.white,
       side: BorderSide(
         color: selected
-            ? OmcPremium.documents.withValues(alpha: 0.28)
-            : Colors.black.withValues(alpha: 0.08),
+            ? OmcPremium.documents.withValues(alpha: 0.24)
+            : OmcPremium.border,
       ),
       labelStyle: TextStyle(
         color: selected ? OmcPremium.documents : AppTheme.textSecondary,
+        fontSize: 11.5,
         fontWeight: FontWeight.w900,
-        fontSize: 12,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+    );
+  }
+}
+
+class _DocumentRequestGroup {
+  const _DocumentRequestGroup({
+    required this.reference,
+    required this.requestTitle,
+    required this.serviceTitle,
+    required this.serviceStatus,
+    required this.documents,
+  });
+
+  final String reference;
+  final String requestTitle;
+  final String serviceTitle;
+  final String? serviceStatus;
+  final List<DocumentItem> documents;
+
+  int get actionCount => documents.where((item) => item.requiresAction).length;
+  int get approvedCount => documents.where((item) => item.isApproved).length;
+  int get reviewCount => documents.where((item) => item.isUnderReview).length;
+  bool get isArchived => documents.every((item) => item.isArchived);
+
+  static List<_DocumentRequestGroup> fromDocuments(
+    List<DocumentItem> documents,
+  ) {
+    final grouped = <String, List<DocumentItem>>{};
+
+    for (final document in documents) {
+      final reference = document.serviceReference?.trim();
+      final key = reference != null && reference.isNotEmpty
+          ? reference
+          : 'Unlinked request';
+      grouped.putIfAbsent(key, () => <DocumentItem>[]).add(document);
+    }
+
+    final groups = grouped.entries.map((entry) {
+      final first = entry.value.first;
+      final requestTitle = first.requestTitle?.trim();
+      final serviceTitle = first.serviceTitle?.trim();
+
+      return _DocumentRequestGroup(
+        reference: entry.key,
+        requestTitle: requestTitle != null && requestTitle.isNotEmpty
+            ? requestTitle
+            : serviceTitle != null && serviceTitle.isNotEmpty
+            ? serviceTitle
+            : 'Service request',
+        serviceTitle: serviceTitle != null && serviceTitle.isNotEmpty
+            ? serviceTitle
+            : 'OMC service',
+        serviceStatus: first.serviceStatus,
+        documents: entry.value,
+      );
+    }).toList();
+
+    groups.sort((a, b) {
+      final actionCompare = b.actionCount.compareTo(a.actionCount);
+      if (actionCompare != 0) return actionCompare;
+
+      final archivedCompare = (a.isArchived ? 1 : 0).compareTo(
+        b.isArchived ? 1 : 0,
+      );
+      if (archivedCompare != 0) return archivedCompare;
+
+      return a.reference.compareTo(b.reference);
+    });
+
+    return groups;
+  }
+}
+
+class _RequestDocumentCard extends StatelessWidget {
+  const _RequestDocumentCard({required this.group});
+
+  final _DocumentRequestGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = group.documents.length;
+    final progress = total == 0 ? 0.0 : group.approvedCount / total;
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 43,
+                height: 43,
+                decoration: BoxDecoration(
+                  color: OmcPremium.documents.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.folder_open_rounded,
+                  color: OmcPremium.documents,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      group.requestTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 15,
+                        height: 1.2,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${group.reference}  •  ${group.serviceTitle}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (group.actionCount > 0)
+                _StatusPill(
+                  label: '${group.actionCount} action',
+                  color: OmcPremium.danger,
+                )
+              else if (group.reviewCount > 0)
+                _StatusPill(
+                  label: '${group.reviewCount} review',
+                  color: OmcPremium.review,
+                )
+              else
+                const _StatusPill(
+                  label: 'Up to date',
+                  color: OmcPremium.success,
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress.clamp(0, 1),
+                    minHeight: 7,
+                    backgroundColor: const Color(0xFFE8EDF0),
+                    valueColor: const AlwaysStoppedAnimation(
+                      OmcPremium.documents,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${group.approvedCount}/$total approved',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (var index = 0; index < group.documents.length; index++) ...[
+            _CompactDocumentRow(document: group.documents[index]),
+            if (index != group.documents.length - 1) const SizedBox(height: 8),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _DocumentsFilteredEmptyState extends StatelessWidget {
-  const _DocumentsFilteredEmptyState({required this.filter});
+class _CompactDocumentRow extends StatelessWidget {
+  const _CompactDocumentRow({required this.document});
 
+  final DocumentItem document;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor(document);
+
+    return Material(
+      color: AppTheme.background,
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: () =>
+            context.push('/documents/${Uri.encodeComponent(document.id)}'),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.055)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(_statusIcon(document), color: color, size: 18),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      document.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      [
+                        if (document.documentType?.trim().isNotEmpty == true)
+                          document.documentType!.trim(),
+                        document.statusLabel,
+                      ].join('  •  '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (document.remarks?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        document.remarks!.trim(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 10.5,
+                          height: 1.3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                size: 21,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(DocumentItem document) {
+    if (document.isArchived) return OmcPremium.system;
+
+    return switch (document.status) {
+      DocumentStatus.approved => OmcPremium.success,
+      DocumentStatus.rejected => OmcPremium.danger,
+      DocumentStatus.missing => OmcPremium.danger,
+      DocumentStatus.pendingReview => OmcPremium.action,
+      DocumentStatus.uploaded => OmcPremium.review,
+    };
+  }
+
+  IconData _statusIcon(DocumentItem document) {
+    if (document.isArchived) return Icons.archive_rounded;
+
+    return switch (document.status) {
+      DocumentStatus.approved => Icons.verified_rounded,
+      DocumentStatus.rejected => Icons.error_outline_rounded,
+      DocumentStatus.missing => Icons.upload_file_rounded,
+      DocumentStatus.pendingReview => Icons.hourglass_top_rounded,
+      DocumentStatus.uploaded => Icons.description_outlined,
+    };
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.13)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _FilteredEmptyView extends StatelessWidget {
+  const _FilteredEmptyView({required this.hasQuery, required this.filter});
+
+  final bool hasQuery;
   final _DocumentFilter filter;
 
   @override
   Widget build(BuildContext context) {
-    final isArchived = filter == _DocumentFilter.archived;
-
     return PremiumCard(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Icon(
-            isArchived ? Icons.archive_outlined : Icons.filter_alt_off_rounded,
+          const Icon(
+            Icons.search_off_rounded,
             color: OmcPremium.documents,
-            size: 34,
+            size: 36,
           ),
           const SizedBox(height: 10),
           Text(
-            isArchived
-                ? 'No archived documents'
+            hasQuery
+                ? 'No matching documents'
                 : 'No ${filter.label.toLowerCase()} documents',
             textAlign: TextAlign.center,
             style: const TextStyle(
@@ -300,12 +845,10 @@ class _DocumentsFilteredEmptyState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            isArchived
-                ? 'Completed and cancelled service documents will appear here.'
-                : 'Try another document filter.',
+          const Text(
+            'Try another search or document filter.',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -317,432 +860,50 @@ class _DocumentsFilteredEmptyState extends StatelessWidget {
   }
 }
 
-class _DocumentSectionData {
-  const _DocumentSectionData({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.documents,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final List<DocumentItem> documents;
-}
-
-class _DocumentSection extends StatelessWidget {
-  const _DocumentSection({required this.section});
-
-  final _DocumentSectionData section;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: OmcPremium.documents.withValues(alpha: 0.075),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(section.icon, color: OmcPremium.documents, size: 18),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    section.title,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    section.subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            PremiumInfoChip(label: section.documents.length.toString()),
-          ],
-        ),
-        const SizedBox(height: 10),
-        for (var index = 0; index < section.documents.length; index++) ...[
-          _DocumentCard(document: section.documents[index]),
-          if (index != section.documents.length - 1) const SizedBox(height: 10),
-        ],
-      ],
-    );
-  }
-}
-
-class _DocumentsHeader extends StatelessWidget {
-  const _DocumentsHeader({required this.documents});
-
-  final List<DocumentItem> documents;
-
-  @override
-  Widget build(BuildContext context) {
-    final activeCount = documents.where((item) => item.isActive).length;
-    final actionCount = documents.where((item) => item.requiresAction).length;
-    final approvedCount = documents.where((item) => item.isApproved).length;
-    final archivedCount = documents.where((item) => item.isArchived).length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PremiumListHeader(
-          icon: Icons.folder_copy_outlined,
-          title: 'My Documents',
-          subtitle:
-              'Active service documents stay visible. Completed service documents move to archive.',
-          metaLabel: '$activeCount active',
-        ),
-        if (documents.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _DocumentStatTile(
-                  icon: Icons.folder_copy_outlined,
-                  label: 'Active',
-                  value: activeCount.toString(),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _DocumentStatTile(
-                  icon: Icons.priority_high_rounded,
-                  label: 'Action',
-                  value: actionCount.toString(),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _DocumentStatTile(
-                  icon: Icons.verified_rounded,
-                  label: 'Approved',
-                  value: approvedCount.toString(),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _DocumentStatTile(
-                  icon: Icons.archive_rounded,
-                  label: 'Archive',
-                  value: archivedCount.toString(),
-                ),
-              ),
-            ],
-          ),
-        ],
-        const SizedBox(height: 10),
-      ],
-    );
-  }
-}
-
-class _DocumentStatTile extends StatelessWidget {
-  const _DocumentStatTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(11),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: OmcPremium.documents.withValues(alpha: 0.065),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: OmcPremium.documents.withValues(alpha: 0.07),
-              ),
-            ),
-            child: Icon(icon, color: OmcPremium.documents, size: 17),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.1,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DocumentCard extends StatelessWidget {
-  const _DocumentCard({required this.document});
-
-  final DocumentItem document;
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = _statusColor(document);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: () =>
-          context.push('/documents/${Uri.encodeComponent(document.id)}'),
-      child: PremiumCard(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.09),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: statusColor.withValues(alpha: 0.10)),
-              ),
-              child: Icon(_statusIcon(document), color: statusColor, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    document.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      height: 1.25,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  if (document.subtitle != null) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      document.subtitle!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      PremiumInfoChip(
-                        label: document.statusLabel,
-                        color: statusColor,
-                      ),
-                      if (document.serviceStatus != null)
-                        PremiumInfoChip(label: document.serviceStatus!),
-                      if (document.updatedAtLabel != null)
-                        PremiumInfoChip(
-                          label: 'Uploaded ${document.updatedAtLabel!}',
-                        ),
-                      if (document.archivedOnLabel != null)
-                        PremiumInfoChip(
-                          label: 'Archived ${document.archivedOnLabel!}',
-                        ),
-                    ],
-                  ),
-                  if (document.fileName != null ||
-                      document.fileUrl != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      document.fileName ?? 'File link available',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                  if (document.remarks != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.055),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Text(
-                        document.status == DocumentStatus.rejected
-                            ? 'Rejected: ${document.remarks!}'
-                            : document.remarks!,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: document.status == DocumentStatus.rejected
-                              ? OmcPremium.danger
-                              : AppTheme.textSecondary,
-                          fontSize: 12,
-                          height: 1.35,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _statusColor(DocumentItem document) {
-    if (document.isArchived) return OmcPremium.system;
-
-    switch (document.status) {
-      case DocumentStatus.approved:
-        return OmcPremium.success;
-      case DocumentStatus.rejected:
-      case DocumentStatus.missing:
-        return OmcPremium.danger;
-      case DocumentStatus.pendingReview:
-        return OmcPremium.action;
-      case DocumentStatus.uploaded:
-        return OmcPremium.review;
-    }
-  }
-
-  IconData _statusIcon(DocumentItem document) {
-    if (document.isArchived) return Icons.archive_rounded;
-
-    switch (document.status) {
-      case DocumentStatus.approved:
-        return Icons.verified_rounded;
-      case DocumentStatus.rejected:
-        return Icons.error_outline_rounded;
-      case DocumentStatus.missing:
-        return Icons.upload_file_rounded;
-      case DocumentStatus.pendingReview:
-        return Icons.hourglass_top_rounded;
-      case DocumentStatus.uploaded:
-        return Icons.description_rounded;
-    }
-  }
-}
-
 class _EmptyDocumentsView extends StatelessWidget {
   const _EmptyDocumentsView();
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
-      children: [
-        const _DocumentsHeader(documents: []),
-        const SizedBox(height: 24),
-        PremiumCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: [
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: OmcPremium.documents.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: OmcPremium.documents.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.folder_copy_outlined,
-                  color: OmcPremium.documents,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'No active documents yet',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.15,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Required and submitted documents will appear here when active service records are available.',
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+    return PremiumCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: OmcPremium.documents.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.folder_copy_outlined,
+              color: OmcPremium.documents,
+              size: 31,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          const Text(
+            'No documents yet',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 7),
+          const Text(
+            'Required and submitted documents will appear here when you start a service request.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12.5,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -759,8 +920,6 @@ class _DocumentsErrorView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 164),
       children: [
-        const _DocumentsHeader(documents: []),
-        const SizedBox(height: 24),
         AppErrorState.fromError(
           error: error,
           onRetry: onRetry,
@@ -784,74 +943,16 @@ class _DocumentsLoadingView extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 164),
       itemBuilder: (context, index) => PremiumCard(
         padding: const EdgeInsets.all(16),
-        child: _DocumentsLoadingRow(
-          color: Colors.black.withValues(alpha: 0.055 + (index % 2) * 0.015),
+        child: Container(
+          height: index == 0 ? 80 : 112,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.045),
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
       ),
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemCount: 7,
-    );
-  }
-}
-
-class _DocumentsLoadingRow extends StatelessWidget {
-  const _DocumentsLoadingRow({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _DocumentsLoadingBlock(width: 48, height: 48, radius: 16, color: color),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _DocumentsLoadingBlock(
-                width: double.infinity,
-                height: 14,
-                radius: 999,
-                color: color,
-              ),
-              const SizedBox(height: 10),
-              _DocumentsLoadingBlock(
-                width: 170,
-                height: 11,
-                radius: 999,
-                color: color,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DocumentsLoadingBlock extends StatelessWidget {
-  const _DocumentsLoadingBlock({
-    required this.width,
-    required this.height,
-    required this.radius,
-    required this.color,
-  });
-
-  final double width;
-  final double height;
-  final double radius;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(radius),
-      ),
+      itemCount: 6,
     );
   }
 }
