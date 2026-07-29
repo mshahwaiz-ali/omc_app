@@ -53,7 +53,7 @@ class TestLegacyMutationHookAuthority(FrappeTestCase):
             hooks.override_whitelisted_methods[
                 "omc_app.api.mobile.update_service_document_status"
             ],
-            "omc_app.api.secured_mobile.update_service_document_status",
+            "omc_app.api.service_document_guard.update_service_document_status",
         )
 
     @patch("omc_app.api.secured_mobile.mobile.update_service_case_status")
@@ -105,6 +105,7 @@ class TestLegacyMutationHookAuthority(FrappeTestCase):
             remarks="Verified",
         )
         self.assertTrue(result["updated"])
+
 
 class TestLegacyCanonicalDelegation(FrappeTestCase):
     @patch("omc_app.api.document_upload.upload_service_document")
@@ -201,9 +202,9 @@ class TestLegacyCanonicalDelegation(FrappeTestCase):
 
         canonical.return_value = {"updated": True}
         result = mobile.upload_profile_image()
-
         canonical.assert_called_once_with()
         self.assertTrue(result["updated"])
+
 
 class TestLegacyReadDelegation(FrappeTestCase):
     @patch("omc_app.api.customer_documents.get_documents")
