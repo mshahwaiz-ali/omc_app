@@ -2653,7 +2653,12 @@ def register_push_token(**kwargs):
     if user == "Guest":
         frappe.throw("Login is required", frappe.PermissionError)
 
-    token = (kwargs.get("token") or kwargs.get("push_token") or kwargs.get("fcm_token") or "").strip()
+    token = (
+        kwargs.get("token")
+        or kwargs.get("push_token")
+        or kwargs.get("fcm_token")
+        or ""
+    ).strip()
     if not token:
         frappe.throw("token is required")
 
@@ -2668,13 +2673,32 @@ def register_push_token(**kwargs):
     profile = _get_customer_profile_for_user(user)
     now = frappe.utils.now_datetime()
 
-    existing_name = frappe.db.get_value("OMC Push Token", {"token": token}, "name")
+    # Prefer the canonical token record. FCM/APNs tokens can move between
+    # authenticated users after logout/login on the same installation.
+    existing_name = frappe.db.get_value(
+        "OMC Push Token",
+        {"token": token},
+        "name",
+    )
+
+    # Token refresh commonly issues a new token for the same app installation.
+    # Reuse that user's device record instead of creating duplicate active rows.
+    if not existing_name and device_id:
+        existing_name = frappe.db.get_value(
+            "OMC Push Token",
+            {
+                "user": user,
+                "device_id": device_id,
+            },
+            "name",
+        )
+
     if existing_name:
         doc = frappe.get_doc("OMC Push Token", existing_name)
     else:
         doc = frappe.new_doc("OMC Push Token")
-        doc.token = token
 
+    doc.token = token
     doc.user = user
     doc.customer_profile = profile.name if profile else None
     doc.platform = platform
