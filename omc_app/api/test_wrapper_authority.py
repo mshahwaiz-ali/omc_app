@@ -204,3 +204,82 @@ class TestLegacyCanonicalDelegation(FrappeTestCase):
 
         canonical.assert_called_once_with()
         self.assertTrue(result["updated"])
+
+class TestLegacyReadDelegation(FrappeTestCase):
+    @patch("omc_app.api.customer_documents.get_documents")
+    def test_legacy_document_list_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"documents": []}
+        self.assertEqual(mobile.get_documents(), {"documents": []})
+        canonical.assert_called_once_with()
+
+    @patch("omc_app.api.customer_documents.get_document")
+    def test_legacy_document_detail_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"name": "DOC-0001"}
+        result = mobile.get_document(document_id="DOC-0001")
+
+        canonical.assert_called_once_with(document_id="DOC-0001")
+        self.assertEqual(result["name"], "DOC-0001")
+
+    @patch("omc_app.api.payments.get_payments")
+    def test_legacy_payment_list_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"payments": []}
+        self.assertEqual(mobile.get_payments(), {"payments": []})
+        canonical.assert_called_once_with()
+
+    @patch("omc_app.api.payments.get_payment")
+    def test_legacy_payment_detail_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"name": "PAY-0001"}
+        result = mobile.get_payment(payment_id="PAY-0001")
+
+        canonical.assert_called_once_with(payment_id="PAY-0001")
+        self.assertEqual(result["name"], "PAY-0001")
+
+    @patch("omc_app.api.payments.review_payment_receipt")
+    def test_legacy_payment_review_delegates_to_canonical(self, canonical):
+        from omc_app.api import mobile
+
+        canonical.return_value = {"updated": True}
+        result = mobile.review_payment_receipt(
+            payment_id="PAY-0001",
+            status="Paid",
+            remarks="Verified",
+            payment_reference="BANK-123",
+        )
+
+        canonical.assert_called_once_with(
+            payment_id="PAY-0001",
+            status="Paid",
+            remarks="Verified",
+            payment_reference="BANK-123",
+        )
+        self.assertTrue(result["updated"])
+
+    @patch("omc_app.api.access_v2._patch_response")
+    @patch("omc_app.api.profile.get_profile")
+    def test_access_v2_profile_delegates_to_canonical_profile(
+        self,
+        canonical,
+        patch_response,
+    ):
+        from omc_app.api import access_v2
+
+        canonical_payload = {
+            "full_name": "Test User",
+            "access_state": "approved",
+        }
+        canonical.return_value = canonical_payload
+        patch_response.return_value = canonical_payload
+
+        result = access_v2.get_profile()
+
+        canonical.assert_called_once_with()
+        patch_response.assert_called_once_with(canonical_payload)
+        self.assertEqual(result, canonical_payload)
