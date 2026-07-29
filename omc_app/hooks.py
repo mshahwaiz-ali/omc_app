@@ -40,6 +40,8 @@ override_whitelisted_methods = {
     "omc_app.api.expense.bulk_sync_expense_entries": "omc_app.api.expense_write_guard.bulk_sync_expense_entries",
     "omc_app.api.expense.save_expense_budget": "omc_app.api.expense_write_guard.save_expense_budget",
     "omc_app.api.expense.upload_expense_receipt": "omc_app.api.expense_guard.upload_expense_receipt",
+    "omc_app.api.payments.upload_payment_receipt_file": "omc_app.api.payment_mutation_guard.upload_payment_receipt_file",
+    "omc_app.api.payments.review_payment_receipt": "omc_app.api.payment_mutation_guard.review_payment_receipt",
 }
 
 
