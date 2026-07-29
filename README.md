@@ -1,147 +1,139 @@
 # OMC App
 
-A full-stack digital service platform for **OMC House**, combining a Flutter customer and staff application with a custom Frappe backend.
+A production-oriented digital service platform for **OMC House**, combining a Flutter application with a custom Frappe backend.
 
-OMC App brings service discovery, customer onboarding, case management, document collection, payment review, support, notifications, tax utilities, expense tracking, and internal operations into one role-aware system.
+OMC App gives guests, customers, and authorised staff one connected system for service discovery, onboarding, case processing, documents, payments, support, notifications, referrals, tax utilities, expense tracking, and internal operations.
 
-> **Core principle:** the interface should stay simple, but every protected action must be authorised and enforced by the backend.
+> **Authority principle:** Flutter controls presentation and navigation. Frappe remains the source of truth for identity, permissions, ownership, assignments, workflow state, and protected mutations.
 
 ---
 
-## Table of contents
+## Current status
 
-- [Product overview](#product-overview)
-- [Platform architecture](#platform-architecture)
-- [User access model](#user-access-model)
-- [Main capabilities](#main-capabilities)
-- [Automated service lifecycle](#automated-service-lifecycle)
-- [Security model](#security-model)
-- [Technology stack](#technology-stack)
-- [Repository structure](#repository-structure)
-- [Local development](#local-development)
-- [Configuration](#configuration)
-- [Validation](#validation)
-- [Production deployment](#production-deployment)
-- [Documentation](#documentation)
-- [Current project status](#current-project-status)
+The application is functionally implemented and has completed its latest code-level production-readiness validation.
+
+Validated on `main` at commit `2a9c331`:
+
+- Frappe backend suite: **285 tests passed**;
+- Flutter suite: **294 tests passed**;
+- Flutter static analysis: **no issues found**;
+- focused signup flow validation: passed;
+- repository whitespace validation: clean;
+- local `main` and `origin/main`: aligned.
+
+Remaining release work is environment-specific:
+
+- build the Android release artefact against the production API endpoint;
+- install and launch it on a real device;
+- complete production API and role smoke tests;
+- perform iOS archive and App Store validation on macOS with Xcode when required.
+
+Validation results must always be taken from actual command output and must never be assumed.
 
 ---
 
 ## Product overview
 
-OMC App has two connected experiences built on the same business data.
+OMC App connects two experiences to the same Frappe records.
 
 ### Customer experience
 
 Customers can:
 
-- browse active OMC services;
-- view service details and requirements;
-- create an account and complete onboarding;
-- wait for OMC approval where required;
+- browse active OMC services and requirements;
+- create an account through a structured four-step signup flow;
+- verify their email and wait for approval where required;
+- manage profile, contact, business, and notification preferences;
 - submit service requests;
-- upload required documents;
-- track case progress and next actions;
-- review payment instructions and receipt status;
-- receive notifications;
+- upload and replace required documents;
+- track case status, progress, timelines, and next actions;
+- review payment instructions and receipt-review status;
+- submit payment receipts through protected upload flows;
+- receive in-app and push-ready notifications;
 - create and follow support tickets;
-- manage their profile and preferences;
 - use the tax calculator;
-- record and review personal expenses;
-- access FAQs, knowledge content, announcements, and contact information.
+- track expenses, budgets, summaries, and receipts;
+- access FAQs, knowledge content, announcements, and contact details.
 
 ### Internal operations
 
 Authorised OMC staff can:
 
-- review and approve customer profiles;
-- manage service catalogue content;
-- process customer service requests;
-- review uploaded documents;
+- review customer onboarding and approval state;
+- work from role-specific operational queues;
+- create assisted service requests for eligible customers;
+- manage assigned service cases;
+- review customer documents;
 - review payment receipts;
-- manage leads and support tickets;
-- assign and complete operational tasks;
+- manage support tickets and leads;
+- manage operational tasks;
+- work with referrals and partner-managed cases;
 - publish customer-facing content;
-- work through capability-based internal queues;
-- access only the records and actions allowed by their assigned role.
+- receive workflow notifications and escalations;
+- access only the records and actions allowed by their capabilities and assignment scope.
 
-The intended workflow is:
-
-```text
-Customer uses the Flutter app
-        |
-        | HTTPS / Frappe APIs
-        v
-Custom OMC Frappe backend
-        |
-        | DocTypes, permissions, workflows, audit data
-        v
-OMC staff manage operations through Frappe Desk and internal app modules
-```
+For a business-facing feature guide, see [`omc_detailed_explanation.md`](omc_detailed_explanation.md).
 
 ---
 
 ## Platform architecture
 
 ```text
-+------------------------------------------------------+
-|                    Flutter App                       |
-|                                                      |
-|  Guest     Pending Customer     Approved Customer    |
-|  Internal staff modules shown by capability          |
-+---------------------------+--------------------------+
-                            |
-                            | HTTPS
-                            | REST resources and whitelisted methods
-                            v
-+------------------------------------------------------+
-|                     Frappe Site                      |
-|                                                      |
-|  Session auth | CSRF | permissions | file handling   |
-+---------------------------+--------------------------+
-                            |
-                            v
-+------------------------------------------------------+
-|                 Custom OMC Frappe App                |
-|                                                      |
-|  APIs | guards | capabilities | permissions          |
-|  controllers | DocTypes | workflows | tests          |
-+---------------------------+--------------------------+
-                            |
-                            v
-+------------------------------------------------------+
-|             OMC-owned operational records            |
-|                                                      |
-|  Customers | services | cases | documents | payments |
-|  support | leads | tasks | notifications | tax data  |
-+------------------------------------------------------+
++-----------------------------------------------------------+
+|                       Flutter App                         |
+|                                                           |
+| Guest | Pending Customer | Approved Customer | Staff      |
+| Riverpod state | GoRouter policy | secure local storage   |
++-------------------------------+---------------------------+
+                                |
+                                | HTTPS / Frappe APIs
+                                v
++-----------------------------------------------------------+
+|                       Frappe Site                         |
+|                                                           |
+| Session auth | CSRF | permissions | file handling         |
+| whitelisted methods | scheduler | background workers      |
++-------------------------------+---------------------------+
+                                |
+                                v
++-----------------------------------------------------------+
+|                    Custom OMC Backend                     |
+|                                                           |
+| route guards | capability checks | ownership checks       |
+| workflow services | DocTypes | permission hooks | tests   |
++-------------------------------+---------------------------+
+                                |
+                                v
++-----------------------------------------------------------+
+|                    Operational Records                    |
+|                                                           |
+| customers | services | requests | documents | payments    |
+| support | leads | tasks | referrals | notifications       |
++-----------------------------------------------------------+
 ```
 
-The Flutter app does not define authority. It consumes canonical state and capability information from the backend and uses it to shape navigation and user experience. The backend remains the final enforcement layer.
+The backend is authoritative even when the Flutter interface hides, disables, or redirects a route.
 
 ---
 
-## User access model
+## Access model
 
 ### Guest
 
-A guest is not signed in.
+A guest can use public and guest-safe areas such as:
 
-Typical allowed access:
-
-- active public service catalogue;
-- public service details;
-- approved public content;
-- FAQs and knowledge articles;
+- public home content;
+- active service catalogue and service details;
+- approved FAQs and knowledge content;
+- contact information;
 - tax calculator;
-- login and signup;
-- guest-safe onboarding and contact information.
+- login, signup, verification, and recovery flows.
 
-Guests cannot access customer records, service cases, documents, payments, notifications, support history, or internal operations.
+Guests cannot access customer cases, documents, payments, private notifications, support history, expense records, or internal operations.
 
 ### Pending customer
 
-A pending customer has registered but is not yet approved.
+A pending customer has registered but has not completed OMC approval.
 
 Typical state:
 
@@ -150,178 +142,195 @@ customer_status = Pending
 approval_status = Pending Review
 ```
 
-Pending customers can sign in, view their own profile and approval status, and continue using guest-safe features. Approved-only workflows remain locked.
+Pending customers can sign in, view their profile and approval state, maintain allowed preferences, and continue using guest-safe functionality. Approved-only service workflows remain locked.
 
 ### Approved customer
 
-Typical approved state:
+Typical state:
 
 ```text
 customer_status = Active
 approval_status = Approved
 ```
 
-Approved customers can access their own service requests, documents, payment records where enabled, notifications, support tickets, profile, expense data, and other customer tools.
-
-Customer access is always ownership-scoped:
-
-> An approved customer may only read or modify records belonging to their own customer profile.
+Approved customers can access customer workflows, but every read and mutation remains ownership-scoped to their own OMC customer profile.
 
 ### Internal staff
 
-The internal workspace uses role-based capabilities rather than a single broad staff permission.
+Internal access is capability-driven rather than based on one broad staff flag.
 
-Active OMC roles include:
+Supported OMC roles include:
 
-- **OMC Admin** — full OMC application administration and operations;
-- **OMC Manager** — broad operational management without normal Admin-only configuration authority;
-- **OMC Support Agent** — support, lead, and relevant customer communication workflows;
-- **OMC Document Reviewer** — document queues, attachments, and document decisions;
-- **OMC Finance Reviewer** — payment queues, receipts, and payment decisions;
-- **OMC Consultant** — assigned service cases and tasks;
+- **OMC Admin** — full application administration and operational authority;
+- **OMC Manager** — broad operations without normal Admin-only configuration authority;
+- **OMC Support Agent** — support, leads, and relevant customer communication;
+- **OMC Document Reviewer** — document queues, attachments, and review decisions;
+- **OMC Finance Reviewer** — payment queues, receipts, and finance decisions;
+- **OMC Consultant** — assigned service requests and tasks;
 - **OMC Tax Associate** — assigned tax-related service work;
 - **OMC Business Partner** — assigned partner-managed work;
-- **OMC Customer** — customer portal identity, still subject to profile approval state.
+- **OMC Customer** — customer identity, still governed by approval and ownership.
 
-Opening the internal workspace does not grant every internal action. Sensitive reads and mutations require specific capabilities and record scope.
-
-See [`docs/app_role.md`](docs/app_role.md) for the complete role architecture, capability matrix, assignment rules, and validation requirements.
+See [`docs/app_role.md`](docs/app_role.md) for the canonical role and capability model.
 
 ---
 
 ## Main capabilities
 
+### Authentication and onboarding
+
+- role-aware signup for Customer, Consultant, Business Partner, and Tax Associate requests;
+- username suggestion and availability validation;
+- validated email, phone, WhatsApp, CNIC, address, and password fields;
+- optional referral capture and assistance consent;
+- email-verification success state with resend cooldown;
+- login identity resolution;
+- password-reset and pending-secret lifecycle hardening;
+- approval-aware post-login routing;
+- secure logout and session cleanup.
+
+### Profile and settings
+
+- self-service profile editing through guarded backend endpoints;
+- personal, contact, and business profile fields;
+- protected account email authority;
+- notification preference controls;
+- service, document, payment, and tax notification categories;
+- account deletion request through support workflow;
+- legal policy and application information shortcuts;
+- role-aware visibility and editability.
+
 ### Service catalogue
 
 - backend-managed categories and services;
 - active/inactive visibility;
-- customer-visible details and instructions;
-- required-document configuration;
-- public endpoints restricted to active customer-safe data;
-- internal configuration kept out of public responses.
+- public customer-safe service data;
+- service descriptions, requirements, pricing context, and required documents;
+- internal configuration excluded from public responses;
+- protected service-request initiation.
 
-### Customer onboarding
-
-- bounded signup fields;
-- validated email and password input;
-- customer profile creation;
-- pending-review and approved states;
-- protected profile updates;
-- account email cannot be changed through profile-edit endpoints.
-
-### Service requests and case tracking
+### Service requests and cases
 
 - approved-customer request creation;
-- active-service validation;
-- bounded title, description, phone, email, and priority values;
-- ownership-scoped customer views;
-- automatic staff assignment with explicit, referral, service-default, role, and manager-fallback precedence;
-- least-loaded eligible staff selection for configured service roles;
-- duplicate-safe Frappe ToDo creation for assigned requests;
-- internal assignment notifications and audit timeline entries;
-- customer-visible progress and action requirements.
+- assisted request creation by authorised staff;
+- active request detection and resume/start-new handling;
+- customer and internal case tracking;
+- status, priority, progress, timeline, and next-action presentation;
+- explicit, referral, service-default, role-based, and manager-fallback assignment;
+- least-loaded eligible assignee selection;
+- duplicate-safe Frappe ToDo creation;
+- completion safeguards and operational audit entries.
 
 ### Documents
 
-- multipart upload flow;
-- service-request ownership validation;
+- multipart document uploads;
+- request ownership validation;
 - prevention of cross-request file reuse;
-- document review queues;
-- reviewer-specific capabilities and attachment access;
-- rejection automatically returns the request to `Waiting for Customer`;
-- final required-document approval automatically evaluates payment eligibility;
-- reviewer reminders for uploaded documents that remain unreviewed.
+- customer document list and replacement flows;
+- reviewer-specific queues and attachment access;
+- approval and rejection decisions;
+- rejected documents return the request to customer action;
+- final required-document approval triggers payment eligibility evaluation;
+- delayed-review reminders and escalation support.
 
 ### Payments
 
-- payment and receipt tracking;
-- automatic payment creation after all required documents are approved;
-- service-owned amount and currency, with zero or missing prices rejected;
+- payment records linked to service requests;
+- automatic payment creation only after required documents are approved;
+- service-controlled amount and currency;
+- rejection of zero or missing payable amounts;
 - duplicate active-payment prevention;
-- finance review workflow;
-- receipt submission notifications for Finance Reviewers, Managers, and assigned staff;
-- automatic request transitions for `Paid`, `Rejected`, and `Under Review`;
-- role-specific receipt visibility;
-- protected payment mutations and review actions.
+- protected receipt uploads;
+- finance review queues and decisions;
+- `Paid`, `Rejected`, and `Under Review` workflow transitions;
+- customer and internal notifications;
+- role-specific payment and receipt visibility.
 
-### Support, leads, and tasks
+### Support, leads, referrals, and tasks
 
-- customer support tickets and replies;
-- internal support queues;
-- lead management;
-- assignment-scoped task access;
-- enabled System User validation for internal task assignment.
+- customer support ticket creation and replies;
+- internal support queues and read-state handling;
+- lead creation and management;
+- referral summaries and detail views;
+- guarded referral ownership and assistance rules;
+- assignment-scoped tasks;
+- enabled System User validation for task assignment;
+- internal operational dashboard and work queues.
+
+### Notifications
+
+- ownership-safe notification reads;
+- exact recipient-user and customer-profile matching;
+- unread/read state and pagination;
+- notification preference gating;
+- push-token registration and integrity controls;
+- backend-authored workflow notifications;
+- scheduler-driven reminders and escalation notices;
+- customer-facing fallback content controlled by the backend.
 
 ### Tax calculator
 
-Public tax requests are validated before the canonical calculator runs:
-
-- maximum request size;
-- bounded advanced inputs;
-- supported income types, filer statuses, and income modes;
+- guest-safe and authenticated access;
+- backend-managed tax slabs;
+- supported tax years, income modes, filer states, and income types;
+- bounded and validated numeric input;
 - finite and non-negative monetary values;
-- protection against nested or malformed numeric payloads.
+- canonical backend calculation authority.
 
 ### Expense tracker
 
 - customer-owned expense records;
-- validated positive finite amounts;
-- bounded text and identifiers;
+- categories, dates, descriptions, and positive finite amounts;
+- summary and budget views;
+- budget thresholds and variance monitoring;
+- receipt upload support;
 - bounded bulk synchronisation;
-- validated budget thresholds;
-- receipt uploads through multipart file handling;
-- direct receipt URL injection rejected.
+- cloud/local sync integrity controls;
+- rejection of direct receipt URL injection.
 
-### Notifications and content
+### Dashboard and content
 
-- ownership-safe customer notifications;
-- exact profile or recipient-user matching;
-- backend-driven FAQs, knowledge, announcements, and onboarding content;
-- public content separated from authenticated and internal data.
+- customer and internal dashboards;
+- service-aware recent activity presentation;
+- guarded dashboard reads;
+- backend-driven announcements, FAQs, knowledge articles, onboarding, branding, and contact content;
+- public, customer, and internal data separation.
 
 ---
 
 ## Automated service lifecycle
 
-The backend coordinates the service lifecycle after human review decisions. Documents and payment receipts are never auto-approved; automation begins only after an authorised reviewer records a decision.
-
 ```text
 Request created
     |
-    +--> assignee resolved
-    |       explicit assignee
-    |       -> valid referral owner
-    |       -> service default assignee
-    |       -> least-loaded eligible role user
-    |       -> OMC Manager fallback
-    |
+    +--> authorised assignment resolved
     +--> duplicate-safe ToDo created
-    +--> assignee notified
+    +--> assignee and customer notifications created
     |
 Customer uploads required documents
     |
-Reviewer approves or rejects
+Reviewer decision
     |
     +--> Rejected
     |       -> Waiting for Customer
-    |       -> customer notification
+    |       -> customer notified
     |
     +--> All required documents approved
-            -> positive service price validated
+            -> payable service configuration validated
             -> one Pending payment created
             -> Waiting for Payment
-            -> customer notification
+            -> customer notified
 
 Customer submits receipt
     |
     +--> finance and operational reviewers notified
-    +--> delayed-review reminders scheduled
+    +--> delayed-review reminders enabled
     |
-Reviewer marks payment
+Finance decision
     |
     +--> Paid
-    |       -> In Progress
-    |       -> customer and assigned staff notified
+    |       -> request moves forward
+    |       -> customer and assignee notified
     |
     +--> Rejected
             -> Waiting for Customer
@@ -331,106 +340,78 @@ Completion requested
     |
     +--> required documents must be approved
     +--> active payments must be Paid
-    +--> rejected documents and receipts must be resolved
-    |
-    +--> open ToDos closed
-    +--> closed_on recorded
-    +--> completion timeline and customer notification created
+    +--> unresolved rejected items block completion
+    +--> open ToDos are closed
+    +--> completion timestamp and timeline are recorded
+    +--> customer is notified
 ```
 
-### Scheduled reminders and escalations
-
-Frappe scheduler hooks run workflow checks:
-
-- hourly checks for uploaded documents awaiting review;
-- hourly checks for submitted receipts awaiting finance review;
-- hourly alerts for unassigned service requests;
-- daily customer reminders for `Waiting for Customer`;
-- daily payment reminders for `Waiting for Payment`;
-- daily overdue escalation to the assignee, OMC Managers, and OMC Admins;
-- notification deduplication prevents repeated alerts inside the configured window.
-
-The scheduler must be enabled on each deployed site:
-
-```bash
-bench --site <site> enable-scheduler
-bench --site <site> scheduler status
-```
-
-### Human approval boundaries
-
-Automation does not:
-
-- approve customer documents;
-- approve payment receipts;
-- invent or override service prices;
-- create zero-value payments;
-- bypass backend capabilities or record ownership;
-- complete a request with unresolved document or payment blockers.
-
+Documents and payment receipts are never automatically approved. Automation begins after an authorised human decision.
 
 ---
 
 ## Security model
 
-OMC App follows a defence-in-depth model.
+OMC App uses defence in depth.
 
 ### Backend-first authorisation
 
-Flutter route guards improve user experience, but they are not treated as security boundaries. Protected backend methods enforce authentication, approval state, capabilities, ownership, assignment, and document relationships.
+Protected methods enforce:
 
-### Fail-closed behaviour
+- authentication;
+- customer approval state;
+- canonical capabilities;
+- customer ownership;
+- internal assignment scope;
+- document and payment relationships;
+- supported workflow transitions;
+- validated request payloads.
+
+### Fail-closed routing and endpoint authority
 
 - unknown authenticated routes are denied by default;
-- unknown or blank quick-action access levels are denied;
-- inactive services cannot be requested through guarded creation endpoints;
-- public service endpoints expose active customer-safe data only;
-- sensitive write endpoints are routed through validation guards;
-- direct user-controlled file URLs are not accepted for protected receipt uploads.
-
-### Record scope
-
-- customers see only their own records;
-- consultants, Tax Associates, and Business Partners are assignment-scoped by default;
-- Document Reviewers and Finance Reviewers operate in separate domains;
-- Support Agents receive only the customer and service context required for support work;
-- Managers receive broad operational access without normal Admin-only configuration rights.
+- unknown or blank access levels are denied;
+- sensitive legacy methods route through guarded wrappers;
+- public catalogue endpoints expose active customer-safe data only;
+- customer and internal reads pass through ownership or capability guards;
+- sensitive mutations require guarded endpoints;
+- route-to-authority mappings are covered by tests.
 
 ### Input and file safety
 
 - public and authenticated write payloads are bounded;
-- numeric values are checked for finite range and supported limits;
-- bulk operations have count and payload-size limits;
-- uploaded files are tied to the correct customer and service request;
-- secrets, site configuration, private files, databases, logs, and backups are excluded from version control.
+- numeric values are validated for type, range, and finiteness;
+- uploaded files are tied to the correct customer and operational record;
+- protected receipt and document flows reject user-controlled URL injection;
+- secrets, private files, databases, logs, backups, and runtime state are excluded from source control.
 
 ---
 
 ## Technology stack
 
-### Frontend
+### Flutter application
 
-- Flutter
-- Dart
-- Riverpod
-- GoRouter
-- Dio
-- Flutter Secure Storage
-- Shared Preferences
-- File Picker and Image Picker
-- Cached Network Image
-- FL Chart
+- Flutter and Dart;
+- Riverpod;
+- GoRouter;
+- Dio;
+- Flutter Secure Storage;
+- Shared Preferences;
+- File Picker and Image Picker;
+- Cached Network Image;
+- FL Chart.
 
-### Backend
+### Frappe backend
 
-- Frappe Framework 15
-- Python
-- MariaDB/MySQL through Frappe
-- Redis queues and workers
-- custom OMC DocTypes
-- Frappe whitelisted method APIs
-- Frappe permission query conditions and record-level permission hooks
-- nginx and Supervisor in production
+- Frappe Framework 15;
+- Python;
+- MariaDB/MySQL;
+- Redis queues and workers;
+- custom OMC DocTypes;
+- whitelisted method APIs;
+- permission query conditions and record-level hooks;
+- scheduler jobs;
+- nginx and Supervisor in production.
 
 ---
 
@@ -448,94 +429,29 @@ Flutter route guards improve user experience, but they are not treated as securi
 │   │   ├── core/
 │   │   └── features/
 │   ├── test/
+│   ├── docs/backend_api_contract.md
 │   └── pubspec.yaml
 └── backend_omc_app/
     ├── deploy/
     └── frappe-bench/
-        └── apps/
-            └── omc_app/
-                ├── omc_app/
-                │   ├── api/
-                │   ├── setup/
-                │   ├── permissions.py
-                │   ├── hooks.py
-                │   └── omc_app/doctype/
-                ├── README.md
-                └── pyproject.toml
-```
-
-### Main Flutter feature areas
-
-```text
-omc_app/lib/features/
-├── auth/
-├── home/
-├── service_catalogue/
-├── service_requests/
-├── documents/
-├── payments/
-├── dashboard/
-├── leads/
-├── customers/
-├── tasks/
-├── notifications/
-├── support/
-├── profile/
-├── settings/
-├── tax_calculator/
-├── expense_tracker/
-└── internal_workspace/
-```
-
-### Important backend areas
-
-```text
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/
-├── api/
-│   ├── access.py
-│   ├── branding_config.py
-│   ├── expense_guard.py
-│   ├── expense_write_guard.py
-│   ├── profile_guard.py
-│   ├── public_catalogue.py
-│   ├── quick_actions.py
-│   ├── secured_mobile.py
-│   ├── service_request_guard.py
-│   ├── service_templates.py
-│   ├── assisted_service.py
-│   ├── customer_documents.py
-│   ├── payments.py
-│   ├── workflow_automation.py
-│   ├── tax_calculator.py
-│   └── tax_calculator_guard.py
-├── setup/roles.py
-├── permissions.py
-└── hooks.py
+        └── apps/omc_app/
+            ├── omc_app/
+            │   ├── api/
+            │   ├── setup/
+            │   ├── permissions.py
+            │   ├── hooks.py
+            │   └── omc_app/doctype/
+            ├── README.md
+            └── pyproject.toml
 ```
 
 ---
 
 ## Local development
 
-The commands below assume the repository is checked out at:
+The examples assume the repository is available at `~/data_drive/app_omc`.
 
-```text
-~/data_drive/app_omc
-```
-
-Use equivalent paths for a different checkout location.
-
-### Prerequisites
-
-- Flutter stable with a Dart version compatible with `pubspec.yaml`;
-- Python and a supported Frappe Bench environment;
-- Frappe Framework 15;
-- MariaDB or MySQL;
-- Redis;
-- Node.js and package tooling required by Frappe assets;
-- Android Studio or an Android SDK for Android development.
-
-### Flutter setup
+### Flutter
 
 ```bash
 cd ~/data_drive/app_omc/omc_app
@@ -551,7 +467,7 @@ flutter run \
   --dart-define=OMC_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-Android emulators normally reach the host machine through `10.0.2.2`:
+Android emulators normally reach the host through `10.0.2.2`:
 
 ```bash
 flutter run \
@@ -569,78 +485,25 @@ bench --site omc.local list-apps
 bench start
 ```
 
-Expected installed applications:
-
-```text
-frappe
-omc_app
-```
-
-### New Frappe site
-
-Use this only when intentionally creating a new development site:
-
-```bash
-cd ~/data_drive/app_omc/backend_omc_app/frappe-bench
-bench new-site omc.local
-bench --site omc.local install-app omc_app
-bench --site omc.local migrate
-bench --site omc.local clear-cache
-```
-
-Do not recreate an existing production site or database as part of a normal application update.
+Do not recreate an existing site, database, Bench, or production deployment during a normal update.
 
 ---
 
 ## Configuration
 
-The Flutter API base URL is supplied at build or run time:
+Supply the API endpoint at run or build time:
 
 ```bash
 --dart-define=OMC_API_BASE_URL=https://example.com
 ```
 
-Production secrets belong in protected environment and site configuration, never in tracked source files.
+Never commit credentials, `site_config.json`, private files, database dumps, logs, generated builds, or Bench runtime state.
 
-Do not commit:
-
-- `.env` files containing credentials;
-- `site_config.json`;
-- database passwords;
-- API secrets;
-- private files;
-- database dumps;
-- logs;
-- generated assets and build output;
-- Bench runtime state.
-
-Deployment templates and scripts live under [`backend_omc_app/deploy/`](backend_omc_app/deploy/).
-
-
-### Workflow configuration
-
-Each active service that requires payment must have:
-
-- a positive `base_price`;
-- a valid `currency`;
-- required-document templates configured where applicable;
-- an optional `default_assignee`;
-- an optional `default_assignment_role`.
-
-Supported automatic-assignment roles are:
-
-- `OMC Consultant`;
-- `OMC Tax Associate`;
-- `OMC Business Partner`;
-- `OMC Manager`.
-
-A service with a zero or missing price will not produce an automatic payment. The backend logs a configuration error instead of creating an invalid customer payment.
+Deployment assets are under [`backend_omc_app/deploy/`](backend_omc_app/deploy/).
 
 ---
 
 ## Validation
-
-Never report a validation step as passed without reviewing its actual command output.
 
 ### Flutter
 
@@ -652,40 +515,24 @@ flutter analyze
 flutter test
 ```
 
-### Backend syntax
+Latest confirmed result:
 
-```bash
-cd ~/data_drive/app_omc
-python3 -m compileall -q \
-  backend_omc_app/frappe-bench/apps/omc_app/omc_app
+```text
+Flutter analyze: No issues found
+Flutter tests: 294 passed
 ```
 
-### Frappe tests
-
-Run inside a configured OMC Bench with a working test site and database:
+### Frappe backend
 
 ```bash
 cd ~/data_drive/app_omc/backend_omc_app/frappe-bench
 bench --site omc.local run-tests --app omc_app
 ```
 
-Focused permission suite:
+Latest confirmed result:
 
-```bash
-bench --site omc.local run-tests \
-  --app omc_app \
-  --module omc_app.api.test_permissions
-```
-
-
-Focused workflow suites:
-
-```bash
-bench --site omc.local run-tests   --app omc_app   --module omc_app.api.test_workflow_automation
-
-bench --site omc.local run-tests   --app omc_app   --module omc_app.api.test_workflow_assignment
-
-bench --site omc.local run-tests   --app omc_app   --module omc_app.api.test_workflow_completion
+```text
+Frappe tests: 285 passed
 ```
 
 ### Repository hygiene
@@ -696,9 +543,9 @@ git diff --check
 git status --short
 ```
 
-### Required access smoke tests
+### Required manual smoke coverage
 
-Production readiness requires real-environment verification for:
+Production verification should cover both allowed actions and expected denials for:
 
 - Guest;
 - Pending Customer;
@@ -712,17 +559,13 @@ Production readiness requires real-environment verification for:
 - OMC Tax Associate;
 - OMC Business Partner.
 
-Each role should be tested for both allowed actions and expected denials.
-
 ---
 
 ## Production deployment
 
-`main` is the source-of-truth branch for this repository.
+`main` is the repository source of truth.
 
-A normal production update should preserve the existing Bench, site, database, configuration, private files, and process setup.
-
-### Safe update outline
+A routine update should preserve the deployed Bench, site, database, configuration, private files, nginx, Supervisor, and Redis setup.
 
 ```bash
 cd /path/to/app_omc
@@ -737,66 +580,34 @@ sudo supervisorctl restart all
 sudo systemctl reload nginx
 ```
 
-Run only the commands appropriate for the actual server layout. Do not recreate the site, database, Bench, or deployment during a routine application update.
+Only run commands appropriate for the actual server layout.
 
-### Production requirements
+Production readiness also requires:
 
-- TLS/HTTPS;
-- restricted site configuration and secrets;
+- HTTPS;
+- protected secrets and site configuration;
 - healthy MariaDB and Redis services;
-- Supervisor-managed Frappe processes;
-- nginx reverse proxy and asset serving;
-- scheduled database and private-file backups;
-- enabled Frappe scheduler for workflow reminders and escalations;
-- a tested restore procedure;
-- post-deployment API, login, upload, assignment, payment, scheduler, and role smoke tests;
-- Android build verification against the production API endpoint.
+- enabled scheduler and workers;
+- scheduled backups and a tested restore procedure;
+- post-deployment login, API, upload, assignment, payment, notification, scheduler, and role smoke tests;
+- Android release build and device verification against the production endpoint.
 
 ---
 
 ## Documentation
 
-- [`omc_detailed_explanation.md`](omc_detailed_explanation.md) — product, client workflow, and feature-by-feature explanation;
-- [`docs/app_role.md`](docs/app_role.md) — canonical role and capability architecture;
-- [`backend_omc_app/frappe-bench/apps/omc_app/README.md`](backend_omc_app/frappe-bench/apps/omc_app/README.md) — backend-specific development and operations;
-- [`omc_app/docs/backend_api_contract.md`](omc_app/docs/backend_api_contract.md) — frontend/backend API contract;
-- [`backend_omc_app/deploy/`](backend_omc_app/deploy/) — deployment templates and verification scripts.
-
----
-
-## Current project status
-
-The platform currently includes:
-
-- implemented Flutter customer and internal modules;
-- capability-driven navigation and backend authorisation;
-- customer ownership and internal assignment boundaries;
-- automated service assignment with referral, service-default, role, and least-loaded selection;
-- document-review-driven payment creation with price and duplicate safeguards;
-- automated payment lifecycle transitions and reviewer/customer notifications;
-- scheduled reminders for pending reviews, customer action, payment, unassigned work, and overdue requests;
-- completion safeguards, ToDo closure, audit timeline entries, and feedback notifications;
-- hardened public catalogue, signup, profile, service-request, expense, receipt-upload, quick-action, and tax-calculator entry points;
-- focused backend access and workflow tests;
-- Flutter unit and route-access tests;
-- production deployment assets and verification scripts.
-
-Local static validation, guarded-input checks, Flutter tests, Flutter analysis, migrations, hook imports, workflow-focused tests, the full backend test suite, and repository secret-tracking checks are part of the current validation workflow. Results must be taken from actual command output and must not be assumed.
-
-The remaining release workflow is environment-specific:
-
-1. pull the validated source onto the production OMC server;
-2. run the required Frappe migration and asset steps;
-3. restart services safely;
-4. run real API and role smoke tests;
-5. build and test the Android application against the production endpoint.
+- [`omc_detailed_explanation.md`](omc_detailed_explanation.md) — complete business and feature guide;
+- [`docs/app_role.md`](docs/app_role.md) — role, capability, assignment, and access architecture;
+- [`omc_app/docs/backend_api_contract.md`](omc_app/docs/backend_api_contract.md) — Flutter/backend API contract;
+- [`backend_omc_app/frappe-bench/apps/omc_app/README.md`](backend_omc_app/frappe-bench/apps/omc_app/README.md) — backend development and operations;
+- [`backend_omc_app/deploy/`](backend_omc_app/deploy/) — deployment templates and verification assets.
 
 ---
 
 ## Licence and ownership
 
-This repository contains proprietary OMC House application code and operational documentation. Distribution and reuse should follow the project owner's authorisation and any licence terms supplied with the deployment.
+This repository contains proprietary OMC House application code and operational documentation. Distribution and reuse must follow the project owner's authorisation and applicable licence terms.
 
 ---
 
-**OMC App connects a simple customer experience to a controlled, auditable, backend-enforced operations platform.**
+**OMC App connects a simple customer experience to a controlled, auditable, backend-enforced operating platform.**
