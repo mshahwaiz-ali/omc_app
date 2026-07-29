@@ -88,3 +88,14 @@ scheduler_events = {
         "omc_app.api.workflow_automation.run_daily_workflow_checks",
     ],
 }
+
+
+# Frappe Desk assets and exported workspace.
+fixtures = [
+    {
+        "doctype": "Workspace",
+        "filters": [["name", "in", ["OMC App"]]],
+    }
+]
+
+app_include_css = "/assets/omc_app/css/omc_desk.css"

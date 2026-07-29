@@ -5,3 +5,10 @@
 tags
 node_modules
 __pycache__
+
+# Generated Python files and accidental local source snapshots
+__pycache__/
+*.py[cod]
+*.before_*
+*.bak
+*.bak.*
