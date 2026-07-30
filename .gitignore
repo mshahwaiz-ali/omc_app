@@ -166,3 +166,8 @@ erp_lead_app/**/.DS_Store
 backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/firebase-adminsdk.json
 erp_lead_app/lead_app/lead_app/lead_app/firebase-adminsdk.json
 **/*firebase-adminsdk*.json
+
+# Local backend app backup
+/apps.zip
+/apps/
+/backend_omc_app/apps/
