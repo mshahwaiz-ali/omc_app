@@ -3833,30 +3833,69 @@ def create_lead(**kwargs):
         "can_manage_leads",
         message="You do not have permission to create leads.",
     )
+
     title = (kwargs.get("title") or kwargs.get("subject") or "").strip()
-    lead_name = (kwargs.get("lead_name") or kwargs.get("name") or kwargs.get("full_name") or "").strip()
+    first_name = (kwargs.get("first_name") or "").strip()
+    middle_name = (kwargs.get("middle_name") or "").strip()
+    last_name = (kwargs.get("last_name") or "").strip()
+    supplied_name = (kwargs.get("lead_name") or kwargs.get("name") or kwargs.get("full_name") or "").strip()
+    derived_name = " ".join(part for part in (first_name, middle_name, last_name) if part)
+    lead_name = supplied_name or derived_name
     company_name = (kwargs.get("company_name") or kwargs.get("company") or "").strip()
-    email = (kwargs.get("email") or kwargs.get("email_id") or "").strip()
-    phone = (kwargs.get("phone") or kwargs.get("mobile_no") or kwargs.get("mobile") or "").strip()
+    email_id = (kwargs.get("email_id") or kwargs.get("email") or "").strip()
+    mobile_no = (kwargs.get("mobile_no") or kwargs.get("mobile") or kwargs.get("phone") or "").strip()
+    phone = (kwargs.get("phone") or mobile_no).strip()
     source = (kwargs.get("source") or "Mobile App").strip()
     service_interest = (kwargs.get("service_interest") or kwargs.get("service") or "").strip()
     notes = (kwargs.get("notes") or kwargs.get("message") or kwargs.get("description") or "").strip()
 
     if not lead_name and not company_name and not title:
-        frappe.throw("lead_name, company_name, or title is required")
+        frappe.throw("lead_name, company_name, title, or personal name is required")
 
     lead = frappe.new_doc("OMC Lead")
-    lead.title = title or company_name or lead_name
-    lead.lead_name = lead_name or title or company_name
-    lead.company_name = company_name
-    lead.email = email
-    lead.phone = phone
-    lead.status = kwargs.get("status") or "New"
-    lead.source = source
-    lead.service_interest = service_interest
-    lead.notes = notes
-    lead.insert(ignore_permissions=True)
+    values = {
+        "title": title or company_name or lead_name,
+        "first_name": first_name,
+        "middle_name": middle_name,
+        "last_name": last_name,
+        "lead_name": lead_name or title or company_name,
+        "company_name": company_name,
+        "email_id": email_id,
+        "email": email_id,
+        "mobile_no": mobile_no,
+        "phone": phone,
+        "whatsapp_no": kwargs.get("whatsapp_no"),
+        "phone_ext": kwargs.get("phone_ext"),
+        "website": kwargs.get("website"),
+        "status": kwargs.get("status") or "New",
+        "source": source,
+        "lead_type": kwargs.get("lead_type") or kwargs.get("type"),
+        "request_type": kwargs.get("request_type"),
+        "service_interest": service_interest,
+        "lead_owner": kwargs.get("lead_owner"),
+        "assigned_to": kwargs.get("assigned_to"),
+        "sales_person": kwargs.get("sales_person"),
+        "industry": kwargs.get("industry"),
+        "market_segment": kwargs.get("market_segment"),
+        "territory": kwargs.get("territory"),
+        "no_of_employees": kwargs.get("no_of_employees"),
+        "annual_revenue": kwargs.get("annual_revenue"),
+        "city": kwargs.get("city"),
+        "state": kwargs.get("state"),
+        "country": kwargs.get("country"),
+        "qualification_status": kwargs.get("qualification_status"),
+        "qualified_by": kwargs.get("qualified_by"),
+        "qualified_on": kwargs.get("qualified_on"),
+        "campaign_name": kwargs.get("campaign_name"),
+        "reference_business_partner": kwargs.get("reference_business_partner"),
+        "notes": notes,
+        "customer_profile": kwargs.get("customer_profile"),
+        "converted_customer_profile": kwargs.get("converted_customer_profile"),
+    }
+    for fieldname, value in values.items():
+        _set_if_has_field(lead, fieldname, value)
 
+    lead.insert(ignore_permissions=True)
     frappe.db.commit()
 
     return {
@@ -3867,20 +3906,56 @@ def create_lead(**kwargs):
 
 
 def _lead_to_dict(lead):
+    def value(fieldname):
+        return getattr(lead, fieldname, None) or ""
+
+    email_id = value("email_id") or value("email")
+    mobile_no = value("mobile_no") or value("phone")
     return {
         "name": lead.name,
-        "title": lead.title or "",
-        "lead_name": lead.lead_name or "",
-        "company_name": lead.company_name or "",
-        "email": lead.email or "",
-        "phone": lead.phone or "",
-        "status": lead.status or "",
-        "source": lead.source or "",
-        "service_interest": lead.service_interest or "",
-        "notes": lead.notes or "",
-        "assigned_to": lead.assigned_to or "",
-        "customer_profile": lead.customer_profile or "",
-        "converted_customer_profile": lead.converted_customer_profile or "",
+        "title": value("title"),
+        "first_name": value("first_name"),
+        "middle_name": value("middle_name"),
+        "last_name": value("last_name"),
+        "lead_name": value("lead_name"),
+        "company_name": value("company_name"),
+        "email_id": email_id,
+        "email": email_id,
+        "mobile_no": mobile_no,
+        "mobile": mobile_no,
+        "phone": value("phone") or mobile_no,
+        "whatsapp_no": value("whatsapp_no"),
+        "phone_ext": value("phone_ext"),
+        "website": value("website"),
+        "status": value("status"),
+        "source": value("source"),
+        "lead_type": value("lead_type"),
+        "request_type": value("request_type"),
+        "service_interest": value("service_interest"),
+        "lead_owner": value("lead_owner"),
+        "assigned_to": value("assigned_to"),
+        "sales_person": value("sales_person"),
+        "industry": value("industry"),
+        "market_segment": value("market_segment"),
+        "territory": value("territory"),
+        "no_of_employees": value("no_of_employees"),
+        "annual_revenue": getattr(lead, "annual_revenue", None) or 0,
+        "city": value("city"),
+        "state": value("state"),
+        "country": value("country"),
+        "qualification_status": value("qualification_status"),
+        "qualified_by": value("qualified_by"),
+        "qualified_on": str(getattr(lead, "qualified_on", None) or ""),
+        "campaign_name": value("campaign_name"),
+        "reference_business_partner": value("reference_business_partner"),
+        "notes": value("notes"),
+        "customer_profile": value("customer_profile"),
+        "converted_customer_profile": value("converted_customer_profile"),
+        "erp_doctype": value("erp_doctype"),
+        "erp_document_name": value("erp_document_name"),
+        "erp_sync_status": value("erp_sync_status"),
+        "erp_last_synced_at": str(getattr(lead, "erp_last_synced_at", None) or ""),
+        "erp_sync_error": value("erp_sync_error"),
         "created_at": str(lead.creation) if lead.creation else "",
         "updated_at": str(lead.modified) if lead.modified else "",
     }
@@ -3957,21 +4032,7 @@ def get_leads():
     leads = frappe.get_all(
         "OMC Lead",
         fields=[
-            "name",
-            "title",
-            "lead_name",
-            "company_name",
-            "email",
-            "phone",
-            "status",
-            "source",
-            "service_interest",
-            "notes",
-            "assigned_to",
-            "customer_profile",
-            "converted_customer_profile",
-            "creation",
-            "modified",
+            "*",
         ],
         order_by="modified desc",
         limit_page_length=100,
@@ -3979,23 +4040,7 @@ def get_leads():
 
     return {
         "leads": [
-            {
-                "name": row.name,
-                "title": row.title or "",
-                "lead_name": row.lead_name or "",
-                "company_name": row.company_name or "",
-                "email": row.email or "",
-                "phone": row.phone or "",
-                "status": row.status or "",
-                "source": row.source or "",
-                "service_interest": row.service_interest or "",
-                "notes": row.notes or "",
-                "assigned_to": row.assigned_to or "",
-                "customer_profile": row.customer_profile or "",
-                "converted_customer_profile": row.converted_customer_profile or "",
-                "created_at": str(row.creation) if row.creation else "",
-                "updated_at": str(row.modified) if row.modified else "",
-            }
+            _lead_to_dict(row)
             for row in leads
         ]
     }
