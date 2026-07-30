@@ -1,47 +1,10 @@
 from frappe.model.document import Document
 
 
-ERP_LEAD_FIELD_MAP = {
-    "first_name": "first_name",
-    "middle_name": "middle_name",
-    "last_name": "last_name",
-    "lead_name": "lead_name",
-    "company_name": "company_name",
-    "email_id": "email_id",
-    "mobile_no": "mobile_no",
-    "whatsapp_no": "whatsapp_no",
-    "phone": "phone",
-    "phone_ext": "phone_ext",
-    "website": "website",
-    "status": "status",
-    "source": "source",
-    "lead_type": "type",
-    "request_type": "request_type",
-    "lead_owner": "lead_owner",
-    "sales_person": "sales_person",
-    "industry": "industry",
-    "market_segment": "market_segment",
-    "territory": "territory",
-    "no_of_employees": "no_of_employees",
-    "annual_revenue": "annual_revenue",
-    "city": "city",
-    "state": "state",
-    "country": "country",
-    "qualification_status": "qualification_status",
-    "qualified_by": "qualified_by",
-    "qualified_on": "qualified_on",
-    "campaign_name": "campaign_name",
-    "reference_business_partner": "reference_business_partner",
-    "notes": "notes",
-}
-
-
 class OMCLead(Document):
     def validate(self):
         self._normalise_legacy_contact_fields()
         self._derive_identity_fields()
-        self.erp_doctype = self.erp_doctype or "Lead"
-        self.erp_sync_status = self.erp_sync_status or "Not Required"
 
     def _normalise_legacy_contact_fields(self):
         # Keep existing records and older Flutter clients compatible.
