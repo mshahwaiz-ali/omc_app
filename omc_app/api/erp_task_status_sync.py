@@ -110,6 +110,19 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
             }
 
     request_values = {"status": mapped_status}
+    if mapped_status == "Completed" and current_status != "Completed":
+        from omc_app.api import workflow_automation
+
+        workflow_automation.record_completion_attribution(
+            request,
+            source="ERP Task",
+            actor=getattr(request, "assigned_staff", None),
+        )
+        if getattr(request, "completed_by", None):
+            request_values["completed_by"] = request.completed_by
+        if getattr(request, "completion_source", None):
+            request_values["completion_source"] = request.completion_source
+
     if mapped_status in {"Completed", "Cancelled"}:
         request_values["closed_on"] = frappe.utils.now_datetime()
     else:

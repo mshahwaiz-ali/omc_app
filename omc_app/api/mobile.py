@@ -1601,6 +1601,15 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
 
     doc.status = status
 
+    if status == "Completed" and old_status != "Completed":
+        from omc_app.api import workflow_automation
+
+        workflow_automation.record_completion_attribution(
+            doc,
+            source="Mobile / Desk",
+            actor=frappe.session.user,
+        )
+
     if expected_completion_date is not None:
         doc.expected_completion_date = expected_completion_date or None
 
@@ -4011,8 +4020,28 @@ def _pending_linked_erp_task_count():
         },
     )
 
+@frappe.whitelist()
 def get_internal_workspace_summary():
     _assert_internal_workspace_access()
+    user = frappe.session.user
+    today = frappe.utils.getdate()
+    month_start = today.replace(day=1)
+
+    my_filters = {"assigned_staff": user}
+    my_active_filters = {
+        "assigned_staff": user,
+        "status": ["not in", ["Completed", "Cancelled"]],
+    }
+    my_completed_filters = {
+        "completed_by": user,
+        "status": "Completed",
+    }
+    my_month_completed_filters = {
+        "completed_by": user,
+        "status": "Completed",
+        "closed_on": [">=", month_start],
+    }
+
     return {
         "leads": frappe.db.count("OMC Lead"),
         "customers": frappe.db.count("OMC Customer Profile"),
@@ -4028,6 +4057,22 @@ def get_internal_workspace_summary():
         "documents": frappe.db.count("OMC Service Document"),
         "payments_due": frappe.db.count("OMC Service Payment", {"status": "Pending"}),
         "unread_notifications": frappe.db.count("OMC Notification", {"is_read": 0}),
+        "my_assigned_services": frappe.db.count(
+            "OMC Service Request",
+            my_filters,
+        ),
+        "my_active_services": frappe.db.count(
+            "OMC Service Request",
+            my_active_filters,
+        ),
+        "my_completed_services": frappe.db.count(
+            "OMC Service Request",
+            my_completed_filters,
+        ),
+        "my_completed_this_month": frappe.db.count(
+            "OMC Service Request",
+            my_month_completed_filters,
+        ),
     }
 
 

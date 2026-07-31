@@ -37,6 +37,8 @@
   "timeline_section",
   "expected_completion_date",
   "closed_on",
+  "completed_by",
+  "completion_source",
   "erp_integration_section",
   "erp_customer",
   "erp_service",
@@ -313,6 +315,22 @@
    "fieldtype": "Datetime",
    "label": "Closed On",
    "read_only": 1
+  },
+  {
+   "fieldname": "completed_by",
+   "fieldtype": "Link",
+   "label": "Completed By",
+   "options": "User",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "completion_source",
+   "fieldtype": "Select",
+   "label": "Completion Source",
+   "options": "\nMobile / Desk\nERP Task",
+   "read_only": 1,
+   "in_standard_filter": 1
   },
   {
    "fieldname": "internal_section",

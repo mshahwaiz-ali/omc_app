@@ -358,6 +358,67 @@ def completion_blockers(service_case):
 
 
 
+
+def record_completion_attribution(
+    service_case,
+    *,
+    source,
+    actor=None,
+):
+    # Persist the first trusted completion actor without rewriting history.
+    if (getattr(service_case, "status", None) or "") == "Completed":
+        existing_actor = getattr(service_case, "completed_by", None)
+        existing_source = getattr(service_case, "completion_source", None)
+        if existing_actor or existing_source:
+            return {
+                "updated": False,
+                "completed_by": existing_actor or "",
+                "completion_source": existing_source or "",
+            }
+
+    actor = str(
+        actor
+        or getattr(service_case, "assigned_staff", None)
+        or ""
+    ).strip()
+    source = str(source or "").strip()
+
+    meta = getattr(service_case, "meta", None)
+
+    def has_field(fieldname):
+        if meta is None:
+            return True
+        get_field = getattr(meta, "get_field", None)
+        if not callable(get_field):
+            return True
+        return bool(get_field(fieldname))
+
+    values = {}
+    if actor and has_field("completed_by"):
+        values["completed_by"] = actor
+    if source and has_field("completion_source"):
+        values["completion_source"] = source
+
+    if not values:
+        return {
+            "updated": False,
+            "completed_by": "",
+            "completion_source": "",
+        }
+
+    setter = getattr(service_case, "set", None)
+    for fieldname, value in values.items():
+        if callable(setter):
+            setter(fieldname, value)
+        else:
+            setattr(service_case, fieldname, value)
+
+    return {
+        "updated": True,
+        "completed_by": values.get("completed_by", ""),
+        "completion_source": values.get("completion_source", ""),
+    }
+
 def finalize_completed_case(service_case):
     frappe.db.set_value(
         "ToDo",
