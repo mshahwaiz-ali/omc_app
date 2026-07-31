@@ -1,0 +1,1672 @@
+{
+  "batch": "Batch 4 Part F",
+  "scope": "Remaining lead_app dependency and retirement audit",
+  "route_references": [
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/doctype/epg_settings/epg_settings.json",
+      "line": 125,
+      "text": "\"default\": \"https://erp.omchouse.com/api/method/lead_app.lead_app.lead_app.epg.epg_callback\","
+    }
+  ],
+  "imports": [
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/epg.py",
+      "line": 8,
+      "text": "from lead_app.lead_app.fcm import send_notification"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "line": 9,
+      "text": "from lead_app.lead_app.fcm import send_notification"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "line": 10,
+      "text": "from lead_app.epg import initiate_payment as epg_initiate_payment"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "line": 9,
+      "text": "from lead_app.lead_app.fcm import send_notification"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "line": 10,
+      "text": "from lead_app.epg import initiate_payment as epg_initiate_payment"
+    }
+  ],
+  "lead_app_whitelisted_endpoints": [
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/branding.py",
+      "name": "apply_branding",
+      "line": 24,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/referral_automation.py",
+      "name": "validate_referral_code",
+      "line": 116,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "name": "get_service_cases",
+      "line": 20,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "name": "get_service_case",
+      "line": 37,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "name": "cancel_service_request",
+      "line": 618,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "name": "update_service_case_status",
+      "line": 655,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "name": "update_service_document_status",
+      "line": 668,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/auth_login.py",
+      "name": "login",
+      "line": 124,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense_write_guard.py",
+      "name": "create_expense_entry",
+      "line": 82,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense_write_guard.py",
+      "name": "update_expense_entry",
+      "line": 87,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense_write_guard.py",
+      "name": "bulk_sync_expense_entries",
+      "line": 96,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense_write_guard.py",
+      "name": "save_expense_budget",
+      "line": 102,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/tax_calculator_guard.py",
+      "name": "calculate_tax",
+      "line": 91,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/task_read_guard.py",
+      "name": "get_tasks",
+      "line": 151,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/task_read_guard.py",
+      "name": "get_task",
+      "line": 183,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense_guard.py",
+      "name": "upload_expense_receipt",
+      "line": 7,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payment_read_guard.py",
+      "name": "get_payments",
+      "line": 39,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payment_read_guard.py",
+      "name": "get_payment",
+      "line": 87,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+      "name": "get_customer_selection_options",
+      "line": 382,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/dashboard.py",
+      "name": "get_dashboard_data",
+      "line": 413,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/dashboard_read_guard.py",
+      "name": "get_dashboard_data",
+      "line": 32,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/task_write_guard.py",
+      "name": "update_task_operation_status",
+      "line": 59,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/task_write_guard.py",
+      "name": "assign_task",
+      "line": 196,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/task_write_guard.py",
+      "name": "update_task_details",
+      "line": 265,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/branding_config.py",
+      "name": "get_mobile_app_config",
+      "line": 16,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/service_templates.py",
+      "name": "get_service_template",
+      "line": 146,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access.py",
+      "name": "suggest_username",
+      "line": 176,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access.py",
+      "name": "check_username_availability",
+      "line": 191,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access.py",
+      "name": "sign_up",
+      "line": 290,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access.py",
+      "name": "get_mobile_capabilities",
+      "line": 296,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access.py",
+      "name": "get_session_user",
+      "line": 307,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/service_request_guard.py",
+      "name": "create_service",
+      "line": 45,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "get_expense_config",
+      "line": 282,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "get_expense_categories",
+      "line": 302,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "get_expense_entries",
+      "line": 324,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "create_expense_entry",
+      "line": 373,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "bulk_sync_expense_entries",
+      "line": 381,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "update_expense_entry",
+      "line": 439,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "delete_expense_entry",
+      "line": 486,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "upload_expense_receipt",
+      "line": 496,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "get_expense_summary",
+      "line": 544,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "get_expense_budgets",
+      "line": 550,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "save_expense_budget",
+      "line": 571,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense.py",
+      "name": "generate_expense_report",
+      "line": 600,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_ticket_read_state_guard.py",
+      "name": "get_support_unread_count",
+      "line": 22,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_ticket_read_state_guard.py",
+      "name": "mark_support_ticket_read",
+      "line": 27,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/referral_analytics.py",
+      "name": "get_my_referral_summary",
+      "line": 159,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/referral_analytics.py",
+      "name": "get_my_referrals",
+      "line": 207,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/referral_analytics.py",
+      "name": "get_my_referral_detail",
+      "line": 291,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/tax_calculator.py",
+      "name": "get_tax_calculator_config",
+      "line": 24,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/tax_calculator.py",
+      "name": "calculate_tax",
+      "line": 85,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/tax_calculator.py",
+      "name": "get_tax_calculation_history",
+      "line": 177,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/tax_calculator.py",
+      "name": "download_tax_estimate_pdf",
+      "line": 221,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/tax_calculator.py",
+      "name": "share_tax_estimate_with_consultant",
+      "line": 241,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/tax_calculator.py",
+      "name": "start_service_from_calculation",
+      "line": 263,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "sign_up",
+      "line": 451,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "google_mobile_login",
+      "line": 687,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_session_user",
+      "line": 701,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_profile",
+      "line": 763,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "upload_profile_image",
+      "line": 813,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "update_profile",
+      "line": 821,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "update_contact_info",
+      "line": 829,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_dashboard_data",
+      "line": 848,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_service_catalogue",
+      "line": 931,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_service_detail",
+      "line": 965,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "create_service",
+      "line": 1064,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_service_cases",
+      "line": 1462,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "update_service_case_status",
+      "line": 1521,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_service_case",
+      "line": 1629,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "add_service_case_comment",
+      "line": 1708,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "upload_service_document",
+      "line": 1880,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "update_service_document_status",
+      "line": 1888,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_documents",
+      "line": 1953,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_document",
+      "line": 1960,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_payments",
+      "line": 1967,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_payment",
+      "line": 1974,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "upload_payment_receipt",
+      "line": 1981,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "review_payment_receipt",
+      "line": 2035,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_knowledge",
+      "line": 2240,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_knowledge_article",
+      "line": 2280,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_app_banners",
+      "line": 2293,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_onboarding_slides",
+      "line": 2335,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_faqs",
+      "line": 2386,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_notifications",
+      "line": 2457,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "mark_notification_read",
+      "line": 2580,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "mark_notification_unread",
+      "line": 2642,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "dismiss_notification",
+      "line": 2652,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "restore_notification",
+      "line": 2667,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_unread_notification_count",
+      "line": 2679,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "register_push_token",
+      "line": 2695,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "unregister_push_token",
+      "line": 2774,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "mark_all_notifications_read",
+      "line": 2812,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_notification_detail",
+      "line": 2862,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_mobile_app_config",
+      "line": 3273,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_support_config",
+      "line": 3342,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "create_support_ticket",
+      "line": 3403,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_support_tickets",
+      "line": 3507,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_support_ticket",
+      "line": 3516,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "add_support_ticket_reply",
+      "line": 3698,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "update_support_ticket_status",
+      "line": 3711,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_settings_preferences",
+      "line": 3723,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "update_settings_preferences",
+      "line": 3735,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "_pending_linked_erp_task_count",
+      "line": 3808,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "create_lead",
+      "line": 3855,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_leads",
+      "line": 4040,
+      "decorators": [
+        "frappe.whitelist()",
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_lead",
+      "line": 4049,
+      "decorators": [
+        "frappe.whitelist()",
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_customers",
+      "line": 4161,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_customer",
+      "line": 4199,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_tasks",
+      "line": 4245,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "get_task",
+      "line": 4254,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "name": "calculate_tax",
+      "line": 4263,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/service_requests.py",
+      "name": "create_service",
+      "line": 14,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/service_document_guard.py",
+      "name": "get_document",
+      "line": 53,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/service_document_guard.py",
+      "name": "update_service_document_status",
+      "line": 59,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/quick_actions.py",
+      "name": "get_mobile_quick_actions",
+      "line": 328,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/profile.py",
+      "name": "get_profile",
+      "line": 148,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/profile.py",
+      "name": "upload_profile_image",
+      "line": 204,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "create_support_ticket",
+      "line": 444,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "get_support_tickets",
+      "line": 490,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "get_support_ticket",
+      "line": 506,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "get_active_support_ticket",
+      "line": 519,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "get_support_unread_count",
+      "line": 542,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "mark_support_ticket_read",
+      "line": 560,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "add_support_ticket_reply",
+      "line": 587,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "update_support_ticket_status",
+      "line": 637,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_chat.py",
+      "name": "assign_support_ticket",
+      "line": 687,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_ticket_read_guard.py",
+      "name": "get_support_tickets",
+      "line": 37,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_ticket_read_guard.py",
+      "name": "get_support_ticket",
+      "line": 59,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_ticket_read_guard.py",
+      "name": "get_active_support_ticket",
+      "line": 74,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/document_upload.py",
+      "name": "upload_service_document",
+      "line": 84,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/signup_policy.py",
+      "name": "sign_up",
+      "line": 51,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_ticket_guard.py",
+      "name": "update_support_ticket_status",
+      "line": 29,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/support_ticket_guard.py",
+      "name": "assign_support_ticket",
+      "line": 53,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/public_catalogue.py",
+      "name": "get_service_catalogue",
+      "line": 15,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/public_catalogue.py",
+      "name": "get_service_detail",
+      "line": 48,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/internal_workspace.py",
+      "name": "get_service_cases",
+      "line": 56,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/internal_workspace.py",
+      "name": "create_service_request_for_customer",
+      "line": 122,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "name": "get_payments",
+      "line": 592,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "name": "get_payment",
+      "line": 642,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "name": "upload_payment_receipt_file",
+      "line": 683,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "name": "review_payment_receipt",
+      "line": 779,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/guest_session.py",
+      "name": "create_guest_session",
+      "line": 76,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/guest_session.py",
+      "name": "update_guest_activity",
+      "line": 119,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/account_security.py",
+      "name": "change_password",
+      "line": 40,
+      "decorators": [
+        "frappe.whitelist(methods=[\"POST\"])"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/profile_self_service.py",
+      "name": "update_profile",
+      "line": 310,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/lead_read_guard.py",
+      "name": "get_leads",
+      "line": 37,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/lead_read_guard.py",
+      "name": "get_lead",
+      "line": 62,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/referrals.py",
+      "name": "validate_referral_code",
+      "line": 149,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/referrals.py",
+      "name": "get_my_referral_summary",
+      "line": 160,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/referrals.py",
+      "name": "get_my_referrals",
+      "line": 184,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/referrals.py",
+      "name": "revoke_my_referral_assistance_consent",
+      "line": 250,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access_v2.py",
+      "name": "get_session_user",
+      "line": 69,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access_v2.py",
+      "name": "get_profile",
+      "line": 74,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access_v2.py",
+      "name": "get_mobile_capabilities",
+      "line": 81,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/profile_guard.py",
+      "name": "update_profile",
+      "line": 42,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/profile_guard.py",
+      "name": "update_contact_info",
+      "line": 47,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "name": "get_documents",
+      "line": 311,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "name": "get_document",
+      "line": 417,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "name": "update_service_document_status",
+      "line": 453,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense_read_guard.py",
+      "name": "get_expense_entries",
+      "line": 46,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense_read_guard.py",
+      "name": "get_expense_summary",
+      "line": 57,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/expense_read_guard.py",
+      "name": "get_expense_budgets",
+      "line": 63,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payment_mutation_guard.py",
+      "name": "upload_payment_receipt_file",
+      "line": 86,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payment_mutation_guard.py",
+      "name": "review_payment_receipt",
+      "line": 106,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/password_reset.py",
+      "name": "request_reset",
+      "line": 104,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/password_reset.py",
+      "name": "reset_password",
+      "line": 148,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/pending_registration.py",
+      "name": "start_registration",
+      "line": 280,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/pending_registration.py",
+      "name": "resend_verification",
+      "line": 297,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/pending_registration.py",
+      "name": "verify_registration",
+      "line": 318,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service_policy.py",
+      "name": "get_customer_selection_options",
+      "line": 26,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service_policy.py",
+      "name": "create_request",
+      "line": 62,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service_policy.py",
+      "name": "create_service_request_for_customer",
+      "line": 69,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/branding.py",
+      "name": "apply_branding",
+      "line": 23,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/doctype/omc_mobile_settings/omc_mobile_settings.py",
+      "name": "auto_detect_mapping",
+      "line": 129,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/doctype/omc_mobile_settings/omc_mobile_settings.py",
+      "name": "validate_mapping",
+      "line": 150,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/doctype/omc_mobile_settings/omc_mobile_settings.py",
+      "name": "validate_erpnext_mapping",
+      "line": 156,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/doctype/omc_mobile_settings/omc_mobile_settings.py",
+      "name": "activate_mobile_backend",
+      "line": 162,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/doctype/omc_mobile_settings/omc_mobile_settings.py",
+      "name": "deactivate_mobile_backend",
+      "line": 180,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/epg.py",
+      "name": "initiate_payment",
+      "line": 39,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/epg.py",
+      "name": "epg_callback",
+      "line": 154,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True, methods=[\"GET\", \"POST\"])"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/epg.py",
+      "name": "finalize_payment",
+      "line": 435,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/epg.py",
+      "name": "get_epg_transactions",
+      "line": 460,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "sign_up",
+      "line": 14,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "login",
+      "line": 76,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "save_device_token",
+      "line": 133,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "submit_leave_through_system",
+      "line": 143,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "generate_cookies",
+      "line": 195,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "get_dashboard_data",
+      "line": 226,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "get_user_profile_data",
+      "line": 265,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "google_mobile_login",
+      "line": 278,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "initiate_service_payment",
+      "line": 344,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/apis.py",
+      "name": "check_payment_status",
+      "line": 366,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "sign_up",
+      "line": 14,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "login",
+      "line": 76,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "save_device_token",
+      "line": 133,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "submit_leave_through_system",
+      "line": 143,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "generate_cookies",
+      "line": 195,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "get_dashboard_data",
+      "line": 226,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "get_user_profile_data",
+      "line": 265,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "google_mobile_login",
+      "line": 278,
+      "decorators": [
+        "frappe.whitelist(allow_guest=True)"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "initiate_service_payment",
+      "line": 344,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/apis.py",
+      "name": "check_payment_status",
+      "line": 366,
+      "decorators": [
+        "frappe.whitelist()"
+      ]
+    }
+  ],
+  "lead_app_doctypes": [
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/doctype/epg_settings/epg_settings.json",
+      "name": "EPG Settings",
+      "module": "lead_app",
+      "issingle": 1
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/lead_app/lead_app/lead_app/doctype/epg_payment_transaction/epg_payment_transaction.json",
+      "name": "EPG Payment Transaction",
+      "module": "lead_app",
+      "issingle": 0
+    }
+  ]
+}

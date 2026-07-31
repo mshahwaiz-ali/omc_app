@@ -1,0 +1,370 @@
+{
+  "batch": "Batch 8E",
+  "scope": "Internal discount UI and API callsite extraction",
+  "backend": {
+    "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+    "functions": {
+      "_request_response": {
+        "line_start": 366,
+        "line_end": 379,
+        "source": "def _request_response(doc) -> dict:\n    return {\n        \"name\": doc.name,\n        \"request_id\": doc.name,\n        \"service_request\": doc.name,\n        \"case_id\": doc.name,\n        \"status\": doc.status,\n        \"created\": True,\n        \"message\": \"Service request created.\",\n        \"customer_mode\": doc.customer_mode or \"\",\n        \"submission_mode\": doc.submission_mode or \"\",\n        \"customer_profile\": doc.customer_profile or \"\",\n        \"manual_customer\": doc.manual_customer or \"\",\n    }"
+      },
+      "create_request": {
+        "line_start": 567,
+        "line_end": 712,
+        "source": "def create_request(**kwargs):\n    user = _current_user()\n    is_internal = mobile._can_access_internal_workspace(user)\n    service = _service_doc(kwargs.get(\"service_id\") or kwargs.get(\"service\"))\n\n    if not is_internal:\n        profile = mobile._assert_approved_customer()\n        customer_mode = \"Self\"\n        submission_mode = \"Customer Self-Service\"\n        manual_customer = None\n        consent_reference = \"\"\n    else:\n        _require_internal_assist(user)\n        customer_mode = _text(kwargs.get(\"customer_mode\"))\n        if customer_mode not in CUSTOMER_MODES - {\"Self\"}:\n            frappe.throw(\n                \"A valid assisted customer_mode is required.\",\n                frappe.ValidationError,\n            )\n\n        consent_reference = _text(kwargs.get(\"customer_consent_reference\"))\n        manual_customer = None\n\n        if customer_mode == \"My Referral\":\n            profile = _resolve_my_referral(\n                user,\n                kwargs.get(\"customer_profile\") or kwargs.get(\"customer_id\"),\n            )\n            submission_mode = \"Staff on Behalf\"\n            consent_reference = (\n                consent_reference\n                or _text(profile.referral_consent_timestamp)\n                or profile.name\n            )\n        elif customer_mode == \"Existing Customer\":\n            profile = _resolve_existing_customer(\n                user,\n                kwargs.get(\"customer_profile\") or kwargs.get(\"customer_id\"),\n                consent_reference,\n            )\n            submission_mode = \"Admin on Behalf\"\n        else:\n            profile = None\n            manual_customer = _create_manual_customer(user, kwargs)\n            submission_mode = \"Walk-in Assisted\"\n            consent_reference = consent_reference or manual_customer.name\n\n    full_name = _text(kwargs.get(\"full_name\") or kwargs.get(\"customer_name\"))\n    contact_email = _text(kwargs.get(\"contact_email\") or kwargs.get(\"email\"))\n    contact_phone = _text(kwargs.get(\"contact_phone\") or kwargs.get(\"phone\"))\n\n    if profile:\n        full_name = full_name or _text(profile.full_name)\n        contact_email = contact_email or _text(profile.email)\n        contact_phone = contact_phone or _text(profile.phone)\n    elif manual_customer:\n        full_name = full_name or _text(manual_customer.full_name)\n        contact_email = contact_email or _text(manual_customer.email)\n        contact_phone = contact_phone or _text(manual_customer.mobile)\n\n    doc = frappe.new_doc(\"OMC Service Request\")\n    doc.service = service.name\n    doc.service_title = service.title or \"\"\n    doc.title = _text(kwargs.get(\"title\")) or service.title or \"Service Request\"\n    doc.description = kwargs.get(\"description\") or \"\"\n    doc.priority = kwargs.get(\"priority\") or \"Medium\"\n    doc.status = \"Open\"\n    doc.customer_profile = profile.name if profile else \"\"\n    doc.requested_for_customer = (\n        _text(profile.linked_app_user)\n        or _text(profile.user)\n        if profile\n        else \"\"\n    )\n    doc.manual_customer = manual_customer.name if manual_customer else \"\"\n    doc.customer_name = full_name\n    doc.contact_email = contact_email\n    doc.contact_phone = contact_phone\n    doc.customer_mode = customer_mode\n    doc.submission_mode = submission_mode\n    doc.submitted_by_user = user\n    doc.submitted_by_internal_user = user if is_internal else \"\"\n    doc.created_on_behalf = 1 if is_internal else 0\n    doc.customer_consent_reference = consent_reference\n    doc.source_channel = _text(kwargs.get(\"source_channel\")) or \"Mobile App\"\n\n    if profile and customer_mode == \"My Referral\":\n        doc.referral_owner = profile.referred_by\n        doc.referral_record = profile.referral_record\n\n    explicit_assignee = _text(kwargs.get(\"assigned_staff\"))\n    referral_assignee = (\n        doc.referral_owner\n        if profile and customer_mode == \"My Referral\"\n        else \"\"\n    )\n    doc.assigned_staff = _resolve_request_assignee(\n        service,\n        explicit_user=explicit_assignee,\n        referral_owner=referral_assignee,\n    )\n    doc.insert(ignore_permissions=True)\n\n    erp_bridge = erp_service_task_adapter.sync_request(\n        doc,\n        service=service,\n        profile=profile,\n        manual_customer=manual_customer,\n    )\n\n    assignment_todo = _ensure_assignment_todo(doc, doc.assigned_staff)\n    if doc.assigned_staff:\n        _notify_assignee(doc, doc.assigned_staff)\n        mobile._create_service_timeline_entry(\n            service_request=doc.name,\n            event_type=\"Assignment\",\n            title=\"Request Assigned\",\n            description=f\"Request assigned to {doc.assigned_staff}.\",\n            visible_to_customer=0,\n        )\n\n    mobile._create_service_timeline_entry(\n        service_request=doc.name,\n        event_type=\"Request Created\",\n        title=\"Request Created by OMC\" if is_internal else \"Request Created\",\n        description=(\n            _text(kwargs.get(\"note\"))\n            or (\n                \"OMC team created this service request.\"\n                if is_internal\n                else \"Your service request has been created successfully.\"\n            )\n        ),\n        visible_to_customer=1,\n    )\n\n    frappe.db.commit()\n    response = _request_response(doc)\n    response[\"assigned_staff\"] = doc.assigned_staff or \"\"\n    response[\"assignment_todo\"] = assignment_todo\n    response[\"erp_sync_status\"] = erp_bridge.get(\"status\") or \"\"\n    response[\"erp_customer\"] = erp_bridge.get(\"erp_customer\") or \"\"\n    response[\"erp_service\"] = erp_bridge.get(\"erp_service\") or \"\"\n    response[\"erp_task\"] = erp_bridge.get(\"erp_task\") or \"\"\n    response[\"erp_task_assignment\"] = erp_bridge.get(\"task_assignment\")\n    return response"
+      }
+    }
+  },
+  "flutter_matches": [
+    {
+      "path": "omc_app/lib/features/service_requests/presentation/service_request_draft_screen.dart",
+      "hits": [
+        {
+          "line": 26,
+          "matches": [
+            "assisted"
+          ],
+          "text": "import 'assisted_customer_card.dart';"
+        },
+        {
+          "line": 52,
+          "matches": [
+            "assisted"
+          ],
+          "text": "AssistedCustomerDraftSelection? _assistedSelection;"
+        },
+        {
+          "line": 103,
+          "matches": [
+            "Start Request"
+          ],
+          "text": "appBar: AppBackHeader(title: 'Start Request'),"
+        },
+        {
+          "line": 107,
+          "matches": [
+            "Start Request"
+          ],
+          "text": "appBar: const AppBackHeader(title: 'Start Request'),"
+        },
+        {
+          "line": 123,
+          "matches": [
+            "Start Request"
+          ],
+          "text": "appBar: AppBackHeader(title: 'Start Request'),"
+        },
+        {
+          "line": 140,
+          "matches": [
+            "Start Request"
+          ],
+          "text": "appBar: const AppBackHeader(title: 'Start Request'),"
+        },
+        {
+          "line": 277,
+          "matches": [
+            "assisted"
+          ],
+          "text": "_assistedSelection = selection;"
+        },
+        {
+          "line": 395,
+          "matches": [
+            "assisted"
+          ],
+          "text": "if (capabilities.isInternal && _assistedSelection == null) {"
+        },
+        {
+          "line": 423,
+          "matches": [
+            "assisted"
+          ],
+          "text": "customerId: _assistedSelection?.customerId,"
+        },
+        {
+          "line": 424,
+          "matches": [
+            "assisted"
+          ],
+          "text": "customerName: _assistedSelection?.customer?.fullName,"
+        },
+        {
+          "line": 425,
+          "matches": [
+            "customerMode",
+            "assisted"
+          ],
+          "text": "customerMode: _assistedSelection?.mode,"
+        },
+        {
+          "line": 426,
+          "matches": [
+            "assisted"
+          ],
+          "text": "customerConsentReference: _assistedSelection?.consentReference,"
+        },
+        {
+          "line": 427,
+          "matches": [
+            "assisted"
+          ],
+          "text": "city: _assistedSelection?.city,"
+        },
+        {
+          "line": 428,
+          "matches": [
+            "assisted"
+          ],
+          "text": "address: _assistedSelection?.address,"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/service_requests/presentation/assisted_customer_card.dart",
+      "hits": [
+        {
+          "line": 131,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "customerMode: mode,"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/service_requests/data/service_case.dart",
+      "hits": [
+        {
+          "line": 25,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "this.customerMode,"
+        },
+        {
+          "line": 71,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "final String? customerMode;"
+        },
+        {
+          "line": 276,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "final mode = customerMode?.trim().toLowerCase() ?? '';"
+        },
+        {
+          "line": 280,
+          "matches": [
+            "assisted"
+          ],
+          "text": "submission.contains('assisted');"
+        },
+        {
+          "line": 289,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "final mode = customerMode?.trim();"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/service_requests/data/service_request_repository.dart",
+      "hits": [
+        {
+          "line": 31,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "this.customerMode,"
+        },
+        {
+          "line": 47,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "final String? customerMode;"
+        },
+        {
+          "line": 58,
+          "matches": [
+            "service_id"
+          ],
+          "text": "'service_id': service.id.trim(),"
+        },
+        {
+          "line": 86,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "final normalizedCustomerMode = customerMode?.trim();"
+        },
+        {
+          "line": 88,
+          "matches": [
+            "customer_mode"
+          ],
+          "text": "data['customer_mode'] = normalizedCustomerMode;"
+        },
+        {
+          "line": 264,
+          "matches": [
+            "customer_mode"
+          ],
+          "text": "mode: _staticString(json['customer_mode']),"
+        },
+        {
+          "line": 364,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "String? customerMode,"
+        },
+        {
+          "line": 374,
+          "matches": [
+            "customerMode"
+          ],
+          "text": "final cleanMode = customerMode?.trim();"
+        },
+        {
+          "line": 377,
+          "matches": [
+            "customer_mode"
+          ],
+          "text": "queryParameters['customer_mode'] = cleanMode;"
+        },
+        {
+          "line": 384,
+          "matches": [
+            "assisted"
+          ],
+          "text": "ApiConfig.assistedCustomerSelectionMethod,"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/service_requests/data/service_case_repository.dart",
+      "hits": [
+        {
+          "line": 304,
+          "matches": [
+            "service_id"
+          ],
+          "text": "json['service_id'] ?? json['service'] ?? json['service_code'],"
+        },
+        {
+          "line": 342,
+          "matches": [
+            "customer_mode",
+            "customerMode"
+          ],
+          "text": "customerMode: _nullableString(json['customer_mode']),"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/service_catalogue/data/service_catalogue_repository.dart",
+      "hits": [
+        {
+          "line": 117,
+          "matches": [
+            "service_id"
+          ],
+          "text": "queryParameters: {'service_id': service.id},"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/service_catalogue/data/service_item.dart",
+      "hits": [
+        {
+          "line": 67,
+          "matches": [
+            "service_id"
+          ],
+          "text": "id: _readString(json, ['id', 'name', 'service_id']),"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/internal_workspace/data/internal_workspace_repository.dart",
+      "hits": [
+        {
+          "line": 78,
+          "matches": [
+            "service_id"
+          ],
+          "text": "'service_id': serviceId.trim(),"
+        },
+        {
+          "line": 93,
+          "matches": [
+            "service_id"
+          ],
+          "text": "if ((data['service_id'] as String).isEmpty) {"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/service_templates/data/service_template.dart",
+      "hits": [
+        {
+          "line": 18,
+          "matches": [
+            "service_id"
+          ],
+          "text": "service: _readString(json, ['service', 'service_id', 'name']),"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/features/service_templates/data/service_template_repository.dart",
+      "hits": [
+        {
+          "line": 26,
+          "matches": [
+            "service_id"
+          ],
+          "text": "queryParameters: {'service_id': serviceId},"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/core/config/api_config.dart",
+      "hits": [
+        {
+          "line": 95,
+          "matches": [
+            "assisted"
+          ],
+          "text": "static const String assistedCustomerSelectionMethod ="
+        },
+        {
+          "line": 96,
+          "matches": [
+            "assisted"
+          ],
+          "text": "'omc_app.api.assisted_service.get_customer_selection_options';"
+        }
+      ]
+    },
+    {
+      "path": "omc_app/lib/app/navigation/omc_quick_actions_sheet.dart",
+      "hits": [
+        {
+          "line": 100,
+          "matches": [
+            "Start Request"
+          ],
+          "text": "action('Start Request', Icons.add_business_rounded, onOpenServices),"
+        }
+      ]
+    }
+  ]
+}

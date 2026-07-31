@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../crm/presentation/widgets/crm_detail_widgets.dart';
 import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
@@ -16,6 +17,10 @@ class TaskDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final taskAsync = ref.watch(taskDetailProvider(taskId));
+    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final canManageTasks = capabilities.canManageTasks;
+    final canUpdateStatus =
+        canManageTasks || capabilities.canManageAssignedTasks;
 
     return Scaffold(
       appBar: const AppBackHeader(title: 'Task', fallbackRoute: '/tasks'),
@@ -30,7 +35,15 @@ class TaskDetailScreen extends ConsumerWidget {
             );
           }
 
-          return _TaskDetailBody(task: task);
+          return _TaskDetailBody(
+            task: task,
+            onUpdateStatus: canUpdateStatus
+                ? () => _showOperationStatusSheet(context, ref, task)
+                : null,
+            onManageTask: canManageTasks
+                ? () => _showManagerTaskSheet(context, ref, task)
+                : null,
+          );
         },
         loading: () => const _TaskDetailLoadingView(),
         error: (_, _) => PremiumEmptyState(
@@ -44,12 +57,243 @@ class TaskDetailScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _showOperationStatusSheet(
+    BuildContext context,
+    WidgetRef ref,
+    TaskItem task,
+  ) async {
+    const statuses = <String>[
+      'Open',
+      'Pending at Operation Side',
+      'Pending at Tax Associate',
+      'Pending at Client',
+      'Pending at QC',
+      'Submitted by Operation',
+      'Submitted by QC',
+    ];
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        children: [
+          const Text(
+            'Update operation status',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          for (final status in statuses)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(status),
+              trailing: status == task.status
+                  ? const Icon(Icons.check_rounded)
+                  : null,
+              onTap: () => Navigator.of(sheetContext).pop(status),
+            ),
+        ],
+      ),
+    );
+
+    if (selected == null || selected == task.status || !context.mounted) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(tasksRepositoryProvider)
+          .updateOperationStatus(taskId: task.id, operationStatus: selected);
+      ref.invalidate(taskDetailProvider(task.id));
+      ref.invalidate(tasksProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Task status updated to $selected.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Task status could not be updated: $error')),
+      );
+    }
+  }
+
+  Future<void> _showManagerTaskSheet(
+    BuildContext context,
+    WidgetRef ref,
+    TaskItem task,
+  ) async {
+    final assignedController = TextEditingController(text: task.assignedTo);
+    final dueDateController = TextEditingController(text: task.dueDateLabel);
+    var priority = task.priority.trim().isEmpty
+        ? 'Medium'
+        : task.priority.trim();
+    var saving = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> submit() async {
+              if (saving) return;
+              setSheetState(() => saving = true);
+
+              try {
+                final repository = ref.read(tasksRepositoryProvider);
+                final cleanAssignee = assignedController.text.trim();
+                final cleanDueDate = dueDateController.text.trim();
+
+                if (cleanAssignee.isNotEmpty &&
+                    cleanAssignee != task.assignedTo.trim()) {
+                  await repository.assignTask(
+                    taskId: task.id,
+                    assignedTo: cleanAssignee,
+                  );
+                }
+
+                final planningChanged =
+                    priority != task.priority.trim() ||
+                    cleanDueDate != task.dueDateLabel.trim();
+
+                if (planningChanged) {
+                  await repository.updateTaskDetails(
+                    taskId: task.id,
+                    priority: priority,
+                    dueDate: cleanDueDate,
+                  );
+                }
+
+                ref.invalidate(taskDetailProvider(task.id));
+                ref.invalidate(tasksProvider);
+
+                if (!sheetContext.mounted) return;
+                Navigator.of(sheetContext).pop();
+
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Task planning updated.')),
+                );
+              } catch (error) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Task could not be updated: $error')),
+                );
+              } finally {
+                if (sheetContext.mounted) {
+                  setSheetState(() => saving = false);
+                }
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                MediaQuery.viewInsetsOf(context).bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Manage task',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: assignedController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Assigned user',
+                        hintText: 'user@example.com',
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      initialValue: priority,
+                      decoration: const InputDecoration(labelText: 'Priority'),
+                      items: const [
+                        DropdownMenuItem(value: 'Low', child: Text('Low')),
+                        DropdownMenuItem(
+                          value: 'Medium',
+                          child: Text('Medium'),
+                        ),
+                        DropdownMenuItem(value: 'High', child: Text('High')),
+                        DropdownMenuItem(
+                          value: 'Urgent',
+                          child: Text('Urgent'),
+                        ),
+                      ],
+                      onChanged: saving
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setSheetState(() => priority = value);
+                              }
+                            },
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: dueDateController,
+                      keyboardType: TextInputType.datetime,
+                      decoration: const InputDecoration(
+                        labelText: 'Due date',
+                        hintText: 'YYYY-MM-DD',
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: saving ? null : submit,
+                        icon: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_rounded),
+                        label: Text(saving ? 'Saving...' : 'Save changes'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    assignedController.dispose();
+    dueDateController.dispose();
+  }
 }
 
 class _TaskDetailBody extends StatelessWidget {
-  const _TaskDetailBody({required this.task});
+  const _TaskDetailBody({
+    required this.task,
+    this.onUpdateStatus,
+    this.onManageTask,
+  });
 
   final TaskItem task;
+  final VoidCallback? onUpdateStatus;
+  final VoidCallback? onManageTask;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +352,27 @@ class _TaskDetailBody extends StatelessWidget {
           CrmDetailInfoCard(
             title: 'Description',
             rows: [CrmInfoRow(label: 'Details', value: task.description!)],
+          ),
+        ],
+        if (onUpdateStatus != null || onManageTask != null) ...[
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (onUpdateStatus != null)
+                FilledButton.icon(
+                  onPressed: onUpdateStatus,
+                  icon: const Icon(Icons.sync_alt_rounded),
+                  label: const Text('Update operation status'),
+                ),
+              if (onManageTask != null)
+                OutlinedButton.icon(
+                  onPressed: onManageTask,
+                  icon: const Icon(Icons.manage_accounts_rounded),
+                  label: const Text('Manage task'),
+                ),
+            ],
           ),
         ],
         const SizedBox(height: 16),

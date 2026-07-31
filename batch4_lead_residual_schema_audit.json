@@ -1,0 +1,28 @@
+{
+  "batch": "Batch 4 Part E",
+  "scope": "OMC Lead residual schema and authority audit",
+  "schema_exists": true,
+  "erp_sync_fields": [],
+  "omc_lead_hook_references": [
+    {
+      "line": 10,
+      "text": "permission_query_conditions = {'OMC Service Request': 'omc_app.permissions.service_request_query', 'OMC Customer Profile': 'omc_app.permissions.customer_profile_query', 'OMC Referral': 'omc_app.permissions.referral_query', 'OMC Service Document': 'omc_app.permissions.service_document_query', 'OMC Service Payment': 'omc_app.permissions.service_payment_query', 'OMC Support Ticket': 'omc_app.permissions.support_ticket_query', 'OMC Lead': 'omc_app.permissions.lead_query'}"
+    },
+    {
+      "line": 11,
+      "text": "has_permission = {'OMC Service Request': 'omc_app.permissions.service_request_has_permission', 'OMC Customer Profile': 'omc_app.permissions.customer_profile_has_permission', 'OMC Referral': 'omc_app.permissions.referral_has_permission', 'OMC Service Document': 'omc_app.permissions.service_document_has_permission', 'OMC Service Payment': 'omc_app.permissions.service_payment_has_permission', 'OMC Support Ticket': 'omc_app.permissions.support_ticket_has_permission', 'OMC Lead': 'omc_app.permissions.lead_has_permission'}"
+    }
+  ],
+  "omc_lead_permission_references": [
+    {
+      "line": 139,
+      "text": "return _record_matches_query('OMC Lead', doc.name, lead_query(user))"
+    }
+  ],
+  "omc_lead_role_references": [
+    {
+      "line": 16,
+      "text": "SPECIALIST_DOCTYPE_ACCESS = {SUPPORT_AGENT_ROLE: {'OMC Lead': {'read': 1, 'write': 1, 'create': 1}, 'OMC Support Ticket': {'read': 1, 'write': 1, 'create': 1}, 'OMC Support Ticket Message': {'read': 1, 'write': 1, 'create': 1}, 'OMC Customer Profile': {'read': 1}, 'OMC Referral': {'read': 1, 'create': 1}, 'OMC Manual Customer': {'read': 1, 'write': 1, 'create': 1}, 'OMC Service Request': {'read': 1, 'create': 1}, 'OMC Notification': {'read': 1, 'create': 1}}, DOCUMENT_REVIEWER_ROLE: {'OMC Service Document': {'read': 1, 'write': 1}, 'OMC Service Required Document': {'read': 1}, 'OMC Service Request': {'read': 1}, 'OMC Customer Profile': {'read': 1}, 'OMC Referral': {'read': 1}, 'OMC Manual Customer': {'read': 1, 'write': 1, 'create': 1}, 'OMC Service Timeline': {'read': 1, 'create': 1}}, FINANCE_REVIEWER_ROLE: {'OMC Service Payment': {'read': 1, 'write': 1}, 'OMC Payment Account': {'read': 1}, 'OMC Service Request': {'read': 1}, 'OMC Customer Profile': {'read': 1}, 'OMC Referral': {'read': 1}, 'OMC Manual Customer': {'read': 1, 'write': 1, 'create': 1}, 'OMC Service Timeline': {'read': 1, 'create': 1}}, CONSULTANT_ROLE: {'OMC Service Request': {'read': 1, 'write': 1}, 'OMC Service Document': {'read': 1}, 'OMC Customer Profile': {'read': 1}, 'OMC Referral': {'read': 1}, 'OMC Manual Customer': {'read': 1, 'write': 1, 'create': 1}, 'OMC Service Timeline': {'read': 1, 'create': 1}}, TAX_ASSOCIATE_ROLE: {'OMC Service Request': {'read': 1, 'write': 1}, 'OMC Service Document': {'read': 1}, 'OMC Customer Profile': {'read': 1}, 'OMC Referral': {'read': 1}, 'OMC Manual Customer': {'read': 1, 'write': 1, 'create': 1}, 'OMC Service Timeline': {'read': 1, 'create': 1}}, BUSINESS_PARTNER_ROLE: {'OMC Service Request': {'read': 1, 'write': 1}, 'OMC Service Document': {'read': 1}, 'OMC Customer Profile': {'read': 1}, 'OMC Referral': {'read': 1}, 'OMC Manual Customer': {'read': 1, 'write': 1, 'create': 1}, 'OMC Service Timeline': {'read': 1, 'create': 1}}}"
+    }
+  ]
+}

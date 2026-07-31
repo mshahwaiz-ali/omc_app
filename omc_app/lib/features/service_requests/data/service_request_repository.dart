@@ -32,6 +32,9 @@ class ServiceRequestPayload {
     this.customerConsentReference,
     this.city,
     this.address,
+    this.discountType,
+    this.discountValue,
+    this.discountReason,
   });
 
   final ServiceItem service;
@@ -48,6 +51,9 @@ class ServiceRequestPayload {
   final String? customerConsentReference;
   final String? city;
   final String? address;
+  final String? discountType;
+  final double? discountValue;
+  final String? discountReason;
 
   Map<String, dynamic> toJson() {
     final normalizedDetails = _normalizedAdditionalDetails();
@@ -102,6 +108,21 @@ class ServiceRequestPayload {
     final normalizedAddress = address?.trim();
     if (normalizedAddress != null && normalizedAddress.isNotEmpty) {
       data['address'] = normalizedAddress;
+    }
+
+    final normalizedDiscountType = discountType?.trim();
+    final normalizedDiscountValue = discountValue ?? 0;
+    final normalizedDiscountReason = discountReason?.trim();
+
+    if (normalizedDiscountType != null &&
+        normalizedDiscountType.isNotEmpty &&
+        normalizedDiscountValue > 0) {
+      data['discount_type'] = normalizedDiscountType;
+      data['discount_value'] = normalizedDiscountValue;
+      if (normalizedDiscountReason != null &&
+          normalizedDiscountReason.isNotEmpty) {
+        data['discount_reason'] = normalizedDiscountReason;
+      }
     }
 
     final normalizedRemarks = remarks.trim();

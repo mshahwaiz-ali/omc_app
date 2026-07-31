@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../auth/application/auth_controller.dart';
 import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
 
@@ -26,25 +25,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   @override
   void initState() {
     super.initState();
-
-    if (widget.openCreateOnLoad) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted &&
-            ref.read(authControllerProvider).capabilities.canManageTasks) {
-          _showCreateTaskSheet();
-        }
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final tasksAsync = ref.watch(tasksProvider);
-    final canCreateTasks = ref
-        .watch(authControllerProvider)
-        .capabilities
-        .canManageTasks;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFD),
       body: SafeArea(
@@ -68,11 +53,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               },
               onOpenFilters: () => _showFilterSheet(tasks),
               onClearFilters: _clearFilters,
-              onAddTask: canCreateTasks ? _showCreateTaskSheet : null,
+              onAddTask: null,
             ),
-            loading: () => _TasksLoadingView(
-              onAddTask: canCreateTasks ? _showCreateTaskSheet : null,
-            ),
+            loading: () => _TasksLoadingView(onAddTask: null),
             error: (error, _) => ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 150),
@@ -250,282 +233,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       _statusFilter = result.status;
       _priorityFilter = result.priority;
     });
-  }
-
-  Future<void> _showCreateTaskSheet() async {
-    if (!ref.read(authControllerProvider).capabilities.canManageTasks) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Your role cannot create or assign tasks.'),
-        ),
-      );
-      return;
-    }
-
-    final titleController = TextEditingController();
-    final assignedController = TextEditingController();
-    final dueDateController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    var priority = 'Normal';
-    var saving = false;
-    DateTime? selectedDueDate;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      barrierColor: Colors.black.withValues(alpha: 0.30),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            Future<void> chooseDueDate() async {
-              final now = DateTime.now();
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: selectedDueDate ?? now,
-                firstDate: DateTime(now.year - 1),
-                lastDate: DateTime(now.year + 5),
-              );
-
-              if (picked == null) {
-                return;
-              }
-
-              selectedDueDate = picked;
-              dueDateController.text = _apiDate(picked);
-              setSheetState(() {});
-            }
-
-            Future<void> submit() async {
-              if (saving) {
-                return;
-              }
-
-              if (!ref
-                  .read(authControllerProvider)
-                  .capabilities
-                  .canManageTasks) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Your role cannot create or assign tasks.'),
-                  ),
-                );
-                return;
-              }
-
-              final title = titleController.text.trim();
-
-              if (title.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Enter a task title before continuing.'),
-                  ),
-                );
-                return;
-              }
-
-              setSheetState(() => saving = true);
-
-              try {
-                await ref
-                    .read(tasksRepositoryProvider)
-                    .createTask(
-                      title: title,
-                      priority: priority,
-                      dueDate: dueDateController.text,
-                      assignedTo: assignedController.text,
-                      description: descriptionController.text,
-                    );
-
-                ref.invalidate(tasksProvider);
-
-                if (!sheetContext.mounted) {
-                  return;
-                }
-
-                Navigator.of(sheetContext).pop();
-
-                if (!mounted) {
-                  return;
-                }
-
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(content: Text('Task created successfully.')),
-                );
-              } catch (error) {
-                if (!mounted) {
-                  return;
-                }
-
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(content: Text(_backendErrorMessage(error))),
-                );
-              } finally {
-                if (sheetContext.mounted) {
-                  setSheetState(() => saving = false);
-                }
-              }
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 2,
-                bottom: MediaQuery.viewInsetsOf(context).bottom + 22,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Assign task',
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Create and assign a trackable work item.',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: titleController,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Task title',
-                        hintText: 'What needs to be done?',
-                        prefixIcon: Icon(Icons.task_alt_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: priority,
-                      decoration: const InputDecoration(
-                        labelText: 'Priority',
-                        prefixIcon: Icon(Icons.flag_outlined),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'Low', child: Text('Low')),
-                        DropdownMenuItem(
-                          value: 'Normal',
-                          child: Text('Normal'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Medium',
-                          child: Text('Medium'),
-                        ),
-                        DropdownMenuItem(value: 'High', child: Text('High')),
-                        DropdownMenuItem(
-                          value: 'Urgent',
-                          child: Text('Urgent'),
-                        ),
-                      ],
-                      onChanged: saving
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setSheetState(() => priority = value);
-                              }
-                            },
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: dueDateController,
-                      readOnly: true,
-                      onTap: saving ? null : chooseDueDate,
-                      decoration: InputDecoration(
-                        labelText: 'Due date',
-                        hintText: 'Select a date',
-                        prefixIcon: const Icon(Icons.event_outlined),
-                        suffixIcon: selectedDueDate == null
-                            ? const Icon(Icons.keyboard_arrow_down_rounded)
-                            : IconButton(
-                                tooltip: 'Clear due date',
-                                onPressed: saving
-                                    ? null
-                                    : () {
-                                        selectedDueDate = null;
-                                        dueDateController.clear();
-                                        setSheetState(() {});
-                                      },
-                                icon: const Icon(Icons.close_rounded),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: assignedController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Assign to',
-                        hintText: 'User email or account ID',
-                        prefixIcon: Icon(Icons.person_outline_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: descriptionController,
-                      minLines: 3,
-                      maxLines: 5,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        hintText: 'Add instructions or useful context',
-                        alignLabelWithHint: true,
-                        prefixIcon: Icon(Icons.notes_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: FilledButton.icon(
-                        onPressed: saving ? null : submit,
-                        icon: saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.add_task_rounded),
-                        label: Text(
-                          saving ? 'Creating task...' : 'Create task',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    titleController.dispose();
-    assignedController.dispose();
-    dueDateController.dispose();
-    descriptionController.dispose();
   }
 }
 
@@ -1637,12 +1344,6 @@ bool _isOverdue(TaskItem task) {
   final dueDate = DateTime(parsed.year, parsed.month, parsed.day);
 
   return dueDate.isBefore(currentDate);
-}
-
-String _apiDate(DateTime date) {
-  final month = date.month.toString().padLeft(2, '0');
-  final day = date.day.toString().padLeft(2, '0');
-  return '${date.year}-$month-$day';
 }
 
 String _normalise(String value) {

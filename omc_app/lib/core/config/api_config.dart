@@ -204,8 +204,7 @@ class ApiConfig {
       'omc_app.api.support_chat.add_support_ticket_reply';
   static const String updateSupportTicketStatusMethod =
       'omc_app.api.support_chat.update_support_ticket_status';
-  static const String uploadSupportTicketAttachmentMethod =
-      'upload_file';
+  static const String uploadSupportTicketAttachmentMethod = 'upload_file';
   static const String supportConfigMethod =
       'omc_app.api.mobile.get_support_config';
 
@@ -226,6 +225,12 @@ class ApiConfig {
   static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
   static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
   static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
+  static const String updateTaskOperationStatusMethod =
+      'omc_app.api.task_write_guard.update_task_operation_status';
+  static const String assignTaskMethod =
+      'omc_app.api.task_write_guard.assign_task';
+  static const String updateTaskDetailsMethod =
+      'omc_app.api.task_write_guard.update_task_details';
 
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';

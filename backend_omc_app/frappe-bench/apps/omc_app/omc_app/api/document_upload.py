@@ -12,6 +12,22 @@ from omc_app.api.mobile import (
 
 ALLOWED_DOCUMENT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "doc", "docx"}
 MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024
+
+
+
+TERMINAL_SERVICE_STATUSES = {"Completed", "Cancelled"}
+
+
+def _assert_service_request_accepts_documents(service_case):
+    status = (getattr(service_case, "status", None) or "").strip()
+    if status in TERMINAL_SERVICE_STATUSES:
+        frappe.throw(
+            (
+                "Documents cannot be uploaded after a service request is "
+                f"{status.lower()}."
+            ),
+            frappe.ValidationError,
+        )
 MAX_FILES_PER_CASE = 20
 
 
@@ -21,6 +37,78 @@ def _has_field(doctype, fieldname):
     except Exception:
         return False
 
+
+
+
+
+ACTIVE_DOCUMENT_STATUSES = {"Pending", "Uploaded", "Approved"}
+
+
+def _document_identity(value):
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _assert_document_submission_available(
+    service_case,
+    document_title,
+    document_type,
+):
+    title_key = _document_identity(document_title)
+    type_key = _document_identity(document_type)
+
+    existing = frappe.get_all(
+        "OMC Service Document",
+        filters={
+            "service_request": service_case.name,
+            "visible_to_customer": 1,
+        },
+        fields=[
+            "name",
+            "document_title",
+            "document_type",
+            "status",
+            "is_archived",
+        ],
+        order_by="creation desc",
+    )
+
+    for row in existing:
+        if int(getattr(row, "is_archived", 0) or 0):
+            continue
+        if _document_identity(row.document_title) != title_key:
+            continue
+        if _document_identity(row.document_type) != type_key:
+            continue
+
+        status = (row.status or "").strip()
+        if status in ACTIVE_DOCUMENT_STATUSES:
+            frappe.throw(
+                (
+                    f"{document_title} already has an active submission "
+                    f"with status {status}. Review that document before "
+                    "uploading another copy."
+                ),
+                frappe.ValidationError,
+            )
+
+
+def _cleanup_failed_unlinked_upload(uploaded_file):
+    if not uploaded_file:
+        return False
+
+    if uploaded_file.owner and uploaded_file.owner != _current_user():
+        return False
+
+    if uploaded_file.attached_to_doctype or uploaded_file.attached_to_name:
+        return False
+
+    frappe.delete_doc(
+        "File",
+        uploaded_file.name,
+        ignore_permissions=True,
+        force=True,
+    )
+    return True
 
 def _validate_uploaded_document(service_case, attachment):
     clean_attachment = _clean_file_reference(attachment)
@@ -104,6 +192,7 @@ def upload_service_document(**kwargs):
         frappe.throw("Service request not found", frappe.DoesNotExistError)
 
     service_case = frappe.get_doc("OMC Service Request", case_id)
+    _assert_service_request_accepts_documents(service_case)
     profile = _assert_approved_customer()
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
         frappe.throw(
@@ -111,6 +200,11 @@ def upload_service_document(**kwargs):
             frappe.PermissionError,
         )
 
+    _assert_document_submission_available(
+        service_case,
+        document_title,
+        document_type,
+    )
     attachment, uploaded_file = _validate_uploaded_document(service_case, attachment)
 
     doc = frappe.new_doc("OMC Service Document")
@@ -128,29 +222,36 @@ def upload_service_document(**kwargs):
     doc.uploaded_by = _current_user()
     doc.uploaded_on = frappe.utils.now_datetime()
     doc.remarks = remarks
-    doc.insert(ignore_permissions=True)
 
-    if uploaded_file:
+    try:
+        doc.insert(ignore_permissions=True)
+
+        if uploaded_file:
+            frappe.db.set_value(
+                "File",
+                uploaded_file.name,
+                {
+                    "attached_to_doctype": "OMC Service Document",
+                    "attached_to_name": doc.name,
+                    "attached_to_field": "attachment",
+                    "is_private": 1,
+                },
+                update_modified=False,
+            )
+            uploaded_file.attached_to_doctype = "OMC Service Document"
+            uploaded_file.attached_to_name = doc.name
+
         frappe.db.set_value(
-            "File",
-            uploaded_file.name,
-            {
-                "attached_to_doctype": "OMC Service Document",
-                "attached_to_name": doc.name,
-                "attached_to_field": "attachment",
-                "is_private": 1,
-            },
+            "OMC Service Document",
+            doc.name,
+            "attachment",
+            attachment,
             update_modified=False,
         )
-
-    frappe.db.set_value(
-        "OMC Service Document",
-        doc.name,
-        "attachment",
-        attachment,
-        update_modified=False,
-    )
-    doc.attachment = attachment
+        doc.attachment = attachment
+    except Exception:
+        _cleanup_failed_unlinked_upload(uploaded_file)
+        raise
 
     _create_service_timeline_entry(
         service_request=service_case.name,

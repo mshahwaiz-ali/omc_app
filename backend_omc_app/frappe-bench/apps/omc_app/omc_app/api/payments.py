@@ -318,11 +318,9 @@ def _notify_payment_reviewers(service_case, *, title, message):
 
 
 def _approved_required_documents(service_case):
-    required_templates = mobile._service_required_documents(service_case.service)
-    required_templates = [row for row in required_templates if row.get("is_required")]
-
-    if not required_templates:
-        return True
+    required_templates = mobile._service_required_documents(
+        service_case.service
+    )
 
     uploaded_docs = frappe.get_all(
         "OMC Service Document",
@@ -330,34 +328,29 @@ def _approved_required_documents(service_case):
             "service_request": service_case.name,
             "visible_to_customer": 1,
         },
-        fields=["document_title", "document_type", "status", "attachment"],
+        fields=[
+            "document_title",
+            "document_type",
+            "status",
+            "attachment",
+        ],
     )
 
-    approved_docs = [
-        doc
+    documents = [
+        {
+            "document_title": doc.document_title or "",
+            "document_type": doc.document_type or "",
+            "status": doc.status or "",
+            "attachment": doc.attachment or "",
+        }
         for doc in uploaded_docs
-        if (doc.status or "").strip().lower() == "approved" and doc.attachment
     ]
 
-    for template in required_templates:
-        template_title = _clean_text(template.get("title") or template.get("document_title")).lower()
-        template_type = _clean_text(template.get("type") or template.get("document_type")).lower()
-        matched = False
+    return mobile._required_documents_complete(
+        required_templates,
+        documents,
+    )
 
-        for doc in approved_docs:
-            doc_title = _clean_text(doc.document_title).lower()
-            doc_type = _clean_text(doc.document_type).lower()
-            if template_title and doc_title == template_title:
-                matched = True
-                break
-            if template_type and doc_type == template_type:
-                matched = True
-                break
-
-        if not matched:
-            return False
-
-    return True
 
 
 def _ensure_payment_for_case(service_case):
@@ -386,7 +379,12 @@ def _ensure_payment_for_case(service_case):
         and frappe.db.exists("OMC Service", service_case.service)
         else None
     )
-    amount = frappe.utils.flt(getattr(service, "base_price", None) or 0)
+    request_final_price = getattr(service_case, "final_price", None)
+    amount = frappe.utils.flt(
+        request_final_price
+        if request_final_price is not None
+        else getattr(service, "base_price", None) or 0
+    )
     if amount <= 0:
         frappe.log_error(
             message=(
@@ -403,7 +401,11 @@ def _ensure_payment_for_case(service_case):
         f"{service_case.service_title or getattr(service, 'title', None) or service_case.title or 'Service'} Payment"
     )
     payment.amount = amount
-    payment.currency = getattr(service, "currency", None) or "PKR"
+    payment.currency = (
+        getattr(service_case, "pricing_currency", None)
+        or getattr(service, "currency", None)
+        or "PKR"
+    )
     payment.status = "Pending"
     payment.visible_to_customer = 1
     payment.remarks = "Payment opened after required documents were approved."

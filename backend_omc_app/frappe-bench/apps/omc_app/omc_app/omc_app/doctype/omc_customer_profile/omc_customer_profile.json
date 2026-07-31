@@ -296,8 +296,12 @@
   },
   {
    "fieldname": "linked_erpnext_customer",
-   "fieldtype": "Data",
-   "label": "Linked ERPNext Customer"
+   "fieldtype": "Link",
+   "label": "Linked ERP Customer",
+   "options": "Customer",
+   "read_only": 1,
+   "search_index": 1,
+   "description": "Canonical ERP Customer linked to this OMC customer profile. Managed by the OMC ERP bridge."
   }
  ],
  "index_web_pages_for_search": 1,

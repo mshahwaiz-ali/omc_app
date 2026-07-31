@@ -1,0 +1,2429 @@
+{
+  "batch": "Batch 7 Part A",
+  "scope": "Service request lifecycle and status authority audit",
+  "files": {
+    "secured_mobile.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "missing": false,
+      "functions": [
+        {
+          "name": "_require_capability",
+          "line": 12,
+          "end_line": 16
+        },
+        {
+          "name": "get_service_cases",
+          "line": 20,
+          "end_line": 33
+        },
+        {
+          "name": "get_service_case",
+          "line": 37,
+          "end_line": 55
+        },
+        {
+          "name": "_extract_service_case_list",
+          "line": 58,
+          "end_line": 74
+        },
+        {
+          "name": "_service_request_id",
+          "line": 78,
+          "end_line": 96
+        },
+        {
+          "name": "_normalize_service_case",
+          "line": 99,
+          "end_line": 104
+        },
+        {
+          "name": "_hydrate_service_case",
+          "line": 107,
+          "end_line": 150
+        },
+        {
+          "name": "_apply_service_case_capabilities",
+          "line": 153,
+          "end_line": 176
+        },
+        {
+          "name": "_normalize_service_case_documents",
+          "line": 179,
+          "end_line": 209
+        },
+        {
+          "name": "_normalize_service_case_payments",
+          "line": 212,
+          "end_line": 252
+        },
+        {
+          "name": "_empty_payment_summary",
+          "line": 255,
+          "end_line": 263
+        },
+        {
+          "name": "_apply_service_case_tracking_summary",
+          "line": 266,
+          "end_line": 289
+        },
+        {
+          "name": "_merged_document_details",
+          "line": 292,
+          "end_line": 321
+        },
+        {
+          "name": "_document_key",
+          "line": 324,
+          "end_line": 327
+        },
+        {
+          "name": "_document_detail_from_template",
+          "line": 330,
+          "end_line": 347
+        },
+        {
+          "name": "_document_detail_from_uploaded",
+          "line": 350,
+          "end_line": 374
+        },
+        {
+          "name": "_payment_detail",
+          "line": 377,
+          "end_line": 392
+        },
+        {
+          "name": "_document_is_submitted",
+          "line": 395,
+          "end_line": 400
+        },
+        {
+          "name": "_document_needs_upload",
+          "line": 403,
+          "end_line": 406
+        },
+        {
+          "name": "_document_is_approved",
+          "line": 409,
+          "end_line": 410
+        },
+        {
+          "name": "_document_is_rejected",
+          "line": 413,
+          "end_line": 414
+        },
+        {
+          "name": "_payment_is_paid",
+          "line": 417,
+          "end_line": 418
+        },
+        {
+          "name": "_payment_is_rejected",
+          "line": 421,
+          "end_line": 422
+        },
+        {
+          "name": "_payment_is_cancelled",
+          "line": 425,
+          "end_line": 426
+        },
+        {
+          "name": "_normalize_service_case_timeline",
+          "line": 429,
+          "end_line": 436
+        },
+        {
+          "name": "_format_mobile_datetime",
+          "line": 439,
+          "end_line": 446
+        },
+        {
+          "name": "_format_mobile_date",
+          "line": 449,
+          "end_line": 456
+        },
+        {
+          "name": "_service_case_progress",
+          "line": 459,
+          "end_line": 474
+        },
+        {
+          "name": "_weighted_service_case_progress",
+          "line": 477,
+          "end_line": 502
+        },
+        {
+          "name": "_service_case_next_step",
+          "line": 505,
+          "end_line": 536
+        },
+        {
+          "name": "_fallback_service_case_timeline",
+          "line": 539,
+          "end_line": 558
+        },
+        {
+          "name": "_documents_stage_subtitle",
+          "line": 561,
+          "end_line": 571
+        },
+        {
+          "name": "_payments_stage_subtitle",
+          "line": 574,
+          "end_line": 584
+        },
+        {
+          "name": "_progress_number",
+          "line": 587,
+          "end_line": 594
+        },
+        {
+          "name": "_int_number",
+          "line": 597,
+          "end_line": 601
+        },
+        {
+          "name": "_can_customer_cancel_service_case",
+          "line": 604,
+          "end_line": 614
+        },
+        {
+          "name": "cancel_service_request",
+          "line": 618,
+          "end_line": 651
+        },
+        {
+          "name": "update_service_case_status",
+          "line": 655,
+          "end_line": 664
+        },
+        {
+          "name": "update_service_document_status",
+          "line": 668,
+          "end_line": 676
+        }
+      ]
+    },
+    "mobile.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "missing": false,
+      "functions": [
+        {
+          "name": "_items_response",
+          "line": 10,
+          "end_line": 11
+        },
+        {
+          "name": "_message",
+          "line": 14,
+          "end_line": 17
+        },
+        {
+          "name": "_valid_hex_color",
+          "line": 31,
+          "end_line": 35
+        },
+        {
+          "name": "_resolved_accent_color",
+          "line": 38,
+          "end_line": 44
+        },
+        {
+          "name": "_format_datetime",
+          "line": 47,
+          "end_line": 53
+        },
+        {
+          "name": "_current_user",
+          "line": 56,
+          "end_line": 58
+        },
+        {
+          "name": "_has_doctype",
+          "line": 60,
+          "end_line": 64
+        },
+        {
+          "name": "_doctype_has_field",
+          "line": 67,
+          "end_line": 71
+        },
+        {
+          "name": "_service_fee_label",
+          "line": 74,
+          "end_line": 94
+        },
+        {
+          "name": "_service_completion_time",
+          "line": 97,
+          "end_line": 101
+        },
+        {
+          "name": "_service_required_documents",
+          "line": 104,
+          "end_line": 143
+        },
+        {
+          "name": "_service_category_identity",
+          "line": 146,
+          "end_line": 161
+        },
+        {
+          "name": "_service_to_catalogue_dict",
+          "line": 164,
+          "end_line": 200
+        },
+        {
+          "name": "_current_user_roles",
+          "line": 223,
+          "end_line": 228
+        },
+        {
+          "name": "_can_access_internal_workspace",
+          "line": 231,
+          "end_line": 232
+        },
+        {
+          "name": "_has_any_role",
+          "line": 235,
+          "end_line": 236
+        },
+        {
+          "name": "_profile_status",
+          "line": 239,
+          "end_line": 245
+        },
+        {
+          "name": "_is_approved_customer",
+          "line": 248,
+          "end_line": 250
+        },
+        {
+          "name": "is_customer_approved",
+          "line": 253,
+          "end_line": 254
+        },
+        {
+          "name": "_is_pending_customer",
+          "line": 257,
+          "end_line": 260
+        },
+        {
+          "name": "_customer_access_state",
+          "line": 263,
+          "end_line": 282
+        },
+        {
+          "name": "_get_mobile_capabilities",
+          "line": 285,
+          "end_line": 332
+        },
+        {
+          "name": "_approved_customer_required_message",
+          "line": 335,
+          "end_line": 339
+        },
+        {
+          "name": "_assert_approved_customer",
+          "line": 342,
+          "end_line": 352
+        },
+        {
+          "name": "get_current_customer_profile",
+          "line": 355,
+          "end_line": 356
+        },
+        {
+          "name": "require_approved_customer",
+          "line": 359,
+          "end_line": 360
+        },
+        {
+          "name": "_set_if_has_field",
+          "line": 363,
+          "end_line": 374
+        },
+        {
+          "name": "_assign_role_if_exists",
+          "line": 377,
+          "end_line": 389
+        },
+        {
+          "name": "_normalize_signup_user",
+          "line": 392,
+          "end_line": 416
+        },
+        {
+          "name": "_assert_internal_workspace_access",
+          "line": 419,
+          "end_line": 429
+        },
+        {
+          "name": "require_omc_staff",
+          "line": 432,
+          "end_line": 443
+        },
+        {
+          "name": "get_mobile_capabilities",
+          "line": 446,
+          "end_line": 447
+        },
+        {
+          "name": "sign_up",
+          "line": 451,
+          "end_line": 683
+        },
+        {
+          "name": "google_mobile_login",
+          "line": 687,
+          "end_line": 697
+        },
+        {
+          "name": "get_session_user",
+          "line": 701,
+          "end_line": 716
+        },
+        {
+          "name": "_get_customer_profile_for_user",
+          "line": 719,
+          "end_line": 743
+        },
+        {
+          "name": "_get_profile_image_url",
+          "line": 746,
+          "end_line": 759
+        },
+        {
+          "name": "get_profile",
+          "line": 763,
+          "end_line": 809
+        },
+        {
+          "name": "upload_profile_image",
+          "line": 813,
+          "end_line": 817
+        },
+        {
+          "name": "update_profile",
+          "line": 821,
+          "end_line": 825
+        },
+        {
+          "name": "update_contact_info",
+          "line": 829,
+          "end_line": 844
+        },
+        {
+          "name": "get_dashboard_data",
+          "line": 848,
+          "end_line": 927
+        },
+        {
+          "name": "get_service_catalogue",
+          "line": 931,
+          "end_line": 961
+        },
+        {
+          "name": "get_service_detail",
+          "line": 965,
+          "end_line": 988
+        },
+        {
+          "name": "_create_service_timeline_entry",
+          "line": 991,
+          "end_line": 1029
+        },
+        {
+          "name": "_get_service_timeline",
+          "line": 1032,
+          "end_line": 1060
+        },
+        {
+          "name": "create_service",
+          "line": 1064,
+          "end_line": 1116
+        },
+        {
+          "name": "_get_service_documents",
+          "line": 1119,
+          "end_line": 1151
+        },
+        {
+          "name": "_service_case_progress",
+          "line": 1155,
+          "end_line": 1165
+        },
+        {
+          "name": "_service_case_next_step",
+          "line": 1168,
+          "end_line": 1185
+        },
+        {
+          "name": "_split_service_documents",
+          "line": 1188,
+          "end_line": 1223
+        },
+        {
+          "name": "_service_case_payment_contract",
+          "line": 1226,
+          "end_line": 1358
+        },
+        {
+          "name": "_service_case_scope_names",
+          "line": 1361,
+          "end_line": 1408
+        },
+        {
+          "name": "_require_service_case_read_scope",
+          "line": 1411,
+          "end_line": 1435
+        },
+        {
+          "name": "_require_service_case_update_scope",
+          "line": 1438,
+          "end_line": 1458
+        },
+        {
+          "name": "get_service_cases",
+          "line": 1462,
+          "end_line": 1515
+        },
+        {
+          "name": "update_service_case_status",
+          "line": 1521,
+          "end_line": 1626
+        },
+        {
+          "name": "get_service_case",
+          "line": 1629,
+          "end_line": 1704
+        },
+        {
+          "name": "add_service_case_comment",
+          "line": 1708,
+          "end_line": 1739
+        },
+        {
+          "name": "_clean_file_reference",
+          "line": 1751,
+          "end_line": 1755
+        },
+        {
+          "name": "_document_extension",
+          "line": 1758,
+          "end_line": 1762
+        },
+        {
+          "name": "_find_uploaded_file",
+          "line": 1765,
+          "end_line": 1781
+        },
+        {
+          "name": "_assert_service_document_upload_allowed",
+          "line": 1784,
+          "end_line": 1831
+        },
+        {
+          "name": "_assert_payment_receipt_upload_allowed",
+          "line": 1834,
+          "end_line": 1877
+        },
+        {
+          "name": "upload_service_document",
+          "line": 1880,
+          "end_line": 1884
+        },
+        {
+          "name": "update_service_document_status",
+          "line": 1888,
+          "end_line": 1950
+        },
+        {
+          "name": "get_documents",
+          "line": 1953,
+          "end_line": 1957
+        },
+        {
+          "name": "get_document",
+          "line": 1960,
+          "end_line": 1964
+        },
+        {
+          "name": "get_payments",
+          "line": 1967,
+          "end_line": 1971
+        },
+        {
+          "name": "get_payment",
+          "line": 1974,
+          "end_line": 1978
+        },
+        {
+          "name": "upload_payment_receipt",
+          "line": 1981,
+          "end_line": 2030
+        },
+        {
+          "name": "review_payment_receipt",
+          "line": 2035,
+          "end_line": 2049
+        },
+        {
+          "name": "_knowledge_article_from_service",
+          "line": 2052,
+          "end_line": 2068
+        },
+        {
+          "name": "_is_content_visible",
+          "line": 2071,
+          "end_line": 2081
+        },
+        {
+          "name": "_safe_published_records",
+          "line": 2084,
+          "end_line": 2100
+        },
+        {
+          "name": "_content_article_dict",
+          "line": 2103,
+          "end_line": 2134
+        },
+        {
+          "name": "_knowledge_content_articles",
+          "line": 2137,
+          "end_line": 2216
+        },
+        {
+          "name": "_fallback_service_articles",
+          "line": 2219,
+          "end_line": 2236
+        },
+        {
+          "name": "get_knowledge",
+          "line": 2240,
+          "end_line": 2241
+        },
+        {
+          "name": "_find_content_article",
+          "line": 2244,
+          "end_line": 2276
+        },
+        {
+          "name": "get_knowledge_article",
+          "line": 2280,
+          "end_line": 2289
+        },
+        {
+          "name": "get_app_banners",
+          "line": 2293,
+          "end_line": 2331
+        },
+        {
+          "name": "get_onboarding_slides",
+          "line": 2335,
+          "end_line": 2382
+        },
+        {
+          "name": "get_faqs",
+          "line": 2386,
+          "end_line": 2423
+        },
+        {
+          "name": "_notification_mobile_route",
+          "line": 2426,
+          "end_line": 2445
+        },
+        {
+          "name": "_notification_page_value",
+          "line": 2448,
+          "end_line": 2453
+        },
+        {
+          "name": "get_notifications",
+          "line": 2457,
+          "end_line": 2552
+        },
+        {
+          "name": "_assert_notification_access",
+          "line": 2556,
+          "end_line": 2576
+        },
+        {
+          "name": "mark_notification_read",
+          "line": 2580,
+          "end_line": 2616
+        },
+        {
+          "name": "_notification_for_current_user",
+          "line": 2624,
+          "end_line": 2638
+        },
+        {
+          "name": "mark_notification_unread",
+          "line": 2642,
+          "end_line": 2648
+        },
+        {
+          "name": "dismiss_notification",
+          "line": 2652,
+          "end_line": 2663
+        },
+        {
+          "name": "restore_notification",
+          "line": 2667,
+          "end_line": 2675
+        },
+        {
+          "name": "get_unread_notification_count",
+          "line": 2679,
+          "end_line": 2691
+        },
+        {
+          "name": "register_push_token",
+          "line": 2695,
+          "end_line": 2770
+        },
+        {
+          "name": "unregister_push_token",
+          "line": 2774,
+          "end_line": 2808
+        },
+        {
+          "name": "mark_all_notifications_read",
+          "line": 2812,
+          "end_line": 2858
+        },
+        {
+          "name": "get_notification_detail",
+          "line": 2862,
+          "end_line": 2904
+        },
+        {
+          "name": "_service_notification_recipient",
+          "line": 2910,
+          "end_line": 2926
+        },
+        {
+          "name": "cleanup_notifications",
+          "line": 2929,
+          "end_line": 2982
+        },
+        {
+          "name": "_create_service_notification",
+          "line": 2984,
+          "end_line": 3034
+        },
+        {
+          "name": "_create_customer_notification",
+          "line": 3037,
+          "end_line": 3105
+        },
+        {
+          "name": "_default_support_channels",
+          "line": 3110,
+          "end_line": 3136
+        },
+        {
+          "name": "_default_support_topics",
+          "line": 3139,
+          "end_line": 3181
+        },
+        {
+          "name": "_support_channel_to_dict",
+          "line": 3184,
+          "end_line": 3193
+        },
+        {
+          "name": "_support_topic_to_dict",
+          "line": 3196,
+          "end_line": 3205
+        },
+        {
+          "name": "_get_single_settings",
+          "line": 3208,
+          "end_line": 3215
+        },
+        {
+          "name": "_settings_bool",
+          "line": 3218,
+          "end_line": 3242
+        },
+        {
+          "name": "_settings_text",
+          "line": 3245,
+          "end_line": 3251
+        },
+        {
+          "name": "_public_file_url",
+          "line": 3254,
+          "end_line": 3267
+        },
+        {
+          "name": "get_mobile_app_config",
+          "line": 3273,
+          "end_line": 3338
+        },
+        {
+          "name": "get_support_config",
+          "line": 3342,
+          "end_line": 3399
+        },
+        {
+          "name": "create_support_ticket",
+          "line": 3403,
+          "end_line": 3407
+        },
+        {
+          "name": "_support_ticket_messages",
+          "line": 3411,
+          "end_line": 3452
+        },
+        {
+          "name": "_support_ticket_to_dict",
+          "line": 3455,
+          "end_line": 3482
+        },
+        {
+          "name": "_assert_support_ticket_access",
+          "line": 3486,
+          "end_line": 3503
+        },
+        {
+          "name": "get_support_tickets",
+          "line": 3507,
+          "end_line": 3511
+        },
+        {
+          "name": "get_support_ticket",
+          "line": 3516,
+          "end_line": 3520
+        },
+        {
+          "name": "_get_customer_preferences",
+          "line": 3523,
+          "end_line": 3548
+        },
+        {
+          "name": "_preference_bool",
+          "line": 3551,
+          "end_line": 3558
+        },
+        {
+          "name": "_settings_preferences_to_dict",
+          "line": 3561,
+          "end_line": 3571
+        },
+        {
+          "name": "_normalized_notification_type",
+          "line": 3585,
+          "end_line": 3587
+        },
+        {
+          "name": "_notification_preference_field",
+          "line": 3590,
+          "end_line": 3600
+        },
+        {
+          "name": "_notification_preference_enabled",
+          "line": 3603,
+          "end_line": 3635
+        },
+        {
+          "name": "_notification_delivery_enabled",
+          "line": 3638,
+          "end_line": 3659
+        },
+        {
+          "name": "_active_push_tokens_for_notification",
+          "line": 3662,
+          "end_line": 3691
+        },
+        {
+          "name": "add_support_ticket_reply",
+          "line": 3698,
+          "end_line": 3706
+        },
+        {
+          "name": "update_support_ticket_status",
+          "line": 3711,
+          "end_line": 3719
+        },
+        {
+          "name": "get_settings_preferences",
+          "line": 3723,
+          "end_line": 3731
+        },
+        {
+          "name": "update_settings_preferences",
+          "line": 3735,
+          "end_line": 3802
+        },
+        {
+          "name": "_pending_linked_erp_task_count",
+          "line": 3808,
+          "end_line": 3832
+        },
+        {
+          "name": "get_internal_workspace_summary",
+          "line": 3834,
+          "end_line": 3851
+        },
+        {
+          "name": "create_lead",
+          "line": 3855,
+          "end_line": 3930
+        },
+        {
+          "name": "_lead_to_dict",
+          "line": 3933,
+          "end_line": 3981
+        },
+        {
+          "name": "_canonical_capabilities",
+          "line": 3986,
+          "end_line": 3987
+        },
+        {
+          "name": "_require_canonical_capability",
+          "line": 3990,
+          "end_line": 3994
+        },
+        {
+          "name": "_assigned_record_names",
+          "line": 3997,
+          "end_line": 4009
+        },
+        {
+          "name": "_relevant_customer_names",
+          "line": 4012,
+          "end_line": 4036
+        },
+        {
+          "name": "get_leads",
+          "line": 4040,
+          "end_line": 4043
+        },
+        {
+          "name": "get_lead",
+          "line": 4049,
+          "end_line": 4052
+        },
+        {
+          "name": "_customer_profile_image",
+          "line": 4057,
+          "end_line": 4133
+        },
+        {
+          "name": "_customer_profile_to_dict",
+          "line": 4136,
+          "end_line": 4157
+        },
+        {
+          "name": "get_customers",
+          "line": 4161,
+          "end_line": 4195
+        },
+        {
+          "name": "get_customer",
+          "line": 4199,
+          "end_line": 4223
+        },
+        {
+          "name": "_task_to_dict",
+          "line": 4226,
+          "end_line": 4241
+        },
+        {
+          "name": "get_tasks",
+          "line": 4245,
+          "end_line": 4249
+        },
+        {
+          "name": "get_task",
+          "line": 4254,
+          "end_line": 4258
+        },
+        {
+          "name": "calculate_tax",
+          "line": 4263,
+          "end_line": 4309
+        },
+        {
+          "name": "_estimate_income_tax",
+          "line": 4312,
+          "end_line": 4326
+        },
+        {
+          "name": "_income_tax_breakdown",
+          "line": 4329,
+          "end_line": 4394
+        },
+        {
+          "name": "_flt",
+          "line": 4397,
+          "end_line": 4401
+        }
+      ]
+    },
+    "assisted_service.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+      "missing": false,
+      "functions": [
+        {
+          "name": "_text",
+          "line": 28,
+          "end_line": 29
+        },
+        {
+          "name": "_active_system_user",
+          "line": 32,
+          "end_line": 47
+        },
+        {
+          "name": "_users_for_role",
+          "line": 50,
+          "end_line": 73
+        },
+        {
+          "name": "_open_assignment_count",
+          "line": 76,
+          "end_line": 84
+        },
+        {
+          "name": "_least_loaded_user",
+          "line": 87,
+          "end_line": 91
+        },
+        {
+          "name": "_assignment_role_for_service",
+          "line": 94,
+          "end_line": 111
+        },
+        {
+          "name": "_resolve_request_assignee",
+          "line": 114,
+          "end_line": 129
+        },
+        {
+          "name": "_ensure_assignment_todo",
+          "line": 132,
+          "end_line": 158
+        },
+        {
+          "name": "_notify_assignee",
+          "line": 161,
+          "end_line": 175
+        },
+        {
+          "name": "_current_user",
+          "line": 178,
+          "end_line": 182
+        },
+        {
+          "name": "_roles",
+          "line": 185,
+          "end_line": 186
+        },
+        {
+          "name": "_capabilities",
+          "line": 189,
+          "end_line": 190
+        },
+        {
+          "name": "_require_internal_assist",
+          "line": 193,
+          "end_line": 205
+        },
+        {
+          "name": "_service_doc",
+          "line": 208,
+          "end_line": 219
+        },
+        {
+          "name": "_profile",
+          "line": 222,
+          "end_line": 228
+        },
+        {
+          "name": "_resolve_my_referral",
+          "line": 231,
+          "end_line": 250
+        },
+        {
+          "name": "_resolve_existing_customer",
+          "line": 253,
+          "end_line": 271
+        },
+        {
+          "name": "_manual_customer_duplicate_matches",
+          "line": 274,
+          "end_line": 308
+        },
+        {
+          "name": "_create_manual_customer",
+          "line": 311,
+          "end_line": 363
+        },
+        {
+          "name": "_request_response",
+          "line": 366,
+          "end_line": 379
+        },
+        {
+          "name": "_pagination",
+          "line": 383,
+          "end_line": 389
+        },
+        {
+          "name": "_customer_item",
+          "line": 392,
+          "end_line": 405
+        },
+        {
+          "name": "_manual_customer_item",
+          "line": 408,
+          "end_line": 421
+        },
+        {
+          "name": "_search_or_filters",
+          "line": 424,
+          "end_line": 429
+        },
+        {
+          "name": "get_customer_selection_options",
+          "line": 433,
+          "end_line": 565
+        },
+        {
+          "name": "create_request",
+          "line": 567,
+          "end_line": 712
+        }
+      ]
+    },
+    "service_request_guard.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/service_request_guard.py",
+      "missing": false,
+      "functions": [
+        {
+          "name": "_bounded_text",
+          "line": 9,
+          "end_line": 24
+        },
+        {
+          "name": "_resolve_active_service",
+          "line": 27,
+          "end_line": 41
+        },
+        {
+          "name": "create_service",
+          "line": 45,
+          "end_line": 69
+        }
+      ]
+    },
+    "erp_task_status_sync.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "missing": false,
+      "functions": [
+        {
+          "name": "_text",
+          "line": 32,
+          "end_line": 33
+        },
+        {
+          "name": "customer_status",
+          "line": 36,
+          "end_line": 41
+        },
+        {
+          "name": "_allowed_options",
+          "line": 44,
+          "end_line": 52
+        },
+        {
+          "name": "_service_status_value",
+          "line": 55,
+          "end_line": 63
+        },
+        {
+          "name": "sync_task_status",
+          "line": 66,
+          "end_line": 119
+        }
+      ]
+    },
+    "workflow_automation.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "missing": false,
+      "functions": [
+        {
+          "name": "_notification_exists",
+          "line": 20,
+          "end_line": 40
+        },
+        {
+          "name": "_notify_once",
+          "line": 43,
+          "end_line": 73
+        },
+        {
+          "name": "_reviewer_users",
+          "line": 76,
+          "end_line": 96
+        },
+        {
+          "name": "_notify_reviewers_once",
+          "line": 99,
+          "end_line": 119
+        },
+        {
+          "name": "run_hourly_workflow_checks",
+          "line": 122,
+          "end_line": 202
+        },
+        {
+          "name": "run_daily_workflow_checks",
+          "line": 205,
+          "end_line": 286
+        },
+        {
+          "name": "completion_blockers",
+          "line": 289,
+          "end_line": 363
+        },
+        {
+          "name": "finalize_completed_case",
+          "line": 366,
+          "end_line": 397
+        }
+      ]
+    },
+    "payments.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "missing": false,
+      "functions": [
+        {
+          "name": "_require_payment_review_access",
+          "line": 17,
+          "end_line": 24
+        },
+        {
+          "name": "_clean_text",
+          "line": 27,
+          "end_line": 28
+        },
+        {
+          "name": "_current_user",
+          "line": 31,
+          "end_line": 33
+        },
+        {
+          "name": "_customer_profile_name_for_user",
+          "line": 36,
+          "end_line": 53
+        },
+        {
+          "name": "_owned_referral_profile_names",
+          "line": 56,
+          "end_line": 67
+        },
+        {
+          "name": "_accessible_service_request_names",
+          "line": 70,
+          "end_line": 110
+        },
+        {
+          "name": "_assert_service_request_payment_access",
+          "line": 113,
+          "end_line": 127
+        },
+        {
+          "name": "_first_payment_account",
+          "line": 130,
+          "end_line": 154
+        },
+        {
+          "name": "_digits_only",
+          "line": 157,
+          "end_line": 158
+        },
+        {
+          "name": "_file_extension",
+          "line": 161,
+          "end_line": 165
+        },
+        {
+          "name": "_assert_payment_customer_access",
+          "line": 168,
+          "end_line": 175
+        },
+        {
+          "name": "_payment_support_payload",
+          "line": 178,
+          "end_line": 237
+        },
+        {
+          "name": "_notify_customer",
+          "line": 241,
+          "end_line": 259
+        },
+        {
+          "name": "_set_case_status",
+          "line": 262,
+          "end_line": 269
+        },
+        {
+          "name": "_payment_reviewer_users",
+          "line": 273,
+          "end_line": 301
+        },
+        {
+          "name": "_notify_payment_reviewers",
+          "line": 304,
+          "end_line": 317
+        },
+        {
+          "name": "_approved_required_documents",
+          "line": 320,
+          "end_line": 360
+        },
+        {
+          "name": "_ensure_payment_for_case",
+          "line": 363,
+          "end_line": 435
+        },
+        {
+          "name": "handle_document_review",
+          "line": 438,
+          "end_line": 482
+        },
+        {
+          "name": "_accessible_service_requests",
+          "line": 485,
+          "end_line": 505
+        },
+        {
+          "name": "_ensure_available_payments",
+          "line": 508,
+          "end_line": 513
+        },
+        {
+          "name": "_payment_dict",
+          "line": 516,
+          "end_line": 588
+        },
+        {
+          "name": "get_payments",
+          "line": 592,
+          "end_line": 638
+        },
+        {
+          "name": "get_payment",
+          "line": 642,
+          "end_line": 679
+        },
+        {
+          "name": "upload_payment_receipt_file",
+          "line": 683,
+          "end_line": 775
+        },
+        {
+          "name": "review_payment_receipt",
+          "line": 779,
+          "end_line": 913
+        }
+      ]
+    },
+    "customer_documents.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "missing": false,
+      "functions": [
+        {
+          "name": "_canonical_capabilities",
+          "line": 10,
+          "end_line": 11
+        },
+        {
+          "name": "_require_document_read_access",
+          "line": 14,
+          "end_line": 27
+        },
+        {
+          "name": "_require_document_review_access",
+          "line": 30,
+          "end_line": 37
+        },
+        {
+          "name": "_has_field",
+          "line": 46,
+          "end_line": 50
+        },
+        {
+          "name": "_set_value_if_field",
+          "line": 53,
+          "end_line": 55
+        },
+        {
+          "name": "_document_fields",
+          "line": 58,
+          "end_line": 87
+        },
+        {
+          "name": "_service_case_map",
+          "line": 90,
+          "end_line": 111
+        },
+        {
+          "name": "_customer_profile_map",
+          "line": 114,
+          "end_line": 137
+        },
+        {
+          "name": "_document_dict",
+          "line": 140,
+          "end_line": 238
+        },
+        {
+          "name": "archive_service_documents_for_status",
+          "line": 241,
+          "end_line": 268
+        },
+        {
+          "name": "sync_service_document_customer_profile",
+          "line": 271,
+          "end_line": 307
+        },
+        {
+          "name": "get_documents",
+          "line": 311,
+          "end_line": 413
+        },
+        {
+          "name": "get_document",
+          "line": 417,
+          "end_line": 449
+        },
+        {
+          "name": "update_service_document_status",
+          "line": 453,
+          "end_line": 513
+        }
+      ]
+    },
+    "doctype_controller.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/doctype/omc_service_request/omc_service_request.py",
+      "missing": false,
+      "functions": []
+    }
+  },
+  "status_writes": [
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 342,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": \"Pending\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 369,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": status,"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 385,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": payment.status or \"Open\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 557,
+      "matches": [
+        "Completed"
+      ],
+      "text": "stages.append({\"title\": \"Completed\", \"subtitle\": \"Service completed.\" if normalized_status == \"completed\" else \"Pending completion.\", \"is_done\": normalized_status == \"completed\" or progress >= 1})"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 618,
+      "matches": [
+        "cancel_service_request"
+      ],
+      "text": "def cancel_service_request(case_id=None, name=None, service_request=None, request_id=None, reason=None):"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 645,
+      "matches": [
+        ".status =",
+        "Cancelled"
+      ],
+      "text": "request.status = \"Cancelled\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 646,
+      "matches": [
+        "closed_on"
+      ],
+      "text": "request.closed_on = frappe.utils.now_datetime()"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 651,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "return {\"service_request\": request.name, \"status\": request.status, \"message\": \"Service request cancelled successfully.\", \"can_cancel\": False}"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 655,
+      "matches": [
+        "update_service_case_status"
+      ],
+      "text": "def update_service_case_status(case_id=None, name=None, service_request=None, request_id=None, status=None, note=None, expected_completion_date=None):"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/secured_mobile.py",
+      "line": 664,
+      "matches": [
+        "update_service_case_status"
+      ],
+      "text": "return mobile.update_service_case_status(case_id=resolved_case_id, status=status, note=note, expected_completion_date=expected_completion_date)"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 139,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": \"Required\" if row.is_required else \"Optional\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 883,
+      "matches": [
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "open_service_filters[\"status\"] = [\"not in\", [\"Completed\", \"Cancelled\"]]"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1084,
+      "matches": [
+        ".status ="
+      ],
+      "text": "doc.status = \"Open\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1113,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": doc.status,"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1145,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": doc.status or \"\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1279,
+      "matches": [
+        "\"status\":",
+        "Cancelled"
+      ],
+      "text": "\"status\": [\"not in\", [\"Cancelled\"]],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1502,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": case.status or \"\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1521,
+      "matches": [
+        "update_service_case_status"
+      ],
+      "text": "def update_service_case_status(case_id=None, status=None, note=None, expected_completion_date=None):"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1533,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "\"Waiting for Customer\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1534,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "\"Waiting for Payment\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1535,
+      "matches": [
+        "Completed"
+      ],
+      "text": "\"Completed\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1536,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "\"Cancelled\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1548,
+      "matches": [
+        "Completed"
+      ],
+      "text": "if status == \"Completed\":"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1558,
+      "matches": [
+        ".status ="
+      ],
+      "text": "doc.status = status"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1563,
+      "matches": [
+        "closed_on",
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "if status in [\"Completed\", \"Cancelled\"] and not doc.closed_on:"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1564,
+      "matches": [
+        "closed_on"
+      ],
+      "text": "doc.closed_on = frappe.utils.now_datetime()"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1566,
+      "matches": [
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "if status not in [\"Completed\", \"Cancelled\"]:"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1567,
+      "matches": [
+        "closed_on"
+      ],
+      "text": "doc.closed_on = None"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1574,
+      "matches": [
+        "Completed"
+      ],
+      "text": "if status == \"Completed\":"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1599,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "\"Waiting for Customer\": ("
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1603,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "\"Waiting for Payment\": ("
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1606,
+      "matches": [
+        "Completed"
+      ],
+      "text": "\"Completed\": \"Your service request has been completed.\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1607,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "\"Cancelled\": \"Your service request has been cancelled.\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1623,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": doc.status,"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 1677,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": service_case.status or \"\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 2009,
+      "matches": [
+        ".status ="
+      ],
+      "text": "payment.status = \"Receipt Submitted\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 2026,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": payment.status,"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 2091,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "filters={\"status\": \"Published\"},"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 2259,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "filters={id_field: article_id, \"status\": \"Published\"},"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 2390,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "filters = {\"status\": \"Published\"}"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3469,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": ticket.status or \"\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3477,
+      "matches": [
+        "closed_on"
+      ],
+      "text": "\"closed_on\": str(ticket.closed_on) if ticket.closed_on else \"\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3481,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "\"can_reply\": ticket.status not in [\"Closed\", \"Cancelled\"],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3830,
+      "matches": [
+        "\"status\":",
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "\"status\": [\"not in\", [\"Completed\", \"Cancelled\"]],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3842,
+      "matches": [
+        "\"status\":",
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "{\"status\": [\"not in\", [\"Completed\", \"Cancelled\"]]},"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3846,
+      "matches": [
+        "\"status\":",
+        "Cancelled"
+      ],
+      "text": "{\"status\": [\"not in\", [\"Resolved\", \"Closed\", \"Cancelled\"]]},"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3849,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"payments_due\": frappe.db.count(\"OMC Service Payment\", {\"status\": \"Pending\"}),"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3895,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": kwargs.get(\"status\") or \"New\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 3955,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": value(\"status\"),"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 4006,
+      "matches": [
+        "\"status\":",
+        "Cancelled"
+      ],
+      "text": "\"status\": [\"not in\", [\"Cancelled\", \"Closed\"]],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py",
+      "line": 4231,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": task.status or \"\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+      "line": 82,
+      "matches": [
+        "\"status\":",
+        "Cancelled"
+      ],
+      "text": "\"status\": [\"not in\", [\"Closed\", \"Cancelled\"]],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+      "line": 142,
+      "matches": [
+        "\"status\":",
+        "Cancelled"
+      ],
+      "text": "\"status\": [\"not in\", [\"Closed\", \"Cancelled\"]],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+      "line": 155,
+      "matches": [
+        ".status ="
+      ],
+      "text": "todo.status = \"Open\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+      "line": 372,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": doc.status,"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+      "line": 633,
+      "matches": [
+        ".status ="
+      ],
+      "text": "doc.status = \"Open\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 18,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "\"waiting for customer\": \"Waiting for Customer\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 19,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "\"customer action required\": \"Waiting for Customer\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 20,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "\"awaiting customer\": \"Waiting for Customer\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 21,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "\"payment pending\": \"Waiting for Payment\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 22,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "\"waiting for payment\": \"Waiting for Payment\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 23,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "\"awaiting payment\": \"Waiting for Payment\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 24,
+      "matches": [
+        "Completed"
+      ],
+      "text": "\"completed\": \"Completed\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 25,
+      "matches": [
+        "Completed"
+      ],
+      "text": "\"complete\": \"Completed\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 26,
+      "matches": [
+        "Completed"
+      ],
+      "text": "\"closed\": \"Completed\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 27,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "\"cancelled\": \"Cancelled\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 28,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "\"canceled\": \"Cancelled\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 83,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "request_values = {\"status\": mapped_status}"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 84,
+      "matches": [
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "if mapped_status in {\"Completed\", \"Cancelled\"}:"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 85,
+      "matches": [
+        "closed_on"
+      ],
+      "text": "request_values[\"closed_on\"] = frappe.utils.now_datetime()"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py",
+      "line": 87,
+      "matches": [
+        "closed_on"
+      ],
+      "text": "request_values[\"closed_on\"] = None"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 11,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "\"Waiting for Customer\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 12,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "\"Waiting for Payment\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 135,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": [\"in\", REVIEW_DOCUMENT_STATUSES],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 159,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": [\"in\", REVIEW_PAYMENT_STATUSES],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 183,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": [\"in\", OPEN_CASE_STATUSES],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 208,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "filters={\"status\": [\"in\", OPEN_CASE_STATUSES]},"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 233,
+      "matches": [
+        "Waiting for Customer",
+        "Waiting for Payment"
+      ],
+      "text": "if service_case.status in {\"Waiting for Customer\", \"Waiting for Payment\"}:"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 236,
+      "matches": [
+        ".status =",
+        "Waiting for Customer"
+      ],
+      "text": "elif service_case.status == \"Waiting for Customer\":"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 301,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": \"Approved\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 334,
+      "matches": [
+        "\"status\":",
+        "Cancelled"
+      ],
+      "text": "\"status\": [\"not in\", [\"Cancelled\"]],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 347,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": \"Rejected\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 357,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": \"Rejected\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 372,
+      "matches": [
+        "\"status\":",
+        "Cancelled"
+      ],
+      "text": "\"status\": [\"not in\", [\"Closed\", \"Cancelled\"]],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 385,
+      "matches": [
+        "Completed"
+      ],
+      "text": "event_type=\"Completed\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py",
+      "line": 386,
+      "matches": [
+        "Completed"
+      ],
+      "text": "title=\"Service Completed\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 263,
+      "matches": [
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "if not service_case or service_case.status in {\"Completed\", \"Cancelled\"}:"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 265,
+      "matches": [
+        ".status ="
+      ],
+      "text": "if service_case.status == status:"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 267,
+      "matches": [
+        ".status ="
+      ],
+      "text": "service_case.status = status"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 372,
+      "matches": [
+        "\"status\":",
+        "Cancelled"
+      ],
+      "text": "\"status\": [\"not in\", [\"Cancelled\"]],"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 407,
+      "matches": [
+        ".status ="
+      ],
+      "text": "payment.status = \"Pending\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 412,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "_set_case_status(service_case, \"Waiting for Payment\")"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 449,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "changed = _set_case_status(service_case, \"Waiting for Customer\")"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 464,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "title=\"Waiting for Customer\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 510,
+      "matches": [
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "if case_row.status in {\"Completed\", \"Cancelled\"}:"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 563,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": payment.status or \"Pending\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 740,
+      "matches": [
+        ".status ="
+      ],
+      "text": "payment.status = \"Receipt Submitted\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 754,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "_set_case_status(_service_case, \"Waiting for Payment\")"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 770,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": payment.status,"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 794,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "allowed_statuses = {\"Under Review\", \"Paid\", \"Rejected\", \"Cancelled\"}"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 797,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "\"status must be one of: Under Review, Paid, Rejected, Cancelled\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 819,
+      "matches": [
+        ".status ="
+      ],
+      "text": "payment.status = status"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 827,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "elif status in {\"Rejected\", \"Cancelled\"}:"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 873,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "if _set_case_status(service_case, \"Waiting for Customer\"):"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 874,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "case_transition_status = \"Waiting for Customer\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 878,
+      "matches": [
+        "Waiting for Customer"
+      ],
+      "text": "title=\"Waiting for Customer\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 887,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "if _set_case_status(service_case, \"Waiting for Payment\"):"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 888,
+      "matches": [
+        "Waiting for Payment"
+      ],
+      "text": "case_transition_status = \"Waiting for Payment\""
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py",
+      "line": 905,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": payment.status,"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "line": 41,
+      "matches": [
+        "Completed"
+      ],
+      "text": "\"Completed\": \"Service Completed\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "line": 42,
+      "matches": [
+        "Cancelled"
+      ],
+      "text": "\"Cancelled\": \"Service Cancelled\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "line": 215,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": doc.status or \"\","
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "line": 470,
+      "matches": [
+        ".status ="
+      ],
+      "text": "doc.status = status"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py",
+      "line": 508,
+      "matches": [
+        "\"status\":"
+      ],
+      "text": "\"status\": doc.status,"
+    },
+    {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/doctype/omc_service_request/omc_service_request.py",
+      "line": 32,
+      "matches": [
+        "Completed",
+        "Cancelled"
+      ],
+      "text": "if self.status not in {\"Completed\", \"Cancelled\"}:"
+    }
+  ],
+  "schema": {
+    "status": {
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Open\nIn Progress\nWaiting for Customer\nWaiting for Payment\nCompleted\nCancelled",
+      "read_only": 0,
+      "reqd": 0
+    },
+    "customer_profile": {
+      "label": "Customer Profile",
+      "fieldtype": "Link",
+      "options": "OMC Customer Profile",
+      "read_only": 0,
+      "reqd": 0
+    },
+    "manual_customer": {
+      "label": "Manual Customer",
+      "fieldtype": "Link",
+      "options": "OMC Manual Customer",
+      "read_only": 0,
+      "reqd": 0
+    },
+    "assigned_staff": {
+      "label": "Assigned Staff",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 0,
+      "reqd": 0
+    },
+    "closed_on": {
+      "label": "Closed On",
+      "fieldtype": "Datetime",
+      "options": null,
+      "read_only": 1,
+      "reqd": 0
+    },
+    "erp_service": {
+      "label": "ERP Service",
+      "fieldtype": "Link",
+      "options": "Service",
+      "read_only": 1,
+      "reqd": 0
+    },
+    "erp_task": {
+      "label": "ERP Task",
+      "fieldtype": "Link",
+      "options": "Task",
+      "read_only": 1,
+      "reqd": 0
+    },
+    "erp_sync_status": {
+      "label": "ERP Sync Status",
+      "fieldtype": "Select",
+      "options": "Not Started\nPending Configuration\nSynced\nFailed",
+      "read_only": 1,
+      "reqd": 0
+    },
+    "erp_sync_error": {
+      "label": "ERP Sync Error",
+      "fieldtype": "Small Text",
+      "options": null,
+      "read_only": 1,
+      "reqd": 0
+    }
+  }
+}

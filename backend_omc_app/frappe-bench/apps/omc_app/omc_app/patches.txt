@@ -25,3 +25,4 @@ omc_app.patches.fix_referral_workspace_placement
 omc_app.patches.backfill_internal_referral_codes
 omc_app.patches.enforce_referral_owner_model
 omc_app.patches.add_customer_username
+omc_app.patches.remove_legacy_omc_task

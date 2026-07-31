@@ -47,56 +47,59 @@ class TasksRepository {
     }
   }
 
-  Future<TaskItem> createTask({
-    required String title,
-    String? status,
+  Future<TaskItem> updateOperationStatus({
+    required String taskId,
+    required String operationStatus,
+  }) async {
+    final cleanTaskId = taskId.trim();
+    final cleanStatus = operationStatus.trim();
+    if (cleanTaskId.isEmpty || cleanStatus.isEmpty) {
+      throw const ApiError(message: 'Task and operation status are required.');
+    }
+
+    final response = await _frappeClient.postMethod(
+      ApiConfig.updateTaskOperationStatusMethod,
+      data: {'task_id': cleanTaskId, 'operation_status': cleanStatus},
+    );
+    return _mapMutationTask(response);
+  }
+
+  Future<TaskItem> assignTask({
+    required String taskId,
+    required String assignedTo,
+  }) async {
+    final cleanTaskId = taskId.trim();
+    final cleanAssignee = assignedTo.trim();
+    if (cleanTaskId.isEmpty || cleanAssignee.isEmpty) {
+      throw const ApiError(message: 'Task and assignee are required.');
+    }
+
+    final response = await _frappeClient.postMethod(
+      ApiConfig.assignTaskMethod,
+      data: {'task_id': cleanTaskId, 'assigned_to': cleanAssignee},
+    );
+    return _mapMutationTask(response);
+  }
+
+  Future<TaskItem> updateTaskDetails({
+    required String taskId,
     String? priority,
     String? dueDate,
-    String? assignedTo,
-    String? description,
   }) async {
-    final cleanTitle = title.trim();
-    if (cleanTitle.isEmpty) {
-      throw const ApiError(message: 'Task title is required.');
+    final cleanTaskId = taskId.trim();
+    if (cleanTaskId.isEmpty) {
+      throw const ApiError(message: 'Task is required.');
     }
 
-    try {
-      final response = await _frappeClient.postResource(
-        'OMC Task',
-        data: {
-          'title': cleanTitle,
-          'status': status?.trim().isNotEmpty == true ? status!.trim() : 'Open',
-          'priority': priority?.trim().isNotEmpty == true
-              ? priority!.trim()
-              : 'Normal',
-          'due_date': dueDate?.trim() ?? '',
-          'assigned_to': assignedTo?.trim() ?? '',
-          'description': description?.trim() ?? '',
-        },
-      );
-
-      final rawTask = response['data'];
-      if (rawTask is Map<String, dynamic>) {
-        return TaskItem.fromJson(rawTask);
-      }
-
-      refetch:
-      {
-        final tasks = await fetchTasks();
-        if (tasks.isNotEmpty) return tasks.first;
-        break refetch;
-      }
-
-      throw const ApiError(message: 'Task was created but response was empty.');
-    } on ApiError {
-      rethrow;
-    } catch (error) {
-      throw ApiError(
-        message: 'Task could not be created right now.',
-        code: 'task_create_failed',
-        details: error,
-      );
-    }
+    final response = await _frappeClient.postMethod(
+      ApiConfig.updateTaskDetailsMethod,
+      data: {
+        'task_id': cleanTaskId,
+        if (priority != null) 'priority': priority.trim(),
+        if (dueDate != null) 'due_date': dueDate.trim(),
+      },
+    );
+    return _mapMutationTask(response);
   }
 
   Future<TaskItem?> fetchTaskDetail(String taskId) async {
@@ -119,6 +122,18 @@ class TasksRepository {
         details: error,
       );
     }
+  }
+
+  TaskItem _mapMutationTask(Map<String, dynamic> data) {
+    final message = data['message'];
+    final rawTask = message is Map<String, dynamic>
+        ? message['task'] ?? message['data'] ?? message
+        : data['task'] ?? data['data'];
+
+    if (rawTask is! Map<String, dynamic>) {
+      throw const ApiError(message: 'Task update response was invalid.');
+    }
+    return TaskItem.fromJson(rawTask);
   }
 
   List<TaskItem> _mapTasksResponse(Map<String, dynamic> data) {

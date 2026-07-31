@@ -43,6 +43,8 @@ class _ServiceRequestDraftScreenState
   final _emailController = TextEditingController();
   final _taxIdController = TextEditingController();
   final _remarksController = TextEditingController();
+  final _discountValueController = TextEditingController();
+  final _discountReasonController = TextEditingController();
   final Map<String, TextEditingController> _dynamicControllers = {};
   final Map<String, String?> _selectValues = {};
   final Map<String, bool> _checkValues = {};
@@ -50,6 +52,7 @@ class _ServiceRequestDraftScreenState
   bool _customerProfilePrefillScheduled = false;
   bool _customerProfilePrefilled = false;
   AssistedCustomerDraftSelection? _assistedSelection;
+  String _discountType = 'Percentage';
   bool _isSubmitting = false;
 
   @override
@@ -61,6 +64,8 @@ class _ServiceRequestDraftScreenState
       _emailController,
       _taxIdController,
       _remarksController,
+      _discountValueController,
+      _discountReasonController,
     ]) {
       controller.addListener(_refresh);
     }
@@ -74,6 +79,8 @@ class _ServiceRequestDraftScreenState
       _emailController,
       _taxIdController,
       _remarksController,
+      _discountValueController,
+      _discountReasonController,
     ]) {
       controller.removeListener(_refresh);
       controller.dispose();
@@ -165,6 +172,19 @@ class _ServiceRequestDraftScreenState
                     const SizedBox(height: 12),
                     AssistedCustomerCard(
                       onChanged: _onAssistedSelectionChanged,
+                    ),
+                    const SizedBox(height: 12),
+                    _InternalDiscountCard(
+                      service: service,
+                      discountType: _discountType,
+                      discountValueController: _discountValueController,
+                      discountReasonController: _discountReasonController,
+                      onDiscountTypeChanged: (value) {
+                        if (value == null || value == _discountType) {
+                          return;
+                        }
+                        setState(() => _discountType = value);
+                      },
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -368,6 +388,11 @@ class _ServiceRequestDraftScreenState
     return count;
   }
 
+  double _parseDiscountValue() {
+    final normalized = _discountValueController.text.trim().replaceAll(',', '');
+    return double.tryParse(normalized) ?? 0;
+  }
+
   Future<void> _submit(
     ServiceItem service,
     List<ServiceTemplateField> fields,
@@ -399,6 +424,45 @@ class _ServiceRequestDraftScreenState
       return;
     }
 
+    final discountValue = _parseDiscountValue();
+    if (capabilities.isInternal && discountValue > 0) {
+      final originalPrice = service.basePrice;
+      if (originalPrice == null || originalPrice <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'A catalogue base price is required before applying a discount.',
+            ),
+          ),
+        );
+        return;
+      }
+      if (_discountType == 'Percentage' && discountValue > 100) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Percentage discount cannot exceed 100%.'),
+          ),
+        );
+        return;
+      }
+      if (_discountType == 'Fixed Amount' && discountValue > originalPrice) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fixed discount cannot exceed the service price.'),
+          ),
+        );
+        return;
+      }
+      if (_discountReasonController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enter a reason for the customer discount.'),
+          ),
+        );
+        return;
+      }
+    }
+
     final repository = ref.read(serviceRequestRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
     final dynamicDetails = _dynamicValues(fields);
@@ -426,6 +490,15 @@ class _ServiceRequestDraftScreenState
           customerConsentReference: _assistedSelection?.consentReference,
           city: _assistedSelection?.city,
           address: _assistedSelection?.address,
+          discountType: capabilities.isInternal && discountValue > 0
+              ? _discountType
+              : null,
+          discountValue: capabilities.isInternal && discountValue > 0
+              ? discountValue
+              : null,
+          discountReason: capabilities.isInternal && discountValue > 0
+              ? _discountReasonController.text
+              : null,
         ),
       );
 
@@ -535,6 +608,155 @@ class _ServiceRequestDraftScreenState
     if (digits.length == 13) return null;
     if (digits.length >= 7 && digits.length <= 9) return null;
     return 'Enter a valid CNIC or NTN.';
+  }
+}
+
+class _InternalDiscountCard extends StatelessWidget {
+  const _InternalDiscountCard({
+    required this.service,
+    required this.discountType,
+    required this.discountValueController,
+    required this.discountReasonController,
+    required this.onDiscountTypeChanged,
+  });
+
+  final ServiceItem service;
+  final String discountType;
+  final TextEditingController discountValueController;
+  final TextEditingController discountReasonController;
+  final ValueChanged<String?> onDiscountTypeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final originalPrice = service.basePrice;
+    final value =
+        double.tryParse(discountValueController.text.replaceAll(',', '')) ?? 0;
+    final discountAmount = originalPrice == null || originalPrice <= 0
+        ? 0.0
+        : discountType == 'Percentage'
+        ? originalPrice * (value.clamp(0, 100) / 100)
+        : value.clamp(0, originalPrice).toDouble();
+    final finalPrice = originalPrice == null
+        ? null
+        : (originalPrice - discountAmount).clamp(0, double.infinity).toDouble();
+    final currency = (service.currency ?? '').trim();
+
+    String money(double amount) {
+      final formatted = amount % 1 == 0
+          ? amount.toInt().toString()
+          : amount.toStringAsFixed(2);
+      return currency.isEmpty ? formatted : '$currency $formatted';
+    }
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Customer discount',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Optional. Available only for internal assisted requests.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: discountType,
+            decoration: const InputDecoration(labelText: 'Discount type'),
+            items: const [
+              DropdownMenuItem(value: 'Percentage', child: Text('Percentage')),
+              DropdownMenuItem(
+                value: 'Fixed Amount',
+                child: Text('Fixed amount'),
+              ),
+            ],
+            onChanged: onDiscountTypeChanged,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: discountValueController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
+            decoration: InputDecoration(
+              labelText: discountType == 'Percentage'
+                  ? 'Discount percentage'
+                  : 'Discount amount',
+              suffixText: discountType == 'Percentage' ? '%' : currency,
+            ),
+            validator: (value) {
+              final clean = (value ?? '').trim().replaceAll(',', '');
+              if (clean.isEmpty) {
+                return null;
+              }
+              final parsed = double.tryParse(clean);
+              if (parsed == null || parsed < 0) {
+                return 'Enter a valid non-negative discount.';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: discountReasonController,
+            minLines: 2,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Discount reason',
+              hintText: 'Required when a discount is applied',
+            ),
+          ),
+          if (originalPrice != null) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            _DiscountSummaryRow(
+              label: 'Original price',
+              value: money(originalPrice),
+            ),
+            const SizedBox(height: 6),
+            _DiscountSummaryRow(
+              label: 'Discount',
+              value: '- ${money(discountAmount)}',
+            ),
+            const SizedBox(height: 6),
+            _DiscountSummaryRow(
+              label: 'Final price',
+              value: money(finalPrice ?? originalPrice),
+              emphasized: true,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DiscountSummaryRow extends StatelessWidget {
+  const _DiscountSummaryRow({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = emphasized
+        ? const TextStyle(fontWeight: FontWeight.w700)
+        : Theme.of(context).textTheme.bodyMedium;
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: style)),
+        Text(value, style: style),
+      ],
+    );
   }
 }
 

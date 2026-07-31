@@ -1,0 +1,732 @@
+{
+  "batch": "Batch 5 Part B",
+  "scope": "ERP customer resolver and duplicate-prevention inspection",
+  "files": {
+    "erp_customer_resolver.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_customer_resolver.py",
+      "functions": [
+        {
+          "name": "_text",
+          "line": 10,
+          "args": [
+            "value"
+          ]
+        },
+        {
+          "name": "_profile_user",
+          "line": 14,
+          "args": [
+            "profile"
+          ]
+        },
+        {
+          "name": "_valid_link",
+          "line": 21,
+          "args": [
+            "profile"
+          ]
+        },
+        {
+          "name": "_customer_matches",
+          "line": 28,
+          "args": [
+            "user"
+          ]
+        },
+        {
+          "name": "_default_value",
+          "line": 39,
+          "args": [
+            "fieldname"
+          ]
+        },
+        {
+          "name": "_set_if_field",
+          "line": 43,
+          "args": [
+            "doc",
+            "fieldname",
+            "value"
+          ]
+        },
+        {
+          "name": "_link_profile",
+          "line": 48,
+          "args": [
+            "profile",
+            "customer"
+          ]
+        },
+        {
+          "name": "_create_customer",
+          "line": 59,
+          "args": [
+            "profile",
+            "user"
+          ]
+        },
+        {
+          "name": "resolve_profile_customer",
+          "line": 84,
+          "args": [
+            "profile"
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "line": 31,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n        \"Customer\",\n        filters={\"user_link\": user},\n        pluck=\"name\",\n        limit=2,\n    )"
+        },
+        {
+          "line": 69,
+          "call": "frappe.new_doc",
+          "source": "frappe.new_doc(\"Customer\")"
+        },
+        {
+          "line": 80,
+          "call": "customer.insert",
+          "source": "customer.insert(ignore_permissions=True)"
+        },
+        {
+          "line": 23,
+          "call": "frappe.db.exists",
+          "source": "frappe.db.exists(\"Customer\", customer)"
+        }
+      ],
+      "assignments": [
+        {
+          "line": 22,
+          "source": "customer = _text(getattr(profile, \"linked_erpnext_customer\", None))"
+        },
+        {
+          "line": 70,
+          "source": "customer.customer_name = full_name"
+        }
+      ]
+    },
+    "erp_service_task_adapter.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_service_task_adapter.py",
+      "functions": [
+        {
+          "name": "_text",
+          "line": 16,
+          "args": [
+            "value"
+          ]
+        },
+        {
+          "name": "_set_if_field",
+          "line": 20,
+          "args": [
+            "doc",
+            "fieldname",
+            "value"
+          ]
+        },
+        {
+          "name": "_set_request_state",
+          "line": 25,
+          "args": [
+            "request"
+          ]
+        },
+        {
+          "name": "_linked_customer",
+          "line": 45,
+          "args": [
+            "profile"
+          ]
+        },
+        {
+          "name": "_customer_user",
+          "line": 50,
+          "args": [
+            "customer"
+          ]
+        },
+        {
+          "name": "_existing_result",
+          "line": 56,
+          "args": [
+            "request"
+          ]
+        },
+        {
+          "name": "_create_service",
+          "line": 73,
+          "args": [
+            "request",
+            "service",
+            "profile",
+            "customer",
+            "task_type"
+          ]
+        },
+        {
+          "name": "_create_task",
+          "line": 101,
+          "args": [
+            "request",
+            "service_doc",
+            "customer",
+            "task_type"
+          ]
+        },
+        {
+          "name": "_link_service_task",
+          "line": 120,
+          "args": [
+            "service_doc",
+            "task"
+          ]
+        },
+        {
+          "name": "_assign_task",
+          "line": 130,
+          "args": [
+            "task",
+            "assignee",
+            "priority"
+          ]
+        },
+        {
+          "name": "sync_request",
+          "line": 160,
+          "args": [
+            "request"
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "line": 74,
+          "call": "frappe.new_doc",
+          "source": "frappe.new_doc(\"Service\")"
+        },
+        {
+          "line": 97,
+          "call": "doc.insert",
+          "source": "doc.insert(ignore_permissions=True)"
+        },
+        {
+          "line": 102,
+          "call": "frappe.new_doc",
+          "source": "frappe.new_doc(\"Task\")"
+        },
+        {
+          "line": 116,
+          "call": "task.insert",
+          "source": "task.insert(ignore_permissions=True)"
+        },
+        {
+          "line": 136,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n        \"ToDo\",\n        filters={\n            \"reference_type\": \"Task\",\n            \"reference_name\": task.name,\n            \"allocated_to\": assignee,\n            \"status\": [\"not in\", [\"Closed\", \"Cancelled\"]],\n        },\n        pluck=\"name\",\n        limit=1,\n    )"
+        },
+        {
+          "line": 149,
+          "call": "frappe.new_doc",
+          "source": "frappe.new_doc(\"ToDo\")"
+        },
+        {
+          "line": 156,
+          "call": "todo.insert",
+          "source": "todo.insert(ignore_permissions=True)"
+        },
+        {
+          "line": 53,
+          "call": "frappe.db.get_value",
+          "source": "frappe.db.get_value(\"Customer\", customer, \"user_link\")"
+        },
+        {
+          "line": 134,
+          "call": "frappe.db.exists",
+          "source": "frappe.db.exists(\"User\", {\"name\": assignee, \"enabled\": 1, \"user_type\": \"System User\"})"
+        },
+        {
+          "line": 61,
+          "call": "frappe.db.exists",
+          "source": "frappe.db.exists(\"Service\", erp_service)"
+        },
+        {
+          "line": 61,
+          "call": "frappe.db.exists",
+          "source": "frappe.db.exists(\"Task\", erp_task)"
+        },
+        {
+          "line": 79,
+          "call": "frappe.db.get_value",
+          "source": "frappe.db.get_value(\"Customer\", customer, \"customer_name\")"
+        }
+      ],
+      "assignments": [
+        {
+          "line": 26,
+          "source": "values = {\n        \"erp_sync_status\": status,\n        \"erp_customer\": customer or None,\n        \"erp_service\": service or None,\n        \"erp_task\": task or None,\n        \"erp_sync_error\": error[:1000] if error else None,\n    }"
+        },
+        {
+          "line": 46,
+          "source": "result = erp_customer_resolver.resolve_profile_customer(profile)"
+        },
+        {
+          "line": 77,
+          "source": "customer_name = (\n        _text(getattr(request, \"customer_name\", None))\n        or _text(frappe.db.get_value(\"Customer\", customer, \"customer_name\"))\n        or customer\n    )"
+        }
+      ]
+    },
+    "assisted_service.py": {
+      "path": "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py",
+      "functions": [
+        {
+          "name": "_text",
+          "line": 28,
+          "args": [
+            "value"
+          ]
+        },
+        {
+          "name": "_active_system_user",
+          "line": 32,
+          "args": [
+            "user"
+          ]
+        },
+        {
+          "name": "_users_for_role",
+          "line": 50,
+          "args": [
+            "role"
+          ]
+        },
+        {
+          "name": "_open_assignment_count",
+          "line": 76,
+          "args": [
+            "user"
+          ]
+        },
+        {
+          "name": "_least_loaded_user",
+          "line": 87,
+          "args": [
+            "users"
+          ]
+        },
+        {
+          "name": "_assignment_role_for_service",
+          "line": 94,
+          "args": [
+            "service"
+          ]
+        },
+        {
+          "name": "_resolve_request_assignee",
+          "line": 114,
+          "args": [
+            "service"
+          ]
+        },
+        {
+          "name": "_ensure_assignment_todo",
+          "line": 132,
+          "args": [
+            "service_request",
+            "assignee"
+          ]
+        },
+        {
+          "name": "_notify_assignee",
+          "line": 161,
+          "args": [
+            "service_request",
+            "assignee"
+          ]
+        },
+        {
+          "name": "_current_user",
+          "line": 178,
+          "args": []
+        },
+        {
+          "name": "_roles",
+          "line": 185,
+          "args": [
+            "user"
+          ]
+        },
+        {
+          "name": "_capabilities",
+          "line": 189,
+          "args": [
+            "user"
+          ]
+        },
+        {
+          "name": "_require_internal_assist",
+          "line": 193,
+          "args": [
+            "user"
+          ]
+        },
+        {
+          "name": "_service_doc",
+          "line": 208,
+          "args": [
+            "service_id"
+          ]
+        },
+        {
+          "name": "_profile",
+          "line": 222,
+          "args": [
+            "customer_profile"
+          ]
+        },
+        {
+          "name": "_resolve_my_referral",
+          "line": 231,
+          "args": [
+            "user",
+            "customer_profile"
+          ]
+        },
+        {
+          "name": "_resolve_existing_customer",
+          "line": 253,
+          "args": [
+            "user",
+            "customer_profile",
+            "consent_reference"
+          ]
+        },
+        {
+          "name": "_create_manual_customer",
+          "line": 274,
+          "args": [
+            "user",
+            "kwargs"
+          ]
+        },
+        {
+          "name": "_request_response",
+          "line": 315,
+          "args": [
+            "doc"
+          ]
+        },
+        {
+          "name": "_pagination",
+          "line": 332,
+          "args": [
+            "limit_start",
+            "limit_page_length"
+          ]
+        },
+        {
+          "name": "_customer_item",
+          "line": 341,
+          "args": [
+            "row"
+          ]
+        },
+        {
+          "name": "_manual_customer_item",
+          "line": 357,
+          "args": [
+            "row"
+          ]
+        },
+        {
+          "name": "_search_or_filters",
+          "line": 373,
+          "args": [
+            "term",
+            "fields"
+          ]
+        },
+        {
+          "name": "get_customer_selection_options",
+          "line": 382,
+          "args": [
+            "customer_mode",
+            "search",
+            "limit_start",
+            "limit_page_length"
+          ]
+        },
+        {
+          "name": "create_request",
+          "line": 516,
+          "args": []
+        }
+      ],
+      "calls": [
+        {
+          "line": 37,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n        \"User\",\n        filters={\n            \"name\": user,\n            \"enabled\": 1,\n            \"user_type\": \"System User\",\n        },\n        pluck=\"name\",\n        limit=1,\n    )"
+        },
+        {
+          "line": 54,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n        \"Has Role\",\n        filters={\n            \"role\": role,\n            \"parenttype\": \"User\",\n        },\n        pluck=\"parent\",\n    )"
+        },
+        {
+          "line": 65,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n        \"User\",\n        filters={\n            \"name\": [\"in\", users],\n            \"enabled\": 1,\n            \"user_type\": \"System User\",\n        },\n        pluck=\"name\",\n    )"
+        },
+        {
+          "line": 136,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n        \"ToDo\",\n        filters={\n            \"reference_type\": \"OMC Service Request\",\n            \"reference_name\": service_request.name,\n            \"allocated_to\": assignee,\n            \"status\": [\"not in\", [\"Closed\", \"Cancelled\"]],\n        },\n        pluck=\"name\",\n        limit=1,\n    )"
+        },
+        {
+          "line": 150,
+          "call": "frappe.new_doc",
+          "source": "frappe.new_doc(\"ToDo\")"
+        },
+        {
+          "line": 157,
+          "call": "todo.insert",
+          "source": "todo.insert(ignore_permissions=True)"
+        },
+        {
+          "line": 219,
+          "call": "frappe.get_doc",
+          "source": "frappe.get_doc(\"OMC Service\", service_name)"
+        },
+        {
+          "line": 228,
+          "call": "frappe.get_doc",
+          "source": "frappe.get_doc(\"OMC Customer Profile\", customer_profile)"
+        },
+        {
+          "line": 298,
+          "call": "frappe.new_doc",
+          "source": "frappe.new_doc(\"OMC Manual Customer\")"
+        },
+        {
+          "line": 311,
+          "call": "doc.insert",
+          "source": "doc.insert(ignore_permissions=True)"
+        },
+        {
+          "line": 576,
+          "call": "frappe.new_doc",
+          "source": "frappe.new_doc(\"OMC Service Request\")"
+        },
+        {
+          "line": 617,
+          "call": "doc.insert",
+          "source": "doc.insert(ignore_permissions=True)"
+        },
+        {
+          "line": 214,
+          "call": "frappe.db.get_value",
+          "source": "frappe.db.get_value(\"OMC Service\", {\"service_id\": service_id}, \"name\")"
+        },
+        {
+          "line": 217,
+          "call": "frappe.db.exists",
+          "source": "frappe.db.exists(\"OMC Service\", service_name)"
+        },
+        {
+          "line": 226,
+          "call": "frappe.db.exists",
+          "source": "frappe.db.exists(\"OMC Customer Profile\", customer_profile)"
+        },
+        {
+          "line": 430,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n            \"OMC Customer Profile\",\n            filters=filters,\n            or_filters=_search_or_filters(\n                search,\n                (\"name\", \"full_name\", \"email\", \"phone\", \"cnic\"),\n            ),\n            fields=[\n                \"name\",\n                \"full_name\",\n                \"email\",\n                \"phone\",\n                \"customer_status\",\n                \"approval_status\",\n                \"referral_assistance_consent\",\n                \"customer_origin\",\n                \"linked_app_user\",\n                \"modified\",\n            ],\n            order_by=\"modified desc\",\n            limit_start=start,\n            limit_page_length=length,\n        )"
+        },
+        {
+          "line": 455,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n            \"OMC Customer Profile\",\n            filters={\"is_active\": 1},\n            or_filters=_search_or_filters(\n                search,\n                (\"name\", \"full_name\", \"email\", \"phone\", \"cnic\"),\n            ),\n            fields=[\n                \"name\",\n                \"full_name\",\n                \"email\",\n                \"phone\",\n                \"customer_status\",\n                \"approval_status\",\n                \"referral_assistance_consent\",\n                \"customer_origin\",\n                \"linked_app_user\",\n                \"modified\",\n            ],\n            order_by=\"modified desc\",\n            limit_start=start,\n            limit_page_length=length,\n        )"
+        },
+        {
+          "line": 483,
+          "call": "frappe.get_all",
+          "source": "frappe.get_all(\n            \"OMC Manual Customer\",\n            filters=filters,\n            or_filters=_search_or_filters(\n                search,\n                (\"name\", \"full_name\", \"email\", \"mobile\", \"cnic\", \"city\"),\n            ),\n            fields=[\n                \"name\",\n                \"full_name\",\n                \"email\",\n                \"mobile\",\n                \"cnic\",\n                \"city\",\n                \"verification_status\",\n                \"conversion_status\",\n                \"customer_origin\",\n                \"modified\",\n            ],\n            order_by=\"modified desc\",\n            limit_start=start,\n            limit_page_length=length,\n        )"
+        }
+      ],
+      "assignments": [
+        {
+          "line": 281,
+          "source": "full_name = _text(kwargs.get(\"full_name\") or kwargs.get(\"customer_name\"))"
+        },
+        {
+          "line": 282,
+          "source": "mobile_no = _text(\n        kwargs.get(\"mobile\")\n        or kwargs.get(\"phone\")\n        or kwargs.get(\"contact_phone\")\n    )"
+        },
+        {
+          "line": 300,
+          "source": "doc.mobile = mobile_no"
+        },
+        {
+          "line": 563,
+          "source": "full_name = _text(kwargs.get(\"full_name\") or kwargs.get(\"customer_name\"))"
+        },
+        {
+          "line": 591,
+          "source": "doc.customer_name = full_name"
+        },
+        {
+          "line": 657,
+          "source": "response[\"erp_customer\"] = erp_bridge.get(\"erp_customer\") or \"\""
+        }
+      ]
+    }
+  },
+  "schemas": {
+    "OMC Customer Profile": {
+      "autoname": "naming_series:",
+      "fields": [
+        {
+          "fieldname": "user",
+          "label": "User",
+          "fieldtype": "Link",
+          "options": "User",
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "email",
+          "label": "Email",
+          "fieldtype": "Data",
+          "options": null,
+          "unique": 1,
+          "reqd": 1,
+          "read_only": 0
+        },
+        {
+          "fieldname": "username",
+          "label": "Username",
+          "fieldtype": "Data",
+          "options": null,
+          "unique": 1,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "phone",
+          "label": "Phone",
+          "fieldtype": "Data",
+          "options": null,
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "whatsapp_no",
+          "label": "WhatsApp No",
+          "fieldtype": "Data",
+          "options": null,
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "cnic",
+          "label": "CNIC",
+          "fieldtype": "Data",
+          "options": null,
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "linked_app_user",
+          "label": "Linked App User",
+          "fieldtype": "Link",
+          "options": "User",
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 1
+        },
+        {
+          "fieldname": "manual_customer_status",
+          "label": "Manual Customer Status",
+          "fieldtype": "Select",
+          "options": "\nUnregistered\nInvited\nSignup Pending\nLinked\nDuplicate Review\nArchived",
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "linked_erpnext_customer",
+          "label": "Linked ERP Customer",
+          "fieldtype": "Link",
+          "options": "Customer",
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 1
+        }
+      ]
+    },
+    "OMC Manual Customer": {
+      "autoname": "naming_series:",
+      "fields": [
+        {
+          "fieldname": "cnic",
+          "label": "CNIC",
+          "fieldtype": "Data",
+          "options": null,
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "mobile",
+          "label": "Mobile",
+          "fieldtype": "Data",
+          "options": null,
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "email",
+          "label": "Email",
+          "fieldtype": "Data",
+          "options": null,
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "conversion_status",
+          "label": "Conversion Status",
+          "fieldtype": "Select",
+          "options": "Unregistered\nInvited\nSignup Pending\nLinked\nDuplicate Review\nArchived",
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "linked_customer_profile",
+          "label": "Linked Customer Profile",
+          "fieldtype": "Link",
+          "options": "OMC Customer Profile",
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        },
+        {
+          "fieldname": "linked_app_user",
+          "label": "Linked App User",
+          "fieldtype": "Link",
+          "options": "User",
+          "unique": 0,
+          "reqd": 0,
+          "read_only": 0
+        }
+      ]
+    }
+  }
+}

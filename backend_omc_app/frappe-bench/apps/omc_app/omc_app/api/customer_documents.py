@@ -450,7 +450,11 @@ def get_document(document_id=None):
 
 
 @frappe.whitelist()
-def update_service_document_status(document_id=None, status=None, remarks=None):
+def update_service_document_status(
+    document_id=None,
+    status=None,
+    remarks=None,
+):
     _require_document_review_access()
 
     if not document_id:
@@ -463,18 +467,77 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
         frappe.throw("Invalid document status")
 
     if not frappe.db.exists("OMC Service Document", document_id):
-        frappe.throw("Service document not found", frappe.DoesNotExistError)
+        frappe.throw(
+            "Service document not found",
+            frappe.DoesNotExistError,
+        )
 
     doc = frappe.get_doc("OMC Service Document", document_id)
-    old_status = doc.status or ""
+    mobile._require_service_case_read_scope(doc.service_request)
+
+    service_case = frappe.get_doc(
+        "OMC Service Request",
+        doc.service_request,
+    )
+    service_status = (service_case.status or "").strip()
+    if service_status in ARCHIVE_SERVICE_STATUSES:
+        frappe.throw(
+            (
+                "Documents cannot be reviewed after a service request is "
+                f"{service_status.lower()}."
+            ),
+            frappe.ValidationError,
+        )
+
+    old_status = (doc.status or "").strip()
+    clean_remarks = (remarks or "").strip()
+
+    if old_status == status:
+        return {
+            "name": doc.name,
+            "case_id": doc.service_request,
+            "status": old_status,
+            "updated": False,
+            "message": "No document status change.",
+            "payment_id": None,
+            "case_status": service_status,
+        }
+
+    final_statuses = {"Approved", "Rejected"}
+    if old_status in final_statuses:
+        frappe.throw(
+            (
+                f"A {old_status.lower()} document review is final. "
+                "Upload a corrected document instead of changing this record."
+            ),
+            frappe.ValidationError,
+        )
+
+    allowed_transitions = {
+        "Pending": {"Uploaded", "Approved", "Rejected"},
+        "Uploaded": {"Approved", "Rejected"},
+        "": {"Pending", "Uploaded", "Approved", "Rejected"},
+    }
+    if status not in allowed_transitions.get(old_status, set()):
+        frappe.throw(
+            f"Invalid document status transition: {old_status or 'None'} to {status}.",
+            frappe.ValidationError,
+        )
+
+    if status == "Rejected" and not clean_remarks:
+        frappe.throw(
+            "Review remarks are required when rejecting a document.",
+            frappe.ValidationError,
+        )
+
     doc.status = status
 
     if remarks is not None:
         if _has_field("OMC Service Document", "review_remarks"):
-            doc.review_remarks = remarks or ""
-        doc.remarks = remarks or ""
+            doc.review_remarks = clean_remarks
+        doc.remarks = clean_remarks
 
-    if status in {"Approved", "Rejected"}:
+    if status in final_statuses:
         if _has_field("OMC Service Document", "reviewed_by"):
             doc.reviewed_by = frappe.session.user
         if _has_field("OMC Service Document", "reviewed_on"):
@@ -482,23 +545,24 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
 
     doc.save(ignore_permissions=True)
 
-    automation = {"payment": None, "case_status": None}
-    if old_status != status:
-        from omc_app.api import payments
-        from omc_app.api.mobile import _create_service_timeline_entry
+    from omc_app.api import payments
+    from omc_app.api.mobile import _create_service_timeline_entry
 
-        _create_service_timeline_entry(
-            service_request=doc.service_request,
-            event_type="Update",
-            title=f"Document {status}",
-            description=remarks or f"{doc.document_title or 'Document'} marked as {status}.",
-            visible_to_customer=1,
-        )
-        automation = payments.handle_document_review(
-            doc.service_request,
-            status,
-            remarks=remarks,
-        )
+    _create_service_timeline_entry(
+        service_request=doc.service_request,
+        event_type="Update",
+        title=f"Document {status}",
+        description=(
+            clean_remarks
+            or f"{doc.document_title or 'Document'} marked as {status}."
+        ),
+        visible_to_customer=1,
+    )
+    automation = payments.handle_document_review(
+        doc.service_request,
+        status,
+        remarks=clean_remarks,
+    )
 
     frappe.db.commit()
 
