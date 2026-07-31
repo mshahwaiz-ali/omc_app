@@ -259,6 +259,84 @@ def _notify_customer(
     )
 
 
+def _cleanup_failed_receipt_file(file_doc, payment):
+    if not file_doc:
+        return False
+
+    file_name = getattr(file_doc, "name", None)
+    if not file_name:
+        return False
+
+    try:
+        if not frappe.db.exists("File", file_name):
+            return False
+
+        persisted = frappe.get_doc("File", file_name)
+        if (
+            (persisted.attached_to_doctype or "")
+            != PAYMENT_DOCTYPE
+            or (persisted.attached_to_name or "")
+            != payment.name
+        ):
+            return False
+
+        linked_payment = frappe.db.exists(
+            PAYMENT_DOCTYPE,
+            {
+                "name": payment.name,
+                "receipt_attachment": (
+                    persisted.file_url or ""
+                ),
+            },
+        )
+        if linked_payment:
+            return False
+
+        frappe.delete_doc(
+            "File",
+            persisted.name,
+            ignore_permissions=True,
+            force=True,
+        )
+        return True
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            "Payment receipt cleanup failed",
+        )
+        return False
+
+
+def _payment_receipt_submission_is_unchanged(
+    payment,
+    *,
+    receipt_attachment,
+    payment_reference="",
+    remarks="",
+):
+    return (
+        (payment.status or "").strip() == "Receipt Submitted"
+        and (payment.receipt_attachment or "").strip()
+        == (receipt_attachment or "").strip()
+        and (payment.payment_reference or "").strip()
+        == (payment_reference or "").strip()
+        and (payment.remarks or "").strip()
+        == (remarks or "").strip()
+    )
+
+
+def _assert_payment_accepts_receipt(payment):
+    status = (payment.status or "").strip()
+    if status in {"Paid", "Cancelled"}:
+        frappe.throw(
+            (
+                "A receipt cannot be uploaded after this payment is "
+                f"{status.lower()}."
+            ),
+            frappe.ValidationError,
+        )
+
+
 def _set_case_status(service_case, status):
     if not service_case or service_case.status in {"Completed", "Cancelled"}:
         return False
@@ -682,7 +760,14 @@ def get_payment(payment_id=None, name=None):
 
 
 @frappe.whitelist()
-def upload_payment_receipt_file(payment_id=None, name=None, file_name=None, content_base64=None, payment_reference=None, remarks=None):
+def upload_payment_receipt_file(
+    payment_id=None,
+    name=None,
+    file_name=None,
+    content_base64=None,
+    payment_reference=None,
+    remarks=None,
+):
     payment_id = payment_id or name
     if not payment_id:
         frappe.throw("payment_id is required")
@@ -692,17 +777,24 @@ def upload_payment_receipt_file(payment_id=None, name=None, file_name=None, cont
         frappe.throw("content_base64 is required")
 
     if not frappe.db.exists(PAYMENT_DOCTYPE, payment_id):
-        frappe.throw("Payment not found", frappe.DoesNotExistError)
+        frappe.throw(
+            "Payment not found",
+            frappe.DoesNotExistError,
+        )
 
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
-    profile, _service_case = _assert_payment_customer_access(payment)
-    if profile is None:
+    profile, service_case = _assert_payment_customer_access(
+        payment
+    )
+    if not profile:
         frappe.throw(
             "Payment receipt upload is a customer action.",
             frappe.PermissionError,
         )
 
-    capabilities = access.get_mobile_capabilities()
+    _assert_payment_accepts_receipt(payment)
+
+    capabilities = mobile._get_mobile_capabilities()
     if not (
         capabilities.get("can_upload_payment_receipt")
         or capabilities.get("can_upload_payment_receipts")
@@ -712,69 +804,104 @@ def upload_payment_receipt_file(payment_id=None, name=None, file_name=None, cont
             frappe.PermissionError,
         )
 
-    extension = _file_extension(file_name)
-    if extension not in ALLOWED_RECEIPT_EXTENSIONS:
-        frappe.throw("Unsupported receipt type. Please upload PDF, JPG or PNG files only.")
-
+    file_doc = None
     try:
-        content = base64.b64decode(content_base64)
+        file_doc = mobile._save_base64_file(
+            file_name=file_name,
+            content_base64=content_base64,
+            is_private=1,
+            attached_to_doctype=PAYMENT_DOCTYPE,
+            attached_to_name=payment.name,
+        )
+
+        clean_reference = (payment_reference or "").strip()
+        clean_remarks = (remarks or "").strip()
+
+        if _payment_receipt_submission_is_unchanged(
+            payment,
+            receipt_attachment=file_doc.file_url,
+            payment_reference=clean_reference,
+            remarks=clean_remarks,
+        ):
+            _cleanup_failed_receipt_file(
+                file_doc,
+                payment,
+            )
+            return {
+                "updated": False,
+                "name": payment.name,
+                "case_id": payment.service_request,
+                "status": payment.status,
+                "receipt_url": (
+                    payment.receipt_attachment or ""
+                ),
+                "payment_reference": (
+                    payment.payment_reference or ""
+                ),
+                "remarks": payment.remarks or "",
+                "message": "No payment receipt change.",
+            }
+
+        payment.receipt_attachment = file_doc.file_url
+        payment.payment_reference = clean_reference
+        payment.remarks = clean_remarks
+        payment.status = "Receipt Submitted"
+        payment.paid_on = None
+        payment.save(ignore_permissions=True)
+
+        description = (
+            clean_remarks
+            or (
+                f"Receipt submitted for "
+                f"{payment.payment_title or 'payment'} "
+                "and is waiting for OMC review."
+            )
+        )
+        mobile._create_service_timeline_entry(
+            service_request=payment.service_request,
+            event_type="Payment Updated",
+            title="Payment Receipt Submitted",
+            description=description,
+            visible_to_customer=1,
+        )
+
+        _set_case_status(
+            service_case,
+            "Waiting for Payment",
+        )
+        _notify_payment_reviewers(
+            service_case,
+            title="Payment receipt submitted",
+            message=(
+                "A receipt has been submitted for "
+                f"{payment.payment_title or payment.name}. "
+                "Review it in the payment queue."
+            ),
+        )
+
+        frappe.db.commit()
+
+        return {
+            "updated": True,
+            "name": payment.name,
+            "case_id": payment.service_request,
+            "status": payment.status,
+            "receipt_url": (
+                payment.receipt_attachment or ""
+            ),
+            "payment_reference": (
+                payment.payment_reference or ""
+            ),
+            "remarks": payment.remarks or "",
+        }
     except Exception:
-        frappe.throw("Receipt file data is invalid. Please choose the file again.")
+        _cleanup_failed_receipt_file(
+            file_doc,
+            payment,
+        )
+        raise
 
-    if not content:
-        frappe.throw("Uploaded receipt is empty.")
-    if len(content) > MAX_RECEIPT_SIZE_BYTES:
-        frappe.throw("Receipt is too large. Maximum allowed size is 10 MB.")
 
-    file_doc = frappe.get_doc({
-        "doctype": "File",
-        "file_name": file_name,
-        "attached_to_doctype": PAYMENT_DOCTYPE,
-        "attached_to_name": payment.name,
-        "is_private": 1,
-        "content": content,
-    })
-    file_doc.insert(ignore_permissions=True)
-
-    payment.receipt_attachment = file_doc.file_url
-    payment.payment_reference = payment_reference or payment.payment_reference
-    payment.remarks = remarks or payment.remarks
-    payment.status = "Receipt Submitted"
-    payment.save(ignore_permissions=True)
-
-    receipt_message = (
-        remarks
-        or f"Receipt submitted for {payment.payment_title or 'payment'} and is waiting for OMC review."
-    )
-    mobile._create_service_timeline_entry(
-        service_request=payment.service_request,
-        event_type="Payment Updated",
-        title="Payment Receipt Submitted",
-        description=receipt_message,
-        visible_to_customer=1,
-    )
-    _set_case_status(_service_case, "Waiting for Payment")
-    _notify_payment_reviewers(
-        _service_case,
-        title="Payment receipt submitted",
-        message=(
-            f"A receipt has been submitted for {payment.payment_title or payment.name}. "
-            "Review it in the payment queue."
-        ),
-    )
-
-    frappe.db.commit()
-
-    return {
-        "updated": True,
-        "name": payment.name,
-        "case_id": payment.service_request,
-        "status": payment.status,
-        "receipt_url": payment.receipt_attachment or "",
-        "payment_reference": payment.payment_reference or "",
-        "remarks": payment.remarks or "",
-        "file_url": file_doc.file_url,
-    }
 
 
 @frappe.whitelist()
@@ -793,14 +920,22 @@ def review_payment_receipt(
     if not status:
         frappe.throw("status is required")
 
-    allowed_statuses = {"Under Review", "Paid", "Rejected", "Cancelled"}
+    allowed_statuses = {
+        "Under Review",
+        "Paid",
+        "Rejected",
+        "Cancelled",
+    }
     if status not in allowed_statuses:
         frappe.throw(
             "status must be one of: Under Review, Paid, Rejected, Cancelled"
         )
 
     if not frappe.db.exists(PAYMENT_DOCTYPE, payment_id):
-        frappe.throw("Payment not found", frappe.DoesNotExistError)
+        frappe.throw(
+            "Payment not found",
+            frappe.DoesNotExistError,
+        )
 
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
     service_case = frappe.get_doc(
@@ -811,18 +946,101 @@ def review_payment_receipt(
         service_case.name,
         internal_user=_current_user(),
     )
-    old_status = payment.status or ""
 
-    if status in {"Paid", "Rejected"} and not payment.receipt_attachment:
+    case_status = (service_case.status or "").strip()
+    if case_status in {"Completed", "Cancelled"}:
         frappe.throw(
-            "A receipt must be uploaded before marking this payment as Paid or Rejected."
+            (
+                "Payments cannot be reviewed after a service request is "
+                f"{case_status.lower()}."
+            ),
+            frappe.ValidationError,
+        )
+
+    old_status = (payment.status or "").strip()
+    clean_remarks = (remarks or "").strip()
+
+    if old_status == status:
+        return {
+            "updated": False,
+            "name": payment.name,
+            "case_id": payment.service_request,
+            "old_status": old_status,
+            "status": old_status,
+            "paid_on": mobile._format_datetime(payment.paid_on),
+            "receipt_url": payment.receipt_attachment or "",
+            "payment_reference": payment.payment_reference or "",
+            "remarks": payment.remarks or "",
+            "case_status": service_case.status,
+            "case_transition_status": None,
+            "message": "No payment status change.",
+        }
+
+    if old_status in {"Paid", "Cancelled"}:
+        frappe.throw(
+            (
+                f"A {old_status.lower()} payment review is final "
+                "and cannot be changed."
+            ),
+            frappe.ValidationError,
+        )
+
+    if old_status == "Rejected":
+        frappe.throw(
+            (
+                "A rejected payment must receive a new customer "
+                "receipt before it can be reviewed again."
+            ),
+            frappe.ValidationError,
+        )
+
+    allowed_transitions = {
+        "Pending": {"Cancelled"},
+        "Receipt Submitted": {
+            "Under Review",
+            "Paid",
+            "Rejected",
+            "Cancelled",
+        },
+        "Under Review": {
+            "Paid",
+            "Rejected",
+            "Cancelled",
+        },
+        "": {"Cancelled"},
+    }
+    if status not in allowed_transitions.get(old_status, set()):
+        frappe.throw(
+            (
+                "Invalid payment status transition: "
+                f"{old_status or 'None'} to {status}."
+            ),
+            frappe.ValidationError,
+        )
+
+    if status in {"Under Review", "Paid", "Rejected"}:
+        if not payment.receipt_attachment:
+            frappe.throw(
+                (
+                    "A receipt must be uploaded before this "
+                    f"payment can be marked as {status}."
+                ),
+                frappe.ValidationError,
+            )
+
+    if status == "Rejected" and not clean_remarks:
+        frappe.throw(
+            "Review remarks are required when rejecting a payment.",
+            frappe.ValidationError,
         )
 
     payment.status = status
+
     if payment_reference is not None:
-        payment.payment_reference = payment_reference or ""
+        payment.payment_reference = (payment_reference or "").strip()
+
     if remarks is not None:
-        payment.remarks = remarks or ""
+        payment.remarks = clean_remarks
 
     if status == "Paid":
         payment.paid_on = frappe.utils.now_datetime()
@@ -833,7 +1051,8 @@ def review_payment_receipt(
 
     timeline_title = f"Payment {status}"
     timeline_description = (
-        remarks or f"{payment.payment_title or 'Payment'} marked as {status}."
+        clean_remarks
+        or f"{payment.payment_title or 'Payment'} marked as {status}."
     )
     mobile._create_service_timeline_entry(
         service_request=payment.service_request,
@@ -853,8 +1072,8 @@ def review_payment_receipt(
                 event_type="Status Updated",
                 title="Work Started",
                 description=(
-                    "Payment has been confirmed and work on your service request "
-                    "is now in progress."
+                    "Payment has been confirmed and work on your "
+                    "service request is now in progress."
                 ),
                 visible_to_customer=1,
             )
@@ -879,8 +1098,8 @@ def review_payment_receipt(
                 event_type="Status Updated",
                 title="Waiting for Customer",
                 description=(
-                    "The payment receipt needs correction or replacement before "
-                    "work can continue."
+                    "The payment receipt needs correction or replacement "
+                    "before work can continue."
                 ),
                 visible_to_customer=1,
             )
@@ -899,6 +1118,7 @@ def review_payment_receipt(
     )
 
     frappe.db.commit()
+
     return {
         "updated": True,
         "name": payment.name,
