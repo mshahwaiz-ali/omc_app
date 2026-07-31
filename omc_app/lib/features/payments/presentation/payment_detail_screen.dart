@@ -298,7 +298,7 @@ class _PaymentQuickStats extends StatelessWidget {
         Expanded(
           child: _PaymentStatTile(
             icon: Icons.payment_rounded,
-            label: 'Pay link',
+            label: 'WhatsApp',
             value: payment.paymentUrl == null ? 'No' : 'Yes',
           ),
         ),
@@ -395,7 +395,7 @@ class _PaymentInfoCard extends StatelessWidget {
             value: payment.receiptUrl == null ? '-' : 'Available',
           ),
           _PaymentInfoRow(
-            label: 'Payment link',
+            label: 'WhatsApp support',
             value: payment.paymentUrl == null ? '-' : 'Available',
           ),
           if (payment.paymentInstructions != null)
@@ -684,7 +684,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
             context,
             payment.paymentUrl,
             fallbackMessage:
-                'Payment gateway link is not available for this record.',
+                'WhatsApp payment-support link is not available for this record.',
           ),
         ),
         if (_canReviewReceipt(payment, capabilities.canReviewPayments)) ...[

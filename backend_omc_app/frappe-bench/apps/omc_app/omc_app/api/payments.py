@@ -230,9 +230,14 @@ def _payment_support_payload(payment=None, service_case=None):
     return {
         "payment_instructions": instructions,
         "bank_account_details": "\n".join(bank_lines),
+        # Compatibility: existing mobile clients read payment_url/payment_link.
+        # This URL opens WhatsApp support; it is not an online gateway checkout.
         "payment_url": whatsapp_url,
         "payment_link": whatsapp_url,
         "gateway_url": "",
+        "payment_channel": "whatsapp_support",
+        "payment_action_label": "Contact OMC on WhatsApp",
+        "online_gateway_available": False,
         "whatsapp_number": whatsapp_number,
     }
 
