@@ -11,6 +11,7 @@ import frappe
 class FieldContract:
     fieldtype: str
     options: str = ""
+    required_select_options: tuple[str, ...] = ()
 
 
 REQUIRED_DOCTYPES = (
@@ -34,16 +35,53 @@ REQUIRED_FIELDS = {
     "Task": {
         "subject": FieldContract("Data"),
         "type": FieldContract("Link", "Task Type"),
-        "status": FieldContract("Select"),
+        "status": FieldContract(
+            "Select",
+            required_select_options=("Open", "Completed", "Cancelled"),
+        ),
         "user_link": FieldContract("Link", "User"),
         "customer": FieldContract("Link", "Customer"),
-        "custom_operation_status": FieldContract("Select"),
+        "custom_operation_status": FieldContract(
+            "Select",
+            required_select_options=("Open",),
+        ),
     },
 }
 
 
 def _text(value) -> str:
     return str(value or "").strip()
+
+
+def _select_options(field) -> set[str]:
+    return {
+        option.strip()
+        for option in _text(getattr(field, "options", None)).splitlines()
+        if option.strip()
+    }
+
+
+def inspect_client_erp_capability_warnings() -> list[str]:
+    """Return non-blocking ERP configuration limitations for operations staff."""
+    warnings: list[str] = []
+    if "erpnext" not in set(frappe.get_installed_apps()):
+        return warnings
+
+    customer_group = _text(
+        frappe.db.get_single_value("Selling Settings", "customer_group")
+    )
+    territory = _text(
+        frappe.db.get_single_value("Selling Settings", "territory")
+    )
+    if not customer_group:
+        warnings.append(
+            "Selling Settings.customer_group is empty; automatic ERP Customer creation will remain pending."
+        )
+    if not territory:
+        warnings.append(
+            "Selling Settings.territory is empty; automatic ERP Customer creation will remain pending."
+        )
+    return warnings
 
 
 def inspect_client_erp_contract() -> list[str]:
@@ -81,6 +119,13 @@ def inspect_client_erp_contract() -> list[str]:
                         f"Invalid ERP field target: {qualified} must point to "
                         f"{expected.options}, found {actual_options or 'empty'}"
                     )
+            if expected.required_select_options:
+                actual_select_options = _select_options(field)
+                for required_option in expected.required_select_options:
+                    if required_option not in actual_select_options:
+                        problems.append(
+                            f"Missing required ERP select option: {qualified} must allow {required_option}"
+                        )
     return problems
 
 
@@ -98,4 +143,5 @@ def validate_client_erp_contract() -> dict[str, object]:
         "required_app": "erpnext",
         "doctypes": list(REQUIRED_DOCTYPES),
         "validated_fields": sum(len(fields) for fields in REQUIRED_FIELDS.values()),
+        "warnings": inspect_client_erp_capability_warnings(),
     }

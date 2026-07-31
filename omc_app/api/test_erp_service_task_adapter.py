@@ -342,3 +342,116 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
             service="ERP-SERVICE-1",
             task="ERP-TASK-NEW",
         )
+
+    def test_sync_request_never_commits_or_rolls_back_directly(self):
+        request = self._request()
+        service = SimpleNamespace(name="tax-filing", erp_task_type="Tax Filing")
+        profile = SimpleNamespace(linked_erpnext_customer="ERP-CUST-1")
+        erp_service = SimpleNamespace(name="ERP-SERVICE-1")
+        erp_task = SimpleNamespace(name="ERP-TASK-1")
+
+        with (
+            patch.object(erp_service_task_adapter, "_linked_customer", return_value="ERP-CUST-1"),
+            patch.object(erp_service_task_adapter, "_create_service", return_value=erp_service),
+            patch.object(erp_service_task_adapter, "_create_task", return_value=erp_task),
+            patch.object(erp_service_task_adapter, "_link_service_task"),
+            patch.object(erp_service_task_adapter, "_assign_task", return_value="TODO-1"),
+            patch.object(erp_service_task_adapter, "_set_request_state"),
+            patch.object(erp_service_task_adapter.frappe.db, "commit") as commit,
+            patch.object(erp_service_task_adapter.frappe.db, "rollback") as rollback,
+        ):
+            result = erp_service_task_adapter.sync_request(
+                request,
+                service=service,
+                profile=profile,
+            )
+
+        self.assertEqual(result["status"], "Synced")
+        commit.assert_not_called()
+        rollback.assert_not_called()
+
+    def test_service_creation_failure_propagates_and_stops_pipeline(self):
+        request = self._request()
+        service = SimpleNamespace(name="tax-filing", erp_task_type="Tax Filing")
+        profile = SimpleNamespace(linked_erpnext_customer="ERP-CUST-1")
+
+        with (
+            patch.object(erp_service_task_adapter, "_linked_customer", return_value="ERP-CUST-1"),
+            patch.object(
+                erp_service_task_adapter,
+                "_create_service",
+                side_effect=RuntimeError("service insert failed"),
+            ),
+            patch.object(erp_service_task_adapter, "_create_task") as create_task,
+            patch.object(erp_service_task_adapter, "_link_service_task") as link_service_task,
+            patch.object(erp_service_task_adapter, "_assign_task") as assign_task,
+            patch.object(erp_service_task_adapter, "_set_request_state") as request_state,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "service insert failed"):
+                erp_service_task_adapter.sync_request(
+                    request,
+                    service=service,
+                    profile=profile,
+                )
+
+        create_task.assert_not_called()
+        link_service_task.assert_not_called()
+        assign_task.assert_not_called()
+        request_state.assert_not_called()
+
+    def test_task_creation_failure_propagates_and_stops_later_writes(self):
+        request = self._request()
+        service = SimpleNamespace(name="tax-filing", erp_task_type="Tax Filing")
+        profile = SimpleNamespace(linked_erpnext_customer="ERP-CUST-1")
+        erp_service = SimpleNamespace(name="ERP-SERVICE-1")
+
+        with (
+            patch.object(erp_service_task_adapter, "_linked_customer", return_value="ERP-CUST-1"),
+            patch.object(erp_service_task_adapter, "_create_service", return_value=erp_service),
+            patch.object(
+                erp_service_task_adapter,
+                "_create_task",
+                side_effect=RuntimeError("task insert failed"),
+            ),
+            patch.object(erp_service_task_adapter, "_link_service_task") as link_service_task,
+            patch.object(erp_service_task_adapter, "_assign_task") as assign_task,
+            patch.object(erp_service_task_adapter, "_set_request_state") as request_state,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "task insert failed"):
+                erp_service_task_adapter.sync_request(
+                    request,
+                    service=service,
+                    profile=profile,
+                )
+
+        link_service_task.assert_not_called()
+        assign_task.assert_not_called()
+        request_state.assert_not_called()
+
+    def test_assignment_failure_propagates_before_synced_state_is_written(self):
+        request = self._request()
+        service = SimpleNamespace(name="tax-filing", erp_task_type="Tax Filing")
+        profile = SimpleNamespace(linked_erpnext_customer="ERP-CUST-1")
+        erp_service = SimpleNamespace(name="ERP-SERVICE-1")
+        erp_task = SimpleNamespace(name="ERP-TASK-1")
+
+        with (
+            patch.object(erp_service_task_adapter, "_linked_customer", return_value="ERP-CUST-1"),
+            patch.object(erp_service_task_adapter, "_create_service", return_value=erp_service),
+            patch.object(erp_service_task_adapter, "_create_task", return_value=erp_task),
+            patch.object(erp_service_task_adapter, "_link_service_task"),
+            patch.object(
+                erp_service_task_adapter,
+                "_assign_task",
+                side_effect=RuntimeError("assignment failed"),
+            ),
+            patch.object(erp_service_task_adapter, "_set_request_state") as request_state,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "assignment failed"):
+                erp_service_task_adapter.sync_request(
+                    request,
+                    service=service,
+                    profile=profile,
+                )
+
+        request_state.assert_not_called()

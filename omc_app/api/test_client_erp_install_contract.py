@@ -34,10 +34,10 @@ def _compatible_meta():
         "Task": _Meta({
             "subject": _field("Data"),
             "type": _field("Link", "Task Type"),
-            "status": _field("Select"),
+            "status": _field("Select", "Open\nWorking\nCompleted\nCancelled"),
             "user_link": _field("Link", "User"),
             "customer": _field("Link", "Customer"),
-            "custom_operation_status": _field("Select"),
+            "custom_operation_status": _field("Select", "Open\nIn Progress\nCompleted"),
         }),
     }
 
@@ -84,10 +84,46 @@ class TestClientErpInstallContract(FrappeTestCase):
             self._inspect(meta=meta),
         )
 
+    def test_missing_required_task_status_option_is_reported(self):
+        meta = _compatible_meta()
+        meta["Task"]._fields["status"] = _field("Select", "Open\nWorking\nCompleted")
+        self.assertIn(
+            "Missing required ERP select option: Task.status must allow Cancelled",
+            self._inspect(meta=meta),
+        )
+
+    def test_missing_operation_open_option_is_reported(self):
+        meta = _compatible_meta()
+        meta["Task"]._fields["custom_operation_status"] = _field(
+            "Select", "In Progress\nCompleted"
+        )
+        self.assertIn(
+            "Missing required ERP select option: Task.custom_operation_status must allow Open",
+            self._inspect(meta=meta),
+        )
+
     def test_optional_service_fields_are_not_required(self):
         fields = set(erp_contract.REQUIRED_FIELDS["Service"])
         for fieldname in ("custom_status", "custom_customer_type", "custom_remarks", "status"):
             self.assertNotIn(fieldname, fields)
+
+    def test_missing_selling_defaults_are_non_blocking_warnings(self):
+        with (
+            patch.object(
+                erp_contract.frappe,
+                "get_installed_apps",
+                return_value=["frappe", "erpnext"],
+            ),
+            patch.object(
+                erp_contract.frappe.db,
+                "get_single_value",
+                return_value=None,
+            ),
+        ):
+            warnings = erp_contract.inspect_client_erp_capability_warnings()
+        self.assertEqual(len(warnings), 2)
+        self.assertTrue(any("customer_group" in warning for warning in warnings))
+        self.assertTrue(any("territory" in warning for warning in warnings))
 
     def test_validator_is_read_only(self):
         source = Path(erp_contract.__file__).read_text(encoding="utf-8")
