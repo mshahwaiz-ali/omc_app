@@ -5,7 +5,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import pending_registration
+from omc_app.api import pending_registration, signup_policy
 
 
 class TestPendingRegistration(FrappeTestCase):
@@ -98,6 +98,33 @@ class TestPendingRegistration(FrappeTestCase):
         self.assertEqual(call["recipients"], [payload["email"]])
         self.assertIn("Verify your OMC account", call["subject"])
         self.assertNotIn("password", call["message"].lower())
+
+    @patch("omc_app.api.pending_registration.frappe.sendmail")
+    def test_legacy_signup_route_requires_email_verification(self, sendmail):
+        payload = self._payload()
+
+        result = signup_policy.sign_up(**payload)
+
+        names = frappe.get_all(
+            "OMC Pending Registration",
+            filters={"email": payload["email"]},
+            pluck="name",
+            order_by="creation desc",
+            limit=1,
+        )
+        self.assertTrue(names)
+        self.created.append(names[0])
+        self.assertTrue(result["verification_required"])
+        self.assertNotIn("verification_token", result)
+        self.assertNotIn("registration_id", result)
+        self.assertFalse(frappe.db.exists("User", payload["email"]))
+        self.assertFalse(
+            frappe.db.exists(
+                "OMC Customer Profile",
+                {"email": payload["email"]},
+            )
+        )
+        sendmail.assert_called_once()
 
     @patch("omc_app.api.pending_registration.frappe.sendmail")
     def test_resend_rotates_token_after_cooldown(self, sendmail):

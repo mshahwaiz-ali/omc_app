@@ -63,6 +63,62 @@ def _service_status_value(mapped_status: str, raw_status: str) -> str | None:
     return None
 
 
+def cancel_linked_erp_records(request) -> dict[str, Any]:
+    """Cancel the linked ERP work without firing the Task hook recursively."""
+
+    task_name = _text(getattr(request, "erp_task", None))
+    service_name = _text(getattr(request, "erp_service", None))
+    result = {
+        "erp_task": task_name,
+        "erp_service": service_name,
+        "task_cancelled": False,
+        "service_cancelled": False,
+    }
+
+    if task_name:
+        if not frappe.db.exists("Task", task_name):
+            frappe.throw(
+                f"Linked ERP Task {task_name} does not exist. Contact OMC support.",
+                frappe.ValidationError,
+            )
+        allowed_task_statuses = _allowed_options("Task", "status")
+        if allowed_task_statuses and "Cancelled" not in allowed_task_statuses:
+            frappe.throw(
+                "Linked ERP Task cannot be moved to Cancelled with the current configuration.",
+                frappe.ValidationError,
+            )
+        values = {"status": "Cancelled"}
+        operation_statuses = _allowed_options("Task", "custom_operation_status")
+        if "Cancelled" in operation_statuses:
+            values["custom_operation_status"] = "Cancelled"
+        frappe.db.set_value(
+            "Task",
+            task_name,
+            values,
+            update_modified=True,
+        )
+        result["task_cancelled"] = True
+
+    if service_name:
+        if not frappe.db.exists("Service", service_name):
+            frappe.throw(
+                f"Linked ERP Service {service_name} does not exist. Contact OMC support.",
+                frappe.ValidationError,
+            )
+        service_status = _service_status_value("Cancelled", "Cancelled")
+        if service_status:
+            frappe.db.set_value(
+                "Service",
+                service_name,
+                "status",
+                service_status,
+                update_modified=True,
+            )
+            result["service_cancelled"] = True
+
+    return result
+
+
 def sync_task_status(doc, method=None) -> dict[str, Any]:
     task_name = _text(getattr(doc, "name", None))
     if not task_name:
@@ -142,6 +198,15 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
         from omc_app.api import workflow_automation
 
         workflow_automation.finalize_completed_case(request)
+    elif mapped_status == "Cancelled" and current_status != "Cancelled":
+        from omc_app.api import workflow_automation
+
+        workflow_automation.finalize_cancelled_case(
+            request,
+            reason="The linked ERP Task was cancelled by OMC staff.",
+            cancelled_by_customer=False,
+            sync_erp=False,
+        )
 
     erp_service = _text(getattr(request, "erp_service", None))
     service_status = _service_status_value(mapped_status, raw_status)

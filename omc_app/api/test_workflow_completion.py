@@ -93,6 +93,41 @@ class TestWorkflowCompletion(TestCase):
         timeline.assert_called_once()
         notification.assert_called_once()
 
+    @patch("omc_app.api.erp_task_status_sync.cancel_linked_erp_records")
+    @patch.object(workflow_automation.mobile, "_create_customer_notification")
+    @patch.object(workflow_automation.mobile, "_create_service_timeline_entry")
+    @patch.object(workflow_automation.frappe.db, "set_value")
+    def test_customer_cancellation_closes_both_todos_and_notifies_staff(
+        self,
+        set_value,
+        timeline,
+        notification,
+        cancel_erp,
+    ):
+        service_case = self._case()
+        service_case.erp_task = "TASK-1"
+        service_case.erp_service = "SERVICE-1"
+        service_case.assigned_staff = "staff@example.com"
+
+        workflow_automation.finalize_cancelled_case(
+            service_case,
+            reason="No longer required",
+            cancelled_by_customer=True,
+        )
+
+        cancel_erp.assert_called_once_with(service_case)
+        self.assertEqual(set_value.call_count, 2)
+        timeline.assert_called_once()
+        self.assertEqual(
+            timeline.call_args.kwargs["event_type"],
+            "Status Updated",
+        )
+        notification.assert_called_once()
+        self.assertEqual(
+            notification.call_args.kwargs["recipient_user"],
+            "staff@example.com",
+        )
+
     @patch.object(workflow_automation.mobile, "_create_customer_notification")
     @patch.object(workflow_automation, "_notification_exists")
     def test_notify_once_prevents_duplicate(self, exists, create_notification):

@@ -224,8 +224,16 @@ class TestErpTaskWriteGuard(FrappeTestCase):
             patch.object(
                 task_write_guard.frappe.db,
                 "exists",
-                return_value=False,
+                return_value=True,
             ),
+            patch.object(
+                task_write_guard.frappe.db,
+                "set_value",
+            ) as set_value,
+            patch.object(
+                task_write_guard.frappe,
+                "get_meta",
+            ) as get_meta,
             patch.object(
                 task_write_guard.task_read_guard,
                 "_task_to_payload",
@@ -240,6 +248,14 @@ class TestErpTaskWriteGuard(FrappeTestCase):
         self.assertTrue(result["updated"])
         close_assignments.assert_called_once_with("ERP-TASK-1")
         create_assignment.assert_called_once_with(task, "new@example.com")
+        set_value.assert_called_once_with(
+            "OMC Service Request",
+            "OMC-SR-1",
+            "assigned_staff",
+            "new@example.com",
+            update_modified=False,
+        )
+        get_meta.assert_not_called()
 
     def test_assigned_staff_cannot_reassign_task(self):
         task = self._task()

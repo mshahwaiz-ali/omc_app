@@ -8,6 +8,10 @@ import frappe
 from omc_app.api import mobile
 
 
+DEFAULT_PAGE_LENGTH = 100
+MAX_PAGE_LENGTH = 100
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -46,27 +50,68 @@ def _task_assignment_names(user: str) -> set[str]:
     )
 
 
-def _request_links() -> list[dict[str, Any]]:
+def _request_links(
+    *,
+    task_names: set[str] | None = None,
+    limit_start: int = 0,
+    limit_page_length: int = DEFAULT_PAGE_LENGTH,
+) -> list[dict[str, Any]]:
+    if task_names is not None and not task_names:
+        return []
+
+    filters: dict[str, Any] = {"erp_task": ["is", "set"]}
+    if task_names is not None:
+        filters["erp_task"] = ["in", sorted(task_names)]
+
     return frappe.get_all(
         "OMC Service Request",
-        filters={"erp_task": ["is", "set"]},
+        filters=filters,
         fields=[
             "name",
             "erp_task",
             "erp_service",
             "customer_profile",
         ],
-        order_by="modified desc",
-        limit_page_length=100,
+        order_by="modified desc, name desc",
+        limit_start=limit_start,
+        limit_page_length=limit_page_length,
     )
 
 
-def _request_link_map() -> dict[str, dict[str, Any]]:
+def _request_link_map(
+    rows: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
     return {
         _text(row.get("erp_task")): row
-        for row in _request_links()
+        for row in rows
         if _text(row.get("erp_task"))
     }
+
+
+def _request_link(task_name: str) -> dict[str, Any] | None:
+    clean_task_name = _text(task_name)
+    if not clean_task_name:
+        return None
+
+    rows = _request_links(
+        task_names={clean_task_name},
+        limit_page_length=1,
+    )
+    return rows[0] if rows else None
+
+
+def _non_negative_int(value: Any, *, default: int = 0) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _page_length(value: Any) -> int:
+    requested = _non_negative_int(value, default=DEFAULT_PAGE_LENGTH)
+    if requested < 1:
+        requested = DEFAULT_PAGE_LENGTH
+    return min(requested, MAX_PAGE_LENGTH)
 
 
 def _load_task(task_id: str):
@@ -148,7 +193,7 @@ def _can_read_task(
 
 
 @frappe.whitelist()
-def get_tasks():
+def get_tasks(limit_start=0, page_length=None):
     user = mobile._assert_internal_workspace_access()
     capabilities = mobile._require_canonical_capability(
         "can_manage_tasks",
@@ -156,27 +201,38 @@ def get_tasks():
         message="You do not have permission to view tasks.",
     )
 
-    link_map = _request_link_map()
-    eligible_names = list(link_map)
+    start = _non_negative_int(limit_start)
+    limit = _page_length(page_length)
+    assigned_names = None
     if not capabilities.get("can_manage_tasks"):
         assigned_names = _task_assignment_names(user)
-        eligible_names = [
-            name for name in eligible_names if name in assigned_names
-        ]
+
+    rows = _request_links(
+        task_names=assigned_names,
+        limit_start=start,
+        limit_page_length=limit + 1,
+    )
+    has_more = len(rows) > limit
+    page_rows = rows[:limit]
+    link_map = _request_link_map(page_rows)
 
     tasks = []
-    for task_name in eligible_names:
+    for task_name, request_link in link_map.items():
         try:
             task = _load_task(task_name)
         except frappe.DoesNotExistError:
             continue
-        tasks.append(_task_to_payload(task, link_map[task_name]))
+        tasks.append(_task_to_payload(task, request_link))
 
-    tasks.sort(
-        key=lambda row: row.get("updated_at") or row.get("created_at") or "",
-        reverse=True,
-    )
-    return {"tasks": tasks[:100]}
+    return {
+        "tasks": tasks,
+        "pagination": {
+            "limit_start": start,
+            "page_length": limit,
+            "has_more": has_more,
+            "next_start": start + limit if has_more else None,
+        },
+    }
 
 
 @frappe.whitelist()
@@ -190,8 +246,7 @@ def get_task(task_id=None):
     if not task_id:
         frappe.throw("task_id is required")
 
-    link_map = _request_link_map()
-    request_link = link_map.get(_text(task_id))
+    request_link = _request_link(_text(task_id))
     if not request_link:
         _task_not_found()
 

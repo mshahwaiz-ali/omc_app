@@ -642,10 +642,23 @@ def cancel_service_request(case_id=None, name=None, service_request=None, reques
     if not _can_customer_cancel_service_case(request.name, request.status):
         frappe.throw("This request can no longer be cancelled from the app. Please contact OMC support.")
 
+    cancellation_reason = (
+        str(reason or "").strip()
+        or "Service request cancelled by customer from mobile app."
+    )
     request.status = "Cancelled"
     request.closed_on = frappe.utils.now_datetime()
-    request.add_comment("Comment", reason or "Service request cancelled by customer from mobile app.")
+    request.add_comment("Comment", cancellation_reason)
     request.save(ignore_permissions=True)
+
+    from omc_app.api import workflow_automation
+
+    workflow_automation.finalize_cancelled_case(
+        request,
+        reason=cancellation_reason,
+        cancelled_by_customer=True,
+        sync_erp=True,
+    )
     frappe.db.commit()
 
     return {"service_request": request.name, "status": request.status, "message": "Service request cancelled successfully.", "can_cancel": False}
