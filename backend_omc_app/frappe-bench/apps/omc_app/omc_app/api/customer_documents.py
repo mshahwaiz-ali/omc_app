@@ -1,6 +1,6 @@
 import frappe
 
-from omc_app.api import access, mobile
+from omc_app.api import access, mobile, review_routing
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _can_access_internal_workspace,
@@ -544,6 +544,8 @@ def update_service_document_status(
             doc.reviewed_on = frappe.utils.now_datetime()
 
     doc.save(ignore_permissions=True)
+    if status in final_statuses:
+        review_routing.close_review_todos("OMC Service Document", doc.name)
 
     from omc_app.api import payments
     from omc_app.api.mobile import _create_service_timeline_entry

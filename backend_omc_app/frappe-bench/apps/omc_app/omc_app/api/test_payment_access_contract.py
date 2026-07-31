@@ -135,6 +135,7 @@ class TestServiceCasePaymentContract(TestCase):
             name="CASE-1",
             status=status,
             service=service,
+            final_price=25000,
         )
 
     def _required_template(self):

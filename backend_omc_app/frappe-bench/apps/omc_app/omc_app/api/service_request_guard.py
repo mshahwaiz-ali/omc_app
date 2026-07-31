@@ -1,7 +1,7 @@
 import frappe
 from frappe.utils import validate_email_address
 
-from omc_app.api import mobile
+from omc_app.api import service_requests
 
 ALLOWED_PRIORITIES = {"Low", "Medium", "High", "Urgent"}
 
@@ -59,11 +59,14 @@ def create_service(**kwargs):
     if priority not in ALLOWED_PRIORITIES:
         frappe.throw("Unsupported priority", frappe.ValidationError)
 
-    return mobile.create_service(
-        service_id=service_id,
-        title=title,
-        description=description,
-        contact_phone=contact_phone,
-        contact_email=contact_email,
-        priority=priority,
+    data.update(
+        {
+            "service_id": service_id,
+            "title": title,
+            "description": description,
+            "contact_phone": contact_phone,
+            "contact_email": contact_email,
+            "priority": priority,
+        }
     )
+    return service_requests.create_service(**data)

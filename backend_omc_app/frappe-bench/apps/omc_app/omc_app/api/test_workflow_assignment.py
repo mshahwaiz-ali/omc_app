@@ -2,11 +2,11 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
-from omc_app.api import assisted_service
+from omc_app.api import assisted_service, service_assignment
 
 
 class TestWorkflowAssignment(TestCase):
-    @patch.object(assisted_service, "_active_system_user")
+    @patch.object(service_assignment, "active_assignable_user")
     def test_explicit_assignee_has_priority(self, active_user):
         active_user.side_effect = lambda value: value if value else None
         service = SimpleNamespace(
@@ -22,7 +22,7 @@ class TestWorkflowAssignment(TestCase):
 
         self.assertEqual(result, "explicit@example.com")
 
-    @patch.object(assisted_service, "_active_system_user")
+    @patch.object(service_assignment, "active_assignable_user")
     def test_referral_owner_precedes_service_default(self, active_user):
         active_user.side_effect = lambda value: value if value else None
         service = SimpleNamespace(
@@ -37,7 +37,7 @@ class TestWorkflowAssignment(TestCase):
 
         self.assertEqual(result, "referral@example.com")
 
-    @patch.object(assisted_service, "_open_assignment_count")
+    @patch.object(service_assignment, "open_assignment_count")
     def test_least_loaded_user_is_selected(self, count):
         count.side_effect = {
             "a@example.com": 4,
@@ -45,7 +45,7 @@ class TestWorkflowAssignment(TestCase):
             "c@example.com": 1,
         }.get
 
-        result = assisted_service._least_loaded_user(
+        result = service_assignment.least_loaded_user(
             ["c@example.com", "a@example.com", "b@example.com"]
         )
 
@@ -59,7 +59,12 @@ class TestWorkflowAssignment(TestCase):
             title="Test Request",
             priority="Medium",
         )
-        get_all.return_value = ["TODO-EXISTING"]
+        get_all.return_value = [
+            SimpleNamespace(
+                name="TODO-EXISTING",
+                allocated_to="staff@example.com",
+            )
+        ]
 
         result = assisted_service._ensure_assignment_todo(
             request,

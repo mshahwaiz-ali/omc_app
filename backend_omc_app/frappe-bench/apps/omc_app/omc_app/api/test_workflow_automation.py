@@ -14,6 +14,8 @@ class TestWorkflowAutomation(TestCase):
         case.title = "Test Request"
         case.customer_profile = "OMC-CUST-TEST"
         case.status = status
+        case.final_price = None
+        case.pricing_currency = None
         return case
 
     @patch.object(payments.mobile, "_has_doctype", return_value=True)
@@ -75,45 +77,3 @@ class TestWorkflowAutomation(TestCase):
         payment.insert.assert_called_once_with(ignore_permissions=True)
         timeline.assert_called_once()
         notification.assert_called_once()
-
-    @patch.object(payments.frappe, "get_all")
-    def test_payment_reviewer_users_include_assignee_and_managers(self, get_all):
-        get_all.side_effect = [
-            ["admin@example.com", "manager@example.com"],
-            ["admin@example.com", "manager@example.com", "staff@example.com"],
-        ]
-        case = self._case()
-        case.assigned_staff = "staff@example.com"
-
-        users = payments._payment_reviewer_users(case)
-
-        self.assertEqual(
-            users,
-            ["admin@example.com", "manager@example.com", "staff@example.com"],
-        )
-
-    @patch.object(payments.mobile, "_create_customer_notification")
-    @patch.object(payments, "_payment_reviewer_users")
-    def test_receipt_review_notifications_are_sent_to_reviewers(
-        self,
-        reviewer_users,
-        create_notification,
-    ):
-        reviewer_users.return_value = [
-            "admin@example.com",
-            "manager@example.com",
-        ]
-        create_notification.side_effect = [
-            SimpleNamespace(name="NOTIF-1"),
-            SimpleNamespace(name="NOTIF-2"),
-        ]
-
-        result = payments._notify_payment_reviewers(
-            self._case(),
-            title="Payment receipt submitted",
-            message="Review receipt.",
-        )
-
-        self.assertEqual(result, ["NOTIF-1", "NOTIF-2"])
-        self.assertEqual(create_notification.call_count, 2)
-

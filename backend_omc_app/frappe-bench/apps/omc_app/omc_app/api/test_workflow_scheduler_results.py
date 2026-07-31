@@ -7,54 +7,27 @@ from omc_app.api import workflow_automation
 
 
 class TestWorkflowSchedulerResults(FrappeTestCase):
-    @patch("omc_app.api.workflow_automation._notify_reviewers_once")
-    @patch("omc_app.api.workflow_automation._reviewer_users")
-    @patch("omc_app.api.workflow_automation.frappe.get_all")
+    @patch("omc_app.api.review_routing.run_review_assignment_checks")
+    @patch("omc_app.api.service_assignment.run_unassigned_recovery")
     def test_hourly_runner_reuses_reviewers_and_reports_workload(
         self,
-        get_all,
-        reviewer_users,
-        notify_reviewers,
+        unassigned_recovery,
+        review_assignment_checks,
     ):
-        reviewer_users.return_value = ["admin@example.com", "manager@example.com"]
-        get_all.side_effect = [
-            [
-                SimpleNamespace(
-                    name="DOC-1",
-                    service_request="SR-1",
-                    document_title="Passport",
-                )
-            ],
-            [
-                SimpleNamespace(
-                    name="PAY-1",
-                    service_request="SR-1",
-                    payment_title="Initial fee",
-                )
-            ],
-            [SimpleNamespace(name="SR-2", title="Tax Filing")],
-        ]
-        notify_reviewers.side_effect = [["N-1", "N-2"], ["N-3"], []]
+        unassigned_recovery.return_value = {"assigned": 1, "status": "completed"}
+        review_assignment_checks.return_value = {
+            "assigned": 2,
+            "notifications_created": 2,
+            "status": "completed",
+        }
 
         result = workflow_automation.run_hourly_workflow_checks()
 
-        reviewer_users.assert_called_once_with()
-        self.assertEqual(result["reviewers"], 2)
-        self.assertEqual(result["documents_scanned"], 1)
-        self.assertEqual(result["payments_scanned"], 1)
-        self.assertEqual(result["unassigned_scanned"], 1)
-        self.assertEqual(result["notifications_created"], 3)
-        self.assertEqual(notify_reviewers.call_count, 3)
-        for invocation in notify_reviewers.call_args_list:
-            self.assertEqual(
-                invocation.kwargs["reviewers"],
-                ["admin@example.com", "manager@example.com"],
-            )
-        for invocation in get_all.call_args_list:
-            self.assertEqual(
-                invocation.kwargs["limit_page_length"],
-                workflow_automation.HOURLY_BATCH_SIZE,
-            )
+        self.assertEqual(result["unassigned_recovery"]["assigned"], 1)
+        self.assertEqual(result["review_routing"]["assigned"], 2)
+        self.assertEqual(result["review_routing"]["notifications_created"], 2)
+        unassigned_recovery.assert_called_once_with()
+        review_assignment_checks.assert_called_once_with()
 
     @patch("omc_app.api.workflow_automation._notify_once")
     @patch("omc_app.api.workflow_automation._reviewer_users")

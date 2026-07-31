@@ -89,7 +89,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
         "_cleanup_failed_receipt_file",
     )
     @patch.object(payments.frappe.db, "commit")
-    @patch.object(payments, "_notify_payment_reviewers")
+    @patch.object(payments.review_routing, "ensure_review_assignment")
     @patch.object(payments, "_set_case_status")
     @patch.object(
         payments.mobile,
@@ -114,7 +114,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
         capabilities,
         _timeline,
         set_status,
-        notify,
+        assign_review,
         commit,
         cleanup,
     ):
@@ -162,5 +162,5 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
             payment,
         )
         set_status.assert_not_called()
-        notify.assert_not_called()
+        assign_review.assert_not_called()
         commit.assert_not_called()

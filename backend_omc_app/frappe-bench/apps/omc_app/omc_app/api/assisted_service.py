@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import access, erp_service_task_adapter, mobile
+from omc_app.api import (
+    access,
+    erp_service_task_adapter,
+    mobile,
+    service_assignment,
+    submission_integrity,
+)
 from omc_app.referral_capabilities import (
     ALL_CUSTOMER_ASSIST_ROLES,
     REFERRAL_ADMIN_ROLES,
@@ -17,162 +23,27 @@ CUSTOMER_MODES = {
     "Walk-in Customer",
 }
 
-ASSIGNABLE_SERVICE_ROLES = {
-    "OMC Consultant",
-    "OMC Tax Associate",
-    "OMC Business Partner",
-    "OMC Manager",
-}
-
-
 def _text(value) -> str:
     return str(value or "").strip()
 
 
-def _active_system_user(user):
-    user = _text(user)
-    if not user or user == "Guest":
-        return None
-
-    rows = frappe.get_all(
-        "User",
-        filters={
-            "name": user,
-            "enabled": 1,
-            "user_type": "System User",
-        },
-        pluck="name",
-        limit=1,
-    )
-    return rows[0] if rows else None
-
-
-def _users_for_role(role):
-    if role not in ASSIGNABLE_SERVICE_ROLES:
-        return []
-
-    users = frappe.get_all(
-        "Has Role",
-        filters={
-            "role": role,
-            "parenttype": "User",
-        },
-        pluck="parent",
-    )
-    if not users:
-        return []
-
-    return frappe.get_all(
-        "User",
-        filters={
-            "name": ["in", users],
-            "enabled": 1,
-            "user_type": "System User",
-        },
-        pluck="name",
-    )
-
-
-def _open_assignment_count(user):
-    return frappe.db.count(
-        "ToDo",
-        filters={
-            "allocated_to": user,
-            "reference_type": "OMC Service Request",
-            "status": ["not in", ["Closed", "Cancelled"]],
-        },
-    )
-
-
-def _least_loaded_user(users):
-    candidates = sorted(set(user for user in users if user))
-    if not candidates:
-        return None
-    return min(candidates, key=lambda user: (_open_assignment_count(user), user))
-
-
-def _assignment_role_for_service(service):
-    configured = _text(getattr(service, "default_assignment_role", None))
-    if configured in ASSIGNABLE_SERVICE_ROLES:
-        return configured
-
-    haystack = " ".join(
-        [
-            _text(getattr(service, "title", None)),
-            _text(getattr(service, "category", None)),
-            _text(getattr(service, "icon", None)),
-        ]
-    ).lower()
-
-    if "tax" in haystack or "filing" in haystack:
-        return "OMC Tax Associate"
-    if any(term in haystack for term in ("company", "business", "registration")):
-        return "OMC Consultant"
-    return "OMC Business Partner"
+_active_system_user = service_assignment.active_assignable_user
+_users_for_role = service_assignment.users_for_role
+_open_assignment_count = service_assignment.open_assignment_count
+_least_loaded_user = service_assignment.least_loaded_user
+_assignment_role_for_service = service_assignment.assignment_role_for_service
 
 
 def _resolve_request_assignee(service, *, explicit_user=None, referral_owner=None):
-    for candidate in (
-        explicit_user,
-        referral_owner,
-        getattr(service, "default_assignee", None),
-    ):
-        active_user = _active_system_user(candidate)
-        if active_user:
-            return active_user
-
-    role = _assignment_role_for_service(service)
-    assignee = _least_loaded_user(_users_for_role(role))
-    if assignee:
-        return assignee
-
-    return _least_loaded_user(_users_for_role("OMC Manager"))
+    return service_assignment.resolve_assignee(
+        service,
+        explicit_user=explicit_user,
+        referral_owner=referral_owner,
+    ).get("candidate")
 
 
 def _ensure_assignment_todo(service_request, assignee):
-    if not assignee:
-        return None
-
-    existing = frappe.get_all(
-        "ToDo",
-        filters={
-            "reference_type": "OMC Service Request",
-            "reference_name": service_request.name,
-            "allocated_to": assignee,
-            "status": ["not in", ["Closed", "Cancelled"]],
-        },
-        pluck="name",
-        limit=1,
-    )
-    if existing:
-        return existing[0]
-
-    todo = frappe.new_doc("ToDo")
-    todo.allocated_to = assignee
-    todo.reference_type = "OMC Service Request"
-    todo.reference_name = service_request.name
-    todo.description = f"Process {service_request.title or service_request.name}"
-    todo.status = "Open"
-    todo.priority = service_request.priority or "Medium"
-    todo.insert(ignore_permissions=True)
-    return todo.name
-
-
-def _notify_assignee(service_request, assignee):
-    if not assignee:
-        return None
-
-    return mobile._create_customer_notification(
-        recipient_user=assignee,
-        title="New service request assigned",
-        message=(
-            f"{service_request.name} — "
-            f"{service_request.service_title or service_request.title or 'Service Request'}"
-        ),
-        notification_type="Service",
-        reference_doctype="OMC Service Request",
-        reference_name=service_request.name,
-    )
+    return service_assignment.ensure_assignment_todo(service_request, assignee).get("name")
 
 
 def _current_user() -> str:
@@ -630,6 +501,7 @@ def create_request(**kwargs):
     user = _current_user()
     is_internal = mobile._can_access_internal_workspace(user)
     service = _service_doc(kwargs.get("service_id") or kwargs.get("service"))
+    submission = submission_integrity.validate_submission(service.name, kwargs)
     pricing = _request_pricing_snapshot(
         service,
         is_internal=is_internal,
@@ -696,7 +568,7 @@ def create_request(**kwargs):
     doc.service = service.name
     doc.service_title = service.title or ""
     doc.title = _text(kwargs.get("title")) or service.title or "Service Request"
-    doc.description = kwargs.get("description") or ""
+    doc.description = submission_integrity.sanitize_description(kwargs.get("description") or "")
     doc.priority = kwargs.get("priority") or "Medium"
     doc.status = "Open"
     doc.customer_profile = profile.name if profile else ""
@@ -717,6 +589,13 @@ def create_request(**kwargs):
     doc.created_on_behalf = 1 if is_internal else 0
     doc.customer_consent_reference = consent_reference
     doc.source_channel = _text(kwargs.get("source_channel")) or "Mobile App"
+    if doc.meta.get_field("submission_data_json"):
+        doc.submission_data_json = submission["json"]
+    if doc.meta.get_field("submission_documents_due_at"):
+        doc.submission_documents_due_at = frappe.utils.add_to_date(
+            frappe.utils.now_datetime(),
+            hours=submission_integrity.DOCUMENT_GRACE_HOURS,
+        )
     for fieldname, value in pricing.items():
         if doc.meta.get_field(fieldname):
             doc.set(fieldname, value)
@@ -731,7 +610,8 @@ def create_request(**kwargs):
         if profile and customer_mode == "My Referral"
         else ""
     )
-    doc.assigned_staff = _resolve_request_assignee(
+    assignment_decision = service_assignment.assign_new_request(
+        doc,
         service,
         explicit_user=explicit_assignee,
         referral_owner=referral_assignee,
@@ -745,16 +625,14 @@ def create_request(**kwargs):
         manual_customer=manual_customer,
     )
 
-    assignment_todo = _ensure_assignment_todo(doc, doc.assigned_staff)
-    if doc.assigned_staff:
-        _notify_assignee(doc, doc.assigned_staff)
-        mobile._create_service_timeline_entry(
-            service_request=doc.name,
-            event_type="Assignment",
-            title="Request Assigned",
-            description=f"Request assigned to {doc.assigned_staff}.",
-            visible_to_customer=0,
-        )
+    if doc.meta.get_field("submission_integrity_status"):
+        submission_integrity.evaluate_request(doc)
+    assignment_result = service_assignment.apply_assignment(
+        doc,
+        assignment_decision,
+        set_assignee=False,
+    )
+    assignment_todo = assignment_result.get("todo")
 
     mobile._create_service_timeline_entry(
         service_request=doc.name,

@@ -34,6 +34,14 @@
   "customer_consent_reference",
   "assigned_staff",
   "source_channel",
+  "submission_integrity_section",
+  "submission_data_json",
+  "submission_integrity_status",
+  "submission_integrity_score",
+  "submission_integrity_reasons_json",
+  "submission_integrity_checked_at",
+  "submission_documents_due_at",
+  "potential_duplicate_of",
   "timeline_section",
   "expected_completion_date",
   "closed_on",
@@ -45,6 +53,12 @@
   "erp_task",
   "erp_sync_status",
   "erp_sync_error",
+  "erp_retry_count",
+  "erp_last_attempt_at",
+  "erp_next_attempt_at",
+  "erp_last_failure_category",
+  "erp_retry_exhausted_at",
+  "erp_last_success_at",
   "internal_section",
   "internal_notes"
  ],
@@ -300,6 +314,70 @@
    "options": "Mobile App\nDesk\nWebsite\nWalk-in\nImported\nAPI"
   },
   {
+   "collapsible": 1,
+   "fieldname": "submission_integrity_section",
+   "fieldtype": "Section Break",
+   "label": "Submission Integrity"
+  },
+  {
+   "fieldname": "submission_data_json",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Submission Data JSON",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "default": "Not Evaluated",
+   "fieldname": "submission_integrity_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Submission Integrity Status",
+   "options": "Not Evaluated\nClear\nNeeds Review\nIncomplete",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "submission_integrity_score",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Submission Integrity Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submission_integrity_reasons_json",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Submission Integrity Reasons JSON",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submission_integrity_checked_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Submission Integrity Checked At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submission_documents_due_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Submission Documents Due At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "potential_duplicate_of",
+   "fieldtype": "Link",
+   "label": "Potential Duplicate Of",
+   "options": "OMC Service Request",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
    "fieldname": "timeline_section",
    "fieldtype": "Section Break",
    "label": "Timeline"
@@ -386,6 +464,46 @@
    "label": "ERP Sync Error",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "erp_retry_count",
+   "fieldtype": "Int",
+   "label": "ERP Retry Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_last_attempt_at",
+   "fieldtype": "Datetime",
+   "label": "ERP Last Attempt At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_next_attempt_at",
+   "fieldtype": "Datetime",
+   "label": "ERP Next Attempt At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "erp_last_failure_category",
+   "fieldtype": "Select",
+   "label": "ERP Last Failure Category",
+   "options": "\nTransient\nRepairable\nConfiguration\nPermanent",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_retry_exhausted_at",
+   "fieldtype": "Datetime",
+   "label": "ERP Retry Exhausted At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "erp_last_success_at",
+   "fieldtype": "Datetime",
+   "label": "ERP Last Success At",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,

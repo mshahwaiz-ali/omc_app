@@ -4,7 +4,7 @@ from urllib.parse import quote
 
 import frappe
 
-from omc_app.api import access, mobile
+from omc_app.api import access, mobile, review_routing
 
 
 PAYMENT_ACCOUNT_DOCTYPE = "OMC Payment Account"
@@ -351,53 +351,6 @@ def _set_case_status(service_case, status):
     service_case.save(ignore_permissions=True)
     return True
 
-
-
-def _payment_reviewer_users(service_case=None):
-    users = set()
-
-    assigned_staff = getattr(service_case, "assigned_staff", None)
-    if assigned_staff and assigned_staff != "Guest":
-        users.add(assigned_staff)
-
-    role_users = frappe.get_all(
-        "Has Role",
-        filters={
-            "role": ["in", ["OMC Admin", "OMC Manager"]],
-            "parenttype": "User",
-        },
-        pluck="parent",
-    )
-    users.update(user for user in role_users if user and user != "Guest")
-
-    if not users:
-        return []
-
-    enabled_users = frappe.get_all(
-        "User",
-        filters={
-            "name": ["in", list(users)],
-            "enabled": 1,
-        },
-        pluck="name",
-    )
-    return sorted(set(enabled_users))
-
-
-def _notify_payment_reviewers(service_case, *, title, message):
-    notifications = []
-    for user in _payment_reviewer_users(service_case):
-        notification = mobile._create_customer_notification(
-            recipient_user=user,
-            title=title,
-            message=message,
-            notification_type="Payment",
-            reference_doctype="OMC Service Request",
-            reference_name=service_case.name,
-        )
-        if notification:
-            notifications.append(notification.name)
-    return notifications
 
 
 def _approved_required_documents(service_case):
@@ -874,15 +827,7 @@ def upload_payment_receipt_file(
             service_case,
             "Waiting for Payment",
         )
-        _notify_payment_reviewers(
-            service_case,
-            title="Payment receipt submitted",
-            message=(
-                "A receipt has been submitted for "
-                f"{payment.payment_title or payment.name}. "
-                "Review it in the payment queue."
-            ),
-        )
+        review_routing.ensure_review_assignment(payment, service_case)
 
         frappe.db.commit()
 
@@ -1053,6 +998,12 @@ def review_payment_receipt(
         payment.paid_on = None
 
     payment.save(ignore_permissions=True)
+    if status in {"Paid", "Rejected", "Cancelled"}:
+        review_routing.close_review_todos(
+            PAYMENT_DOCTYPE,
+            payment.name,
+            cancelled=status == "Cancelled",
+        )
 
     timeline_title = f"Payment {status}"
     timeline_description = (

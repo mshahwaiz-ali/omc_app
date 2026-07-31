@@ -59,7 +59,7 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         )
 
     @patch.object(payments.frappe.db, "commit")
-    @patch.object(payments, "_notify_payment_reviewers")
+    @patch.object(payments.review_routing, "ensure_review_assignment")
     @patch.object(payments, "_set_case_status")
     @patch.object(
         payments.mobile,

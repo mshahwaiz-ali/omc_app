@@ -8,14 +8,12 @@ from omc_app.api import scheduler_jobs
 class TestSchedulerJobs(FrappeTestCase):
     @patch("omc_app.api.scheduler_jobs._log_completion")
     @patch("omc_app.api.scheduler_jobs.frappe.log_error")
-    @patch("omc_app.api.scheduler_jobs.frappe.get_traceback", return_value="trace")
     @patch("omc_app.api.scheduler_jobs.frappe.db.commit")
     @patch("omc_app.api.scheduler_jobs.frappe.db.rollback")
     def test_failed_job_rolls_back_and_is_reported(
         self,
         rollback,
         commit,
-        get_traceback,
         log_error,
         log_completion,
     ):
@@ -33,7 +31,7 @@ class TestSchedulerJobs(FrappeTestCase):
         commit.assert_not_called()
         log_error.assert_called_once_with(
             title="OMC scheduled job failed: omc_app.tests.failing_job",
-            message="trace",
+            message="RuntimeError: boom",
         )
         log_completion.assert_called_once_with(result)
 
@@ -168,7 +166,10 @@ class TestSchedulerJobs(FrappeTestCase):
         self.assertEqual(
             jobs,
             (
-                scheduler_jobs.workflow_automation.run_hourly_workflow_checks,
+                scheduler_jobs.service_assignment.run_unassigned_recovery,
+                scheduler_jobs.erp_sync_recovery.run_automatic_erp_sync_recovery,
+                scheduler_jobs.review_routing.run_review_assignment_checks,
+                scheduler_jobs.submission_integrity.run_integrity_rescore,
                 scheduler_jobs.auth_cleanup.cleanup_pending_registrations,
             ),
         )

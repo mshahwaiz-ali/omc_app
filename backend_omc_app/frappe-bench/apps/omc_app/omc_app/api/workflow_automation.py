@@ -120,86 +120,13 @@ def _notify_reviewers_once(
 
 
 def run_hourly_workflow_checks():
-    reviewers = _reviewer_users()
-    summary = {
-        "reviewers": len(reviewers),
-        "documents_scanned": 0,
-        "payments_scanned": 0,
-        "unassigned_scanned": 0,
-        "notifications_created": 0,
+    """Compatibility wrapper for the isolated hourly automation jobs."""
+    from omc_app.api import review_routing, service_assignment
+
+    return {
+        "unassigned_recovery": service_assignment.run_unassigned_recovery(),
+        "review_routing": review_routing.run_review_assignment_checks(),
     }
-
-    review_documents = frappe.get_all(
-        "OMC Service Document",
-        filters={
-            "status": ["in", REVIEW_DOCUMENT_STATUSES],
-            "modified": ["<=", add_to_date(now_datetime(), hours=-4)],
-        },
-        fields=["name", "service_request", "document_title"],
-        limit_page_length=HOURLY_BATCH_SIZE,
-    )
-    summary["documents_scanned"] = len(review_documents)
-    for document in review_documents:
-        summary["notifications_created"] += len(
-            _notify_reviewers_once(
-                title="Document review pending",
-                message=(
-                    f"{document.document_title or 'A document'} for "
-                    f"{document.service_request} is waiting for review."
-                ),
-                reference_doctype="OMC Service Document",
-                reference_name=document.name,
-                reviewers=reviewers,
-            )
-        )
-
-    review_payments = frappe.get_all(
-        "OMC Service Payment",
-        filters={
-            "status": ["in", REVIEW_PAYMENT_STATUSES],
-            "modified": ["<=", add_to_date(now_datetime(), hours=-2)],
-        },
-        fields=["name", "service_request", "payment_title"],
-        limit_page_length=HOURLY_BATCH_SIZE,
-    )
-    summary["payments_scanned"] = len(review_payments)
-    for payment in review_payments:
-        summary["notifications_created"] += len(
-            _notify_reviewers_once(
-                title="Payment review pending",
-                message=(
-                    f"{payment.payment_title or 'A payment receipt'} for "
-                    f"{payment.service_request} is waiting for review."
-                ),
-                reference_doctype="OMC Service Payment",
-                reference_name=payment.name,
-                reviewers=reviewers,
-            )
-        )
-
-    unassigned = frappe.get_all(
-        "OMC Service Request",
-        filters={
-            "status": ["in", OPEN_CASE_STATUSES],
-            "assigned_staff": ["is", "not set"],
-            "creation": ["<=", add_to_date(now_datetime(), hours=-1)],
-        },
-        fields=["name", "title"],
-        limit_page_length=HOURLY_BATCH_SIZE,
-    )
-    summary["unassigned_scanned"] = len(unassigned)
-    for service_case in unassigned:
-        summary["notifications_created"] += len(
-            _notify_reviewers_once(
-                title="Unassigned service request",
-                message=f"{service_case.name} — {service_case.title or 'Service Request'}",
-                reference_doctype="OMC Service Request",
-                reference_name=service_case.name,
-                reviewers=reviewers,
-            )
-        )
-
-    return summary
 
 
 def run_daily_workflow_checks():
@@ -454,6 +381,9 @@ def finalize_cancelled_case(
         erp_task_status_sync.cancel_linked_erp_records(service_case)
 
     _set_case_todos_terminal(service_case, "Cancelled")
+    from omc_app.api import review_routing
+
+    review_routing.close_parent_review_todos(service_case.name, cancelled=True)
     title = getattr(service_case, "title", None) or service_case.name
     reason = str(reason or "").strip()
     message = f"{title} has been cancelled."
@@ -508,6 +438,9 @@ def finalize_completed_case(service_case):
         "Closed",
         update_modified=False,
     )
+    from omc_app.api import review_routing
+
+    review_routing.close_parent_review_todos(service_case.name)
 
     message = (
         f"{service_case.title or service_case.name} has been completed. "

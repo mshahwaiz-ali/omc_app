@@ -73,9 +73,16 @@ class TestPaymentLifecycleIntegrity(FrappeTestCase):
                 "doctype": "OMC Service Payment",
                 "service_request": "OMC-SR-TEST",
                 "status": "Paid",
+                "amount": 100,
+                "currency": "PKR",
+                "receipt_attachment": "/private/files/receipt.pdf",
             }
         )
-        payment.get_doc_before_save = lambda: SimpleNamespace(status="Under Review")
+        payment.get_doc_before_save = lambda: SimpleNamespace(
+            status="Under Review",
+            service_request="OMC-SR-TEST",
+            amount=100,
+        )
 
         payment.before_save()
 
@@ -83,7 +90,11 @@ class TestPaymentLifecycleIntegrity(FrappeTestCase):
         assert_parent_is_mutable.assert_called_once_with()
 
         payment.status = "Rejected"
-        payment.get_doc_before_save = lambda: SimpleNamespace(status="Under Review")
+        payment.get_doc_before_save = lambda: SimpleNamespace(
+            status="Under Review",
+            service_request="OMC-SR-TEST",
+            amount=100,
+        )
         payment.before_save()
 
         self.assertIsNone(payment.paid_on)
