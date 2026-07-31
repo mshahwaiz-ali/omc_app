@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-import frappe
-
-
-FIELDNAME = "custom_gst_category"
-DOCTYPES = ("Customer", "Supplier")
-
 
 def execute() -> None:
-    for doctype in DOCTYPES:
-        frappe.db.delete(
-            "Custom Field",
-            {"dt": doctype, "fieldname": FIELDNAME},
-        )
+    """Retained as a harmless compatibility stub.
 
-    frappe.clear_cache(doctype="Customer")
-    frappe.clear_cache(doctype="Supplier")
+    This patch previously deleted client ERPNext metadata and must never
+    perform that operation again. Its patches.txt registration has also
+    been removed.
+    """
+    return None
