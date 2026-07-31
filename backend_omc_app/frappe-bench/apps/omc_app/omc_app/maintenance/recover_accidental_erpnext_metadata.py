@@ -13,7 +13,6 @@ INVALID_PATCHES = {
 EXPECTED_COLUMNS = {
     ("Sales Invoice", "custom_scenario_id"),
     ("Customer", "custom_gst_category"),
-    ("Supplier", "custom_gst_category"),
 }
 
 CUSTOM_FIELDS = (
@@ -176,51 +175,6 @@ def _restore_custom_fields(
         doc.db_insert()
 
 
-def _supplier_field() -> dict[str, Any] | None:
-    field = frappe.db.get_value(
-        "DocField",
-        {
-            "parent": "Supplier",
-            "fieldname": "custom_gst_category",
-        },
-        ["fieldtype", "label", "options", "reqd"],
-        as_dict=True,
-    )
-    return dict(field) if field else None
-
-
-def _supplier_field_matches(field: dict[str, Any]) -> bool:
-    expected = {
-        "fieldtype": "Link",
-        "label": "GST Category",
-        "options": "GST Category",
-        "reqd": 1,
-    }
-    return field == expected
-
-
-def _restore_supplier_metadata_if_needed() -> None:
-    current = _supplier_field()
-    if current:
-        if not _supplier_field_matches(current):
-            frappe.throw(
-                "Recovery aborted: unexpected existing Supplier "
-                f"GST metadata: {current}"
-            )
-        return
-
-    # ERPNext source was independently verified as restored and Git-clean.
-    # Reload only this exact DocType. Do not run migrate or broad model sync.
-    frappe.reload_doc("buying", "doctype", "supplier", force=True)
-
-    restored = _supplier_field()
-    if not restored or not _supplier_field_matches(restored):
-        frappe.throw(
-            "Recovery aborted: Supplier.custom_gst_category was not "
-            f"restored exactly. Current={restored}"
-        )
-
-
 def _remove_invalid_patch_logs() -> None:
     rows = frappe.get_all(
         "Patch Log",
@@ -258,7 +212,6 @@ def execute() -> None:
         missing_custom_fields = _preflight_custom_fields()
 
         _restore_custom_fields(missing_custom_fields)
-        _restore_supplier_metadata_if_needed()
         _remove_invalid_patch_logs()
 
         frappe.clear_cache(doctype="Sales Invoice")

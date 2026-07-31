@@ -38,6 +38,8 @@ def _service_request_scope_conditions(table, user=None, roles=None):
 
 def service_request_query(user=None):
     user = _user(user)
+    if user == 'Guest':
+        return '1=0'
     roles = _roles(user)
     if roles.intersection(PRIVILEGED_ROLES):
         return ''
@@ -47,11 +49,18 @@ def service_request_query(user=None):
 
 def customer_profile_query(user=None):
     user = _user(user)
+    if user == 'Guest':
+        return '1=0'
     roles = _roles(user)
     if roles.intersection(PRIVILEGED_ROLES):
         return ''
     table = '`tabOMC Customer Profile`'
-    conditions = []
+    escaped_user = frappe.db.escape(user)
+    conditions = [
+        f'{table}.linked_app_user = {escaped_user}',
+        f'{table}.user = {escaped_user}',
+        f'{table}.email = {escaped_user}',
+    ]
     if SUPPORT_AGENT_ROLE in roles:
         conditions.append(f'exists (select 1 from `tabOMC Support Ticket` st where st.customer_profile = {table}.name)')
     if DOCUMENT_REVIEWER_ROLE in roles:

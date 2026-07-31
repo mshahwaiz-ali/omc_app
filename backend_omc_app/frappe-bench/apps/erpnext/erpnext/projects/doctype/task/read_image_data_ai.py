@@ -1,6 +1,6 @@
 import frappe, json, base64, mimetypes, os
 
-api_key = os.environ.get("OPENAI_API_KEY")
+api_key = os.getenv("OPENAI_API_KEY") or frappe.conf.get("openai_api_key")
 from openai import OpenAI
 
 def _read_file_as_base64(file_url: str):
@@ -11,8 +11,6 @@ def _read_file_as_base64(file_url: str):
     return b64, (mime or "image/jpeg")
 
 def _call_openai_for_ack_slip(b64_data: str, mime_type: str):
-    if not api_key:
-        frappe.throw("OPENAI_API_KEY is not configured on the server.")
    
     import json
 
