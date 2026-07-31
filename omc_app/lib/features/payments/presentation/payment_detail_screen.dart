@@ -851,7 +851,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
 
     final uri = _paymentUri(cleanUrl);
     if (uri == null) {
-      _showSnack(context, 'Invalid payment link received.');
+      _showSnack(context, 'Invalid link received.');
       return;
     }
 
@@ -860,14 +860,14 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       if (!context.mounted) return;
 
       if (!opened) {
-        _showSnack(context, 'Payment link could not be opened right now.');
+        _showSnack(context, 'This link could not be opened right now.');
       }
     } catch (error) {
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(
         error,
-        fallbackTitle: 'Payment link unavailable',
-        fallbackMessage: 'Payment link could not be opened right now.',
+        fallbackTitle: 'Link unavailable',
+        fallbackMessage: 'This link could not be opened right now.',
       );
       _showSnack(context, failure.message);
     }

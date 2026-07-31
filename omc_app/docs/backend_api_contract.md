@@ -49,7 +49,7 @@ For list endpoints, Flutter currently accepts these shapes:
 Module-specific aliases such as leads, customers, tasks, documents, and payments are also accepted in their related repositories.
 
 Auth Methods
-lead_app.lead_app.apis.login
+login
 
 Used by:
 
@@ -59,20 +59,20 @@ Expected purpose:
 
 login user with email/password
 return authenticated user/session payload compatible with Frappe auth flow
-lead_app.lead_app.apis.google_mobile_login
+omc_app.api.mobile.google_mobile_login
 
 Expected purpose:
 
 login/signup with Google mobile token
 return authenticated user/session payload
-lead_app.lead_app.apis.sign_up
+omc_app.api.access.sign_up
 
 Expected purpose:
 
 create/register customer user
 return success message and/or user data
 Home Dashboard
-lead_app.lead_app.apis.get_dashboard_data
+omc_app.api.dashboard.get_dashboard_data
 
 Used by:
 
@@ -122,7 +122,7 @@ Notes:
 If backend catalogue is unavailable, Flutter can use local asset catalogue.
 IDs must be stable because routes use service ID.
 Service Requests
-lead_app.lead_app.apis.create_service
+omc_app.api.service_requests.create_service
 
 Used by:
 
