@@ -25,6 +25,8 @@
   "completion_time",
   "request_configuration_section",
   "support_message",
+  "default_assignee",
+  "default_assignment_role",
   "publishing_section",
   "sort_order",
   "is_featured",

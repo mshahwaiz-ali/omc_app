@@ -6,7 +6,15 @@ from typing import Any
 
 import frappe
 
-from omc_app.api import auth_cleanup, mobile, workflow_automation
+from omc_app.api import (
+    auth_cleanup,
+    erp_sync_recovery,
+    mobile,
+    review_routing,
+    service_assignment,
+    submission_integrity,
+    workflow_automation,
+)
 
 LOGGER_NAME = "omc_app.scheduler"
 
@@ -55,7 +63,7 @@ def _run_job(job: Callable[[], Any]) -> dict[str, Any]:
     try:
         result = job()
         frappe.db.commit()
-    except Exception:
+    except Exception as error:
         frappe.db.rollback()
         failed = {
             "job": name,
@@ -65,7 +73,7 @@ def _run_job(job: Callable[[], Any]) -> dict[str, Any]:
         }
         frappe.log_error(
             title=f"OMC scheduled job failed: {name}",
-            message=frappe.get_traceback(),
+            message=f"{error.__class__.__name__}: {str(error).strip()}"[:1000],
         )
         _log_completion(failed)
         return failed
@@ -108,7 +116,10 @@ def run_hourly_jobs() -> dict[str, Any]:
     return _run_jobs(
         "hourly",
         (
-            workflow_automation.run_hourly_workflow_checks,
+            service_assignment.run_unassigned_recovery,
+            erp_sync_recovery.run_automatic_erp_sync_recovery,
+            review_routing.run_review_assignment_checks,
+            submission_integrity.run_integrity_rescore,
             auth_cleanup.cleanup_pending_registrations,
         ),
     )

@@ -9,6 +9,27 @@ erp_sync_recovery = import_module("omc_app.api.erp_sync_recovery")
 
 
 class TestErpSyncRecovery(FrappeTestCase):
+    def test_retry_backoff_and_exhaustion_defaults(self):
+        self.assertEqual(
+            [erp_sync_recovery._delay_for("Transient", attempt) for attempt in range(1, 6)],
+            [1, 2, 4, 8, 24],
+        )
+        self.assertEqual(
+            [erp_sync_recovery._delay_for("Configuration", attempt) for attempt in range(1, 6)],
+            [24, 48, 96, 168, 168],
+        )
+        self.assertEqual(erp_sync_recovery.MAX_AUTOMATIC_ATTEMPTS, 5)
+
+    def test_exception_categories_fail_closed(self):
+        transient = type("DeadlockError", (Exception,), {})()
+        self.assertEqual(erp_sync_recovery._category_for_exception(transient), "Transient")
+        operational = type("OperationalError", (Exception,), {})(1213, "deadlock")
+        self.assertEqual(erp_sync_recovery._category_for_exception(operational), "Transient")
+        self.assertEqual(
+            erp_sync_recovery._category_for_exception(ValueError("bad invariant")),
+            "Permanent",
+        )
+
     def test_non_manager_cannot_read_recovery_queue(self):
         with (
             patch.object(
@@ -71,6 +92,8 @@ class TestErpSyncRecovery(FrappeTestCase):
             manual_customer="",
             erp_sync_status="Repair Required",
         )
+        request.meta = MagicMock()
+        request.meta.get_field.return_value = False
         service = SimpleNamespace(name="OMC-SERVICE-1")
 
         def exists(doctype, name):
@@ -123,6 +146,11 @@ class TestErpSyncRecovery(FrappeTestCase):
                 "logger",
                 return_value=MagicMock(),
             ),
+            patch.object(
+                erp_sync_recovery,
+                "now_datetime",
+                return_value="2026-07-31 12:00:00",
+            ),
         ):
             result = erp_sync_recovery.retry_erp_sync("OMC-SR-1")
 
@@ -142,6 +170,8 @@ class TestErpSyncRecovery(FrappeTestCase):
             customer_profile="",
             manual_customer="",
         )
+        request.meta = MagicMock()
+        request.meta.get_field.return_value = False
         with (
             patch.object(
                 erp_sync_recovery.frappe.local,
@@ -175,6 +205,11 @@ class TestErpSyncRecovery(FrappeTestCase):
                 erp_sync_recovery.frappe,
                 "logger",
                 return_value=MagicMock(),
+            ),
+            patch.object(
+                erp_sync_recovery,
+                "now_datetime",
+                return_value="2026-07-31 12:00:00",
             ),
         ):
             result = erp_sync_recovery.retry_erp_sync("OMC-SR-1")

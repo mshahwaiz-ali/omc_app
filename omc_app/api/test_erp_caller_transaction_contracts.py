@@ -19,12 +19,9 @@ def _qualified_name(node: ast.AST) -> str:
 
 
 def _call_lines(function) -> dict[str, list[int]]:
-    source_file = Path(inspect.getsourcefile(function) or "")
-    source = source_file.read_text(encoding="utf-8")
-    tree = ast.parse(source)
     result: dict[str, list[int]] = {}
 
-    for node in ast.walk(tree):
+    for node in ast.walk(_function_node(function)):
         if not isinstance(node, ast.Call):
             continue
         name = _qualified_name(node.func)
@@ -49,14 +46,12 @@ class TestErpCallerTransactionContracts(FrappeTestCase):
 
         bridge_line = calls["erp_service_task_adapter.sync_request"][0]
         commit_line = calls["frappe.db.commit"][0]
-        assignment_line = calls["_ensure_assignment_todo"][0]
-        notify_line = calls["_notify_assignee"][0]
+        assignment_line = calls["service_assignment.apply_assignment"][0]
         timeline_lines = calls["mobile._create_service_timeline_entry"]
 
         self.assertLess(bridge_line, assignment_line)
         self.assertLess(assignment_line, commit_line)
-        self.assertLess(notify_line, commit_line)
-        self.assertGreaterEqual(len(timeline_lines), 2)
+        self.assertGreaterEqual(len(timeline_lines), 1)
         self.assertTrue(all(line < commit_line for line in timeline_lines))
 
     def test_recovery_commit_occurs_after_bridge(self):

@@ -1,5 +1,6 @@
 import frappe
 
+from omc_app.api import review_routing
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _clean_file_reference,
@@ -260,6 +261,7 @@ def upload_service_document(**kwargs):
         description=remarks or f"{document_title} uploaded by customer.",
         visible_to_customer=1,
     )
+    review_routing.ensure_review_assignment(doc, service_case)
 
     frappe.db.commit()
 

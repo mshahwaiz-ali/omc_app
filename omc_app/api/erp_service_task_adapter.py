@@ -160,25 +160,31 @@ def _link_service_task(service_doc, task) -> None:
         frappe.db.set_value("Service", service_doc.name, values, update_modified=False)
 
 
-def _assign_task(task, assignee: str, priority: str):
+def ensure_task_assignment(task, assignee: str, priority: str):
     assignee = _text(assignee)
     if not assignee:
-        return None
+        return {"todo": None, "created": False, "conflict": None}
     if not frappe.db.exists("User", {"name": assignee, "enabled": 1, "user_type": "System User"}):
         frappe.throw(f"Assigned staff user {assignee} is not an active System User.", frappe.ValidationError)
-    existing = frappe.get_all(
+    open_todos = frappe.get_all(
         "ToDo",
         filters={
             "reference_type": "Task",
             "reference_name": task.name,
-            "allocated_to": assignee,
             "status": ["not in", ["Closed", "Cancelled"]],
         },
-        pluck="name",
-        limit=1,
+        fields=["name", "allocated_to"],
+        order_by="creation asc, name asc",
     )
-    if existing:
-        return existing[0]
+    for existing in open_todos:
+        if existing.allocated_to == assignee:
+            return {"todo": existing.name, "created": False, "conflict": None}
+    if open_todos:
+        return {
+            "todo": None,
+            "created": False,
+            "conflict": open_todos[0].allocated_to,
+        }
     todo = frappe.new_doc("ToDo")
     todo.allocated_to = assignee
     todo.reference_type = "Task"
@@ -187,7 +193,11 @@ def _assign_task(task, assignee: str, priority: str):
     todo.status = "Open"
     todo.priority = priority or "Medium"
     todo.insert(ignore_permissions=True)
-    return todo.name
+    return {"todo": todo.name, "created": True, "conflict": None}
+
+
+def _assign_task(task, assignee: str, priority: str):
+    return ensure_task_assignment(task, assignee, priority).get("todo")
 
 
 def sync_request(
@@ -199,6 +209,23 @@ def sync_request(
     repair=False,
 ):
     existing = _existing_result(request)
+    if existing and existing["status"] == "Synced" and repair:
+        service_doc = frappe.get_doc("Service", existing["erp_service"])
+        task = frappe.get_doc("Task", existing["erp_task"])
+        _link_service_task(service_doc, task)
+        assignment = _assign_task(
+            task,
+            _text(getattr(request, "assigned_staff", None)),
+            _text(getattr(request, "priority", None)) or "Medium",
+        )
+        _set_request_state(
+            request,
+            status="Synced",
+            customer=existing.get("erp_customer") or "",
+            service=existing["erp_service"],
+            task=existing["erp_task"],
+        )
+        return {**existing, "task_assignment": assignment}
     if existing and (existing["status"] != "Repair Required" or not repair):
         if existing["status"] == "Repair Required":
             _set_request_state(

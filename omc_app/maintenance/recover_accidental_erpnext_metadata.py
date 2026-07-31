@@ -12,7 +12,6 @@ INVALID_PATCHES = {
 
 EXPECTED_COLUMNS = {
     ("Sales Invoice", "custom_scenario_id"),
-    ("Customer", "custom_gst_category"),
 }
 
 CUSTOM_FIELDS = (
@@ -43,20 +42,6 @@ CUSTOM_FIELDS = (
         "modified_by": "Administrator",
         "creation": "2025-07-21 00:18:34.964117",
         "modified": "2025-07-21 00:18:34.964117",
-    },
-    {
-        "doctype": "Custom Field",
-        "name": "Customer-custom_gst_category",
-        "dt": "Customer",
-        "fieldname": "custom_gst_category",
-        "fieldtype": "Data",
-        "label": "Gst Category",
-        "insert_after": "tax_category",
-        "idx": 124,
-        "owner": "Administrator",
-        "modified_by": "Administrator",
-        "creation": "2025-07-19 22:04:14.551443",
-        "modified": "2025-07-19 22:04:14.551443",
     },
 )
 

@@ -48,7 +48,7 @@ class TestErpTaskReadGuard(FrappeTestCase):
             patch.object(
                 task_read_guard,
                 "_load_task",
-                return_value=self._task(),
+                side_effect=lambda name: self._task(name),
             ) as load_task,
             patch.object(
                 task_read_guard,
@@ -91,8 +91,8 @@ class TestErpTaskReadGuard(FrappeTestCase):
             ),
             patch.object(
                 task_read_guard,
-                "_request_link_map",
-                return_value=link_map,
+                "_request_links",
+                return_value=[link_map["ERP-TASK-1"]],
             ),
             patch.object(
                 task_read_guard,
@@ -102,7 +102,7 @@ class TestErpTaskReadGuard(FrappeTestCase):
             patch.object(
                 task_read_guard,
                 "_load_task",
-                return_value=self._task(),
+                side_effect=lambda name: self._task(name),
             ),
             patch.object(
                 task_read_guard,
@@ -131,8 +131,8 @@ class TestErpTaskReadGuard(FrappeTestCase):
             ),
             patch.object(
                 task_read_guard,
-                "_request_link_map",
-                return_value={},
+                "_request_link",
+                return_value=None,
             ),
             self.assertRaises(Exception),
         ):
@@ -152,8 +152,8 @@ class TestErpTaskReadGuard(FrappeTestCase):
             ),
             patch.object(
                 task_read_guard,
-                "_request_link_map",
-                return_value={"ERP-TASK-1": self._link()},
+                "_request_link",
+                return_value=self._link(),
             ),
             patch.object(
                 task_read_guard,
@@ -178,8 +178,8 @@ class TestErpTaskReadGuard(FrappeTestCase):
             ),
             patch.object(
                 task_read_guard,
-                "_request_link_map",
-                return_value={"ERP-TASK-1": self._link()},
+                "_request_link",
+                return_value=self._link(),
             ),
             patch.object(
                 task_read_guard,
@@ -232,4 +232,3 @@ class TestErpTaskReadGuard(FrappeTestCase):
             )
 
         self.assertEqual(payload["status"], "Pending at QC")
-
