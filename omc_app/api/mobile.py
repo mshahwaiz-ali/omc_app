@@ -1792,6 +1792,42 @@ MAX_PAYMENT_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024
 MAX_FILES_PER_CASE = 20
 
 
+def _save_base64_file(
+    *,
+    file_name,
+    content_base64,
+    is_private=1,
+    attached_to_doctype=None,
+    attached_to_name=None,
+):
+    import base64
+
+    try:
+        content = base64.b64decode(
+            content_base64,
+            validate=True,
+        )
+    except Exception:
+        frappe.throw(
+            "Invalid base64 file content.",
+            frappe.ValidationError,
+        )
+
+    if not content:
+        frappe.throw(
+            "Uploaded file is empty.",
+            frappe.ValidationError,
+        )
+
+    return save_file(
+        file_name,
+        content,
+        attached_to_doctype,
+        attached_to_name,
+        is_private=is_private,
+    )
+
+
 def _clean_file_reference(value):
     text_value = (value or "").strip()
     if not text_value:
@@ -2042,8 +2078,17 @@ def get_payment(payment_id=None):
 @frappe.whitelist()
 def upload_payment_receipt(**kwargs):
     payment_id = kwargs.get("payment_id")
-    receipt_attachment = kwargs.get("receipt_attachment") or kwargs.get("receipt_url") or kwargs.get("file_url") or kwargs.get("file")
-    payment_reference = kwargs.get("payment_reference") or kwargs.get("reference") or ""
+    receipt_attachment = (
+        kwargs.get("receipt_attachment")
+        or kwargs.get("receipt_url")
+        or kwargs.get("file_url")
+        or kwargs.get("file")
+    )
+    payment_reference = (
+        kwargs.get("payment_reference")
+        or kwargs.get("reference")
+        or ""
+    )
     remarks = kwargs.get("remarks") or ""
 
     if not payment_id:
@@ -2053,17 +2098,40 @@ def upload_payment_receipt(**kwargs):
         frappe.throw("receipt_attachment is required")
 
     if not frappe.db.exists("OMC Service Payment", payment_id):
-        frappe.throw("Payment not found", frappe.DoesNotExistError)
+        frappe.throw(
+            "Payment not found",
+            frappe.DoesNotExistError,
+        )
 
-    payment = frappe.get_doc("OMC Service Payment", payment_id)
+    payment = frappe.get_doc(
+        "OMC Service Payment",
+        payment_id,
+    )
 
     profile = _assert_approved_customer()
-    service_case = frappe.get_doc("OMC Service Request", payment.service_request)
+    service_case = frappe.get_doc(
+        "OMC Service Request",
+        payment.service_request,
+    )
 
-    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
-        frappe.throw("You do not have permission to update this payment", frappe.PermissionError)
+    if (
+        profile
+        and service_case.customer_profile
+        and service_case.customer_profile != profile.name
+    ):
+        frappe.throw(
+            "You do not have permission to update this payment",
+            frappe.PermissionError,
+        )
 
-    receipt_attachment = _assert_payment_receipt_upload_allowed(payment, receipt_attachment)
+    from omc_app.api import payments
+
+    payments._assert_payment_accepts_receipt(payment)
+
+    receipt_attachment = _assert_payment_receipt_upload_allowed(
+        payment,
+        receipt_attachment,
+    )
 
     capabilities = _get_mobile_capabilities()
     if not (
@@ -2075,28 +2143,54 @@ def upload_payment_receipt(**kwargs):
             frappe.PermissionError,
         )
 
+    clean_reference = payment_reference.strip()
+    clean_remarks = remarks.strip()
+
+    if payments._payment_receipt_submission_is_unchanged(
+        payment,
+        receipt_attachment=receipt_attachment,
+        payment_reference=clean_reference,
+        remarks=clean_remarks,
+    ):
+        return {
+            "updated": False,
+            "name": payment.name,
+            "case_id": payment.service_request,
+            "status": payment.status,
+            "receipt_url": payment.receipt_attachment or "",
+            "payment_reference": payment.payment_reference or "",
+            "remarks": payment.remarks or "",
+            "message": "No payment receipt change.",
+        }
+
     payment.receipt_attachment = receipt_attachment
-    payment.payment_reference = payment_reference or payment.payment_reference
-    payment.remarks = remarks or payment.remarks
+    payment.payment_reference = clean_reference
+    payment.remarks = clean_remarks
     payment.status = "Receipt Submitted"
+    payment.paid_on = None
     payment.save(ignore_permissions=True)
 
     _create_service_timeline_entry(
         service_request=payment.service_request,
         event_type="Payment Updated",
         title="Payment Receipt Submitted",
-        description=remarks or f"Receipt submitted for {payment.payment_title or 'payment'} and is waiting for OMC review.",
+        description=(
+            clean_remarks
+            or (
+                f"Receipt submitted for "
+                f"{payment.payment_title or 'payment'} "
+                "and is waiting for OMC review."
+            )
+        ),
         visible_to_customer=1,
     )
-
-    from omc_app.api import payments
 
     payments._set_case_status(service_case, "Waiting for Payment")
     payments._notify_payment_reviewers(
         service_case,
         title="Payment receipt submitted",
         message=(
-            f"A receipt has been submitted for "
+            "A receipt has been submitted for "
             f"{payment.payment_title or payment.name}. "
             "Review it in the payment queue."
         ),
@@ -2113,6 +2207,7 @@ def upload_payment_receipt(**kwargs):
         "payment_reference": payment.payment_reference or "",
         "remarks": payment.remarks or "",
     }
+
 
 
 
