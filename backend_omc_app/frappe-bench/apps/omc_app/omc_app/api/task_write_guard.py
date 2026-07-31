@@ -30,8 +30,7 @@ def _load_linked_task(task_id: str):
     if not clean_task_id:
         frappe.throw("task_id is required")
 
-    link_map = task_read_guard._request_link_map()
-    request_link = link_map.get(clean_task_id)
+    request_link = task_read_guard._request_link(clean_task_id)
     if not request_link:
         frappe.throw("Task not found", frappe.DoesNotExistError)
 
@@ -223,19 +222,13 @@ def assign_task(task_id=None, assigned_to=None, **kwargs):
 
     request_name = _text(request_link.get("name"))
     if request_name and frappe.db.exists("OMC Service Request", request_name):
-        request_meta = frappe.get_meta("OMC Service Request")
-        values = {}
-        if request_meta.has_field("assigned_staff"):
-            values["assigned_staff"] = clean_assignee
-        if request_meta.has_field("assigned_to"):
-            values["assigned_to"] = clean_assignee
-        if values:
-            frappe.db.set_value(
-                "OMC Service Request",
-                request_name,
-                values,
-                update_modified=False,
-            )
+        frappe.db.set_value(
+            "OMC Service Request",
+            request_name,
+            "assigned_staff",
+            clean_assignee,
+            update_modified=False,
+        )
 
     return {
         "task": task_read_guard._task_to_payload(task, request_link),

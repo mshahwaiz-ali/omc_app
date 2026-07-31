@@ -32,10 +32,39 @@ class TasksRepository {
 
   final FrappeClient _frappeClient;
 
+  static const int _taskPageLength = 100;
+
   Future<List<TaskItem>> fetchTasks() async {
     try {
-      final response = await _frappeClient.getMethod(ApiConfig.tasksMethod);
-      return _mapTasksResponse(response);
+      final tasks = <TaskItem>[];
+      final seenTaskIds = <String>{};
+      var limitStart = 0;
+
+      while (true) {
+        final response = await _frappeClient.getMethod(
+          ApiConfig.tasksMethod,
+          queryParameters: {
+            'limit_start': limitStart,
+            'page_length': _taskPageLength,
+          },
+        );
+        final page = _mapTasksResponse(response);
+        for (final task in page) {
+          if (seenTaskIds.add(task.id)) {
+            tasks.add(task);
+          }
+        }
+
+        final pagination = _paginationFromResponse(response);
+        final hasMore = pagination?['has_more'] == true;
+        final nextStart = pagination?['next_start'];
+        if (!hasMore || nextStart is! int || nextStart <= limitStart) {
+          break;
+        }
+        limitStart = nextStart;
+      }
+
+      return tasks;
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -45,6 +74,25 @@ class TasksRepository {
         details: error,
       );
     }
+  }
+
+  Map<String, dynamic>? _paginationFromResponse(Map<String, dynamic> data) {
+    final message = data['message'];
+    final container = message is Map<String, dynamic> ? message : data;
+    final rawPagination = container['pagination'];
+    if (rawPagination is! Map) return null;
+
+    final hasMoreValue = rawPagination['has_more'];
+    final nextStartValue = rawPagination['next_start'];
+    final nextStart = nextStartValue is int
+        ? nextStartValue
+        : int.tryParse('$nextStartValue');
+
+    return {
+      'has_more':
+          hasMoreValue == true || hasMoreValue == 1 || hasMoreValue == '1',
+      'next_start': nextStart,
+    };
   }
 
   Future<TaskItem> updateOperationStatus({

@@ -419,6 +419,83 @@ def record_completion_attribution(
         "completion_source": values.get("completion_source", ""),
     }
 
+def _set_case_todos_terminal(service_case, status):
+    references = [("OMC Service Request", service_case.name)]
+    erp_task = str(getattr(service_case, "erp_task", None) or "").strip()
+    if erp_task:
+        references.append(("Task", erp_task))
+
+    for reference_type, reference_name in references:
+        frappe.db.set_value(
+            "ToDo",
+            {
+                "reference_type": reference_type,
+                "reference_name": reference_name,
+                "status": ["not in", ["Closed", "Cancelled"]],
+            },
+            "status",
+            status,
+            update_modified=False,
+        )
+
+
+def finalize_cancelled_case(
+    service_case,
+    *,
+    reason=None,
+    cancelled_by_customer=False,
+    sync_erp=True,
+):
+    """Finalize one cancellation consistently without committing the transaction."""
+
+    if sync_erp:
+        from omc_app.api import erp_task_status_sync
+
+        erp_task_status_sync.cancel_linked_erp_records(service_case)
+
+    _set_case_todos_terminal(service_case, "Cancelled")
+    title = getattr(service_case, "title", None) or service_case.name
+    reason = str(reason or "").strip()
+    message = f"{title} has been cancelled."
+    if reason:
+        message = f"{message} Reason: {reason}"
+
+    mobile._create_service_timeline_entry(
+        service_request=service_case.name,
+        event_type="Status Updated",
+        title="Service Request Cancelled",
+        description=message,
+        visible_to_customer=1,
+    )
+
+    if cancelled_by_customer:
+        assigned_staff = str(
+            getattr(service_case, "assigned_staff", None) or ""
+        ).strip()
+        if assigned_staff:
+            mobile._create_customer_notification(
+                recipient_user=assigned_staff,
+                title="Customer cancelled service request",
+                message=message,
+                notification_type="Service",
+                reference_doctype="OMC Service Request",
+                reference_name=service_case.name,
+            )
+    else:
+        customer_profile = str(
+            getattr(service_case, "customer_profile", None) or ""
+        ).strip()
+        if customer_profile:
+            mobile._create_customer_notification(
+                customer_profile=customer_profile,
+                title="Service request cancelled",
+                message=message,
+                notification_type="Service",
+                reference_doctype="OMC Service Request",
+                reference_name=service_case.name,
+            )
+
+
 def finalize_completed_case(service_case):
     frappe.db.set_value(
         "ToDo",

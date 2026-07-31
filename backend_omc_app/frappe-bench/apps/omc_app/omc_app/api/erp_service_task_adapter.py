@@ -190,9 +190,16 @@ def _assign_task(task, assignee: str, priority: str):
     return todo.name
 
 
-def sync_request(request, *, service, profile=None, manual_customer=None):
+def sync_request(
+    request,
+    *,
+    service,
+    profile=None,
+    manual_customer=None,
+    repair=False,
+):
     existing = _existing_result(request)
-    if existing:
+    if existing and (existing["status"] != "Repair Required" or not repair):
         if existing["status"] == "Repair Required":
             _set_request_state(
                 request,
@@ -202,9 +209,27 @@ def sync_request(request, *, service, profile=None, manual_customer=None):
                 task=existing.get("erp_task") or "",
                 error=existing.get("reason") or "",
             )
+        else:
+            _set_request_state(
+                request,
+                status="Synced",
+                customer=existing.get("erp_customer") or "",
+                service=existing.get("erp_service") or "",
+                task=existing.get("erp_task") or "",
+            )
         return existing
 
+    existing_customer = _text(getattr(request, "erp_customer", None))
+    existing_service = _text(getattr(request, "erp_service", None))
+    existing_task = _text(getattr(request, "erp_task", None))
     customer = _linked_customer(profile)
+    if (
+        repair
+        and not customer
+        and existing_customer
+        and frappe.db.exists("Customer", existing_customer)
+    ):
+        customer = existing_customer
     task_type = _text(getattr(service, "erp_task_type", None))
     missing = []
     if manual_customer:
@@ -216,19 +241,38 @@ def sync_request(request, *, service, profile=None, manual_customer=None):
 
     if missing:
         reason = "; ".join(missing)
-        _set_request_state(request, status="Pending Configuration", customer=customer, error=reason)
+        _set_request_state(
+            request,
+            status="Pending Configuration",
+            customer=customer or existing_customer,
+            service=existing_service,
+            task=existing_task,
+            error=reason,
+        )
         return {
             "status": "Pending Configuration",
-            "erp_customer": customer,
-            "erp_service": "",
-            "erp_task": "",
+            "erp_customer": customer or existing_customer,
+            "erp_service": existing_service,
+            "erp_task": existing_task,
             "task_assignment": None,
             "created": False,
             "reason": reason,
         }
 
-    service_doc = _create_service(request, service, profile, customer, task_type)
-    task = _create_task(request, service_doc, customer, task_type)
+    service_doc = (
+        frappe.get_doc("Service", existing_service)
+        if repair
+        and existing_service
+        and frappe.db.exists("Service", existing_service)
+        else _create_service(request, service, profile, customer, task_type)
+    )
+    task = (
+        frappe.get_doc("Task", existing_task)
+        if repair
+        and existing_task
+        and frappe.db.exists("Task", existing_task)
+        else _create_task(request, service_doc, customer, task_type)
+    )
     _link_service_task(service_doc, task)
     assignment = _assign_task(
         task,

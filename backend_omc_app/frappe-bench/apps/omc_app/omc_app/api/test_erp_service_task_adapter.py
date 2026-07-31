@@ -276,3 +276,69 @@ class TestErpServiceTaskAdapter(FrappeTestCase):
         self.assertFalse(result["created"])
         create_service.assert_not_called()
         create_task.assert_not_called()
+
+    def test_repair_reuses_valid_service_and_recreates_only_missing_task(self):
+        request = self._request()
+        request.erp_customer = "ERP-CUST-1"
+        request.erp_service = "ERP-SERVICE-1"
+        request.erp_task = "ERP-TASK-MISSING"
+        service = SimpleNamespace(name="tax-filing", erp_task_type="Tax Filing")
+        service_doc = SimpleNamespace(name="ERP-SERVICE-1")
+        task = SimpleNamespace(name="ERP-TASK-NEW")
+
+        def exists(doctype, name):
+            return (doctype, name) == ("Service", "ERP-SERVICE-1")
+
+        with (
+            patch.object(
+                erp_service_task_adapter.frappe.db,
+                "exists",
+                side_effect=exists,
+            ),
+            patch.object(
+                erp_service_task_adapter,
+                "_linked_customer",
+                return_value="ERP-CUST-1",
+            ),
+            patch.object(
+                erp_service_task_adapter.frappe,
+                "get_doc",
+                return_value=service_doc,
+            ) as get_doc,
+            patch.object(
+                erp_service_task_adapter,
+                "_create_service",
+            ) as create_service,
+            patch.object(
+                erp_service_task_adapter,
+                "_create_task",
+                return_value=task,
+            ) as create_task,
+            patch.object(erp_service_task_adapter, "_link_service_task"),
+            patch.object(
+                erp_service_task_adapter,
+                "_assign_task",
+                return_value="TODO-1",
+            ),
+            patch.object(erp_service_task_adapter, "_set_request_state") as state,
+        ):
+            result = erp_service_task_adapter.sync_request(
+                request,
+                service=service,
+                profile=SimpleNamespace(name="PROFILE-1"),
+                repair=True,
+            )
+
+        self.assertEqual(result["status"], "Synced")
+        self.assertEqual(result["erp_service"], "ERP-SERVICE-1")
+        self.assertEqual(result["erp_task"], "ERP-TASK-NEW")
+        get_doc.assert_called_once_with("Service", "ERP-SERVICE-1")
+        create_service.assert_not_called()
+        create_task.assert_called_once()
+        state.assert_called_once_with(
+            request,
+            status="Synced",
+            customer="ERP-CUST-1",
+            service="ERP-SERVICE-1",
+            task="ERP-TASK-NEW",
+        )

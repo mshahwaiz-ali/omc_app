@@ -46,7 +46,6 @@
   "erp_sync_status",
   "erp_sync_error",
   "internal_section",
-  "assigned_to",
   "internal_notes"
  ],
  "fields": [
@@ -336,16 +335,6 @@
    "fieldname": "internal_section",
    "fieldtype": "Section Break",
    "label": "Internal"
-  },
-  {
-   "fieldname": "assigned_to",
-   "fieldtype": "Link",
-   "in_filter": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Assigned To",
-   "options": "User",
-   "search_index": 1
   },
   {
    "fieldname": "internal_notes",

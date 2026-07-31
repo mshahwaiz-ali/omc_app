@@ -203,6 +203,102 @@ class TestErpTaskStatusSync(FrappeTestCase):
         self.assertTrue(result["updated"])
         finalize.assert_called_once_with(request)
 
+    def test_customer_cancellation_updates_linked_task_and_service(self):
+        request = SimpleNamespace(
+            erp_task="TASK-1",
+            erp_service="ERP-SERVICE-1",
+        )
+
+        with (
+            patch.object(
+                erp_task_status_sync.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                erp_task_status_sync,
+                "_allowed_options",
+                side_effect=lambda doctype, fieldname: (
+                    {"Cancelled"} if fieldname == "status" else set()
+                ),
+            ),
+            patch.object(
+                erp_task_status_sync,
+                "_service_status_value",
+                return_value="Cancelled",
+            ),
+            patch.object(
+                erp_task_status_sync.frappe.db,
+                "set_value",
+            ) as set_value,
+        ):
+            result = erp_task_status_sync.cancel_linked_erp_records(request)
+
+        self.assertTrue(result["task_cancelled"])
+        self.assertTrue(result["service_cancelled"])
+        self.assertEqual(set_value.call_count, 2)
+
+    def test_cancelled_task_runs_canonical_finalization(self):
+        task = SimpleNamespace(
+            name="TASK-1",
+            status="Cancelled",
+            custom_operation_status="",
+        )
+        request = SimpleNamespace(
+            name="OMC-SR-1",
+            title="Tax Filing",
+            status="In Progress",
+            closed_on=None,
+            erp_service="ERP-SERVICE-1",
+            erp_task="TASK-1",
+            customer_profile="OMC-CUST-1",
+        )
+
+        with (
+            patch.object(
+                erp_task_status_sync.frappe.db,
+                "get_value",
+                return_value="OMC-SR-1",
+            ),
+            patch.object(
+                erp_task_status_sync.frappe,
+                "get_doc",
+                return_value=request,
+            ),
+            patch(
+                "omc_app.api.workflow_automation.finalize_cancelled_case",
+            ) as finalize,
+            patch.object(
+                erp_task_status_sync,
+                "_service_status_value",
+                return_value="Cancelled",
+            ),
+            patch.object(
+                erp_task_status_sync.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                erp_task_status_sync.frappe.db,
+                "set_value",
+            ),
+            patch.object(
+                erp_task_status_sync.frappe.utils,
+                "now_datetime",
+                return_value="2026-07-31 05:30:00",
+            ),
+        ):
+            result = erp_task_status_sync.sync_task_status(task)
+
+        self.assertTrue(result["updated"])
+        self.assertEqual(result["customer_status"], "Cancelled")
+        finalize.assert_called_once_with(
+            request,
+            reason="The linked ERP Task was cancelled by OMC staff.",
+            cancelled_by_customer=False,
+            sync_erp=False,
+        )
+
     def test_terminal_request_cannot_be_reopened_by_task_sync(self):
         task = SimpleNamespace(
             name="TASK-1",
