@@ -4,6 +4,10 @@ class InternalWorkspaceSummary {
     required this.activeCustomers,
     required this.pendingTasks,
     required this.pendingPayments,
+    required this.myAssignedServices,
+    required this.myActiveServices,
+    required this.myCompletedServices,
+    required this.myCompletedThisMonth,
   });
 
   factory InternalWorkspaceSummary.empty() {
@@ -12,6 +16,10 @@ class InternalWorkspaceSummary {
       activeCustomers: 0,
       pendingTasks: 0,
       pendingPayments: 0,
+      myAssignedServices: 0,
+      myActiveServices: 0,
+      myCompletedServices: 0,
+      myCompletedThisMonth: 0,
     );
   }
 
@@ -23,6 +31,10 @@ class InternalWorkspaceSummary {
       pendingPayments: _readInt(
         json['pending_payments'] ?? json['payments_due'],
       ),
+      myAssignedServices: _readInt(json['my_assigned_services']),
+      myActiveServices: _readInt(json['my_active_services']),
+      myCompletedServices: _readInt(json['my_completed_services']),
+      myCompletedThisMonth: _readInt(json['my_completed_this_month']),
     );
   }
 
@@ -30,6 +42,10 @@ class InternalWorkspaceSummary {
   final int activeCustomers;
   final int pendingTasks;
   final int pendingPayments;
+  final int myAssignedServices;
+  final int myActiveServices;
+  final int myCompletedServices;
+  final int myCompletedThisMonth;
 
   static int _readInt(dynamic value) {
     if (value is int) return value;

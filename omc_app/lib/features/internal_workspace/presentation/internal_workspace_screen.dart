@@ -127,6 +127,8 @@ class _InternalWorkspaceContent extends ConsumerWidget {
               data: (queue) =>
                   _OperationsSummaryCard(summary: summary, cases: queue.cases),
             ),
+            const SizedBox(height: 18),
+            _MyServicePerformanceCard(summary: summary),
             const SizedBox(height: 22),
             _SectionTitle(
               title: 'Priority Queue',
@@ -1047,6 +1049,120 @@ class _LoadingPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(24),
+      ),
+    );
+  }
+}
+
+class _MyServicePerformanceCard extends StatelessWidget {
+  const _MyServicePerformanceCard({required this.summary});
+
+  final InternalWorkspaceSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = summary.myCompletedServices;
+    final assigned = summary.myAssignedServices;
+    final completionRate = assigned <= 0
+        ? 0
+        : ((completed / assigned) * 100).round().clamp(0, 100);
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.insights_rounded, color: _purple, size: 20),
+              SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'My service performance',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _PerformanceMetric(
+                  label: 'Active',
+                  value: summary.myActiveServices,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PerformanceMetric(label: 'Completed', value: completed),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PerformanceMetric(
+                  label: 'This month',
+                  value: summary.myCompletedThisMonth,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '$completionRate% completion rate across $assigned assigned services',
+            style: const TextStyle(
+              color: _slate,
+              fontSize: 12.5,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PerformanceMetric extends StatelessWidget {
+  const _PerformanceMetric({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFE5EAF1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$value',
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _slate,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
