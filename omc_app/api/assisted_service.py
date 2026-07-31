@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import access, mobile
+from omc_app.api import access, erp_service_task_adapter, mobile
 from omc_app.referral_capabilities import (
     ALL_CUSTOMER_ASSIST_ROLES,
     REFERRAL_ADMIN_ROLES,
@@ -205,6 +205,68 @@ def _require_internal_assist(user: str) -> dict:
     return capabilities
 
 
+def _request_pricing_snapshot(service, *, is_internal: bool, user: str, kwargs: dict) -> dict:
+    original_price = frappe.utils.flt(getattr(service, "base_price", None) or 0)
+    currency = _text(getattr(service, "currency", None)) or "PKR"
+    discount_type = _text(kwargs.get("discount_type"))
+    discount_value = frappe.utils.flt(kwargs.get("discount_value") or 0)
+    discount_reason = _text(kwargs.get("discount_reason"))
+
+    if not is_internal:
+        if discount_type or discount_value or discount_reason:
+            frappe.throw(
+                "Discounts can only be applied by authorized internal staff.",
+                frappe.PermissionError,
+            )
+        discount_type = ""
+        discount_value = 0
+        discount_reason = ""
+
+    if discount_value < 0:
+        frappe.throw("Discount value cannot be negative.", frappe.ValidationError)
+
+    if discount_value and discount_type not in {"Percentage", "Fixed Amount"}:
+        frappe.throw(
+            "discount_type must be Percentage or Fixed Amount.",
+            frappe.ValidationError,
+        )
+
+    if discount_type == "Percentage":
+        if discount_value > 100:
+            frappe.throw(
+                "Percentage discount cannot exceed 100.",
+                frappe.ValidationError,
+            )
+        discount_amount = original_price * discount_value / 100
+    elif discount_type == "Fixed Amount":
+        if discount_value > original_price:
+            frappe.throw(
+                "Fixed discount cannot exceed the original service price.",
+                frappe.ValidationError,
+            )
+        discount_amount = discount_value
+    else:
+        discount_value = 0
+        discount_amount = 0
+        discount_reason = ""
+
+    if discount_amount > 0 and not discount_reason:
+        frappe.throw("A discount reason is required.", frappe.ValidationError)
+
+    final_price = max(original_price - discount_amount, 0)
+
+    return {
+        "original_price": original_price,
+        "pricing_currency": currency,
+        "discount_type": discount_type,
+        "discount_value": discount_value,
+        "discount_amount": discount_amount,
+        "final_price": final_price,
+        "discount_reason": discount_reason,
+        "discount_applied_by": user if is_internal and discount_amount > 0 else "",
+    }
+
+
 def _service_doc(service_id: str):
     service_id = _text(service_id)
     if not service_id:
@@ -271,6 +333,43 @@ def _resolve_existing_customer(
     return profile
 
 
+def _manual_customer_duplicate_matches(
+    *,
+    mobile: str,
+    email: str,
+    cnic: str,
+) -> list[str]:
+    identity_fields = {
+        "mobile": _text(mobile),
+        "email": _text(email).lower(),
+        "cnic": _text(cnic),
+    }
+    identity_fields = {
+        fieldname: value
+        for fieldname, value in identity_fields.items()
+        if value
+    }
+    if not identity_fields:
+        return []
+
+    matches: set[str] = set()
+    for fieldname, value in identity_fields.items():
+        rows = frappe.get_all(
+            "OMC Manual Customer",
+            filters={
+                fieldname: value,
+                "conversion_status": ["!=", "Archived"],
+            },
+            pluck="name",
+            limit=3,
+        )
+        matches.update(_text(name) for name in rows if _text(name))
+        if matches:
+            break
+
+    return sorted(matches)
+
+
 def _create_manual_customer(user: str, kwargs: dict):
     if not _roles(user).intersection(WALK_IN_CUSTOMER_ROLES):
         frappe.throw(
@@ -292,6 +391,20 @@ def _create_manual_customer(user: str, kwargs: dict):
     if not mobile_no and not email:
         frappe.throw(
             "Enter customer mobile or email.",
+            frappe.ValidationError,
+        )
+
+    duplicate_matches = _manual_customer_duplicate_matches(
+        mobile=mobile_no,
+        email=email,
+        cnic=cnic,
+    )
+    if duplicate_matches:
+        frappe.throw(
+            (
+                "A matching walk-in customer already exists. "
+                "Select the existing customer or review the duplicate record."
+            ),
             frappe.ValidationError,
         )
 
@@ -517,6 +630,12 @@ def create_request(**kwargs):
     user = _current_user()
     is_internal = mobile._can_access_internal_workspace(user)
     service = _service_doc(kwargs.get("service_id") or kwargs.get("service"))
+    pricing = _request_pricing_snapshot(
+        service,
+        is_internal=is_internal,
+        user=user,
+        kwargs=kwargs,
+    )
 
     if not is_internal:
         profile = mobile._assert_approved_customer()
@@ -598,6 +717,9 @@ def create_request(**kwargs):
     doc.created_on_behalf = 1 if is_internal else 0
     doc.customer_consent_reference = consent_reference
     doc.source_channel = _text(kwargs.get("source_channel")) or "Mobile App"
+    for fieldname, value in pricing.items():
+        if doc.meta.get_field(fieldname):
+            doc.set(fieldname, value)
 
     if profile and customer_mode == "My Referral":
         doc.referral_owner = profile.referred_by
@@ -615,6 +737,13 @@ def create_request(**kwargs):
         referral_owner=referral_assignee,
     )
     doc.insert(ignore_permissions=True)
+
+    erp_bridge = erp_service_task_adapter.sync_request(
+        doc,
+        service=service,
+        profile=profile,
+        manual_customer=manual_customer,
+    )
 
     assignment_todo = _ensure_assignment_todo(doc, doc.assigned_staff)
     if doc.assigned_staff:
@@ -646,4 +775,10 @@ def create_request(**kwargs):
     response = _request_response(doc)
     response["assigned_staff"] = doc.assigned_staff or ""
     response["assignment_todo"] = assignment_todo
+    response["erp_sync_status"] = erp_bridge.get("status") or ""
+    response["erp_customer"] = erp_bridge.get("erp_customer") or ""
+    response["erp_service"] = erp_bridge.get("erp_service") or ""
+    response["erp_task"] = erp_bridge.get("erp_task") or ""
+    response["erp_task_assignment"] = erp_bridge.get("task_assignment")
+    response.update(pricing)
     return response

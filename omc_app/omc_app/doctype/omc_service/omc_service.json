@@ -28,7 +28,8 @@
   "publishing_section",
   "sort_order",
   "is_featured",
-  "is_active"
+  "is_active",
+  "erp_task_type"
  ],
  "fields": [
   {
@@ -171,6 +172,15 @@
    "fieldname": "publishing_section",
    "fieldtype": "Section Break",
    "label": "Publishing"
+  },
+  {
+   "fieldname": "erp_task_type",
+   "fieldtype": "Link",
+   "label": "ERP Task Type",
+   "options": "Task Type",
+   "description": "Canonical ERP Task Type used when this mobile service creates an ERP Service and ERP Task.",
+   "in_standard_filter": 1,
+   "search_index": 1
   }
  ],
  "index_web_pages_for_search": 1,

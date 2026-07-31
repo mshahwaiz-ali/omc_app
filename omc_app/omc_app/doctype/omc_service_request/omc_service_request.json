@@ -37,6 +37,12 @@
   "timeline_section",
   "expected_completion_date",
   "closed_on",
+  "erp_integration_section",
+  "erp_customer",
+  "erp_service",
+  "erp_task",
+  "erp_sync_status",
+  "erp_sync_error",
   "internal_section",
   "assigned_to",
   "internal_notes"
@@ -69,6 +75,62 @@
    "fieldname": "service_title",
    "fieldtype": "Data",
    "label": "Service Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Request Pricing",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "original_price",
+   "fieldtype": "Currency",
+   "label": "Original Price",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_currency",
+   "fieldtype": "Data",
+   "label": "Pricing Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_type",
+   "fieldtype": "Select",
+   "label": "Discount Type",
+   "options": "\nPercentage\nFixed Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_value",
+   "fieldtype": "Float",
+   "label": "Discount Value",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "final_price",
+   "fieldtype": "Currency",
+   "label": "Final Price",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_reason",
+   "fieldtype": "Small Text",
+   "label": "Discount Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_applied_by",
+   "fieldtype": "Link",
+   "label": "Discount Applied By",
+   "options": "User",
    "read_only": 1
   },
   {
@@ -271,6 +333,52 @@
    "fieldname": "internal_notes",
    "fieldtype": "Long Text",
    "label": "Internal Notes"
+  },
+  {
+   "fieldname": "erp_integration_section",
+   "fieldtype": "Section Break",
+   "label": "ERP Integration",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "erp_customer",
+   "fieldtype": "Link",
+   "label": "ERP Customer",
+   "options": "Customer",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "erp_service",
+   "fieldtype": "Link",
+   "label": "ERP Service",
+   "options": "Service",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "erp_task",
+   "fieldtype": "Link",
+   "label": "ERP Task",
+   "options": "Task",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Not Started",
+   "fieldname": "erp_sync_status",
+   "fieldtype": "Select",
+   "label": "ERP Sync Status",
+   "options": "Not Started\nPending Configuration\nSynced\nFailed\nRepair Required",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "erp_sync_error",
+   "fieldtype": "Small Text",
+   "label": "ERP Sync Error",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "index_web_pages_for_search": 1,

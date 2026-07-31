@@ -1086,6 +1086,24 @@ def create_service(**kwargs):
     doc.customer_name = profile.full_name if profile else ""
     doc.contact_email = kwargs.get("contact_email") or (profile.email if profile else "")
     doc.contact_phone = kwargs.get("contact_phone") or (profile.phone if profile else "")
+
+    if doc.service and frappe.db.exists("OMC Service", doc.service):
+        service_doc = frappe.get_doc("OMC Service", doc.service)
+        original_price = frappe.utils.flt(service_doc.base_price or 0)
+        pricing_values = {
+            "original_price": original_price,
+            "pricing_currency": service_doc.currency or "PKR",
+            "discount_type": "",
+            "discount_value": 0,
+            "discount_amount": 0,
+            "final_price": original_price,
+            "discount_reason": "",
+            "discount_applied_by": "",
+        }
+        for fieldname, value in pricing_values.items():
+            if doc.meta.get_field(fieldname):
+                doc.set(fieldname, value)
+
     doc.insert(ignore_permissions=True)
 
     _create_service_timeline_entry(
@@ -1223,53 +1241,82 @@ def _split_service_documents(documents, required_document_templates=None):
     return required_documents, submitted_documents, missing_documents
 
 
-def _service_case_payment_contract(
-    service_case,
-    *,
-    documents,
+def _document_match_identity(document):
+    def clean(value):
+        return " ".join(str(value or "").strip().lower().split())
+
+    title = clean(
+        document.get("title")
+        or document.get("document_title")
+    )
+    document_type = clean(
+        document.get("type")
+        or document.get("document_type")
+    )
+    return title, document_type
+
+
+def _required_documents_complete(
     required_document_templates,
+    documents,
 ):
     required_templates = [
         template
         for template in required_document_templates or []
         if template.get("is_required")
     ]
+    if not required_templates:
+        return True
 
     approved_documents = [
         document
         for document in documents or []
-        if (document.get("status") or "").strip().lower() == "approved"
-        and bool(document.get("file_url") or document.get("attachment"))
+        if (
+            str(document.get("status") or "").strip().lower()
+            == "approved"
+        )
+        and bool(
+            document.get("file_url")
+            or document.get("attachment")
+        )
     ]
 
-    documents_complete = True
+    unused_indexes = set(range(len(approved_documents)))
+
     for template in required_templates:
-        template_title = (
-            template.get("title") or template.get("document_title") or ""
-        ).strip().lower()
-        template_type = (
-            template.get("type") or template.get("document_type") or ""
-        ).strip().lower()
+        template_identity = _document_match_identity(template)
+        if not all(template_identity):
+            return False
 
-        matched = False
-        for document in approved_documents:
-            document_title = (
-                document.get("title") or document.get("document_title") or ""
-            ).strip().lower()
-            document_type = (
-                document.get("type") or document.get("document_type") or ""
-            ).strip().lower()
-
-            if template_title and document_title == template_title:
-                matched = True
-                break
-            if template_type and document_type == template_type:
-                matched = True
+        matched_index = None
+        for index in sorted(unused_indexes):
+            if (
+                _document_match_identity(
+                    approved_documents[index]
+                )
+                == template_identity
+            ):
+                matched_index = index
                 break
 
-        if not matched:
-            documents_complete = False
-            break
+        if matched_index is None:
+            return False
+
+        unused_indexes.remove(matched_index)
+
+    return True
+
+
+def _service_case_payment_contract(
+    service_case,
+    *,
+    documents,
+    required_document_templates,
+):
+    documents_complete = _required_documents_complete(
+        required_document_templates,
+        documents,
+    )
 
     payment_rows = frappe.get_all(
         "OMC Service Payment",
@@ -1296,16 +1343,12 @@ def _service_case_payment_contract(
     normalized_case_status = (service_case.status or "").strip().lower()
     case_closed = normalized_case_status in {"completed", "cancelled"}
 
-    service_amount = 0
-    if service_case.service and frappe.db.exists("OMC Service", service_case.service):
-        service_amount = frappe.utils.flt(
-            frappe.db.get_value(
-                "OMC Service",
-                service_case.service,
-                "base_price",
-            )
-            or 0
-        )
+    locked_final_price = getattr(service_case, "final_price", None)
+    service_amount = frappe.utils.flt(
+        locked_final_price
+        if locked_final_price is not None
+        else 0
+    )
 
     payment_eligible = (
         documents_complete
@@ -1356,6 +1399,7 @@ def _service_case_payment_contract(
         "payment_block_reason": payment_block_reason,
         "next_action": next_action,
     }
+
 
 
 def _service_case_scope_names(capabilities, user=None):
@@ -1767,18 +1811,36 @@ def _find_uploaded_file(attachment):
     if not clean_attachment:
         return None
 
-    file_name = clean_attachment.rsplit("/", 1)[-1]
-    filters = [
+    exact_name = frappe.db.exists(
+        "File",
         {"file_url": clean_attachment},
-        {"file_name": file_name},
-    ]
+    )
+    if exact_name:
+        return frappe.get_doc("File", exact_name)
 
-    for file_filter in filters:
-        file_name_value = frappe.db.exists("File", file_filter)
-        if file_name_value:
-            return frappe.get_doc("File", file_name_value)
+    file_name = clean_attachment.rsplit("/", 1)[-1]
+    matches = frappe.get_all(
+        "File",
+        filters={
+            "file_name": file_name,
+            "owner": _current_user(),
+        },
+        fields=["name"],
+        order_by="creation desc",
+        limit_page_length=2,
+    )
+
+    if len(matches) > 1:
+        frappe.throw(
+            "Uploaded file reference is ambiguous. Please upload the file again.",
+            frappe.ValidationError,
+        )
+
+    if matches:
+        return frappe.get_doc("File", matches[0].name)
 
     return None
+
 
 
 def _assert_service_document_upload_allowed(service_case, attachment):
@@ -2003,6 +2065,16 @@ def upload_payment_receipt(**kwargs):
 
     receipt_attachment = _assert_payment_receipt_upload_allowed(payment, receipt_attachment)
 
+    capabilities = _get_mobile_capabilities()
+    if not (
+        capabilities.get("can_upload_payment_receipt")
+        or capabilities.get("can_upload_payment_receipts")
+    ):
+        frappe.throw(
+            "You do not have permission to upload payment receipts.",
+            frappe.PermissionError,
+        )
+
     payment.receipt_attachment = receipt_attachment
     payment.payment_reference = payment_reference or payment.payment_reference
     payment.remarks = remarks or payment.remarks
@@ -2015,6 +2087,19 @@ def upload_payment_receipt(**kwargs):
         title="Payment Receipt Submitted",
         description=remarks or f"Receipt submitted for {payment.payment_title or 'payment'} and is waiting for OMC review.",
         visible_to_customer=1,
+    )
+
+    from omc_app.api import payments
+
+    payments._set_case_status(service_case, "Waiting for Payment")
+    payments._notify_payment_reviewers(
+        service_case,
+        title="Payment receipt submitted",
+        message=(
+            f"A receipt has been submitted for "
+            f"{payment.payment_title or payment.name}. "
+            "Review it in the payment queue."
+        ),
     )
 
     frappe.db.commit()
@@ -3803,15 +3888,40 @@ def update_settings_preferences(**kwargs):
 
 
 @frappe.whitelist()
+
+
+def _pending_linked_erp_task_count():
+    if not _has_doctype("Task"):
+        return 0
+
+    task_names = list(
+        {
+            name
+            for name in frappe.get_all(
+                "OMC Service Request",
+                filters={"erp_task": ["is", "set"]},
+                pluck="erp_task",
+            )
+            if name
+        }
+    )
+    if not task_names:
+        return 0
+
+    return frappe.db.count(
+        "Task",
+        {
+            "name": ["in", task_names],
+            "status": ["not in", ["Completed", "Cancelled"]],
+        },
+    )
+
 def get_internal_workspace_summary():
     _assert_internal_workspace_access()
     return {
         "leads": frappe.db.count("OMC Lead"),
         "customers": frappe.db.count("OMC Customer Profile"),
-        "tasks": frappe.db.count(
-            "OMC Task",
-            {"status": ["not in", ["Completed", "Cancelled"]]},
-        ),
+        "tasks": _pending_linked_erp_task_count(),
         "open_services": frappe.db.count(
             "OMC Service Request",
             {"status": ["not in", ["Completed", "Cancelled"]]},
@@ -3951,14 +4061,10 @@ def _lead_to_dict(lead):
         "notes": value("notes"),
         "customer_profile": value("customer_profile"),
         "converted_customer_profile": value("converted_customer_profile"),
-        "erp_doctype": value("erp_doctype"),
-        "erp_document_name": value("erp_document_name"),
-        "erp_sync_status": value("erp_sync_status"),
-        "erp_last_synced_at": str(getattr(lead, "erp_last_synced_at", None) or ""),
-        "erp_sync_error": value("erp_sync_error"),
         "created_at": str(lead.creation) if lead.creation else "",
         "updated_at": str(lead.modified) if lead.modified else "",
     }
+
 
 
 
@@ -4002,14 +4108,6 @@ def _relevant_customer_names(user=None):
             )
         )
 
-    if _has_doctype("OMC Task"):
-        names.update(
-            frappe.get_all(
-                "OMC Task",
-                filters={"assigned_to": user},
-                pluck="customer_profile",
-            )
-        )
 
     if _has_doctype("OMC Support Ticket"):
         names.update(
@@ -4023,44 +4121,21 @@ def _relevant_customer_names(user=None):
     return sorted(name for name in names if name)
 
 @frappe.whitelist()
+@frappe.whitelist()
 def get_leads():
-    _assert_internal_workspace_access()
-    _require_canonical_capability(
-        "can_manage_leads",
-        message="You do not have permission to view leads.",
-    )
-    leads = frappe.get_all(
-        "OMC Lead",
-        fields=[
-            "*",
-        ],
-        order_by="modified desc",
-        limit_page_length=100,
-    )
+    from omc_app.api import lead_read_guard
 
-    return {
-        "leads": [
-            _lead_to_dict(row)
-            for row in leads
-        ]
-    }
+    return lead_read_guard.get_leads()
+
 
 
 @frappe.whitelist()
+@frappe.whitelist()
 def get_lead(lead_id=None):
-    _assert_internal_workspace_access()
-    _require_canonical_capability(
-        "can_manage_leads",
-        message="You do not have permission to view leads.",
-    )
-    if not lead_id:
-        frappe.throw("lead_id is required")
+    from omc_app.api import lead_read_guard
 
-    if not frappe.db.exists("OMC Lead", lead_id):
-        frappe.throw("Lead not found", frappe.DoesNotExistError)
+    return lead_read_guard.get_lead(lead_id=lead_id)
 
-    lead = frappe.get_doc("OMC Lead", lead_id)
-    return {"lead": _lead_to_dict(lead)}
 
 
 
@@ -4253,84 +4328,20 @@ def _task_to_dict(task):
 
 @frappe.whitelist()
 def get_tasks():
-    user = _assert_internal_workspace_access()
-    capabilities = _require_canonical_capability(
-        "can_manage_tasks",
-        "can_manage_assigned_tasks",
-        message="You do not have permission to view tasks.",
-    )
-    filters = {}
-    if not capabilities.get("can_manage_tasks"):
-        filters["assigned_to"] = user
+    """Stable mobile route delegated to canonical ERP Task authority."""
+    from omc_app.api.task_read_guard import get_tasks as guarded_get_tasks
 
-    tasks = frappe.get_all(
-        "OMC Task",
-        filters=filters,
-        fields=[
-            "name",
-            "title",
-            "description",
-            "status",
-            "priority",
-            "due_date",
-            "assigned_to",
-            "customer_profile",
-            "service_request",
-            "support_ticket",
-            "completed_on",
-            "creation",
-            "modified",
-        ],
-        order_by="modified desc",
-        limit_page_length=100,
-    )
+    return guarded_get_tasks()
 
-    return {
-        "tasks": [
-            {
-                "name": row.name,
-                "title": row.title or "",
-                "description": row.description or "",
-                "status": row.status or "",
-                "priority": row.priority or "",
-                "due_date": str(row.due_date) if row.due_date else "",
-                "assigned_to": row.assigned_to or "",
-                "customer_profile": row.customer_profile or "",
-                "service_request": row.service_request or "",
-                "support_ticket": row.support_ticket or "",
-                "completed_on": str(row.completed_on) if row.completed_on else "",
-                "created_at": str(row.creation) if row.creation else "",
-                "updated_at": str(row.modified) if row.modified else "",
-            }
-            for row in tasks
-        ]
-    }
 
 
 @frappe.whitelist()
 def get_task(task_id=None):
-    user = _assert_internal_workspace_access()
-    capabilities = _require_canonical_capability(
-        "can_manage_tasks",
-        "can_manage_assigned_tasks",
-        message="You do not have permission to view tasks.",
-    )
-    if not task_id:
-        frappe.throw("task_id is required")
+    """Stable mobile route delegated to canonical ERP Task authority."""
+    from omc_app.api.task_read_guard import get_task as guarded_get_task
 
-    if not frappe.db.exists("OMC Task", task_id):
-        frappe.throw("Task not found", frappe.DoesNotExistError)
+    return guarded_get_task(task_id=task_id)
 
-    task = frappe.get_doc("OMC Task", task_id)
-    if (
-        not capabilities.get("can_manage_tasks")
-        and (task.assigned_to or "") != user
-    ):
-        frappe.throw(
-            "You do not have permission to view this task.",
-            frappe.PermissionError,
-        )
-    return {"task": _task_to_dict(task)}
 
 
 @frappe.whitelist(allow_guest=True)

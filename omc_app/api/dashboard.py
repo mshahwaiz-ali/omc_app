@@ -312,10 +312,30 @@ def _recent_activity(filters):
     ]
 
 
+
+def _pending_erp_task_count():
+    """Count only ERP Tasks linked through OMC Service Requests."""
+    linked_tasks = _get_all(
+        "OMC Service Request",
+        filters={"erp_task": ["is", "set"]},
+        pluck="erp_task",
+    )
+    task_names = sorted({name for name in linked_tasks if name})
+    if not task_names:
+        return 0
+
+    return _count(
+        "Task",
+        {
+            "name": ["in", task_names],
+            "status": ["not in", ["Completed", "Cancelled"]],
+        },
+    )
+
 def _internal_operations_summary(customer_summary):
     open_leads = _count("OMC Lead", {"status": ["not in", ["Closed", "Converted", "Lost"]]})
     active_customers = _count("OMC Customer Profile", {"customer_status": "Active"})
-    pending_tasks = _count("OMC Task", {"status": ["not in", ["Completed", "Cancelled"]]})
+    pending_tasks = _pending_erp_task_count()
     payment_review_filters = {"status": ["in", PAYMENT_REVIEW_STATUSES]}
 
     return {

@@ -80,6 +80,11 @@ class TestAssistedServiceAuthority(FrappeTestCase):
                 return_value={"OMC Support Agent"},
             ),
             patch.object(
+                assisted_service,
+                "_manual_customer_duplicate_matches",
+                return_value=[],
+            ),
+            patch.object(
                 assisted_service.frappe,
                 "new_doc",
                 return_value=manual,
@@ -99,6 +104,59 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         self.assertEqual(manual.referral_owner, "staff@example.com")
         self.assertEqual(manual.customer_origin, "Walk-in")
         manual.insert.assert_called_once_with(ignore_permissions=True)
+
+    def test_walk_in_duplicate_identity_is_rejected(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Support Agent"},
+            ),
+            patch.object(
+                assisted_service,
+                "_manual_customer_duplicate_matches",
+                return_value=["MC-EXISTING"],
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "new_doc",
+            ) as new_doc,
+            self.assertRaises(frappe.ValidationError),
+        ):
+            assisted_service._create_manual_customer(
+                "staff@example.com",
+                {
+                    "full_name": "Walk In Customer",
+                    "phone": "03001234567",
+                },
+            )
+
+        new_doc.assert_not_called()
+
+    def test_manual_duplicate_matcher_checks_non_archived_identity(self):
+        def get_all(_doctype, *, filters, **_kwargs):
+            if "email" in filters:
+                return ["MC-1"]
+            return []
+
+        with patch.object(
+            assisted_service.frappe,
+            "get_all",
+            side_effect=get_all,
+        ) as get_all:
+            matches = assisted_service._manual_customer_duplicate_matches(
+                mobile="",
+                email="Customer@Example.com",
+                cnic="",
+            )
+
+        self.assertEqual(matches, ["MC-1"])
+        filters = get_all.call_args.kwargs["filters"]
+        self.assertEqual(filters["email"], "customer@example.com")
+        self.assertEqual(
+            filters["conversion_status"],
+            ["!=", "Archived"],
+        )
 
     def test_internal_request_requires_explicit_customer_mode(self):
         service = SimpleNamespace(

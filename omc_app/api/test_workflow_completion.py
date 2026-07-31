@@ -14,43 +14,69 @@ class TestWorkflowCompletion(TestCase):
             customer_profile="OMC-CUST-TEST",
         )
 
-    @patch.object(workflow_automation.mobile, "_service_required_documents")
+    @patch.object(
+        workflow_automation.frappe,
+        "db",
+    )
     @patch.object(workflow_automation.frappe, "get_all")
-    @patch.object(workflow_automation.frappe.db, "count")
+    @patch.object(
+        workflow_automation.mobile,
+        "_service_required_documents",
+    )
     def test_completion_blocked_by_unpaid_payment(
         self,
-        count,
-        get_all,
         required_documents,
+        get_all,
+        db,
     ):
         required_documents.return_value = []
         get_all.side_effect = [
+            [],
             [SimpleNamespace(status="Pending")],
         ]
-        count.side_effect = [0, 0]
+        db.count.return_value = 0
 
-        blockers = workflow_automation.completion_blockers(self._case())
+        blockers = workflow_automation.completion_blockers(
+            self._case()
+        )
 
-        self.assertIn("Required payment has not been confirmed.", blockers)
+        self.assertIn(
+            "Required payment has not been confirmed.",
+            blockers,
+        )
 
-    @patch.object(workflow_automation.mobile, "_service_required_documents")
+
+    @patch.object(
+        workflow_automation.frappe,
+        "db",
+    )
     @patch.object(workflow_automation.frappe, "get_all")
-    @patch.object(workflow_automation.frappe.db, "count")
+    @patch.object(
+        workflow_automation.mobile,
+        "_service_required_documents",
+    )
     def test_paid_case_has_no_payment_blocker(
         self,
-        count,
-        get_all,
         required_documents,
+        get_all,
+        db,
     ):
         required_documents.return_value = []
         get_all.side_effect = [
+            [],
             [SimpleNamespace(status="Paid")],
         ]
-        count.side_effect = [0, 0]
+        db.count.return_value = 0
 
-        blockers = workflow_automation.completion_blockers(self._case())
+        blockers = workflow_automation.completion_blockers(
+            self._case()
+        )
 
-        self.assertNotIn("Required payment has not been confirmed.", blockers)
+        self.assertNotIn(
+            "Required payment has not been confirmed.",
+            blockers,
+        )
+
 
     @patch.object(workflow_automation.mobile, "_create_customer_notification")
     @patch.object(workflow_automation.mobile, "_create_service_timeline_entry")

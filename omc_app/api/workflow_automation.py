@@ -289,43 +289,54 @@ def run_daily_workflow_checks():
 def completion_blockers(service_case):
     blockers = []
 
-    required_templates = mobile._service_required_documents(service_case.service)
-    required_templates = [
-        row for row in required_templates if row.get("is_required")
-    ]
-    if required_templates:
-        approved = frappe.get_all(
-            "OMC Service Document",
-            filters={
-                "service_request": service_case.name,
-                "status": "Approved",
-                "attachment": ["is", "set"],
-            },
-            fields=["document_title", "document_type"],
-        )
-        approved_keys = {
-            (
-                (row.document_title or "").strip().lower(),
-                (row.document_type or "").strip().lower(),
+    required_templates = mobile._service_required_documents(
+        service_case.service
+    )
+    documents = frappe.get_all(
+        "OMC Service Document",
+        filters={
+            "service_request": service_case.name,
+            "visible_to_customer": 1,
+        },
+        fields=[
+            "document_title",
+            "document_type",
+            "status",
+            "attachment",
+        ],
+    )
+    document_payload = [
+        {
+            "document_title": getattr(
+                row,
+                "document_title",
+                "",
             )
-            for row in approved
+            or "",
+            "document_type": getattr(
+                row,
+                "document_type",
+                "",
+            )
+            or "",
+            "status": getattr(row, "status", "") or "",
+            "attachment": getattr(
+                row,
+                "attachment",
+                "",
+            )
+            or "",
         }
-        for template in required_templates:
-            key = (
-                (
-                    template.get("title")
-                    or template.get("document_title")
-                    or ""
-                ).strip().lower(),
-                (
-                    template.get("type")
-                    or template.get("document_type")
-                    or ""
-                ).strip().lower(),
-            )
-            if key not in approved_keys:
-                blockers.append("Required documents are not fully approved.")
-                break
+        for row in documents
+    ]
+
+    if not mobile._required_documents_complete(
+        required_templates,
+        document_payload,
+    ):
+        blockers.append(
+            "Required documents are not fully approved."
+        )
 
     active_payments = frappe.get_all(
         "OMC Service Payment",
@@ -336,31 +347,15 @@ def completion_blockers(service_case):
         fields=["status"],
     )
     if active_payments and any(
-        (payment.status or "") != "Paid" for payment in active_payments
+        (payment.status or "") != "Paid"
+        for payment in active_payments
     ):
-        blockers.append("Required payment has not been confirmed.")
-
-    rejected_documents = frappe.db.count(
-        "OMC Service Document",
-        filters={
-            "service_request": service_case.name,
-            "status": "Rejected",
-        },
-    )
-    if rejected_documents:
-        blockers.append("Rejected documents still require resolution.")
-
-    rejected_payments = frappe.db.count(
-        "OMC Service Payment",
-        filters={
-            "service_request": service_case.name,
-            "status": "Rejected",
-        },
-    )
-    if rejected_payments:
-        blockers.append("Rejected payment receipts still require resolution.")
+        blockers.append(
+            "Required payment has not been confirmed."
+        )
 
     return blockers
+
 
 
 def finalize_completed_case(service_case):
