@@ -83,6 +83,16 @@ def _accessible_service_request_names(*, profile=None, internal_user=None):
 
     accessible = set()
 
+    service_request_meta = frappe.get_meta("OMC Service Request")
+    if service_request_meta.has_field("assigned_staff"):
+        accessible.update(
+            frappe.get_all(
+                "OMC Service Request",
+                filters={"assigned_staff": user},
+                pluck="name",
+            )
+        )
+
     own_profile_name = _customer_profile_name_for_user(user)
     if own_profile_name:
         accessible.update(
