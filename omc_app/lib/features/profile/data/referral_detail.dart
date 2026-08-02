@@ -32,17 +32,21 @@ class ReferralDetail {
       services: services is List
           ? services
                 .whereType<Map>()
-                .map((item) => ReferralServiceBreakdown.fromJson(
-                      Map<String, dynamic>.from(item),
-                    ))
+                .map(
+                  (item) => ReferralServiceBreakdown.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ),
+                )
                 .toList(growable: false)
           : const [],
       requests: requests is List
           ? requests
                 .whereType<Map>()
-                .map((item) => ReferralRequestSummary.fromJson(
-                      Map<String, dynamic>.from(item),
-                    ))
+                .map(
+                  (item) => ReferralRequestSummary.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ),
+                )
                 .toList(growable: false)
           : const [],
     );
@@ -180,7 +184,12 @@ int _int(Object? value) {
 bool _bool(Object? value) {
   if (value is bool) return value;
   if (value is num) return value != 0;
-  return const {'1', 'true', 'yes', 'on'}.contains(_string(value).toLowerCase());
+  return const {
+    '1',
+    'true',
+    'yes',
+    'on',
+  }.contains(_string(value).toLowerCase());
 }
 
 Map<String, int> _intMap(Object? value) {

@@ -46,10 +46,7 @@ class AuthEntryScaffold extends StatelessWidget {
                   ),
                   SizedBox(height: compactBrand ? 24 : 30),
                   child,
-                  if (footer != null) ...[
-                    const SizedBox(height: 20),
-                    footer!,
-                  ],
+                  if (footer != null) ...[const SizedBox(height: 20), footer!],
                 ],
               ),
             ),
@@ -93,10 +90,7 @@ class AuthEntryHeader extends StatelessWidget {
             ],
           ),
           padding: EdgeInsets.all(compact ? 11 : 13),
-          child: OmcLogo.symbol(
-            size: compact ? 52 : 66,
-            borderRadius: 0,
-          ),
+          child: OmcLogo.symbol(size: compact ? 52 : 66, borderRadius: 0),
         ),
         SizedBox(height: compact ? 20 : 24),
         Text(

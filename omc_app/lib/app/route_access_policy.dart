@@ -77,6 +77,12 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.canAccessInternalWorkspace;
   }
 
+  if (location == '/admin-control') {
+    return capabilities.canManageStaff ||
+        capabilities.canReviewRegistrations ||
+        capabilities.canManageBusinessSettings;
+  }
+
   if (location.startsWith('/internal-workspace/service-cases')) {
     return capabilities.canViewAllServiceCases ||
         capabilities.canViewRelevantServiceCases ||

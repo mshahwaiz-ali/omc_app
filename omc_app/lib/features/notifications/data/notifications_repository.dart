@@ -37,10 +37,7 @@ class NotificationsRepository {
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.notificationsMethod,
-        queryParameters: const {
-          'start': 0,
-          'limit': 50,
-        },
+        queryParameters: const {'start': 0, 'limit': 50},
       );
       return _mapNotificationsResponse(response);
     } on ApiError {

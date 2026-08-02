@@ -69,8 +69,6 @@ class ReferralSummary {
 
   static Map<String, int> _intMap(Object? value) {
     if (value is! Map) return const {};
-    return value.map(
-      (key, item) => MapEntry(key.toString(), _int(item)),
-    );
+    return value.map((key, item) => MapEntry(key.toString(), _int(item)));
   }
 }

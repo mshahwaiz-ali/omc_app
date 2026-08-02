@@ -39,6 +39,9 @@ class TestCanonicalAccessCapabilities(FrappeTestCase):
         self.assertTrue(capabilities["can_review_documents"])
         self.assertTrue(capabilities["can_review_payments"])
         self.assertTrue(capabilities["can_manage_settings"])
+        self.assertTrue(capabilities["can_manage_staff"])
+        self.assertTrue(capabilities["can_review_registrations"])
+        self.assertTrue(capabilities["can_manage_business_settings"])
 
     def test_manager_has_operations_but_not_settings(self):
         capabilities = self._capabilities_for(MANAGER_ROLE)
@@ -46,6 +49,24 @@ class TestCanonicalAccessCapabilities(FrappeTestCase):
         self.assertTrue(capabilities["can_review_documents"])
         self.assertTrue(capabilities["can_review_payments"])
         self.assertFalse(capabilities["can_manage_settings"])
+        self.assertFalse(capabilities["can_manage_staff"])
+        self.assertFalse(capabilities["can_review_registrations"])
+        self.assertFalse(capabilities["can_manage_business_settings"])
+        self.assertTrue(capabilities["can_reassign_service_cases"])
+        self.assertTrue(capabilities["can_retry_sync"])
+
+    def test_combined_roles_receive_safe_capability_union(self):
+        with patch.object(
+            access,
+            "_roles",
+            return_value={DOCUMENT_REVIEWER_ROLE, FINANCE_REVIEWER_ROLE},
+        ):
+            capabilities = access.get_mobile_capabilities(user="hira.qureshi@qa.omc.test")
+
+        self.assertTrue(capabilities["can_review_documents"])
+        self.assertTrue(capabilities["can_review_payments"])
+        self.assertFalse(capabilities["can_manage_staff"])
+        self.assertFalse(capabilities["can_manage_business_settings"])
 
     def test_support_agent_is_support_scoped(self):
         capabilities = self._capabilities_for(SUPPORT_AGENT_ROLE)

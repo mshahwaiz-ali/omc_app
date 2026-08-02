@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/widgets/route_failure_screen.dart';
+import '../features/admin_control/presentation/admin_control_screen.dart';
 import '../features/documents/presentation/internal_document_review_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
@@ -449,6 +450,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ShellNavScaffold.moreIndex,
           const InternalWorkspaceScreen(),
         ),
+      ),
+      GoRoute(
+        path: '/admin-control',
+        name: 'admin-control',
+        builder: (context, state) =>
+            _withShell(ShellNavScaffold.moreIndex, const AdminControlScreen()),
       ),
       GoRoute(
         path: '/internal-workspace/service-cases',

@@ -103,7 +103,9 @@ class _SupportTicketChatBodyState
 
   Future<void> _markTicketRead() async {
     try {
-      await ref.read(supportRepositoryProvider).markSupportTicketRead(ticket.id);
+      await ref
+          .read(supportRepositoryProvider)
+          .markSupportTicketRead(ticket.id);
       ref.invalidate(supportUnreadCountProvider);
       ref.invalidate(supportTicketsProvider);
     } catch (_) {

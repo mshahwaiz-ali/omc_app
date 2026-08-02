@@ -41,6 +41,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>OMC House uses the camera only when you choose to capture a document or receipt.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>OMC House uses Face ID only when you enable device lock to protect your signed-in session.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>OMC House accesses your photo library only when you choose a document or receipt to upload.</string>
 	<key>NSAppTransportSecurity</key>

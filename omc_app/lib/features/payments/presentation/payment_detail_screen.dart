@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../app/mutation_invalidation.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
@@ -11,9 +12,6 @@ import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
-import '../../internal_workspace/presentation/internal_workspace_providers.dart';
-import '../../notifications/data/notifications_repository.dart';
-import '../../service_requests/data/service_case_repository.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
 import 'widgets/payment_action_card.dart';
@@ -722,17 +720,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   }
 
   void _invalidatePaymentRelatedState() {
-    ref
-      ..invalidate(paymentDetailProvider(payment.id))
-      ..invalidate(paymentsProvider)
-      ..invalidate(notificationsProvider)
-      ..invalidate(serviceCasesProvider)
-      ..invalidate(internalServiceCasesProvider);
-
     final caseId = payment.serviceReference?.trim();
-    if (caseId != null && caseId.isNotEmpty) {
-      ref.invalidate(serviceCaseDetailProvider(caseId));
-    }
+    invalidatePaymentMutation(ref, paymentId: payment.id, caseId: caseId);
   }
 
   Future<void> _reviewPaymentReceipt(

@@ -325,7 +325,9 @@ class ServiceCaseRepository {
       ),
       progress: _doubleValue(json['progress'] ?? json['progress_percent']),
       nextStep: _nullableString(
-        json['next_step'] ?? json['next_action'] ?? json['customer_next_step'],
+        json['next_step'] ??
+            _nextActionLabel(json['next_action']) ??
+            json['customer_next_step'],
       ),
       remarks: _nullableString(json['remarks']),
       requiredDocuments: _stringList(json['required_documents']),
@@ -370,8 +372,29 @@ class ServiceCaseRepository {
       paymentId: _nullableString(json['payment_id']),
       paymentStatus: _nullableString(json['payment_status']),
       paymentBlockReason: _nullableString(json['payment_block_reason']),
-      nextAction: _nullableString(json['next_action']),
+      nextAction: _nextActionLabel(json['next_action']),
+      displayStatus: _nullableString(json['display_status']),
+      milestones: _plainStringList(json['milestones']),
+      completionBlockers: _plainStringList(json['completion_blockers']),
+      completionEligible: _boolValue(json['completion_eligible']),
     );
+  }
+
+  String? _nextActionLabel(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return _nullableString(
+        value['label'] ?? value['action'] ?? value['type'],
+      );
+    }
+    return _nullableString(value);
+  }
+
+  List<String> _plainStringList(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .map((item) => item?.toString().trim() ?? '')
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
   }
 
   List<ServiceCaseDocument> _fallbackDocumentDetails(

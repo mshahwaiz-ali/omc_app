@@ -27,6 +27,7 @@
   "support_message",
   "default_assignee",
   "default_assignment_role",
+  "allow_parallel_requests",
   "publishing_section",
   "sort_order",
   "is_featured",
@@ -87,6 +88,13 @@
    "label": "Default Assignment Role",
    "options": "\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner\nOMC Manager",
    "description": "Fallback role used for least-loaded automatic assignment."
+  },
+  {
+   "default": "0",
+   "description": "Allow the same customer to hold more than one active request for this service.",
+   "fieldname": "allow_parallel_requests",
+   "fieldtype": "Check",
+   "label": "Allow Parallel Requests"
   },
   {
    "default": "0",

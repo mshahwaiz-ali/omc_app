@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../app/mutation_invalidation.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../admin_control/data/admin_control_repository.dart';
 import '../../documents/application/document_attachment_controller.dart';
 import '../../documents/data/document_attachment.dart';
 import '../../support/application/support_launcher.dart';
@@ -29,6 +31,8 @@ class _ServiceCaseDetailScreenState
   bool _isUploadingDocument = false;
   bool _isUpdatingDocumentStatus = false;
   bool _isCancellingRequest = false;
+  bool _isAdminMutating = false;
+  Future<Map<String, dynamic>>? _adminOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +42,15 @@ class _ServiceCaseDetailScreenState
     final canUploadDocuments = capabilities.canUploadDocuments;
     final canCancelOwnRequest =
         capabilities.isApproved && capabilities.canTrackRequests;
+    final canAdministerCase =
+        capabilities.canReassignServiceCases ||
+        capabilities.canRetrySync ||
+        capabilities.canManageBusinessSettings;
+    if (canAdministerCase) {
+      _adminOptions ??= ref
+          .read(adminControlRepositoryProvider)
+          .fetchCaseOptions(widget.caseId);
+    }
 
     return Scaffold(
       body: Column(
@@ -98,6 +111,31 @@ class _ServiceCaseDetailScreenState
                       ],
                       const SizedBox(height: 14),
                       _ProgressCard(serviceCase: serviceCase),
+                      if (canAdministerCase) ...[
+                        const SizedBox(height: 14),
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: _adminOptions,
+                          builder: (context, snapshot) => _AdminOperationsCard(
+                            data: snapshot.data,
+                            loading:
+                                snapshot.connectionState ==
+                                ConnectionState.waiting,
+                            busy: _isAdminMutating,
+                            canReassign: capabilities.canReassignServiceCases,
+                            canRetry: capabilities.canRetrySync,
+                            canReviewDiscount:
+                                capabilities.canManageBusinessSettings,
+                            onReassign: snapshot.hasData
+                                ? () => _reassignCase(snapshot.data!)
+                                : null,
+                            onRetry: _retrySync,
+                            onReviewDiscount: snapshot.hasData
+                                ? (approve) =>
+                                      _reviewDiscount(snapshot.data!, approve)
+                                : null,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       _CaseActionsCard(
                         serviceCase: serviceCase,
@@ -142,6 +180,89 @@ class _ServiceCaseDetailScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _reassignCase(Map<String, dynamic> options) async {
+    final candidates = (options['assignment_candidates'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+    if (candidates.isEmpty) {
+      _showSnack('No enabled, assignable operational staff are available.');
+      return;
+    }
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Reassign service request'),
+        children: [
+          for (final candidate in candidates)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(
+                dialogContext,
+                candidate['user_id']?.toString(),
+              ),
+              child: Text('${candidate['full_name']}\n${candidate['user_id']}'),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || !mounted) return;
+    await _runAdminMutation(
+      () => ref
+          .read(adminControlRepositoryProvider)
+          .reassignCase(widget.caseId, selected),
+      'Service request reassigned.',
+    );
+  }
+
+  Future<void> _retrySync() async {
+    await _runAdminMutation(
+      () => ref.read(adminControlRepositoryProvider).retrySync(widget.caseId),
+      'ERP synchronization retry completed.',
+    );
+  }
+
+  Future<void> _reviewDiscount(
+    Map<String, dynamic> options,
+    bool approve,
+  ) async {
+    if (options['discount_status'] != 'Pending Approval') {
+      _showSnack('This request has no discount awaiting approval.');
+      return;
+    }
+    await _runAdminMutation(
+      () => ref
+          .read(adminControlRepositoryProvider)
+          .reviewDiscount(widget.caseId, approve: approve),
+      approve ? 'Discount approved.' : 'Discount rejected.',
+    );
+  }
+
+  Future<void> _runAdminMutation(
+    Future<void> Function() mutation,
+    String successMessage,
+  ) async {
+    if (_isAdminMutating) return;
+    setState(() => _isAdminMutating = true);
+    try {
+      await mutation();
+      if (!mounted) return;
+      invalidateServiceMutation(ref, caseId: widget.caseId);
+      setState(() {
+        _adminOptions = ref
+            .read(adminControlRepositoryProvider)
+            .fetchCaseOptions(widget.caseId);
+      });
+      _showSnack(successMessage);
+    } catch (error) {
+      if (mounted) {
+        _showSnack(
+          _safeMutationMessage(error, 'Administrative action failed.'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isAdminMutating = false);
+    }
   }
 
   Future<void> _confirmCancelServiceRequest(ServiceCase serviceCase) async {
@@ -998,6 +1119,90 @@ class _ErrorView extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AdminOperationsCard extends StatelessWidget {
+  const _AdminOperationsCard({
+    required this.data,
+    required this.loading,
+    required this.busy,
+    required this.canReassign,
+    required this.canRetry,
+    required this.canReviewDiscount,
+    required this.onReassign,
+    required this.onRetry,
+    required this.onReviewDiscount,
+  });
+
+  final Map<String, dynamic>? data;
+  final bool loading;
+  final bool busy;
+  final bool canReassign;
+  final bool canRetry;
+  final bool canReviewDiscount;
+  final VoidCallback? onReassign;
+  final VoidCallback onRetry;
+  final ValueChanged<bool>? onReviewDiscount;
+
+  @override
+  Widget build(BuildContext context) {
+    final discountPending = data?['discount_status'] == 'Pending Approval';
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Operational controls',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          if (loading)
+            const LinearProgressIndicator()
+          else ...[
+            Text('Assigned to: ${data?['assigned_staff'] ?? 'Unassigned'}'),
+            Text('ERP sync: ${data?['erp_sync_status'] ?? 'Not started'}'),
+            if (discountPending)
+              Text(
+                'Discount: PKR ${data?['original_price']} → PKR ${data?['proposed_final_price']}',
+              ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (canReassign)
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : onReassign,
+                    icon: const Icon(Icons.person_search_rounded),
+                    label: const Text('Reassign'),
+                  ),
+                if (canRetry)
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : onRetry,
+                    icon: const Icon(Icons.sync_rounded),
+                    label: const Text('Retry ERP sync'),
+                  ),
+                if (canReviewDiscount && discountPending) ...[
+                  FilledButton(
+                    onPressed: busy || onReviewDiscount == null
+                        ? null
+                        : () => onReviewDiscount!(true),
+                    child: const Text('Approve discount'),
+                  ),
+                  TextButton(
+                    onPressed: busy || onReviewDiscount == null
+                        ? null
+                        : () => onReviewDiscount!(false),
+                    child: const Text('Reject discount'),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -124,9 +124,10 @@ class _ReferralDetailScreenState extends ConsumerState<ReferralDetailScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        [customer.phone, customer.email]
-                            .where((value) => value.isNotEmpty)
-                            .join(' • '),
+                        [
+                          customer.phone,
+                          customer.email,
+                        ].where((value) => value.isNotEmpty).join(' • '),
                         style: const TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 12,
@@ -163,7 +164,8 @@ class _ReferralDetailScreenState extends ConsumerState<ReferralDetailScreen> {
       if (detail.statusCounts.isEmpty)
         const EmptyState(
           title: 'No service activity',
-          message: 'Service status counts will appear after a request is created.',
+          message:
+              'Service status counts will appear after a request is created.',
           icon: Icons.query_stats_outlined,
         )
       else
@@ -306,12 +308,17 @@ class _RequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final source = request.createdByReferrer ? 'Created by you' : 'Customer created';
+    final source = request.createdByReferrer
+        ? 'Created by you'
+        : 'Customer created';
     return PremiumCard(
       padding: const EdgeInsets.all(15),
       child: Row(
         children: [
-          const Icon(Icons.receipt_long_outlined, color: AppTheme.textSecondary),
+          const Icon(
+            Icons.receipt_long_outlined,
+            color: AppTheme.textSecondary,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

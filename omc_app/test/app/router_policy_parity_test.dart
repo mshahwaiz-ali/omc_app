@@ -50,6 +50,7 @@ void main() {
     '/settings',
     '/change-password',
     '/internal-workspace',
+    '/admin-control',
     '/internal-workspace/service-cases',
     '/internal-workspace/customers',
     '/internal-workspace/documents',
@@ -97,6 +98,9 @@ void main() {
     canViewAllCustomers: true,
     canManageLeads: true,
     canManageTasks: true,
+    canManageStaff: true,
+    canReviewRegistrations: true,
+    canManageBusinessSettings: true,
   );
 
   const referralStaff = AuthCapabilities(

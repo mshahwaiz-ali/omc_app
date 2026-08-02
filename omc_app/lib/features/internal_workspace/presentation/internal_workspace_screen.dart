@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/providers/effective_capabilities_provider.dart';
+
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
@@ -784,11 +786,12 @@ class _WorkQueuesLoading extends StatelessWidget {
   }
 }
 
-class _QuickActions extends StatelessWidget {
+class _QuickActions extends ConsumerWidget {
   const _QuickActions();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final actions = <({String label, IconData icon, String route})>[
       (
         label: 'New service case',
@@ -806,6 +809,14 @@ class _QuickActions extends StatelessWidget {
         icon: Icons.playlist_add_check_circle_rounded,
         route: '/tasks',
       ),
+      if (capabilities.canManageStaff ||
+          capabilities.canReviewRegistrations ||
+          capabilities.canManageBusinessSettings)
+        (
+          label: 'Admin controls',
+          icon: Icons.admin_panel_settings_rounded,
+          route: '/admin-control',
+        ),
     ];
 
     return SizedBox(

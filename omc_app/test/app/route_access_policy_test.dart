@@ -4,6 +4,19 @@ import 'package:omc_app/features/auth/application/auth_state.dart';
 
 void main() {
   group('canAccessRoute', () {
+    test('admin control requires a dedicated administrative capability', () {
+      const ordinaryInternal = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canAccessInternalWorkspace: true,
+      );
+      const omcAdmin = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canManageStaff: true,
+      );
+
+      expect(canAccessRoute('/admin-control', ordinaryInternal), isFalse);
+      expect(canAccessRoute('/admin-control', omcAdmin), isTrue);
+    });
     const internalWorkspaceOnly = AuthCapabilities(
       accessState: AccountAccessState.internal,
       canAccessInternalWorkspace: true,

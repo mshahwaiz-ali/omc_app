@@ -124,7 +124,25 @@ def _request_pricing_snapshot(service, *, is_internal: bool, user: str, kwargs: 
     if discount_amount > 0 and not discount_reason:
         frappe.throw("A discount reason is required.", frappe.ValidationError)
 
-    final_price = max(original_price - discount_amount, 0)
+    proposed_final_price = max(original_price - discount_amount, 0)
+    auto_approval_percent = 10.0
+    minimum_service_price = 0.0
+    try:
+        settings = frappe.get_single("OMC Mobile Settings")
+        if settings.meta.has_field("discount_auto_approval_percent"):
+            auto_approval_percent = frappe.utils.flt(settings.discount_auto_approval_percent or 10)
+        if settings.meta.has_field("minimum_service_price"):
+            minimum_service_price = frappe.utils.flt(settings.minimum_service_price or 0)
+    except Exception:
+        pass
+
+    effective_percent = (discount_amount / original_price * 100) if original_price else 0
+    needs_approval = bool(
+        discount_amount > 0
+        and (effective_percent > auto_approval_percent or proposed_final_price < minimum_service_price)
+    )
+    discount_status = "Pending Approval" if needs_approval else ("Approved" if discount_amount > 0 else "None")
+    final_price = original_price if needs_approval else proposed_final_price
 
     return {
         "original_price": original_price,
@@ -132,9 +150,47 @@ def _request_pricing_snapshot(service, *, is_internal: bool, user: str, kwargs: 
         "discount_type": discount_type,
         "discount_value": discount_value,
         "discount_amount": discount_amount,
+        "proposed_final_price": proposed_final_price,
         "final_price": final_price,
         "discount_reason": discount_reason,
-        "discount_applied_by": user if is_internal and discount_amount > 0 else "",
+        "discount_status": discount_status,
+        "discount_requested_by": user if is_internal and discount_amount > 0 else "",
+        "discount_approved_by": user if discount_status == "Approved" else "",
+        "discount_applied_by": user if discount_status == "Approved" else "",
+    }
+
+
+def _active_request(service, *, profile=None, manual_customer=None):
+    filters = {
+        "service": service.name,
+        "status": ["in", ["Open", "In Progress", "Waiting for Customer", "Waiting for Payment"]],
+    }
+    if profile:
+        filters["customer_profile"] = profile.name
+    elif manual_customer:
+        filters["manual_customer"] = manual_customer.name
+    else:
+        return None
+    rows = frappe.get_all(
+        "OMC Service Request", filters=filters,
+        fields=["name", "status", "service", "service_title", "modified"],
+        order_by="modified desc", limit_page_length=1,
+    )
+    return rows[0] if rows else None
+
+
+def _duplicate_response(active, *, allow_parallel):
+    return {
+        "created": False,
+        "duplicate": True,
+        "allow_parallel_requests": bool(allow_parallel),
+        "active_request": {
+            "name": active.name, "case_id": active.name, "status": active.status,
+            "service": active.service, "service_title": active.service_title or "",
+            "modified": str(active.modified or ""),
+        },
+        "allowed_actions": ["resume_existing", "start_another"] if allow_parallel else ["resume_existing"],
+        "message": "An active request already exists for this service.",
     }
 
 
@@ -563,6 +619,11 @@ def create_request(**kwargs):
         full_name = full_name or _text(manual_customer.full_name)
         contact_email = contact_email or _text(manual_customer.email)
         contact_phone = contact_phone or _text(manual_customer.mobile)
+
+    active_request = _active_request(service, profile=profile, manual_customer=manual_customer)
+    allow_parallel = bool(getattr(service, "allow_parallel_requests", 0))
+    if active_request and (not allow_parallel or not frappe.utils.cint(kwargs.get("confirm_parallel"))):
+        return _duplicate_response(active_request, allow_parallel=allow_parallel)
 
     doc = frappe.new_doc("OMC Service Request")
     doc.service = service.name

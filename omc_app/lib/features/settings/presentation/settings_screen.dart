@@ -13,6 +13,7 @@ import '../../app_config/data/mobile_app_config.dart';
 import '../../app_config/data/mobile_app_config_repository.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../support/data/support_repository.dart';
+import '../../device_lock/data/device_lock_service.dart';
 import '../data/settings_preferences.dart';
 import '../data/settings_repository.dart';
 
@@ -35,6 +36,8 @@ class SettingsScreen extends ConsumerWidget {
     final mobileConfig =
         ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final packageInfo = ref.watch(appPackageInfoProvider);
+    final deviceLockEnabled =
+        ref.watch(deviceLockEnabledProvider).value ?? false;
     final profile = profileSummary.maybeWhen(
       data: (profile) => profile,
       orElse: () => null,
@@ -72,6 +75,20 @@ class SettingsScreen extends ConsumerWidget {
                   subtitle: 'Change your password and protect your account',
                   trailing: 'Manage',
                   onTap: () => context.push('/change-password'),
+                ),
+                const _DividerIndent(),
+                _SettingsTile(
+                  icon: Icons.fingerprint_rounded,
+                  title: 'Device lock',
+                  subtitle: deviceLockEnabled
+                      ? 'Fingerprint, Face ID or device credential is enabled'
+                      : 'Protect this signed-in session on this device',
+                  trailing: deviceLockEnabled ? 'On' : 'Off',
+                  onTap: () => _toggleDeviceLock(
+                    context,
+                    ref,
+                    currentlyEnabled: deviceLockEnabled,
+                  ),
                 ),
                 const _DividerIndent(),
                 _SettingsTile(
@@ -229,6 +246,39 @@ class SettingsScreen extends ConsumerWidget {
       _showSnack(context, failure.message);
     } finally {
       _settingsPreferenceSaveInFlight = false;
+    }
+  }
+
+  Future<void> _toggleDeviceLock(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool currentlyEnabled,
+  }) async {
+    final service = ref.read(deviceLockServiceProvider);
+    if (currentlyEnabled) {
+      await service.disable();
+      ref.invalidate(deviceLockEnabledProvider);
+      if (context.mounted) _showSnack(context, 'Device lock disabled.');
+      return;
+    }
+    if (!await service.isSupported()) {
+      if (context.mounted) {
+        _showSnack(
+          context,
+          'Device lock is not supported or configured on this device.',
+        );
+      }
+      return;
+    }
+    final enabled = await service.enable();
+    ref.invalidate(deviceLockEnabledProvider);
+    if (context.mounted) {
+      _showSnack(
+        context,
+        enabled
+            ? 'Device lock enabled.'
+            : 'Device authentication was not completed.',
+      );
     }
   }
 

@@ -238,6 +238,26 @@ class ApiConfig {
       'omc_app.api.internal_workspace.get_service_cases';
   static const String createServiceRequestForCustomerMethod =
       'omc_app.api.internal_workspace.create_service_request_for_customer';
+  static const String adminOverviewMethod =
+      'omc_app.api.admin_control.get_admin_overview';
+  static const String reviewRegistrationMethod =
+      'omc_app.api.admin_control.review_registration';
+  static const String inviteStaffMethod =
+      'omc_app.api.admin_control.invite_staff';
+  static const String updateStaffAccountMethod =
+      'omc_app.api.admin_control.update_staff_account';
+  static const String reassignServiceRequestMethod =
+      'omc_app.api.admin_control.reassign_service_request';
+  static const String caseAdminOptionsMethod =
+      'omc_app.api.admin_control.get_case_admin_options';
+  static const String retryServiceSyncMethod =
+      'omc_app.api.admin_control.retry_service_sync';
+  static const String businessSettingsMethod =
+      'omc_app.api.admin_control.get_business_settings';
+  static const String updateBusinessSettingsMethod =
+      'omc_app.api.admin_control.update_business_settings';
+  static const String reviewDiscountMethod =
+      'omc_app.api.admin_control.review_discount';
 
   static const String expenseConfigMethod =
       'omc_app.api.expense.get_expense_config';

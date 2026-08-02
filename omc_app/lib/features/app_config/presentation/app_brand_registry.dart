@@ -24,7 +24,8 @@ class OmcAppColors {
   }) {
     // primaryColorFamily is retained only as a temporary source-compatible
     // argument for older call sites. It now carries the resolved accent value.
-    final accent = _tryParseHexColor(accentColor) ??
+    final accent =
+        _tryParseHexColor(accentColor) ??
         _tryParseHexColor(primaryColorFamily) ??
         const Color(0xFF111827);
     final brightness = ThemeData.estimateBrightnessForColor(accent);
@@ -75,7 +76,5 @@ Color? _tryParseHexColor(String? value) {
 
 Color _darken(Color color, double amount) {
   final hsl = HSLColor.fromColor(color);
-  return hsl
-      .withLightness((hsl.lightness - amount).clamp(0.0, 1.0))
-      .toColor();
+  return hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0)).toColor();
 }

@@ -22,6 +22,9 @@
   "expense_tracker_enabled",
   "subscriptions_enabled",
   "internal_workspace_enabled",
+  "pricing_policy_section",
+  "discount_auto_approval_percent",
+  "minimum_service_price",
   "app_control_section",
   "minimum_app_version",
   "force_update",
@@ -149,6 +152,25 @@
    "fieldname": "internal_workspace_enabled",
    "fieldtype": "Check",
    "label": "Internal Workspace Enabled"
+  },
+  {
+   "fieldname": "pricing_policy_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing Policy"
+  },
+  {
+   "default": "10",
+   "description": "Discount percentage at or below this value is automatically approved for authorized internal creators.",
+   "fieldname": "discount_auto_approval_percent",
+   "fieldtype": "Percent",
+   "label": "Auto-Approval Discount Limit"
+  },
+  {
+   "default": "0",
+   "description": "Discounted service prices below this amount require OMC Admin approval.",
+   "fieldname": "minimum_service_price",
+   "fieldtype": "Currency",
+   "label": "Minimum Service Price"
   },
   {
    "fieldname": "app_control_section",

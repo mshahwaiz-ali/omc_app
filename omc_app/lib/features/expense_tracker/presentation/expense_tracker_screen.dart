@@ -186,8 +186,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         accessMode == ExpenseTrackerAccessMode.approvedSync &&
         config.syncAvailable;
     final shouldSync =
-        canUseCloud &&
-        storageMode == ExpenseTrackerStorageMode.syncWithAccount;
+        canUseCloud && storageMode == ExpenseTrackerStorageMode.syncWithAccount;
     final effectiveAccessMode =
         accessMode == ExpenseTrackerAccessMode.approvedSync && !shouldSync
         ? ExpenseTrackerAccessMode.offlineApproved
@@ -245,9 +244,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
               await ref
                   .read(expenseTrackerStorageModeProvider.notifier)
                   .setMode(ExpenseTrackerStorageMode.syncWithAccount);
-              await ref
-                  .read(expenseTransactionsProvider.notifier)
-                  .bulkSync();
+              await ref.read(expenseTransactionsProvider.notifier).bulkSync();
               return;
             }
             if (value == 'refresh') {
@@ -378,8 +375,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         transaction: transaction,
         categories: config.categories,
         initialCategory: initialCategory,
-        receiptEnabled:
-            sync && config.receiptUploadAvailable,
+        receiptEnabled: sync && config.receiptUploadAvailable,
         onAttachReceipt: sync && config.receiptUploadAvailable
             ? (saved, file) => ref
                   .read(expenseTransactionsProvider.notifier)

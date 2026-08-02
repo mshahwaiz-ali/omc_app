@@ -1,0 +1,84 @@
+{
+  "report_date": "2026-08-02",
+  "site": "omc.local",
+  "result": "implementation_complete_with_environment_blocks",
+  "summary": {
+    "passed": 19,
+    "blocked": 2,
+    "unverified": 1,
+    "not_applicable": 1
+  },
+  "test_counts": {
+    "backend_full_skip_test_records": {"passed": 538, "failed": 0},
+    "backend_persona_matrix": {"passed": 6, "failed": 0},
+    "backend_focused_workflow": {"passed": 28, "failed": 0},
+    "backend_payment_scope": {"passed": 9, "failed": 0},
+    "flutter_unit_widget": {"passed": 296, "failed": 0},
+    "flutter_integration_linux": {"passed": 1, "failed": 0},
+    "flutter_analyzer_issues": 0,
+    "http_public_and_denial": {"passed": 6, "failed": 0},
+    "http_signup_email": {"passed": 0, "blocked": 1}
+  },
+  "created_record_ids": {
+    "users": [
+      "ayesha.khan@qa.omc.test",
+      "bilal.ahmed@qa.omc.test",
+      "sana.iqbal@qa.omc.test",
+      "hamza.siddiqui@qa.omc.test",
+      "mariam.raza@qa.omc.test",
+      "farhan.malik@qa.omc.test",
+      "noor.fatima@qa.omc.test",
+      "usman.sheikh@qa.omc.test",
+      "zain.abbas@qa.omc.test",
+      "hira.qureshi@qa.omc.test",
+      "danish.mirza@qa.omc.test"
+    ],
+    "flutter_contract_fixture": "OMC-SR-2042-0001",
+    "failed_http_signup_not_persisted": "layla.hussain.http@qa.omc.test"
+  },
+  "cleanup": {
+    "removed_reserved_users": 11,
+    "remaining_reserved_users": 0
+  },
+  "scenarios": [
+    {"id": "guest_public", "result": "pass", "evidence": "HTTP 200 catalogue/config/support"},
+    {"id": "guest_protected_denial", "result": "pass", "evidence": "HTTP 403 dashboard/session/admin"},
+    {"id": "signup_email_verification", "result": "blocked", "evidence": "No default outgoing Email Account; HTTP 501"},
+    {"id": "registration_review_activation", "result": "pass", "evidence": "backend full suite"},
+    {"id": "role_matrix", "result": "pass", "evidence": "6 real database persona tests"},
+    {"id": "role_removal_refresh", "result": "pass", "evidence": "combined-role finance revocation"},
+    {"id": "disabled_website_administrator_assignment", "result": "pass", "evidence": "database assignment test"},
+    {"id": "canonical_workflow_projection", "result": "pass", "evidence": "backend and Flutter integration"},
+    {"id": "duplicate_and_cancellation", "result": "pass", "evidence": "backend modules"},
+    {"id": "document_replacement_review", "result": "pass", "evidence": "backend document modules"},
+    {"id": "payment_rejection_resubmission_pagination", "result": "pass", "evidence": "backend payment modules"},
+    {"id": "completion_blockers", "result": "pass", "evidence": "workflow completion modules"},
+    {"id": "erp_task_sync_retry", "result": "pass", "evidence": "ERP integration/recovery modules"},
+    {"id": "assisted_referral_consent", "result": "pass", "evidence": "assisted/referral modules"},
+    {"id": "admin_manager_review_queues", "result": "pass", "evidence": "admin/access/routing modules"},
+    {"id": "flutter_unit_widget", "result": "pass", "evidence": "296 tests"},
+    {"id": "flutter_integration", "result": "pass", "evidence": "1 Linux integration test"},
+    {"id": "android_build", "result": "pass", "evidence": "app-debug.apk"},
+    {"id": "migration_cache", "result": "pass", "evidence": "migrate and clear-cache exit 0"},
+    {"id": "restart_session_recovery", "result": "pass", "evidence": "HTTP remained responsive after migration/cache refresh"},
+    {"id": "backend_test_record_bootstrap", "result": "blocked", "evidence": "DocType HS Code not found before app tests"},
+    {"id": "physical_biometrics", "result": "unverified", "evidence": "no connected biometric device"},
+    {"id": "mirror_sync", "result": "not_applicable", "evidence": "no second backend mirror in checkout"}
+  ],
+  "artifacts": {
+    "android_apk": "omc_app/build/app/outputs/flutter-apk/app-debug.apk",
+    "markdown_report": "docs/test_reports/omc_e2e_workflow_report_2026-08-02.md",
+    "json_report": "docs/test_reports/omc_e2e_workflow_report_2026-08-02.json"
+  },
+  "blocked_gates": [
+    {
+      "gate": "signup_email_verification",
+      "required_action": "Configure an authorized default outgoing Frappe Email Account and rerun HTTP signup/token validation."
+    },
+    {
+      "gate": "normal_backend_test_record_bootstrap",
+      "required_action": "Repair the client ERPNext installation so the referenced HS Code DocType exists; no ERPNext source was changed by this implementation."
+    }
+  ],
+  "hardware_gate": "Run enable, lock, background/resume, fingerprint, Face ID/device credential, cancellation, and fallback checks on physical Android/iOS devices."
+}

@@ -52,6 +52,11 @@ class AuthCapabilities {
     this.canReplySupportTickets = false,
     this.canAssignSupportTickets = false,
     this.canManageSettings = false,
+    this.canManageStaff = false,
+    this.canReviewRegistrations = false,
+    this.canManageBusinessSettings = false,
+    this.canReassignServiceCases = false,
+    this.canRetrySync = false,
     this.canViewInternalNotes = false,
   });
 
@@ -97,6 +102,11 @@ class AuthCapabilities {
   final bool canReplySupportTickets;
   final bool canAssignSupportTickets;
   final bool canManageSettings;
+  final bool canManageStaff;
+  final bool canReviewRegistrations;
+  final bool canManageBusinessSettings;
+  final bool canReassignServiceCases;
+  final bool canRetrySync;
   final bool canViewInternalNotes;
 
   static const guest = AuthCapabilities(accessState: AccountAccessState.guest);
@@ -159,6 +169,11 @@ class AuthCapabilities {
             canReplySupportTickets == other.canReplySupportTickets &&
             canAssignSupportTickets == other.canAssignSupportTickets &&
             canManageSettings == other.canManageSettings &&
+            canManageStaff == other.canManageStaff &&
+            canReviewRegistrations == other.canReviewRegistrations &&
+            canManageBusinessSettings == other.canManageBusinessSettings &&
+            canReassignServiceCases == other.canReassignServiceCases &&
+            canRetrySync == other.canRetrySync &&
             canViewInternalNotes == other.canViewInternalNotes;
   }
 
@@ -205,6 +220,11 @@ class AuthCapabilities {
     canReplySupportTickets,
     canAssignSupportTickets,
     canManageSettings,
+    canManageStaff,
+    canReviewRegistrations,
+    canManageBusinessSettings,
+    canReassignServiceCases,
+    canRetrySync,
     canViewInternalNotes,
   ]);
 
@@ -309,6 +329,13 @@ class AuthCapabilities {
       canViewPaymentSummaries: _boolValue(json['can_view_payment_summaries']),
       canViewPaymentReceipts: _boolValue(json['can_view_payment_receipts']),
       canManageSettings: _boolValue(json['can_manage_settings']),
+      canManageStaff: _boolValue(json['can_manage_staff']),
+      canReviewRegistrations: _boolValue(json['can_review_registrations']),
+      canManageBusinessSettings: _boolValue(
+        json['can_manage_business_settings'],
+      ),
+      canReassignServiceCases: _boolValue(json['can_reassign_service_cases']),
+      canRetrySync: _boolValue(json['can_retry_sync']),
       canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
     );
   }

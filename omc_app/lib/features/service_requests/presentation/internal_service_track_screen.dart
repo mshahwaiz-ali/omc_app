@@ -1042,7 +1042,9 @@ class _NextAction extends StatelessWidget {
         const SizedBox(width: 8),
         if (serviceCase.canReviewDocuments && _needsReview(serviceCase))
           FilledButton.icon(
-            onPressed: () => context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
+            onPressed: () => context.go(
+              '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+            ),
             icon: const Icon(Icons.find_in_page_outlined, size: 17),
             label: const Text('Review'),
             style: FilledButton.styleFrom(
@@ -1058,7 +1060,9 @@ class _NextAction extends StatelessWidget {
         else
           IconButton(
             tooltip: 'Open request',
-            onPressed: () => context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
+            onPressed: () => context.go(
+              '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+            ),
             icon: const Icon(Icons.chevron_right_rounded),
             color: AppTheme.textSecondary,
           ),

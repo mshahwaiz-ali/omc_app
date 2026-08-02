@@ -12,6 +12,7 @@ class SecureStorageService {
   static const String _userIdKey = 'user_id';
   static const String _guestDeviceIdKey = 'guest_device_id';
   static const String _guestSessionIdKey = 'guest_session_id';
+  static const String _deviceLockEnabledKey = 'device_lock_enabled';
 
   Future<void> saveSessionCookie(String value) {
     return _storage.write(key: _sessionCookieKey, value: value);
@@ -61,11 +62,23 @@ class SecureStorageService {
     return _storage.read(key: _guestSessionIdKey);
   }
 
+  Future<void> saveDeviceLockEnabled(bool enabled) {
+    return _storage.write(
+      key: _deviceLockEnabledKey,
+      value: enabled ? '1' : '0',
+    );
+  }
+
+  Future<bool> readDeviceLockEnabled() async {
+    return await _storage.read(key: _deviceLockEnabledKey) == '1';
+  }
+
   Future<void> clearSession() async {
     await _storage.delete(key: _sessionCookieKey);
     await _storage.delete(key: _apiKeyKey);
     await _storage.delete(key: _apiSecretKey);
     await _storage.delete(key: _userIdKey);
+    await _storage.delete(key: _deviceLockEnabledKey);
   }
 
   Future<void> clearAll() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../app/mutation_invalidation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/api_config.dart';
@@ -660,8 +661,11 @@ class _DocumentDetailBodyState extends ConsumerState<_DocumentDetailBody> {
 
       messenger.showSnackBar(SnackBar(content: Text(message)));
 
-      ref.invalidate(documentDetailProvider(document.id));
-      ref.invalidate(documentsProvider);
+      invalidateDocumentMutation(
+        ref,
+        documentId: document.id,
+        caseId: serviceRequestId,
+      );
     } catch (error) {
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(

@@ -46,6 +46,10 @@ class ServiceCase {
     this.paymentStatus,
     this.paymentBlockReason,
     this.nextAction,
+    this.displayStatus,
+    this.milestones = const [],
+    this.completionBlockers = const [],
+    this.completionEligible = false,
   });
 
   final String id;
@@ -92,32 +96,33 @@ class ServiceCase {
   final String? paymentStatus;
   final String? paymentBlockReason;
   final String? nextAction;
+  final String? displayStatus;
+  final List<String> milestones;
+  final List<String> completionBlockers;
+  final bool completionEligible;
 
   bool get hasPayment {
     final value = paymentId?.trim();
     return value != null && value.isNotEmpty;
   }
 
-  /// Backend values remain accepted, but the customer-facing percentage should
-  /// be based on current records, not on timeline step count.
+  /// Canonical backend progress is authoritative. Calculation remains only for
+  /// legacy responses that do not include ``progress_percent``.
   double get progress {
-    final calculated = _calculatedProgressPercent / 100;
-    final backendProgress = _progress.clamp(0, 1).toDouble();
-
     if (isClosed && _normalizedStatus.contains('complete')) return 1;
     if (_normalizedStatus.contains('cancel')) return 0;
-
-    return calculated > backendProgress ? calculated : backendProgress;
+    final backendPercent = _progressPercent;
+    if (backendPercent != null) {
+      return (backendPercent.clamp(0, 100) / 100).toDouble();
+    }
+    if (_progress > 0) return _progress.clamp(0, 1).toDouble();
+    return _calculatedProgressPercent / 100;
   }
 
   int? get progressPercent {
-    final calculated = _calculatedProgressPercent;
-    if (_progressPercent == null) return calculated;
-
     if (isClosed && _normalizedStatus.contains('complete')) return 100;
     if (_normalizedStatus.contains('cancel')) return 0;
-
-    return calculated > _progressPercent ? calculated : _progressPercent;
+    return _progressPercent?.clamp(0, 100) ?? _calculatedProgressPercent;
   }
 
   int get requiredDocumentTotal {
