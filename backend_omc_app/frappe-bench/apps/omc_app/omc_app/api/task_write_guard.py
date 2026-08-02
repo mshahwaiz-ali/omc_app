@@ -104,40 +104,52 @@ def update_task_operation_status(
             frappe.ValidationError,
         )
 
+    previous_operation_status = current_status
+    previous_task_status = _text(getattr(task, "status", None))
+    previous_completed_on = getattr(task, "completed_on", None)
     task.custom_operation_status = requested_status
     task_assignment_names = []
-    if requested_status == "Submitted by QC":
-        # ERPNext's Task validation closes assignments through a permission
-        # checked Desk helper. This guarded API has already established task
-        # mutation authority, so close the linked ToDos explicitly first.
-        task_assignment_names = frappe.get_all(
-            "ToDo",
-            filters={
-                "reference_type": "Task",
-                "reference_name": task.name,
-                "status": ["not in", ["Closed", "Cancelled"]],
-            },
-            pluck="name",
-        )
+    savepoint = "omc_task_operation_status"
+    frappe.db.savepoint(savepoint)
+    try:
+        if requested_status == "Submitted by QC":
+            # ERPNext's Task validation closes assignments through a permission
+            # checked Desk helper. The temporary Cancelled state is isolated by
+            # a savepoint so a failed Task save cannot corrupt assignments.
+            task_assignment_names = frappe.get_all(
+                "ToDo",
+                filters={
+                    "reference_type": "Task",
+                    "reference_name": task.name,
+                    "status": ["not in", ["Closed", "Cancelled"]],
+                },
+                pluck="name",
+            )
+            for assignment_name in task_assignment_names:
+                frappe.db.set_value(
+                    "ToDo",
+                    assignment_name,
+                    "status",
+                    "Cancelled",
+                    update_modified=False,
+                )
+            task.status = "Completed"
+            task.completed_on = frappe.utils.now_datetime()
+        task.save(ignore_permissions=True)
         for assignment_name in task_assignment_names:
             frappe.db.set_value(
                 "ToDo",
                 assignment_name,
                 "status",
-                "Cancelled",
+                "Closed",
                 update_modified=False,
             )
-        task.status = "Completed"
-        task.completed_on = frappe.utils.now_datetime()
-    task.save(ignore_permissions=True)
-    for assignment_name in task_assignment_names:
-        frappe.db.set_value(
-            "ToDo",
-            assignment_name,
-            "status",
-            "Closed",
-            update_modified=False,
-        )
+    except Exception:
+        frappe.db.rollback(save_point=savepoint)
+        task.custom_operation_status = previous_operation_status
+        task.status = previous_task_status
+        task.completed_on = previous_completed_on
+        raise
 
     return {
         "task": task_read_guard._task_to_payload(

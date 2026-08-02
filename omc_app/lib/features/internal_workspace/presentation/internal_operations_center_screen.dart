@@ -30,6 +30,8 @@ class _InternalOperationsCenterScreenState
     extends ConsumerState<InternalOperationsCenterScreen> {
   late final TextEditingController _searchController;
   String _selectedFilter = 'All';
+  int _paymentStart = 0;
+  static const int _paymentPageLength = 20;
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _InternalOperationsCenterScreenState
     if (oldWidget.area != widget.area) {
       _selectedFilter = _config.defaultFilter;
       _searchController.clear();
+      _paymentStart = 0;
     }
   }
 
@@ -145,7 +148,13 @@ class _InternalOperationsCenterScreenState
   }
 
   Widget _buildPaymentReview(BuildContext context) {
-    final paymentsAsync = ref.watch(paymentsProvider);
+    final query = PaymentPageQuery(
+      start: _paymentStart,
+      pageLength: _paymentPageLength,
+      search: _searchController.text,
+      status: _serverPaymentStatus(_selectedFilter),
+    );
+    final paymentsAsync = ref.watch(paymentPageProvider(query));
 
     return Scaffold(
       body: Column(
@@ -155,13 +164,13 @@ class _InternalOperationsCenterScreenState
             subtitle: 'Own and referral-customer payment records',
             actionIcon: Icons.refresh_rounded,
             actionTooltip: 'Refresh payments',
-            onAction: () => ref.invalidate(paymentsProvider),
+            onAction: () => ref.invalidate(paymentPageProvider(query)),
           ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
-                ref.invalidate(paymentsProvider);
-                await ref.read(paymentsProvider.future);
+                ref.invalidate(paymentPageProvider(query));
+                await ref.read(paymentPageProvider(query).future);
               },
               child: paymentsAsync.when(
                 loading: () => const _OperationsLoading(),
@@ -173,9 +182,10 @@ class _InternalOperationsCenterScreenState
                     fallbackMessage:
                         'The scoped payment queue could not be loaded.',
                   ).message,
-                  onRetry: () => ref.invalidate(paymentsProvider),
+                  onRetry: () => ref.invalidate(paymentPageProvider(query)),
                 ),
-                data: (payments) {
+                data: (page) {
+                  final payments = page.items;
                   final filtered = _filteredPayments(payments);
                   final counts = _internalPaymentCounts(payments);
 
@@ -187,9 +197,12 @@ class _InternalOperationsCenterScreenState
                         controller: _searchController,
                         selectedFilter: _selectedFilter,
                         counts: counts,
-                        onSearchChanged: (_) => setState(() {}),
-                        onFilterChanged: (value) =>
-                            setState(() => _selectedFilter = value),
+                        onSearchChanged: (_) =>
+                            setState(() => _paymentStart = 0),
+                        onFilterChanged: (value) => setState(() {
+                          _selectedFilter = value;
+                          _paymentStart = 0;
+                        }),
                       ),
                       const SizedBox(height: 14),
                       _InternalPaymentSummary(
@@ -209,6 +222,26 @@ class _InternalOperationsCenterScreenState
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _InternalPaymentCard(payment: payment),
                           ),
+                      const SizedBox(height: 6),
+                      _PaymentPager(
+                        start: page.start,
+                        shown: page.items.length,
+                        total: page.total,
+                        hasMore: page.hasMore,
+                        onPrevious: page.start == 0
+                            ? null
+                            : () => setState(
+                                () => _paymentStart =
+                                    (_paymentStart - _paymentPageLength)
+                                        .clamp(0, 1 << 30)
+                                        .toInt(),
+                              ),
+                        onNext: page.hasMore
+                            ? () => setState(
+                                () => _paymentStart += _paymentPageLength,
+                              )
+                            : null,
+                      ),
                     ],
                   );
                 },
@@ -218,6 +251,19 @@ class _InternalOperationsCenterScreenState
         ],
       ),
     );
+  }
+
+  String _serverPaymentStatus(String filter) {
+    switch (filter) {
+      case 'Needs Review':
+        return 'Receipt Submitted,Under Review';
+      case 'Paid':
+        return 'Paid';
+      case 'Rejected':
+        return 'Rejected';
+      default:
+        return '';
+    }
   }
 
   List<PaymentItem> _filteredPayments(List<PaymentItem> payments) {
@@ -372,6 +418,53 @@ class _InternalOperationsCenterScreenState
         }
         return true;
     }
+  }
+}
+
+class _PaymentPager extends StatelessWidget {
+  const _PaymentPager({
+    required this.start,
+    required this.shown,
+    required this.total,
+    required this.hasMore,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final int start;
+  final int shown;
+  final int total;
+  final bool hasMore;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = shown == 0 ? 0 : start + 1;
+    final last = start + shown;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            '$first-$last of $total',
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Previous page',
+          onPressed: onPrevious,
+          icon: const Icon(Icons.chevron_left_rounded),
+        ),
+        IconButton(
+          tooltip: hasMore ? 'Next page' : 'No more payments',
+          onPressed: onNext,
+          icon: const Icon(Icons.chevron_right_rounded),
+        ),
+      ],
+    );
   }
 }
 

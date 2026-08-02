@@ -17,6 +17,32 @@ void main() {
       expect(canAccessRoute('/admin-control', ordinaryInternal), isFalse);
       expect(canAccessRoute('/admin-control', omcAdmin), isTrue);
     });
+
+    test('operational controls use granular manager capabilities', () {
+      const ordinaryInternal = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canAccessInternalWorkspace: true,
+      );
+      const manager = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canReassignServiceCases: true,
+        canRetrySync: true,
+      );
+      const businessAdmin = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canManageBusinessSettings: true,
+      );
+
+      expect(
+        canAccessRoute('/admin-control/operations', ordinaryInternal),
+        isFalse,
+      );
+      expect(canAccessRoute('/admin-control/operations', manager), isTrue);
+      expect(
+        canAccessRoute('/admin-control/operations', businessAdmin),
+        isTrue,
+      );
+    });
     const internalWorkspaceOnly = AuthCapabilities(
       accessState: AccountAccessState.internal,
       canAccessInternalWorkspace: true,

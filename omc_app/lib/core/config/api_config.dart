@@ -240,6 +240,8 @@ class ApiConfig {
       'omc_app.api.internal_workspace.create_service_request_for_customer';
   static const String adminOverviewMethod =
       'omc_app.api.admin_control.get_admin_overview';
+  static const String adminOperationsMethod =
+      'omc_app.api.admin_control.get_admin_operations';
   static const String reviewRegistrationMethod =
       'omc_app.api.admin_control.review_registration';
   static const String inviteStaffMethod =

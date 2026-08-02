@@ -32,7 +32,7 @@ class _ServiceCaseDetailScreenState
   bool _isUpdatingDocumentStatus = false;
   bool _isCancellingRequest = false;
   bool _isAdminMutating = false;
-  Future<Map<String, dynamic>>? _adminOptions;
+  Future<AdminCaseOptions>? _adminOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -113,10 +113,10 @@ class _ServiceCaseDetailScreenState
                       _ProgressCard(serviceCase: serviceCase),
                       if (canAdministerCase) ...[
                         const SizedBox(height: 14),
-                        FutureBuilder<Map<String, dynamic>>(
+                        FutureBuilder<AdminCaseOptions>(
                           future: _adminOptions,
                           builder: (context, snapshot) => _AdminOperationsCard(
-                            data: snapshot.data,
+                            data: snapshot.data?.data,
                             loading:
                                 snapshot.connectionState ==
                                 ConnectionState.waiting,
@@ -126,12 +126,14 @@ class _ServiceCaseDetailScreenState
                             canReviewDiscount:
                                 capabilities.canManageBusinessSettings,
                             onReassign: snapshot.hasData
-                                ? () => _reassignCase(snapshot.data!)
+                                ? () => _reassignCase(snapshot.data!.data)
                                 : null,
                             onRetry: _retrySync,
                             onReviewDiscount: snapshot.hasData
-                                ? (approve) =>
-                                      _reviewDiscount(snapshot.data!, approve)
+                                ? (approve) => _reviewDiscount(
+                                    snapshot.data!.data,
+                                    approve,
+                                  )
                                 : null,
                           ),
                         ),
@@ -230,10 +232,44 @@ class _ServiceCaseDetailScreenState
       _showSnack('This request has no discount awaiting approval.');
       return;
     }
+    String? reason;
+    if (!approve) {
+      final controller = TextEditingController();
+      reason = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Reject discount request?'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Review remarks',
+              hintText: 'Explain why this discount cannot be approved.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) Navigator.pop(dialogContext, value);
+              },
+              child: const Text('Reject discount'),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (reason == null || !mounted) return;
+    }
     await _runAdminMutation(
       () => ref
           .read(adminControlRepositoryProvider)
-          .reviewDiscount(widget.caseId, approve: approve),
+          .reviewDiscount(widget.caseId, approve: approve, reason: reason),
       approve ? 'Discount approved.' : 'Discount rejected.',
     );
   }
@@ -247,7 +283,7 @@ class _ServiceCaseDetailScreenState
     try {
       await mutation();
       if (!mounted) return;
-      invalidateServiceMutation(ref, caseId: widget.caseId);
+      invalidateAdministrativeCaseMutation(ref, caseId: widget.caseId);
       setState(() {
         _adminOptions = ref
             .read(adminControlRepositoryProvider)

@@ -270,10 +270,21 @@ def inspect_hs_code_state():
                 "distinct_nonempty_count": len(values),
                 "sample_values": sorted(str(value) for value in values),
             }
+    doctype_exists = bool(frappe.db.exists("DocType", "HS Code"))
+    records = []
+    record_count = 0
+    if table_exists:
+        record_count = frappe.db.sql("SELECT COUNT(*) FROM `tabHS Code`")[0][0]
+        records = frappe.db.sql(
+            "SELECT name, description, owner, creation FROM `tabHS Code` LIMIT 20",
+            as_dict=True,
+        )
     return {
-        "doctype_exists": bool(frappe.db.exists("DocType", "HS Code")),
+        "doctype_exists": doctype_exists,
         "table_exists": table_exists,
         "table_columns": frappe.db.get_table_columns("HS Code") if table_exists else [],
+        "record_count": record_count,
+        "records": records,
         "docfields": frappe.get_all(
             "DocField",
             filters={"options": "HS Code"},

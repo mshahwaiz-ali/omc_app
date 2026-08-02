@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/mutation_invalidation.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../auth/application/auth_controller.dart';
@@ -107,8 +108,7 @@ class TaskDetailScreen extends ConsumerWidget {
       await ref
           .read(tasksRepositoryProvider)
           .updateOperationStatus(taskId: task.id, operationStatus: selected);
-      ref.invalidate(taskDetailProvider(task.id));
-      ref.invalidate(tasksProvider);
+      invalidateTaskMutation(ref, taskId: task.id, caseId: task.serviceRequest);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Task status updated to $selected.')),
@@ -170,8 +170,11 @@ class TaskDetailScreen extends ConsumerWidget {
                   );
                 }
 
-                ref.invalidate(taskDetailProvider(task.id));
-                ref.invalidate(tasksProvider);
+                invalidateTaskMutation(
+                  ref,
+                  taskId: task.id,
+                  caseId: task.serviceRequest,
+                );
 
                 if (!sheetContext.mounted) return;
                 Navigator.of(sheetContext).pop();

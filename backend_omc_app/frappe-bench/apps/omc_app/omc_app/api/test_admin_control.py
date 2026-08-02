@@ -8,6 +8,43 @@ from omc_app.api import admin_control, service_assignment
 
 
 class TestAdminControl(TestCase):
+    def test_sync_queue_is_exhausted_and_retryable_only(self):
+        filters = admin_control._operation_filters("sync")
+        self.assertEqual(
+            set(filters["erp_sync_status"][1]),
+            admin_control.erp_sync_recovery.RETRYABLE_STATUSES,
+        )
+        self.assertEqual(filters["erp_retry_exhausted_at"], ["is", "set"])
+
+    def test_each_operational_queue_has_a_dedicated_capability(self):
+        self.assertEqual(
+            admin_control._operation_queue_capability("reassignment"),
+            "can_reassign_service_cases",
+        )
+        self.assertEqual(
+            admin_control._operation_queue_capability("sync"),
+            "can_retry_sync",
+        )
+        self.assertEqual(
+            admin_control._operation_queue_capability("discount"),
+            "can_manage_business_settings",
+        )
+
+    def test_discount_rejection_requires_review_remarks(self):
+        request = SimpleNamespace(discount_status="Pending Approval")
+        request.get = lambda key: getattr(request, key, None)
+        with (
+            patch.object(admin_control, "_require"),
+            patch.object(admin_control.frappe.db, "exists", return_value=True),
+            patch.object(admin_control.frappe, "get_doc", return_value=request),
+            self.assertRaises(frappe.ValidationError),
+        ):
+            admin_control.review_discount(
+                service_request="OMC-SR-1",
+                decision="reject",
+                reason="",
+            )
+
     def test_staff_application_maps_only_supported_public_choices(self):
         for label, role in {
             "Consultant": "OMC Consultant",

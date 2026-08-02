@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -46,6 +47,23 @@ class AdminControlScreen extends ConsumerWidget {
               'Review registrations, manage operational roles and control OMC business settings.',
             ),
             const SizedBox(height: 20),
+            if (capabilities.canReassignServiceCases ||
+                capabilities.canRetrySync ||
+                capabilities.canManageBusinessSettings) ...[
+              PremiumCard(
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.tune_rounded),
+                  title: const Text('Operational controls'),
+                  subtitle: const Text(
+                    'Reassign cases, retry exhausted ERP sync and review discounts.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push('/admin-control/operations'),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             overview.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => _ErrorCard(

@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -135,6 +135,48 @@ class TestErpTaskWriteGuard(FrappeTestCase):
         self.assertTrue(result["updated"])
         self.assertEqual(task.status, "Completed")
         self.assertIsNotNone(task.completed_on)
+
+    def test_failed_qc_task_save_rolls_back_todo_transition(self):
+        task = self._task("Pending at QC")
+        task.save = MagicMock(side_effect=frappe.ValidationError("save failed"))
+        with (
+            patch.object(
+                task_write_guard.mobile,
+                "_assert_internal_workspace_access",
+                return_value="manager@example.com",
+            ),
+            patch.object(
+                task_write_guard.mobile,
+                "_require_canonical_capability",
+                return_value={"can_manage_tasks": True},
+            ),
+            patch.object(
+                task_write_guard,
+                "_load_linked_task",
+                return_value=(task, self._link()),
+            ),
+            patch.object(
+                task_write_guard.frappe,
+                "get_all",
+                return_value=["TODO-1"],
+            ),
+            patch.object(task_write_guard.frappe.db, "savepoint") as savepoint,
+            patch.object(task_write_guard.frappe.db, "set_value") as set_value,
+            patch.object(task_write_guard.frappe.db, "rollback") as rollback,
+            self.assertRaises(frappe.ValidationError),
+        ):
+            task_write_guard.update_task_operation_status(
+                task_id="ERP-TASK-1",
+                operation_status="Submitted by QC",
+            )
+
+        savepoint.assert_called_once_with("omc_task_operation_status")
+        set_value.assert_called_once_with(
+            "ToDo", "TODO-1", "status", "Cancelled", update_modified=False
+        )
+        rollback.assert_called_once_with(save_point="omc_task_operation_status")
+        self.assertEqual(task.custom_operation_status, "Pending at QC")
+        self.assertEqual(task.status, "Open")
 
     def test_unassigned_staff_cannot_update_task(self):
         task = self._task()

@@ -1,66 +1,129 @@
 {
   "report_date": "2026-08-03",
   "site": "omc.local",
-  "result": "all_available_in_scope_executable_gates_passed",
-  "summary": {
-    "passed_scenarios": 17,
-    "failed_scenarios": 0,
-    "hardware_unverified": 1,
-    "not_applicable": 2
+  "result": "all_current_in_scope_executable_software_gates_passed",
+  "verdict": {
+    "backend": "ready_within_omc_boundary",
+    "flutter": "ready_for_software_release_gates",
+    "backend_flutter_parity": "complete_for_audited_routine_app_workflows",
+    "environment": "local_site_and_build_gates_passed",
+    "hardware": "physical_biometrics_unverified",
+    "client_erp_prerequisite": "missing_external_hs_code_dependency_or_stale_empty_links"
   },
   "test_counts": {
-    "backend_full_skip_test_records": {"passed": 547, "failed": 0},
-    "backend_persona_matrix": {"passed": 6, "failed": 0},
-    "backend_payment_scope": {"passed": 11, "failed": 0},
-    "backend_workflow_task_focused": {"passed": 16, "failed": 0},
-    "backend_pending_registration": {"passed": 12, "failed": 0},
-    "flutter_unit_widget": {"passed": 296, "failed": 0},
+    "backend_focused": {"passed": 86, "failed": 0},
+    "backend_full_skip_test_records": {"passed": 556, "failed": 0, "seconds": 83.134},
+    "flutter_focused": {"passed": 198, "failed": 0},
+    "flutter_unit_widget": {"passed": 303, "failed": 0},
     "flutter_integration_linux": {"passed": 1, "failed": 0},
-    "flutter_analyzer_issues": 0
+    "flutter_analyzer_issues": 0,
+    "live_http_checks": {"passed": 7, "failed": 0}
   },
-  "http_workflow": {
-    "customer": "layla.hussain.http@qa.omc.test",
-    "admin": "zain.abbas.http@qa.omc.test",
-    "service_request": "OMC-SR-260803-00001",
-    "erp_task": "TASK-2026-00003",
-    "rejected_document": "OMC-DOC-260803-00001",
-    "approved_replacement_document": "OMC-DOC-260803-00002",
-    "payment": "OMC-PAY-260803-00001",
-    "corrected_payment_reference": "PK-OMC-20260803-4821-R",
-    "duplicate_contract": {"duplicate": true, "created": false, "allowed_actions": ["resume_existing"]},
-    "actual_local_smtp_delivery": "pass",
-    "final_reserved_state": {"users": 0, "customer_profiles": 0, "service_requests": 0, "smtp_accounts": 0}
+  "hs_code_resolution": {
+    "omc_doctype_removed": true,
+    "omc_sql_table_removed": true,
+    "removed_fixture": {"name": "9999.99", "description": "Reserved QA HS code"},
+    "canonical_erpnext_v14_master_found": false,
+    "omc_workflow_dependency_found": false,
+    "retained_external_fields": [
+      {"field": "Item.hs_code", "nonempty_values": 0},
+      {"field": "Purchase Invoice Item.hs_code", "nonempty_values": 0},
+      {"field": "Purchase Order Item.hs_code", "nonempty_values": 0},
+      {"field": "Sales Invoice Item.custom_hs_code", "nonempty_values": 0}
+    ],
+    "guard_behavior": "abort_on_any_non_fixture_record_or_nonempty_reference",
+    "client_action": "restore_the_original_external_master_or_retire_change_links_through_client_erp_administration"
   },
-  "scenarios": [
-    {"id": "guest_public_and_denial", "result": "pass"},
-    {"id": "signup_email_verify_pending", "result": "pass"},
-    {"id": "admin_approval_capability_refresh", "result": "pass"},
-    {"id": "request_duplicate_resume", "result": "pass"},
-    {"id": "document_reject_replace_approve", "result": "pass"},
-    {"id": "payment_reject_resubmit_paid", "result": "pass"},
-    {"id": "erp_task_operational_authority", "result": "pass"},
-    {"id": "completion_blockers_projection", "result": "pass"},
-    {"id": "cancellation_terminal_audit", "result": "pass"},
-    {"id": "staff_role_least_privilege", "result": "pass"},
-    {"id": "assisted_referral_consent", "result": "pass"},
-    {"id": "reviewer_manager_combined_roles", "result": "pass"},
-    {"id": "disabled_website_administrator_exclusion", "result": "pass"},
-    {"id": "role_removal_refresh", "result": "pass"},
-    {"id": "admin_business_discount_controls", "result": "pass"},
-    {"id": "migration_cache_restart", "result": "pass"},
-    {"id": "deterministic_cleanup", "result": "pass"},
-    {"id": "physical_biometrics", "result": "unverified", "reason": "no connected biometric device"},
-    {"id": "ordinary_erp_test_record_bootstrap", "result": "not_applicable", "reason": "standard ERP fixtures require an isolated blank test site"},
-    {"id": "mirror_sync", "result": "not_applicable", "reason": "no second mirror target"}
-  ],
+  "parity": {
+    "allowed_results": ["COMPLETE", "BACKEND_ONLY", "UI_ONLY", "PARTIAL", "DUPLICATED", "UNREACHABLE", "OUT_OF_SCOPE"],
+    "matrix_location": "inspection.md",
+    "customer_workflows": {
+      "public_catalogue": "COMPLETE",
+      "signup_verification": "COMPLETE",
+      "pending_approval": "COMPLETE",
+      "customer_dashboard": "COMPLETE",
+      "service_creation": "COMPLETE",
+      "duplicate_resume_start_another": "COMPLETE",
+      "case_tracking": "COMPLETE",
+      "required_documents": "COMPLETE",
+      "document_replacement": "COMPLETE",
+      "payment_details": "COMPLETE",
+      "receipt_upload_resubmission": "COMPLETE",
+      "notifications": "COMPLETE",
+      "support": "COMPLETE",
+      "profile_settings": "COMPLETE",
+      "device_lock_software": "COMPLETE"
+    },
+    "internal_workflows": {
+      "assigned_service_cases": "COMPLETE",
+      "assisted_service": "COMPLETE",
+      "walk_in_provisional_customer": "COMPLETE",
+      "referral_created_service": "COMPLETE",
+      "customer_lookup": "COMPLETE",
+      "task_list_detail_status_qc": "COMPLETE",
+      "document_review": "COMPLETE",
+      "payment_queue_detail_review": "COMPLETE",
+      "case_reassignment": "COMPLETE",
+      "exhausted_sync_retry": "COMPLETE",
+      "discount_review": "COMPLETE",
+      "registration_review": "COMPLETE",
+      "staff_invitation_role_account": "COMPLETE",
+      "business_settings": "COMPLETE",
+      "dashboard_actions_counters": "COMPLETE"
+    },
+    "cross_cutting": {
+      "capability_route_access": "COMPLETE",
+      "deep_link_denial": "COMPLETE",
+      "backend_object_scope": "COMPLETE",
+      "pagination_search_filter": "COMPLETE",
+      "loading_empty_error_busy": "COMPLETE",
+      "focused_invalidation_stale_prevention": "COMPLETE",
+      "logout_session_revocation": "COMPLETE",
+      "active_session_role_removal": "COMPLETE"
+    }
+  },
+  "http_evidence": {
+    "historical_full_workflow": {
+      "date": "2026-08-03",
+      "status": "retained_as_historical_evidence_not_rerun",
+      "customer": "layla.hussain.http@qa.omc.test",
+      "admin": "zain.abbas.http@qa.omc.test",
+      "service_request": "OMC-SR-260803-00001",
+      "erp_task": "TASK-2026-00003",
+      "document_replacement": ["OMC-DOC-260803-00001", "OMC-DOC-260803-00002"],
+      "payment": "OMC-PAY-260803-00001"
+    },
+    "current_correction_pass": {
+      "guest_public_status": 200,
+      "guest_protected_status": 403,
+      "reserved_admin_login_status": 200,
+      "reassignment_queue_status": 200,
+      "sync_queue_status": 200,
+      "discount_queue_status": 200,
+      "admin_overview_status": 200,
+      "final_reserved_state": {"users": 0, "customer_profiles": 0, "service_requests": 0, "smtp_accounts": 0}
+    }
+  },
   "artifacts": {
     "android_apk": "omc_app/build/app/outputs/flutter-apk/app-debug.apk",
+    "inspection": "inspection.md",
     "markdown_report": "docs/test_reports/omc_e2e_workflow_report_2026-08-02.md",
     "json_report": "docs/test_reports/omc_e2e_workflow_report_2026-08-02.json"
   },
+  "limitations": [
+    "Physical fingerprint and Face ID success require a connected biometric device.",
+    "Client ERP administration must resolve the retained empty HS Code Link metadata if those fields are intended for use.",
+    "Flutter emitted a non-failing future Kotlin Gradle Plugin migration warning during the passing debug APK build."
+  ],
+  "discarded_evidence": {
+    "overlapping_backend_run": "discarded_due_to_database_deadlocks_from_two_concurrent_test_processes",
+    "replacement_evidence": "clean_serial_556_of_556_pass"
+  },
   "source_boundaries": {
     "erpnext_source_modified": false,
-    "system_files_modified": false,
+    "erpnext_doctypes_or_permissions_modified": false,
+    "client_configuration_modified": false,
+    "production_customer_data_deleted": false,
     "commit_or_push_performed": false
   }
 }

@@ -817,6 +817,14 @@ class _QuickActions extends ConsumerWidget {
           icon: Icons.admin_panel_settings_rounded,
           route: '/admin-control',
         ),
+      if (capabilities.canReassignServiceCases ||
+          capabilities.canRetrySync ||
+          capabilities.canManageBusinessSettings)
+        (
+          label: 'Operational controls',
+          icon: Icons.tune_rounded,
+          route: '/admin-control/operations',
+        ),
     ];
 
     return SizedBox(

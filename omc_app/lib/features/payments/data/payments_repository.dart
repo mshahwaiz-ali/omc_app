@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,6 +21,12 @@ final paymentsProvider = FutureProvider<List<PaymentItem>>((ref) async {
   return repository.fetchPayments();
 });
 
+final paymentPageProvider =
+    FutureProvider.family<PaymentPage, PaymentPageQuery>(
+      (ref, query) =>
+          ref.watch(paymentsRepositoryProvider).fetchPaymentPage(query),
+    );
+
 final paymentDetailProvider = FutureProvider.family<PaymentItem?, String>((
   ref,
   paymentId,
@@ -35,8 +42,37 @@ class PaymentsRepository {
   final FrappeClient _frappeClient;
 
   Future<List<PaymentItem>> fetchPayments() async {
-    final response = await _frappeClient.getMethod(ApiConfig.paymentsMethod);
-    return _mapPaymentsResponse(response);
+    return (await fetchPaymentPage(
+      const PaymentPageQuery(pageLength: 100),
+    )).items;
+  }
+
+  Future<PaymentPage> fetchPaymentPage(PaymentPageQuery query) async {
+    final response = await _frappeClient.getMethod(
+      ApiConfig.paymentsMethod,
+      queryParameters: {
+        'limit_start': query.start,
+        'limit_page_length': query.pageLength,
+        if (query.search.trim().isNotEmpty) 'search': query.search.trim(),
+        if (query.status.trim().isNotEmpty) 'status': query.status.trim(),
+      },
+    );
+    final payload = response['message'] is Map<String, dynamic>
+        ? response['message'] as Map<String, dynamic>
+        : response;
+    final items = _mapPaymentsResponse(response);
+    final total = _intValue(payload['total'], fallback: items.length);
+    return PaymentPage(
+      items: items,
+      start: _intValue(payload['limit_start'], fallback: query.start),
+      pageLength: _intValue(
+        payload['limit_page_length'],
+        fallback: query.pageLength,
+      ),
+      total: total,
+      hasMore:
+          _boolValue(payload['has_more']) || query.start + items.length < total,
+    );
   }
 
   Future<PaymentItem?> fetchPaymentDetail(String paymentId) async {
@@ -131,6 +167,21 @@ class PaymentsRepository {
     }
 
     return uploadedFiles;
+  }
+
+  Future<AuthenticatedPaymentFile> downloadReceipt(PaymentItem payment) async {
+    final location = payment.receiptUrl?.trim() ?? '';
+    if (location.isEmpty) {
+      throw const ApiError(message: 'No receipt is attached to this payment.');
+    }
+    final uri = Uri.tryParse(location);
+    final name = uri?.pathSegments.isNotEmpty == true
+        ? Uri.decodeComponent(uri!.pathSegments.last)
+        : 'payment-receipt';
+    return AuthenticatedPaymentFile(
+      name: name.isEmpty ? 'payment-receipt' : name,
+      bytes: await _frappeClient.getAuthenticatedFile(location),
+    );
   }
 
   List<PaymentItem> _mapPaymentsResponse(Map<String, dynamic>? data) {
@@ -264,6 +315,11 @@ class PaymentsRepository {
     return text == 'true' || text == '1' || text == 'yes' || text == 'on';
   }
 
+  int _intValue(dynamic value, {required int fallback}) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
   PaymentStatus _statusFromValue(dynamic value) {
     final status = value?.toString().trim().toLowerCase() ?? '';
 
@@ -327,4 +383,52 @@ class PaymentsRepository {
     if (text == null || text.isEmpty) return null;
     return text;
   }
+}
+
+class PaymentPageQuery {
+  const PaymentPageQuery({
+    this.start = 0,
+    this.pageLength = 20,
+    this.search = '',
+    this.status = '',
+  });
+
+  final int start;
+  final int pageLength;
+  final String search;
+  final String status;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PaymentPageQuery &&
+      other.start == start &&
+      other.pageLength == pageLength &&
+      other.search == search &&
+      other.status == status;
+
+  @override
+  int get hashCode => Object.hash(start, pageLength, search, status);
+}
+
+class PaymentPage {
+  const PaymentPage({
+    required this.items,
+    required this.start,
+    required this.pageLength,
+    required this.total,
+    required this.hasMore,
+  });
+
+  final List<PaymentItem> items;
+  final int start;
+  final int pageLength;
+  final int total;
+  final bool hasMore;
+}
+
+class AuthenticatedPaymentFile {
+  const AuthenticatedPaymentFile({required this.name, required this.bytes});
+
+  final String name;
+  final Uint8List bytes;
 }

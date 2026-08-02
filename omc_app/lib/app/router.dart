@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/widgets/route_failure_screen.dart';
 import '../features/admin_control/presentation/admin_control_screen.dart';
+import '../features/admin_control/presentation/admin_operations_screen.dart';
 import '../features/documents/presentation/internal_document_review_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
@@ -456,6 +457,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'admin-control',
         builder: (context, state) =>
             _withShell(ShellNavScaffold.moreIndex, const AdminControlScreen()),
+      ),
+      GoRoute(
+        path: '/admin-control/operations',
+        name: 'admin-operations',
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const AdminOperationsScreen(),
+        ),
       ),
       GoRoute(
         path: '/internal-workspace/service-cases',

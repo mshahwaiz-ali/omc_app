@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/mutation_invalidation.dart';
@@ -668,12 +669,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
             fallbackMessage:
                 'Payment invoice link is not available for this record.',
           ),
-          onReceipt: () => _openPaymentUrl(
-            context,
-            payment.receiptUrl,
-            fallbackMessage:
-                'Payment receipt link is not available for this record.',
-          ),
+          onReceipt: () => _openAuthenticatedReceipt(context),
           onUploadReceipt:
               _isUploadingReceipt || !capabilities.canUploadPaymentReceipt
               ? null
@@ -730,6 +726,42 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   ) async {
     final repository = ref.read(paymentsRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
+    final remarksController = TextEditingController();
+    final remarks = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          status == 'Rejected' ? 'Reject receipt' : 'Approve receipt',
+        ),
+        content: TextField(
+          controller: remarksController,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 4,
+          decoration: InputDecoration(
+            labelText: status == 'Rejected'
+                ? 'Review remarks (required)'
+                : 'Review remarks (optional)',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = remarksController.text.trim();
+              if (status == 'Rejected' && value.isEmpty) return;
+              Navigator.pop(dialogContext, value);
+            },
+            child: Text(status == 'Rejected' ? 'Reject' : 'Approve'),
+          ),
+        ],
+      ),
+    );
+    remarksController.dispose();
+    if (remarks == null || !mounted) return;
 
     setState(() => _isReviewingReceipt = true);
 
@@ -737,6 +769,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       await repository.reviewPaymentReceipt(
         paymentId: payment.id,
         status: status,
+        remarks: remarks,
       );
 
       if (!context.mounted) return;
@@ -759,6 +792,33 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       if (mounted) {
         setState(() => _isReviewingReceipt = false);
       }
+    }
+  }
+
+  Future<void> _openAuthenticatedReceipt(BuildContext context) async {
+    if (payment.receiptUrl?.trim().isEmpty ?? true) {
+      _showSnack(
+        context,
+        'Payment receipt link is not available for this record.',
+      );
+      return;
+    }
+    try {
+      final file = await ref
+          .read(paymentsRepositoryProvider)
+          .downloadReceipt(payment);
+      await Share.shareXFiles([
+        XFile.fromData(file.bytes, name: file.name),
+      ], subject: 'Payment receipt ${payment.id}');
+    } catch (error) {
+      if (!context.mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Receipt unavailable',
+        fallbackMessage:
+            'The authenticated receipt could not be opened right now.',
+      );
+      _showSnack(context, failure.message);
     }
   }
 

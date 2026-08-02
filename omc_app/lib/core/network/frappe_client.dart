@@ -175,6 +175,40 @@ class FrappeClient {
     }
   }
 
+  Future<Uint8List> getAuthenticatedFile(String location) async {
+    final cleanLocation = location.trim();
+    if (cleanLocation.isEmpty) {
+      throw const ApiError(message: 'The requested file is unavailable.');
+    }
+
+    final base = Uri.parse(ApiConfig.baseUrl);
+    final parsed = Uri.tryParse(cleanLocation);
+    if (parsed == null) {
+      throw const ApiError(message: 'The requested file link is invalid.');
+    }
+    if (parsed.hasScheme &&
+        (parsed.scheme != base.scheme ||
+            parsed.host != base.host ||
+            parsed.port != base.port)) {
+      throw const ApiError(
+        message: 'Refusing to send the OMC session to an external file host.',
+      );
+    }
+
+    final path = parsed.hasScheme ? parsed.toString() : cleanLocation;
+    try {
+      final response = await _dioClient.instance.get<List<int>>(
+        path,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Uint8List.fromList(response.data ?? const []);
+    } on DioException catch (error) {
+      throw _dioClient.parseError(error);
+    } catch (error) {
+      throw _unknownApiError(error);
+    }
+  }
+
   Map<String, dynamic> _readResponseMap(Map<String, dynamic>? data) {
     if (data == null) return <String, dynamic>{};
 
