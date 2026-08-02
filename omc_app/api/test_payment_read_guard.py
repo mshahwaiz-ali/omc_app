@@ -102,15 +102,56 @@ class TestPaymentReadGuard(FrappeTestCase):
         approved_customer.return_value = profile
         capabilities.return_value = {}
         accessible_requests.return_value = [SimpleNamespace(name="OMC-SR-TEST")]
-        get_all.return_value = ["OMC-PAY-GOOD", "OMC-PAY-STALE"]
+        get_all.side_effect = [
+            [
+                frappe._dict(
+                    name="OMC-PAY-GOOD",
+                    payment_title="Tax filing",
+                    payment_reference="PK-1",
+                    status="Receipt Submitted",
+                    service_request="OMC-SR-TEST",
+                ),
+                frappe._dict(
+                    name="OMC-PAY-STALE",
+                    payment_title="Tax filing",
+                    payment_reference="PK-2",
+                    status="Receipt Submitted",
+                    service_request="OMC-SR-TEST",
+                ),
+            ],
+            [
+                frappe._dict(
+                    name="OMC-SR-TEST",
+                    customer_name="Ayesha Khan",
+                    customer_profile="OMC-CUST-1",
+                    service_title="Tax Filing",
+                    service="tax-filing",
+                )
+            ],
+        ]
         safe_payload.side_effect = [
             {"name": "OMC-PAY-GOOD"},
             None,
         ]
 
-        result = payment_read_guard.get_payments()
+        result = payment_read_guard.get_payments(
+            limit_start=0,
+            limit_page_length=1,
+            search="Ayesha",
+            status="Receipt Submitted,Under Review",
+        )
 
-        self.assertEqual(result, {"payments": [{"name": "OMC-PAY-GOOD"}]})
+        self.assertEqual(
+            result,
+            {
+                "payments": [{"name": "OMC-PAY-GOOD"}],
+                "limit_start": 0,
+                "limit_page_length": 1,
+                "total": 1,
+                "has_more": False,
+            },
+        )
+        self.assertEqual(safe_payload.call_count, 2)
 
     @patch("omc_app.api.payment_read_guard._load_readable_payment")
     def test_hidden_payment_detail_is_not_found(self, load_payment):

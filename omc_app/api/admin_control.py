@@ -64,6 +64,25 @@ def _pagination(limit_start=0, limit_page_length=20):
         frappe.throw("Invalid pagination values.", frappe.ValidationError)
 
 
+def _operation_queue_capability(queue):
+    return {
+        "reassignment": "can_reassign_service_cases",
+        "sync": "can_retry_sync",
+        "discount": "can_manage_business_settings",
+    }.get(_text(queue).lower())
+
+
+def _operation_filters(queue):
+    if queue == "reassignment":
+        return {"status": ["not in", ["Completed", "Cancelled"]]}
+    if queue == "sync":
+        return {
+            "erp_sync_status": ["in", sorted(erp_sync_recovery.RETRYABLE_STATUSES)],
+            "erp_retry_exhausted_at": ["is", "set"],
+        }
+    return {"discount_status": "Pending Approval"}
+
+
 def _requested_staff_role(profile):
     requested = _text(profile.get("register_as") or profile.get("customer_type")).lower()
     return APPLICATION_ROLE_MAP.get(requested)
@@ -214,16 +233,96 @@ def update_staff_account(user_id=None, roles=None, enabled=None):
 
 
 @frappe.whitelist()
-def reassign_service_request(service_request=None, assigned_staff=None):
+def get_admin_operations(
+    queue=None,
+    search=None,
+    limit_start=0,
+    limit_page_length=20,
+):
+    queue = _text(queue).lower()
+    capability = _operation_queue_capability(queue)
+    if not capability:
+        frappe.throw("Select a supported administration queue.", frappe.ValidationError)
+    _require(capability)
+    start, length = _pagination(limit_start, limit_page_length)
+    filters = _operation_filters(queue)
+    query = _text(search)
+    or_filters = None
+    if query:
+        pattern = f"%{query}%"
+        or_filters = {
+            "name": ["like", pattern],
+            "title": ["like", pattern],
+            "customer_name": ["like", pattern],
+            "service_title": ["like", pattern],
+        }
+
+    fields = [
+        "name", "title", "status", "service", "service_title",
+        "customer_profile", "customer_name", "assigned_staff", "erp_task",
+        "erp_sync_status", "erp_sync_error", "erp_retry_count",
+        "erp_last_attempt_at", "erp_next_attempt_at", "erp_retry_exhausted_at",
+        "original_price", "discount_type", "discount_value", "discount_amount",
+        "proposed_final_price", "final_price", "discount_reason",
+        "discount_status", "discount_requested_by", "modified",
+    ]
+    rows = frappe.get_all(
+        "OMC Service Request",
+        filters=filters,
+        or_filters=or_filters,
+        fields=fields,
+        order_by="modified desc, name desc",
+        limit_start=start,
+        limit_page_length=length,
+    )
+    if or_filters:
+        total = len(
+            frappe.get_all(
+                "OMC Service Request",
+                filters=filters,
+                or_filters=or_filters,
+                pluck="name",
+                limit_page_length=0,
+            )
+        )
+    else:
+        total = frappe.db.count("OMC Service Request", filters=filters)
+    return {
+        "queue": queue,
+        "items": [dict(row) for row in rows],
+        "limit_start": start,
+        "limit_page_length": length,
+        "total": total,
+        "has_more": start + len(rows) < total,
+    }
+
+
+@frappe.whitelist()
+def reassign_service_request(service_request=None, assigned_staff=None, reason=None):
     _require("can_reassign_service_cases")
     if not service_request or not frappe.db.exists("OMC Service Request", service_request):
         frappe.throw("Service request was not found.", frappe.DoesNotExistError)
     request = frappe.get_doc("OMC Service Request", service_request)
     service = frappe.get_doc("OMC Service", request.service)
+    previous_assignee = request.get("assigned_staff") or ""
     decision = service_assignment.resolve_assignee(service, explicit_user=assigned_staff)
     result = service_assignment.apply_assignment(request, decision)
+    reason = _text(reason)
+    audit_message = (
+        f"Service request reassigned from {previous_assignee or 'Unassigned'} "
+        f"to {decision.get('candidate') or 'Unassigned'} by {_current_user()}."
+    )
+    if reason:
+        audit_message += f" Reason: {reason}"
+    request.add_comment("Comment", text=audit_message)
     frappe.db.commit()
-    return {"service_request": request.name, "assigned_staff": decision.get("candidate"), "assignment": result}
+    return {
+        "service_request": request.name,
+        "previous_assignee": previous_assignee,
+        "assigned_staff": decision.get("candidate"),
+        "assignment": result,
+        "audit_message": audit_message,
+    }
 
 
 @frappe.whitelist()
@@ -246,6 +345,11 @@ def get_case_admin_options(service_request=None):
     )
     return {
         "service_request": request.name,
+        "title": request.get("title") or request.get("service_title") or request.name,
+        "service": request.get("service") or "",
+        "service_title": request.get("service_title") or "",
+        "customer_profile": request.get("customer_profile") or "",
+        "customer_name": request.get("customer_name") or "",
         "assigned_staff": request.get("assigned_staff") or "",
         "assignment_candidates": [
             {"user_id": user, "full_name": frappe.db.get_value("User", user, "full_name") or user}
@@ -253,11 +357,31 @@ def get_case_admin_options(service_request=None):
         ],
         "erp_sync_status": request.get("erp_sync_status") or "",
         "erp_retry_count": request.get("erp_retry_count") or 0,
+        "erp_sync_error": request.get("erp_sync_error") or "",
+        "erp_task": request.get("erp_task") or "",
+        "erp_last_attempt_at": str(request.get("erp_last_attempt_at") or ""),
+        "erp_next_attempt_at": str(request.get("erp_next_attempt_at") or ""),
         "erp_retry_exhausted_at": str(request.get("erp_retry_exhausted_at") or ""),
         "discount_status": request.get("discount_status") or "",
+        "discount_type": request.get("discount_type") or "",
+        "discount_value": flt(request.get("discount_value")),
+        "discount_amount": flt(request.get("discount_amount")),
+        "discount_reason": request.get("discount_reason") or "",
+        "discount_requested_by": request.get("discount_requested_by") or "",
         "original_price": flt(request.get("original_price")),
         "proposed_final_price": flt(request.get("proposed_final_price")),
         "final_price": flt(request.get("final_price")),
+        "discount_auto_approval_percent": flt(
+            frappe.db.get_single_value("OMC Mobile Settings", "discount_auto_approval_percent")
+        ),
+        "minimum_service_price": flt(
+            frappe.db.get_single_value("OMC Mobile Settings", "minimum_service_price")
+        ),
+        "capabilities": {
+            "can_reassign": bool(capabilities.get("can_reassign_service_cases")),
+            "can_retry_sync": bool(capabilities.get("can_retry_sync")),
+            "can_review_discount": bool(capabilities.get("can_manage_business_settings")),
+        },
     }
 
 
@@ -278,6 +402,9 @@ def review_discount(service_request=None, decision=None, reason=None):
     request = frappe.get_doc("OMC Service Request", service_request)
     if _text(request.get("discount_status")) != "Pending Approval":
         frappe.throw("This request does not have a pending discount.", frappe.ValidationError)
+    reason = _text(reason)
+    if decision == "reject" and not reason:
+        frappe.throw("Review remarks are required when rejecting a discount.", frappe.ValidationError)
     request.discount_approved_by = _current_user()
     if decision == "approve":
         request.final_price = request.get("proposed_final_price") or request.original_price
@@ -285,7 +412,13 @@ def review_discount(service_request=None, decision=None, reason=None):
     else:
         request.final_price = request.original_price
         request.discount_status = "Rejected"
-        request.add_comment("Comment", text=_text(reason) or "Discount request rejected by OMC administration.")
+    request.add_comment(
+        "Comment",
+        text=(
+            f"Discount {'approved' if decision == 'approve' else 'rejected'} by {_current_user()}."
+            + (f" Review remarks: {reason}" if reason else "")
+        ),
+    )
     request.save(ignore_permissions=True)
     frappe.db.commit()
     return {"service_request": request.name, "discount_status": request.discount_status, "final_price": flt(request.final_price)}

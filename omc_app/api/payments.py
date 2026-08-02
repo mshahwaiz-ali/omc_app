@@ -666,7 +666,12 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
 
 
 @frappe.whitelist()
-def get_payments():
+def get_payments(
+    limit_start=0,
+    limit_page_length=50,
+    search=None,
+    status=None,
+):
     is_internal = mobile._can_access_internal_workspace()
     profile = None if is_internal else mobile._assert_approved_customer()
     capabilities = access.get_mobile_capabilities()
@@ -691,27 +696,89 @@ def get_payments():
         )
     ]
     if not service_request_names:
-        return {"payments": []}
+        return {
+            "payments": [],
+            "limit_start": 0,
+            "limit_page_length": 0,
+            "total": 0,
+            "has_more": False,
+        }
 
-    payment_names = frappe.get_all(
+    try:
+        start = max(int(limit_start or 0), 0)
+        page_length = min(max(int(limit_page_length or 50), 1), 100)
+    except (TypeError, ValueError):
+        frappe.throw("Invalid payment pagination values.", frappe.ValidationError)
+
+    payment_rows = frappe.get_all(
         PAYMENT_DOCTYPE,
         filters={
             "service_request": ["in", service_request_names],
             "visible_to_customer": 1,
         },
-        pluck="name",
+        fields=[
+            "name",
+            "payment_title",
+            "payment_reference",
+            "status",
+            "service_request",
+        ],
         order_by="due_date desc, creation desc",
+        limit_page_length=0,
     )
+
+    status_values = {
+        _clean_text(value).lower()
+        for value in _clean_text(status).split(",")
+        if _clean_text(value)
+    }
+    query = _clean_text(search).lower()
+    case_context = {
+        row.name: " ".join(
+            _clean_text(row.get(fieldname))
+            for fieldname in ("customer_name", "customer_profile", "service_title", "service")
+        ).lower()
+        for row in frappe.get_all(
+            "OMC Service Request",
+            filters={"name": ["in", service_request_names]},
+            fields=["name", "customer_name", "customer_profile", "service_title", "service"],
+            limit_page_length=0,
+        )
+    }
+    filtered_rows = []
+    for row in payment_rows:
+        if status_values and _clean_text(row.status).lower() not in status_values:
+            continue
+        if query:
+            haystack = " ".join(
+                (
+                    _clean_text(row.name),
+                    _clean_text(row.payment_title),
+                    _clean_text(row.payment_reference),
+                    _clean_text(row.service_request),
+                    case_context.get(row.service_request, ""),
+                )
+            ).lower()
+            if query not in haystack:
+                continue
+        filtered_rows.append(row)
+
+    total = len(filtered_rows)
+    page_rows = filtered_rows[start : start + page_length]
 
     return {
         "payments": [
             _payment_dict(
-                frappe.get_doc(PAYMENT_DOCTYPE, name),
+                frappe.get_doc(PAYMENT_DOCTYPE, row.name),
                 capabilities=capabilities,
                 customer_view=profile is not None,
             )
-            for name in payment_names
-        ]
+            for row in page_rows
+        ],
+        "limit_start": start,
+        "limit_page_length": page_length,
+        "total": total,
+        "has_more": start + len(page_rows) < total,
     }
 
 
