@@ -56,7 +56,7 @@ def project(case: Mapping[str, Any]) -> dict[str, Any]:
     paid_payments = _number(case.get("paid_payments_count"))
     open_payments = _number(case.get("open_payments_count"))
     rejected_payments = _number(case.get("rejected_payments_count"))
-    operational_complete = bool(case.get("operational_work_complete")) or status == "Completed"
+    operational_complete = bool(case.get("operational_work_complete"))
     documents_complete = required == 0 or (approved >= required and missing == 0 and rejected_documents == 0)
     payment_complete = active_payments == 0 or (paid_payments >= active_payments and open_payments == 0)
 
@@ -113,7 +113,7 @@ def project(case: Mapping[str, Any]) -> dict[str, Any]:
         "next_action": next_action,
         "next_step": next_action["label"] if next_action else ("OMC is processing your request." if stage == "processing" else ""),
         "milestones": milestones,
-        "completion_blockers": [] if status == "Completed" else blockers,
+        "completion_blockers": blockers,
         "completion_eligible": not blockers,
         "documents_complete": documents_complete, "payment_complete": payment_complete,
     }

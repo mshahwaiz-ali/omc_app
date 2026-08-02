@@ -8,6 +8,55 @@ from omc_app.api import mobile, payments
 
 
 class TestPaymentAccessScope(TestCase):
+    @patch.object(payments.access, "get_mobile_capabilities")
+    @patch.object(payments.frappe, "get_all")
+    def test_admin_scope_contains_all_service_cases(self, get_all, capabilities):
+        capabilities.return_value = {"can_view_all_service_cases": True}
+        get_all.return_value = ["CASE-1", "CASE-2"]
+
+        names = payments._accessible_service_request_names(
+            internal_user="admin@example.com"
+        )
+
+        self.assertEqual(names, {"CASE-1", "CASE-2"})
+        get_all.assert_called_once_with("OMC Service Request", pluck="name")
+
+    @patch.object(payments.access, "get_mobile_capabilities")
+    @patch.object(payments, "_customer_profile_name_for_user", return_value=None)
+    @patch.object(payments, "_owned_referral_profile_names", return_value=[])
+    @patch.object(payments.frappe, "get_meta")
+    @patch.object(payments.frappe, "get_all")
+    def test_finance_reviewer_scope_contains_payment_queue_cases(
+        self,
+        get_all,
+        get_meta,
+        _referral_profiles,
+        _own_profile,
+        capabilities,
+    ):
+        capabilities.return_value = {
+            "can_view_relevant_service_cases": True,
+            "can_review_payments": True,
+        }
+        get_meta.return_value = SimpleNamespace(has_field=lambda _field: False)
+        get_all.return_value = ["CASE-PAYMENT"]
+
+        names = payments._accessible_service_request_names(
+            internal_user="finance@example.com"
+        )
+
+        self.assertEqual(names, {"CASE-PAYMENT"})
+        get_all.assert_called_once_with(
+            payments.PAYMENT_DOCTYPE,
+            filters={"service_request": ["is", "set"]},
+            pluck="service_request",
+        )
+
+    @patch.object(
+        payments.access,
+        "get_mobile_capabilities",
+        return_value={},
+    )
     @patch.object(payments.frappe, "get_meta")
     @patch.object(payments, "_customer_profile_name_for_user")
     @patch.object(payments, "_owned_referral_profile_names")
@@ -18,6 +67,7 @@ class TestPaymentAccessScope(TestCase):
         referral_profiles,
         own_profile,
         get_meta,
+        _capabilities,
     ):
         get_meta.return_value = SimpleNamespace(has_field=lambda field: field == "assigned_staff")
         own_profile.return_value = "CUST-OWN"
@@ -64,6 +114,11 @@ class TestPaymentAccessScope(TestCase):
             ],
         )
 
+    @patch.object(
+        payments.access,
+        "get_mobile_capabilities",
+        return_value={},
+    )
     @patch.object(payments, "_customer_profile_name_for_user", return_value=None)
     @patch.object(payments, "_owned_referral_profile_names", return_value=[])
     @patch.object(payments.frappe, "get_meta")
@@ -72,6 +127,7 @@ class TestPaymentAccessScope(TestCase):
         get_meta,
         _referral_profiles,
         _own_profile,
+        _capabilities,
     ):
         get_meta.return_value = SimpleNamespace(has_field=lambda _field: False)
         self.assertEqual(

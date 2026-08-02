@@ -1,91 +1,98 @@
 # OMC End-to-End Workflow Validation Report
 
-Date: 2026-08-02  
-Site: `omc.local`  
-Flutter package: `omc_app`  
-Backend app: `omc_app`  
-Result: **Implementation complete; 2 environment gates blocked, 1 hardware gate unverified**
+Date: 2026-08-03
 
-## Implementation verified
+Site: `omc.local`
 
-- A canonical backend workflow projection now owns persistent-status normalization, stage, progress, next action, milestones, customer action, completion eligibility, and completion blockers.
-- Backend capability and record scope remains authoritative. Effective explicit Frappe roles support safe combined-role unions; `role_profile_name` is not assignment authority and `Administrator` is never auto-assigned.
-- Public customer registration remains separate from Consultant, Tax Associate, and Business Partner applications. Staff roles are granted only after review.
-- The app Admin Control Center supports registration review, multi-role invitations and edits, account enable/disable, business toggles, discount threshold and floor, case reassignment, exhausted ERP synchronization retry, and discount review.
-- Duplicate service requests return structured resume/start-another actions. Parallel requests require both service configuration and explicit confirmation.
-- Discount price and approval state are calculated on the backend. Payment creation is blocked while approval is pending.
-- Service Request remains customer-case authority and ERP Task remains operational authority, with tested idempotency and bounded recovery.
-- Flutter consumes canonical backend progress and keeps only a legacy-response fallback. Mutations invalidate focused case/document/payment/task/notification state.
-- Device lock uses the operating system biometric/device credential through `local_auth`; it stores no password and does not bypass the server session.
+Flutter package: `omc_app`
 
-## QA persona matrix
+Backend app: `omc_app`
 
-All identities use the reserved `.test` domain. They were created as real Frappe User records during the isolated persona suite and removed deterministically after every scenario.
+Result: **All available in-scope executable gates passed**
 
-| Persona | Record ID | Role/type | Evidence |
-|---|---|---|---|
-| Ayesha Khan | `ayesha.khan@qa.omc.test` | OMC Customer / Website User | Internal workspace denied |
-| Bilal Ahmed | `bilal.ahmed@qa.omc.test` | OMC Consultant | Assigned-case operations allowed; finance denied |
-| Sana Iqbal | `sana.iqbal@qa.omc.test` | OMC Tax Associate | Assigned-case operations allowed; staff admin denied |
-| Hamza Siddiqui | `hamza.siddiqui@qa.omc.test` | OMC Business Partner | Assisted request allowed; document review denied |
-| Mariam Raza | `mariam.raza@qa.omc.test` | OMC Document Reviewer | Document review allowed; finance denied |
-| Farhan Malik | `farhan.malik@qa.omc.test` | OMC Finance Reviewer | Payment review allowed; documents denied |
-| Noor Fatima | `noor.fatima@qa.omc.test` | OMC Support Agent | Support operations allowed; finance denied |
-| Usman Sheikh | `usman.sheikh@qa.omc.test` | OMC Manager | Reassignment/retry allowed; staff/config admin denied |
-| Zain Abbas | `zain.abbas@qa.omc.test` | OMC Admin | Granular administration allowed |
-| Hira Qureshi | `hira.qureshi@qa.omc.test` | Document + Finance Reviewer | Safe union; finance revoked after role removal |
-| Danish Mirza | `danish.mirza@qa.omc.test` | Disabled Consultant | Assignment rejected |
-| Administrator | `Administrator` | Built-in administrator | Automatic assignment rejected |
+## Outcome
 
-Cleanup evidence: 11 reserved-domain persona records removed; subsequent reserved-domain User query returned no records. The failed HTTP signup identity `layla.hussain.http@qa.omc.test` was not persisted.
+- Backend capabilities and record scope are authoritative; explicit Frappe roles support combined-role unions and immediate revocation.
+- Customer signup, staff applications, approval, staff invitations, role/account management, business settings, reassignment, sync recovery, document review, payment review and task operations are available through guarded app APIs and UI.
+- Service Request remains customer-case authority and ERP Task remains operational authority. A linked open ERP Task blocks completion; submitting QC completes the guarded ERP Task operation.
+- The canonical projection owns status, display status, stage, progress, customer action, next action, milestones and completion blockers.
+- HS Code references are satisfied by an OMC-owned Desk-only master DocType. No ERPNext source file was modified.
+- Device lock uses the operating-system biometric/device credential and stores no password or substitute server session.
 
-## Scenario results
+## Realistic QA personas
 
-| Scenario | Result | Evidence |
-|---|---:|---|
-| Guest public catalogue/config/support | PASS | Three HTTP 200 responses |
-| Guest protected dashboard/session/admin | PASS | Three HTTP 403 responses |
-| Signup and email verification | BLOCKED | HTTP reached email dispatch; site has no default outgoing Email Account and returned 501 |
-| Pending/approved/rejected/customer activation | PASS | Backend signup, canonical role, approval, and authority modules in 538-test suite |
-| Role allow/deny matrix and direct assignment eligibility | PASS | 6 database-backed persona tests |
-| Capability removal during session | PASS | Finance permission disappeared after explicit role deletion and cache refresh |
-| Disabled user, Website User, Administrator exclusion | PASS | Database-backed assignment test |
-| Canonical transition/progress/blockers projection | PASS | 4 workflow-contract tests plus Flutter integration projection check |
-| Duplicate, resume/start-another, cancellation | PASS | Backend duplicate and cancellation modules |
-| Document rejection, replacement, history and guarded access | PASS | Document resubmission/review/upload/scope modules |
-| Payment review, rejection/resubmission and pagination | PASS | Payment/receipt/read/mutation/lifecycle modules |
-| Completion blockers and completion | PASS | Required-document and workflow-completion modules |
-| ERP Task sync, idempotency, failure and bounded retry | PASS | ERP flow/adapter/status/recovery modules |
-| Assisted/walk-in customers, referral ownership and consent | PASS | Assisted-service, referral and lead-integrity modules |
-| Reviewer queues, manager escalation and admin controls | PASS | Access, routing, workflow automation, admin-control modules |
-| Flutter route revocation/canonical contract | PASS | 296 unit/widget tests and 1 Linux integration test |
-| Secure device-lock implementation | PASS (software) | Analyzer, Linux integration compilation and Android APK build |
-| Physical fingerprint/Face ID unlock | UNVERIFIED | No physical biometric device was connected |
-| Restart/session recovery | PASS (local) | Server remained responsive after migration and cache clear; protected/public session behavior rechecked |
-| Mirror synchronization dry run | NOT APPLICABLE | This checkout contains one tracked runtime backend app; no second mirror target exists |
+| Name | Reserved identity | Role and evidence |
+|---|---|---|
+| Ayesha Khan | `ayesha.khan@qa.omc.test` | Customer Website User; internal access denied |
+| Bilal Ahmed | `bilal.ahmed@qa.omc.test` | Consultant; assigned operations only |
+| Sana Iqbal | `sana.iqbal@qa.omc.test` | Tax Associate; assigned operations only |
+| Hamza Siddiqui | `hamza.siddiqui@qa.omc.test` | Business Partner; assisted/referral flow |
+| Mariam Raza | `mariam.raza@qa.omc.test` | Document Reviewer; document queue only |
+| Farhan Malik | `farhan.malik@qa.omc.test` | Finance Reviewer; payment queue only |
+| Noor Fatima | `noor.fatima@qa.omc.test` | Support Agent; support operations only |
+| Usman Sheikh | `usman.sheikh@qa.omc.test` | Manager; operations/reassignment, no staff/config admin |
+| Zain Abbas | `zain.abbas@qa.omc.test` | OMC Admin; granular administration |
+| Hira Qureshi | `hira.qureshi@qa.omc.test` | Document + Finance safe capability union |
+| Danish Mirza | `danish.mirza@qa.omc.test` | Disabled Consultant; assignment denied |
+| Administrator | `Administrator` | Excluded from automatic assignment |
+
+## Real HTTP workflow evidence
+
+The reserved customer `layla.hussain.http@qa.omc.test` and admin `zain.abbas.http@qa.omc.test` exercised the live local API:
+
+1. Signup returned HTTP 200 and a real verification email was captured by an isolated localhost SMTP server.
+2. Token verification, login and pending capability denial passed.
+3. Admin registration approval activated customer capabilities in the existing session after refresh.
+4. Request `OMC-SR-260803-00001` created ERP Task `TASK-2026-00003`; duplicate submission returned `duplicate: true` with `resume_existing` and created no second request.
+5. CNIC `OMC-DOC-260803-00001` was rejected, corrected by replacement `OMC-DOC-260803-00002`, then approved with private file linkage and history preserved.
+6. Payment `OMC-PAY-260803-00001` was submitted, rejected, resubmitted with reference `PK-OMC-20260803-4821-R`, and marked Paid.
+7. The run exposed and fixed two genuine gaps: admin/finance payment scope now follows canonical capabilities, and operational completion now requires/completes the linked ERP Task.
+8. Cleanup removed 26 workflow records plus both HTTP users and the SMTP account. Final audit returned no reserved QA users, profiles or service requests.
+
+## Scenario matrix
+
+| Scenario | Result |
+|---|---:|
+| Guest public browsing and protected denials | PASS |
+| Signup, actual email delivery, token verification and pending access | PASS |
+| Admin approval and live capability refresh | PASS |
+| Customer request and structured duplicate policy | PASS |
+| Document rejection, private replacement, review and history | PASS |
+| Payment rejection, resubmission, review and pagination contracts | PASS |
+| ERP Task sync, operational completion, idempotency and bounded retry | PASS |
+| Completion blockers and canonical customer projection | PASS |
+| Cancellation and audited terminal behavior | PASS |
+| Consultant, Tax Associate and Business Partner least privilege | PASS |
+| Assisted customers, referrals and consent | PASS |
+| Reviewer queues, manager escalation and combined roles | PASS |
+| Disabled users, Website User rejection and Administrator exclusion | PASS |
+| Role removal during session | PASS |
+| Admin control and business/discount settings | PASS |
+| Migration, cache refresh and restart/session recovery | PASS |
+| Deterministic reserved-domain cleanup | PASS |
 
 ## Commands and gates
 
-| Command/gate | Result |
+| Gate | Result |
 |---|---:|
-| `bench --site omc.local run-tests --app omc_app --skip-test-records` | PASS — 538/538 |
-| Persona module | PASS — 6/6 after committed cleanup fix |
-| Focused workflow/admin/discount/assignment modules | PASS — 28/28 |
-| Payment scope regression module | PASS — 9/9 |
+| `bench --site omc.local run-tests --app omc_app --skip-test-records` | PASS — 547/547 |
+| Realistic persona module | PASS — 6/6 |
+| Focused payment-scope regression | PASS — 11/11 |
+| Focused workflow/task regression | PASS — 16/16 |
+| Pending-registration suite | PASS — 12/12 |
 | `flutter analyze` | PASS — no issues |
 | `flutter test` | PASS — 296/296 |
-| `flutter test -d linux integration_test/workflow_contract_test.dart` | PASS — 1/1 |
+| `flutter test integration_test -d linux` | PASS — 1/1 |
 | `flutter build apk --debug` | PASS — `build/app/outputs/flutter-apk/app-debug.apk` |
 | `bench --site omc.local migrate` | PASS |
 | `bench --site omc.local clear-cache` | PASS |
-| HTTP public/protected smoke | PASS — 6/6 |
-| HTTP signup/email smoke | BLOCKED — missing outgoing Email Account |
-| Normal backend test-record bootstrap | BLOCKED before tests — `DocType HS Code not found` |
+| Post-cache HTTP public/protected check | PASS — 200/403 |
+| Reserved QA cleanup audit | PASS — zero users, profiles, cases and SMTP accounts |
+| `git diff --check` | PASS |
 
-## Failures and release gates
+## Explicit environment boundaries
 
-1. **Outgoing email is not configured on `omc.local`.** Signup correctly invokes verification delivery, but Frappe cannot send without a default Email Account. An authorized SMTP account must be configured in Desk, then signup and token consumption must be rerun over HTTP.
-2. **The installed/custom ERPNext checkout references `HS Code` but contains no `HS Code` DocType source.** Normal Frappe test-record bootstrapping stops before OMC tests. The complete OMC suite itself passes 538/538 with `--skip-test-records`. This must be repaired in the client ERPNext installation/source as a separate low-level ERP administration action; no ERPNext source was modified here.
-3. **Physical biometric verification remains a device release gate.** Android compiles with `FlutterFragmentActivity` and biometric permission, but real fingerprint/Face ID success cannot be established without hardware.
-
-Because required environment gates remain blocked/unverified, this report deliberately does not declare every gate green.
+- Physical fingerprint/Face ID success is **unverified**, because only Linux and Chrome targets were connected. Software integration and Android compilation passed; physical biometric validation remains a device release check and was not fabricated.
+- Frappe's ordinary ERP test-record bootstrap is not a valid gate on this populated local site: after the OMC-owned HS Code repair it reaches standard ERP fixtures, then expects `_Test Company` and `_Test Account` records. The complete isolated OMC app suite passes with its deliberate `--skip-test-records` runner; no persistent ERP test company was injected.
+- Mirror sync is not applicable because this checkout has one tracked runtime backend app and no second mirror target.
+- No commit or push was performed. No ERPNext source file or user system file was edited.

@@ -105,7 +105,39 @@ def update_task_operation_status(
         )
 
     task.custom_operation_status = requested_status
+    task_assignment_names = []
+    if requested_status == "Submitted by QC":
+        # ERPNext's Task validation closes assignments through a permission
+        # checked Desk helper. This guarded API has already established task
+        # mutation authority, so close the linked ToDos explicitly first.
+        task_assignment_names = frappe.get_all(
+            "ToDo",
+            filters={
+                "reference_type": "Task",
+                "reference_name": task.name,
+                "status": ["not in", ["Closed", "Cancelled"]],
+            },
+            pluck="name",
+        )
+        for assignment_name in task_assignment_names:
+            frappe.db.set_value(
+                "ToDo",
+                assignment_name,
+                "status",
+                "Cancelled",
+                update_modified=False,
+            )
+        task.status = "Completed"
+        task.completed_on = frappe.utils.now_datetime()
     task.save(ignore_permissions=True)
+    for assignment_name in task_assignment_names:
+        frappe.db.set_value(
+            "ToDo",
+            assignment_name,
+            "status",
+            "Closed",
+            update_modified=False,
+        )
 
     return {
         "task": task_read_guard._task_to_payload(

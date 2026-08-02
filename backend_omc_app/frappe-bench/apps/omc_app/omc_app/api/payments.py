@@ -81,7 +81,33 @@ def _accessible_service_request_names(*, profile=None, internal_user=None):
     if not user or user == "Guest":
         return set()
 
+    capabilities = access.get_mobile_capabilities(user=user)
+    if capabilities.get("can_view_all_service_cases"):
+        return set(
+            frappe.get_all(
+                "OMC Service Request",
+                pluck="name",
+            )
+        )
+
     accessible = set()
+
+    if capabilities.get("can_view_relevant_service_cases") and any(
+        capabilities.get(key)
+        for key in (
+            "can_view_payment_queue",
+            "can_view_payment_summaries",
+            "can_view_payment_receipts",
+            "can_review_payments",
+        )
+    ):
+        accessible.update(
+            frappe.get_all(
+                PAYMENT_DOCTYPE,
+                filters={"service_request": ["is", "set"]},
+                pluck="service_request",
+            )
+        )
 
     service_request_meta = frappe.get_meta("OMC Service Request")
     if service_request_meta.has_field("assigned_staff"):

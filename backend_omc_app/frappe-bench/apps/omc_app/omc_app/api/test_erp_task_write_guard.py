@@ -17,6 +17,8 @@ class TestErpTaskWriteGuard(FrappeTestCase):
         task = SimpleNamespace(
             name="ERP-TASK-1",
             custom_operation_status=operation_status,
+            status="Open",
+            completed_on=None,
             meta=meta,
         )
         task.save = lambda **kwargs: None
@@ -100,6 +102,39 @@ class TestErpTaskWriteGuard(FrappeTestCase):
             )
 
         self.assertTrue(result["updated"])
+
+    def test_qc_submission_completes_operational_task(self):
+        task = self._task("Pending at QC")
+        with (
+            patch.object(
+                task_write_guard.mobile,
+                "_assert_internal_workspace_access",
+                return_value="manager@example.com",
+            ),
+            patch.object(
+                task_write_guard.mobile,
+                "_require_canonical_capability",
+                return_value={"can_manage_tasks": True},
+            ),
+            patch.object(
+                task_write_guard,
+                "_load_linked_task",
+                return_value=(task, self._link()),
+            ),
+            patch.object(
+                task_write_guard.task_read_guard,
+                "_task_to_payload",
+                return_value={"name": "ERP-TASK-1"},
+            ),
+        ):
+            result = task_write_guard.update_task_operation_status(
+                task_id="ERP-TASK-1",
+                operation_status="Submitted by QC",
+            )
+
+        self.assertTrue(result["updated"])
+        self.assertEqual(task.status, "Completed")
+        self.assertIsNotNone(task.completed_on)
 
     def test_unassigned_staff_cannot_update_task(self):
         task = self._task()

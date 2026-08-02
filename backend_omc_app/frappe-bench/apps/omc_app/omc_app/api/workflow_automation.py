@@ -281,6 +281,20 @@ def completion_blockers(service_case):
             "Required payment has not been confirmed."
         )
 
+    erp_task = str(
+        getattr(service_case, "erp_task", None) or ""
+    ).strip()
+    if erp_task:
+        task_status = frappe.db.get_value(
+            "Task",
+            erp_task,
+            "status",
+        )
+        if (task_status or "").strip() != "Completed":
+            blockers.append(
+                "Operational ERP Task is not complete."
+            )
+
     return blockers
 
 

@@ -135,6 +135,12 @@ def _hydrate_service_case(service_case):
     service_case["contact_email"] = getattr(request, "contact_email", None) or service_case.get("contact_email") or ""
     service_case["contact_phone"] = getattr(request, "contact_phone", None) or service_case.get("contact_phone") or ""
     service_case["requested_by"] = getattr(request, "requested_by", None) or service_case.get("requested_by") or ""
+    erp_task = str(getattr(request, "erp_task", None) or "").strip()
+    service_case["erp_task"] = erp_task
+    service_case["operational_work_complete"] = bool(
+        erp_task
+        and frappe.db.get_value("Task", erp_task, "status") == "Completed"
+    )
 
     if customer_profile_name and frappe.db.exists("OMC Customer Profile", customer_profile_name):
         try:
