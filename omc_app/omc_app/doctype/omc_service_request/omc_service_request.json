@@ -15,6 +15,19 @@
   "description",
   "status",
   "priority",
+  "pricing_section",
+  "original_price",
+  "pricing_currency",
+  "discount_type",
+  "discount_value",
+  "discount_amount",
+  "proposed_final_price",
+  "final_price",
+  "discount_reason",
+  "discount_status",
+  "discount_requested_by",
+  "discount_approved_by",
+  "discount_applied_by",
   "customer_section",
   "customer_profile",
   "customer_name",
@@ -130,6 +143,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "proposed_final_price",
+   "fieldtype": "Currency",
+   "label": "Proposed Final Price",
+   "read_only": 1
+  },
+  {
    "fieldname": "final_price",
    "fieldtype": "Currency",
    "label": "Final Price",
@@ -139,6 +158,28 @@
    "fieldname": "discount_reason",
    "fieldtype": "Small Text",
    "label": "Discount Reason",
+   "read_only": 1
+  },
+  {
+   "default": "None",
+   "fieldname": "discount_status",
+   "fieldtype": "Select",
+   "label": "Discount Status",
+   "options": "None\nPending Approval\nApproved\nRejected",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_requested_by",
+   "fieldtype": "Link",
+   "label": "Discount Requested By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_approved_by",
+   "fieldtype": "Link",
+   "label": "Discount Approved By",
+   "options": "User",
    "read_only": 1
   },
   {

@@ -50,11 +50,22 @@ INTERNAL_CAPABILITY_KEYS = (
     "can_assign_support_tickets",
     "can_view_internal_notes",
     "can_manage_settings",
+    "can_manage_staff",
+    "can_review_registrations",
+    "can_manage_business_settings",
+    "can_reassign_service_cases",
+    "can_retry_sync",
 )
 
 ROLE_CAPABILITIES = {
     ADMIN_ROLE: set(INTERNAL_CAPABILITY_KEYS),
-    MANAGER_ROLE: set(INTERNAL_CAPABILITY_KEYS) - {"can_manage_settings"},
+    MANAGER_ROLE: set(INTERNAL_CAPABILITY_KEYS)
+    - {
+        "can_manage_settings",
+        "can_manage_staff",
+        "can_review_registrations",
+        "can_manage_business_settings",
+    },
     SUPPORT_AGENT_ROLE: {
         "can_access_internal_workspace",
         "can_manage_leads",

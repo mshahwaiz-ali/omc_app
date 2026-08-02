@@ -419,6 +419,9 @@ def _ensure_payment_for_case(service_case):
     if not _approved_required_documents(service_case):
         return None
 
+    if getattr(service_case, "discount_status", None) == "Pending Approval":
+        return None
+
     service = (
         frappe.get_doc("OMC Service", service_case.service)
         if service_case.service

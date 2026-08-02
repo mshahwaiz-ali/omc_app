@@ -1589,6 +1589,13 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
     doc = frappe.get_doc("OMC Service Request", case_id)
     old_status = doc.status or ""
 
+    from omc_app.api import workflow_contract
+
+    try:
+        workflow_contract.validate_service_transition(old_status, status)
+    except ValueError as exc:
+        frappe.throw(str(exc), frappe.ValidationError)
+
     if status == "Completed":
         from omc_app.api import workflow_automation
 

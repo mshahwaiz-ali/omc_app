@@ -8,6 +8,7 @@ from omc_app.api import mobile, payments
 
 
 class TestPaymentAccessScope(TestCase):
+    @patch.object(payments.frappe, "get_meta")
     @patch.object(payments, "_customer_profile_name_for_user")
     @patch.object(payments, "_owned_referral_profile_names")
     @patch.object(payments.frappe, "get_all")
@@ -16,10 +17,13 @@ class TestPaymentAccessScope(TestCase):
         get_all,
         referral_profiles,
         own_profile,
+        get_meta,
     ):
+        get_meta.return_value = SimpleNamespace(has_field=lambda field: field == "assigned_staff")
         own_profile.return_value = "CUST-OWN"
         referral_profiles.return_value = ["CUST-REF-1", "CUST-REF-2"]
         get_all.side_effect = [
+            ["CASE-ASSIGNED"],
             ["CASE-OWN"],
             ["CASE-REF-1", "CASE-REF-2"],
         ]
@@ -30,11 +34,16 @@ class TestPaymentAccessScope(TestCase):
 
         self.assertEqual(
             names,
-            {"CASE-OWN", "CASE-REF-1", "CASE-REF-2"},
+            {"CASE-ASSIGNED", "CASE-OWN", "CASE-REF-1", "CASE-REF-2"},
         )
         self.assertEqual(
             get_all.call_args_list,
             [
+                call(
+                    "OMC Service Request",
+                    filters={"assigned_staff": "staff@example.com"},
+                    pluck="name",
+                ),
                 call(
                     "OMC Service Request",
                     filters={"customer_profile": "CUST-OWN"},
@@ -57,11 +66,14 @@ class TestPaymentAccessScope(TestCase):
 
     @patch.object(payments, "_customer_profile_name_for_user", return_value=None)
     @patch.object(payments, "_owned_referral_profile_names", return_value=[])
+    @patch.object(payments.frappe, "get_meta")
     def test_internal_scope_is_empty_without_own_or_referral_relationship(
         self,
+        get_meta,
         _referral_profiles,
         _own_profile,
     ):
+        get_meta.return_value = SimpleNamespace(has_field=lambda _field: False)
         self.assertEqual(
             payments._accessible_service_request_names(
                 internal_user="unrelated@example.com"

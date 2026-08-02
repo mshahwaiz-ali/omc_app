@@ -46,8 +46,12 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
             "discount_type",
             "discount_value",
             "discount_amount",
+            "proposed_final_price",
             "final_price",
             "discount_reason",
+            "discount_status",
+            "discount_requested_by",
+            "discount_approved_by",
             "discount_applied_by",
         }
         self.assertTrue(expected.issubset(self.fields))
@@ -122,10 +126,12 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
         self.assertEqual(result["original_price"], 2000)
         self.assertEqual(result["discount_value"], 15)
         self.assertEqual(result["discount_amount"], 300)
-        self.assertEqual(result["final_price"], 1700)
+        self.assertEqual(result["proposed_final_price"], 1700)
+        self.assertEqual(result["final_price"], 2000)
+        self.assertEqual(result["discount_status"], "Pending Approval")
         self.assertEqual(result["pricing_currency"], "PKR")
         self.assertEqual(
-            result["discount_applied_by"],
+            result["discount_requested_by"],
             "staff@example.com",
         )
 
@@ -144,9 +150,11 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
         self.assertEqual(result["original_price"], 2000)
         self.assertEqual(result["discount_value"], 250)
         self.assertEqual(result["discount_amount"], 250)
-        self.assertEqual(result["final_price"], 1750)
+        self.assertEqual(result["proposed_final_price"], 1750)
+        self.assertEqual(result["final_price"], 2000)
+        self.assertEqual(result["discount_status"], "Pending Approval")
         self.assertEqual(
-            result["discount_applied_by"],
+            result["discount_requested_by"],
             "manager@example.com",
         )
 

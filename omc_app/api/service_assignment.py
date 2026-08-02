@@ -36,7 +36,7 @@ def active_assignable_user(user: Any, *, required_role: str | None = None):
     user_row = frappe.db.get_value(
         "User",
         user,
-        ["enabled", "user_type", "role_profile_name", "full_name"],
+        ["enabled", "user_type", "full_name"],
         as_dict=True,
     )
     if not user_row:
@@ -48,11 +48,11 @@ def active_assignable_user(user: Any, *, required_role: str | None = None):
     if full_name == "administrator":
         return None
 
-    role_profile = _text(user_row.role_profile_name)
+    effective_roles = user_roles(user).intersection(ASSIGNABLE_SERVICE_ROLES)
     if required_role:
-        return user if role_profile == required_role else None
+        return user if required_role in effective_roles else None
 
-    return user if role_profile in ASSIGNABLE_SERVICE_ROLES else None
+    return user if effective_roles else None
 
 
 def users_for_role(role: str) -> list[str]:
@@ -60,13 +60,9 @@ def users_for_role(role: str) -> list[str]:
         return []
 
     users = frappe.get_all(
-        "User",
-        filters={
-            "enabled": 1,
-            "user_type": "System User",
-            "role_profile_name": role,
-        },
-        pluck="name",
+        "Has Role",
+        filters={"role": role, "parenttype": "User"},
+        pluck="parent",
     )
 
     return sorted(

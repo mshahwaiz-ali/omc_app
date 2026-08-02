@@ -6,7 +6,7 @@ server-side capability checks for internal-only service case actions.
 
 import frappe
 
-from omc_app.api import access, mobile
+from omc_app.api import access, mobile, workflow_contract
 
 
 def _require_capability(*capability_names, message):
@@ -172,6 +172,17 @@ def _apply_service_case_capabilities(service_case, can_access_internal_workspace
         service_case.get("status"),
     )
 
+    if can_access_internal_workspace and case_id and frappe.db.exists("OMC Service Request", case_id):
+        request = frappe.get_doc("OMC Service Request", case_id)
+        service_case["assigned_staff"] = request.get("assigned_staff") or ""
+        service_case["erp_sync_status"] = request.get("erp_sync_status") or ""
+        service_case["erp_retry_count"] = request.get("erp_retry_count") or 0
+        service_case["erp_retry_exhausted_at"] = str(request.get("erp_retry_exhausted_at") or "")
+        service_case["discount_status"] = request.get("discount_status") or ""
+        service_case["original_price"] = request.get("original_price") or 0
+        service_case["proposed_final_price"] = request.get("proposed_final_price") or 0
+        service_case["final_price"] = request.get("final_price") or 0
+
     if not capabilities.get("can_view_internal_notes"):
         service_case["remarks"] = ""
 
@@ -264,29 +275,7 @@ def _empty_payment_summary():
 
 
 def _apply_service_case_tracking_summary(service_case):
-    status = (service_case.get("status") or "").strip()
-    normalized_status = status.lower()
-    missing_documents = service_case.get("missing_documents") or []
-    rejected_documents_count = _int_number(service_case.get("rejected_documents_count"))
-    open_payments_count = _int_number(service_case.get("open_payments_count"))
-    rejected_payments_count = _int_number(service_case.get("rejected_payments_count"))
-
-    customer_action_required = bool(missing_documents) or rejected_documents_count > 0 or rejected_payments_count > 0
-    if normalized_status in {"waiting for documents", "waiting for customer", "waiting for payment"}:
-        customer_action_required = True
-
-    progress = _weighted_service_case_progress(service_case)
-    service_case["customer_action_required"] = customer_action_required
-    service_case["current_stage"] = status
-    service_case["next_step"] = _service_case_next_step(
-        status,
-        missing_documents=missing_documents,
-        rejected_documents_count=rejected_documents_count,
-        open_payments_count=open_payments_count,
-        rejected_payments_count=rejected_payments_count,
-    )
-    service_case["progress"] = progress
-    service_case["progress_percent"] = int(round(progress * 100))
+    service_case.update(workflow_contract.project(service_case))
 
 
 def _merged_document_details(documents, required_document_templates=None):
