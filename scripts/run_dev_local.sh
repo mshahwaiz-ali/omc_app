@@ -71,7 +71,12 @@ else
   done
 fi
 
-ORIGINS="[\"http://${WEB_HOST}:${WEB_PORT}\",\"http://localhost:${WEB_PORT}\",\"http://127.0.0.1:${WEB_PORT}\"]"
+ORIGINS='[
+  "http://localhost:5001",
+  "http://127.0.0.1:5001",
+  "http://localhost:5002",
+  "http://127.0.0.1:5002"
+]' 
 if [ -d "$BENCH_DIR/sites/$SITE_NAME" ] && command -v bench >/dev/null 2>&1; then
   echo "Setting CORS for local Frappe site: $SITE_NAME"
   (

@@ -8,6 +8,7 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../payments/data/payment_item.dart';
 import '../../payments/data/payments_repository.dart';
+import '../../service_requests/data/service_case_repository.dart';
 import '../domain/internal_service_case.dart';
 import 'internal_workspace_providers.dart';
 
@@ -386,7 +387,7 @@ class InternalServiceCaseWorkspaceScreen extends ConsumerWidget {
 
   final String caseId;
 
-  String get _fullCaseRoute => '/my-services/${Uri.encodeComponent(caseId)}';
+  String get _fullCaseRoute => '/internal-workspace/service-cases';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2212,14 +2213,29 @@ class _ServiceWorkspaceHeader extends StatelessWidget {
   }
 }
 
-class _NextCaseAction extends StatelessWidget {
+class _NextCaseAction extends ConsumerWidget {
   const _NextCaseAction({required this.serviceCase});
+
+  static const List<String> _allowedStatuses = [
+    'Open',
+    'In Progress',
+    'Waiting for Customer',
+    'Waiting for Payment',
+    'Completed',
+    'Cancelled',
+  ];
 
   final InternalServiceCase serviceCase;
 
+  bool get _isTerminal {
+    final status = serviceCase.status.trim().toLowerCase();
+    return status == 'completed' || status == 'cancelled';
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final nextAction = _caseNextAction(serviceCase);
+    final canUpdate = serviceCase.canUpdateStatus && !_isTerminal;
 
     return Container(
       decoration: BoxDecoration(
@@ -2272,7 +2288,9 @@ class _NextCaseAction extends StatelessWidget {
             ),
           ),
           Material(
-            color: const Color(0xFF263244),
+            color: canUpdate
+                ? const Color(0xFF263244)
+                : const Color(0xFFE7EAF0),
             borderRadius: const BorderRadius.vertical(
               bottom: Radius.circular(16),
             ),
@@ -2280,34 +2298,44 @@ class _NextCaseAction extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 bottom: Radius.circular(16),
               ),
-              onTap: () => context.go(
-                '/my-services/${Uri.encodeComponent(serviceCase.id)}',
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+              onTap: canUpdate ? () => _showStatusSheet(context, ref) : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 13,
+                ),
                 child: Row(
                   children: [
                     Icon(
-                      Icons.admin_panel_settings_outlined,
-                      color: Colors.white,
+                      canUpdate
+                          ? Icons.edit_note_rounded
+                          : Icons.lock_outline_rounded,
+                      color: canUpdate ? Colors.white : AppTheme.textSecondary,
                       size: 19,
                     ),
-                    SizedBox(width: 9),
+                    const SizedBox(width: 9),
                     Expanded(
                       child: Text(
-                        'Open case actions',
+                        canUpdate
+                            ? 'Update case status'
+                            : _isTerminal
+                            ? 'Case is closed'
+                            : 'Status updates are not available',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: canUpdate
+                              ? Colors.white
+                              : AppTheme.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                    if (canUpdate)
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                   ],
                 ),
               ),
@@ -2316,6 +2344,234 @@ class _NextCaseAction extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showStatusSheet(BuildContext context, WidgetRef ref) async {
+    var selectedStatus = _allowedStatuses.contains(serviceCase.status)
+        ? serviceCase.status
+        : 'Open';
+    var isSaving = false;
+    final noteController = TextEditingController();
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) {
+          return StatefulBuilder(
+            builder: (sheetContext, setModalState) {
+              Future<void> submit() async {
+                if (isSaving) return;
+
+                if (selectedStatus == serviceCase.status &&
+                    noteController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Select a new status or add an update note.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                if (selectedStatus == 'Completed' ||
+                    selectedStatus == 'Cancelled') {
+                  final confirmed = await showDialog<bool>(
+                    context: sheetContext,
+                    builder: (dialogContext) => AlertDialog(
+                      title: Text(
+                        selectedStatus == 'Completed'
+                            ? 'Complete this case?'
+                            : 'Cancel this case?',
+                      ),
+                      content: Text(
+                        selectedStatus == 'Completed'
+                            ? 'Completion will run backend validation and finalization. The case cannot be reopened from this screen.'
+                            : 'Cancellation will close this service request.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
+                          child: const Text('Go back'),
+                        ),
+                        FilledButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(true),
+                          child: Text(
+                            selectedStatus == 'Completed'
+                                ? 'Complete case'
+                                : 'Cancel case',
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmed != true) return;
+                }
+
+                setModalState(() => isSaving = true);
+
+                try {
+                  final repository = ref.read(serviceCaseRepositoryProvider);
+
+                  await repository.updateServiceCaseStatus(
+                    caseId: serviceCase.id,
+                    status: selectedStatus,
+                    note: noteController.text,
+                  );
+
+                  ref.invalidate(internalServiceCasesProvider);
+                  ref.invalidate(internalWorkspaceSummaryProvider);
+
+                  if (!sheetContext.mounted) return;
+                  Navigator.of(sheetContext).pop();
+
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Case status updated to $selectedStatus.',
+                        ),
+                      ),
+                    );
+                } catch (error) {
+                  if (!sheetContext.mounted) return;
+
+                  final failure = AppFailureClassifier.classify(
+                    error,
+                    fallbackTitle: 'Status update failed',
+                    fallbackMessage:
+                        'The case status could not be updated right now.',
+                  );
+
+                  ScaffoldMessenger.of(sheetContext)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(SnackBar(content: Text(failure.message)));
+
+                  setModalState(() => isSaving = false);
+                }
+              }
+
+              return SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 12,
+                    bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + 16,
+                  ),
+                  child: Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Update case status',
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: isSaving
+                                    ? null
+                                    : () => Navigator.of(sheetContext).pop(),
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            serviceCase.id,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedStatus,
+                            decoration: const InputDecoration(
+                              labelText: 'Status',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _allowedStatuses
+                                .map(
+                                  (status) => DropdownMenuItem<String>(
+                                    value: status,
+                                    child: Text(status),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: isSaving
+                                ? null
+                                : (value) {
+                                    if (value == null) return;
+                                    setModalState(() => selectedStatus = value);
+                                  },
+                          ),
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: noteController,
+                            enabled: !isSaving,
+                            minLines: 3,
+                            maxLines: 5,
+                            decoration: const InputDecoration(
+                              labelText: 'Update note',
+                              hintText:
+                                  'Add a concise update for the customer timeline',
+                              alignLabelWithHint: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: isSaving ? null : submit,
+                              icon: isSaving
+                                  ? const SizedBox(
+                                      width: 17,
+                                      height: 17,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.save_outlined),
+                              label: Text(
+                                isSaving ? 'Updating...' : 'Save status update',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      noteController.dispose();
+    }
   }
 }
 
@@ -2652,8 +2908,9 @@ class _DocumentsBlock extends StatelessWidget {
       title: 'Documents',
       icon: Icons.folder_outlined,
       trailing: TextButton(
-        onPressed: () =>
-            context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
+        onPressed: () => context.go(
+          '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+        ),
         style: TextButton.styleFrom(
           foregroundColor: const Color(0xFF315F91),
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -2765,8 +3022,9 @@ class _PaymentsBlock extends StatelessWidget {
         _CaseNavigationAction(
           icon: Icons.payments_outlined,
           label: 'Open payment actions',
-          onTap: () =>
-              context.go('/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}'),
+          onTap: () => context.go(
+            '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
+          ),
         ),
       ],
     );

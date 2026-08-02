@@ -437,7 +437,7 @@ def get_dashboard_data():
         "active_cases": _count("OMC Service Request", open_service_filters),
         "completed_services": _count("OMC Service Request", completed_service_filters),
         "completed_cases": _count("OMC Service Request", completed_service_filters),
-        "documents": document_summary.get("missing", 0),
+        "documents": document_summary.get("total", 0),
         "pending_documents": document_summary.get("missing", 0),
         "payments_due": payment_summary.get("payments_due", 0),
         "notifications": _count(
@@ -464,4 +464,4 @@ def get_dashboard_data():
     else:
         summary["next_action"] = _next_action(summary, is_internal=False)
 
-    return {"message": summary}
+    return summary

@@ -62,6 +62,47 @@ def _set_if_field(doc, fieldname: str, value: Any) -> None:
         doc.set(fieldname, value)
 
 
+def _set_customer_identity(customer, profile) -> None:
+    """Map OMC CNIC/NTN into supported ERP Customer identity fields."""
+    ntn = _text(getattr(profile, "ntn", None))
+    cnic = _text(getattr(profile, "cnic", None))
+    identity = ntn or cnic
+
+    if not identity:
+        return
+
+    # Standard ERPNext identity field.
+    _set_if_field(customer, "tax_id", identity)
+
+    # Support client-specific Customer fields without modifying ERPNext.
+    known_fields = {
+        "cnic",
+        "ntn",
+        "cnic_ntn",
+        "custom_cnic",
+        "custom_ntn",
+        "custom_cnic_ntn",
+    }
+
+    for field in customer.meta.fields:
+        fieldname = _text(getattr(field, "fieldname", None))
+        label = _text(getattr(field, "label", None)).lower()
+        fieldtype = _text(getattr(field, "fieldtype", None))
+
+        if not fieldname or fieldtype not in {"Data", "Small Text"}:
+            continue
+
+        normalized_label = label.replace(" ", "").replace("-", "").replace("_", "")
+        identity_label = (
+            "cnic" in normalized_label
+            or "ntn" in normalized_label
+        )
+
+        if fieldname in known_fields or identity_label:
+            if not _text(customer.get(fieldname)):
+                customer.set(fieldname, identity)
+
+
 def _link_profile(profile, customer: str) -> None:
     profile.set("linked_erpnext_customer", customer)
     frappe.db.set_value(
@@ -92,7 +133,7 @@ def _create_customer(profile, user: str):
     _set_if_field(customer, "user_link", user)
     _set_if_field(customer, "mobile_no", getattr(profile, "phone", None))
     _set_if_field(customer, "email_id", getattr(profile, "email", None))
-    _set_if_field(customer, "tax_id", getattr(profile, "ntn", None))
+    _set_customer_identity(customer, profile)
 
     customer.insert(ignore_permissions=True)
     return customer, ""

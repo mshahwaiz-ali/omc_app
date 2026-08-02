@@ -502,24 +502,25 @@ class ServiceRequestRepository {
 
     final message = response['message'];
 
-    final messageValue = _stringOrNull(message);
-    if (messageValue != null) return messageValue;
-
-    if (message is Map<String, dynamic>) {
+    if (message is Map) {
+      final nested = Map<String, dynamic>.from(message);
       final nestedCandidates = [
-        message['name'],
-        message['request_id'],
-        message['service_request'],
-        message['service_request_id'],
-        message['case_id'],
-        message['reference'],
-        message['docname'],
+        nested['name'],
+        nested['request_id'],
+        nested['service_request'],
+        nested['service_request_id'],
+        nested['case_id'],
+        nested['reference'],
+        nested['docname'],
       ];
 
       for (final candidate in nestedCandidates) {
         final value = _stringOrNull(candidate);
         if (value != null) return value;
       }
+    } else {
+      final messageValue = _stringOrNull(message);
+      if (messageValue != null) return messageValue;
     }
 
     final data = response['data'];
@@ -544,7 +545,7 @@ class ServiceRequestRepository {
   }
 
   String? _stringOrNull(Object? value) {
-    if (value == null) return null;
+    if (value == null || value is Map || value is Iterable) return null;
 
     final text = value.toString().trim();
     if (text.isEmpty) return null;

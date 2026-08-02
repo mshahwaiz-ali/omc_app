@@ -249,7 +249,11 @@ class HomeDashboardRepository {
 
   HomeDashboardSummary _summaryFromResponse(Map<String, dynamic> response) {
     final message = response['message'];
-    final data = message is Map<String, dynamic> ? message : response;
+    final firstLevel = message is Map<String, dynamic> ? message : response;
+    final nestedMessage = firstLevel['message'];
+    final data = nestedMessage is Map<String, dynamic>
+        ? nestedMessage
+        : firstLevel;
     final documentSummary = _documentSummary(data['document_summary']);
     final paymentSummary = _paymentSummary(data['payment_summary']);
 

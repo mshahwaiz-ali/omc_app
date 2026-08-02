@@ -28,31 +28,52 @@ def user_roles(user: str) -> set[str]:
     return set(frappe.get_roles(user) or []) if user and user != "Guest" else set()
 
 
-def active_assignable_user(user: Any):
+def active_assignable_user(user: Any, *, required_role: str | None = None):
     user = _text(user)
-    if not user or user == "Guest":
+    if not user or user in {"Guest", "Administrator"}:
         return None
-    if not frappe.db.exists("User", {"name": user, "enabled": 1, "user_type": "System User"}):
+
+    user_row = frappe.db.get_value(
+        "User",
+        user,
+        ["enabled", "user_type", "role_profile_name", "full_name"],
+        as_dict=True,
+    )
+    if not user_row:
         return None
-    return user if user_roles(user).intersection(ASSIGNABLE_SERVICE_ROLES) else None
+    if not int(user_row.enabled or 0) or user_row.user_type != "System User":
+        return None
+
+    full_name = _text(user_row.full_name).lower()
+    if full_name == "administrator":
+        return None
+
+    role_profile = _text(user_row.role_profile_name)
+    if required_role:
+        return user if role_profile == required_role else None
+
+    return user if role_profile in ASSIGNABLE_SERVICE_ROLES else None
 
 
 def users_for_role(role: str) -> list[str]:
     if role not in ASSIGNABLE_SERVICE_ROLES:
         return []
-    parents = frappe.get_all(
-        "Has Role",
-        filters={"role": role, "parenttype": "User"},
-        pluck="parent",
-    )
-    if not parents:
-        return []
-    active = frappe.get_all(
+
+    users = frappe.get_all(
         "User",
-        filters={"name": ["in", sorted(set(parents))], "enabled": 1, "user_type": "System User"},
+        filters={
+            "enabled": 1,
+            "user_type": "System User",
+            "role_profile_name": role,
+        },
         pluck="name",
     )
-    return sorted(user for user in set(active) if active_assignable_user(user))
+
+    return sorted(
+        user
+        for user in set(users)
+        if active_assignable_user(user, required_role=role)
+    )
 
 
 def open_assignment_count(user: str) -> int:

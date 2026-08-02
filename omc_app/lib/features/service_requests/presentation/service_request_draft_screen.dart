@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -466,11 +464,7 @@ class _ServiceRequestDraftScreenState
     final repository = ref.read(serviceRequestRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
     final dynamicDetails = _dynamicValues(fields);
-    final additionalDetails = <String, String>{
-      ...dynamicDetails,
-      if (dynamicDetails.isNotEmpty)
-        'form_data_json': jsonEncode(dynamicDetails),
-    };
+    final additionalDetails = <String, String>{...dynamicDetails};
 
     setState(() => _isSubmitting = true);
     try {

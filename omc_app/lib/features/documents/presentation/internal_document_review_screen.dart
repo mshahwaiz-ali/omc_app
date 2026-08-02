@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
@@ -15,7 +17,6 @@ import '../data/document_item.dart';
 import '../data/documents_repository.dart';
 
 const _documentIndigo = Color(0xFF4F46E5);
-const _documentNavy = Color(0xFF0B1F4D);
 const _reviewTeal = Color(0xFF0F9F8F);
 const _approvedGreen = Color(0xFF159A62);
 const _actionAmber = Color(0xFFF59E0B);
@@ -192,6 +193,66 @@ class _InternalDocumentReviewScreenState
     await _reviewDocument(document, 'Rejected', remarks: remarks);
   }
 
+  Future<void> _openDocumentPreview(DocumentItem document) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final rawUrl =
+        (document.previewUrl ?? document.fileUrl ?? document.downloadUrl)
+            ?.trim();
+
+    if (rawUrl == null || rawUrl.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No uploaded file is available to preview.'),
+        ),
+      );
+      return;
+    }
+
+    final parsed = Uri.tryParse(rawUrl);
+    Uri? uri;
+
+    if (parsed != null && parsed.hasScheme) {
+      final scheme = parsed.scheme.toLowerCase();
+      if (scheme == 'http' || scheme == 'https') {
+        uri = parsed;
+      }
+    } else if (rawUrl.startsWith('/')) {
+      final baseUri = Uri.tryParse(ApiConfig.baseUrl);
+      if (baseUri != null && baseUri.hasScheme) {
+        uri = baseUri.resolve(rawUrl);
+      }
+    }
+
+    if (uri == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('The uploaded file link is invalid.')),
+      );
+      return;
+    }
+
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (!mounted) return;
+
+      if (!opened) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('The uploaded file could not be opened.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Preview unavailable',
+        fallbackMessage: 'The uploaded file could not be opened right now.',
+      );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final canReviewDocuments = ref
@@ -247,6 +308,7 @@ class _InternalDocumentReviewScreenState
                 onCustomerSelected: _selectCustomer,
                 onDocumentTypeSelected: _selectDocumentType,
                 onServiceSelected: _selectService,
+                onPreview: _openDocumentPreview,
                 onApprove: (document) => _reviewDocument(document, 'Approved'),
                 onReject: _rejectWithRemarks,
               );
@@ -275,6 +337,7 @@ class _ReviewContent extends StatelessWidget {
     required this.onCustomerSelected,
     required this.onDocumentTypeSelected,
     required this.onServiceSelected,
+    required this.onPreview,
     required this.onApprove,
     required this.onReject,
   });
@@ -294,6 +357,7 @@ class _ReviewContent extends StatelessWidget {
   final ValueChanged<String?> onCustomerSelected;
   final ValueChanged<String?> onDocumentTypeSelected;
   final ValueChanged<String?> onServiceSelected;
+  final ValueChanged<DocumentItem> onPreview;
   final ValueChanged<DocumentItem> onApprove;
   final ValueChanged<DocumentItem> onReject;
 
@@ -371,7 +435,7 @@ class _ReviewContent extends StatelessWidget {
           onClear: onClearQuery,
         ),
         const SizedBox(height: 10),
-        _WorkspaceFilterRow(
+        _CompactFilterPanel(
           customerOptions: customerOptions,
           selectedCustomerProfile: selectedCustomerProfile,
           documentTypeOptions: documentTypeOptions,
@@ -409,6 +473,7 @@ class _ReviewContent extends StatelessWidget {
               document: document,
               isBusy: busyDocumentId == document.id,
               canReviewDocuments: canReviewDocuments,
+              onPreview: () => onPreview(document),
               onApprove: () => onApprove(document),
               onReject: () => onReject(document),
             ),
@@ -536,8 +601,8 @@ class _InternalDocumentSearchField extends StatelessWidget {
   }
 }
 
-class _WorkspaceFilterRow extends StatelessWidget {
-  const _WorkspaceFilterRow({
+class _CompactFilterPanel extends StatelessWidget {
+  const _CompactFilterPanel({
     required this.customerOptions,
     required this.selectedCustomerProfile,
     required this.documentTypeOptions,
@@ -555,36 +620,55 @@ class _WorkspaceFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 620;
+    final activeCount = [
+      selectedCustomerProfile,
+      selectedDocumentType,
+    ].where((value) => value != null && value.trim().isNotEmpty).length;
 
-        final customerField = _CustomerFilterField(
+    return ExpansionTile(
+      initiallyExpanded: false,
+      tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+      childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      collapsedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppTheme.border),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppTheme.border),
+      ),
+      backgroundColor: Colors.white,
+      collapsedBackgroundColor: Colors.white,
+      leading: const Icon(Icons.tune_rounded, color: _documentIndigo),
+      title: const Text(
+        'Filters',
+        style: TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      subtitle: Text(
+        activeCount == 0 ? 'Customer and document type' : '$activeCount active',
+        style: const TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      children: [
+        _CustomerFilterField(
           options: customerOptions,
           selectedCustomerProfile: selectedCustomerProfile,
           onSelected: onCustomerSelected,
-        );
-
-        final typeField = _DocumentTypeFilterField(
+        ),
+        const SizedBox(height: 10),
+        _DocumentTypeFilterField(
           options: documentTypeOptions,
           selectedDocumentType: selectedDocumentType,
           onSelected: onDocumentTypeSelected,
-        );
-
-        if (compact) {
-          return Column(
-            children: [customerField, const SizedBox(height: 10), typeField],
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(child: customerField),
-            const SizedBox(width: 10),
-            Expanded(child: typeField),
-          ],
-        );
-      },
+        ),
+      ],
     );
   }
 }
@@ -765,6 +849,16 @@ class _ServiceWorkspaceHeader extends StatelessWidget {
   final _ServiceDocumentGroup selectedGroup;
   final ValueChanged<String?> onSelected;
 
+  bool _hasCustomerMeta(_ServiceDocumentGroup group) {
+    return [
+      group.customerEmail,
+      group.customerPhone,
+      group.companyName,
+      group.customerNtn,
+      group.customerCnic,
+    ].any((value) => value != null && value.trim().isNotEmpty);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
@@ -866,8 +960,29 @@ class _ServiceWorkspaceHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          _CompactCustomerMeta(group: selectedGroup),
+          if (_hasCustomerMeta(selectedGroup)) ...[
+            const SizedBox(height: 6),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              title: const Text(
+                'Customer details',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _CompactCustomerMeta(group: selectedGroup),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -974,6 +1089,7 @@ class _ReviewDocumentCard extends StatelessWidget {
     required this.document,
     required this.isBusy,
     required this.canReviewDocuments,
+    required this.onPreview,
     required this.onApprove,
     required this.onReject,
   });
@@ -981,6 +1097,7 @@ class _ReviewDocumentCard extends StatelessWidget {
   final DocumentItem document;
   final bool isBusy;
   final bool canReviewDocuments;
+  final VoidCallback onPreview;
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
@@ -997,8 +1114,7 @@ class _ReviewDocumentCard extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: () =>
-          context.push('/documents/${Uri.encodeComponent(document.id)}'),
+      onTap: document.hasFile ? onPreview : null,
       child: PremiumCard(
         padding: const EdgeInsets.all(13),
         child: Column(
@@ -1060,8 +1176,12 @@ class _ReviewDocumentCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                  document.hasFile
+                      ? Icons.visibility_outlined
+                      : Icons.insert_drive_file_outlined,
+                  color: document.hasFile
+                      ? _documentIndigo
+                      : AppTheme.textMuted,
                   size: 20,
                 ),
               ],
@@ -1092,57 +1212,83 @@ class _ReviewDocumentCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            Row(
               children: [
-                OutlinedButton.icon(
-                  onPressed: canOpenCase
-                      ? () => context.push(
-                          '/my-services/${Uri.encodeComponent(serviceReference)}',
-                        )
-                      : null,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
-                  label: const Text('Case'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 38),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    foregroundColor: _documentNavy,
-                    side: const BorderSide(color: Color(0xFFD8DFEC)),
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: canReview ? onApprove : null,
-                  icon: isBusy
-                      ? const SizedBox(
-                          width: 13,
-                          height: 13,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.check_rounded, size: 15),
-                  label: const Text('Approve'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 38),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    backgroundColor: _approvedGreen,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: canReview ? onReject : null,
-                  icon: const Icon(Icons.close_rounded, size: 15),
-                  label: const Text('Reject'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 38),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    foregroundColor: _rejectedRed,
-                    side: BorderSide(
-                      color: _rejectedRed.withValues(alpha: 0.34),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: document.hasFile ? onPreview : null,
+                    icon: const Icon(Icons.visibility_outlined, size: 15),
+                    label: const Text('Preview'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                      foregroundColor: _documentIndigo,
+                      side: BorderSide(
+                        color: _documentIndigo.withValues(alpha: 0.24),
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  tooltip: 'Document details',
+                  onPressed: () => context.push(
+                    '/documents/${Uri.encodeComponent(document.id)}',
+                  ),
+                  icon: const Icon(Icons.info_outline_rounded, size: 18),
+                ),
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  tooltip: 'Open case',
+                  onPressed: canOpenCase
+                      ? () => context.push(
+                          '/internal-workspace/service-cases/'
+                          '${Uri.encodeComponent(serviceReference)}',
+                        )
+                      : null,
+                  icon: const Icon(Icons.folder_open_outlined, size: 18),
+                ),
               ],
             ),
+            if (canReviewDocuments && !document.isArchived) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: canReview ? onApprove : null,
+                      icon: isBusy
+                          ? const SizedBox(
+                              width: 13,
+                              height: 13,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check_rounded, size: 15),
+                      label: const Text('Approve'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 38),
+                        backgroundColor: _approvedGreen,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: canReview ? onReject : null,
+                      icon: const Icon(Icons.close_rounded, size: 15),
+                      label: const Text('Reject'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 38),
+                        foregroundColor: _rejectedRed,
+                        side: BorderSide(
+                          color: _rejectedRed.withValues(alpha: 0.34),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

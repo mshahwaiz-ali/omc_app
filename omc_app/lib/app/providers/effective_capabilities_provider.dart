@@ -21,6 +21,13 @@ AuthCapabilities resolveEffectiveCapabilities({
   required AuthCapabilities sessionCapabilities,
   required AsyncValue<ProfileSummary?> profileSummary,
 }) {
+  // Session capabilities are canonical for internal users. Internal staff
+  // profiles may be absent or customer-shaped and must never downgrade
+  // role-derived operational permissions.
+  if (sessionCapabilities.isInternal) {
+    return sessionCapabilities;
+  }
+
   return profileSummary.maybeWhen(
     data: (profile) => profile?.capabilities ?? sessionCapabilities,
     orElse: () => sessionCapabilities,
