@@ -77,6 +77,50 @@ class TestWorkflowCompletion(TestCase):
             blockers,
         )
 
+    @patch.object(workflow_automation.frappe, "get_all")
+    @patch.object(
+        workflow_automation.mobile,
+        "_service_required_documents",
+        return_value=[],
+    )
+    @patch.object(workflow_automation.frappe.db, "get_value")
+    def test_linked_open_erp_task_blocks_completion(
+        self,
+        get_value,
+        _required_documents,
+        get_all,
+    ):
+        get_all.side_effect = [[], [SimpleNamespace(status="Paid")]]
+        get_value.return_value = "Open"
+        service_case = self._case()
+        service_case.erp_task = "TASK-1"
+
+        blockers = workflow_automation.completion_blockers(service_case)
+
+        self.assertIn("Operational ERP Task is not complete.", blockers)
+
+    @patch.object(workflow_automation.frappe, "get_all")
+    @patch.object(
+        workflow_automation.mobile,
+        "_service_required_documents",
+        return_value=[],
+    )
+    @patch.object(workflow_automation.frappe.db, "get_value")
+    def test_linked_completed_erp_task_allows_completion(
+        self,
+        get_value,
+        _required_documents,
+        get_all,
+    ):
+        get_all.side_effect = [[], [SimpleNamespace(status="Paid")]]
+        get_value.return_value = "Completed"
+        service_case = self._case()
+        service_case.erp_task = "TASK-1"
+
+        blockers = workflow_automation.completion_blockers(service_case)
+
+        self.assertNotIn("Operational ERP Task is not complete.", blockers)
+
 
     @patch.object(workflow_automation.mobile, "_create_customer_notification")
     @patch.object(workflow_automation.mobile, "_create_service_timeline_entry")

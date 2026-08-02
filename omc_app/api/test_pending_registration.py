@@ -12,6 +12,8 @@ class TestPendingRegistration(FrappeTestCase):
     def setUp(self):
         super().setUp()
         self.created = []
+        self.previous_mute_emails = frappe.conf.get("mute_emails")
+        frappe.conf.mute_emails = 0
 
     def tearDown(self):
         for name in reversed(self.created):
@@ -23,6 +25,7 @@ class TestPendingRegistration(FrappeTestCase):
                     ignore_permissions=True,
                 )
         frappe.db.commit()
+        frappe.conf.mute_emails = self.previous_mute_emails
         super().tearDown()
 
     def _payload(self, **overrides):
@@ -98,6 +101,26 @@ class TestPendingRegistration(FrappeTestCase):
         self.assertEqual(call["recipients"], [payload["email"]])
         self.assertIn("Verify your OMC account", call["subject"])
         self.assertNotIn("password", call["message"].lower())
+
+    @patch("omc_app.api.pending_registration.frappe.are_emails_muted", return_value=True)
+    @patch("omc_app.api.pending_registration.frappe.sendmail")
+    def test_muted_environment_persists_pending_registration_without_email_queue(
+        self,
+        sendmail,
+        _are_emails_muted,
+    ):
+        payload = self._payload()
+        result = pending_registration.start_registration(**payload)
+
+        name = frappe.db.get_value(
+            "OMC Pending Registration",
+            {"email": payload["email"]},
+            "name",
+        )
+        self.assertTrue(name)
+        self.created.append(name)
+        self.assertTrue(result["verification_required"])
+        sendmail.assert_not_called()
 
     @patch("omc_app.api.pending_registration.frappe.sendmail")
     def test_legacy_signup_route_requires_email_verification(self, sendmail):

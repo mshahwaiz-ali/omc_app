@@ -70,6 +70,11 @@ def _verification_email_html(
 
 
 def _send_verification_email(email: str, username: str, token: str) -> None:
+    # Frappe's v14 dummy Email Account is incomplete on sites without any
+    # outgoing account. In an explicitly muted development/test environment,
+    # avoid constructing that queue; production delivery remains mandatory.
+    if frappe.are_emails_muted():
+        return
     links = verification_links(token)
     frappe.sendmail(
         recipients=[email],

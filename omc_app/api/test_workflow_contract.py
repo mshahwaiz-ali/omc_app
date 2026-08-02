@@ -15,6 +15,21 @@ class WorkflowContractTest(unittest.TestCase):
         self.assertTrue(result["completion_eligible"])
         self.assertEqual(result["completion_blockers"], [])
 
+    def test_completed_status_does_not_hide_incomplete_operational_work(self):
+        result = workflow_contract.project(
+            {
+                "status": "Completed",
+                "required_documents_count": 0,
+                "payments_count": 0,
+                "operational_work_complete": False,
+            }
+        )
+        self.assertFalse(result["completion_eligible"])
+        self.assertIn(
+            "Operational work is not complete.",
+            result["completion_blockers"],
+        )
+
     def test_terminal_transitions_are_rejected(self):
         with self.assertRaises(ValueError):
             workflow_contract.validate_service_transition("Completed", "In Progress")
