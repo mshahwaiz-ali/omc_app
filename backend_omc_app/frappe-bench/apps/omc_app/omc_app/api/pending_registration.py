@@ -55,11 +55,11 @@ def _verification_email_html(
         <p style="margin:0 0 18px;color:#475569;font-size:15px;line-height:1.6;">
           Hello {safe_username}, confirm this email address to continue creating your OMC account.
         </p>
-        <a href="{safe_app_url}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;">
-          Open OMC app
+        <a href="{safe_web_url}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;">
+          Verify email
         </a>
         <p style="margin:16px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
-          App not installed? <a href="{safe_web_url}" style="color:#0f766e;font-weight:700;">Continue in your browser</a>.
+          Using the OMC app? <a href="{safe_app_url}" style="color:#0f766e;font-weight:700;">Open in app</a>.
         </p>
         <p style="margin:12px 0 0;color:#64748b;font-size:13px;line-height:1.55;">
           This link expires in {TOKEN_TTL_MINUTES} minutes. If you did not request this account, you can ignore this email.
