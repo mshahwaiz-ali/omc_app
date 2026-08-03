@@ -4,6 +4,10 @@ This document lists the features currently present in the OMC App project in sim
 
 It is based on the current Flutter app routes, screens, repositories, backend workflows, permissions, and project documentation. Features that are not present in the source code are not included.
 
+Last source cross-check: **3 August 2026**.
+
+> **Important distinction:** a feature is listed as implemented only when an app or backend path exists for it. Hardware-dependent behaviour, external delivery services, and production deployment are called out separately where they still require environment or real-device verification.
+
 ---
 
 ## 1. App Entry and General Experience
@@ -20,6 +24,7 @@ It is based on the current Flutter app routes, screens, repositories, backend wo
 - Bottom navigation for main areas
 - “More” menu for secondary features
 - Safe back navigation
+- App links for email verification and password-reset entry
 - Friendly recovery screen for broken or unavailable routes
 - Access-denied notice when a user opens a restricted page
 - Loading states and skeleton screens
@@ -61,8 +66,15 @@ It is based on the current Flutter app routes, screens, repositories, backend wo
 - Logout duplicate-action protection
 - Session cleanup on logout
 - Failed logout recovery message
+- Optional device lock for an already signed-in session
+- Fingerprint, Face ID, or the device credential can unlock the app where the operating system supports it
+- Device-lock setting stored in encrypted device storage
+- Device lock re-engages when the app is paused, hidden, or moved to the background
+- Locked screen with a manual retry action when authentication is cancelled or fails
+- Unsupported or unconfigured device authentication is detected without enabling the lock
+- Device lock is removed during logout and session cleanup
 
-> Current source does not include fingerprint, Face ID, or a separate “Remember password” switch.
+> Device lock protects a restored signed-in session; it is not a replacement for the initial OMC username/password login. There is no separate “Remember password” switch.
 
 ---
 
@@ -98,6 +110,11 @@ It is based on the current Flutter app routes, screens, repositories, backend wo
 - Duplicate signup prevention
 - Signup success state
 - Signup failure recovery
+- Verification email sent immediately after an eligible registration starts
+- Verification email contains app and browser-compatible verification paths
+- Browser verification redirects the user back to the app login state when the custom app scheme is available
+- Invalid or expired verification links return a safe failure state
+- Resend cooldown and verification-token rotation
 - Account approval workflow after registration
 
 ---
@@ -434,7 +451,6 @@ Supported internal roles include:
 
 - Task list
 - Task-detail page
-- Create task action
 - Assigned-task view
 - Task status
 - Task priority
@@ -444,6 +460,15 @@ Supported internal roles include:
 - Internal-user validation before assignment
 - Retry failed task loading
 - Task completion and update flows where authorised
+- Update operational task states through the allowed OMC status list
+- “Submitted by QC” completion path for eligible tasks
+- Transaction-safe closing of only the ToDos linked to the exact ERP Task
+- Rollback protection if ERP Task completion fails
+- Assign or reassign a task to an eligible active System User
+- Close replaced open assignments during reassignment
+- Update task priority and expected completion date
+- Keep linked service-request planning fields aligned where configured
+- Duplicate-safe no-change responses for repeated status or assignment actions
 - Capability-based task access
 
 ---
@@ -464,6 +489,31 @@ Supported internal roles include:
 - Backend-authorised mutations
 - Separation between document and finance responsibilities
 - Manager and admin oversight
+- Searchable and paginated operational queues
+- Server-side payment status filtering and search
+- Authenticated private receipt opening and sharing
+
+### Admin Control and Recovery Operations
+
+- Pending registration review
+- Approve or reject registrations with the appropriate decision context
+- Invite internal staff
+- Grant only supported OMC staff roles
+- Edit staff roles
+- Enable or disable eligible staff accounts
+- View and update guarded business settings
+- Reassignment queue for service cases
+- Load eligible assignee options before reassignment
+- Require and record a reassignment reason
+- Exhausted ERP-sync recovery queue
+- Inspect sync status, last error, and retry count
+- Retry only eligible failed or exhausted service synchronisations
+- Pending-discount review queue
+- Review original price, proposed final price, discount type, value, amount, and reason
+- Approve or reject a discount
+- Require remarks when rejecting a discount
+- Capability-specific access to each administration queue
+- Focused refresh of cases, tasks, payments, documents, dashboards, and admin data after a successful operation
 
 ---
 
@@ -476,6 +526,7 @@ Supported internal roles include:
 - Unread-only filter
 - Open notification-linked content
 - Mark notification as read
+- Mark a notification as unread
 - Mark all as read where supported
 - Swipe or dismiss notification behaviour
 - Clear-notification confirmation feedback
@@ -490,6 +541,8 @@ Supported internal roles include:
 - Payment-review notifications
 - Completion notifications
 - Reminder and escalation notifications
+- Push-token registration and unregistration contracts
+- Notification-category preference enforcement where applicable
 
 > The current app includes in-app notifications. Device-level Firebase/APNs push notification delivery is not confirmed in the current source.
 
@@ -565,8 +618,13 @@ Supported internal roles include:
 - Protection against negative or malformed amounts
 - Tax calculation result
 - Calculation breakdown
+- Filer versus non-filer comparison where returned by the backend
+- Backend-authored tax insights
+- Tax-readiness/health result where configured
+- Recommended next steps
 - Tax calculation history
 - Open previous calculation
+- Start a linked tax service from a saved calculation when permitted and configured
 - Backend-controlled tax slabs
 - Supported-year handling
 - Safe error feedback
@@ -747,6 +805,28 @@ Supported internal roles include:
 - Fail-closed protected routes
 - Sensitive files excluded from source control
 
+### Deliberate Fallback and Recovery Behaviour
+
+- Offline, timeout, unauthorised, forbidden, missing-record, configuration, validation, server, malformed-response, and unknown failures are converted into user-safe messages
+- Retry is offered only where repeating the action is meaningful
+- Session expiry returns the user to authentication instead of exposing protected screens
+- Unknown authenticated routes fail closed
+- Broken back-stack navigation uses a safe route fallback
+- App branding, legal text, support channels, and application configuration have packaged safe defaults
+- Onboarding uses packaged slides if backend content is unavailable or empty
+- Mobile quick actions use capability-filtered packaged defaults when backend actions are unavailable
+- Profile identity can fall back to the authenticated user ID while protected profile data remains unavailable
+- Service templates fail soft: the base backend service remains usable if optional template enrichment fails
+- Development can explicitly enable local service preview or catalogue fallback; production never substitutes fake catalogue data
+- Empty backend catalogues remain honest empty states rather than fabricated services
+- Guest and pending-user expense records remain local; approved-customer records use guarded cloud APIs
+- Expense import reports success only after local persistence succeeds
+- Clearing the expense tracker removes local cache only and does not claim to delete cloud records
+- Failed support replies retain the selected attachment reference and message for retry where possible
+- Failed uploads, reviews, mutations, and settings changes do not show false success
+- Images and avatars have visual placeholders when remote assets fail
+- Partial internal-dashboard queue failures show unavailable indicators instead of misleading zero counts
+
 ---
 
 ## 30. Backend Automation and Reminders
@@ -785,6 +865,11 @@ Supported internal roles include:
 - Charts
 - URL launcher
 - Share support
+- Local OS authentication through `local_auth`
+- Fingerprint, Face ID, and device-credential session lock support
+- Android biometric permission
+- iOS Face ID usage declaration
+- `omchouse://auth/...` custom-scheme authentication links
 - Backend DocTypes
 - Backend permission hooks
 - Backend scheduled jobs
@@ -796,14 +881,16 @@ Supported internal roles include:
 
 The following should not be presented as completed features unless they are added later:
 
-- Fingerprint login
-- Face ID login
+- Passwordless fingerprint or Face ID login to the OMC backend (the implemented biometric feature is a local post-login device lock)
 - A separate “Remember password” toggle
+- Production Google sign-in (the current backend explicitly rejects it until verified token validation is configured)
 - Firebase Cloud Messaging push notifications
 - Apple Push Notification Service integration
 - In-app payment gateway or card charging
 - Real-time chat through sockets
 - Offline synchronisation for every module
+- Fully offline service, document, payment, support, tax, or staff workflows
+- A customer-facing tax-estimate PDF download/share screen (repository/backend contracts alone are not presented as a completed UI feature)
 
 ---
 

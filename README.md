@@ -10,23 +10,31 @@ OMC App gives guests, customers, and authorised staff one connected system for s
 
 ## Current status
 
-The application is functionally implemented and has completed its latest code-level production-readiness validation.
+The application is functionally implemented across the OMC-owned Flutter and Frappe boundary. The latest recorded full audit on 3 August 2026 reported:
 
-Validated on `main` at commit `2a9c331`:
-
-- Frappe backend suite: **285 tests passed**;
-- Flutter suite: **294 tests passed**;
+- isolated OMC backend suite: **556/556 passed** with `--skip-test-records`;
+- Flutter suite: **303/303 passed**;
 - Flutter static analysis: **no issues found**;
-- focused signup flow validation: passed;
-- repository whitespace validation: clean;
-- local `main` and `origin/main`: aligned.
+- Linux workflow integration contract: **1/1 passed**;
+- Android debug APK build: passed;
+- focused live public, protected, and admin-operation HTTP checks: passed.
 
-Remaining release work is environment-specific:
+These are recorded audit results, not a promise that an untested later commit or a different environment has the same result. See [`inspection.md`](inspection.md) and the [dated E2E report](docs/test_reports/omc_e2e_workflow_report_2026-08-02.md) for commands, evidence boundaries, and limitations.
 
-- build the Android release artefact against the production API endpoint;
-- install and launch it on a real device;
-- complete production API and role smoke tests;
-- perform iOS archive and App Store validation on macOS with Xcode when required.
+Current documentation-refresh verification at `main` commit `5e599a92`:
+
+- `flutter analyze`: passed, no issues;
+- `flutter test`: **303/303 passed**;
+- backend suite: **557 ran, 1 failed**. The failure is `test_web_link_uses_frappe_origin_by_default`, whose assertion still expects the retired `/verify-email` web page while current code intentionally generates the `verify_registration_web` API endpoint. The suite is therefore not represented as currently all-green until that contract test is reconciled.
+
+Remaining release gates are environment- or hardware-specific:
+
+- build the signed Android release artefact against the production HTTPS endpoint;
+- install and exercise it on a physical device, including device lock;
+- complete production API, role-denial, upload, scheduler, and worker smoke tests;
+- perform iOS archive, signing, Face ID, and App Store validation on macOS/Xcode when required;
+- have the client ERP owner resolve the retained empty `HS Code` Link metadata if those ERP fields will be used.
+- reconcile and rerun the current verification-web-link backend contract test.
 
 Validation results must always be taken from actual command output and must never be assumed.
 
@@ -187,7 +195,10 @@ See [`docs/app_role.md`](docs/app_role.md) for the canonical role and capability
 - login identity resolution;
 - password-reset and pending-secret lifecycle hardening;
 - approval-aware post-login routing;
-- secure logout and session cleanup.
+- secure logout and session cleanup;
+- email verification through app/browser links with resend cooldown and invalid-token handling;
+- optional post-login device lock using fingerprint, Face ID, or the configured device credential;
+- automatic re-lock when the signed-in app is backgrounded and resumed.
 
 ### Profile and settings
 
@@ -255,7 +266,19 @@ See [`docs/app_role.md`](docs/app_role.md) for the canonical role and capability
 - guarded referral ownership and assistance rules;
 - assignment-scoped tasks;
 - enabled System User validation for task assignment;
+- guarded task assignment/reassignment, planning updates, and operational-status transitions;
+- transaction-safe `Submitted by QC` completion for the exact ERP Task and linked ToDos;
 - internal operational dashboard and work queues.
+
+### Administration and recovery
+
+- registration approval and rejection;
+- staff invitation, supported-role editing, and account enable/disable;
+- guarded business settings;
+- service-case reassignment with eligible assignee selection and recorded reason;
+- exhausted ERP synchronisation inspection and retry;
+- pending-discount inspection, approval, and reason-required rejection;
+- searchable, paginated, capability-specific operation queues.
 
 ### Notifications
 
@@ -295,6 +318,18 @@ See [`docs/app_role.md`](docs/app_role.md) for the canonical role and capability
 - guarded dashboard reads;
 - backend-driven announcements, FAQs, knowledge articles, onboarding, branding, and contact content;
 - public, customer, and internal data separation.
+
+### Resilience and fallbacks
+
+- consistent offline, timeout, permission, validation, configuration, server, and malformed-response messages;
+- retryable loading/error states and duplicate-action guards;
+- fail-closed route and capability handling;
+- packaged fallback branding, legal content, support configuration, onboarding slides, and quick actions;
+- base-service preservation if optional template enrichment fails;
+- explicit development-only service preview/catalogue fallback, never fake production catalogue data;
+- guest/pending local expense mode and approved-customer guarded cloud mode;
+- partial-dashboard unavailable indicators instead of false zeroes;
+- local device-lock failure or cancellation keeps the app locked and offers another unlock attempt.
 
 ---
 
@@ -399,11 +434,12 @@ Protected methods enforce:
 - Shared Preferences;
 - File Picker and Image Picker;
 - Cached Network Image;
-- FL Chart.
+- FL Chart;
+- Local Auth.
 
 ### Frappe backend
 
-- Frappe Framework 15;
+- Frappe Framework 14 (`frappe` 14.101.1 and `erpnext` 14.87.0 in the checked-in Bench);
 - Python;
 - MariaDB/MySQL;
 - Redis queues and workers;
@@ -420,9 +456,12 @@ Protected methods enforce:
 ```text
 .
 ├── README.md
+├── OMC_APP_FEATURES.md
 ├── omc_detailed_explanation.md
+├── inspection.md
 ├── docs/
-│   └── app_role.md
+│   ├── app_role.md
+│   └── test_reports/
 ├── omc_app/
 │   ├── lib/
 │   │   ├── app/
@@ -515,25 +554,33 @@ flutter analyze
 flutter test
 ```
 
-Latest confirmed result:
+Latest recorded full-audit result:
 
 ```text
 Flutter analyze: No issues found
-Flutter tests: 294 passed
+Flutter tests: 303 passed
+Linux workflow contract: 1 passed
+Android debug APK: built successfully
 ```
+
+Current refresh result on commit `5e599a92`: analysis passed and Flutter tests remain 303/303.
 
 ### Frappe backend
 
 ```bash
 cd ~/data_drive/app_omc/backend_omc_app/frappe-bench
-bench --site omc.local run-tests --app omc_app
+bench --site omc.local run-tests --app omc_app --skip-test-records
 ```
 
 Latest confirmed result:
 
 ```text
-Frappe tests: 285 passed
+OMC backend tests: 556 passed
 ```
+
+`--skip-test-records` is intentional for the populated OMC site. Ordinary global ERP fixture bootstrap is a different boundary and must not be represented as part of this recorded OMC result.
+
+The current rerun after later verification-link commits executed 557 tests and reported one assertion failure in `test_web_link_uses_frappe_origin_by_default`: the test expects the former `/verify-email` URL, while `auth_links.py` now uses the working `pending_registration.verify_registration_web` endpoint. This is a current test-contract blocker, not part of the earlier 556/556 evidence.
 
 ### Repository hygiene
 
@@ -597,6 +644,9 @@ Production readiness also requires:
 ## Documentation
 
 - [`omc_detailed_explanation.md`](omc_detailed_explanation.md) — complete business and feature guide;
+- [`OMC_APP_FEATURES.md`](OMC_APP_FEATURES.md) — source-backed feature-by-feature catalogue;
+- [`inspection.md`](inspection.md) — endpoint-to-provider-to-screen parity and production-readiness audit;
+- [`docs/test_reports/omc_e2e_workflow_report_2026-08-02.md`](docs/test_reports/omc_e2e_workflow_report_2026-08-02.md) — dated validation evidence and limitations;
 - [`docs/app_role.md`](docs/app_role.md) — role, capability, assignment, and access architecture;
 - [`omc_app/docs/backend_api_contract.md`](omc_app/docs/backend_api_contract.md) — Flutter/backend API contract;
 - [`backend_omc_app/frappe-bench/apps/omc_app/README.md`](backend_omc_app/frappe-bench/apps/omc_app/README.md) — backend development and operations;
