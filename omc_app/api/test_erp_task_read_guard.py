@@ -26,6 +26,7 @@ class TestErpTaskReadGuard(FrappeTestCase):
             "erp_task": "ERP-TASK-1",
             "erp_service": "ERP-SERVICE-1",
             "customer_profile": "OMC-CUST-1",
+            "assigned_staff": "staff@example.com",
         }
 
     def test_manager_lists_only_omc_linked_erp_tasks(self):
@@ -212,6 +213,27 @@ class TestErpTaskReadGuard(FrappeTestCase):
             "updated_at",
         }
         self.assertTrue(required.issubset(payload))
+
+    def test_payload_falls_back_to_service_request_assignee_when_task_todo_is_closed(self):
+        task = self._task()
+
+        with patch.object(
+            task_read_guard,
+            "_assigned_users",
+            return_value=[],
+        ):
+            payload = task_read_guard._task_to_payload(
+                task,
+                {
+                    "name": "OMC-SR-1",
+                    "erp_service": "ERP-SERVICE-1",
+                    "customer_profile": "OMC-CUST-1",
+                    "assigned_staff": "staff@example.com",
+                },
+            )
+
+        self.assertEqual(payload["assigned_to"], "staff@example.com")
+        self.assertEqual(payload["assigned_users"], ["staff@example.com"])
 
     def test_payload_prefers_operation_status(self):
         task = self._task()
