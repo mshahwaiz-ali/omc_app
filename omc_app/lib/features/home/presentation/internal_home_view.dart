@@ -314,7 +314,7 @@ class InternalHomeView extends ConsumerWidget {
       MobileQuickAction(
         id: 'internal-customers',
         title: 'Customers',
-        subtitle: 'Active',
+        subtitle: 'View customers',
         iconKey: 'dashboard',
         targetType: MobileQuickActionTargetType.route,
         targetValue: '/internal-workspace/customers',
@@ -1102,7 +1102,7 @@ class _QuickActions extends StatelessWidget {
 
     if (key.contains('document')) return operations.documentsWaitingReview;
     if (key.contains('payment')) return operations.pendingPayments;
-    if (key.contains('customer')) return operations.activeCustomers;
+    if (key.contains('customer')) return 0;
     if (key.contains('lead')) return operations.openLeads;
     if (key.contains('task')) return operations.pendingTasks;
 
@@ -1118,7 +1118,7 @@ class _QuickActions extends StatelessWidget {
 
     if (key.contains('document')) return '$badge pending';
     if (key.contains('payment')) return '$badge pending';
-    if (key.contains('customer')) return '$badge active';
+    if (key.contains('customer')) return action.subtitle;
     if (key.contains('lead')) return '$badge open';
     if (key.contains('task')) return '$badge due';
 

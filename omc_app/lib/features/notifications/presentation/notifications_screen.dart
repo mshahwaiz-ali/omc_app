@@ -94,9 +94,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     );
   }
 
+  void _invalidateNotificationSurfaces() {
+    ref
+      ..invalidate(notificationsProvider)
+      ..invalidate(homeDashboardSummaryProvider);
+  }
+
   Future<void> _refresh() async {
-    ref.invalidate(notificationsProvider);
-    ref.invalidate(homeDashboardSummaryProvider);
+    _invalidateNotificationSurfaces();
     await ref.read(notificationsProvider.future);
   }
 
@@ -117,11 +122,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         await ref
             .read(notificationsRepositoryProvider)
             .markNotificationAsRead(item.id);
-        ref.invalidate(homeDashboardSummaryProvider);
+        _invalidateNotificationSurfaces();
       }
       if (!mounted) return;
       context.push('/notifications/${Uri.encodeComponent(item.id)}');
-      ref.invalidate(notificationsProvider);
     } catch (error) {
       _showError(error);
     }
@@ -136,7 +140,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       await ref
           .read(notificationsRepositoryProvider)
           .dismissNotification(item.id);
-      ref.invalidate(homeDashboardSummaryProvider);
+      _invalidateNotificationSurfaces();
       if (!mounted) return true;
       final messenger = ScaffoldMessenger.of(context);
       messenger.clearSnackBars();

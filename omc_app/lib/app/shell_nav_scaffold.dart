@@ -8,6 +8,7 @@ import '../features/app_config/presentation/app_brand_registry.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/home/data/home_dashboard_repository.dart';
+import '../features/notifications/data/notifications_repository.dart';
 import '../features/profile/data/profile_repository.dart';
 import 'navigation/omc_bottom_nav.dart';
 import 'navigation/omc_more_sheet.dart';
@@ -37,8 +38,13 @@ class ShellNavScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
-    final unreadNotifications =
-        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final notificationsAsync = ref.watch(notificationsProvider);
+    final unreadNotifications = notificationsAsync.maybeWhen(
+      data: (items) => items.where((item) => !item.isRead).length,
+      orElse: () =>
+          ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ??
+          0,
+    );
     final mobileConfig =
         ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final primaryColor = appPrimaryColorFor(
@@ -151,8 +157,17 @@ class ShellNavScaffold extends ConsumerWidget {
     final capabilities = ref.read(effectiveCapabilitiesProvider);
     final mobileConfig =
         ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
-    final unreadNotifications =
-        ref.read(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final unreadNotifications = ref
+        .read(notificationsProvider)
+        .maybeWhen(
+          data: (items) => items.where((item) => !item.isRead).length,
+          orElse: () =>
+              ref
+                  .read(homeDashboardSummaryProvider)
+                  .value
+                  ?.unreadNotifications ??
+              0,
+        );
 
     showOmcMoreSheet(
       context: context,

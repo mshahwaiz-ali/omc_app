@@ -71,6 +71,7 @@ def _request_links(
             "erp_task",
             "erp_service",
             "customer_profile",
+            "assigned_staff",
         ],
         order_by="modified desc, name desc",
         limit_start=limit_start,
@@ -146,7 +147,21 @@ def _task_completed_on(task) -> str:
 
 def _task_to_payload(task, request_link: dict[str, Any]) -> dict[str, Any]:
     assigned_users = _assigned_users(task.name)
-    assigned_to = assigned_users[0] if assigned_users else ""
+    service_request_assignee = _text(request_link.get("assigned_staff"))
+
+    # Open ToDo assignments are the live ERP Task authority. Terminal tasks have
+    # their ToDos closed, so preserve the linked service request's canonical
+    # assignee as the display fallback instead of incorrectly showing Unassigned.
+    assigned_to = (
+        assigned_users[0]
+        if assigned_users
+        else service_request_assignee
+    )
+    payload_assigned_users = (
+        assigned_users
+        if assigned_users
+        else ([service_request_assignee] if service_request_assignee else [])
+    )
 
     return {
         "name": task.name,
@@ -161,7 +176,7 @@ def _task_to_payload(task, request_link: dict[str, Any]) -> dict[str, Any]:
         "priority": _text(getattr(task, "priority", None)) or "Normal",
         "due_date": _task_due_date(task),
         "assigned_to": assigned_to,
-        "assigned_users": assigned_users,
+        "assigned_users": payload_assigned_users,
         "customer_profile": _text(request_link.get("customer_profile")),
         "service_request": _text(request_link.get("name")),
         "erp_service": _text(request_link.get("erp_service")),
