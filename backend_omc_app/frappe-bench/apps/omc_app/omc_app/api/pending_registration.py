@@ -84,7 +84,7 @@ def _send_verification_email(email: str, username: str, token: str) -> None:
             links["app_url"],
             links["web_url"],
         ),
-        now=False,
+        now=True,
     )
 
 
