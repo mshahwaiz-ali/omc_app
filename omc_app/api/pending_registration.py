@@ -406,6 +406,20 @@ def verify_registration(token: str | None = None):
     }
 
 
+@frappe.whitelist(allow_guest=True)
+def verify_registration_web(token: str | None = None):
+    result = verify_registration(token=token)
+
+    status = str((result or {}).get("status") or "")
+    if status == "activated":
+        location = "omchouse://auth/login?verified=1"
+    else:
+        location = "omchouse://auth/login?verification=invalid"
+
+    frappe.local.response["type"] = "redirect"
+    frappe.local.response["location"] = location
+
+
 def load_pending_registration_by_token(token: str):
     token = str(token or "").strip()
     if not token:

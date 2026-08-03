@@ -34,7 +34,7 @@ def verification_links(token: str) -> dict[str, str]:
     return {
         "app_url": _app_url("verify-email", token),
         "web_url": _web_url(
-            "api/method/omc_app.api.pending_registration.verify_registration",
+            "api/method/omc_app.api.pending_registration.verify_registration_web",
             token,
         ),
     }
