@@ -28,18 +28,22 @@ class InternalWorkspaceScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFD),
-      body: RefreshIndicator(
-        onRefresh: () {
-          ref.invalidate(internalWorkspaceSummaryProvider);
-          ref.invalidate(internalServiceCasesProvider);
-          return ref.read(internalWorkspaceSummaryProvider.future);
-        },
-        child: summaryAsync.when(
-          data: (summary) => _InternalWorkspaceContent(summary: summary),
-          loading: () => const _InternalWorkspaceLoading(),
-          error: (error, _) => _InternalWorkspaceUnavailable(
-            message: _backendErrorMessage(error),
-            onRetry: () => ref.invalidate(internalWorkspaceSummaryProvider),
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: () {
+            ref.invalidate(internalWorkspaceSummaryProvider);
+            ref.invalidate(internalServiceCasesProvider);
+            return ref.read(internalWorkspaceSummaryProvider.future);
+          },
+          child: summaryAsync.when(
+            data: (summary) => _InternalWorkspaceContent(summary: summary),
+            loading: () => const _InternalWorkspaceLoading(),
+            error: (error, _) => _InternalWorkspaceUnavailable(
+              message: _backendErrorMessage(error),
+              onRetry: () => ref.invalidate(internalWorkspaceSummaryProvider),
+            ),
           ),
         ),
       ),
@@ -693,7 +697,7 @@ class _WorkQueues extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 1.34,
+        childAspectRatio: 1.72,
       ),
       itemBuilder: (context, index) => _WorkQueueCard(item: items[index]),
     );
@@ -724,47 +728,49 @@ class _WorkQueueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       onTap: () => context.go(item.route),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 35,
-                height: 35,
-                decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: item.color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(item.icon, color: item.color, size: 18),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${item.count}',
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 21,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                child: Icon(item.icon, color: item.color, size: 18),
-              ),
-              const Spacer(),
-              const Icon(Icons.arrow_outward_rounded, color: _slate, size: 17),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            '${item.count}',
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 25,
-              height: 1,
-              fontWeight: FontWeight.w900,
+                const SizedBox(height: 4),
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _slate,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            item.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _slate,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          const Icon(Icons.chevron_right_rounded, color: _slate, size: 18),
         ],
       ),
     );
@@ -827,40 +833,61 @@ class _QuickActions extends ConsumerWidget {
         ),
     ];
 
-    return SizedBox(
-      height: 43,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: actions.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final action = actions[index];
-          return ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
-            child: OutlinedButton.icon(
-              onPressed: () => context.go(action.route),
-              icon: Icon(action.icon, size: 17),
-              label: Text(
-                action.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+    return GridView.builder(
+      itemCount: actions.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.05,
+      ),
+      itemBuilder: (context, index) {
+        final action = actions[index];
+        return Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: () => context.go(action.route),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFDDE3EB)),
               ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _ink,
-                backgroundColor: Colors.white,
-                side: const BorderSide(color: Color(0xFFDDE3EB)),
-                minimumSize: const Size(0, 43),
-                maximumSize: const Size(220, 43),
-                padding: const EdgeInsets.symmetric(horizontal: 13),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F5F9),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(action.icon, size: 21, color: _ink),
+                  ),
+                  const SizedBox(height: 9),
+                  Text(
+                    action.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: _ink,
+                      fontSize: 11,
+                      height: 1.15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

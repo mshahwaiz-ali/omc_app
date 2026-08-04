@@ -204,6 +204,8 @@ void main() {
       '/change-password',
       '/tax-calculator',
       '/tax-calculator/history',
+      '/expense-tracker',
+      '/expense-budget',
       '/knowledge',
       '/knowledge/article-1',
       '/internal-workspace',
@@ -224,8 +226,6 @@ void main() {
       '/track',
       '/my-services',
       '/my-services/CASE-0001',
-      '/expense-tracker',
-      '/expense-budget',
       '/my-referrals',
       '/my-referrals/CUST-0001',
     ];

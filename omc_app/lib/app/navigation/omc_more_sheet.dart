@@ -190,6 +190,23 @@ List<OmcSheetAction> _moreActions({
         ),
       );
     }
+
+    // Internal staff keep access to customer-facing utility tools so they can
+    // use, demonstrate, and explain them during assisted service workflows.
+    items.add(action('Tax', Icons.calculate_outlined, onOpenTaxCalculator));
+    if (features.expenseTrackerEnabled) {
+      items.add(
+        action(
+          'Expense',
+          Icons.account_balance_wallet_outlined,
+          onOpenExpenseTracker,
+        ),
+      );
+      if (capabilities.isApproved || capabilities.isInternal) {
+        items.add(action('Budget', Icons.savings_outlined, onOpenBudget));
+      }
+    }
+
     items.add(action('Settings', Icons.settings_outlined, onOpenSettings));
 
     items.add(

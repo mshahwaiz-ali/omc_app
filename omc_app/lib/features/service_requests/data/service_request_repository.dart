@@ -57,6 +57,16 @@ class ServiceRequestPayload {
 
   Map<String, dynamic> toJson() {
     final normalizedDetails = _normalizedAdditionalDetails();
+    final submittedFormDetails = <String, String>{...normalizedDetails};
+
+    // `request_context` is a UI fallback shown when a service has no
+    // backend-configured form schema. Keep it in the human-readable request
+    // description, but do not submit it as canonical form data because the
+    // backend correctly rejects unknown service fields.
+    if (service.formSchema.isEmpty) {
+      submittedFormDetails.remove('request_context');
+    }
+
     final normalizedEmail = email.trim();
     final normalizedPhone = phone.trim();
 
@@ -130,11 +140,11 @@ class ServiceRequestPayload {
       data['remarks'] = normalizedRemarks;
     }
 
-    if (normalizedDetails.isNotEmpty) {
-      data['service_details'] = normalizedDetails;
-      data['additional_details'] = normalizedDetails;
-      data['form_data'] = normalizedDetails;
-      data['form_data_json'] = jsonEncode(normalizedDetails);
+    if (submittedFormDetails.isNotEmpty) {
+      data['service_details'] = submittedFormDetails;
+      data['additional_details'] = submittedFormDetails;
+      data['form_data'] = submittedFormDetails;
+      data['form_data_json'] = jsonEncode(submittedFormDetails);
     }
 
     if (service.formSchema.isNotEmpty) {

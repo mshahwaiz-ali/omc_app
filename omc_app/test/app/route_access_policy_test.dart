@@ -128,7 +128,7 @@ void main() {
       );
     });
 
-    test('keeps expense tracker customer-only for authenticated roles', () {
+    test('allows expense utilities for customers and internal staff', () {
       const approvedCustomer = AuthCapabilities(
         accessState: AccountAccessState.approved,
       );
@@ -138,7 +138,9 @@ void main() {
       );
 
       expect(canAccessRoute('/expense-tracker', approvedCustomer), isTrue);
-      expect(canAccessRoute('/expense-tracker', internalUser), isFalse);
+      expect(canAccessRoute('/expense-tracker', internalUser), isTrue);
+      expect(canAccessRoute('/expense-budget', approvedCustomer), isTrue);
+      expect(canAccessRoute('/expense-budget', internalUser), isTrue);
     });
 
     test('uses my-referrals as the only referrals route', () {
