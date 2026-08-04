@@ -298,6 +298,11 @@ class _MainShellState extends ConsumerState<MainShell> {
           path: '/internal-workspace',
           capabilities: capabilities,
         ),
+        onOpenServiceRequests: () => _openWhenAllowed(
+          allowed: canAccessRoute('/internal-service-requests', capabilities),
+          path: '/internal-service-requests',
+          capabilities: capabilities,
+        ),
         onOpenCustomers: () => _openWhenAllowed(
           allowed: canAccessRoute('/customers', capabilities),
           path: '/customers',

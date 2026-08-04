@@ -219,7 +219,7 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 60,
+      constraints: const BoxConstraints(minHeight: 56),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(21),
@@ -243,6 +243,7 @@ class _SearchField extends StatelessWidget {
         ),
         decoration: InputDecoration(
           hintText: 'Search customer, request ID or service',
+          hintMaxLines: 1,
           hintStyle: const TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13.5,
@@ -254,11 +255,7 @@ class _SearchField extends StatelessWidget {
             size: 27,
           ),
           suffixIcon: controller.text.isEmpty
-              ? const Icon(
-                  Icons.tune_rounded,
-                  color: AppTheme.textSecondary,
-                  size: 24,
-                )
+              ? const SizedBox(width: 8)
               : IconButton(
                   tooltip: 'Clear search',
                   onPressed: onClear,

@@ -66,6 +66,26 @@ class DeviceLockService {
     }
   }
 
+  Future<String> biometricActionLabel() async {
+    try {
+      final biometrics = await authentication.getAvailableBiometrics();
+
+      if (biometrics.contains(BiometricType.face)) {
+        return 'Unlock with face';
+      }
+
+      if (biometrics.contains(BiometricType.fingerprint) ||
+          biometrics.contains(BiometricType.strong) ||
+          biometrics.contains(BiometricType.weak)) {
+        return 'Unlock with fingerprint';
+      }
+    } catch (_) {
+      // Use generic wording when capability detection is unavailable.
+    }
+
+    return 'Unlock with biometrics';
+  }
+
   Future<bool> isEnabled() => storage.readDeviceLockEnabled();
 
   Future<bool> authenticate() async {

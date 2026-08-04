@@ -223,6 +223,7 @@ class ShellNavScaffold extends ConsumerWidget {
         capabilities: capabilities,
       ),
       onOpenInternalWorkspace: () => context.go('/internal-workspace'),
+      onOpenServiceRequests: () => context.go('/internal-service-requests'),
       onOpenCustomers: () => context.go('/customers'),
       onOpenMyReferrals: () => _openWhenAllowed(
         context: context,

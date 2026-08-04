@@ -29,6 +29,7 @@ Future<void> showOmcMoreSheet({
   required VoidCallback onOpenProfile,
   required VoidCallback onOpenSettings,
   required VoidCallback onOpenInternalWorkspace,
+  required VoidCallback onOpenServiceRequests,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenMyReferrals,
   required VoidCallback onOpenLeads,
@@ -63,6 +64,7 @@ Future<void> showOmcMoreSheet({
         onOpenProfile: onOpenProfile,
         onOpenSettings: onOpenSettings,
         onOpenInternalWorkspace: onOpenInternalWorkspace,
+        onOpenServiceRequests: onOpenServiceRequests,
         onOpenCustomers: onOpenCustomers,
         onOpenMyReferrals: onOpenMyReferrals,
         onOpenLeads: onOpenLeads,
@@ -102,6 +104,7 @@ List<OmcSheetAction> _moreActions({
   required VoidCallback onOpenProfile,
   required VoidCallback onOpenSettings,
   required VoidCallback onOpenInternalWorkspace,
+  required VoidCallback onOpenServiceRequests,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenMyReferrals,
   required VoidCallback onOpenLeads,
@@ -130,6 +133,11 @@ List<OmcSheetAction> _moreActions({
         'Workspace',
         Icons.admin_panel_settings_outlined,
         onOpenInternalWorkspace,
+      ),
+      action(
+        'Service Requests',
+        Icons.assignment_outlined,
+        onOpenServiceRequests,
       ),
     ];
 

@@ -54,6 +54,7 @@ void main() {
     '/internal-workspace',
     '/admin-control',
     '/admin-control/operations',
+    '/internal-service-requests',
     '/internal-workspace/service-cases',
     '/internal-workspace/customers',
     '/internal-workspace/documents',

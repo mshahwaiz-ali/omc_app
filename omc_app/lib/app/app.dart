@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/app_config/presentation/app_brand_registry.dart';
+import '../features/device_lock/presentation/device_lock_gate.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -28,6 +29,9 @@ class OmcApp extends ConsumerWidget {
       theme: _withAccentTheme(AppTheme.lightTheme, appColors),
       themeMode: ThemeMode.light,
       routerConfig: router,
+      builder: (context, child) {
+        return DeviceLockGate(child: child ?? const SizedBox.shrink());
+      },
     );
   }
 }

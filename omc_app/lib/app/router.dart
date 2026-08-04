@@ -562,6 +562,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/internal-service-requests',
+        name: 'internal-service-requests',
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          const InternalServiceTrackScreen(),
+        ),
+      ),
+      GoRoute(
         path: '/internal-workspace/customers',
         name: 'internal-customers',
         builder: (context, state) =>
@@ -613,7 +621,7 @@ class _TrackRootScreen extends ConsumerWidget {
         capabilities.canViewRelevantServiceCases ||
         capabilities.canViewAssignedServiceCases;
     return canUseInternalTrack
-        ? const InternalServiceTrackScreen()
+        ? const InternalServiceCasesScreen()
         : const MyServicesScreen();
   }
 }

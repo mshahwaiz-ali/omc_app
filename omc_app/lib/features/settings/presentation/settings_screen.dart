@@ -9,7 +9,7 @@ import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
-import '../../auth/application/auth_state.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../app_config/data/mobile_app_config.dart';
 import '../../app_config/data/mobile_app_config_repository.dart';
 import '../../profile/data/profile_repository.dart';
@@ -285,36 +285,50 @@ class SettingsScreen extends ConsumerWidget {
       return;
     }
 
-    await ref
-        .read(authControllerProvider.notifier)
-        .login(email: identifier, password: password);
+    try {
+      final verifiedSession = await ref
+          .read(authRepositoryProvider)
+          .loginWithPassword(email: identifier, password: password);
 
-    if (!context.mounted) return;
-    final verifiedState = ref.read(authControllerProvider);
-    if (verifiedState.status != AuthStatus.authenticated) {
-      _showSnack(context, 'Password verification failed.');
-      return;
-    }
+      if (!context.mounted) return;
 
-    final enabled = await service.enable();
-    if (enabled) {
-      await service.enrollBiometricLogin(
-        identifier: verifiedState.userId?.trim().isNotEmpty == true
-            ? verifiedState.userId!.trim()
-            : identifier,
-        password: password,
-      );
-      ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
-    }
-    ref.invalidate(deviceLockEnabledProvider);
-    ref.invalidate(biometricLoginAvailableProvider);
-    if (context.mounted) {
-      _showSnack(
-        context,
-        enabled
-            ? 'Biometric sign in enabled.'
-            : 'Biometric setup was cancelled. You can continue using your password.',
-      );
+      if (verifiedSession.userId.trim().toLowerCase() !=
+          identifier.toLowerCase()) {
+        _showSnack(context, 'Password verification failed.');
+        return;
+      }
+
+      await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(const Duration(milliseconds: 220));
+
+      if (!context.mounted) return;
+
+      final enabled = await service.enable();
+
+      if (enabled) {
+        await service.enrollBiometricLogin(
+          identifier: verifiedSession.userId.trim(),
+          password: password,
+        );
+        ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+      }
+
+      ref.invalidate(deviceLockEnabledProvider);
+      ref.invalidate(biometricLoginAvailableProvider);
+
+      if (context.mounted) {
+        _showSnack(
+          context,
+          enabled
+              ? 'Biometric sign in enabled.'
+              : 'Biometric setup was cancelled. '
+                    'You can continue using your password.',
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        _showSnack(context, 'Password verification failed.');
+      }
     }
   }
 
