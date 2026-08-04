@@ -10,6 +10,7 @@ import '../features/auth/application/auth_state.dart';
 import '../features/home/data/home_dashboard_repository.dart';
 import '../features/notifications/data/notifications_repository.dart';
 import '../features/profile/data/profile_repository.dart';
+import 'navigation/app_back_navigation_guard.dart';
 import 'navigation/omc_bottom_nav.dart';
 import 'navigation/omc_more_sheet.dart';
 import 'navigation/omc_quick_actions_sheet.dart';
@@ -52,20 +53,34 @@ class ShellNavScaffold extends ConsumerWidget {
     );
     final isInternal = _isInternal(capabilities);
 
-    return Scaffold(
-      extendBody: false,
-      body: child,
-      bottomNavigationBar: OmcBottomNav(
-        selectedIndex: selectedIndex,
-        notificationBadgeCount: unreadNotifications,
-        primaryColor: primaryColor,
-        onTabSelected: (index) => _openTab(context, capabilities, index),
-        onQuickActions: () =>
-            _showQuickActionsSheet(context, ref, capabilities),
-        onMore: () => _showMoreSheet(context, ref),
-        isInternal: isInternal,
+    return AppBackNavigationGuard(
+      fallbackLocation: _backFallback(capabilities),
+      child: Scaffold(
+        extendBody: false,
+        body: child,
+        bottomNavigationBar: OmcBottomNav(
+          selectedIndex: selectedIndex,
+          notificationBadgeCount: unreadNotifications,
+          primaryColor: primaryColor,
+          onTabSelected: (index) => _openTab(context, capabilities, index),
+          onQuickActions: () =>
+              _showQuickActionsSheet(context, ref, capabilities),
+          onMore: () => _showMoreSheet(context, ref),
+          isInternal: isInternal,
+        ),
       ),
     );
+  }
+
+  String _backFallback(AuthCapabilities capabilities) {
+    if (selectedIndex == servicesIndex) return '/services';
+    if (selectedIndex == trackIndex) {
+      return _isInternal(capabilities)
+          ? '/internal-workspace/service-cases'
+          : '/my-services';
+    }
+    if (selectedIndex == documentsIndex) return '/documents';
+    return '/home';
   }
 
   bool _isInternal(AuthCapabilities capabilities) {

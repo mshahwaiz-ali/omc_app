@@ -16,6 +16,7 @@ import '../features/profile/data/profile_repository.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_requests/presentation/internal_service_track_screen.dart';
 import '../features/service_requests/presentation/my_services_screen.dart';
+import 'navigation/app_back_navigation_guard.dart';
 import 'navigation/omc_bottom_nav.dart';
 import 'navigation/omc_more_sheet.dart';
 import 'navigation/omc_quick_actions_sheet.dart';
@@ -414,17 +415,20 @@ class _MainShellState extends ConsumerState<MainShell> {
           : const DocumentsScreen(),
     ];
 
-    return Scaffold(
-      extendBody: false,
-      body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: OmcBottomNav(
-        selectedIndex: _currentIndex,
-        notificationBadgeCount: unreadNotifications,
-        primaryColor: primaryColor,
-        onTabSelected: _selectTab,
-        onQuickActions: _showQuickActionsSheet,
-        onMore: _showMoreSheet,
-        isInternal: _isInternal(capabilities),
+    return AppBackNavigationGuard(
+      fallbackLocation: '/home',
+      child: Scaffold(
+        extendBody: false,
+        body: IndexedStack(index: _currentIndex, children: screens),
+        bottomNavigationBar: OmcBottomNav(
+          selectedIndex: _currentIndex,
+          notificationBadgeCount: unreadNotifications,
+          primaryColor: primaryColor,
+          onTabSelected: _selectTab,
+          onQuickActions: _showQuickActionsSheet,
+          onMore: _showMoreSheet,
+          isInternal: _isInternal(capabilities),
+        ),
       ),
     );
   }
