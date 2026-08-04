@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -702,13 +703,21 @@ class _ProfileEditSheet extends StatefulWidget {
 
 class _ProfileEditSheetState extends State<_ProfileEditSheet> {
   final _formKey = GlobalKey<FormState>();
+  final _dirtyFormController = DirtyFormController();
   bool _saving = false;
   String? _error;
+
+  @override
+  void dispose() {
+    _dirtyFormController.dispose();
+    super.dispose();
+  }
 
   Future<void> _save() async {
     if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
 
     FocusScope.of(context).unfocus();
+    _dirtyFormController.beginSubmitting();
     setState(() {
       _saving = true;
       _error = null;
@@ -723,6 +732,7 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
       await widget.ref.read(profileSummaryProvider.future);
 
       if (!mounted) return;
+      _dirtyFormController.submissionSucceeded();
       Navigator.of(context).pop();
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -742,6 +752,7 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
         fallbackTitle: 'Profile not updated',
         fallbackMessage: 'Your profile details could not be updated right now.',
       );
+      _dirtyFormController.submissionFailed();
       setState(() => _error = failure.message);
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -752,84 +763,88 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12, 0, 12, bottomInset + 12),
-      child: Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        clipBehavior: Clip.antiAlias,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD7DCE4),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  widget.title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  widget.subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ..._withSpacing(widget.fields),
-                if (_error != null) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    _error!,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 22),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
+    return UnsavedChangesGuard(
+      controller: _dirtyFormController,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(12, 0, 12, bottomInset + 12),
+        child: Material(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+            child: Form(
+              key: _formKey,
+              onChanged: _dirtyFormController.markDirty,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD7DCE4),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppButton(
-                        label: 'Save',
-                        icon: Icons.check_rounded,
-                        isLoading: _saving,
-                        onPressed: _saving ? null : _save,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    widget.title,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.subtitle,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ..._withSpacing(widget.fields),
+                  if (_error != null) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
-                ),
-              ],
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _saving
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppButton(
+                          label: 'Save',
+                          icon: Icons.check_rounded,
+                          isLoading: _saving,
+                          onPressed: _saving ? null : _save,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
@@ -232,6 +233,13 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
     final thresholdController = TextEditingController(
       text: (budget?.alertThreshold ?? 80).toStringAsFixed(0),
     );
+    final dirtyFormController = DirtyFormController();
+
+    void markDirty() => dirtyFormController.markDirty();
+
+    categoryController.addListener(markDirty);
+    amountController.addListener(markDirty);
+    thresholdController.addListener(markDirty);
 
     await showModalBottomSheet<void>(
       context: context,
@@ -243,105 +251,122 @@ class _ExpenseBudgetScreenState extends ConsumerState<ExpenseBudgetScreen> {
       ),
       builder: (sheetContext) {
         final bottomInset = MediaQuery.viewInsetsOf(sheetContext).bottom;
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                budget == null ? 'Set monthly budget' : 'Update monthly budget',
-                style: Theme.of(
-                  sheetContext,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Leave category blank for an overall monthly budget.',
-                style: Theme.of(
-                  sheetContext,
-                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: categoryController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  hintText: 'Example: Fuel, Food, Business',
-                  prefixIcon: Icon(Icons.category_outlined),
+        return UnsavedChangesGuard(
+          controller: dirtyFormController,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  budget == null
+                      ? 'Set monthly budget'
+                      : 'Update monthly budget',
+                  style: Theme.of(
+                    sheetContext,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 6),
+                Text(
+                  'Leave category blank for an overall monthly budget.',
+                  style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-                decoration: const InputDecoration(
-                  labelText: 'Budget limit',
-                  prefixText: 'PKR ',
-                  prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: categoryController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    hintText: 'Example: Fuel, Food, Business',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: thresholdController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Budget limit',
+                    prefixText: 'PKR ',
+                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                  ),
                 ),
-                decoration: const InputDecoration(
-                  labelText: 'Warning threshold',
-                  suffixText: '%',
-                  prefixIcon: Icon(Icons.warning_amber_rounded),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: thresholdController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Warning threshold',
+                    suffixText: '%',
+                    prefixIcon: Icon(Icons.warning_amber_rounded),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () async {
-                    final amount =
-                        double.tryParse(amountController.text.trim()) ?? 0;
-                    final threshold =
-                        double.tryParse(thresholdController.text.trim()) ?? 80;
-                    if (amount <= 0) {
-                      ScaffoldMessenger.of(sheetContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('Enter a valid budget amount.'),
-                        ),
-                      );
-                      return;
-                    }
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      final amount =
+                          double.tryParse(amountController.text.trim()) ?? 0;
+                      final threshold =
+                          double.tryParse(thresholdController.text.trim()) ??
+                          80;
+                      if (amount <= 0) {
+                        ScaffoldMessenger.of(sheetContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('Enter a valid budget amount.'),
+                          ),
+                        );
+                        return;
+                      }
 
-                    await ref
-                        .read(expenseTrackerRepositoryProvider)
-                        .saveBudget({
-                          if (budget != null && budget.name.isNotEmpty)
-                            'name': budget.name,
-                          'category': categoryController.text.trim().isEmpty
-                              ? null
-                              : categoryController.text.trim(),
-                          'month': DateFormat('yyyy-MM-dd').format(month),
-                          'limit_amount': amount,
-                          'alert_threshold': threshold.clamp(1, 100),
-                          'active': 1,
-                        });
+                      dirtyFormController.beginSubmitting();
+                      try {
+                        await ref
+                            .read(expenseTrackerRepositoryProvider)
+                            .saveBudget({
+                              if (budget != null && budget.name.isNotEmpty)
+                                'name': budget.name,
+                              'category': categoryController.text.trim().isEmpty
+                                  ? null
+                                  : categoryController.text.trim(),
+                              'month': DateFormat('yyyy-MM-dd').format(month),
+                              'limit_amount': amount,
+                              'alert_threshold': threshold.clamp(1, 100),
+                              'active': 1,
+                            });
 
-                    if (!sheetContext.mounted) return;
-                    _refresh();
-                    Navigator.of(sheetContext).pop();
-                  },
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('Save budget'),
+                        dirtyFormController.submissionSucceeded();
+                        if (!sheetContext.mounted) return;
+                        _refresh();
+                        Navigator.of(sheetContext).pop();
+                      } catch (_) {
+                        dirtyFormController.submissionFailed();
+                        rethrow;
+                      }
+                    },
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('Save budget'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
 
+    categoryController.removeListener(markDirty);
+    amountController.removeListener(markDirty);
+    thresholdController.removeListener(markDirty);
+    dirtyFormController.dispose();
     categoryController.dispose();
     amountController.dispose();
     thresholdController.dispose();

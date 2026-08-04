@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/app_back_header.dart';
@@ -108,6 +109,7 @@ class _SupportTicketChatBodyState
     extends ConsumerState<_SupportTicketChatBody> {
   final _replyController = TextEditingController();
   final _scrollController = ScrollController();
+  final _dirtyFormController = DirtyFormController();
 
   static const _refreshInterval = Duration(seconds: 4);
 
@@ -122,12 +124,15 @@ class _SupportTicketChatBodyState
   @override
   void initState() {
     super.initState();
+    _replyController.addListener(_markReplyDirty);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _markTicketRead();
       _scrollToBottomSoon();
     });
     _refreshTimer = Timer.periodic(_refreshInterval, (_) => _refreshTicket());
   }
+
+  void _markReplyDirty() => _dirtyFormController.markDirty();
 
   void _refreshTicket() {
     if (!mounted || _isSendingReply || _isUpdatingStatus) return;
@@ -151,8 +156,10 @@ class _SupportTicketChatBodyState
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _replyController.removeListener(_markReplyDirty);
     _replyController.dispose();
     _scrollController.dispose();
+    _dirtyFormController.dispose();
     super.dispose();
   }
 
@@ -167,70 +174,76 @@ class _SupportTicketChatBodyState
     final canViewInternalDetails =
         isInternal && capabilities.canViewInternalNotes;
 
-    return Column(
-      children: [
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(supportTicketDetailProvider(ticket.id));
-              ref.invalidate(supportTicketsProvider);
-              await _markTicketRead();
-            },
-            child: ListView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-              children: [
-                _TicketInfoCard(ticket: ticket),
-                if (canViewInternalDetails) ...[
-                  const SizedBox(height: 12),
-                  _CustomerInformationCard(ticket: ticket),
-                ],
-                if (canUpdateStatus) ...[
-                  const SizedBox(height: 12),
-                  _SupportAdminStatusBar(
-                    ticket: ticket,
-                    isUpdating: _isUpdatingStatus,
-                    onStatusSelected: _isUpdatingStatus
-                        ? null
-                        : (status) => _updateTicketStatus(context, status),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                const _ConversationHeader(),
-                const SizedBox(height: 12),
-                if (ticket.messages.isEmpty)
-                  const _EmptyConversationBubble()
-                else
-                  for (final message in ticket.messages) ...[
-                    _ChatBubble(
-                      message: message,
-                      isMine: isInternal
-                          ? !message.isFromCustomer
-                          : message.isFromCustomer,
-                    ),
-                    const SizedBox(height: 10),
+    return UnsavedChangesGuard(
+      controller: _dirtyFormController,
+      child: Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(supportTicketDetailProvider(ticket.id));
+                ref.invalidate(supportTicketsProvider);
+                await _markTicketRead();
+              },
+              child: ListView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                children: [
+                  _TicketInfoCard(ticket: ticket),
+                  if (canViewInternalDetails) ...[
+                    const SizedBox(height: 12),
+                    _CustomerInformationCard(ticket: ticket),
                   ],
-              ],
+                  if (canUpdateStatus) ...[
+                    const SizedBox(height: 12),
+                    _SupportAdminStatusBar(
+                      ticket: ticket,
+                      isUpdating: _isUpdatingStatus,
+                      onStatusSelected: _isUpdatingStatus
+                          ? null
+                          : (status) => _updateTicketStatus(context, status),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  const _ConversationHeader(),
+                  const SizedBox(height: 12),
+                  if (ticket.messages.isEmpty)
+                    const _EmptyConversationBubble()
+                  else
+                    for (final message in ticket.messages) ...[
+                      _ChatBubble(
+                        message: message,
+                        isMine: isInternal
+                            ? !message.isFromCustomer
+                            : message.isFromCustomer,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                ],
+              ),
             ),
           ),
-        ),
-        _SupportChatComposer(
-          controller: _replyController,
-          attachment: _pickedAttachment,
-          enabled: canReply && !ticket.isClosed && !_isSendingReply,
-          isSending: _isSendingReply,
-          isClosed: ticket.isClosed,
-          onPickAttachment: _pickAttachment,
-          onRemoveAttachment: () => setState(() {
-            _pickedAttachment = null;
-            _uploadedAttachmentUrlForRetry = null;
-          }),
-          onSend: () => _sendReply(context),
-        ),
-      ],
+          _SupportChatComposer(
+            controller: _replyController,
+            attachment: _pickedAttachment,
+            enabled: canReply && !ticket.isClosed && !_isSendingReply,
+            isSending: _isSendingReply,
+            isClosed: ticket.isClosed,
+            onPickAttachment: _pickAttachment,
+            onRemoveAttachment: () {
+              _dirtyFormController.markDirty();
+              setState(() {
+                _pickedAttachment = null;
+                _uploadedAttachmentUrlForRetry = null;
+              });
+            },
+            onSend: () => _sendReply(context),
+          ),
+        ],
+      ),
     );
   }
 
@@ -290,6 +303,7 @@ class _SupportTicketChatBodyState
         return;
       }
 
+      _dirtyFormController.markDirty();
       setState(() {
         _uploadedAttachmentUrlForRetry = null;
         _pickedAttachment = _PickedSupportAttachment(
@@ -349,6 +363,7 @@ class _SupportTicketChatBodyState
 
     final repository = ref.read(supportRepositoryProvider);
 
+    _dirtyFormController.beginSubmitting();
     setState(() => _isSendingReply = true);
 
     try {
@@ -379,6 +394,7 @@ class _SupportTicketChatBodyState
         _pickedAttachment = null;
         _uploadedAttachmentUrlForRetry = null;
       });
+      _dirtyFormController.submissionSucceeded();
       ref.invalidate(supportTicketDetailProvider(ticket.id));
       ref.invalidate(supportTicketsProvider);
       ref.invalidate(supportUnreadCountProvider);
@@ -387,6 +403,7 @@ class _SupportTicketChatBodyState
       _markTicketRead();
       _scrollToBottomSoon();
     } catch (error) {
+      _dirtyFormController.submissionFailed();
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(
         error,

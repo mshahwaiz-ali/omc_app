@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/mutation_invalidation.dart';
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/admin_control_repository.dart';
@@ -213,87 +214,106 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
     AdminCaseOptions options,
   ) async {
     final reason = TextEditingController();
+    final dirtyFormController = DirtyFormController();
+
+    void markDirty() => dirtyFormController.markDirty();
+
+    reason.addListener(markDirty);
+
     var candidates = options.candidates;
     AdminAssignmentCandidate? selected;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Reassign ${item.id}'),
-          content: SizedBox(
-            width: 460,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Current assignee: ${options.text('assigned_staff').isEmpty ? 'Unassigned' : options.text('assigned_staff')}',
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Search eligible staff',
+        builder: (context, setDialogState) => UnsavedChangesGuard(
+          controller: dirtyFormController,
+          child: AlertDialog(
+            title: Text('Reassign ${item.id}'),
+            content: SizedBox(
+              width: 460,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Current assignee: ${options.text('assigned_staff').isEmpty ? 'Unassigned' : options.text('assigned_staff')}',
                     ),
-                    onChanged: (value) => setDialogState(() {
-                      final query = value.trim().toLowerCase();
-                      candidates = options.candidates
-                          .where(
-                            (candidate) =>
-                                '${candidate.fullName} ${candidate.userId}'
-                                    .toLowerCase()
-                                    .contains(query),
-                          )
-                          .toList();
-                      if (selected != null && !candidates.contains(selected)) {
-                        selected = null;
-                      }
-                    }),
-                  ),
-                  DropdownButtonFormField<AdminAssignmentCandidate>(
-                    initialValue: selected,
-                    decoration: const InputDecoration(
-                      labelText: 'Eligible assignee',
+                    const SizedBox(height: 10),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Search eligible staff',
+                      ),
+                      onChanged: (value) => setDialogState(() {
+                        final query = value.trim().toLowerCase();
+                        candidates = options.candidates
+                            .where(
+                              (candidate) =>
+                                  '${candidate.fullName} ${candidate.userId}'
+                                      .toLowerCase()
+                                      .contains(query),
+                            )
+                            .toList();
+                        if (selected != null &&
+                            !candidates.contains(selected)) {
+                          selected = null;
+                        }
+                      }),
                     ),
-                    items: [
-                      for (final candidate in candidates)
-                        DropdownMenuItem(
-                          value: candidate,
-                          child: Text(
-                            '${candidate.fullName} (${candidate.userId})',
-                            overflow: TextOverflow.ellipsis,
+                    DropdownButtonFormField<AdminAssignmentCandidate>(
+                      initialValue: selected,
+                      decoration: const InputDecoration(
+                        labelText: 'Eligible assignee',
+                      ),
+                      items: [
+                        for (final candidate in candidates)
+                          DropdownMenuItem(
+                            value: candidate,
+                            child: Text(
+                              '${candidate.fullName} (${candidate.userId})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => selected = value),
-                  ),
-                  TextField(
-                    controller: reason,
-                    minLines: 2,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Reason (optional)',
+                      ],
+                      onChanged: (value) {
+                        dirtyFormController.markDirty();
+                        setDialogState(() => selected = value);
+                      },
                     ),
-                  ),
-                ],
+                    TextField(
+                      controller: reason,
+                      minLines: 2,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Reason (optional)',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: selected == null
+                    ? null
+                    : () {
+                        dirtyFormController.submissionSucceeded();
+                        Navigator.pop(dialogContext, true);
+                      },
+                child: const Text('Confirm reassignment'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: selected == null
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              child: const Text('Confirm reassignment'),
-            ),
-          ],
         ),
       ),
     );
+
+    reason.removeListener(markDirty);
+    dirtyFormController.dispose();
+
     if (confirmed != true || selected == null) {
       reason.dispose();
       return false;
@@ -348,79 +368,99 @@ class _AdminOperationsScreenState extends ConsumerState<AdminOperationsScreen> {
     AdminCaseOptions options,
   ) async {
     final remarks = TextEditingController();
+    final dirtyFormController = DirtyFormController();
+
+    void markDirty() => dirtyFormController.markDirty();
+
+    remarks.addListener(markDirty);
+
     bool? approve;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Discount review ${item.id}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Customer: ${options.text('customer_name')}'),
-                Text('Service: ${options.text('service_title')}'),
-                Text('Base price: PKR ${options.number('original_price')}'),
-                Text(
-                  'Discount: ${options.text('discount_type')} ${options.number('discount_value')}',
-                ),
-                Text(
-                  'Discount amount: PKR ${options.number('discount_amount')}',
-                ),
-                Text(
-                  'Final price: PKR ${options.number('proposed_final_price')}',
-                ),
-                Text('Requested by: ${options.text('discount_requested_by')}'),
-                Text('Reason: ${options.text('discount_reason')}'),
-                Text(
-                  'Auto threshold: ${options.number('discount_auto_approval_percent')}%',
-                ),
-                Text(
-                  'Minimum floor: PKR ${options.number('minimum_service_price')}',
-                ),
-                const SizedBox(height: 10),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: true, label: Text('Approve')),
-                    ButtonSegment(value: false, label: Text('Reject')),
-                  ],
-                  selected: approve == null ? const {} : {approve!},
-                  emptySelectionAllowed: true,
-                  onSelectionChanged: (value) =>
-                      setDialogState(() => approve = value.firstOrNull),
-                ),
-                TextField(
-                  controller: remarks,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: approve == false
-                        ? 'Review remarks (required)'
-                        : 'Review remarks (optional)',
+        builder: (context, setDialogState) => UnsavedChangesGuard(
+          controller: dirtyFormController,
+          child: AlertDialog(
+            title: Text('Discount review ${item.id}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Customer: ${options.text('customer_name')}'),
+                  Text('Service: ${options.text('service_title')}'),
+                  Text('Base price: PKR ${options.number('original_price')}'),
+                  Text(
+                    'Discount: ${options.text('discount_type')} ${options.number('discount_value')}',
                   ),
-                  onChanged: (_) => setDialogState(() {}),
-                ),
-              ],
+                  Text(
+                    'Discount amount: PKR ${options.number('discount_amount')}',
+                  ),
+                  Text(
+                    'Final price: PKR ${options.number('proposed_final_price')}',
+                  ),
+                  Text(
+                    'Requested by: ${options.text('discount_requested_by')}',
+                  ),
+                  Text('Reason: ${options.text('discount_reason')}'),
+                  Text(
+                    'Auto threshold: ${options.number('discount_auto_approval_percent')}%',
+                  ),
+                  Text(
+                    'Minimum floor: PKR ${options.number('minimum_service_price')}',
+                  ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('Approve')),
+                      ButtonSegment(value: false, label: Text('Reject')),
+                    ],
+                    selected: approve == null ? const {} : {approve!},
+                    emptySelectionAllowed: true,
+                    onSelectionChanged: (value) {
+                      dirtyFormController.markDirty();
+                      setDialogState(() => approve = value.firstOrNull);
+                    },
+                  ),
+                  TextField(
+                    controller: remarks,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      labelText: approve == false
+                          ? 'Review remarks (required)'
+                          : 'Review remarks (optional)',
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed:
+                    approve == null ||
+                        (approve == false && remarks.text.trim().isEmpty)
+                    ? null
+                    : () {
+                        dirtyFormController.submissionSucceeded();
+                        Navigator.pop(dialogContext, true);
+                      },
+                child: const Text('Confirm decision'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed:
-                  approve == null ||
-                      (approve == false && remarks.text.trim().isEmpty)
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              child: const Text('Confirm decision'),
-            ),
-          ],
         ),
       ),
     );
+
+    remarks.removeListener(markDirty);
+    dirtyFormController.dispose();
+
     if (confirmed != true || approve == null) {
       remarks.dispose();
       return false;

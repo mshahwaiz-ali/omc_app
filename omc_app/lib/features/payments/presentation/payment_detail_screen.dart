@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -641,8 +642,16 @@ class _PaymentDetailBody extends ConsumerStatefulWidget {
 class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   bool _isUploadingReceipt = false;
   bool _isReviewingReceipt = false;
+  double? _receiptUploadProgress;
+  CancelToken? _receiptUploadCancelToken;
 
   PaymentItem get payment => widget.payment;
+
+  @override
+  void dispose() {
+    _receiptUploadCancelToken?.cancel('Upload screen closed.');
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -663,6 +672,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
         PaymentActionCard(
           payment: payment,
           isUploadingReceipt: _isUploadingReceipt,
+          uploadProgress: _receiptUploadProgress,
+          onCancelUpload: _isUploadingReceipt ? _cancelReceiptUpload : null,
           onInvoice: () => _openPaymentUrl(
             context,
             payment.invoiceUrl,
@@ -854,13 +865,25 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     }
 
     final repository = ref.read(paymentsRepositoryProvider);
+    final cancelToken = CancelToken();
+    _receiptUploadCancelToken = cancelToken;
 
-    setState(() => _isUploadingReceipt = true);
+    setState(() {
+      _isUploadingReceipt = true;
+      _receiptUploadProgress = 0;
+    });
 
     try {
       final uploadedFiles = await repository.uploadPaymentReceipts(
         paymentId: payment.id,
         attachments: result.accepted,
+        cancelToken: cancelToken,
+        onProgress: (sent, total) {
+          if (!mounted || total <= 0) return;
+          setState(() {
+            _receiptUploadProgress = (sent / total).clamp(0.0, 1.0);
+          });
+        },
       );
 
       if (!context.mounted) return;
@@ -873,6 +896,21 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       messenger.showSnackBar(SnackBar(content: Text(message)));
 
       _invalidatePaymentRelatedState();
+    } on DioException catch (error) {
+      if (!context.mounted) return;
+      if (CancelToken.isCancel(error)) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Receipt upload cancelled.')),
+        );
+        return;
+      }
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Receipt upload failed',
+        fallbackMessage:
+            'Receipt upload could not be completed right now. Please try again.',
+      );
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } catch (error) {
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(
@@ -883,10 +921,20 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       );
       messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
+      _receiptUploadCancelToken = null;
       if (mounted) {
-        setState(() => _isUploadingReceipt = false);
+        setState(() {
+          _isUploadingReceipt = false;
+          _receiptUploadProgress = null;
+        });
       }
     }
+  }
+
+  void _cancelReceiptUpload() {
+    final token = _receiptUploadCancelToken;
+    if (token == null || token.isCancelled) return;
+    token.cancel('Cancelled by user.');
   }
 
   Future<void> _openPaymentUrl(

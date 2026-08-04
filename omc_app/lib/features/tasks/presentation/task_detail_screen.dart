@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/mutation_invalidation.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../auth/application/auth_controller.dart';
@@ -128,6 +129,13 @@ class TaskDetailScreen extends ConsumerWidget {
   ) async {
     final assignedController = TextEditingController(text: task.assignedTo);
     final dueDateController = TextEditingController(text: task.dueDateLabel);
+    final dirtyFormController = DirtyFormController();
+
+    void markDirty() => dirtyFormController.markDirty();
+
+    assignedController.addListener(markDirty);
+    dueDateController.addListener(markDirty);
+
     var priority = task.priority.trim().isEmpty
         ? 'Medium'
         : task.priority.trim();
@@ -143,6 +151,7 @@ class TaskDetailScreen extends ConsumerWidget {
           builder: (context, setSheetState) {
             Future<void> submit() async {
               if (saving) return;
+              dirtyFormController.beginSubmitting();
               setSheetState(() => saving = true);
 
               try {
@@ -176,6 +185,7 @@ class TaskDetailScreen extends ConsumerWidget {
                   caseId: task.serviceRequest,
                 );
 
+                dirtyFormController.submissionSucceeded();
                 if (!sheetContext.mounted) return;
                 Navigator.of(sheetContext).pop();
 
@@ -184,6 +194,7 @@ class TaskDetailScreen extends ConsumerWidget {
                   const SnackBar(content: Text('Task planning updated.')),
                 );
               } catch (error) {
+                dirtyFormController.submissionFailed();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Task could not be updated: $error')),
@@ -195,85 +206,91 @@ class TaskDetailScreen extends ConsumerWidget {
               }
             }
 
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                4,
-                20,
-                MediaQuery.viewInsetsOf(context).bottom + 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Manage task',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: assignedController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Assigned user',
-                        hintText: 'user@example.com',
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    DropdownButtonFormField<String>(
-                      initialValue: priority,
-                      decoration: const InputDecoration(labelText: 'Priority'),
-                      items: const [
-                        DropdownMenuItem(value: 'Low', child: Text('Low')),
-                        DropdownMenuItem(
-                          value: 'Medium',
-                          child: Text('Medium'),
+            return UnsavedChangesGuard(
+              controller: dirtyFormController,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  4,
+                  20,
+                  MediaQuery.viewInsetsOf(context).bottom + 24,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Manage task',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
                         ),
-                        DropdownMenuItem(value: 'High', child: Text('High')),
-                        DropdownMenuItem(
-                          value: 'Urgent',
-                          child: Text('Urgent'),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: assignedController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Assigned user',
+                          hintText: 'user@example.com',
                         ),
-                      ],
-                      onChanged: saving
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setSheetState(() => priority = value);
-                              }
-                            },
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: dueDateController,
-                      keyboardType: TextInputType.datetime,
-                      decoration: const InputDecoration(
-                        labelText: 'Due date',
-                        hintText: 'YYYY-MM-DD',
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: saving ? null : submit,
-                        icon: saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.save_rounded),
-                        label: Text(saving ? 'Saving...' : 'Save changes'),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        initialValue: priority,
+                        decoration: const InputDecoration(
+                          labelText: 'Priority',
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'Low', child: Text('Low')),
+                          DropdownMenuItem(
+                            value: 'Medium',
+                            child: Text('Medium'),
+                          ),
+                          DropdownMenuItem(value: 'High', child: Text('High')),
+                          DropdownMenuItem(
+                            value: 'Urgent',
+                            child: Text('Urgent'),
+                          ),
+                        ],
+                        onChanged: saving
+                            ? null
+                            : (value) {
+                                if (value != null) {
+                                  dirtyFormController.markDirty();
+                                  setSheetState(() => priority = value);
+                                }
+                              },
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: dueDateController,
+                        keyboardType: TextInputType.datetime,
+                        decoration: const InputDecoration(
+                          labelText: 'Due date',
+                          hintText: 'YYYY-MM-DD',
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: saving ? null : submit,
+                          icon: saving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.save_rounded),
+                          label: Text(saving ? 'Saving...' : 'Save changes'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -282,6 +299,9 @@ class TaskDetailScreen extends ConsumerWidget {
       },
     );
 
+    assignedController.removeListener(markDirty);
+    dueDateController.removeListener(markDirty);
+    dirtyFormController.dispose();
     assignedController.dispose();
     dueDateController.dispose();
   }

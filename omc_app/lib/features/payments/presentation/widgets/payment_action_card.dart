@@ -12,6 +12,8 @@ class PaymentActionCard extends StatelessWidget {
     required this.onUploadReceipt,
     required this.onPayNow,
     this.isUploadingReceipt = false,
+    this.uploadProgress,
+    this.onCancelUpload,
     super.key,
   });
 
@@ -21,6 +23,8 @@ class PaymentActionCard extends StatelessWidget {
   final VoidCallback? onUploadReceipt;
   final VoidCallback onPayNow;
   final bool isUploadingReceipt;
+  final double? uploadProgress;
+  final VoidCallback? onCancelUpload;
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +104,13 @@ class PaymentActionCard extends StatelessWidget {
               enabled: !isUploadingReceipt && canUploadReceipt,
               onTap: canUploadReceipt ? onUploadReceipt : null,
             ),
+            if (isUploadingReceipt) ...[
+              const SizedBox(height: 10),
+              _UploadProgressPanel(
+                progress: uploadProgress,
+                onCancel: onCancelUpload,
+              ),
+            ],
             const SizedBox(height: 10),
           ],
           _ActionTile(
@@ -112,6 +123,62 @@ class PaymentActionCard extends StatelessWidget {
             onTap: onReceipt,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _UploadProgressPanel extends StatelessWidget {
+  const _UploadProgressPanel({required this.progress, required this.onCancel});
+
+  final double? progress;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = progress?.clamp(0.0, 1.0);
+    final percent = normalized == null ? null : (normalized * 100).round();
+
+    return Semantics(
+      liveRegion: true,
+      label: percent == null
+          ? 'Uploading payment receipt'
+          : 'Uploading payment receipt, $percent percent',
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.primary.withValues(alpha: 0.045),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.10)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    percent == null
+                        ? 'Preparing upload...'
+                        : 'Uploading receipt — $percent%',
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onCancel,
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  label: const Text('Cancel'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(value: normalized),
+          ],
+        ),
       ),
     );
   }

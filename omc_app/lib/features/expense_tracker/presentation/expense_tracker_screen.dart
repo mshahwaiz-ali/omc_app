@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -1502,6 +1503,7 @@ class _TransactionSheet extends StatefulWidget {
 
 class _TransactionSheetState extends State<_TransactionSheet> {
   final _formKey = GlobalKey<FormState>();
+  final _dirtyFormController = DirtyFormController();
   bool _isSaving = false;
   late final TextEditingController _amountController;
   late final TextEditingController _categoryController;
@@ -1555,6 +1557,8 @@ class _TransactionSheetState extends State<_TransactionSheet> {
     _reimbursable = existing?.reimbursable ?? false;
   }
 
+  void _markDirty() => _dirtyFormController.markDirty();
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -1564,6 +1568,7 @@ class _TransactionSheetState extends State<_TransactionSheet> {
     _merchantController.dispose();
     _noteController.dispose();
     _receiptController.dispose();
+    _dirtyFormController.dispose();
     super.dispose();
   }
 
@@ -1575,228 +1580,251 @@ class _TransactionSheetState extends State<_TransactionSheet> {
         .take(8)
         .toList(growable: false);
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, bottomInset + 20),
-      child: Form(
-        key: _formKey,
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Row(
-              children: [
-                _IconBox(
-                  icon: widget.transaction == null
-                      ? Icons.add_card_rounded
-                      : Icons.edit_outlined,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.transaction == null
-                        ? 'Add transaction'
-                        : 'Edit transaction',
-                    style: _titleStyle(size: 22),
+    return UnsavedChangesGuard(
+      controller: _dirtyFormController,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, bottomInset + 20),
+        child: Form(
+          key: _formKey,
+          onChanged: _markDirty,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Row(
+                children: [
+                  _IconBox(
+                    icon: widget.transaction == null
+                        ? Icons.add_card_rounded
+                        : Icons.edit_outlined,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SegmentedButton<ExpenseTransactionType>(
-              segments: const [
-                ButtonSegment(
-                  value: ExpenseTransactionType.expense,
-                  label: Text('Expense'),
-                  icon: Icon(Icons.north_east_rounded),
-                ),
-                ButtonSegment(
-                  value: ExpenseTransactionType.income,
-                  label: Text('Income'),
-                  icon: Icon(Icons.south_west_rounded),
-                ),
-              ],
-              selected: {_type},
-              onSelectionChanged: (selection) =>
-                  setState(() => _type = selection.first),
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                prefixIcon: Icon(Icons.payments_outlined),
-              ),
-              validator: (value) {
-                final amount = double.tryParse(
-                  value?.replaceAll(',', '').trim() ?? '',
-                );
-                if (amount == null || amount <= 0) {
-                  return 'Enter a valid amount.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: quickCategories
-                  .map(
-                    (category) => ActionChip(
-                      label: Text(category.title),
-                      onPressed: () {
-                        setState(() {
-                          _categoryController.text = category.title;
-                          _taxRelevant = category.isTaxRelevant;
-                          _businessRelated = category.businessDefault;
-                        });
-                      },
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.transaction == null
+                          ? 'Add transaction'
+                          : 'Edit transaction',
+                      style: _titleStyle(size: 22),
                     ),
-                  )
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _categoryController,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: _type == ExpenseTransactionType.income
-                    ? 'Income category'
-                    : 'Expense category',
-                prefixIcon: const Icon(Icons.category_outlined),
-              ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Category is required.'
-                  : null,
-            ),
-            const SizedBox(height: 12),
-            ExpansionTile(
-              initiallyExpanded: _advanced,
-              onExpansionChanged: (value) => setState(() => _advanced = value),
-              tilePadding: EdgeInsets.zero,
-              title: Text('Advanced details', style: _titleStyle(size: 15)),
-              children: [
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: _accountController.text.trim().isEmpty
-                      ? 'Cash'
-                      : _accountController.text.trim(),
-                  decoration: const InputDecoration(
-                    labelText: 'Account',
-                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                    DropdownMenuItem(value: 'Bank', child: Text('Bank')),
-                    DropdownMenuItem(value: 'Card', child: Text('Card')),
-                    DropdownMenuItem(value: 'Wallet', child: Text('Wallet')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) _accountController.text = value;
-                  },
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _paymentMethodController.text.trim().isEmpty
-                      ? 'Cash'
-                      : _paymentMethodController.text.trim(),
-                  decoration: const InputDecoration(
-                    labelText: 'Payment method',
-                    prefixIcon: Icon(Icons.credit_card_rounded),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                    DropdownMenuItem(value: 'Card', child: Text('Card')),
-                    DropdownMenuItem(
-                      value: 'Bank Transfer',
-                      child: Text('Bank Transfer'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Wallet',
-                      child: Text('Wallet / Digital Wallet'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) _paymentMethodController.text = value;
-                  },
-                ),
-                const SizedBox(height: 12),
-                _DatePickerTile(date: _selectedDate, onTap: _pickDate),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _merchantController,
-                  decoration: const InputDecoration(
-                    labelText: 'Merchant optional',
-                    prefixIcon: Icon(Icons.storefront_outlined),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _noteController,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Note optional',
-                    prefixIcon: Icon(Icons.notes_outlined),
-                  ),
-                ),
-                if (widget.receiptEnabled) ...[
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _pickReceipt,
-                    icon: const Icon(Icons.attach_file_rounded),
-                    label: Text(
-                      _selectedReceiptFile?.name ??
-                          (_receiptController.text.trim().isEmpty
-                              ? 'Attach receipt'
-                              : 'Replace attached receipt'),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _selectedReceiptFile == null
-                        ? 'Upload JPG, PNG, WEBP or PDF receipt with this transaction.'
-                        : 'Selected receipt will upload when you save.',
-                    style: _bodyStyle().copyWith(fontSize: 12),
                   ),
                 ],
-                const SizedBox(height: 10),
-                SwitchListTile.adaptive(
-                  value: _taxRelevant,
-                  onChanged: (value) => setState(() => _taxRelevant = value),
-                  title: const Text('Useful for tax'),
+              ),
+              const SizedBox(height: 16),
+              SegmentedButton<ExpenseTransactionType>(
+                segments: const [
+                  ButtonSegment(
+                    value: ExpenseTransactionType.expense,
+                    label: Text('Expense'),
+                    icon: Icon(Icons.north_east_rounded),
+                  ),
+                  ButtonSegment(
+                    value: ExpenseTransactionType.income,
+                    label: Text('Income'),
+                    icon: Icon(Icons.south_west_rounded),
+                  ),
+                ],
+                selected: {_type},
+                onSelectionChanged: (selection) {
+                  _markDirty();
+                  setState(() => _type = selection.first);
+                },
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-                SwitchListTile.adaptive(
-                  value: _businessRelated,
-                  onChanged: (value) =>
-                      setState(() => _businessRelated = value),
-                  title: const Text('Business expense'),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixIcon: Icon(Icons.payments_outlined),
                 ),
-                SwitchListTile.adaptive(
-                  value: _recurring,
-                  onChanged: (value) => setState(() => _recurring = value),
-                  title: const Text('Recurring'),
+                validator: (value) {
+                  final amount = double.tryParse(
+                    value?.replaceAll(',', '').trim() ?? '',
+                  );
+                  if (amount == null || amount <= 0) {
+                    return 'Enter a valid amount.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: quickCategories
+                    .map(
+                      (category) => ActionChip(
+                        label: Text(category.title),
+                        onPressed: () {
+                          _markDirty();
+                          setState(() {
+                            _categoryController.text = category.title;
+                            _taxRelevant = category.isTaxRelevant;
+                            _businessRelated = category.businessDefault;
+                          });
+                        },
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _categoryController,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: _type == ExpenseTransactionType.income
+                      ? 'Income category'
+                      : 'Expense category',
+                  prefixIcon: const Icon(Icons.category_outlined),
                 ),
-                SwitchListTile.adaptive(
-                  value: _reimbursable,
-                  onChanged: (value) => setState(() => _reimbursable = value),
-                  title: const Text('Reimbursable'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            AppButton(
-              label: widget.transaction == null
-                  ? 'Save transaction'
-                  : 'Update transaction',
-              icon: Icons.check_rounded,
-              isLoading: _isSaving,
-              onPressed: _isSaving ? null : _save,
-            ),
-            const SizedBox(height: 4),
-          ],
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Category is required.'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              ExpansionTile(
+                initiallyExpanded: _advanced,
+                onExpansionChanged: (value) =>
+                    setState(() => _advanced = value),
+                tilePadding: EdgeInsets.zero,
+                title: Text('Advanced details', style: _titleStyle(size: 15)),
+                children: [
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: _accountController.text.trim().isEmpty
+                        ? 'Cash'
+                        : _accountController.text.trim(),
+                    decoration: const InputDecoration(
+                      labelText: 'Account',
+                      prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                      DropdownMenuItem(value: 'Bank', child: Text('Bank')),
+                      DropdownMenuItem(value: 'Card', child: Text('Card')),
+                      DropdownMenuItem(value: 'Wallet', child: Text('Wallet')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      _markDirty();
+                      _accountController.text = value;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _paymentMethodController.text.trim().isEmpty
+                        ? 'Cash'
+                        : _paymentMethodController.text.trim(),
+                    decoration: const InputDecoration(
+                      labelText: 'Payment method',
+                      prefixIcon: Icon(Icons.credit_card_rounded),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                      DropdownMenuItem(value: 'Card', child: Text('Card')),
+                      DropdownMenuItem(
+                        value: 'Bank Transfer',
+                        child: Text('Bank Transfer'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Wallet',
+                        child: Text('Wallet / Digital Wallet'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      _markDirty();
+                      _paymentMethodController.text = value;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _DatePickerTile(date: _selectedDate, onTap: _pickDate),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _merchantController,
+                    decoration: const InputDecoration(
+                      labelText: 'Merchant optional',
+                      prefixIcon: Icon(Icons.storefront_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _noteController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Note optional',
+                      prefixIcon: Icon(Icons.notes_outlined),
+                    ),
+                  ),
+                  if (widget.receiptEnabled) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _pickReceipt,
+                      icon: const Icon(Icons.attach_file_rounded),
+                      label: Text(
+                        _selectedReceiptFile?.name ??
+                            (_receiptController.text.trim().isEmpty
+                                ? 'Attach receipt'
+                                : 'Replace attached receipt'),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _selectedReceiptFile == null
+                          ? 'Upload JPG, PNG, WEBP or PDF receipt with this transaction.'
+                          : 'Selected receipt will upload when you save.',
+                      style: _bodyStyle().copyWith(fontSize: 12),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  SwitchListTile.adaptive(
+                    value: _taxRelevant,
+                    onChanged: (value) {
+                      _markDirty();
+                      setState(() => _taxRelevant = value);
+                    },
+                    title: const Text('Useful for tax'),
+                  ),
+                  SwitchListTile.adaptive(
+                    value: _businessRelated,
+                    onChanged: (value) {
+                      _markDirty();
+                      setState(() => _businessRelated = value);
+                    },
+                    title: const Text('Business expense'),
+                  ),
+                  SwitchListTile.adaptive(
+                    value: _recurring,
+                    onChanged: (value) {
+                      _markDirty();
+                      setState(() => _recurring = value);
+                    },
+                    title: const Text('Recurring'),
+                  ),
+                  SwitchListTile.adaptive(
+                    value: _reimbursable,
+                    onChanged: (value) {
+                      _markDirty();
+                      setState(() => _reimbursable = value);
+                    },
+                    title: const Text('Reimbursable'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              AppButton(
+                label: widget.transaction == null
+                    ? 'Save transaction'
+                    : 'Update transaction',
+                icon: Icons.check_rounded,
+                isLoading: _isSaving,
+                onPressed: _isSaving ? null : _save,
+              ),
+              const SizedBox(height: 4),
+            ],
+          ),
         ),
       ),
     );
@@ -1810,6 +1838,7 @@ class _TransactionSheetState extends State<_TransactionSheet> {
       lastDate: DateTime.now(),
     );
     if (pickedDate == null) return;
+    _markDirty();
     setState(
       () => _selectedDate = DateTime(
         pickedDate.year,
@@ -1828,6 +1857,7 @@ class _TransactionSheetState extends State<_TransactionSheet> {
 
     if (result == null || result.files.isEmpty) return;
 
+    _markDirty();
     setState(() {
       _selectedReceiptFile = result.files.first;
     });
@@ -1840,6 +1870,7 @@ class _TransactionSheetState extends State<_TransactionSheet> {
     if (formState == null || !formState.validate()) return;
 
     FocusScope.of(context).unfocus();
+    _dirtyFormController.beginSubmitting();
     setState(() => _isSaving = true);
 
     final existing = widget.transaction;
@@ -1881,8 +1912,10 @@ class _TransactionSheetState extends State<_TransactionSheet> {
       }
 
       if (!mounted) return;
+      _dirtyFormController.submissionSucceeded();
       Navigator.of(context).pop();
     } catch (error) {
+      _dirtyFormController.submissionFailed();
       if (!mounted) return;
 
       final failure = AppFailureClassifier.classify(

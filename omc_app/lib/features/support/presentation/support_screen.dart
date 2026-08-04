@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -24,6 +25,7 @@ class SupportScreen extends ConsumerStatefulWidget {
 
 class _SupportScreenState extends ConsumerState<SupportScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final DirtyFormController _dirtyFormController = DirtyFormController();
   String _selectedTopic = SupportConfigData.fallback.topics.first.title;
   bool _isSubmitting = false;
 
@@ -40,10 +42,18 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
   void dispose() {
     _messageController.removeListener(_handleMessageChanged);
     _messageController.dispose();
+    _dirtyFormController.dispose();
     super.dispose();
   }
 
-  void _handleMessageChanged() => setState(() {});
+  void _handleMessageChanged() {
+    if (_messageController.text.trim().isEmpty) {
+      _dirtyFormController.markPristine();
+    } else {
+      _dirtyFormController.markDirty();
+    }
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,62 +73,68 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       });
     }
 
-    return SafeArea(
-      child: ListView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
-        children: [
-          const PremiumListHeader(
-            icon: Icons.support_agent_rounded,
-            title: 'Support',
-            subtitle:
-                'Get help with services, documents, tax queries and request updates.',
-            metaLabel: 'Help desk',
-          ),
-          const SizedBox(height: 20),
-          _SupportHeroCard(channelCount: supportConfig.channels.length),
-          const SizedBox(height: 16),
-          _SupportCategoriesCard(config: supportConfig, topics: supportTopics),
-          const SizedBox(height: 16),
-          _CreateSupportTicketCard(
-            selectedTopic: _selectedTopic,
-            messageController: _messageController,
-            isSubmitting: _isSubmitting,
-            canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
-            canCreateTicket: capabilities.canCreateSupportTicket,
-            lockedMessage: _lockedAccessMessage(capabilities),
-            topics: supportTopics
-                .map((topic) => topic.title)
-                .toList(growable: false),
-            onTopicChanged: _handleTopicChanged,
-            onSubmit: _submitSupportTicket,
-          ),
-          const SizedBox(height: 16),
-          _SupportTicketsCard(capabilities: capabilities),
-          const SizedBox(height: 16),
-          _BackendFaqCard(faqsAsync: faqsAsync),
-          const SizedBox(height: 16),
-          _SupportContactChannelsCard(config: supportConfig),
-          const SizedBox(height: 16),
-          PremiumCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _InfoRow(
-                  icon: Icons.schedule_rounded,
-                  title: 'Business hours',
-                  value: supportConfig.businessHours,
-                ),
-                const SizedBox(height: 16),
-                _InfoRow(
-                  icon: Icons.location_on_outlined,
-                  title: 'Office',
-                  value: supportConfig.officeAddress,
-                ),
-              ],
+    return UnsavedChangesGuard(
+      controller: _dirtyFormController,
+      child: SafeArea(
+        child: ListView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+          children: [
+            const PremiumListHeader(
+              icon: Icons.support_agent_rounded,
+              title: 'Support',
+              subtitle:
+                  'Get help with services, documents, tax queries and request updates.',
+              metaLabel: 'Help desk',
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            _SupportHeroCard(channelCount: supportConfig.channels.length),
+            const SizedBox(height: 16),
+            _SupportCategoriesCard(
+              config: supportConfig,
+              topics: supportTopics,
+            ),
+            const SizedBox(height: 16),
+            _CreateSupportTicketCard(
+              selectedTopic: _selectedTopic,
+              messageController: _messageController,
+              isSubmitting: _isSubmitting,
+              canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
+              canCreateTicket: capabilities.canCreateSupportTicket,
+              lockedMessage: _lockedAccessMessage(capabilities),
+              topics: supportTopics
+                  .map((topic) => topic.title)
+                  .toList(growable: false),
+              onTopicChanged: _handleTopicChanged,
+              onSubmit: _submitSupportTicket,
+            ),
+            const SizedBox(height: 16),
+            _SupportTicketsCard(capabilities: capabilities),
+            const SizedBox(height: 16),
+            _BackendFaqCard(faqsAsync: faqsAsync),
+            const SizedBox(height: 16),
+            _SupportContactChannelsCard(config: supportConfig),
+            const SizedBox(height: 16),
+            PremiumCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _InfoRow(
+                    icon: Icons.schedule_rounded,
+                    title: 'Business hours',
+                    value: supportConfig.businessHours,
+                  ),
+                  const SizedBox(height: 16),
+                  _InfoRow(
+                    icon: Icons.location_on_outlined,
+                    title: 'Office',
+                    value: supportConfig.officeAddress,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -137,6 +153,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         sortOrder: 0,
       ),
     );
+    _dirtyFormController.markDirty();
     setState(() {
       _selectedTopic = value;
       if (_messageController.text.trim().isEmpty &&
@@ -156,6 +173,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     }
 
     final repository = ref.read(supportRepositoryProvider);
+    _dirtyFormController.beginSubmitting();
     setState(() => _isSubmitting = true);
 
     try {
@@ -163,6 +181,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       if (!mounted) return;
 
       if (activeTicket != null && activeTicket.id.trim().isNotEmpty) {
+        _dirtyFormController.submissionFailed();
         _showSnack('You already have an active support ticket.');
         context.push(
           '/support-tickets/${Uri.encodeComponent(activeTicket.id)}',
@@ -175,6 +194,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         message: _messageController.text,
       );
       if (!mounted) return;
+      _dirtyFormController.submissionSucceeded();
       setState(_messageController.clear);
       ref.invalidate(supportTicketsProvider);
       ref.invalidate(activeSupportTicketProvider);
@@ -182,9 +202,11 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       _showSnack('Support ticket submitted.');
     } on ApiError catch (error) {
       if (!mounted) return;
+      _dirtyFormController.submissionFailed();
       _showSnack(error.message);
     } catch (_) {
       if (!mounted) return;
+      _dirtyFormController.submissionFailed();
       _showSnack(
         'Support ticket could not be submitted right now. Please try again.',
       );

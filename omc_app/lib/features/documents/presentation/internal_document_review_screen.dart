@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
@@ -161,35 +162,58 @@ class _InternalDocumentReviewScreenState
 
   Future<void> _rejectWithRemarks(DocumentItem document) async {
     final controller = TextEditingController(text: document.remarks ?? '');
+    final dirtyFormController = DirtyFormController();
+
+    void markDirty() => dirtyFormController.markDirty();
+
+    controller.addListener(markDirty);
+
     final remarks = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reject document'),
-        content: TextField(
-          controller: controller,
-          minLines: 3,
-          maxLines: 5,
-          decoration: const InputDecoration(
-            labelText: 'Reason / reupload instruction',
-            hintText: 'Example: CNIC image is unclear. Please upload again.',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => UnsavedChangesGuard(
+          controller: dirtyFormController,
+          child: AlertDialog(
+            title: const Text('Reject document'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              minLines: 3,
+              maxLines: 5,
+              onChanged: (_) => setDialogState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Reason / reupload instruction',
+                hintText:
+                    'Example: CNIC image is unclear. Please upload again.',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: controller.text.trim().isEmpty
+                    ? null
+                    : () {
+                        final value = controller.text.trim();
+                        dirtyFormController.submissionSucceeded();
+                        Navigator.of(dialogContext).pop(value);
+                      },
+                child: const Text('Reject'),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Reject'),
-          ),
-        ],
       ),
     );
+
+    controller.removeListener(markDirty);
+    dirtyFormController.dispose();
     controller.dispose();
 
     if (!mounted || _busyDocumentId != null) return;
-    if (remarks == null) return;
+    if (remarks == null || remarks.isEmpty) return;
     await _reviewDocument(document, 'Rejected', remarks: remarks);
   }
 

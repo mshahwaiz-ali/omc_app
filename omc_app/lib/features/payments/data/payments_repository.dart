@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -134,6 +135,8 @@ class PaymentsRepository {
   Future<List<Map<String, dynamic>>> uploadPaymentReceipts({
     required String paymentId,
     required List<DocumentAttachment> attachments,
+    ProgressCallback? onProgress,
+    CancelToken? cancelToken,
   }) async {
     final cleanPaymentId = paymentId.trim();
     if (cleanPaymentId.isEmpty) {
@@ -175,6 +178,8 @@ class PaymentsRepository {
         method: ApiConfig.uploadPaymentReceiptMultipartMethod,
         extraFields: {'payment_id': cleanPaymentId, 'name': cleanPaymentId},
         idempotencyKey: key,
+        onProgress: onProgress,
+        cancelToken: cancelToken,
       );
 
       uploadedFiles.add(response);

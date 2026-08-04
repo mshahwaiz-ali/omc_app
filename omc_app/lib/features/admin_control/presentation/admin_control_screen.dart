@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/admin_control_repository.dart';
 
@@ -103,61 +104,91 @@ class AdminControlScreen extends ConsumerWidget {
     AdminOverview? overview,
   ) async {
     if (overview == null || overview.availableRoles.isEmpty) return;
+
     final name = TextEditingController();
     final email = TextEditingController();
+    final dirtyFormController = DirtyFormController();
     final selectedRoles = <String>{overview.availableRoles.first};
+
+    void markDirty() => dirtyFormController.markDirty();
+
+    name.addListener(markDirty);
+    email.addListener(markDirty);
+
     final submit = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Invite staff member'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Full name'),
+        builder: (context, setDialogState) => UnsavedChangesGuard(
+          controller: dirtyFormController,
+          child: AlertDialog(
+            title: const Text('Invite staff member'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'Full name'),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  TextField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Operational roles'),
+                  ),
+                  for (final item in overview.availableRoles)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: selectedRoles.contains(item),
+                      title: Text(item),
+                      onChanged: (value) {
+                        dirtyFormController.markDirty();
+                        setDialogState(() {
+                          if (value == true) {
+                            selectedRoles.add(item);
+                          } else {
+                            selectedRoles.remove(item);
+                          }
+                        });
+                      },
+                    ),
+                ],
               ),
-              TextField(
-                controller: email,
-                decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
               ),
-              const SizedBox(height: 12),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Operational roles'),
+              FilledButton(
+                onPressed:
+                    name.text.trim().isEmpty ||
+                        email.text.trim().isEmpty ||
+                        selectedRoles.isEmpty
+                    ? null
+                    : () {
+                        dirtyFormController.submissionSucceeded();
+                        Navigator.pop(dialogContext, true);
+                      },
+                child: const Text('Send invite'),
               ),
-              for (final item in overview.availableRoles)
-                CheckboxListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: selectedRoles.contains(item),
-                  title: Text(item),
-                  onChanged: (value) => setState(() {
-                    if (value == true) {
-                      selectedRoles.add(item);
-                    } else {
-                      selectedRoles.remove(item);
-                    }
-                  }),
-                ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: selectedRoles.isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              child: const Text('Send invite'),
-            ),
-          ],
         ),
       ),
     );
+
+    name.removeListener(markDirty);
+    email.removeListener(markDirty);
+    dirtyFormController.dispose();
+
     if (submit == true && context.mounted) {
       try {
         await ref
@@ -189,6 +220,7 @@ class AdminControlScreen extends ConsumerWidget {
         }
       }
     }
+
     name.dispose();
     email.dispose();
   }
@@ -358,47 +390,64 @@ class _StaffCard extends ConsumerWidget {
     AdminStaff staff,
   ) async {
     final selected = staff.roles.toSet();
+    final dirtyFormController = DirtyFormController();
+
     final roles = await showDialog<List<String>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('Roles for ${staff.fullName}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final role in data.availableRoles)
-                  CheckboxListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    value: selected.contains(role),
-                    title: Text(role),
-                    onChanged: (value) => setState(() {
-                      if (value == true) {
-                        selected.add(role);
-                      } else {
-                        selected.remove(role);
-                      }
-                    }),
-                  ),
-              ],
+        builder: (context, setDialogState) => UnsavedChangesGuard(
+          controller: dirtyFormController,
+          child: AlertDialog(
+            title: Text('Roles for ${staff.fullName}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final role in data.availableRoles)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: selected.contains(role),
+                      title: Text(role),
+                      onChanged: (value) {
+                        dirtyFormController.markDirty();
+                        setDialogState(() {
+                          if (value == true) {
+                            selected.add(role);
+                          } else {
+                            selected.remove(role);
+                          }
+                        });
+                      },
+                    ),
+                ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: selected.isEmpty
+                    ? null
+                    : () {
+                        dirtyFormController.submissionSucceeded();
+                        Navigator.pop(
+                          dialogContext,
+                          selected.toList(growable: false),
+                        );
+                      },
+                child: const Text('Save roles'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: selected.isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, selected.toList()),
-              child: const Text('Save roles'),
-            ),
-          ],
         ),
       ),
     );
+
+    dirtyFormController.dispose();
+
     if (roles != null && context.mounted) {
       await _update(context, ref, staff, staff.enabled, roles: roles);
     }
@@ -475,32 +524,53 @@ class _BusinessSettingsCard extends ConsumerWidget {
     required Object? currentValue,
   }) async {
     final controller = TextEditingController(text: '$currentValue');
+    final dirtyFormController = DirtyFormController();
+
+    void markDirty() => dirtyFormController.markDirty();
+
+    controller.addListener(markDirty);
+
     final value = await showDialog<double>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Value'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-              dialogContext,
-              double.tryParse(controller.text.trim()),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => UnsavedChangesGuard(
+          controller: dirtyFormController,
+          child: AlertDialog(
+            title: Text(title),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: 'Value'),
+              onChanged: (_) => setDialogState(() {}),
             ),
-            child: const Text('Save'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: double.tryParse(controller.text.trim()) == null
+                    ? null
+                    : () {
+                        final parsed = double.parse(controller.text.trim());
+                        dirtyFormController.submissionSucceeded();
+                        Navigator.pop(dialogContext, parsed);
+                      },
+                child: const Text('Save'),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
+
+    controller.removeListener(markDirty);
+    dirtyFormController.dispose();
     controller.dispose();
+
     if (value == null || !context.mounted) return;
     await ref.read(adminControlRepositoryProvider).updateBusinessSettings({
       key: value,
