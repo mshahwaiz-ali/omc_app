@@ -32,9 +32,14 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
         capabilities.canAccessInternalWorkspace;
   }
 
-  if (location == '/track' ||
-      location == '/my-services' ||
-      location.startsWith('/my-services/')) {
+  if (location == '/track') {
+    return capabilities.canTrackRequests ||
+        capabilities.canViewAllServiceCases ||
+        capabilities.canViewRelevantServiceCases ||
+        capabilities.canViewAssignedServiceCases;
+  }
+
+  if (location == '/my-services' || location.startsWith('/my-services/')) {
     return capabilities.canTrackRequests;
   }
 

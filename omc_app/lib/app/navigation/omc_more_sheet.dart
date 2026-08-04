@@ -29,7 +29,6 @@ Future<void> showOmcMoreSheet({
   required VoidCallback onOpenProfile,
   required VoidCallback onOpenSettings,
   required VoidCallback onOpenInternalWorkspace,
-  required VoidCallback onOpenInternalCases,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenMyReferrals,
   required VoidCallback onOpenLeads,
@@ -64,7 +63,6 @@ Future<void> showOmcMoreSheet({
         onOpenProfile: onOpenProfile,
         onOpenSettings: onOpenSettings,
         onOpenInternalWorkspace: onOpenInternalWorkspace,
-        onOpenInternalCases: onOpenInternalCases,
         onOpenCustomers: onOpenCustomers,
         onOpenMyReferrals: onOpenMyReferrals,
         onOpenLeads: onOpenLeads,
@@ -104,7 +102,6 @@ List<OmcSheetAction> _moreActions({
   required VoidCallback onOpenProfile,
   required VoidCallback onOpenSettings,
   required VoidCallback onOpenInternalWorkspace,
-  required VoidCallback onOpenInternalCases,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenMyReferrals,
   required VoidCallback onOpenLeads,
@@ -136,13 +133,6 @@ List<OmcSheetAction> _moreActions({
       ),
     ];
 
-    if (capabilities.canViewAllServiceCases ||
-        capabilities.canViewRelevantServiceCases ||
-        capabilities.canViewAssignedServiceCases) {
-      items.add(
-        action('Cases', Icons.fact_check_outlined, onOpenInternalCases),
-      );
-    }
     if (capabilities.canManageCustomers ||
         capabilities.canViewAllCustomers ||
         capabilities.canViewRelevantCustomers) {

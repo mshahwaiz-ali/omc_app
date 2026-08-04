@@ -102,7 +102,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {
-    return canAccessRoute('/my-services', capabilities);
+    return canAccessRoute('/track', capabilities);
   }
 
   bool _canOpenDocuments(AuthCapabilities capabilities) {
@@ -296,11 +296,6 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenInternalWorkspace: () => _openWhenAllowed(
           allowed: capabilities.canAccessInternalWorkspace,
           path: '/internal-workspace',
-          capabilities: capabilities,
-        ),
-        onOpenInternalCases: () => _openWhenAllowed(
-          allowed: _canOpenInternalCases(capabilities),
-          path: '/internal-workspace/service-cases',
           capabilities: capabilities,
         ),
         onOpenCustomers: () => _openWhenAllowed(

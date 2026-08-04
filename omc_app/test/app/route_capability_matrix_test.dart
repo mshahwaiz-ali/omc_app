@@ -220,10 +220,10 @@ void main() {
       '/customers/CUST-0001',
       '/tasks',
       '/tasks/TASK-0001',
+      '/track',
     ];
 
     const denied = <String>[
-      '/track',
       '/my-services',
       '/my-services/CASE-0001',
       '/my-referrals',

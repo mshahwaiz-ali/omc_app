@@ -5,7 +5,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
-import '../../../app/theme_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -81,10 +80,10 @@ class SettingsScreen extends ConsumerWidget {
                 const _DividerIndent(),
                 _SettingsTile(
                   icon: Icons.fingerprint_rounded,
-                  title: 'Device lock',
+                  title: 'Biometric sign in',
                   subtitle: deviceLockEnabled
-                      ? 'Fingerprint, Face ID or device credential is enabled'
-                      : 'Protect this signed-in session on this device',
+                      ? 'Fingerprint or device authentication is enabled'
+                      : 'Use biometrics as an optional sign-in shortcut',
                   trailing: deviceLockEnabled ? 'On' : 'Off',
                   onTap: () => _toggleDeviceLock(
                     context,
@@ -120,12 +119,6 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => _confirmLogout(context, ref),
                 ),
               ],
-            ),
-            const SizedBox(height: 20),
-            _ThemeSection(
-              selected: ref.watch(themeControllerProvider),
-              onSelected: (mode) =>
-                  ref.read(themeControllerProvider.notifier).select(mode),
             ),
             const SizedBox(height: 20),
             preferencesAsync.when(
@@ -268,14 +261,14 @@ class SettingsScreen extends ConsumerWidget {
       ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
       ref.invalidate(deviceLockEnabledProvider);
       ref.invalidate(biometricLoginAvailableProvider);
-      if (context.mounted) _showSnack(context, 'Device lock disabled.');
+      if (context.mounted) _showSnack(context, 'Biometric sign in disabled.');
       return;
     }
     if (!await service.isSupported()) {
       if (context.mounted) {
         _showSnack(
           context,
-          'Device lock is not supported or configured on this device.',
+          'Biometric authentication is not configured on this device.',
         );
       }
       return;
@@ -319,8 +312,8 @@ class SettingsScreen extends ConsumerWidget {
       _showSnack(
         context,
         enabled
-            ? 'Device lock enabled.'
-            : 'Device authentication was not completed.',
+            ? 'Biometric sign in enabled.'
+            : 'Biometric setup was cancelled. You can continue using your password.',
       );
     }
   }
@@ -593,51 +586,6 @@ class SettingsScreen extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
-  }
-}
-
-class _ThemeSection extends StatelessWidget {
-  const _ThemeSection({required this.selected, required this.onSelected});
-
-  final ThemeMode selected;
-  final ValueChanged<ThemeMode> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SettingsSection(
-      title: 'Appearance',
-      subtitle: 'Follow the device or choose a persistent app theme.',
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Semantics(
-            label: 'App appearance',
-            child: SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  icon: Icon(Icons.brightness_auto_rounded),
-                  label: Text('System'),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  icon: Icon(Icons.light_mode_outlined),
-                  label: Text('Light'),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  icon: Icon(Icons.dark_mode_outlined),
-                  label: Text('Dark'),
-                ),
-              ],
-              selected: {selected},
-              onSelectionChanged: (selection) => onSelected(selection.first),
-              showSelectedIcon: false,
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }
 

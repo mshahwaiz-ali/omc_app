@@ -69,9 +69,7 @@ class ShellNavScaffold extends ConsumerWidget {
   String _backFallback(AuthCapabilities capabilities) {
     if (selectedIndex == servicesIndex) return '/services';
     if (selectedIndex == trackIndex) {
-      return _isInternal(capabilities)
-          ? '/internal-workspace/service-cases'
-          : '/my-services';
+      return '/track';
     }
     if (selectedIndex == documentsIndex) return '/documents';
     return '/home';
@@ -90,7 +88,7 @@ class ShellNavScaffold extends ConsumerWidget {
       final path = switch (index) {
         homeIndex => '/home',
         servicesIndex => '/services',
-        trackIndex => '/internal-workspace/service-cases',
+        trackIndex => '/track',
         _ => '/home',
       };
       context.go(path);
@@ -225,8 +223,6 @@ class ShellNavScaffold extends ConsumerWidget {
         capabilities: capabilities,
       ),
       onOpenInternalWorkspace: () => context.go('/internal-workspace'),
-      onOpenInternalCases: () =>
-          context.go('/internal-workspace/service-cases'),
       onOpenCustomers: () => context.go('/customers'),
       onOpenMyReferrals: () => _openWhenAllowed(
         context: context,

@@ -95,7 +95,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _biometricSubmissionInFlight = false;
       _loginError =
-          authState.message ?? 'Biometric sign in could not be completed.';
+          'Fingerprint sign in was not completed. '
+          'Try again or sign in with your password.';
     });
   }
 

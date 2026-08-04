@@ -473,44 +473,67 @@ class _Header extends StatelessWidget {
       _ => 'Welcome back',
     };
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 280;
+
+        final title = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$greeting, $firstName',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: _ink,
+                fontSize: 23,
+                height: 1.16,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.35,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Here’s what needs your attention today.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: _muted,
+                height: 1.35,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        );
+
+        final actions = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _NotificationButton(
+              count: notificationCount,
+              onTap: onNotifications,
+            ),
+            const SizedBox(width: 10),
+            InkWell(
+              onTap: onAvatar,
+              customBorder: const CircleBorder(),
+              child: _Avatar(url: avatarUrl, name: displayName),
+            ),
+          ],
+        );
+
+        if (compact) {
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$greeting, $firstName',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: _ink,
-                  fontSize: 23,
-                  height: 1.16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.35,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Here’s what needs your attention today.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: _muted,
-                  height: 1.35,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        _NotificationButton(count: notificationCount, onTap: onNotifications),
-        const SizedBox(width: 10),
-        InkWell(
-          onTap: onAvatar,
-          customBorder: const CircleBorder(),
-          child: _Avatar(url: avatarUrl, name: displayName),
-        ),
-      ],
+            children: [title, const SizedBox(height: 14), actions],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: 10),
+            actions,
+          ],
+        );
+      },
     );
   }
 }
