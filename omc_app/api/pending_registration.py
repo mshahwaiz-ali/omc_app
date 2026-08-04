@@ -406,18 +406,87 @@ def verify_registration(token: str | None = None):
     }
 
 
+def _verification_result_page(result: dict) -> tuple[str, str, str]:
+    status = str((result or {}).get("status") or "")
+    activated = bool((result or {}).get("ok")) and status == "activated"
+
+    if activated:
+        title = "Your OMC account is activated"
+        message = (
+            "Your email has been verified successfully. "
+            "You can now sign in to the OMC House app."
+        )
+        app_url = "omchouse://auth/login?verified=1"
+        accent = "#0f766e"
+        icon = "&#10003;"
+        action_label = "Open OMC App"
+    else:
+        title = "Verification link unavailable"
+        message = str(
+            (result or {}).get("message")
+            or "This verification link is invalid or has expired."
+        )
+        app_url = "omchouse://auth/login?verification=invalid"
+        accent = "#b45309"
+        icon = "!"
+        action_label = "Open OMC App"
+
+    safe_title = frappe.utils.escape_html(title)
+    safe_message = frappe.utils.escape_html(message)
+    safe_app_url = frappe.utils.escape_html(app_url)
+    safe_action_label = frappe.utils.escape_html(action_label)
+
+    html = f"""
+    <div style="min-height:100vh;background:#f4f7fb;padding:32px 16px;
+                font-family:Arial,sans-serif;box-sizing:border-box;">
+      <div style="max-width:560px;margin:48px auto;background:#ffffff;
+                  border:1px solid #e5e7eb;border-radius:24px;
+                  box-shadow:0 18px 50px rgba(15,23,42,.08);
+                  padding:40px 32px;text-align:center;">
+        <div style="width:72px;height:72px;border-radius:50%;
+                    margin:0 auto 22px;background:{accent}18;color:{accent};
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:36px;font-weight:800;">
+          {icon}
+        </div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:.12em;
+                    text-transform:uppercase;color:#64748b;">
+          OMC House
+        </div>
+        <h1 style="margin:12px 0 12px;color:#0f172a;font-size:30px;
+                   line-height:1.2;">
+          {safe_title}
+        </h1>
+        <p style="margin:0 auto;color:#475569;font-size:16px;line-height:1.65;
+                  max-width:430px;">
+          {safe_message}
+        </p>
+        <a href="{safe_app_url}"
+           style="display:inline-block;margin-top:28px;background:{accent};
+                  color:#ffffff;text-decoration:none;font-weight:800;
+                  padding:14px 24px;border-radius:12px;">
+          {safe_action_label}
+        </a>
+        <p style="margin:20px 0 0;color:#94a3b8;font-size:13px;line-height:1.55;">
+          If the app is not installed, this page will remain open. You may
+          install the app later and sign in with your verified account.
+        </p>
+      </div>
+    </div>
+    """
+    return title, html, "green" if activated else "orange"
+
+
 @frappe.whitelist(allow_guest=True)
 def verify_registration_web(token: str | None = None):
     result = verify_registration(token=token)
-
-    status = str((result or {}).get("status") or "")
-    if status == "activated":
-        location = "omchouse://auth/login?verified=1"
-    else:
-        location = "omchouse://auth/login?verification=invalid"
-
-    frappe.local.response["type"] = "redirect"
-    frappe.local.response["location"] = location
+    title, html, indicator = _verification_result_page(result)
+    frappe.respond_as_web_page(
+        title=title,
+        html=html,
+        indicator_color=indicator,
+        http_status_code=200,
+    )
 
 
 def load_pending_registration_by_token(token: str):

@@ -221,6 +221,55 @@ class TestPendingRegistration(FrappeTestCase):
         sendmail.assert_not_called()
 
 
+    @patch("omc_app.api.pending_registration.frappe.respond_as_web_page")
+    @patch("omc_app.api.pending_registration.verify_registration")
+    def test_verify_registration_web_renders_success_page(
+        self,
+        verify_registration,
+        respond_as_web_page,
+    ):
+        verify_registration.return_value = {
+            "ok": True,
+            "status": "activated",
+            "message": "Your email is verified. You can sign in now.",
+        }
+
+        pending_registration.verify_registration_web(token="valid-token")
+
+        verify_registration.assert_called_once_with(token="valid-token")
+        respond_as_web_page.assert_called_once()
+        call = respond_as_web_page.call_args.kwargs
+        self.assertEqual(call["http_status_code"], 200)
+        self.assertEqual(call["indicator_color"], "green")
+        self.assertIn("Your OMC account is activated", call["html"])
+        self.assertIn("omchouse://auth/login?verified=1", call["html"])
+        self.assertNotEqual(
+            frappe.local.response.get("type"),
+            "redirect",
+        )
+
+    @patch("omc_app.api.pending_registration.frappe.respond_as_web_page")
+    @patch("omc_app.api.pending_registration.verify_registration")
+    def test_verify_registration_web_renders_invalid_page(
+        self,
+        verify_registration,
+        respond_as_web_page,
+    ):
+        verify_registration.return_value = {
+            "ok": False,
+            "status": "invalid_or_expired",
+            "message": "This verification link is invalid or has expired.",
+        }
+
+        pending_registration.verify_registration_web(token="bad-token")
+
+        respond_as_web_page.assert_called_once()
+        call = respond_as_web_page.call_args.kwargs
+        self.assertEqual(call["http_status_code"], 200)
+        self.assertEqual(call["indicator_color"], "orange")
+        self.assertIn("Verification link unavailable", call["html"])
+        self.assertIn("invalid or has expired", call["html"])
+
     @patch("omc_app.api.mobile.sign_up")
     def test_verify_registration_activates_once(self, sign_up):
         payload = self._payload()
