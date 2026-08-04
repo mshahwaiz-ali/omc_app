@@ -8,10 +8,25 @@ final localAuthenticationProvider = Provider<LocalAuthentication>((ref) {
   return LocalAuthentication();
 });
 
+class DeviceAuthenticationController extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void setInProgress(bool inProgress) => state = inProgress;
+}
+
+final deviceAuthenticationInProgressProvider =
+    NotifierProvider<DeviceAuthenticationController, bool>(
+      DeviceAuthenticationController.new,
+    );
+
 final deviceLockServiceProvider = Provider<DeviceLockService>((ref) {
   return DeviceLockService(
     authentication: ref.watch(localAuthenticationProvider),
     storage: ref.watch(secureStorageServiceProvider),
+    setAuthenticationInProgress: ref
+        .read(deviceAuthenticationInProgressProvider.notifier)
+        .setInProgress,
   );
 });
 
@@ -43,10 +58,12 @@ class DeviceLockService {
   const DeviceLockService({
     required this.authentication,
     required this.storage,
+    required this.setAuthenticationInProgress,
   });
 
   final LocalAuthentication authentication;
   final SecureStorageService storage;
+  final void Function(bool inProgress) setAuthenticationInProgress;
 
   Future<bool> isSupported() async {
     try {
@@ -61,6 +78,8 @@ class DeviceLockService {
 
   Future<bool> authenticate() async {
     if (!await isSupported()) return false;
+
+    setAuthenticationInProgress(true);
     try {
       return await authentication.authenticate(
         localizedReason: 'Unlock your OMC House app',
@@ -72,6 +91,8 @@ class DeviceLockService {
       );
     } catch (_) {
       return false;
+    } finally {
+      setAuthenticationInProgress(false);
     }
   }
 
