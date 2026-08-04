@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/omc_logo.dart';
@@ -23,31 +24,53 @@ class AuthEntryScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFBFCFE),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (leading != null) ...[
-                    Align(alignment: Alignment.centerLeft, child: leading),
-                    const SizedBox(height: 8),
+    const backgroundColor = Color(0xFFFBFCFE);
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: backgroundColor,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemStatusBarContrastEnforced: false,
+        systemNavigationBarColor: backgroundColor,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        extendBody: false,
+        extendBodyBehindAppBar: false,
+        body: SafeArea(
+          top: true,
+          bottom: true,
+          maintainBottomViewPadding: true,
+          child: Center(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (leading != null) ...[
+                      Align(alignment: Alignment.centerLeft, child: leading),
+                      const SizedBox(height: 8),
+                    ],
+                    AuthEntryHeader(
+                      title: title,
+                      subtitle: subtitle,
+                      compact: compactBrand,
+                    ),
+                    SizedBox(height: compactBrand ? 24 : 30),
+                    child,
+                    if (footer != null) ...[
+                      const SizedBox(height: 20),
+                      footer!,
+                    ],
                   ],
-                  AuthEntryHeader(
-                    title: title,
-                    subtitle: subtitle,
-                    compact: compactBrand,
-                  ),
-                  SizedBox(height: compactBrand ? 24 : 30),
-                  child,
-                  if (footer != null) ...[const SizedBox(height: 20), footer!],
-                ],
+                ),
               ),
             ),
           ),
