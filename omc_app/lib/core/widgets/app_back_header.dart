@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/theme.dart';
+import '../../app/navigation/navigation_coordinator.dart';
 
 class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
   const AppBackHeader({
@@ -29,27 +29,24 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final router = GoRouter.of(context);
-    final canPop = router.canPop();
+    final colors = Theme.of(context).colorScheme;
     final resolvedFallbackRoute =
         fallbackRoute ?? _fallbackRouteFor(router.state.uri.path);
 
-    void goBack() {
-      if (canPop) {
-        context.pop();
-      } else {
-        context.go(resolvedFallbackRoute);
-      }
-    }
+    void goBack() => NavigationCoordinator.back(
+      context,
+      fallbackLocation: resolvedFallbackRoute,
+    );
 
     return Material(
-      color: const Color(0xFFF8FAFD),
+      color: colors.surface,
       child: SafeArea(
         bottom: false,
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8FAFD),
-            border: Border(bottom: BorderSide(color: Color(0xFFE7EAF0))),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            border: Border(bottom: BorderSide(color: colors.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -57,7 +54,7 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                 button: true,
                 label: 'Go back',
                 child: Material(
-                  color: Colors.white,
+                  color: colors.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(14),
                   child: InkWell(
                     onTap: goBack,
@@ -67,7 +64,7 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                       height: 46,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2E6ED)),
+                        border: Border.all(color: colors.outlineVariant),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x0A111827),
@@ -76,10 +73,10 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                           ),
                         ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.arrow_back_rounded,
                         size: 18,
-                        color: AppTheme.textPrimary,
+                        color: colors.onSurface,
                       ),
                     ),
                   ),
@@ -95,8 +92,8 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
+                      style: TextStyle(
+                        color: colors.onSurface,
                         fontSize: 19,
                         height: 1.1,
                         fontWeight: FontWeight.w900,
@@ -109,8 +106,8 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                         subtitle!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
                           fontSize: 12,
                           height: 1.2,
                           fontWeight: FontWeight.w600,
@@ -126,7 +123,7 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                 Tooltip(
                   message: actionTooltip ?? 'More action',
                   child: Material(
-                    color: Colors.white,
+                    color: colors.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(14),
                     child: InkWell(
                       onTap: onAction,
@@ -136,12 +133,12 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                         height: 44,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E6ED)),
+                          border: Border.all(color: colors.outlineVariant),
                         ),
                         child: Icon(
                           actionIcon,
                           size: 21,
-                          color: AppTheme.textPrimary,
+                          color: colors.onSurface,
                         ),
                       ),
                     ),

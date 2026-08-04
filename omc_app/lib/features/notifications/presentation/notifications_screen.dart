@@ -23,46 +23,33 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   _NotificationFilter _filter = _NotificationFilter.all;
   final Set<String> _hiddenIds = <String>{};
   final Set<String> _mutationIds = <String>{};
-  bool _didAcknowledgeOnOpen = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _acknowledgeOnOpen();
-    });
-  }
-
-  Future<void> _acknowledgeOnOpen() async {
-    if (_didAcknowledgeOnOpen || !mounted) return;
-    _didAcknowledgeOnOpen = true;
-
-    try {
-      final items = await ref.read(notificationsProvider.future);
-      if (!mounted || !items.any((item) => !item.isRead)) return;
-
-      await ref
-          .read(notificationsRepositoryProvider)
-          .markAllNotificationsAsRead();
-      await _refresh();
-    } catch (_) {
-      // Opening notifications must remain available even if read acknowledgement fails.
-    }
-  }
+  final List<NotificationItem> _additionalItems = [];
+  int? _nextStart;
+  bool _hasMore = false;
+  bool _loadingMore = false;
+  bool _didSeedPage = false;
 
   @override
   Widget build(BuildContext context) {
-    final asyncNotifications = ref.watch(notificationsProvider);
+    final asyncNotifications = ref.watch(notificationPageProvider);
+    final canonicalUnread = ref.watch(unreadNotificationsProvider).value;
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator.adaptive(
           onRefresh: _refresh,
           child: asyncNotifications.when(
-            data: (items) {
+            data: (page) {
+              if (!_didSeedPage) {
+                _didSeedPage = true;
+                _nextStart = page.nextStart;
+                _hasMore = page.hasMore;
+              }
+              final items = [...page.items, ..._additionalItems];
               final visible = items
                   .where((item) => !_hiddenIds.contains(item.id))
                   .toList();
-              final unreadCount = visible.where((item) => !item.isRead).length;
+              final loadedUnread = visible.where((item) => !item.isRead).length;
+              final unreadCount = canonicalUnread ?? loadedUnread;
               final filtered = _filter == _NotificationFilter.unread
                   ? visible.where((item) => !item.isRead).toList()
                   : visible;
@@ -106,6 +93,19 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                       onOpen: _open,
                       onDismiss: _dismiss,
                     ),
+                  if (_hasMore) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _loadingMore ? null : _loadMore,
+                      icon: _loadingMore
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.expand_more_rounded),
+                      label: Text(_loadingMore ? 'Loading' : 'Load more'),
+                    ),
+                  ],
                 ],
               );
             },
@@ -123,12 +123,50 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   void _invalidateNotificationSurfaces() {
     ref
       ..invalidate(notificationsProvider)
+      ..invalidate(notificationPageProvider)
+      ..invalidate(unreadNotificationsProvider)
       ..invalidate(homeDashboardSummaryProvider);
   }
 
   Future<void> _refresh() async {
+    _didSeedPage = false;
+    _additionalItems.clear();
+    _nextStart = null;
+    _hasMore = false;
     _invalidateNotificationSurfaces();
-    await ref.read(notificationsProvider.future);
+    await ref.read(notificationPageProvider.future);
+  }
+
+  Future<void> _loadMore() async {
+    final start = _nextStart;
+    if (_loadingMore || !_hasMore || start == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await ref
+          .read(notificationsRepositoryProvider)
+          .fetchNotificationPage(start: start);
+      if (!mounted) return;
+      setState(() {
+        final knownIds = {
+          ...ref
+                  .read(notificationPageProvider)
+                  .value
+                  ?.items
+                  .map((item) => item.id) ??
+              const <String>{},
+          ..._additionalItems.map((item) => item.id),
+        };
+        _additionalItems.addAll(
+          page.items.where((item) => !knownIds.contains(item.id)),
+        );
+        _nextStart = page.nextStart;
+        _hasMore = page.hasMore;
+      });
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   Future<void> _readAll() async {

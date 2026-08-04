@@ -7,6 +7,7 @@ import '../features/app_config/presentation/app_brand_registry.dart';
 import '../features/device_lock/presentation/device_lock_gate.dart';
 import 'router.dart';
 import 'theme.dart';
+import 'theme_controller.dart';
 
 class OmcApp extends ConsumerWidget {
   const OmcApp({super.key});
@@ -23,13 +24,14 @@ class OmcApp extends ConsumerWidget {
     final appColors = OmcAppColors.resolve(
       accentColor: appConfig.branding.accentColor,
     );
+    final themeMode = ref.watch(themeControllerProvider);
 
     return MaterialApp.router(
       title: appConfig.branding.companyName,
       debugShowCheckedModeBanner: false,
       theme: _withAccentTheme(AppTheme.lightTheme, appColors),
       darkTheme: _withAccentTheme(AppTheme.darkTheme, appColors),
-      themeMode: ThemeMode.light,
+      themeMode: themeMode,
       routerConfig: router,
       builder: (context, child) =>
           DeviceLockGate(child: child ?? const SizedBox.shrink()),

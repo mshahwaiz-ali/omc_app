@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -96,8 +97,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   String? _submitError;
   String _submittedEmail = '';
   int _submittedCooldownSeconds = 60;
+  final _dirtyForm = DirtyFormController();
 
   bool get _isCustomer => _selectedRole == 'Customer';
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in <TextEditingController>[
+      _fullNameController,
+      _emailController,
+      _usernameController,
+      _mobileController,
+      _whatsappController,
+      _cnicController,
+      _addressController,
+      _educationController,
+      _experienceController,
+      _remarksController,
+      _referralCodeController,
+      _acquisitionSourceDetailController,
+      _passwordController,
+      _confirmPasswordController,
+    ]) {
+      controller.addListener(_dirtyForm.markDirty);
+    }
+  }
 
   @override
   void dispose() {
@@ -119,6 +144,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     ]) {
       controller.dispose();
     }
+    _dirtyForm.dispose();
     super.dispose();
   }
 
@@ -319,6 +345,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _isSubmitting = true;
       _submitError = null;
     });
+    _dirtyForm.beginSubmitting();
     try {
       final response = await ref.read(signupSubmitProvider)({
         'full_name': _fullNameController.text.trim(),
@@ -369,6 +396,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           _submittedCooldownSeconds = cooldownSeconds.clamp(0, 3600);
           _submittedSuccessfully = true;
         });
+        _dirtyForm.submissionSucceeded();
       }
     } catch (error) {
       if (!mounted) {
@@ -381,6 +409,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             'Unable to start email verification right now. Your entered information was retained.',
       );
       setState(() => _submitError = failure.message);
+      _dirtyForm.submissionFailed();
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -396,6 +425,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (!(key.currentState?.validate() ?? false)) {
       return;
     }
+    _dirtyForm.markDirty();
     if (_step == 1 && !await _checkUsernameAvailability()) {
       return;
     }
@@ -487,201 +517,212 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       );
     }
 
-    return AuthEntryScaffold(
-      title: 'Create your account',
-      subtitle: 'A focused four-step setup for your OMC access.',
-      leading: IconButton(
-        tooltip: _step == 0 ? 'Back to login' : 'Previous step',
-        onPressed: _isSubmitting
-            ? null
-            : _step == 0
-            ? () => context.go('/login')
-            : _previousStep,
-        icon: const Icon(Icons.arrow_back_rounded),
-      ),
-      footer: SignupLoginFooter(isSubmitting: _isSubmitting),
-      child: PremiumCard(
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: SignupProgress(step: _step),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                child: KeyedSubtree(
-                  key: ValueKey(_step),
-                  child: switch (_step) {
-                    0 => SignupRoleStep(
-                      formKey: _roleFormKey,
-                      roles: roles,
-                      selectedRole: _selectedRole,
-                      onRoleChanged: (role) {
-                        setState(() {
-                          _selectedRole = role;
-                          _submitError = null;
-                          if (role != 'Customer') {
-                            _selectedAcquisitionSource = null;
-                            _acquisitionSourceDetailController.clear();
-                            _referralCodeController.clear();
-                            _referralAssistanceConsent = false;
-                            _referralExpanded = false;
-                            _referralValidationMessage = null;
-                            _referralCodeValid = null;
-                          }
-                        });
-                      },
-                    ),
-                    1 => SignupDetailsStep(
-                      formKey: _detailsFormKey,
-                      selectedRole: _selectedRole,
-                      fullNameController: _fullNameController,
-                      emailController: _emailController,
-                      usernameController: _usernameController,
-                      usernameAvailable: _usernameAvailable,
-                      usernameMessage: _usernameMessage,
-                      isCheckingUsername: _isCheckingUsername,
-                      onUsernameChanged: (value) {
-                        _usernameEdited = true;
-                        final normalized = _normalizeUsername(value);
-                        if (normalized != value) {
-                          _usernameController.value = TextEditingValue(
-                            text: normalized,
-                            selection: TextSelection.collapsed(
-                              offset: normalized.length,
-                            ),
-                          );
-                        }
-                        setState(() {
-                          _usernameAvailable = null;
-                          _usernameMessage = null;
-                        });
-                      },
-                      onSuggestUsername: _suggestUsername,
-                      onCheckUsername: _checkUsernameAvailability,
-                      usernameValidator: _usernameValidator,
-                      mobileController: _mobileController,
-                      whatsappController: _whatsappController,
-                      cnicController: _cnicController,
-                      addressController: _addressController,
-                      educationController: _educationController,
-                      experienceController: _experienceController,
-                      remarksController: _remarksController,
-                      whatsappSameAsMobile: _whatsappSameAsMobile,
-                      onWhatsappSameAsMobileChanged: (value) {
-                        setState(() {
-                          _whatsappSameAsMobile = value;
-                          if (value) {
-                            _whatsappController.text = _mobileController.text;
-                          }
-                        });
-                      },
-                      onMobileChanged: (value) {
-                        if (_whatsappSameAsMobile) {
-                          _whatsappController.text = value;
-                        }
-                      },
-                      requiredValidator: _required,
-                      emailValidator: _emailValidator,
-                      phoneValidator: _pakistanPhoneValidator,
-                      cnicValidator: _cnicValidator,
-                    ),
-                    2 => SignupPreferencesStep(
-                      formKey: _preferencesFormKey,
-                      isCustomer: _isCustomer,
-                      acquisitionSources: acquisitionSources,
-                      selectedAcquisitionSource: _selectedAcquisitionSource,
-                      onAcquisitionSourceChanged: (source) {
-                        setState(() {
-                          _selectedAcquisitionSource = source;
-                          _referralExpanded = source == 'Referral';
-                          _referralValidationMessage = null;
-                          _referralCodeValid = null;
-                          if (source != 'Referral') {
-                            _referralAssistanceConsent = false;
-                            _referralCodeController.clear();
-                          }
-                          if (source != 'Other') {
-                            _acquisitionSourceDetailController.clear();
-                          }
-                        });
-                      },
-                      referralExpanded: _referralExpanded,
-                      onReferralExpandedChanged: (expanded) {
-                        setState(() {
-                          _referralExpanded = expanded;
-                          if (expanded) {
-                            _selectedAcquisitionSource = 'Referral';
-                          } else if (_selectedAcquisitionSource == 'Referral') {
-                            _selectedAcquisitionSource = null;
-                            _referralCodeController.clear();
-                            _referralAssistanceConsent = false;
-                            _referralValidationMessage = null;
-                            _referralCodeValid = null;
-                          }
-                        });
-                      },
-                      referralCodeController: _referralCodeController,
-                      acquisitionSourceDetailController:
-                          _acquisitionSourceDetailController,
-                      referralAssistanceConsent: _referralAssistanceConsent,
-                      onReferralConsentChanged: (value) {
-                        setState(() {
-                          _referralAssistanceConsent = value;
-                          _referralValidationMessage = null;
-                          _referralCodeValid = null;
-                        });
-                      },
-                      referralCodeValid: _referralCodeValid,
-                      referralValidationMessage: _referralValidationMessage,
-                      isValidatingReferral: _isValidatingReferral,
-                      onValidateReferral: _validateReferralBeforeSubmit,
-                      requiredValidator: _required,
-                    ),
-                    _ => SignupSecurityStep(
-                      formKey: _securityFormKey,
-                      isCustomer: _isCustomer,
-                      passwordController: _passwordController,
-                      confirmPasswordController: _confirmPasswordController,
-                      obscurePassword: _obscurePassword,
-                      obscureConfirmPassword: _obscureConfirmPassword,
-                      acceptedTerms: _acceptedTerms,
-                      onTogglePassword: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                      onToggleConfirmPassword: () => setState(
-                        () =>
-                            _obscureConfirmPassword = !_obscureConfirmPassword,
+    return UnsavedChangesGuard(
+      controller: _dirtyForm,
+      child: AuthEntryScaffold(
+        title: 'Create your account',
+        subtitle: 'A focused four-step setup for your OMC access.',
+        leading: IconButton(
+          tooltip: _step == 0 ? 'Back to login' : 'Previous step',
+          onPressed: _isSubmitting
+              ? null
+              : _step == 0
+              ? _requestExit
+              : _previousStep,
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        footer: SignupLoginFooter(isSubmitting: _isSubmitting),
+        child: PremiumCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: SignupProgress(step: _step),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: KeyedSubtree(
+                    key: ValueKey(_step),
+                    child: switch (_step) {
+                      0 => SignupRoleStep(
+                        formKey: _roleFormKey,
+                        roles: roles,
+                        selectedRole: _selectedRole,
+                        onRoleChanged: (role) {
+                          setState(() {
+                            _selectedRole = role;
+                            _submitError = null;
+                            if (role != 'Customer') {
+                              _selectedAcquisitionSource = null;
+                              _acquisitionSourceDetailController.clear();
+                              _referralCodeController.clear();
+                              _referralAssistanceConsent = false;
+                              _referralExpanded = false;
+                              _referralValidationMessage = null;
+                              _referralCodeValid = null;
+                            }
+                          });
+                        },
                       ),
-                      onTermsChanged: _isSubmitting
-                          ? null
-                          : (value) =>
-                                setState(() => _acceptedTerms = value ?? false),
-                      requiredValidator: _required,
-                      passwordValidator: _passwordValidator,
-                    ),
-                  },
+                      1 => SignupDetailsStep(
+                        formKey: _detailsFormKey,
+                        selectedRole: _selectedRole,
+                        fullNameController: _fullNameController,
+                        emailController: _emailController,
+                        usernameController: _usernameController,
+                        usernameAvailable: _usernameAvailable,
+                        usernameMessage: _usernameMessage,
+                        isCheckingUsername: _isCheckingUsername,
+                        onUsernameChanged: (value) {
+                          _usernameEdited = true;
+                          final normalized = _normalizeUsername(value);
+                          if (normalized != value) {
+                            _usernameController.value = TextEditingValue(
+                              text: normalized,
+                              selection: TextSelection.collapsed(
+                                offset: normalized.length,
+                              ),
+                            );
+                          }
+                          setState(() {
+                            _usernameAvailable = null;
+                            _usernameMessage = null;
+                          });
+                        },
+                        onSuggestUsername: _suggestUsername,
+                        onCheckUsername: _checkUsernameAvailability,
+                        usernameValidator: _usernameValidator,
+                        mobileController: _mobileController,
+                        whatsappController: _whatsappController,
+                        cnicController: _cnicController,
+                        addressController: _addressController,
+                        educationController: _educationController,
+                        experienceController: _experienceController,
+                        remarksController: _remarksController,
+                        whatsappSameAsMobile: _whatsappSameAsMobile,
+                        onWhatsappSameAsMobileChanged: (value) {
+                          setState(() {
+                            _whatsappSameAsMobile = value;
+                            if (value) {
+                              _whatsappController.text = _mobileController.text;
+                            }
+                          });
+                        },
+                        onMobileChanged: (value) {
+                          if (_whatsappSameAsMobile) {
+                            _whatsappController.text = value;
+                          }
+                        },
+                        requiredValidator: _required,
+                        emailValidator: _emailValidator,
+                        phoneValidator: _pakistanPhoneValidator,
+                        cnicValidator: _cnicValidator,
+                      ),
+                      2 => SignupPreferencesStep(
+                        formKey: _preferencesFormKey,
+                        isCustomer: _isCustomer,
+                        acquisitionSources: acquisitionSources,
+                        selectedAcquisitionSource: _selectedAcquisitionSource,
+                        onAcquisitionSourceChanged: (source) {
+                          setState(() {
+                            _selectedAcquisitionSource = source;
+                            _referralExpanded = source == 'Referral';
+                            _referralValidationMessage = null;
+                            _referralCodeValid = null;
+                            if (source != 'Referral') {
+                              _referralAssistanceConsent = false;
+                              _referralCodeController.clear();
+                            }
+                            if (source != 'Other') {
+                              _acquisitionSourceDetailController.clear();
+                            }
+                          });
+                        },
+                        referralExpanded: _referralExpanded,
+                        onReferralExpandedChanged: (expanded) {
+                          setState(() {
+                            _referralExpanded = expanded;
+                            if (expanded) {
+                              _selectedAcquisitionSource = 'Referral';
+                            } else if (_selectedAcquisitionSource ==
+                                'Referral') {
+                              _selectedAcquisitionSource = null;
+                              _referralCodeController.clear();
+                              _referralAssistanceConsent = false;
+                              _referralValidationMessage = null;
+                              _referralCodeValid = null;
+                            }
+                          });
+                        },
+                        referralCodeController: _referralCodeController,
+                        acquisitionSourceDetailController:
+                            _acquisitionSourceDetailController,
+                        referralAssistanceConsent: _referralAssistanceConsent,
+                        onReferralConsentChanged: (value) {
+                          setState(() {
+                            _referralAssistanceConsent = value;
+                            _referralValidationMessage = null;
+                            _referralCodeValid = null;
+                          });
+                        },
+                        referralCodeValid: _referralCodeValid,
+                        referralValidationMessage: _referralValidationMessage,
+                        isValidatingReferral: _isValidatingReferral,
+                        onValidateReferral: _validateReferralBeforeSubmit,
+                        requiredValidator: _required,
+                      ),
+                      _ => SignupSecurityStep(
+                        formKey: _securityFormKey,
+                        isCustomer: _isCustomer,
+                        passwordController: _passwordController,
+                        confirmPasswordController: _confirmPasswordController,
+                        obscurePassword: _obscurePassword,
+                        obscureConfirmPassword: _obscureConfirmPassword,
+                        acceptedTerms: _acceptedTerms,
+                        onTogglePassword: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                        onToggleConfirmPassword: () => setState(
+                          () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword,
+                        ),
+                        onTermsChanged: _isSubmitting
+                            ? null
+                            : (value) => setState(
+                                () => _acceptedTerms = value ?? false,
+                              ),
+                        requiredValidator: _required,
+                        passwordValidator: _passwordValidator,
+                      ),
+                    },
+                  ),
                 ),
               ),
-            ),
-            if (_submitError != null && _submitError!.trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: AuthErrorBanner(message: _submitError!),
+              if (_submitError != null && _submitError!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: AuthErrorBanner(message: _submitError!),
+                ),
+              SignupBottomActions(
+                step: _step,
+                isSubmitting: _isSubmitting,
+                onBack: _previousStep,
+                onContinue: _step == 3 ? _submit : _nextStep,
               ),
-            SignupBottomActions(
-              step: _step,
-              isSubmitting: _isSubmitting,
-              onBack: _previousStep,
-              onContinue: _step == 3 ? _submit : _nextStep,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _requestExit() async {
+    if (!await confirmDiscardActiveForm(context, ref) || !mounted) return;
+    context.go('/login');
   }
 }
 

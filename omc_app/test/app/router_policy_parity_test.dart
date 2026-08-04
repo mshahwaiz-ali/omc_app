@@ -11,8 +11,10 @@ void main() {
     '/login',
     '/forgot-password',
     '/reset-password',
+    '/app/reset-password',
     '/signup',
     '/verify-email',
+    '/app/verify-email',
     '/under-review',
     '/home',
     '/services',
@@ -65,8 +67,10 @@ void main() {
     '/login',
     '/forgot-password',
     '/reset-password',
+    '/app/reset-password',
     '/signup',
     '/verify-email',
+    '/app/verify-email',
     '/under-review',
   };
 

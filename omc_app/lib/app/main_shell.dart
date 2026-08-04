@@ -7,15 +7,8 @@ import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/app_config/presentation/app_brand_registry.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
-import '../features/documents/presentation/documents_screen.dart';
-import '../features/documents/presentation/internal_document_review_screen.dart';
-import '../features/home/data/home_dashboard_repository.dart';
-import '../features/home/presentation/home_screen.dart';
 import '../features/notifications/data/notifications_repository.dart';
 import '../features/profile/data/profile_repository.dart';
-import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
-import '../features/service_requests/presentation/internal_service_track_screen.dart';
-import '../features/service_requests/presentation/my_services_screen.dart';
 import 'navigation/app_back_navigation_guard.dart';
 import 'navigation/omc_bottom_nav.dart';
 import 'navigation/omc_more_sheet.dart';
@@ -23,18 +16,17 @@ import 'navigation/omc_quick_actions_sheet.dart';
 import 'providers/effective_capabilities_provider.dart';
 import 'route_access_policy.dart';
 import '../core/resilience/app_failure.dart';
+import '../core/forms/dirty_form_controller.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({
-    this.initialIndex = 0,
-    this.initialServiceQuery = '',
+    required this.navigationShell,
     this.showAccessDeniedNotice = false,
     this.showMoreOnLoad = false,
     super.key,
   });
 
-  final int initialIndex;
-  final String initialServiceQuery;
+  final StatefulNavigationShell navigationShell;
   final bool showAccessDeniedNotice;
   final bool showMoreOnLoad;
 
@@ -43,14 +35,12 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  late int _currentIndex;
   bool _isMoreSheetOpen = false;
   bool _isLoggingOut = false;
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = _normalTabIndex(widget.initialIndex);
     if (widget.showMoreOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showMoreSheet(fromRoute: true);
@@ -78,29 +68,14 @@ class _MainShellState extends ConsumerState<MainShell> {
         if (mounted) _showLockedSnack(_currentCapabilities());
       });
     }
-
-    if (oldWidget.initialIndex == widget.initialIndex) return;
-
-    final nextIndex = _normalTabIndex(widget.initialIndex);
-    if (_currentIndex != nextIndex) {
-      setState(() => _currentIndex = nextIndex);
-    }
   }
 
-  int _normalTabIndex(int index) => index >= 0 && index <= 3 ? index : 0;
-
-  void _selectTab(int index) {
+  Future<void> _selectTab(int index) async {
     final capabilities = _currentCapabilities();
-    if (_isInternal(capabilities)) {
-      final path = switch (index) {
-        0 => '/home',
-        1 => '/services',
-        2 when _canOpenInternalCases(capabilities) =>
-          '/internal-workspace/service-cases',
-        3 when _canOpenDocuments(capabilities) => '/documents',
-        _ => '/home',
-      };
-      context.go(path);
+    if (_isInternal(capabilities) &&
+        index == 2 &&
+        !_canOpenInternalCases(capabilities)) {
+      _showLockedSnack(capabilities);
       return;
     }
     if (index == 2 && !_canOpenTrack(capabilities)) {
@@ -111,7 +86,11 @@ class _MainShellState extends ConsumerState<MainShell> {
       _showLockedSnack(capabilities);
       return;
     }
-    setState(() => _currentIndex = index);
+    if (!await confirmDiscardActiveForm(context, ref) || !mounted) return;
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
   }
 
   AuthCapabilities _currentCapabilities() {
@@ -134,10 +113,6 @@ class _MainShellState extends ConsumerState<MainShell> {
     return capabilities.canViewAllServiceCases ||
         capabilities.canViewRelevantServiceCases ||
         capabilities.canViewAssignedServiceCases;
-  }
-
-  bool _canUseInternalDocumentReview(AuthCapabilities capabilities) {
-    return capabilities.canViewDocumentQueue || capabilities.canReviewDocuments;
   }
 
   void _openWhenAllowed({
@@ -251,11 +226,6 @@ class _MainShellState extends ConsumerState<MainShell> {
         path: '/leads?action=create',
         capabilities: capabilities,
       ),
-      onCreateTask: () => _openWhenAllowed(
-        allowed: capabilities.canManageTasks,
-        path: '/tasks?action=create',
-        capabilities: capabilities,
-      ),
     );
   }
 
@@ -270,17 +240,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     final mobileConfig =
         ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final capabilities = ref.read(effectiveCapabilitiesProvider);
-    final unreadNotifications = ref
-        .read(notificationsProvider)
-        .maybeWhen(
-          data: (items) => items.where((item) => !item.isRead).length,
-          orElse: () =>
-              ref
-                  .read(homeDashboardSummaryProvider)
-                  .value
-                  ?.unreadNotifications ??
-              0,
-        );
+    final unreadNotifications =
+        ref.read(unreadNotificationsProvider).value ?? 0;
 
     try {
       await showOmcMoreSheet(
@@ -380,48 +341,20 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
-    final unreadNotifications = ref
-        .watch(notificationsProvider)
-        .maybeWhen(
-          data: (items) => items.where((item) => !item.isRead).length,
-          orElse: () =>
-              ref
-                  .watch(homeDashboardSummaryProvider)
-                  .value
-                  ?.unreadNotifications ??
-              0,
-        );
+    final unreadNotifications =
+        ref.watch(unreadNotificationsProvider).value ?? 0;
     final mobileConfig =
         ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final primaryColor = appPrimaryColorFor(
       mobileConfig.branding.primaryColorFamily,
     );
-    final canUseInternalTrack = _canOpenInternalCases(capabilities);
-    final canUseInternalDocs = _canUseInternalDocumentReview(capabilities);
-
-    final screens = [
-      HomeScreen(
-        onOpenServices: () => _selectTab(1),
-        onOpenCalculator: () => context.push('/tax-calculator'),
-        onOpenSupport: () => context.push('/support'),
-        onOpenNotifications: () => context.push('/notifications'),
-      ),
-      ServiceCatalogueScreen(initialQuery: widget.initialServiceQuery),
-      canUseInternalTrack
-          ? const InternalServiceTrackScreen()
-          : const MyServicesScreen(),
-      canUseInternalDocs
-          ? const InternalDocumentReviewScreen()
-          : const DocumentsScreen(),
-    ];
-
     return AppBackNavigationGuard(
       fallbackLocation: '/home',
       child: Scaffold(
         extendBody: false,
-        body: IndexedStack(index: _currentIndex, children: screens),
+        body: widget.navigationShell,
         bottomNavigationBar: OmcBottomNav(
-          selectedIndex: _currentIndex,
+          selectedIndex: widget.navigationShell.currentIndex,
           notificationBadgeCount: unreadNotifications,
           primaryColor: primaryColor,
           onTabSelected: _selectTab,

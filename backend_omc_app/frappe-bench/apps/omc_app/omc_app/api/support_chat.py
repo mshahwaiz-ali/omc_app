@@ -2,7 +2,7 @@ import re
 
 import frappe
 
-from omc_app.api import access
+from omc_app.api import access, idempotency, upload_validation
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _can_access_internal_workspace,
@@ -86,6 +86,22 @@ def _find_uploaded_file(file_reference):
     return None
 
 
+def _cleanup_replayed_unlinked_file(file_reference):
+    uploaded_file = _find_uploaded_file(file_reference)
+    if not uploaded_file:
+        return
+    if uploaded_file.owner and uploaded_file.owner != _current_user():
+        return
+    if uploaded_file.attached_to_doctype or uploaded_file.attached_to_name:
+        return
+    frappe.delete_doc(
+        "File",
+        uploaded_file.name,
+        ignore_permissions=True,
+        force=True,
+    )
+
+
 def _public_file_url(value):
     text = (value or "").strip()
     if not text:
@@ -138,7 +154,10 @@ def _assert_support_attachment_allowed(ticket, file_reference):
 
     uploaded_file = _find_uploaded_file(clean_reference)
     if not uploaded_file:
-        return clean_reference
+        frappe.throw(
+            "Uploaded attachment could not be verified. Please upload it again.",
+            frappe.DoesNotExistError,
+        )
 
     uploaded_extension = _file_extension(uploaded_file.file_name or uploaded_file.file_url or clean_reference)
     if uploaded_extension not in ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS:
@@ -149,6 +168,12 @@ def _assert_support_attachment_allowed(ticket, file_reference):
         frappe.throw("Uploaded attachment is empty.")
     if file_size > MAX_SUPPORT_ATTACHMENT_SIZE_BYTES:
         frappe.throw("Attachment is too large. Maximum allowed size is 10 MB.")
+
+    upload_validation.validate_file_document(
+        uploaded_file,
+        allowed_extensions=ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS,
+        max_size_bytes=MAX_SUPPORT_ATTACHMENT_SIZE_BYTES,
+    )
 
     current_user = _current_user()
     if uploaded_file.owner and uploaded_file.owner != current_user and not _can_access_internal_workspace(current_user):
@@ -442,6 +467,36 @@ def _support_message_read_filters(user, profile, mark_read=False):
 
 @frappe.whitelist()
 def create_support_ticket(**kwargs):
+    claim = idempotency.begin(
+        operation="support_ticket.create",
+        actor=_current_user(),
+        payload=kwargs,
+    )
+    if claim and claim.replay is not None:
+        _cleanup_replayed_unlinked_file(
+            kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file")
+        )
+        return claim.replay
+    try:
+        response = _create_support_ticket(**kwargs)
+        ticket = response.get("ticket") or {}
+        return idempotency.complete(
+            claim,
+            response,
+            reference_doctype="OMC Support Ticket",
+            reference_name=ticket.get("name") or "",
+            stored_response={
+                "created": True,
+                "ticket": {"name": ticket.get("name") or ""},
+                "message": "Support ticket created.",
+            },
+        )
+    except Exception:
+        idempotency.fail(claim)
+        raise
+
+
+def _create_support_ticket(**kwargs):
     subject = (kwargs.get("subject") or kwargs.get("title") or "").strip()
     message = (kwargs.get("message") or kwargs.get("description") or "").strip()
     attachment = kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file") or ""
@@ -585,6 +640,47 @@ def mark_support_ticket_read(ticket_id=None, name=None):
 
 @frappe.whitelist()
 def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
+    payload = {
+        "idempotency_key": kwargs.get("idempotency_key"),
+        "ticket_id": ticket_id,
+        "message": message,
+        "attachment_name": kwargs.get("attachment_name"),
+        "attachment_type": kwargs.get("attachment_type"),
+    }
+    claim = idempotency.begin(
+        operation="support_ticket.reply",
+        actor=_current_user(),
+        payload=payload,
+    )
+    if claim and claim.replay is not None:
+        _cleanup_replayed_unlinked_file(
+            kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file")
+        )
+        return claim.replay
+    try:
+        response = _add_support_ticket_reply(
+            ticket_id=ticket_id,
+            message=message,
+            **kwargs,
+        )
+        ticket = response.get("ticket") or {}
+        return idempotency.complete(
+            claim,
+            response,
+            reference_doctype="OMC Support Ticket",
+            reference_name=ticket.get("name") or ticket_id or "",
+            stored_response={
+                "updated": True,
+                "ticket": {"name": ticket.get("name") or ticket_id or ""},
+                "message": "Support reply added.",
+            },
+        )
+    except Exception:
+        idempotency.fail(claim)
+        raise
+
+
+def _add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
     ticket_id = ticket_id or kwargs.get("name")
     message = (message or kwargs.get("reply") or kwargs.get("description") or "").strip()
     attachment = kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file") or ""

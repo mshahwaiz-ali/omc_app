@@ -81,7 +81,7 @@ def _send_verification_email(email: str, username: str, token: str) -> None:
         subject="Verify your OMC account",
         message=_verification_email_html(
             username,
-            links["app_url"],
+            links["universal_url"],
             links["web_url"],
         ),
         now=True,

@@ -21,11 +21,13 @@ class FrappeClient {
   Future<Map<String, dynamic>> getMethod(
     String method, {
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
   }) async {
     try {
-      final response = await _dioClient.instance.get<Map<String, dynamic>>(
+      final response = await _safeGet(
         '${ApiConfig.apiMethodPath}/$method',
         queryParameters: queryParameters,
+        cancelToken: cancelToken,
       );
 
       return _readResponseMap(response.data);
@@ -40,12 +42,16 @@ class FrappeClient {
     String method, {
     Object? data,
     Map<String, dynamic>? queryParameters,
+    String? idempotencyKey,
   }) async {
     try {
       final response = await _dioClient.instance.post<Map<String, dynamic>>(
         '${ApiConfig.apiMethodPath}/$method',
         data: data,
         queryParameters: queryParameters,
+        options: idempotencyKey == null || idempotencyKey.trim().isEmpty
+            ? null
+            : Options(headers: {'X-Idempotency-Key': idempotencyKey.trim()}),
       );
 
       return _readResponseMap(response.data);
@@ -60,15 +66,17 @@ class FrappeClient {
     String resource, {
     String? id,
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
   }) async {
     try {
       final path = id == null
           ? '${ApiConfig.apiResourcePath}/$resource'
           : '${ApiConfig.apiResourcePath}/$resource/$id';
 
-      final response = await _dioClient.instance.get<Map<String, dynamic>>(
+      final response = await _safeGet(
         path,
         queryParameters: queryParameters,
+        cancelToken: cancelToken,
       );
 
       return _readResponseMap(response.data);
@@ -76,6 +84,38 @@ class FrappeClient {
       throw _dioClient.parseError(error);
     } catch (error) {
       throw _unknownApiError(error);
+    }
+  }
+
+  Future<Response<Map<String, dynamic>>> _safeGet(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    const delays = [Duration(milliseconds: 250), Duration(milliseconds: 750)];
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _dioClient.instance.get<Map<String, dynamic>>(
+          path,
+          queryParameters: queryParameters,
+          cancelToken: cancelToken,
+        );
+      } on DioException catch (error) {
+        final status = error.response?.statusCode ?? 0;
+        final safeToRetry =
+            error.type == DioExceptionType.connectionTimeout ||
+            error.type == DioExceptionType.receiveTimeout ||
+            error.type == DioExceptionType.connectionError ||
+            status == 408 ||
+            status == 429 ||
+            status >= 500;
+        if (!safeToRetry ||
+            attempt >= delays.length ||
+            cancelToken?.isCancelled == true) {
+          rethrow;
+        }
+        await Future<void>.delayed(delays[attempt]);
+      }
     }
   }
 
@@ -133,6 +173,10 @@ class FrappeClient {
     String? doctype,
     String? docname,
     bool isPrivate = true,
+    Map<String, Object?> extraFields = const {},
+    String? idempotencyKey,
+    ProgressCallback? onSendProgress,
+    CancelToken? cancelToken,
   }) async {
     try {
       final cleanPath = filePath?.trim();
@@ -160,11 +204,24 @@ class FrappeClient {
       if (cleanDocname != null && cleanDocname.isNotEmpty) {
         formData.fields.add(MapEntry('docname', cleanDocname));
       }
+      for (final entry in extraFields.entries) {
+        final value = entry.value;
+        if (value != null) {
+          formData.fields.add(MapEntry(entry.key, value.toString()));
+        }
+      }
 
       final response = await _dioClient.instance.post<Map<String, dynamic>>(
         '${ApiConfig.apiMethodPath}/$uploadMethod',
         data: formData,
-        options: Options(contentType: Headers.multipartFormDataContentType),
+        options: Options(
+          contentType: Headers.multipartFormDataContentType,
+          headers: idempotencyKey == null || idempotencyKey.trim().isEmpty
+              ? null
+              : {'X-Idempotency-Key': idempotencyKey.trim()},
+        ),
+        onSendProgress: onSendProgress,
+        cancelToken: cancelToken,
       );
 
       return _readResponseMap(response.data);

@@ -10,31 +10,36 @@ import '../storage/secure_storage_service.dart';
 import 'api_error.dart';
 
 class DioClient {
-  DioClient({required SecureStorageService secureStorageService, Dio? dio})
-    : this._(
-        secureStorageService,
-        dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: ApiConfig.baseUrl,
-                connectTimeout: ApiConfig.connectTimeout,
-                receiveTimeout: ApiConfig.receiveTimeout,
-                sendTimeout: ApiConfig.sendTimeout,
-                headers: const {
-                  'Accept': 'application/json',
-                  'Content-Type': 'application/json',
-                },
-              ),
-            ),
-      );
+  DioClient({
+    required SecureStorageService secureStorageService,
+    Dio? dio,
+    VoidCallback? onUnauthorized,
+  }) : this._(
+         secureStorageService,
+         dio ??
+             Dio(
+               BaseOptions(
+                 baseUrl: ApiConfig.baseUrl,
+                 connectTimeout: ApiConfig.connectTimeout,
+                 receiveTimeout: ApiConfig.receiveTimeout,
+                 sendTimeout: ApiConfig.sendTimeout,
+                 headers: const {
+                   'Accept': 'application/json',
+                   'Content-Type': 'application/json',
+                 },
+               ),
+             ),
+         onUnauthorized,
+       );
 
-  DioClient._(this._secureStorageService, this._dio) {
+  DioClient._(this._secureStorageService, this._dio, this._onUnauthorized) {
     configureWebCredentials(_dio);
     _setupInterceptors();
   }
 
   final SecureStorageService _secureStorageService;
   final Dio _dio;
+  final VoidCallback? _onUnauthorized;
 
   Dio get instance => _dio;
 
@@ -60,6 +65,9 @@ class DioClient {
           handler.next(options);
         },
         onError: (error, handler) {
+          if (error.response?.statusCode == 401) {
+            _onUnauthorized?.call();
+          }
           handler.reject(error);
         },
       ),
@@ -70,11 +78,20 @@ class DioClient {
     final response = error.response;
     final data = response?.data;
 
-    if (response?.statusCode == 401 || response?.statusCode == 403) {
+    if (response?.statusCode == 401) {
       return ApiError(
-        message: 'Wrong email or password. Please try again.',
+        message: 'Your session has expired. Please sign in again.',
         statusCode: response?.statusCode,
         details: data,
+        category: ApiFailureCategory.authentication,
+      );
+    }
+    if (response?.statusCode == 403) {
+      return ApiError(
+        message: 'You do not have permission to perform this action.',
+        statusCode: response?.statusCode,
+        details: data,
+        category: ApiFailureCategory.authorization,
       );
     }
 
@@ -92,7 +109,46 @@ class DioClient {
       message: message,
       statusCode: response?.statusCode,
       details: data,
+      category: _categoryFor(error),
+      retryable: _isRetryable(error),
+      correlationId:
+          response?.headers.value('x-request-id') ??
+          response?.headers.value('x-correlation-id'),
     );
+  }
+
+  ApiFailureCategory _categoryFor(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.transformTimeout:
+        return ApiFailureCategory.timeout;
+      case DioExceptionType.connectionError:
+        return ApiFailureCategory.offline;
+      case DioExceptionType.cancel:
+        return ApiFailureCategory.cancelled;
+      case DioExceptionType.badResponse:
+        final status = error.response?.statusCode ?? 0;
+        if (status >= 400 && status < 500) {
+          return ApiFailureCategory.validation;
+        }
+        return ApiFailureCategory.server;
+      case DioExceptionType.badCertificate:
+        return ApiFailureCategory.configuration;
+      case DioExceptionType.unknown:
+        return ApiFailureCategory.unknown;
+    }
+  }
+
+  bool _isRetryable(DioException error) {
+    final status = error.response?.statusCode ?? 0;
+    return error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError ||
+        status == 408 ||
+        status == 429 ||
+        status >= 500;
   }
 
   String _fallbackMessage(DioException error) {

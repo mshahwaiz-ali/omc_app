@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../app/providers/core_providers.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../device_lock/data/device_lock_service.dart';
 import '../data/auth_repository.dart';
 import 'auth_state.dart';
@@ -12,10 +14,29 @@ final authControllerProvider = NotifierProvider<AuthController, AuthState>(
 
 class AuthController extends Notifier<AuthState> {
   late final _authRepository = ref.read(authRepositoryProvider);
+  bool _sessionExpiryInFlight = false;
 
   @override
   AuthState build() {
+    ref.listen<int>(sessionExpirySignalProvider, (previous, next) {
+      if (previous != next && state.status == AuthStatus.authenticated) {
+        _expireSession();
+      }
+    });
     return const AuthState.checking();
+  }
+
+  Future<void> _activateSession(AuthSession session) async {
+    await ref
+        .read(deviceLockServiceProvider)
+        .preserveBiometricLoginOnlyFor(session.userId);
+    state = AuthState.authenticated(
+      userId: session.userId,
+      canAccessInternalWorkspace: session.canAccessInternalWorkspace,
+      capabilities: session.capabilities,
+    );
+    ref.read(sessionEpochProvider.notifier).advance();
+    ref.invalidate(activeDirtyFormProvider);
   }
 
   Future<void> checkSession() async {
@@ -26,11 +47,7 @@ class AuthController extends Notifier<AuthState> {
         return;
       }
 
-      state = AuthState.authenticated(
-        userId: session.userId,
-        canAccessInternalWorkspace: session.canAccessInternalWorkspace,
-        capabilities: session.capabilities,
-      );
+      await _activateSession(session);
     } catch (_) {
       await _authRepository.clearSession();
       state = const AuthState.unauthenticated();
@@ -46,11 +63,7 @@ class AuthController extends Notifier<AuthState> {
         password: password,
       );
 
-      state = AuthState.authenticated(
-        userId: session.userId,
-        canAccessInternalWorkspace: session.canAccessInternalWorkspace,
-        capabilities: session.capabilities,
-      );
+      await _activateSession(session);
     } catch (error) {
       await _authRepository.clearSession();
       state = AuthState.unauthenticated(message: _safeLoginMessage(error));
@@ -77,11 +90,7 @@ class AuthController extends Notifier<AuthState> {
         password: credentials.password,
       );
 
-      state = AuthState.authenticated(
-        userId: session.userId,
-        canAccessInternalWorkspace: session.canAccessInternalWorkspace,
-        capabilities: session.capabilities,
-      );
+      await _activateSession(session);
       ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
       return true;
     } catch (error) {
@@ -135,6 +144,7 @@ class AuthController extends Notifier<AuthState> {
   Future<bool> continueAsGuest() async {
     try {
       await _authRepository.clearSession();
+      ref.read(sessionEpochProvider.notifier).advance();
       await _authRepository.createGuestSession();
       state = const AuthState.guest();
       return true;
@@ -153,7 +163,28 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _authRepository.logout();
+    ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
     state = const AuthState.unauthenticated();
+    ref.read(sessionEpochProvider.notifier).advance();
+    ref.invalidate(activeDirtyFormProvider);
+  }
+
+  Future<void> _expireSession() async {
+    if (_sessionExpiryInFlight || state.status != AuthStatus.authenticated) {
+      return;
+    }
+    _sessionExpiryInFlight = true;
+    try {
+      await _authRepository.clearSession();
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+      state = const AuthState.unauthenticated(
+        message: 'Your session has expired. Please sign in again.',
+      );
+      ref.read(sessionEpochProvider.notifier).advance();
+      ref.invalidate(activeDirtyFormProvider);
+    } finally {
+      _sessionExpiryInFlight = false;
+    }
   }
 
   String _safeLoginMessage(Object error) {

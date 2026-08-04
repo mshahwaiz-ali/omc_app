@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -7,6 +9,7 @@ import '../../../core/config/env.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
 import '../../../core/storage/json_cache_service.dart';
+import '../../auth/application/auth_controller.dart';
 import 'service_case.dart';
 
 final serviceCaseCacheProvider = FutureProvider<JsonCacheService>((ref) {
@@ -22,8 +25,17 @@ final serviceCaseRepositoryProvider = Provider<ServiceCaseRepository>((ref) {
   return ServiceCaseRepository(
     frappeClient: frappeClient,
     cacheService: cacheService,
+    cacheNamespace: _cacheNamespace(ref.watch(authControllerProvider).userId),
   );
 });
+
+String _cacheNamespace(String? userId) {
+  final identity = userId?.trim().toLowerCase();
+  final value = identity == null || identity.isEmpty
+      ? 'guest-device'
+      : identity;
+  return base64Url.encode(utf8.encode(value)).replaceAll('=', '');
+}
 
 final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
   final repository = ref.watch(serviceCaseRepositoryProvider);
@@ -60,14 +72,23 @@ class ServiceCaseRepository {
   const ServiceCaseRepository({
     required FrappeClient frappeClient,
     JsonCacheService? cacheService,
-  }) : this._(frappeClient, cacheService);
+    required String cacheNamespace,
+  }) : this._(frappeClient, cacheService, cacheNamespace);
 
-  const ServiceCaseRepository._(this._frappeClient, this._cacheService);
+  const ServiceCaseRepository._(
+    this._frappeClient,
+    this._cacheService,
+    this._cacheNamespace,
+  );
 
-  static const String _serviceCasesCacheKey = 'service_cases_cache_v1';
+  static const String _serviceCasesCachePrefix = 'service_cases_cache_v2';
 
   final FrappeClient _frappeClient;
   final JsonCacheService? _cacheService;
+  final String _cacheNamespace;
+
+  String get _serviceCasesCacheKey =>
+      '$_serviceCasesCachePrefix::$_cacheNamespace';
 
   Future<List<ServiceCase>> fetchServiceCases() async {
     try {

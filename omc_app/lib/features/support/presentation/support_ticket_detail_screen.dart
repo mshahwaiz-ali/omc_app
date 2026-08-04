@@ -359,6 +359,7 @@ class _SupportTicketChatBodyState
           filePath: attachment.path,
           fileBytes: attachment.bytes,
           fileName: attachment.name,
+          sizeBytes: attachment.sizeInBytes,
         );
         _uploadedAttachmentUrlForRetry = attachmentUrl;
       }

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 enum AppEnvironment { development, production }
 
 class Env {
@@ -5,18 +7,25 @@ class Env {
 
   static const String _definedEnvironment = String.fromEnvironment(
     'OMC_ENV',
-    defaultValue: 'development',
+    defaultValue: '',
   );
+
+  static String get definedEnvironment => _definedEnvironment.trim();
 
   static AppEnvironment get current {
     switch (_definedEnvironment.trim().toLowerCase()) {
+      case '':
+        return kReleaseMode
+            ? AppEnvironment.production
+            : AppEnvironment.development;
       case 'prod':
       case 'production':
         return AppEnvironment.production;
       case 'dev':
       case 'development':
-      default:
         return AppEnvironment.development;
+      default:
+        throw StateError('Invalid OMC_ENV. Use development or production.');
     }
   }
 

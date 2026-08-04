@@ -64,6 +64,7 @@ class TestDocumentUploadBoundaries(FrappeTestCase):
             owner="owner@example.com",
             attached_to_doctype="",
             attached_to_name="",
+            get_content=lambda: b"%PDF-1.7 test document",
         )
         find_uploaded_file.return_value = uploaded_file
 

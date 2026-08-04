@@ -4,6 +4,7 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/mutation_intent.dart';
 import '../domain/lead_item.dart';
 
 final leadsRepositoryProvider = Provider<LeadsRepository>((ref) {
@@ -28,9 +29,10 @@ final leadDetailProvider = FutureProvider.family<LeadItem?, String>((
 });
 
 class LeadsRepository {
-  const LeadsRepository(this._frappeClient);
+  LeadsRepository(this._frappeClient);
 
   final FrappeClient _frappeClient;
+  final MutationIntent _createIntent = MutationIntent();
 
   Future<List<LeadItem>> fetchLeads() async {
     try {
@@ -62,19 +64,22 @@ class LeadsRepository {
     }
 
     try {
+      final data = {
+        'title': cleanTitle,
+        'lead_name': (customerName ?? cleanTitle).trim(),
+        'phone': phone?.trim() ?? '',
+        'email': email?.trim() ?? '',
+        'source': source?.trim().isNotEmpty == true
+            ? source!.trim()
+            : 'Mobile App',
+        'service_interest': serviceInterest?.trim() ?? '',
+        'notes': notes?.trim() ?? '',
+      };
+      final key = _createIntent.keyFor(data);
       final response = await _frappeClient.postMethod(
         ApiConfig.createLeadMethod,
-        data: {
-          'title': cleanTitle,
-          'lead_name': (customerName ?? cleanTitle).trim(),
-          'phone': phone?.trim() ?? '',
-          'email': email?.trim() ?? '',
-          'source': source?.trim().isNotEmpty == true
-              ? source!.trim()
-              : 'Mobile App',
-          'service_interest': serviceInterest?.trim() ?? '',
-          'notes': notes?.trim() ?? '',
-        },
+        data: {...data, 'idempotency_key': key},
+        idempotencyKey: key,
       );
 
       final created = _mapLeadDetailResponse(response);
@@ -83,6 +88,7 @@ class LeadsRepository {
           message: 'Lead was created but response was empty.',
         );
       }
+      _createIntent.complete();
       return created;
     } on ApiError {
       rethrow;

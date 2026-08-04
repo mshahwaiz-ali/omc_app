@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/mutation_intent.dart';
+import '../../../core/uploads/upload_coordinator.dart';
 import '../../documents/data/document_attachment.dart';
 import '../../service_catalogue/data/service_item.dart';
 
@@ -377,19 +379,30 @@ bool _staticBool(Object? value) {
 }
 
 class ServiceRequestResult {
-  const ServiceRequestResult({required this.raw, this.requestId});
+  const ServiceRequestResult({
+    required this.raw,
+    this.requestId,
+    this.created = true,
+    this.duplicate = false,
+    this.status,
+  });
 
   final Map<String, dynamic> raw;
   final String? requestId;
+  final bool created;
+  final bool duplicate;
+  final String? status;
 }
 
 class ServiceRequestRepository {
-  const ServiceRequestRepository({required FrappeClient frappeClient})
-    : this._(frappeClient);
+  ServiceRequestRepository({required FrappeClient frappeClient})
+    : this._(frappeClient, UploadCoordinator(frappeClient));
 
-  const ServiceRequestRepository._(this._frappeClient);
+  ServiceRequestRepository._(this._frappeClient, this._uploadCoordinator);
 
   final FrappeClient _frappeClient;
+  final UploadCoordinator _uploadCoordinator;
+  final Map<String, MutationIntent> _documentIntents = {};
 
   Future<AssistedCustomerSelection> getAssistedCustomerSelection({
     String? customerMode,
@@ -420,17 +433,45 @@ class ServiceRequestRepository {
   }
 
   Future<ServiceRequestResult> createServiceRequest(
-    ServiceRequestPayload payload,
-  ) async {
+    ServiceRequestPayload payload, {
+    String? idempotencyKey,
+  }) async {
+    final data = payload.toJson();
+    if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty) {
+      data['idempotency_key'] = idempotencyKey.trim();
+    }
     final response = await _frappeClient.postMethod(
       ApiConfig.createServiceMethod,
-      data: payload.toJson(),
+      data: data,
+      idempotencyKey: idempotencyKey,
     );
+
+    final source = _responsePayload(response);
 
     return ServiceRequestResult(
       raw: response,
       requestId: _extractRequestId(response),
+      created: _boolValue(source['created'], fallback: true),
+      duplicate: _boolValue(source['duplicate']),
+      status: _stringOrNull(source['status']),
     );
+  }
+
+  Map<String, dynamic> _responsePayload(Map<String, dynamic> response) {
+    final message = response['message'];
+    return message is Map ? Map<String, dynamic>.from(message) : response;
+  }
+
+  bool _boolValue(Object? value, {bool fallback = false}) {
+    if (value == null) return fallback;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return const {
+      '1',
+      'true',
+      'yes',
+      'on',
+    }.contains(value.toString().trim().toLowerCase());
   }
 
   Future<List<Map<String, dynamic>>> uploadRequestAttachments({
@@ -448,10 +489,15 @@ class ServiceRequestRepository {
         continue;
       }
 
-      final uploadResponse = await _frappeClient.uploadFile(
+      final uploadResponse = await _uploadCoordinator.upload(
         filePath: attachment.path,
         fileBytes: attachment.bytes,
         fileName: attachment.name,
+        sizeBytes: attachment.sizeInBytes,
+        policy: const UploadPolicy(
+          allowedExtensions: {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'},
+          maxSizeBytes: 10 * 1024 * 1024,
+        ),
       );
 
       final uploadedFileUrl = _extractFileUrl(uploadResponse);
@@ -460,27 +506,42 @@ class ServiceRequestRepository {
         continue;
       }
 
+      final data = {
+        'case_id': requestId,
+        'request_id': requestId,
+        'service_request': requestId,
+        'name': requestId,
+        'document_title':
+            cleanDocumentTitle != null && cleanDocumentTitle.isNotEmpty
+            ? cleanDocumentTitle
+            : attachment.name,
+        'document_type':
+            cleanDocumentType != null && cleanDocumentType.isNotEmpty
+            ? cleanDocumentType
+            : attachment.extension ?? '',
+        'attachment': uploadedFileUrl,
+        'file_url': uploadedFileUrl,
+      };
+      final intent = _documentIntents.putIfAbsent(
+        '$requestId:${attachment.id}',
+        MutationIntent.new,
+      );
+      final key = intent.keyFor({
+        'case_id': requestId,
+        'attachment_id': attachment.id,
+        'file_name': attachment.name,
+        'file_size': attachment.sizeInBytes,
+        'document_title': data['document_title'],
+        'document_type': data['document_type'],
+      });
       final documentResponse = await _frappeClient.postMethod(
         ApiConfig.uploadServiceDocumentMethod,
-        data: {
-          'case_id': requestId,
-          'request_id': requestId,
-          'service_request': requestId,
-          'name': requestId,
-          'document_title':
-              cleanDocumentTitle != null && cleanDocumentTitle.isNotEmpty
-              ? cleanDocumentTitle
-              : attachment.name,
-          'document_type':
-              cleanDocumentType != null && cleanDocumentType.isNotEmpty
-              ? cleanDocumentType
-              : attachment.extension ?? '',
-          'attachment': uploadedFileUrl,
-          'file_url': uploadedFileUrl,
-        },
+        data: {...data, 'idempotency_key': key},
+        idempotencyKey: key,
       );
 
       uploadedFiles.add(documentResponse);
+      intent.complete();
     }
 
     return uploadedFiles;
@@ -526,6 +587,15 @@ class ServiceRequestRepository {
 
       for (final candidate in nestedCandidates) {
         final value = _stringOrNull(candidate);
+        if (value != null) return value;
+      }
+      final activeRequest = nested['active_request'];
+      if (activeRequest is Map) {
+        final value = _stringOrNull(
+          activeRequest['request_id'] ??
+              activeRequest['name'] ??
+              activeRequest['case_id'],
+        );
         if (value != null) return value;
       }
     } else {

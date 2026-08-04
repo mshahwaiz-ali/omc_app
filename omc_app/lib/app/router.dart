@@ -6,6 +6,7 @@ import '../core/widgets/route_failure_screen.dart';
 import '../features/admin_control/presentation/admin_control_screen.dart';
 import '../features/admin_control/presentation/admin_operations_screen.dart';
 import '../features/documents/presentation/internal_document_review_screen.dart';
+import '../features/documents/presentation/documents_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
 import '../features/auth/presentation/email_verification_screen.dart';
@@ -17,6 +18,7 @@ import '../features/auth/presentation/under_review_screen.dart';
 import '../features/customers/presentation/customer_detail_screen.dart';
 import '../features/customers/presentation/customers_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
+import '../features/home/presentation/home_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
 import '../features/expense_tracker/presentation/expense_budget_screen.dart';
 import '../features/expense_tracker/presentation/expense_tracker_screen.dart';
@@ -36,7 +38,10 @@ import '../features/profile/presentation/my_referrals_screen.dart';
 import '../features/profile/presentation/referral_detail_screen.dart';
 import '../features/profile/presentation/edit_profile_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
+import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
+import '../features/service_requests/presentation/internal_service_track_screen.dart';
+import '../features/service_requests/presentation/my_services_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
 import '../features/service_requests/presentation/service_request_draft_screen.dart';
 import '../features/settings/presentation/change_password_screen.dart';
@@ -53,12 +58,24 @@ import 'main_shell.dart';
 import 'route_failure_recovery.dart';
 import 'providers/effective_capabilities_provider.dart';
 import 'shell_nav_scaffold.dart';
+import 'navigation/link_coordinator.dart';
+
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final _homeNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'home');
+final _servicesNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'services');
+final _trackNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'track');
+final _documentsNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'documents',
+);
+final _moreNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'more');
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final routerRefreshNotifier = _RouterRefreshNotifier(ref);
+  final linkCoordinator = LinkCoordinator();
   ref.onDispose(routerRefreshNotifier.dispose);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: routerRefreshNotifier,
     errorBuilder: (context, state) {
@@ -79,6 +96,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.read(authControllerProvider);
       final capabilities = ref.read(effectiveCapabilitiesProvider);
+
+      final normalizedLink = linkCoordinator.normalize(state.uri);
+      if (normalizedLink != null &&
+          normalizedLink.toString() != state.uri.toString()) {
+        return normalizedLink.toString();
+      }
+      if (authState.status == AuthStatus.checking &&
+          state.uri.path != '/' &&
+          normalizedLink != null) {
+        linkCoordinator.queue(normalizedLink);
+        return '/';
+      }
+      if (state.uri.path == '/' ||
+          state.uri.path == '/home' ||
+          state.uri.path == '/login') {
+        final pending = linkCoordinator.takeFor(authState.status);
+        if (pending != null && pending != state.uri.toString()) return pending;
+      }
 
       return resolveAuthRouteRedirect(
         status: authState.status,
@@ -115,6 +150,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/app/reset-password',
+        redirect: (context, state) => Uri(
+          path: '/reset-password',
+          queryParameters: state.uri.queryParameters,
+        ).toString(),
+      ),
+      GoRoute(
         path: '/signup',
         name: 'signup',
         builder: (context, state) => const SignupScreen(),
@@ -127,35 +169,94 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/app/verify-email',
+        redirect: (context, state) => Uri(
+          path: '/verify-email',
+          queryParameters: state.uri.queryParameters,
+        ).toString(),
+      ),
+      GoRoute(
         path: '/under-review',
         name: 'under-review',
         builder: (context, state) => const UnderReviewScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        name: 'home',
-        builder: (context, state) => MainShell(
+      StatefulShellRoute.indexedStack(
+        restorationScopeId: 'omcShell',
+        builder: (context, state, navigationShell) => MainShell(
+          navigationShell: navigationShell,
           showAccessDeniedNotice:
               state.uri.queryParameters['notice'] == 'access-denied',
+          showMoreOnLoad: state.uri.path == '/more',
         ),
-      ),
-      GoRoute(
-        path: '/services',
-        name: 'services',
-        builder: (context, state) => MainShell(
-          initialIndex: 1,
-          initialServiceQuery: state.uri.queryParameters['query'] ?? '',
-        ),
-      ),
-      GoRoute(
-        path: '/track',
-        name: 'track',
-        builder: (context, state) => const MainShell(initialIndex: 2),
-      ),
-      GoRoute(
-        path: '/more',
-        name: 'more',
-        builder: (context, state) => const MainShell(showMoreOnLoad: true),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _homeNavigatorKey,
+            restorationScopeId: 'homeBranch',
+            routes: [
+              GoRoute(
+                path: '/home',
+                name: 'home',
+                builder: (context, state) => HomeScreen(
+                  onOpenServices: () => context.go('/services'),
+                  onOpenCalculator: () => context.push('/tax-calculator'),
+                  onOpenSupport: () => context.push('/support'),
+                  onOpenNotifications: () => context.push('/notifications'),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: _servicesNavigatorKey,
+            restorationScopeId: 'servicesBranch',
+            routes: [
+              GoRoute(
+                path: '/services',
+                name: 'services',
+                builder: (context, state) => ServiceCatalogueScreen(
+                  initialQuery: state.uri.queryParameters['query'] ?? '',
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: _trackNavigatorKey,
+            restorationScopeId: 'trackBranch',
+            routes: [
+              GoRoute(
+                path: '/track',
+                name: 'track',
+                builder: (context, state) => const _TrackRootScreen(),
+              ),
+              GoRoute(
+                path: '/my-services',
+                name: 'my-services',
+                builder: (context, state) => const _TrackRootScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: _documentsNavigatorKey,
+            restorationScopeId: 'documentsBranch',
+            routes: [
+              GoRoute(
+                path: '/documents',
+                name: 'documents',
+                builder: (context, state) => const _DocumentsRootScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: _moreNavigatorKey,
+            restorationScopeId: 'moreBranch',
+            routes: [
+              GoRoute(
+                path: '/more',
+                name: 'more',
+                builder: (context, state) => const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: '/services/:serviceId',
@@ -184,20 +285,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/my-services',
-        name: 'my-services',
-        builder: (context, state) => const MainShell(initialIndex: 2),
-      ),
-      GoRoute(
         path: '/dashboard',
         name: 'dashboard',
         builder: (context, state) =>
             _withShell(ShellNavScaffold.moreIndex, const DashboardScreen()),
-      ),
-      GoRoute(
-        path: '/documents',
-        name: 'documents',
-        builder: (context, state) => const MainShell(initialIndex: 3),
       ),
       GoRoute(
         path: '/documents/:documentId',
@@ -250,12 +341,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/tasks',
         name: 'tasks',
-        builder: (context, state) => _withShell(
-          ShellNavScaffold.moreIndex,
-          TasksScreen(
-            openCreateOnLoad: state.uri.queryParameters['action'] == 'create',
-          ),
-        ),
+        builder: (context, state) =>
+            _withShell(ShellNavScaffold.moreIndex, const TasksScreen()),
       ),
       GoRoute(
         path: '/leads/:leadId',
@@ -514,6 +601,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _TrackRootScreen extends ConsumerWidget {
+  const _TrackRootScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
+    final canUseInternalTrack =
+        capabilities.canViewAllServiceCases ||
+        capabilities.canViewRelevantServiceCases ||
+        capabilities.canViewAssignedServiceCases;
+    return canUseInternalTrack
+        ? const InternalServiceTrackScreen()
+        : const MyServicesScreen();
+  }
+}
+
+class _DocumentsRootScreen extends ConsumerWidget {
+  const _DocumentsRootScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
+    final canReview =
+        capabilities.canViewDocumentQueue || capabilities.canReviewDocuments;
+    return canReview
+        ? const InternalDocumentReviewScreen()
+        : const DocumentsScreen();
+  }
+}
 
 Widget _withShell(int selectedIndex, Widget child) {
   return ShellNavScaffold(selectedIndex: selectedIndex, child: child);

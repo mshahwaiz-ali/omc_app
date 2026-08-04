@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app/providers/core_providers.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/frappe_client.dart';
 import '../domain/expense_transaction.dart';
@@ -14,8 +16,17 @@ final expenseTrackerRepositoryProvider = Provider<ExpenseTrackerRepository>((
 ) {
   return ExpenseTrackerRepository(
     frappeClient: ref.watch(frappeClientProvider),
+    storageNamespace: _expenseStorageNamespace(
+      ref.watch(authControllerProvider),
+    ),
   );
 });
+
+String _expenseStorageNamespace(AuthState state) {
+  final userId = state.userId?.trim().toLowerCase();
+  final identity = userId == null || userId.isEmpty ? 'guest-device' : userId;
+  return base64Url.encode(utf8.encode(identity)).replaceAll('=', '');
+}
 
 final expenseTrackerStorageModeProvider =
     AsyncNotifierProvider<
@@ -313,21 +324,29 @@ class ExpenseTrackerCategory {
 }
 
 class ExpenseTrackerRepository {
-  const ExpenseTrackerRepository({required FrappeClient frappeClient})
-    : this._(frappeClient);
+  const ExpenseTrackerRepository({
+    required FrappeClient frappeClient,
+    required String storageNamespace,
+  }) : this._(frappeClient, storageNamespace);
 
-  const ExpenseTrackerRepository._(this._frappeClient);
+  const ExpenseTrackerRepository._(this._frappeClient, this._storageNamespace);
 
-  static const _storageKey = 'omc_expense_tracker_transactions';
-  static const _storageModeKey = 'omc_expense_tracker_storage_mode';
+  static const _legacyStorageKey = 'omc_expense_tracker_transactions';
+  static const _legacyStorageModeKey = 'omc_expense_tracker_storage_mode';
+  static const _legacyQuarantineSuffix = 'legacy_unassigned';
 
   final FrappeClient _frappeClient;
+  final String _storageNamespace;
+
+  String get _storageKey => '$_legacyStorageKey::$_storageNamespace';
+  String get _storageModeKey => '$_legacyStorageModeKey::$_storageNamespace';
 
   ExpenseTrackerStorageMode get storageMode =>
       ExpenseTrackerStorageMode.localOnly;
 
   Future<ExpenseTrackerStorageMode> readStorageMode() async {
     final preferences = await SharedPreferences.getInstance();
+    await _quarantineLegacyData(preferences);
     final raw = preferences.getString(_storageModeKey);
 
     if (raw == ExpenseTrackerStorageMode.syncWithAccount.name) {
@@ -339,6 +358,7 @@ class ExpenseTrackerRepository {
 
   Future<void> saveStorageMode(ExpenseTrackerStorageMode mode) async {
     final preferences = await SharedPreferences.getInstance();
+    await _quarantineLegacyData(preferences);
     await preferences.setString(_storageModeKey, mode.name);
   }
 
@@ -370,6 +390,7 @@ class ExpenseTrackerRepository {
 
   Future<List<ExpenseTransaction>> readTransactions() async {
     final preferences = await SharedPreferences.getInstance();
+    await _quarantineLegacyData(preferences);
     final raw = preferences.getString(_storageKey);
 
     if (raw == null || raw.trim().isEmpty) return const [];
@@ -395,6 +416,7 @@ class ExpenseTrackerRepository {
 
   Future<void> saveTransactions(List<ExpenseTransaction> transactions) async {
     final preferences = await SharedPreferences.getInstance();
+    await _quarantineLegacyData(preferences);
     final encoded = jsonEncode(
       transactions.map((transaction) => transaction.toJson()).toList(),
     );
@@ -405,6 +427,26 @@ class ExpenseTrackerRepository {
   Future<void> clearTransactions() async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.remove(_storageKey);
+  }
+
+  Future<void> _quarantineLegacyData(SharedPreferences preferences) async {
+    final legacyTransactions = preferences.getString(_legacyStorageKey);
+    if (legacyTransactions != null && legacyTransactions.trim().isNotEmpty) {
+      await preferences.setString(
+        '$_legacyStorageKey::$_legacyQuarantineSuffix',
+        legacyTransactions,
+      );
+      await preferences.remove(_legacyStorageKey);
+    }
+
+    final legacyMode = preferences.getString(_legacyStorageModeKey);
+    if (legacyMode != null && legacyMode.trim().isNotEmpty) {
+      await preferences.setString(
+        '$_legacyStorageModeKey::$_legacyQuarantineSuffix',
+        legacyMode,
+      );
+      await preferences.remove(_legacyStorageModeKey);
+    }
   }
 
   Future<List<ExpenseTransaction>> fetchSyncedTransactions() async {

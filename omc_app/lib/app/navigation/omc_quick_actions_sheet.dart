@@ -21,7 +21,6 @@ Future<void> showOmcQuickActionsSheet({
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenTasks,
   required VoidCallback onCreateLead,
-  required VoidCallback onCreateTask,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -49,7 +48,6 @@ Future<void> showOmcQuickActionsSheet({
         onOpenCustomers: onOpenCustomers,
         onOpenTasks: onOpenTasks,
         onCreateLead: onCreateLead,
-        onCreateTask: onCreateTask,
       );
       return _QuickActionsContent(actions: actions);
     },
@@ -72,7 +70,6 @@ List<OmcSheetAction> _quickActions({
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenTasks,
   required VoidCallback onCreateLead,
-  required VoidCallback onCreateTask,
 }) {
   OmcSheetAction action(String label, IconData icon, VoidCallback onTap) {
     return OmcSheetAction(
@@ -91,9 +88,7 @@ List<OmcSheetAction> _quickActions({
       );
     }
     if (capabilities.canManageTasks) {
-      items.add(
-        action('Assign Task', Icons.playlist_add_check_rounded, onCreateTask),
-      );
+      items.add(action('Tasks', Icons.playlist_add_check_rounded, onOpenTasks));
     }
     if (capabilities.canCreateServiceForCustomer) {
       items.add(

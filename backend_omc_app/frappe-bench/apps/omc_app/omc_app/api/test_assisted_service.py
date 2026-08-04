@@ -8,6 +8,25 @@ from omc_app.api import assisted_service
 
 
 class TestAssistedServiceAuthority(FrappeTestCase):
+    def test_duplicate_response_exposes_normalized_request_identity(self):
+        active = SimpleNamespace(
+            name="REQ-1",
+            status="Open",
+            service="SERVICE-1",
+            service_title="Tax Filing",
+            modified="2026-08-04 12:00:00",
+        )
+
+        response = assisted_service._duplicate_response(
+            active,
+            allow_parallel=False,
+        )
+
+        self.assertEqual(response["request_id"], "REQ-1")
+        self.assertEqual(response["case_id"], "REQ-1")
+        self.assertFalse(response["created"])
+        self.assertTrue(response["duplicate"])
+
     def test_my_referral_rejects_unowned_customer(self):
         profile = SimpleNamespace(
             referred_by="other@example.com",

@@ -1,6 +1,6 @@
 import frappe
 
-from omc_app.api import review_routing
+from omc_app.api import idempotency, review_routing, upload_validation
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _clean_file_reference,
@@ -166,11 +166,53 @@ def _validate_uploaded_document(service_case, attachment):
             frappe.PermissionError,
         )
 
+    upload_validation.validate_file_document(
+        uploaded_file,
+        allowed_extensions=ALLOWED_DOCUMENT_EXTENSIONS,
+        max_size_bytes=MAX_DOCUMENT_SIZE_BYTES,
+    )
+
     return uploaded_file.file_url or clean_attachment, uploaded_file
 
 
 @frappe.whitelist()
 def upload_service_document(**kwargs):
+    attachment = kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file")
+    uploaded_file = _find_uploaded_file(attachment)
+    claim = idempotency.begin(
+        operation="service_document.register",
+        actor=_current_user(),
+        payload={
+            "idempotency_key": kwargs.get("idempotency_key"),
+            "case_id": kwargs.get("case_id") or kwargs.get("service_request"),
+            "document_title": kwargs.get("document_title") or kwargs.get("title"),
+            "document_type": kwargs.get("document_type") or kwargs.get("type"),
+            "content_hash": getattr(uploaded_file, "content_hash", None)
+            or attachment,
+        },
+    )
+    if claim and claim.replay is not None:
+        _cleanup_failed_unlinked_upload(uploaded_file)
+        return claim.replay
+    try:
+        response = _upload_service_document(**kwargs)
+        document = response.get("document") or {}
+        return idempotency.complete(
+            claim,
+            response,
+            reference_doctype="OMC Service Document",
+            reference_name=document.get("name") or "",
+            stored_response={
+                "uploaded": True,
+                "document": {"name": document.get("name") or ""},
+            },
+        )
+    except Exception:
+        idempotency.fail(claim)
+        raise
+
+
+def _upload_service_document(**kwargs):
     """Create a service-document record for an already uploaded File.
 
     This endpoint intentionally inserts OMC Service Document without setting its

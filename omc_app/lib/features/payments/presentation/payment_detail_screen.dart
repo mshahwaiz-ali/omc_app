@@ -837,7 +837,10 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     }
 
     final controller = ref.read(documentAttachmentControllerProvider);
-    final result = await controller.pickDocuments();
+    final result = await controller.pickDocuments(
+      allowedExtensionsOverride: const ['pdf', 'jpg', 'jpeg', 'png'],
+      maxFiles: 1,
+    );
 
     if (!context.mounted) return;
 
@@ -863,10 +866,9 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       if (!context.mounted) return;
 
       final uploadedCount = uploadedFiles.length;
-      final skippedCount = result.accepted.length - uploadedCount;
-      final message = skippedCount > 0
-          ? 'Uploaded $uploadedCount receipt(s). $skippedCount file(s) were skipped because their local path was unavailable.'
-          : 'Uploaded $uploadedCount receipt(s).';
+      final message = uploadedCount == 1
+          ? 'Receipt uploaded for OMC review.'
+          : 'Receipt upload did not complete. Please try again.';
 
       messenger.showSnackBar(SnackBar(content: Text(message)));
 

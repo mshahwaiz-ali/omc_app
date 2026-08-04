@@ -4,6 +4,8 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/mutation_intent.dart';
+import '../../../core/uploads/upload_coordinator.dart';
 import 'document_attachment.dart';
 import 'document_item.dart';
 
@@ -28,9 +30,13 @@ final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
 });
 
 class DocumentsRepository {
-  const DocumentsRepository(this._frappeClient);
+  DocumentsRepository(FrappeClient frappeClient)
+    : _frappeClient = frappeClient,
+      _uploadCoordinator = UploadCoordinator(frappeClient);
 
   final FrappeClient _frappeClient;
+  final UploadCoordinator _uploadCoordinator;
+  final Map<String, MutationIntent> _uploadIntents = {};
 
   Future<List<DocumentItem>> fetchDocuments({
     bool? showArchived,
@@ -132,10 +138,15 @@ class DocumentsRepository {
         continue;
       }
 
-      final uploadResponse = await _frappeClient.uploadFile(
+      final uploadResponse = await _uploadCoordinator.upload(
         filePath: attachment.path,
         fileBytes: attachment.bytes,
         fileName: attachment.name,
+        sizeBytes: attachment.sizeInBytes,
+        policy: const UploadPolicy(
+          allowedExtensions: {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'},
+          maxSizeBytes: 10 * 1024 * 1024,
+        ),
         doctype: ApiConfig.serviceRequestUploadDoctype,
         docname: cleanServiceRequestId,
       );
@@ -148,23 +159,36 @@ class DocumentsRepository {
         );
       }
 
+      final data = {
+        'case_id': cleanServiceRequestId,
+        'request_id': cleanServiceRequestId,
+        'service_request': cleanServiceRequestId,
+        'name': cleanServiceRequestId,
+        'document_title': attachment.name,
+        'document_type': attachment.extension,
+        'file_url': uploadedFileUrl,
+        'attachment': uploadedFileUrl,
+        'status': 'Uploaded',
+        'source': 'Service Upload',
+      };
+      final intent = _uploadIntents.putIfAbsent(
+        '$cleanServiceRequestId:${attachment.id}',
+        MutationIntent.new,
+      );
+      final key = intent.keyFor({
+        'case_id': cleanServiceRequestId,
+        'attachment_id': attachment.id,
+        'file_name': attachment.name,
+        'file_size': attachment.sizeInBytes,
+      });
       final response = await _frappeClient.postMethod(
         ApiConfig.uploadServiceDocumentMethod,
-        data: {
-          'case_id': cleanServiceRequestId,
-          'request_id': cleanServiceRequestId,
-          'service_request': cleanServiceRequestId,
-          'name': cleanServiceRequestId,
-          'document_title': attachment.name,
-          'document_type': attachment.extension,
-          'file_url': uploadedFileUrl,
-          'attachment': uploadedFileUrl,
-          'status': 'Uploaded',
-          'source': 'Service Upload',
-        },
+        data: {...data, 'idempotency_key': key},
+        idempotencyKey: key,
       );
 
       uploadedFiles.add(response);
+      intent.complete();
     }
 
     return uploadedFiles;

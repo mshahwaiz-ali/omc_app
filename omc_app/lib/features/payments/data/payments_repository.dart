@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +6,8 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/mutation_intent.dart';
+import '../../../core/uploads/upload_coordinator.dart';
 import '../../documents/data/document_attachment.dart';
 import 'payment_item.dart';
 
@@ -37,9 +38,13 @@ final paymentDetailProvider = FutureProvider.family<PaymentItem?, String>((
 });
 
 class PaymentsRepository {
-  const PaymentsRepository({required this._frappeClient});
+  PaymentsRepository({required FrappeClient frappeClient})
+    : _frappeClient = frappeClient,
+      _uploadCoordinator = UploadCoordinator(frappeClient);
 
   final FrappeClient _frappeClient;
+  final UploadCoordinator _uploadCoordinator;
+  final Map<String, MutationIntent> _receiptIntents = {};
 
   Future<List<PaymentItem>> fetchPayments() async {
     return (await fetchPaymentPage(
@@ -148,22 +153,32 @@ class PaymentsRepository {
     final uploadedFiles = <Map<String, dynamic>>[];
 
     for (final attachment in uploadableAttachments) {
-      final fileBytes = attachment.bytes;
-      if (fileBytes == null || fileBytes.isEmpty) {
-        continue;
-      }
-
-      final response = await _frappeClient.postMethod(
-        ApiConfig.uploadPaymentReceiptFileMethod,
-        data: {
-          'payment_id': cleanPaymentId,
-          'name': cleanPaymentId,
-          'file_name': attachment.name,
-          'content_base64': base64Encode(fileBytes),
-        },
+      final intent = _receiptIntents.putIfAbsent(
+        cleanPaymentId,
+        MutationIntent.new,
+      );
+      final fingerprint = {
+        'payment_id': cleanPaymentId,
+        'file_name': attachment.name,
+        'file_size': attachment.sizeInBytes,
+      };
+      final key = intent.keyFor(fingerprint);
+      final response = await _uploadCoordinator.upload(
+        filePath: attachment.path,
+        fileBytes: attachment.bytes,
+        fileName: attachment.name,
+        sizeBytes: attachment.sizeInBytes,
+        policy: const UploadPolicy(
+          allowedExtensions: {'pdf', 'jpg', 'jpeg', 'png'},
+          maxSizeBytes: 10 * 1024 * 1024,
+        ),
+        method: ApiConfig.uploadPaymentReceiptMultipartMethod,
+        extraFields: {'payment_id': cleanPaymentId, 'name': cleanPaymentId},
+        idempotencyKey: key,
       );
 
       uploadedFiles.add(response);
+      intent.complete();
     }
 
     return uploadedFiles;

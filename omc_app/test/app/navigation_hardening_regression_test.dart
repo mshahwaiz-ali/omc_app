@@ -52,7 +52,8 @@ void main() {
     });
 
     test('/more remains a guarded modal route rather than fake tab four', () {
-      expect(router, contains('showMoreOnLoad: true'));
+      expect(router, contains("showMoreOnLoad: state.uri.path == '/more'"));
+      expect(router, contains('StatefulShellRoute.indexedStack('));
       expect(router, isNot(contains('MainShell(initialIndex: 4)')));
       expect(shell, contains('bool _isMoreSheetOpen = false;'));
       expect(shell, contains('if (_isMoreSheetOpen) return;'));

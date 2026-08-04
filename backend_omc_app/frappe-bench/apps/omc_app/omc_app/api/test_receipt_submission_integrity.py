@@ -115,7 +115,7 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         result = payments.upload_payment_receipt_file(
             payment_id=payment.name,
             file_name="new.pdf",
-            content_base64="YWJj",
+            content_base64="JVBERi0xLjc=",
             payment_reference="REF-2",
             remarks="New receipt",
         )

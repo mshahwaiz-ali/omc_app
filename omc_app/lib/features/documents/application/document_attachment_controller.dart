@@ -21,10 +21,12 @@ class DocumentAttachmentController {
 
   Future<DocumentPickResult> pickDocuments({
     List<DocumentAttachment> existingAttachments = const [],
+    List<String> allowedExtensionsOverride = allowedExtensions,
+    int? maxFiles,
   }) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: allowedExtensions,
+      allowedExtensions: allowedExtensionsOverride,
       allowMultiple: true,
     );
 
@@ -39,6 +41,13 @@ class DocumentAttachmentController {
     final rejectedMessages = <String>[];
 
     for (final file in result.files) {
+      if (maxFiles != null &&
+          existingAttachments.length + accepted.length >= maxFiles) {
+        rejectedMessages.add(
+          'Only $maxFiles file${maxFiles == 1 ? '' : 's'} can be selected.',
+        );
+        continue;
+      }
       final attachment = _fromPlatformFile(file);
       if (file.size > maxFileSizeInBytes) {
         rejectedMessages.add(

@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["REPLACE_WITH_TEAM_ID.com.omchouse.app"],
+        "components": [
+          {"/": "/app/verify-email", "comment": "Email verification"},
+          {"/": "/app/reset-password", "comment": "Password reset"},
+          {"/": "/app/*", "comment": "Allowlisted OMC app links"}
+        ]
+      }
+    ]
+  }
+}

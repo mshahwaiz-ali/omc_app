@@ -122,6 +122,15 @@ class DeviceLockService {
 
   Future<void> clearBiometricLogin() => storage.clearBiometricLogin();
 
+  Future<void> preserveBiometricLoginOnlyFor(String identity) async {
+    final enrolled = await storage.readBiometricLoginIdentifier();
+    if (enrolled != null &&
+        enrolled.trim().isNotEmpty &&
+        enrolled.trim().toLowerCase() != identity.trim().toLowerCase()) {
+      await clearBiometricLogin();
+    }
+  }
+
   Future<void> disable() async {
     await storage.saveDeviceLockEnabled(false);
     await clearBiometricLogin();

@@ -1,10 +1,24 @@
+import 'package:flutter/foundation.dart';
+
 import 'env.dart';
 
 class ApiConfig {
   const ApiConfig._();
 
+  static const String productionOrigin = 'https://erp.omchouse.com';
+
   static const String _definedBaseUrl = String.fromEnvironment(
     'OMC_API_BASE_URL',
+    defaultValue: '',
+  );
+
+  static const String _definedLinkBaseUrl = String.fromEnvironment(
+    'OMC_LINK_BASE_URL',
+    defaultValue: '',
+  );
+
+  static const String sentryDsn = String.fromEnvironment(
+    'OMC_SENTRY_DSN',
     defaultValue: '',
   );
 
@@ -22,10 +36,66 @@ class ApiConfig {
       );
     }
 
+    _validateUrl(uri, label: 'OMC_API_BASE_URL');
     return cleanUrl;
   }
 
   static String get currentBaseUrl => baseUrl;
+
+  static String get linkBaseUrl {
+    final resolvedUrl = _definedLinkBaseUrl.trim().isNotEmpty
+        ? _definedLinkBaseUrl
+        : productionOrigin;
+    final cleanUrl = _withoutTrailingSlash(resolvedUrl);
+    final uri = Uri.tryParse(cleanUrl);
+    if (uri == null) {
+      throw StateError('Invalid OMC_LINK_BASE_URL.');
+    }
+    _validateUrl(uri, label: 'OMC_LINK_BASE_URL');
+    return cleanUrl;
+  }
+
+  static void validateBuildProfile() {
+    validateResolvedBuildProfile(
+      isRelease: kReleaseMode,
+      environment: Env.current,
+      apiBaseUrl: baseUrl,
+      linkBaseUrl: linkBaseUrl,
+      diagnosticsDsn: sentryDsn,
+    );
+  }
+
+  @visibleForTesting
+  static void validateResolvedBuildProfile({
+    required bool isRelease,
+    required AppEnvironment environment,
+    required String apiBaseUrl,
+    required String linkBaseUrl,
+    String diagnosticsDsn = '',
+  }) {
+    if (!isRelease) return;
+
+    final apiUri = Uri.parse(_withoutTrailingSlash(apiBaseUrl));
+    final linkUri = Uri.parse(_withoutTrailingSlash(linkBaseUrl));
+    final productionUri = Uri.parse(productionOrigin);
+
+    if (environment != AppEnvironment.production ||
+        apiUri.scheme != 'https' ||
+        apiUri.host.toLowerCase() != productionUri.host ||
+        apiUri.hasPort ||
+        (apiUri.path.isNotEmpty && apiUri.path != '/') ||
+        linkUri.scheme != 'https' ||
+        linkUri.host.toLowerCase() != productionUri.host ||
+        linkUri.hasPort ||
+        diagnosticsDsn.trim().isEmpty ||
+        Uri.tryParse(diagnosticsDsn)?.scheme != 'https') {
+      throw StateError(
+        'Release builds must use the production environment and '
+        '$productionOrigin for API and app links, plus a valid HTTPS '
+        'OMC_SENTRY_DSN.',
+      );
+    }
+  }
 
   static String? resolveFileUrl(String? value) {
     final cleanValue = value?.trim();
@@ -46,7 +116,22 @@ class ApiConfig {
       case AppEnvironment.development:
         return 'http://127.0.0.1:8000';
       case AppEnvironment.production:
-        return 'https://erp.omchouse.com';
+        return productionOrigin;
+    }
+  }
+
+  static void _validateUrl(Uri uri, {required String label}) {
+    if (!uri.hasScheme || uri.host.trim().isEmpty) {
+      throw StateError(
+        'Invalid $label. Provide a full URL such as $productionOrigin',
+      );
+    }
+    if (uri.userInfo.isNotEmpty ||
+        uri.query.isNotEmpty ||
+        uri.fragment.isNotEmpty) {
+      throw StateError(
+        '$label must not contain credentials, query, or fragment.',
+      );
     }
   }
 
@@ -143,6 +228,8 @@ class ApiConfig {
       'omc_app.api.mobile.upload_payment_receipt';
   static const String uploadPaymentReceiptFileMethod =
       'omc_app.api.payments.upload_payment_receipt_file';
+  static const String uploadPaymentReceiptMultipartMethod =
+      'omc_app.api.payments.upload_payment_receipt_multipart';
   static const String reviewPaymentReceiptMethod =
       'omc_app.api.payments.review_payment_receipt';
 

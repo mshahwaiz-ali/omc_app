@@ -21,6 +21,15 @@ final notificationsProvider = FutureProvider<List<NotificationItem>>((
   return repository.fetchNotifications();
 });
 
+final notificationPageProvider = FutureProvider<NotificationPage>((ref) {
+  return ref.watch(notificationsRepositoryProvider).fetchNotificationPage();
+});
+
+final unreadNotificationsProvider = FutureProvider<int>((ref) async {
+  final repository = ref.watch(notificationsRepositoryProvider);
+  return repository.fetchUnreadCount();
+});
+
 final notificationDetailProvider =
     FutureProvider.family<NotificationItem?, String>((ref, notificationId) {
       final repository = ref.watch(notificationsRepositoryProvider);
@@ -34,12 +43,28 @@ class NotificationsRepository {
   final FrappeClient _frappeClient;
 
   Future<List<NotificationItem>> fetchNotifications() async {
+    return (await fetchNotificationPage()).items;
+  }
+
+  Future<NotificationPage> fetchNotificationPage({
+    int start = 0,
+    int limit = 50,
+  }) async {
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.notificationsMethod,
-        queryParameters: const {'start': 0, 'limit': 50},
+        queryParameters: {'start': start, 'limit': limit},
       );
-      return _mapNotificationsResponse(response);
+      final items = _mapNotificationsResponse(response);
+      final message = response['message'];
+      final payload = message is Map<String, dynamic> ? message : response;
+      final hasMore = _boolValue(payload['has_more']);
+      final nextStart = int.tryParse(payload['next_start']?.toString() ?? '');
+      return NotificationPage(
+        items: items,
+        hasMore: hasMore,
+        nextStart: hasMore ? (nextStart ?? start + items.length) : null,
+      );
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -50,6 +75,18 @@ class NotificationsRepository {
         details: error,
       );
     }
+  }
+
+  Future<int> fetchUnreadCount() async {
+    final response = await _frappeClient.getMethod(
+      ApiConfig.unreadNotificationCountMethod,
+    );
+    final message = response['message'];
+    final value = message is Map<String, dynamic>
+        ? message['count']
+        : response['count'];
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   Future<void> markNotificationAsRead(String notificationId) async {
@@ -230,4 +267,16 @@ class NotificationsRepository {
     if (text == null || text.isEmpty) return null;
     return text;
   }
+}
+
+class NotificationPage {
+  const NotificationPage({
+    required this.items,
+    required this.hasMore,
+    required this.nextStart,
+  });
+
+  final List<NotificationItem> items;
+  final bool hasMore;
+  final int? nextStart;
 }

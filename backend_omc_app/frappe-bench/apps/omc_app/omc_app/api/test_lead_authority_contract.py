@@ -46,6 +46,9 @@ class TestLeadAuthorityContract(FrappeTestCase):
     def test_mobile_create_uses_omc_lead_authority(self):
         app_root = Path(__file__).resolve().parents[1]
         source = (app_root / "api" / "mobile.py").read_text(encoding="utf-8")
-        creator = _function_source(source, "create_lead")
+        creator = _function_source(source, "create_lead") + _function_source(
+            source, "_create_lead"
+        )
+        self.assertIn("idempotency.begin", creator)
         self.assertIn('frappe.new_doc("OMC Lead")', creator)
         self.assertNotIn('frappe.new_doc("Lead")', creator)

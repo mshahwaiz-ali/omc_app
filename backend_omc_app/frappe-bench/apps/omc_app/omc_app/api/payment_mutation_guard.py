@@ -90,6 +90,7 @@ def upload_payment_receipt_file(
     content_base64=None,
     payment_reference=None,
     remarks=None,
+    idempotency_key=None,
 ):
     resolved_id = _payment_id(payment_id, name)
     _load_mutable_payment(resolved_id)
@@ -99,6 +100,7 @@ def upload_payment_receipt_file(
         content_base64=content_base64,
         payment_reference=payment_reference,
         remarks=remarks,
+        idempotency_key=idempotency_key,
     )
 
 

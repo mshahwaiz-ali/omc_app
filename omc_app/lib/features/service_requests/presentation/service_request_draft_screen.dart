@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/network/mutation_intent.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
@@ -46,6 +47,8 @@ class _ServiceRequestDraftScreenState
   final Map<String, TextEditingController> _dynamicControllers = {};
   final Map<String, String?> _selectValues = {};
   final Map<String, bool> _checkValues = {};
+  final _dirtyFormController = DirtyFormController();
+  final _submissionIntent = MutationIntent();
 
   bool _customerProfilePrefillScheduled = false;
   bool _customerProfilePrefilled = false;
@@ -65,7 +68,7 @@ class _ServiceRequestDraftScreenState
       _discountValueController,
       _discountReasonController,
     ]) {
-      controller.addListener(_refresh);
+      controller.addListener(_onTextChanged);
     }
   }
 
@@ -80,16 +83,18 @@ class _ServiceRequestDraftScreenState
       _discountValueController,
       _discountReasonController,
     ]) {
-      controller.removeListener(_refresh);
+      controller.removeListener(_onTextChanged);
       controller.dispose();
     }
     for (final controller in _dynamicControllers.values) {
       controller.dispose();
     }
+    _dirtyFormController.dispose();
     super.dispose();
   }
 
-  void _refresh() {
+  void _onTextChanged() {
+    _dirtyFormController.markDirty();
     if (mounted) setState(() {});
   }
 
@@ -140,86 +145,94 @@ class _ServiceRequestDraftScreenState
         final completedFields = _completedFieldCount(fields);
         final totalFields = fields.length + 4;
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF8FAFC),
-          appBar: const AppBackHeader(title: 'Start Request'),
-          bottomNavigationBar: _SubmitRequestBar(
-            service: service,
-            completedFields: completedFields,
-            totalFields: totalFields,
-            attachmentCount: 0,
-            isSubmitting: _isSubmitting,
-            onSubmit: () => _submit(service, fields),
-          ),
-          body: SafeArea(
-            top: false,
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 104),
-                children: [
-                  _SelectedServiceCard(
-                    service: service,
-                    onChange: () => context.go('/services'),
-                  ),
-                  if (ref
-                      .watch(authControllerProvider)
-                      .capabilities
-                      .isInternal) ...[
-                    const SizedBox(height: 12),
-                    AssistedCustomerCard(
-                      onChanged: _onAssistedSelectionChanged,
-                    ),
-                    const SizedBox(height: 12),
-                    _InternalDiscountCard(
+        return UnsavedChangesGuard(
+          controller: _dirtyFormController,
+          child: Scaffold(
+            backgroundColor: const Color(0xFFF8FAFC),
+            appBar: const AppBackHeader(title: 'Start Request'),
+            bottomNavigationBar: _SubmitRequestBar(
+              service: service,
+              completedFields: completedFields,
+              totalFields: totalFields,
+              attachmentCount: 0,
+              isSubmitting: _isSubmitting,
+              onSubmit: () => _submit(service, fields),
+            ),
+            body: SafeArea(
+              top: false,
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 104),
+                  children: [
+                    _SelectedServiceCard(
                       service: service,
-                      discountType: _discountType,
-                      discountValueController: _discountValueController,
-                      discountReasonController: _discountReasonController,
-                      onDiscountTypeChanged: (value) {
-                        if (value == null || value == _discountType) {
-                          return;
-                        }
-                        setState(() => _discountType = value);
-                      },
+                      onChange: () => context.go('/services'),
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  _ContactDetailsCard(
-                    nameController: _nameController,
-                    phoneController: _phoneController,
-                    emailController: _emailController,
-                    taxIdController: _taxIdController,
-                    requiredValidator: _required,
-                    emailValidator: _validateEmail,
-                    taxIdValidator: _validateOptionalCnicOrNtn,
-                  ),
-                  const SizedBox(height: 12),
-                  _DynamicFormCard(
-                    fields: fields,
-                    remarksController: _remarksController,
-                    controllerFor: _controllerFor,
-                    selectValueFor: (field) => _selectValues[field.fieldname],
-                    checkedValueFor: (field) =>
-                        _checkValues[field.fieldname] ?? _boolDefault(field),
-                    onSelectChanged: (field, value) {
-                      setState(() => _selectValues[field.fieldname] = value);
-                    },
-                    onCheckChanged: (field, value) {
-                      setState(
-                        () => _checkValues[field.fieldname] = value ?? false,
-                      );
-                    },
-                    requiredValidator: _required,
-                  ),
-                  const SizedBox(height: 12),
-                  _RequiredDocumentsCard(documents: service.requiredDocuments),
-                  if (service.stages.isNotEmpty) ...[
+                    if (ref
+                        .watch(authControllerProvider)
+                        .capabilities
+                        .isInternal) ...[
+                      const SizedBox(height: 12),
+                      AssistedCustomerCard(
+                        onChanged: _onAssistedSelectionChanged,
+                      ),
+                      const SizedBox(height: 12),
+                      _InternalDiscountCard(
+                        service: service,
+                        discountType: _discountType,
+                        discountValueController: _discountValueController,
+                        discountReasonController: _discountReasonController,
+                        onDiscountTypeChanged: (value) {
+                          if (value == null || value == _discountType) {
+                            return;
+                          }
+                          _dirtyFormController.markDirty();
+                          setState(() => _discountType = value);
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 12),
-                    _StagesCard(stages: service.stages),
+                    _ContactDetailsCard(
+                      nameController: _nameController,
+                      phoneController: _phoneController,
+                      emailController: _emailController,
+                      taxIdController: _taxIdController,
+                      requiredValidator: _required,
+                      emailValidator: _validateEmail,
+                      taxIdValidator: _validateOptionalCnicOrNtn,
+                    ),
+                    const SizedBox(height: 12),
+                    _DynamicFormCard(
+                      fields: fields,
+                      remarksController: _remarksController,
+                      controllerFor: _controllerFor,
+                      selectValueFor: (field) => _selectValues[field.fieldname],
+                      checkedValueFor: (field) =>
+                          _checkValues[field.fieldname] ?? _boolDefault(field),
+                      onSelectChanged: (field, value) {
+                        _dirtyFormController.markDirty();
+                        setState(() => _selectValues[field.fieldname] = value);
+                      },
+                      onCheckChanged: (field, value) {
+                        _dirtyFormController.markDirty();
+                        setState(
+                          () => _checkValues[field.fieldname] = value ?? false,
+                        );
+                      },
+                      requiredValidator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    _RequiredDocumentsCard(
+                      documents: service.requiredDocuments,
+                    ),
+                    if (service.stages.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _StagesCard(stages: service.stages),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -243,6 +256,7 @@ class _ServiceRequestDraftScreenState
       _customerProfilePrefillScheduled = false;
       if (!mounted || _customerProfilePrefilled) return;
       if (ref.read(authControllerProvider).capabilities.isInternal) return;
+      final wasDirty = _dirtyFormController.isDirty;
 
       _setIfEmpty(_nameController, profile.displayName);
       _setIfEmpty(_phoneController, profile.phone);
@@ -276,6 +290,9 @@ class _ServiceRequestDraftScreenState
       }
 
       _customerProfilePrefilled = true;
+      if (!wasDirty) {
+        _dirtyFormController.markPristine();
+      }
       setState(() {});
     });
   }
@@ -292,6 +309,7 @@ class _ServiceRequestDraftScreenState
   }
 
   void _onAssistedSelectionChanged(AssistedCustomerDraftSelection? selection) {
+    _dirtyFormController.markDirty();
     _assistedSelection = selection;
     final customer = selection?.customer;
     if (customer != null) {
@@ -333,7 +351,7 @@ class _ServiceRequestDraftScreenState
   TextEditingController _controllerFor(ServiceTemplateField field) {
     return _dynamicControllers.putIfAbsent(field.fieldname, () {
       final controller = TextEditingController(text: field.defaultValue);
-      controller.addListener(_refresh);
+      controller.addListener(_onTextChanged);
       return controller;
     });
   }
@@ -466,41 +484,54 @@ class _ServiceRequestDraftScreenState
     final dynamicDetails = _dynamicValues(fields);
     final additionalDetails = <String, String>{...dynamicDetails};
 
+    _dirtyFormController.beginSubmitting();
+    final payload = ServiceRequestPayload(
+      service: service,
+      fullName: _nameController.text,
+      phone: _phoneController.text,
+      email: _emailController.text,
+      taxId: _taxIdController.text,
+      remarks: _remarksController.text,
+      additionalDetails: additionalDetails,
+      attachments: const [],
+      customerId: _assistedSelection?.customerId,
+      customerName: _assistedSelection?.customer?.fullName,
+      customerMode: _assistedSelection?.mode,
+      customerConsentReference: _assistedSelection?.consentReference,
+      city: _assistedSelection?.city,
+      address: _assistedSelection?.address,
+      discountType: capabilities.isInternal && discountValue > 0
+          ? _discountType
+          : null,
+      discountValue: capabilities.isInternal && discountValue > 0
+          ? discountValue
+          : null,
+      discountReason: capabilities.isInternal && discountValue > 0
+          ? _discountReasonController.text
+          : null,
+    );
+    final idempotencyKey = _submissionIntent.keyFor(payload.toJson());
+
     setState(() => _isSubmitting = true);
     try {
       final result = await repository.createServiceRequest(
-        ServiceRequestPayload(
-          service: service,
-          fullName: _nameController.text,
-          phone: _phoneController.text,
-          email: _emailController.text,
-          taxId: _taxIdController.text,
-          remarks: _remarksController.text,
-          additionalDetails: additionalDetails,
-          attachments: const [],
-          customerId: _assistedSelection?.customerId,
-          customerName: _assistedSelection?.customer?.fullName,
-          customerMode: _assistedSelection?.mode,
-          customerConsentReference: _assistedSelection?.consentReference,
-          city: _assistedSelection?.city,
-          address: _assistedSelection?.address,
-          discountType: capabilities.isInternal && discountValue > 0
-              ? _discountType
-              : null,
-          discountValue: capabilities.isInternal && discountValue > 0
-              ? discountValue
-              : null,
-          discountReason: capabilities.isInternal && discountValue > 0
-              ? _discountReasonController.text
-              : null,
-        ),
+        payload,
+        idempotencyKey: idempotencyKey,
       );
 
       final requestId = result.requestId?.trim();
 
       if (!mounted) return;
+      _submissionIntent.complete();
+      _dirtyFormController.submissionSucceeded();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Service request submitted to OMC.')),
+        SnackBar(
+          content: Text(
+            result.duplicate
+                ? 'Your existing active request is ready to continue.'
+                : 'Service request submitted to OMC.',
+          ),
+        ),
       );
       if (requestId != null && requestId.isNotEmpty) {
         await _refreshRequestTracking(requestId);
@@ -517,18 +548,15 @@ class _ServiceRequestDraftScreenState
         fallbackMessage:
             'Request could not be submitted right now. Your entered information was retained.',
       );
-      final apiMessage = error is ApiError ? error.message.trim() : '';
-      final detailMessage = error is ApiError && error.details != null
-          ? error.details.toString().trim()
-          : '';
-      final message = apiMessage.isNotEmpty
-          ? apiMessage
-          : detailMessage.isNotEmpty
-          ? detailMessage
-          : failure.message;
-      messenger.showSnackBar(SnackBar(content: Text(message)));
+      _dirtyFormController.submissionFailed();
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) {
+        if (_dirtyFormController.isSubmitting) {
+          _dirtyFormController.submissionFailed();
+        }
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 

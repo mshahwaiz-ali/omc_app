@@ -6,6 +6,8 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/network/mutation_intent.dart';
+import '../../../core/uploads/upload_coordinator.dart';
 import 'support_config_data.dart';
 import 'support_ticket.dart';
 
@@ -42,9 +44,14 @@ final supportUnreadCountProvider = FutureProvider<int>((ref) {
 });
 
 class SupportRepository {
-  const SupportRepository({required this.frappeClient});
+  SupportRepository({required FrappeClient frappeClient})
+    : frappeClient = frappeClient,
+      _uploadCoordinator = UploadCoordinator(frappeClient);
 
   final FrappeClient frappeClient;
+  final UploadCoordinator _uploadCoordinator;
+  final MutationIntent _createIntent = MutationIntent();
+  final Map<String, MutationIntent> _replyIntents = {};
 
   Future<SupportConfigData> fetchSupportConfig() async {
     try {
@@ -155,6 +162,7 @@ class SupportRepository {
     String? filePath,
     Uint8List? fileBytes,
     required String fileName,
+    required int sizeBytes,
   }) async {
     final cleanTicketId = ticketId.trim();
     final cleanFileName = fileName.trim();
@@ -167,10 +175,15 @@ class SupportRepository {
       throw const ApiError(message: 'Selected attachment has no file name.');
     }
 
-    final response = await frappeClient.uploadFile(
+    final response = await _uploadCoordinator.upload(
       filePath: filePath,
       fileBytes: fileBytes,
       fileName: cleanFileName,
+      sizeBytes: sizeBytes,
+      policy: const UploadPolicy(
+        allowedExtensions: {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'},
+        maxSizeBytes: 10 * 1024 * 1024,
+      ),
       method: ApiConfig.uploadSupportTicketAttachmentMethod,
       doctype: ApiConfig.supportTicketUploadDoctype,
       docname: cleanTicketId,
@@ -229,10 +242,20 @@ class SupportRepository {
       data['attachment_type'] = cleanAttachmentType;
     }
 
-    return frappeClient.postMethod(
+    final intent = _replyIntents.putIfAbsent(cleanTicketId, MutationIntent.new);
+    final key = intent.keyFor({
+      'ticket_id': cleanTicketId,
+      'message': cleanMessage,
+      'attachment_name': cleanAttachmentName ?? '',
+      'attachment_type': cleanAttachmentType ?? '',
+    });
+    final response = await frappeClient.postMethod(
       ApiConfig.addSupportTicketReplyMethod,
-      data: data,
+      data: {...data, 'idempotency_key': key},
+      idempotencyKey: key,
     );
+    intent.complete();
+    return response;
   }
 
   Future<SupportTicket?> updateSupportTicketStatus({
@@ -286,17 +309,22 @@ class SupportRepository {
       );
     }
 
-    return frappeClient.postMethod(
+    final data = {
+      'subject': cleanTopic,
+      'title': cleanTopic,
+      'message': cleanMessage,
+      'description': cleanMessage,
+      'priority': 'Medium',
+      'source': 'mobile_app',
+    };
+    final key = _createIntent.keyFor(data);
+    final response = await frappeClient.postMethod(
       ApiConfig.createSupportTicketMethod,
-      data: {
-        'subject': cleanTopic,
-        'title': cleanTopic,
-        'message': cleanMessage,
-        'description': cleanMessage,
-        'priority': 'Medium',
-        'source': 'mobile_app',
-      },
+      data: {...data, 'idempotency_key': key},
+      idempotencyKey: key,
     );
+    _createIntent.complete();
+    return response;
   }
 
   List<SupportTicket> _mapTicketsResponse(Map<String, dynamic>? data) {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import 'navigation_coordinator.dart';
+
 /// Centralized Android/system-back behavior for the app shell.
 class AppBackNavigationGuard extends StatefulWidget {
   const AppBackNavigationGuard({
@@ -42,15 +44,15 @@ class _AppBackNavigationGuardState extends State<AppBackNavigationGuard> {
     final currentLocation = GoRouterState.of(context).uri.path;
     final fallback = widget.fallbackLocation;
 
-    if (fallback.isNotEmpty && currentLocation != fallback) {
-      _lastExitRequest = null;
-      context.go(fallback);
-      return;
-    }
+    final resolvedFallback = NavigationCoordinator.rootFallback(
+      currentLocation: currentLocation,
+      policyFallback: fallback,
+      homeLocation: widget.homeLocation,
+    );
 
-    if (currentLocation != widget.homeLocation) {
+    if (currentLocation != resolvedFallback) {
       _lastExitRequest = null;
-      context.go(widget.homeLocation);
+      context.go(resolvedFallback);
       return;
     }
 
