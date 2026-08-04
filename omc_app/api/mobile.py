@@ -3,7 +3,7 @@ import re
 import frappe
 from frappe.utils.file_manager import save_file
 
-from omc_app.api import access, referrals
+from omc_app.api import access, idempotency, referrals
 from omc_app.setup.roles import LEGACY_ROLES
 
 
@@ -3501,6 +3501,23 @@ def get_mobile_app_config():
             "internal_workspace_enabled": _settings_bool(mobile_settings, "internal_workspace_enabled", False),
             "payment_gateway_enabled": _settings_bool(mobile_settings, "payment_gateway_enabled", False),
         },
+        "uploads": {
+            "service_document": {
+                "max_size_bytes": 10 * 1024 * 1024,
+                "extensions": ["pdf", "jpg", "jpeg", "png", "doc", "docx"],
+                "max_files": 20,
+            },
+            "support_attachment": {
+                "max_size_bytes": 10 * 1024 * 1024,
+                "extensions": ["pdf", "jpg", "jpeg", "png", "doc", "docx"],
+                "max_files": 1,
+            },
+            "payment_receipt": {
+                "max_size_bytes": 10 * 1024 * 1024,
+                "extensions": ["pdf", "jpg", "jpeg", "png"],
+                "max_files": 1,
+            },
+        },
         "branding": {
             "company_name": _settings_text(branding_settings, "brand_name", "OMC House") if branding_enabled else "OMC House",
             "tagline": _settings_text(branding_settings, "tagline", "Business, tax and compliance support") if branding_enabled else "Business, tax and compliance support",
@@ -4085,6 +4102,33 @@ def get_internal_workspace_summary():
 
 @frappe.whitelist()
 def create_lead(**kwargs):
+    claim = idempotency.begin(
+        operation="lead.create",
+        actor=_current_user(),
+        payload=kwargs,
+    )
+    if claim and claim.replay is not None:
+        return claim.replay
+    try:
+        response = _create_lead(**kwargs)
+        lead = response.get("lead") or {}
+        return idempotency.complete(
+            claim,
+            response,
+            reference_doctype="OMC Lead",
+            reference_name=lead.get("name") or "",
+            stored_response={
+                "created": True,
+                "lead": {"name": lead.get("name") or ""},
+                "message": "Lead created.",
+            },
+        )
+    except Exception:
+        idempotency.fail(claim)
+        raise
+
+
+def _create_lead(**kwargs):
     _assert_internal_workspace_access()
     _require_canonical_capability(
         "can_manage_leads",

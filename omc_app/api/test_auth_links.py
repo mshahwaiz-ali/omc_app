@@ -23,17 +23,31 @@ class TestAuthLinks(FrappeTestCase):
             "omchouse://auth/reset-password?token=reset-token",
         )
 
+    def test_verified_https_links_target_production_app_routes(self):
+        self.assertEqual(
+            auth_links.verification_links("verify token")["universal_url"],
+            "https://erp.omchouse.com/app/verify-email?token=verify+token",
+        )
+        self.assertEqual(
+            auth_links.password_reset_links("reset-token")["universal_url"],
+            "https://erp.omchouse.com/app/reset-password?token=reset-token",
+        )
+
     @patch("omc_app.api.auth_links.get_url")
     def test_web_link_uses_frappe_origin_by_default(self, get_url):
-        get_url.return_value = "https://example.test/verify-email?token=abc"
+        expected_path = (
+            "/api/method/omc_app.api.pending_registration."
+            "verify_registration_web?token=abc"
+        )
+        get_url.return_value = f"https://example.test{expected_path}"
 
         links = auth_links.verification_links("abc")
 
         self.assertEqual(
             links["web_url"],
-            "https://example.test/verify-email?token=abc",
+            f"https://example.test{expected_path}",
         )
-        get_url.assert_called_once_with("/verify-email?token=abc")
+        get_url.assert_called_once_with(expected_path)
 
     def test_web_link_can_use_configured_flutter_origin(self):
         original = frappe.conf.get(auth_links.WEB_BASE_URL_CONFIG_KEY)

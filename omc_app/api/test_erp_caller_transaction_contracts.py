@@ -42,7 +42,7 @@ def _function_node(function) -> ast.FunctionDef:
 
 class TestErpCallerTransactionContracts(FrappeTestCase):
     def test_assisted_request_commit_occurs_after_bridge_and_side_effects(self):
-        calls = _call_lines(assisted_service.create_request)
+        calls = _call_lines(assisted_service._create_request)
 
         bridge_line = calls["erp_service_task_adapter.sync_request"][0]
         commit_line = calls["frappe.db.commit"][0]
@@ -63,7 +63,7 @@ class TestErpCallerTransactionContracts(FrappeTestCase):
         self.assertLess(bridge_line, commit_line)
 
     def test_assisted_request_does_not_swallow_bridge_failures(self):
-        function = _function_node(assisted_service.create_request)
+        function = _function_node(assisted_service._create_request)
         handlers = [
             node
             for node in ast.walk(function)
@@ -72,7 +72,7 @@ class TestErpCallerTransactionContracts(FrappeTestCase):
         self.assertEqual(
             handlers,
             [],
-            "create_request must not swallow ERP bridge or downstream failures.",
+            "_create_request must not swallow ERP bridge or downstream failures.",
         )
 
     def test_recovery_does_not_swallow_bridge_failures(self):
@@ -89,7 +89,7 @@ class TestErpCallerTransactionContracts(FrappeTestCase):
         )
 
     def test_each_caller_has_single_terminal_commit(self):
-        assisted_calls = _call_lines(assisted_service.create_request)
+        assisted_calls = _call_lines(assisted_service._create_request)
         recovery_calls = _call_lines(erp_sync_recovery.retry_erp_sync)
 
         self.assertEqual(len(assisted_calls.get("frappe.db.commit", [])), 1)

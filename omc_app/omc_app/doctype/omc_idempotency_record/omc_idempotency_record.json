@@ -1,0 +1,45 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:dedupe_key",
+ "creation": "2026-08-04 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "dedupe_key",
+  "operation",
+  "actor",
+  "request_hash",
+  "state",
+  "reference_doctype",
+  "reference_name",
+  "response_json",
+  "expires_on"
+ ],
+ "fields": [
+  {"fieldname": "dedupe_key", "fieldtype": "Data", "label": "Dedupe Key", "reqd": 1, "unique": 1},
+  {"fieldname": "operation", "fieldtype": "Data", "in_list_view": 1, "label": "Operation", "reqd": 1},
+  {"fieldname": "actor", "fieldtype": "Link", "in_list_view": 1, "label": "Actor", "options": "User", "reqd": 1},
+  {"fieldname": "request_hash", "fieldtype": "Data", "label": "Request Hash", "reqd": 1},
+  {"default": "Processing", "fieldname": "state", "fieldtype": "Select", "in_list_view": 1, "label": "State", "options": "Processing\nCompleted\nFailed", "reqd": 1},
+  {"fieldname": "reference_doctype", "fieldtype": "Data", "label": "Reference DocType", "read_only": 1},
+  {"fieldname": "reference_name", "fieldtype": "Data", "in_list_view": 1, "label": "Reference Name", "read_only": 1},
+  {"fieldname": "response_json", "fieldtype": "Code", "label": "Sanitized Response", "options": "JSON", "read_only": 1},
+  {"fieldname": "expires_on", "fieldtype": "Datetime", "in_list_view": 1, "label": "Expires On", "reqd": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Idempotency Record",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "export": 1, "read": 1, "report": 1, "role": "System Manager", "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "read": 1, "report": 1, "role": "OMC Admin", "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

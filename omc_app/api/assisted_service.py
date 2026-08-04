@@ -5,6 +5,7 @@ import frappe
 from omc_app.api import (
     access,
     erp_service_task_adapter,
+    idempotency,
     mobile,
     service_assignment,
     submission_integrity,
@@ -181,6 +182,11 @@ def _active_request(service, *, profile=None, manual_customer=None):
 
 def _duplicate_response(active, *, allow_parallel):
     return {
+        "name": active.name,
+        "request_id": active.name,
+        "service_request": active.name,
+        "case_id": active.name,
+        "status": active.status,
         "created": False,
         "duplicate": True,
         "allow_parallel_requests": bool(allow_parallel),
@@ -554,6 +560,33 @@ def get_customer_selection_options(
     }
 
 def create_request(**kwargs):
+    actor = _current_user()
+    claim = idempotency.begin(
+        operation="service_request.create",
+        actor=actor,
+        payload=kwargs,
+    )
+    if claim and claim.replay is not None:
+        return claim.replay
+    try:
+        response = _create_request(**kwargs)
+        reference_name = _text(
+            response.get("request_id")
+            or response.get("name")
+            or (response.get("active_request") or {}).get("name")
+        )
+        return idempotency.complete(
+            claim,
+            response,
+            reference_doctype="OMC Service Request",
+            reference_name=reference_name,
+        )
+    except Exception:
+        idempotency.fail(claim)
+        raise
+
+
+def _create_request(**kwargs):
     user = _current_user()
     is_internal = mobile._can_access_internal_workspace(user)
     service = _service_doc(kwargs.get("service_id") or kwargs.get("service"))

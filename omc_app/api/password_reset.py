@@ -118,7 +118,7 @@ def request_reset(identifier: str | None = None):
     frappe.sendmail(
         recipients=[user],
         subject="Reset your OMC password",
-        message=_email_html(links["app_url"], links["web_url"]),
+        message=_email_html(links["universal_url"], links["web_url"]),
         now=False,
     )
     frappe.db.commit()

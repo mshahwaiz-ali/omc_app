@@ -90,6 +90,7 @@ class TestPaymentMutationGuard(FrappeTestCase):
             content_base64="ZGF0YQ==",
             payment_reference="BANK-1",
             remarks="Submitted",
+            idempotency_key=None,
         )
 
         load_payment.assert_called_once_with("OMC-PAY-TEST")
@@ -99,6 +100,7 @@ class TestPaymentMutationGuard(FrappeTestCase):
             content_base64="ZGF0YQ==",
             payment_reference="BANK-1",
             remarks="Submitted",
+            idempotency_key=None,
         )
         self.assertTrue(result["updated"])
 

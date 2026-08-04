@@ -97,7 +97,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
         side_effect=RuntimeError("timeline failed"),
     )
     @patch.object(payments.mobile, "_get_mobile_capabilities")
-    @patch.object(payments.mobile, "_save_base64_file")
+    @patch.object(payments, "save_file")
     @patch.object(payments, "_assert_payment_customer_access")
     @patch.object(payments.frappe, "get_doc")
     @patch.object(
@@ -154,7 +154,7 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
             payments.upload_payment_receipt_file(
                 payment_id=payment.name,
                 file_name="r.pdf",
-                content_base64="YWJj",
+                content_base64="JVBERi0xLjc=",
             )
 
         cleanup.assert_called_once_with(

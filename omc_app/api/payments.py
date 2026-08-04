@@ -1,10 +1,12 @@
 import base64
+import hashlib
 import re
 from urllib.parse import quote
 
 import frappe
+from frappe.utils.file_manager import save_file
 
-from omc_app.api import access, mobile, review_routing
+from omc_app.api import access, idempotency, mobile, review_routing, upload_validation
 
 
 PAYMENT_ACCOUNT_DOCTYPE = "OMC Payment Account"
@@ -831,6 +833,7 @@ def upload_payment_receipt_file(
     content_base64=None,
     payment_reference=None,
     remarks=None,
+    idempotency_key=None,
 ):
     payment_id = payment_id or name
     if not payment_id:
@@ -868,16 +871,138 @@ def upload_payment_receipt_file(
             frappe.PermissionError,
         )
 
-    file_doc = None
     try:
-        file_doc = mobile._save_base64_file(
-            file_name=file_name,
-            content_base64=content_base64,
+        decoded_content = base64.b64decode(content_base64, validate=True)
+    except Exception:
+        frappe.throw("Invalid base64 file content.", frappe.ValidationError)
+    clean_file_name = upload_validation.validate_upload_bytes(
+        filename=file_name,
+        content=decoded_content,
+        allowed_extensions=ALLOWED_RECEIPT_EXTENSIONS,
+        max_size_bytes=MAX_RECEIPT_SIZE_BYTES,
+    )
+    claim = idempotency.begin(
+        operation="payment_receipt.upload",
+        actor=_current_user(),
+        payload={
+            "idempotency_key": idempotency_key,
+            "payment_id": payment.name,
+            "file_name": clean_file_name,
+            "content_sha256": hashlib.sha256(decoded_content).hexdigest(),
+            "payment_reference": payment_reference or "",
+            "remarks": remarks or "",
+        },
+    )
+    if claim and claim.replay is not None:
+        return claim.replay
+    try:
+        file_doc = save_file(
+            clean_file_name,
+            decoded_content,
+            PAYMENT_DOCTYPE,
+            payment.name,
             is_private=1,
-            attached_to_doctype=PAYMENT_DOCTYPE,
-            attached_to_name=payment.name,
+        )
+        response = _apply_payment_receipt(
+            payment=payment,
+            service_case=service_case,
+            file_doc=file_doc,
+            payment_reference=payment_reference,
+            remarks=remarks,
+        )
+        return idempotency.complete(
+            claim,
+            response,
+            reference_doctype=PAYMENT_DOCTYPE,
+            reference_name=payment.name,
+        )
+    except Exception:
+        idempotency.fail(claim)
+        raise
+
+
+@frappe.whitelist()
+def upload_payment_receipt_multipart(
+    payment_id=None,
+    name=None,
+    payment_reference=None,
+    remarks=None,
+    idempotency_key=None,
+):
+    payment_id = payment_id or name
+    if not payment_id or not frappe.db.exists(PAYMENT_DOCTYPE, payment_id):
+        frappe.throw("Payment not found", frappe.DoesNotExistError)
+    payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
+    profile, service_case = _assert_payment_customer_access(payment)
+    if not profile:
+        frappe.throw(
+            "Payment receipt upload is a customer action.",
+            frappe.PermissionError,
+        )
+    _assert_payment_accepts_receipt(payment)
+    capabilities = mobile._get_mobile_capabilities()
+    if not (
+        capabilities.get("can_upload_payment_receipt")
+        or capabilities.get("can_upload_payment_receipts")
+    ):
+        frappe.throw(
+            "You do not have permission to upload payment receipts.",
+            frappe.PermissionError,
         )
 
+    filename, content = upload_validation.read_multipart_upload(
+        allowed_extensions=ALLOWED_RECEIPT_EXTENSIONS,
+        max_size_bytes=MAX_RECEIPT_SIZE_BYTES,
+    )
+    claim = idempotency.begin(
+        operation="payment_receipt.upload",
+        actor=_current_user(),
+        payload={
+            "idempotency_key": idempotency_key,
+            "payment_id": payment.name,
+            "file_name": filename,
+            "content_sha256": hashlib.sha256(content).hexdigest(),
+            "payment_reference": payment_reference or "",
+            "remarks": remarks or "",
+        },
+    )
+    if claim and claim.replay is not None:
+        return claim.replay
+    try:
+        file_doc = save_file(
+            filename,
+            content,
+            PAYMENT_DOCTYPE,
+            payment.name,
+            is_private=1,
+        )
+        response = _apply_payment_receipt(
+            payment=payment,
+            service_case=service_case,
+            file_doc=file_doc,
+            payment_reference=payment_reference,
+            remarks=remarks,
+        )
+        return idempotency.complete(
+            claim,
+            response,
+            reference_doctype=PAYMENT_DOCTYPE,
+            reference_name=payment.name,
+        )
+    except Exception:
+        idempotency.fail(claim)
+        raise
+
+
+def _apply_payment_receipt(
+    *,
+    payment,
+    service_case,
+    file_doc,
+    payment_reference=None,
+    remarks=None,
+):
+    try:
         clean_reference = (payment_reference or "").strip()
         clean_remarks = (remarks or "").strip()
 
