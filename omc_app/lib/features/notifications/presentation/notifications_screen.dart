@@ -23,6 +23,32 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   _NotificationFilter _filter = _NotificationFilter.all;
   final Set<String> _hiddenIds = <String>{};
   final Set<String> _mutationIds = <String>{};
+  bool _didAcknowledgeOnOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _acknowledgeOnOpen();
+    });
+  }
+
+  Future<void> _acknowledgeOnOpen() async {
+    if (_didAcknowledgeOnOpen || !mounted) return;
+    _didAcknowledgeOnOpen = true;
+
+    try {
+      final items = await ref.read(notificationsProvider.future);
+      if (!mounted || !items.any((item) => !item.isRead)) return;
+
+      await ref
+          .read(notificationsRepositoryProvider)
+          .markAllNotificationsAsRead();
+      await _refresh();
+    } catch (_) {
+      // Opening notifications must remain available even if read acknowledgement fails.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

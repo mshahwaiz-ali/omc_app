@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -23,7 +24,29 @@ class SupportTicketDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ticketAsync = ref.watch(supportTicketDetailProvider(ticketId));
+    final cleanTicketId = ticketId.trim();
+    final hasValidTicketId =
+        cleanTicketId.isNotEmpty &&
+        cleanTicketId != '-' &&
+        cleanTicketId.toLowerCase() != 'null' &&
+        cleanTicketId.toLowerCase() != 'undefined';
+
+    if (!hasValidTicketId) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8FAFD),
+        appBar: AppBackHeader(title: 'Support'),
+        body: Padding(
+          padding: EdgeInsets.all(20),
+          child: AppEmptyState(
+            icon: Icons.support_agent_outlined,
+            title: 'Ticket unavailable',
+            message: 'This support ticket has no valid reference.',
+          ),
+        ),
+      );
+    }
+
+    final ticketAsync = ref.watch(supportTicketDetailProvider(cleanTicketId));
 
     final loadedTicket = ticketAsync.asData?.value;
 
@@ -63,7 +86,7 @@ class SupportTicketDetailScreen extends ConsumerWidget {
             fallbackMessage:
                 'Support ticket details could not be loaded right now.',
             onRetry: () =>
-                ref.invalidate(supportTicketDetailProvider(ticketId)),
+                ref.invalidate(supportTicketDetailProvider(cleanTicketId)),
           ),
         ),
       ),
@@ -86,8 +109,11 @@ class _SupportTicketChatBodyState
   final _replyController = TextEditingController();
   final _scrollController = ScrollController();
 
+  static const _refreshInterval = Duration(seconds: 4);
+
   bool _isSendingReply = false;
   bool _isUpdatingStatus = false;
+  Timer? _refreshTimer;
   _PickedSupportAttachment? _pickedAttachment;
   String? _uploadedAttachmentUrlForRetry;
 
@@ -98,7 +124,16 @@ class _SupportTicketChatBodyState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _markTicketRead();
+      _scrollToBottomSoon();
     });
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) => _refreshTicket());
+  }
+
+  void _refreshTicket() {
+    if (!mounted || _isSendingReply || _isUpdatingStatus) return;
+    ref.invalidate(supportTicketDetailProvider(ticket.id));
+    ref.invalidate(supportTicketsProvider);
+    ref.invalidate(supportUnreadCountProvider);
   }
 
   Future<void> _markTicketRead() async {
@@ -115,6 +150,7 @@ class _SupportTicketChatBodyState
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _replyController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -345,6 +381,9 @@ class _SupportTicketChatBodyState
       ref.invalidate(supportTicketDetailProvider(ticket.id));
       ref.invalidate(supportTicketsProvider);
       ref.invalidate(supportUnreadCountProvider);
+      await ref.read(supportTicketDetailProvider(ticket.id).future);
+      if (!mounted) return;
+      _markTicketRead();
       _scrollToBottomSoon();
     } catch (error) {
       if (!context.mounted) return;

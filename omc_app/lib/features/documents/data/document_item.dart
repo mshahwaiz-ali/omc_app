@@ -71,7 +71,7 @@ class DocumentItem {
       !isArchived &&
       (status == DocumentStatus.missing || status == DocumentStatus.rejected);
 
-  bool get isApproved => !isArchived && status == DocumentStatus.approved;
+  bool get isApproved => status == DocumentStatus.approved;
 
   bool get isUnderReview =>
       !isArchived &&

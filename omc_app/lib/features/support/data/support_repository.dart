@@ -77,7 +77,7 @@ class SupportRepository {
 
   Future<SupportTicket?> fetchSupportTicket(String ticketId) async {
     final cleanTicketId = ticketId.trim();
-    if (cleanTicketId.isEmpty) return null;
+    if (!_isUsableTicketId(cleanTicketId)) return null;
 
     try {
       final response = await frappeClient.getMethod(
@@ -137,7 +137,7 @@ class SupportRepository {
 
   Future<int> markSupportTicketRead(String ticketId) async {
     final cleanTicketId = ticketId.trim();
-    if (cleanTicketId.isEmpty) return 0;
+    if (!_isUsableTicketId(cleanTicketId)) return 0;
 
     final response = await frappeClient.postMethod(
       ApiConfig.markSupportTicketReadMethod,
@@ -159,7 +159,7 @@ class SupportRepository {
     final cleanTicketId = ticketId.trim();
     final cleanFileName = fileName.trim();
 
-    if (cleanTicketId.isEmpty) {
+    if (!_isUsableTicketId(cleanTicketId)) {
       throw const ApiError(message: 'Missing support ticket reference.');
     }
 
@@ -198,7 +198,7 @@ class SupportRepository {
     final cleanMessage = message.trim();
     final cleanAttachmentUrl = attachmentUrl?.trim();
 
-    if (cleanTicketId.isEmpty) {
+    if (!_isUsableTicketId(cleanTicketId)) {
       throw const ApiError(message: 'Missing support ticket reference.');
     }
 
@@ -244,7 +244,7 @@ class SupportRepository {
     final cleanStatus = status.trim();
     final cleanRemarks = remarks?.trim();
 
-    if (cleanTicketId.isEmpty) {
+    if (!_isUsableTicketId(cleanTicketId)) {
       throw const ApiError(message: 'Missing support ticket reference.');
     }
 
@@ -326,6 +326,7 @@ class SupportRepository {
     return rawTickets
         .whereType<Map<String, dynamic>>()
         .map(_mapTicket)
+        .where((ticket) => _isUsableTicketId(ticket.id))
         .toList(growable: false);
   }
 
@@ -353,7 +354,7 @@ class SupportRepository {
 
   SupportTicket _mapTicket(Map<String, dynamic> json) {
     return SupportTicket(
-      id: _stringValue(json['id'] ?? json['name'] ?? json['ticket_id']),
+      id: _identifierValue(json['id'] ?? json['name'] ?? json['ticket_id']),
       subject: _stringValue(json['subject'] ?? json['title']),
       message: _stringValue(json['message'] ?? json['description']),
       lastMessage: _nullableString(json['last_message'] ?? json['lastMessage']),
@@ -469,6 +470,19 @@ class SupportRepository {
     }
 
     return null;
+  }
+
+  bool _isUsableTicketId(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.isNotEmpty &&
+        normalized != '-' &&
+        normalized != 'null' &&
+        normalized != 'undefined';
+  }
+
+  String _identifierValue(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    return _isUsableTicketId(text) ? text : '';
   }
 
   String _stringValue(dynamic value) {

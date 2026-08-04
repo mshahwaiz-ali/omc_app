@@ -503,6 +503,8 @@ class _DocumentRequestGroup {
   int get approvedCount => documents.where((item) => item.isApproved).length;
   int get reviewCount => documents.where((item) => item.isUnderReview).length;
   bool get isArchived => documents.every((item) => item.isArchived);
+  bool get isFullyApproved =>
+      documents.isNotEmpty && approvedCount == documents.length;
 
   static List<_DocumentRequestGroup> fromDocuments(
     List<DocumentItem> documents,
@@ -625,6 +627,10 @@ class _RequestDocumentCard extends StatelessWidget {
                   label: '${group.reviewCount} review',
                   color: OmcPremium.review,
                 )
+              else if (group.isArchived)
+                const _StatusPill(label: 'Completed', color: OmcPremium.system)
+              else if (group.isFullyApproved)
+                const _StatusPill(label: 'Approved', color: OmcPremium.success)
               else
                 const _StatusPill(
                   label: 'Up to date',

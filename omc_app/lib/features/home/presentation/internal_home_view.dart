@@ -986,12 +986,13 @@ class _QuickActions extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 12.0;
-        final count = constraints.maxWidth >= 760
+        final columns = constraints.maxWidth >= 760
             ? 5
             : constraints.maxWidth >= 500
             ? 3
             : 2;
-        final width = (constraints.maxWidth - (spacing * (count - 1))) / count;
+        final width =
+            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
 
         return Wrap(
           spacing: spacing,
@@ -1000,6 +1001,7 @@ class _QuickActions extends StatelessWidget {
               .map((action) {
                 final visual = _actionVisual(action);
                 final badge = _badgeForAction(action, summary);
+                final showBadge = _supportsBadge(action);
                 final allowed = _isAllowed(action, capabilities);
 
                 return SizedBox(
@@ -1008,27 +1010,26 @@ class _QuickActions extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () => onTap(action),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        constraints: const BoxConstraints(minHeight: 94),
-                        padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Ink(
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: _border),
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                        child: Stack(
                           children: [
-                            Stack(
-                              clipBehavior: Clip.none,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Container(
-                                  width: 40,
-                                  height: 40,
+                                  width: 42,
+                                  height: 42,
                                   decoration: BoxDecoration(
                                     color: visual.soft,
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(13),
                                   ),
                                   child: Icon(
                                     visual.icon,
@@ -1036,51 +1037,35 @@ class _QuickActions extends StatelessWidget {
                                     size: 21,
                                   ),
                                 ),
-                                if (badge > 0)
-                                  Positioned(
-                                    right: -7,
-                                    top: -7,
-                                    child: _CountBadge(count: badge),
+                                const SizedBox(height: 11),
+                                Text(
+                                  action.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _ink,
+                                    fontSize: 12.5,
+                                    height: 1.18,
+                                    fontWeight: FontWeight.w800,
                                   ),
-                                if (!allowed)
-                                  const Positioned(
-                                    right: -6,
-                                    bottom: -6,
-                                    child: _LockBadge(),
-                                  ),
+                                ),
                               ],
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    action.title,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: _ink,
-                                      fontSize: 12.5,
-                                      height: 1.15,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _actionSubtitle(action, summary, badge),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: visual.accent,
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
+                            if (showBadge)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: _ActionCountPill(
+                                  count: badge,
+                                  accent: visual.accent,
+                                ),
                               ),
-                            ),
+                            if (!allowed)
+                              const Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: _LockBadge(),
+                              ),
                           ],
                         ),
                       ),
@@ -1094,6 +1079,16 @@ class _QuickActions extends StatelessWidget {
     );
   }
 
+  bool _supportsBadge(MobileQuickAction action) {
+    final key =
+        '${action.badgeType} ${action.id} ${action.title} ${action.targetValue}'
+            .toLowerCase();
+
+    return key.contains('document') ||
+        key.contains('payment') ||
+        key.contains('lead');
+  }
+
   int _badgeForAction(MobileQuickAction action, HomeDashboardSummary summary) {
     final key =
         '${action.badgeType} ${action.id} ${action.title} ${action.targetValue}'
@@ -1102,27 +1097,8 @@ class _QuickActions extends StatelessWidget {
 
     if (key.contains('document')) return operations.documentsWaitingReview;
     if (key.contains('payment')) return operations.pendingPayments;
-    if (key.contains('customer')) return 0;
     if (key.contains('lead')) return operations.openLeads;
-    if (key.contains('task')) return operations.pendingTasks;
-
     return 0;
-  }
-
-  String _actionSubtitle(
-    MobileQuickAction action,
-    HomeDashboardSummary summary,
-    int badge,
-  ) {
-    final key = '${action.id} ${action.title}'.toLowerCase();
-
-    if (key.contains('document')) return '$badge pending';
-    if (key.contains('payment')) return '$badge pending';
-    if (key.contains('customer')) return action.subtitle;
-    if (key.contains('lead')) return '$badge open';
-    if (key.contains('task')) return '$badge due';
-
-    return action.subtitle;
   }
 
   bool _isAllowed(MobileQuickAction action, AuthCapabilities capabilities) {
@@ -1130,6 +1106,35 @@ class _QuickActions extends StatelessWidget {
       action.requiredCapability,
       capabilities,
       allowWithoutRequirement: false,
+    );
+  }
+}
+
+class _ActionCountPill extends StatelessWidget {
+  const _ActionCountPill({required this.count, required this.accent});
+
+  final int count;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 25, minHeight: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.13)),
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: TextStyle(
+          color: accent,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
@@ -1466,34 +1471,6 @@ class _EmptyState extends StatelessWidget {
             style: const TextStyle(color: _muted, fontSize: 12, height: 1.4),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: _omcRed,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: Text(
-        count > 99 ? '99+' : '$count',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     );
   }

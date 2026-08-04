@@ -11,6 +11,7 @@ import '../features/documents/presentation/documents_screen.dart';
 import '../features/documents/presentation/internal_document_review_screen.dart';
 import '../features/home/data/home_dashboard_repository.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/notifications/data/notifications_repository.dart';
 import '../features/profile/data/profile_repository.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_requests/presentation/internal_service_track_screen.dart';
@@ -268,8 +269,17 @@ class _MainShellState extends ConsumerState<MainShell> {
     final mobileConfig =
         ref.read(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final capabilities = ref.read(effectiveCapabilitiesProvider);
-    final unreadNotifications =
-        ref.read(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final unreadNotifications = ref
+        .read(notificationsProvider)
+        .maybeWhen(
+          data: (items) => items.where((item) => !item.isRead).length,
+          orElse: () =>
+              ref
+                  .read(homeDashboardSummaryProvider)
+                  .value
+                  ?.unreadNotifications ??
+              0,
+        );
 
     try {
       await showOmcMoreSheet(
@@ -369,8 +379,17 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
-    final unreadNotifications =
-        ref.watch(homeDashboardSummaryProvider).value?.unreadNotifications ?? 0;
+    final unreadNotifications = ref
+        .watch(notificationsProvider)
+        .maybeWhen(
+          data: (items) => items.where((item) => !item.isRead).length,
+          orElse: () =>
+              ref
+                  .watch(homeDashboardSummaryProvider)
+                  .value
+                  ?.unreadNotifications ??
+              0,
+        );
     final mobileConfig =
         ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final primaryColor = appPrimaryColorFor(

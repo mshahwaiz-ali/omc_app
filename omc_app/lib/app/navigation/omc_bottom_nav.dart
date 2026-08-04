@@ -289,6 +289,7 @@ class _MoreTab extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Stack(
@@ -303,7 +304,7 @@ class _MoreTab extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               Text(
                 'More',
                 style: TextStyle(
