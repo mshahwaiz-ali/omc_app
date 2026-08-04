@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../app/mutation_invalidation.dart';
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -234,36 +235,11 @@ class _ServiceCaseDetailScreenState
     }
     String? reason;
     if (!approve) {
-      final controller = TextEditingController();
       reason = await showDialog<String>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Reject discount request?'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Review remarks',
-              hintText: 'Explain why this discount cannot be approved.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final value = controller.text.trim();
-                if (value.isNotEmpty) Navigator.pop(dialogContext, value);
-              },
-              child: const Text('Reject discount'),
-            ),
-          ],
-        ),
+        barrierDismissible: false,
+        builder: (_) => const _DiscountRejectionDialog(),
       );
-      controller.dispose();
       if (reason == null || !mounted) return;
     }
     await _runAdminMutation(
@@ -429,6 +405,8 @@ class _ServiceCaseDetailScreenState
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (_) => _DocumentUploadSheet(
         documents: options,
@@ -542,6 +520,73 @@ class _ServiceCaseDetailScreenState
   }
 }
 
+class _DiscountRejectionDialog extends StatefulWidget {
+  const _DiscountRejectionDialog();
+
+  @override
+  State<_DiscountRejectionDialog> createState() =>
+      _DiscountRejectionDialogState();
+}
+
+class _DiscountRejectionDialogState extends State<_DiscountRejectionDialog> {
+  final _controller = TextEditingController();
+  final _dirtyFormController = DirtyFormController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onChanged);
+    _controller.dispose();
+    _dirtyFormController.dispose();
+    super.dispose();
+  }
+
+  void _onChanged() {
+    _dirtyFormController.markDirty();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = _controller.text.trim();
+    return UnsavedChangesGuard(
+      controller: _dirtyFormController,
+      child: AlertDialog(
+        title: const Text('Reject discount request?'),
+        content: TextField(
+          controller: _controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Review remarks',
+            hintText: 'Explain why this discount cannot be approved.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: reason.isEmpty
+                ? null
+                : () {
+                    _dirtyFormController.submissionSucceeded();
+                    Navigator.pop(context, reason);
+                  },
+            child: const Text('Reject discount'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AssistedRequestNotice extends StatelessWidget {
   const _AssistedRequestNotice({required this.label});
 
@@ -603,6 +648,7 @@ class _DocumentUploadSheet extends StatefulWidget {
 class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
   late ServiceCaseDocument _selectedDocument;
   DocumentAttachment? _selectedAttachment;
+  final _dirtyFormController = DirtyFormController();
   bool _isPicking = false;
   bool _isUploading = false;
   String? _errorMessage;
@@ -614,255 +660,267 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
   }
 
   @override
+  void dispose() {
+    _dirtyFormController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
-        ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD8DDE3),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return PopScope<Object?>(
+      canPop: !_isPicking && !_isUploading,
+      child: UnsavedChangesGuard(
+        controller: _dirtyFormController,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE9F7EE),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: const Icon(
-                        Icons.upload_file_outlined,
-                        color: Color(0xFF168D49),
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 13),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Upload required document',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 19,
-                              height: 1.2,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Choose the required document type and attach the correct file.',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12.5,
-                              height: 1.4,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                const Text(
-                  'Document type',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<ServiceCaseDocument>(
-                  initialValue: _selectedDocument,
-                  isExpanded: true,
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: AppTheme.textSecondary,
-                  ),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: AppTheme.background,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 15,
-                      vertical: 15,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                        color: Colors.black.withValues(alpha: 0.06),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                        color: Colors.black.withValues(alpha: 0.06),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF168D49),
-                        width: 1.3,
-                      ),
-                    ),
-                  ),
-                  items: widget.documents
-                      .map(
-                        (document) => DropdownMenuItem(
-                          value: document,
-                          child: Text(
-                            document.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD8DDE3),
+                          borderRadius: BorderRadius.circular(999),
                         ),
-                      )
-                      .toList(growable: false),
-                  onChanged: _isUploading
-                      ? null
-                      : (document) {
-                          if (document == null) return;
-
-                          setState(() {
-                            _selectedDocument = document;
-                            _errorMessage = null;
-                          });
-                        },
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Attachment',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _SelectedFileTile(
-                  attachment: _selectedAttachment,
-                  isPicking: _isPicking,
-                  onChoose: _isUploading ? null : _chooseFile,
-                ),
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.055),
-                      borderRadius: BorderRadius.circular(13),
-                      border: Border.all(
-                        color: AppTheme.primary.withValues(alpha: 0.10),
                       ),
                     ),
-                    child: Row(
+                    const SizedBox(height: 22),
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          color: AppTheme.primary,
-                          size: 18,
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE9F7EE),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: const Icon(
+                            Icons.upload_file_outlined,
+                            color: Color(0xFF168D49),
+                            size: 24,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: AppTheme.primary,
-                              fontSize: 11.5,
-                              height: 1.35,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        const SizedBox(width: 13),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Upload required document',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 19,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Choose the required document type and attach the correct file.',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12.5,
+                                  height: 1.4,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 50,
-                  child: FilledButton.icon(
-                    onPressed: _isUploading ? null : _upload,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF159447),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(
-                        0xFF159447,
-                      ).withValues(alpha: 0.45),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 0,
-                    ),
-                    icon: _isUploading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.cloud_upload_outlined, size: 20),
-                    label: Text(
-                      _isUploading ? 'Uploading...' : 'Upload document',
-                      style: const TextStyle(
-                        fontSize: 13,
+                    const SizedBox(height: 22),
+                    const Text(
+                      'Document type',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 12,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: _isUploading
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<ServiceCaseDocument>(
+                      initialValue: _selectedDocument,
+                      isExpanded: true,
+                      icon: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppTheme.textSecondary,
+                      ),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: AppTheme.background,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 15,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: Colors.black.withValues(alpha: 0.06),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: Colors.black.withValues(alpha: 0.06),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF168D49),
+                            width: 1.3,
+                          ),
+                        ),
+                      ),
+                      items: widget.documents
+                          .map(
+                            (document) => DropdownMenuItem(
+                              value: document,
+                              child: Text(
+                                document.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _isUploading
+                          ? null
+                          : (document) {
+                              if (document == null) return;
+
+                              setState(() {
+                                _selectedDocument = document;
+                                _errorMessage = null;
+                              });
+                            },
                     ),
-                  ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Attachment',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _SelectedFileTile(
+                      attachment: _selectedAttachment,
+                      isPicking: _isPicking,
+                      onChoose: _isUploading ? null : _chooseFile,
+                    ),
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.055),
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                            color: AppTheme.primary.withValues(alpha: 0.10),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: AppTheme.primary,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(
+                                  color: AppTheme.primary,
+                                  fontSize: 11.5,
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 50,
+                      child: FilledButton.icon(
+                        onPressed: _isUploading ? null : _upload,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF159447),
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(
+                            0xFF159447,
+                          ).withValues(alpha: 0.45),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: _isUploading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.cloud_upload_outlined, size: 20),
+                        label: Text(
+                          _isUploading ? 'Uploading...' : 'Upload document',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: _isUploading
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -886,6 +944,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
       }
 
       if (result.hasAcceptedFiles) {
+        _dirtyFormController.markDirty();
         setState(() {
           _selectedAttachment = result.accepted.first;
           _errorMessage = null;
@@ -918,6 +977,7 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
       return;
     }
 
+    _dirtyFormController.beginSubmitting();
     setState(() {
       _isUploading = true;
       _errorMessage = null;
@@ -928,8 +988,10 @@ class _DocumentUploadSheetState extends State<_DocumentUploadSheet> {
 
       if (!mounted) return;
 
+      _dirtyFormController.submissionSucceeded();
       Navigator.of(context).pop();
     } catch (error) {
+      _dirtyFormController.submissionFailed();
       if (!mounted) return;
 
       setState(() => _errorMessage = error.toString());

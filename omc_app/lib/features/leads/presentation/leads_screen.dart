@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
@@ -91,12 +92,38 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
     final sourceController = TextEditingController(text: 'Mobile App');
     final serviceController = TextEditingController();
     final notesController = TextEditingController();
+    final dirtyFormController = DirtyFormController();
+    final controllers = <TextEditingController>[
+      titleController,
+      nameController,
+      phoneController,
+      emailController,
+      sourceController,
+      serviceController,
+      notesController,
+    ];
+    void markDirty() => dirtyFormController.markDirty();
+    for (final controller in controllers) {
+      controller.addListener(markDirty);
+    }
     var saving = false;
+
+    Future<void> closeSheet(BuildContext sheetContext) async {
+      if (saving) return;
+      if (dirtyFormController.shouldBlockExit) {
+        final discard = await showDiscardChangesDialog(sheetContext);
+        if (!discard || !sheetContext.mounted) return;
+        dirtyFormController.allowNextExit();
+      }
+      if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+    }
 
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (sheetContext) {
@@ -125,6 +152,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                 return;
               }
 
+              dirtyFormController.beginSubmitting();
               setSheetState(() => saving = true);
 
               try {
@@ -144,6 +172,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
 
                 if (!sheetContext.mounted) return;
 
+                dirtyFormController.submissionSucceeded();
                 Navigator.of(sheetContext).pop();
 
                 if (!mounted) return;
@@ -152,6 +181,7 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
                   const SnackBar(content: Text('Lead created successfully.')),
                 );
               } catch (error) {
+                dirtyFormController.submissionFailed();
                 final message = _backendErrorMessage(error);
 
                 if (!sheetContext.mounted) return;
@@ -168,239 +198,257 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
 
             final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-            return AnimatedPadding(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.only(bottom: bottomInset),
-              child: FractionallySizedBox(
-                heightFactor: 0.94,
-                child: DecoratedBox(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF8F9FC),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(28),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      Container(
-                        width: 42,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD7DCE5),
-                          borderRadius: BorderRadius.circular(999),
+            return PopScope<Object?>(
+              canPop: !saving,
+              child: UnsavedChangesGuard(
+                controller: dirtyFormController,
+                child: AnimatedPadding(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  padding: EdgeInsets.only(bottom: bottomInset),
+                  child: FractionallySizedBox(
+                    heightFactor: 0.94,
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8F9FC),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(28),
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 18, 14, 14),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFEDEF),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.person_add_alt_1_rounded,
-                                color: Color(0xFFD71937),
-                                size: 24,
-                              ),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 10),
+                          Container(
+                            width: 42,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD7DCE5),
+                              borderRadius: BorderRadius.circular(999),
                             ),
-                            const SizedBox(width: 13),
-                            const Expanded(
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 18, 14, 14),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFEDEF),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_add_alt_1_rounded,
+                                    color: Color(0xFFD71937),
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 13),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Add new lead',
+                                        style: TextStyle(
+                                          color: Color(0xFF10182D),
+                                          fontSize: 21,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -0.3,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Capture the opportunity and contact details.',
+                                        style: TextStyle(
+                                          color: Color(0xFF718096),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: saving
+                                      ? null
+                                      : () => closeSheet(sheetContext),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    side: const BorderSide(
+                                      color: Color(0xFFE4E8EF),
+                                    ),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    color: Color(0xFF344054),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1, color: Color(0xFFE8EBF1)),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                20,
+                                20,
+                                24,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Add new lead',
-                                    style: TextStyle(
-                                      color: Color(0xFF10182D),
-                                      fontSize: 21,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -0.3,
-                                    ),
+                                  const _LeadFormSectionTitle(
+                                    title: 'Opportunity',
+                                    subtitle:
+                                        'Basic lead and service information.',
                                   ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Capture the opportunity and contact details.',
-                                    style: TextStyle(
-                                      color: Color(0xFF718096),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.35,
-                                    ),
+                                  const SizedBox(height: 12),
+                                  _LeadFormField(
+                                    controller: titleController,
+                                    label: 'Lead title',
+                                    hint: 'Example: Tax filing enquiry',
+                                    icon: Icons.badge_outlined,
+                                    requiredField: true,
+                                    textInputAction: TextInputAction.next,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _LeadFormField(
+                                    controller: serviceController,
+                                    label: 'Service interest',
+                                    hint: 'Service the lead is interested in',
+                                    icon: Icons.design_services_outlined,
+                                    textInputAction: TextInputAction.next,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _LeadFormField(
+                                    controller: sourceController,
+                                    label: 'Lead source',
+                                    hint: 'Example: Mobile App',
+                                    icon: Icons.campaign_outlined,
+                                    textInputAction: TextInputAction.next,
+                                  ),
+                                  const SizedBox(height: 22),
+                                  const _LeadFormSectionTitle(
+                                    title: 'Contact details',
+                                    subtitle:
+                                        'Information used for follow-up communication.',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _LeadFormField(
+                                    controller: nameController,
+                                    label: 'Contact name',
+                                    hint: 'Person or business name',
+                                    icon: Icons.person_outline_rounded,
+                                    textInputAction: TextInputAction.next,
+                                    textCapitalization:
+                                        TextCapitalization.words,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _LeadFormField(
+                                    controller: phoneController,
+                                    label: 'Phone number',
+                                    hint: 'Primary contact number',
+                                    icon: Icons.phone_outlined,
+                                    keyboardType: TextInputType.phone,
+                                    textInputAction: TextInputAction.next,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _LeadFormField(
+                                    controller: emailController,
+                                    label: 'Email address',
+                                    hint: 'Contact email address',
+                                    icon: Icons.mail_outline_rounded,
+                                    keyboardType: TextInputType.emailAddress,
+                                    textInputAction: TextInputAction.next,
+                                  ),
+                                  const SizedBox(height: 22),
+                                  const _LeadFormSectionTitle(
+                                    title: 'Additional notes',
+                                    subtitle:
+                                        'Optional context for the internal team.',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _LeadFormField(
+                                    controller: notesController,
+                                    label: 'Notes',
+                                    hint:
+                                        'Add requirements, background or follow-up notes',
+                                    icon: Icons.notes_rounded,
+                                    minLines: 4,
+                                    maxLines: 6,
+                                    textInputAction: TextInputAction.newline,
+                                    textCapitalization:
+                                        TextCapitalization.sentences,
                                   ),
                                 ],
                               ),
                             ),
-                            IconButton(
-                              onPressed: saving
-                                  ? null
-                                  : () => Navigator.of(sheetContext).pop(),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                side: const BorderSide(
-                                  color: Color(0xFFE4E8EF),
+                          ),
+                          Container(
+                            padding: EdgeInsets.fromLTRB(
+                              20,
+                              14,
+                              20,
+                              14 + MediaQuery.paddingOf(context).bottom,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              border: Border(
+                                top: BorderSide(color: Color(0xFFE8EBF1)),
+                              ),
+                            ),
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: FilledButton.icon(
+                                onPressed: saving ? null : submit,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
+                                  foregroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimary,
+                                  disabledBackgroundColor: const Color(
+                                    0xFFE2E8F0,
+                                  ),
+                                  disabledForegroundColor: const Color(
+                                    0xFF94A3B8,
+                                  ),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                icon: saving
+                                    ? const SizedBox(
+                                        width: 19,
+                                        height: 19,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.add_rounded, size: 21),
+                                label: Text(
+                                  saving ? 'Creating lead...' : 'Create lead',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                color: Color(0xFF344054),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1, color: Color(0xFFE8EBF1)),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          keyboardDismissBehavior:
-                              ScrollViewKeyboardDismissBehavior.onDrag,
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const _LeadFormSectionTitle(
-                                title: 'Opportunity',
-                                subtitle: 'Basic lead and service information.',
-                              ),
-                              const SizedBox(height: 12),
-                              _LeadFormField(
-                                controller: titleController,
-                                label: 'Lead title',
-                                hint: 'Example: Tax filing enquiry',
-                                icon: Icons.badge_outlined,
-                                requiredField: true,
-                                textInputAction: TextInputAction.next,
-                              ),
-                              const SizedBox(height: 12),
-                              _LeadFormField(
-                                controller: serviceController,
-                                label: 'Service interest',
-                                hint: 'Service the lead is interested in',
-                                icon: Icons.design_services_outlined,
-                                textInputAction: TextInputAction.next,
-                              ),
-                              const SizedBox(height: 12),
-                              _LeadFormField(
-                                controller: sourceController,
-                                label: 'Lead source',
-                                hint: 'Example: Mobile App',
-                                icon: Icons.campaign_outlined,
-                                textInputAction: TextInputAction.next,
-                              ),
-                              const SizedBox(height: 22),
-                              const _LeadFormSectionTitle(
-                                title: 'Contact details',
-                                subtitle:
-                                    'Information used for follow-up communication.',
-                              ),
-                              const SizedBox(height: 12),
-                              _LeadFormField(
-                                controller: nameController,
-                                label: 'Contact name',
-                                hint: 'Person or business name',
-                                icon: Icons.person_outline_rounded,
-                                textInputAction: TextInputAction.next,
-                                textCapitalization: TextCapitalization.words,
-                              ),
-                              const SizedBox(height: 12),
-                              _LeadFormField(
-                                controller: phoneController,
-                                label: 'Phone number',
-                                hint: 'Primary contact number',
-                                icon: Icons.phone_outlined,
-                                keyboardType: TextInputType.phone,
-                                textInputAction: TextInputAction.next,
-                              ),
-                              const SizedBox(height: 12),
-                              _LeadFormField(
-                                controller: emailController,
-                                label: 'Email address',
-                                hint: 'Contact email address',
-                                icon: Icons.mail_outline_rounded,
-                                keyboardType: TextInputType.emailAddress,
-                                textInputAction: TextInputAction.next,
-                              ),
-                              const SizedBox(height: 22),
-                              const _LeadFormSectionTitle(
-                                title: 'Additional notes',
-                                subtitle:
-                                    'Optional context for the internal team.',
-                              ),
-                              const SizedBox(height: 12),
-                              _LeadFormField(
-                                controller: notesController,
-                                label: 'Notes',
-                                hint:
-                                    'Add requirements, background or follow-up notes',
-                                icon: Icons.notes_rounded,
-                                minLines: 4,
-                                maxLines: 6,
-                                textInputAction: TextInputAction.newline,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: EdgeInsets.fromLTRB(
-                          20,
-                          14,
-                          20,
-                          14 + MediaQuery.paddingOf(context).bottom,
-                        ),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          border: Border(
-                            top: BorderSide(color: Color(0xFFE8EBF1)),
-                          ),
-                        ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: FilledButton.icon(
-                            onPressed: saving ? null : submit,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primary,
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.onPrimary,
-                              disabledBackgroundColor: const Color(0xFFE2E8F0),
-                              disabledForegroundColor: const Color(0xFF94A3B8),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            icon: saving
-                                ? const SizedBox(
-                                    width: 19,
-                                    height: 19,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.add_rounded, size: 21),
-                            label: Text(
-                              saving ? 'Creating lead...' : 'Create lead',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -410,13 +458,11 @@ class _LeadsScreenState extends ConsumerState<LeadsScreen> {
       },
     );
 
-    titleController.dispose();
-    nameController.dispose();
-    phoneController.dispose();
-    emailController.dispose();
-    sourceController.dispose();
-    serviceController.dispose();
-    notesController.dispose();
+    for (final controller in controllers) {
+      controller.removeListener(markDirty);
+      controller.dispose();
+    }
+    dirtyFormController.dispose();
   }
 }
 
