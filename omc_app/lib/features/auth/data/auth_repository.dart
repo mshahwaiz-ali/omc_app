@@ -324,8 +324,8 @@ class AuthRepository {
     required String currentPassword,
     required String newPassword,
     required String confirmPassword,
-  }) {
-    return _frappeClient.postMethod(
+  }) async {
+    final response = await _frappeClient.postMethod(
       ApiConfig.changePasswordMethod,
       data: {
         'current_password': currentPassword,
@@ -333,6 +333,8 @@ class AuthRepository {
         'confirm_password': confirmPassword,
       },
     );
+    await _secureStorageService.clearBiometricLogin();
+    return response;
   }
 
   Future<Map<String, dynamic>> requestPasswordReset({
@@ -348,8 +350,8 @@ class AuthRepository {
     required String token,
     required String newPassword,
     required String confirmPassword,
-  }) {
-    return _frappeClient.postMethod(
+  }) async {
+    final response = await _frappeClient.postMethod(
       ApiConfig.resetPasswordMethod,
       data: {
         'token': token,
@@ -357,5 +359,7 @@ class AuthRepository {
         'confirm_password': confirmPassword,
       },
     );
+    await _secureStorageService.clearBiometricLogin();
+    return response;
   }
 }

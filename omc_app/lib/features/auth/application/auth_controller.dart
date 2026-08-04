@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../device_lock/data/device_lock_service.dart';
 import '../data/auth_repository.dart';
 import 'auth_state.dart';
 
@@ -53,6 +54,39 @@ class AuthController extends Notifier<AuthState> {
     } catch (error) {
       await _authRepository.clearSession();
       state = AuthState.unauthenticated(message: _safeLoginMessage(error));
+    }
+  }
+
+  Future<bool> loginWithBiometrics() async {
+    state = const AuthState.authenticating();
+
+    try {
+      final credentials = await ref
+          .read(deviceLockServiceProvider)
+          .authenticateAndReadBiometricLogin();
+
+      if (credentials == null) {
+        state = const AuthState.unauthenticated(
+          message: 'Biometric authentication was not completed.',
+        );
+        return false;
+      }
+
+      final session = await _authRepository.loginWithPassword(
+        email: credentials.identifier,
+        password: credentials.password,
+      );
+
+      state = AuthState.authenticated(
+        userId: session.userId,
+        canAccessInternalWorkspace: session.canAccessInternalWorkspace,
+        capabilities: session.capabilities,
+      );
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+      return true;
+    } catch (error) {
+      state = AuthState.unauthenticated(message: _safeLoginMessage(error));
+      return false;
     }
   }
 

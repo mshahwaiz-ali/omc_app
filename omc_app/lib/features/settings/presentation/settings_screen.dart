@@ -9,6 +9,7 @@ import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../auth/application/auth_state.dart';
 import '../../app_config/data/mobile_app_config.dart';
 import '../../app_config/data/mobile_app_config_repository.dart';
 import '../../profile/data/profile_repository.dart';
@@ -257,7 +258,9 @@ class SettingsScreen extends ConsumerWidget {
     final service = ref.read(deviceLockServiceProvider);
     if (currentlyEnabled) {
       await service.disable();
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
       ref.invalidate(deviceLockEnabledProvider);
+      ref.invalidate(biometricLoginAvailableProvider);
       if (context.mounted) _showSnack(context, 'Device lock disabled.');
       return;
     }
@@ -270,8 +273,41 @@ class SettingsScreen extends ConsumerWidget {
       }
       return;
     }
+
+    if (!context.mounted) return;
+    final password = await _requestDeviceLockPassword(context);
+    if (!context.mounted || password == null || password.isEmpty) return;
+
+    final authState = ref.read(authControllerProvider);
+    final identifier = authState.userId?.trim() ?? '';
+    if (identifier.isEmpty) {
+      _showSnack(context, 'Your signed-in account could not be identified.');
+      return;
+    }
+
+    await ref
+        .read(authControllerProvider.notifier)
+        .login(email: identifier, password: password);
+
+    if (!context.mounted) return;
+    final verifiedState = ref.read(authControllerProvider);
+    if (verifiedState.status != AuthStatus.authenticated) {
+      _showSnack(context, 'Password verification failed.');
+      return;
+    }
+
     final enabled = await service.enable();
+    if (enabled) {
+      await service.enrollBiometricLogin(
+        identifier: verifiedState.userId?.trim().isNotEmpty == true
+            ? verifiedState.userId!.trim()
+            : identifier,
+        password: password,
+      );
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+    }
     ref.invalidate(deviceLockEnabledProvider);
+    ref.invalidate(biometricLoginAvailableProvider);
     if (context.mounted) {
       _showSnack(
         context,
@@ -280,6 +316,77 @@ class SettingsScreen extends ConsumerWidget {
             : 'Device authentication was not completed.',
       );
     }
+  }
+
+  Future<String?> _requestDeviceLockPassword(BuildContext context) async {
+    final controller = TextEditingController();
+    var obscure = true;
+
+    final password = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Enable biometric sign in'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Confirm your current OMC password. It will be protected by the device secure storage and used only after successful biometric authentication.',
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    obscureText: obscure,
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (value) {
+                      if (value.isNotEmpty) {
+                        Navigator.of(dialogContext).pop(value);
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Current password',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setDialogState(() => obscure = !obscure);
+                        },
+                        icon: Icon(
+                          obscure
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final value = controller.text;
+                    if (value.isNotEmpty) {
+                      Navigator.of(dialogContext).pop(value);
+                    }
+                  },
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    return password;
   }
 
   Future<void> _showAccountRequestSheet(

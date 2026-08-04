@@ -32,26 +32,57 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Android reports `inactive` while its biometric dialog is visible.
+    // Treating that as background immediately re-locks the app and causes
+    // a second authentication prompt.
     if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
       if (mounted) setState(() => _locked = true);
+      return;
     }
-    if (state == AppLifecycleState.resumed) _unlock();
+
+    if (state == AppLifecycleState.resumed && _locked) {
+      _unlock();
+    }
   }
 
   Future<void> _unlock() async {
-    if (_authenticating) return;
-    final auth = ref.read(authControllerProvider);
-    if (auth.status != AuthStatus.authenticated ||
-        !await ref.read(deviceLockServiceProvider).isEnabled()) {
-      if (mounted) setState(() => _locked = false);
-      return;
+    if (_authenticating || !mounted) return;
+
+    // Set this before any await so repeated builds cannot start parallel
+    // biometric requests.
+    setState(() => _authenticating = true);
+
+    try {
+      final auth = ref.read(authControllerProvider);
+      final service = ref.read(deviceLockServiceProvider);
+      final enabled = await service.isEnabled();
+
+      if (!mounted) return;
+
+      if (auth.status != AuthStatus.authenticated || !enabled) {
+        ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+        setState(() => _locked = false);
+        return;
+      }
+
+      final alreadyUnlocked = ref.read(deviceLockSessionUnlockedProvider);
+      if (alreadyUnlocked) {
+        setState(() => _locked = false);
+        return;
+      }
+
+      final unlocked = await service.authenticate();
+      if (!mounted) return;
+
+      ref
+          .read(deviceLockSessionUnlockedProvider.notifier)
+          .setUnlocked(unlocked);
+      setState(() => _locked = !unlocked);
+    } finally {
+      if (mounted) setState(() => _authenticating = false);
     }
-    _authenticating = true;
-    final unlocked = await ref.read(deviceLockServiceProvider).authenticate();
-    if (mounted) setState(() => _locked = !unlocked);
-    _authenticating = false;
   }
 
   @override
@@ -66,9 +97,18 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate>
       );
     }
     final enabled = enabledState.value ?? false;
+    final sessionUnlocked = ref.watch(deviceLockSessionUnlockedProvider);
     final shouldLock = enabled && auth.status == AuthStatus.authenticated;
-    if (!shouldLock || !_locked) return widget.child;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+
+    if (!shouldLock || sessionUnlocked || !_locked) {
+      return widget.child;
+    }
+
+    if (!_authenticating) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_authenticating && _locked) _unlock();
+      });
+    }
     return Material(
       color: const Color(0xFFF8FAFD),
       child: SafeArea(

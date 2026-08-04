@@ -7,6 +7,7 @@ import '../../../core/config/support_config.dart';
 import '../../../core/widgets/app_button.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_state.dart';
+import '../../device_lock/data/device_lock_service.dart';
 import 'auth_entry_widgets.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   bool _submitted = false;
   bool _guestSubmissionInFlight = false;
+  bool _biometricSubmissionInFlight = false;
   String? _loginError;
 
   @override
@@ -62,6 +64,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _submitted = false;
       _loginError = _normalizeLoginError(authState.message);
+    });
+  }
+
+  Future<void> _signInWithBiometrics() async {
+    if (_submitted ||
+        _guestSubmissionInFlight ||
+        _biometricSubmissionInFlight) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _biometricSubmissionInFlight = true;
+      _loginError = null;
+    });
+
+    final authenticated = await ref
+        .read(authControllerProvider.notifier)
+        .loginWithBiometrics();
+
+    if (!mounted) return;
+
+    final authState = ref.read(authControllerProvider);
+    if (authenticated && authState.status == AuthStatus.authenticated) {
+      context.go(authState.capabilities.isPending ? '/under-review' : '/home');
+      return;
+    }
+
+    setState(() {
+      _biometricSubmissionInFlight = false;
+      _loginError =
+          authState.message ?? 'Biometric sign in could not be completed.';
     });
   }
 
@@ -178,9 +212,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
+    final biometricAvailable =
+        ref.watch(biometricLoginAvailableProvider).value ?? false;
     final isLoading =
         (_submitted && authState.status == AuthStatus.authenticating) ||
-        _guestSubmissionInFlight;
+        _guestSubmissionInFlight ||
+        _biometricSubmissionInFlight;
     final loginErrorMessage = _loginError ?? authState.message;
 
     return AuthEntryScaffold(
@@ -261,9 +298,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ],
             AppButton(
               label: 'Sign in',
-              isLoading: isLoading,
+              isLoading: isLoading && !_biometricSubmissionInFlight,
               onPressed: isLoading ? null : _submit,
             ),
+            if (biometricAvailable) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'or',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: isLoading ? null : _signInWithBiometrics,
+                icon: _biometricSubmissionInFlight
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.fingerprint_rounded),
+                label: const Text('Sign in with biometrics'),
+              ),
+            ],
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: isLoading ? null : _continueAsGuest,

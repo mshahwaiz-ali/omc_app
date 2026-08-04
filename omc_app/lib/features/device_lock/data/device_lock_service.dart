@@ -19,6 +19,26 @@ final deviceLockEnabledProvider = FutureProvider<bool>((ref) {
   return ref.watch(deviceLockServiceProvider).isEnabled();
 });
 
+final biometricLoginAvailableProvider = FutureProvider<bool>((ref) {
+  return ref.watch(deviceLockServiceProvider).isBiometricLoginAvailable();
+});
+
+class DeviceLockSessionController extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void markUnlocked() => state = true;
+
+  void markLocked() => state = false;
+
+  void setUnlocked(bool unlocked) => state = unlocked;
+}
+
+final deviceLockSessionUnlockedProvider =
+    NotifierProvider<DeviceLockSessionController, bool>(
+      DeviceLockSessionController.new,
+    );
+
 class DeviceLockService {
   const DeviceLockService({
     required this.authentication,
@@ -61,5 +81,49 @@ class DeviceLockService {
     return true;
   }
 
-  Future<void> disable() => storage.saveDeviceLockEnabled(false);
+  Future<void> enrollBiometricLogin({
+    required String identifier,
+    required String password,
+  }) async {
+    await storage.saveBiometricLoginCredentials(
+      identifier: identifier.trim(),
+      password: password,
+    );
+  }
+
+  Future<bool> isBiometricLoginAvailable() async {
+    if (!await isSupported()) return false;
+    if (!await storage.readBiometricLoginEnabled()) return false;
+
+    final identifier = await storage.readBiometricLoginIdentifier();
+    final password = await storage.readBiometricLoginPassword();
+    return identifier != null &&
+        identifier.trim().isNotEmpty &&
+        password != null &&
+        password.isNotEmpty;
+  }
+
+  Future<({String identifier, String password})?>
+  authenticateAndReadBiometricLogin() async {
+    if (!await isBiometricLoginAvailable()) return null;
+    if (!await authenticate()) return null;
+
+    final identifier = await storage.readBiometricLoginIdentifier();
+    final password = await storage.readBiometricLoginPassword();
+    if (identifier == null ||
+        identifier.trim().isEmpty ||
+        password == null ||
+        password.isEmpty) {
+      return null;
+    }
+
+    return (identifier: identifier.trim(), password: password);
+  }
+
+  Future<void> clearBiometricLogin() => storage.clearBiometricLogin();
+
+  Future<void> disable() async {
+    await storage.saveDeviceLockEnabled(false);
+    await clearBiometricLogin();
+  }
 }

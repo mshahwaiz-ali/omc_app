@@ -13,6 +13,10 @@ class SecureStorageService {
   static const String _guestDeviceIdKey = 'guest_device_id';
   static const String _guestSessionIdKey = 'guest_session_id';
   static const String _deviceLockEnabledKey = 'device_lock_enabled';
+  static const String _biometricLoginEnabledKey = 'biometric_login_enabled';
+  static const String _biometricLoginIdentifierKey =
+      'biometric_login_identifier';
+  static const String _biometricLoginPasswordKey = 'biometric_login_password';
 
   Future<void> saveSessionCookie(String value) {
     return _storage.write(key: _sessionCookieKey, value: value);
@@ -73,12 +77,38 @@ class SecureStorageService {
     return await _storage.read(key: _deviceLockEnabledKey) == '1';
   }
 
+  Future<void> saveBiometricLoginCredentials({
+    required String identifier,
+    required String password,
+  }) async {
+    await _storage.write(key: _biometricLoginIdentifierKey, value: identifier);
+    await _storage.write(key: _biometricLoginPasswordKey, value: password);
+    await _storage.write(key: _biometricLoginEnabledKey, value: '1');
+  }
+
+  Future<bool> readBiometricLoginEnabled() async {
+    return await _storage.read(key: _biometricLoginEnabledKey) == '1';
+  }
+
+  Future<String?> readBiometricLoginIdentifier() {
+    return _storage.read(key: _biometricLoginIdentifierKey);
+  }
+
+  Future<String?> readBiometricLoginPassword() {
+    return _storage.read(key: _biometricLoginPasswordKey);
+  }
+
+  Future<void> clearBiometricLogin() async {
+    await _storage.delete(key: _biometricLoginEnabledKey);
+    await _storage.delete(key: _biometricLoginIdentifierKey);
+    await _storage.delete(key: _biometricLoginPasswordKey);
+  }
+
   Future<void> clearSession() async {
     await _storage.delete(key: _sessionCookieKey);
     await _storage.delete(key: _apiKeyKey);
     await _storage.delete(key: _apiSecretKey);
     await _storage.delete(key: _userIdKey);
-    await _storage.delete(key: _deviceLockEnabledKey);
   }
 
   Future<void> clearAll() {
