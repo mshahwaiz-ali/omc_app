@@ -29,3 +29,5 @@ omc_app.patches.backfill_internal_referral_codes
 omc_app.patches.enforce_referral_owner_model
 omc_app.patches.add_customer_username
 omc_app.patches.remove_legacy_omc_task
+
+omc_app.patches.seed_erp_task_types_and_service_mappings

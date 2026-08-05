@@ -4,6 +4,7 @@ import frappe
 
 from omc_app.api import (
     access,
+    erp_customer_resolver,
     erp_service_task_adapter,
     idempotency,
     mobile,
@@ -303,6 +304,32 @@ def _manual_customer_duplicate_matches(
     return sorted(matches)
 
 
+def _manual_customer_profile_matches(manual_customer) -> list[str]:
+    identities = {
+        "email": _text(getattr(manual_customer, "email", None)).lower(),
+        "phone": _text(getattr(manual_customer, "mobile", None)),
+        "cnic": _text(getattr(manual_customer, "cnic", None)),
+    }
+
+    matches: set[str] = set()
+    for fieldname, value in identities.items():
+        if not value:
+            continue
+
+        rows = frappe.get_all(
+            "OMC Customer Profile",
+            filters={fieldname: value},
+            pluck="name",
+            limit=3,
+        )
+        matches.update(_text(name) for name in rows if _text(name))
+
+        if len(matches) > 1:
+            break
+
+    return sorted(matches)
+
+
 def _create_manual_customer(user: str, kwargs: dict):
     if not _roles(user).intersection(WALK_IN_CUSTOMER_ROLES):
         frappe.throw(
@@ -558,6 +585,173 @@ def get_customer_selection_options(
         "limit_start": start,
         "limit_page_length": length,
     }
+
+
+@frappe.whitelist(methods=["POST"])
+def convert_manual_customer(manual_customer=None, request_name=None):
+    user = _current_user()
+
+    if not _roles(user).intersection(REFERRAL_ADMIN_ROLES):
+        frappe.throw(
+            "You do not have permission to convert walk-in customers.",
+            frappe.PermissionError,
+        )
+
+    manual_customer = _text(manual_customer)
+    request_name = _text(request_name)
+
+    if not manual_customer:
+        frappe.throw(
+            "manual_customer is required.",
+            frappe.ValidationError,
+        )
+
+    if not request_name:
+        frappe.throw(
+            "request_name is required.",
+            frappe.ValidationError,
+        )
+
+    if not frappe.db.exists("OMC Manual Customer", manual_customer):
+        frappe.throw(
+            "Walk-in customer not found.",
+            frappe.DoesNotExistError,
+        )
+
+    if not frappe.db.exists("OMC Service Request", request_name):
+        frappe.throw(
+            "Service request not found.",
+            frappe.DoesNotExistError,
+        )
+
+    manual = frappe.get_doc("OMC Manual Customer", manual_customer)
+    request = frappe.get_doc("OMC Service Request", request_name)
+
+    if _text(getattr(request, "manual_customer", None)) != manual.name:
+        frappe.throw(
+            "The service request does not belong to this walk-in customer.",
+            frappe.ValidationError,
+        )
+
+    email = _text(getattr(manual, "email", None)).lower()
+    if not email:
+        frappe.throw(
+            "A real customer email is required before conversion.",
+            frappe.ValidationError,
+        )
+
+    linked_profile = _text(
+        getattr(manual, "linked_customer_profile", None)
+    )
+
+    if linked_profile:
+        if not frappe.db.exists("OMC Customer Profile", linked_profile):
+            frappe.throw(
+                "The linked customer profile does not exist.",
+                frappe.ValidationError,
+            )
+        profile = frappe.get_doc("OMC Customer Profile", linked_profile)
+        created_profile = False
+    else:
+        matches = _manual_customer_profile_matches(manual)
+
+        if len(matches) > 1:
+            frappe.throw(
+                (
+                    "Multiple customer profiles match this walk-in customer. "
+                    "Resolve the duplicate records before conversion."
+                ),
+                frappe.ValidationError,
+            )
+
+        if len(matches) == 1:
+            profile = frappe.get_doc("OMC Customer Profile", matches[0])
+            created_profile = False
+        else:
+            profile = frappe.new_doc("OMC Customer Profile")
+            profile.full_name = _text(manual.full_name)
+            profile.email = email
+            profile.phone = _text(manual.mobile)
+            profile.cnic = _text(manual.cnic)
+            profile.address = _text(manual.address)
+            profile.customer_origin = "Walk-in"
+            profile.customer_status = "Active"
+            profile.approval_status = "Approved"
+            profile.is_active = 1
+            profile.manual_customer_status = "Linked"
+            profile.insert(ignore_permissions=True)
+            created_profile = True
+
+    profile.customer_origin = "Walk-in"
+    profile.customer_status = "Active"
+    profile.approval_status = "Approved"
+    profile.is_active = 1
+    profile.manual_customer_status = "Linked"
+
+    if not _text(getattr(profile, "full_name", None)):
+        profile.full_name = _text(manual.full_name)
+    if not _text(getattr(profile, "phone", None)):
+        profile.phone = _text(manual.mobile)
+    if not _text(getattr(profile, "cnic", None)):
+        profile.cnic = _text(manual.cnic)
+    if not _text(getattr(profile, "address", None)):
+        profile.address = _text(manual.address)
+
+    profile.save(ignore_permissions=True)
+
+    manual.verification_status = "Verified"
+    manual.conversion_status = "Linked"
+    manual.linked_customer_profile = profile.name
+    manual.save(ignore_permissions=True)
+
+    request.customer_profile = profile.name
+    frappe.db.set_value(
+        "OMC Service Request",
+        request.name,
+        "customer_profile",
+        profile.name,
+        update_modified=False,
+    )
+
+    customer_result = erp_customer_resolver.resolve_profile_customer(profile)
+    customer_status = _text(customer_result.get("status"))
+
+    if customer_status not in {"Resolved", "Created"}:
+        frappe.throw(
+            customer_result.get("reason")
+            or "ERP Customer could not be resolved.",
+            frappe.ValidationError,
+        )
+
+    service_name = _text(getattr(request, "service", None))
+    if not service_name or not frappe.db.exists("OMC Service", service_name):
+        frappe.throw(
+            "The linked OMC Service is missing.",
+            frappe.ValidationError,
+        )
+
+    sync_result = erp_service_task_adapter.sync_request(
+        request,
+        service=frappe.get_doc("OMC Service", service_name),
+        profile=profile,
+        manual_customer=manual,
+        repair=True,
+    )
+
+    return {
+        "manual_customer": manual.name,
+        "customer_profile": profile.name,
+        "profile_created": created_profile,
+        "erp_customer": customer_result.get("customer") or "",
+        "erp_customer_created": bool(customer_result.get("created")),
+        "erp_sync_status": sync_result.get("status") or "",
+        "erp_service": sync_result.get("erp_service") or "",
+        "erp_task": sync_result.get("erp_task") or "",
+        "task_assignment": sync_result.get("task_assignment"),
+        "reason": sync_result.get("reason") or "",
+    }
+
+
 
 def create_request(**kwargs):
     actor = _current_user()

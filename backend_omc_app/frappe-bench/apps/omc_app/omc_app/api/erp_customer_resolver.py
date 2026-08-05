@@ -174,7 +174,13 @@ def resolve_profile_customer(profile, *, create_if_missing: bool = True) -> dict
         }
 
     user = _profile_user(profile)
-    if not user:
+    is_trusted_walk_in = (
+        _text(getattr(profile, "customer_origin", None)) == "Walk-in"
+        and _text(getattr(profile, "approval_status", None)) == "Approved"
+        and int(getattr(profile, "is_active", 0) or 0)
+    )
+
+    if not user and not is_trusted_walk_in:
         return {
             "status": "Pending Configuration",
             "customer": "",
