@@ -21,8 +21,8 @@ Future<void> showOmcQuickActionsSheet({
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenTasks,
   required VoidCallback onCreateLead,
-}) {
-  return showModalBottomSheet<void>(
+}) async {
+  final selectedAction = await showModalBottomSheet<VoidCallback>(
     context: context,
     useSafeArea: true,
     showDragHandle: true,
@@ -52,6 +52,9 @@ Future<void> showOmcQuickActionsSheet({
       return _QuickActionsContent(actions: actions);
     },
   );
+
+  if (selectedAction == null || !context.mounted) return;
+  selectedAction();
 }
 
 List<OmcSheetAction> _quickActions({
@@ -157,8 +160,7 @@ List<OmcSheetAction> _quickActions({
 }
 
 void _closeThen(BuildContext context, VoidCallback onTap) {
-  Navigator.of(context).pop();
-  onTap();
+  Navigator.of(context).pop(onTap);
 }
 
 class _QuickActionsContent extends StatelessWidget {

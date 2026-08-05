@@ -244,8 +244,9 @@ class _MainShellState extends ConsumerState<MainShell> {
     final unreadNotifications =
         ref.read(unreadNotificationsProvider).value ?? 0;
 
+    var actionSelected = false;
     try {
-      await showOmcMoreSheet(
+      actionSelected = await showOmcMoreSheet(
         context: context,
         features: mobileConfig.features,
         capabilities: capabilities,
@@ -332,7 +333,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       _isMoreSheetOpen = false;
     }
 
-    if (!mounted || !fromRoute) return;
+    if (!mounted || !fromRoute || actionSelected) return;
     final state = GoRouterState.of(context);
     if (state.uri.path == '/more') {
       context.go('/home');

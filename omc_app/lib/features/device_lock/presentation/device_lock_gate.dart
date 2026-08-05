@@ -21,14 +21,18 @@ class DeviceLockGate extends ConsumerStatefulWidget {
 
 class _DeviceLockGateState extends ConsumerState<DeviceLockGate> {
   bool _authenticating = false;
-  bool _cancelledOrFailed = false;
+  String? _failureMessage;
 
   Future<void> _unlock() async {
     if (_authenticating) return;
 
+    final attemptIdentity =
+        ref.read(authControllerProvider).userId?.trim().toLowerCase() ?? '';
+    if (attemptIdentity.isEmpty) return;
+
     setState(() {
       _authenticating = true;
-      _cancelledOrFailed = false;
+      _failureMessage = null;
     });
 
     final authenticated = await ref
@@ -37,34 +41,80 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate> {
 
     if (!mounted) return;
 
+    final currentAuth = ref.read(authControllerProvider);
+    final currentIdentity = currentAuth.userId?.trim().toLowerCase() ?? '';
+    final sameAuthenticatedAccount =
+        currentAuth.status == AuthStatus.authenticated &&
+        currentIdentity == attemptIdentity;
+
+    if (!sameAuthenticatedAccount) {
+      setState(() => _authenticating = false);
+      return;
+    }
+
     if (authenticated) {
+      setState(() => _authenticating = false);
       ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
       return;
     }
 
     setState(() {
       _authenticating = false;
-      _cancelledOrFailed = true;
+      _failureMessage =
+          'Authentication was cancelled or not recognized. '
+          'Retry or use another account.';
     });
   }
 
   Future<void> _useAnotherAccount() async {
     if (_authenticating) return;
 
-    setState(() => _authenticating = true);
+    setState(() {
+      _authenticating = true;
+      _failureMessage = null;
+    });
 
-    // Prevent the gate from intercepting the logout transition.
+    // Prevent the gate from intercepting a successful logout transition.
     ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
 
-    await ref.read(authControllerProvider.notifier).logout();
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
 
-    ref.invalidate(deviceLockEnabledProvider);
-    ref.invalidate(biometricLoginAvailableProvider);
-    ref.invalidate(biometricLoginAccountsProvider);
+      ref.invalidate(deviceLockEnabledProvider);
+      ref.invalidate(biometricLoginAvailableProvider);
+      ref.invalidate(biometricLoginAccountsProvider);
+    } catch (_) {
+      // Logout did not remove authenticated ownership. Restore the lock and
+      // leave the user with a recoverable action instead of a disabled gate.
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+
+      if (!mounted) return;
+      setState(() {
+        _failureMessage =
+            'Unable to switch accounts right now. '
+            'Check your connection and try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _authenticating = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authControllerProvider, (previous, next) {
+      final previousIdentity = previous?.userId?.trim().toLowerCase() ?? '';
+      final nextIdentity = next.userId?.trim().toLowerCase() ?? '';
+
+      if (previousIdentity == nextIdentity || !mounted) return;
+
+      setState(() {
+        _authenticating = false;
+        _failureMessage = null;
+      });
+    });
+
     final authState = ref.watch(authControllerProvider);
     final sessionUnlocked = ref.watch(deviceLockSessionUnlockedProvider);
 
@@ -145,7 +195,7 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if (_cancelledOrFailed) ...[
+                          if (_failureMessage != null) ...[
                             const SizedBox(height: 18),
                             Container(
                               width: double.infinity,
@@ -157,11 +207,10 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate> {
                                   color: const Color(0xFFFED7AA),
                                 ),
                               ),
-                              child: const Text(
-                                'Authentication was cancelled or not '
-                                'recognized. Retry or use another account.',
+                              child: Text(
+                                _failureMessage!,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Color(0xFF9A3412),
                                   fontWeight: FontWeight.w700,
                                   height: 1.35,
@@ -189,7 +238,9 @@ class _DeviceLockGateState extends ConsumerState<DeviceLockGate> {
                                           : Icons.fingerprint_rounded,
                                     ),
                               label: Text(
-                                _cancelledOrFailed ? 'Try again' : actionLabel,
+                                _failureMessage != null
+                                    ? 'Try again'
+                                    : actionLabel,
                               ),
                             ),
                           ),

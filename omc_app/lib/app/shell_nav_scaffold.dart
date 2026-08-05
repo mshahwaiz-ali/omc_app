@@ -16,6 +16,7 @@ import 'navigation/omc_quick_actions_sheet.dart';
 import 'providers/effective_capabilities_provider.dart';
 import 'route_access_policy.dart';
 import '../core/resilience/app_failure.dart';
+import '../core/forms/dirty_form_controller.dart';
 
 bool _shellLogoutInFlight = false;
 
@@ -56,7 +57,7 @@ class ShellNavScaffold extends ConsumerWidget {
           selectedIndex: selectedIndex,
           notificationBadgeCount: unreadNotifications,
           primaryColor: primaryColor,
-          onTabSelected: (index) => _openTab(context, capabilities, index),
+          onTabSelected: (index) => _openTab(context, ref, capabilities, index),
           onQuickActions: () =>
               _showQuickActionsSheet(context, ref, capabilities),
           onMore: () => _showMoreSheet(context, ref),
@@ -79,11 +80,16 @@ class ShellNavScaffold extends ConsumerWidget {
     return capabilities.canAccessInternalWorkspace;
   }
 
-  void _openTab(
+  Future<void> _openTab(
     BuildContext context,
+    WidgetRef ref,
     AuthCapabilities capabilities,
     int index,
-  ) {
+  ) async {
+    if (!await confirmDiscardActiveForm(context, ref) || !context.mounted) {
+      return;
+    }
+
     if (_isInternal(capabilities)) {
       final path = switch (index) {
         homeIndex => '/home',
@@ -279,7 +285,7 @@ class ShellNavScaffold extends ConsumerWidget {
   }
 
   bool _canOpenTrack(AuthCapabilities capabilities) {
-    return canAccessRoute('/my-services', capabilities);
+    return canAccessRoute('/track', capabilities);
   }
 
   bool _canOpenDocuments(AuthCapabilities capabilities) {

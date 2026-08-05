@@ -2,7 +2,6 @@ import '../../features/auth/application/auth_state.dart';
 
 class LinkCoordinator {
   Uri? _pending;
-  String? _lastDelivered;
 
   Uri? normalize(Uri uri) {
     if (uri.hasScheme) {
@@ -26,7 +25,7 @@ class LinkCoordinator {
 
   void queue(Uri uri) {
     final normalized = normalize(uri);
-    if (normalized == null || normalized.toString() == _lastDelivered) return;
+    if (normalized == null || normalized == _pending) return;
     _pending = normalized;
   }
 
@@ -41,7 +40,6 @@ class LinkCoordinator {
         path == '/verify-email' || path == '/reset-password';
     if (status != AuthStatus.authenticated && !publicTokenRoute) return null;
     _pending = null;
-    _lastDelivered = pending.toString();
     return pending.toString();
   }
 

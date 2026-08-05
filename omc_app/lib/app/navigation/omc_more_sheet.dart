@@ -7,7 +7,7 @@ import '../../features/auth/application/auth_state.dart';
 import '../theme.dart';
 import 'omc_nav_models.dart';
 
-Future<void> showOmcMoreSheet({
+Future<bool> showOmcMoreSheet({
   required BuildContext context,
   required MobileFeatureConfig features,
   required AuthCapabilities capabilities,
@@ -35,8 +35,8 @@ Future<void> showOmcMoreSheet({
   required VoidCallback onOpenLeads,
   required VoidCallback onOpenTasks,
   required VoidCallback onLogout,
-}) {
-  return showModalBottomSheet<void>(
+}) async {
+  final selectedAction = await showModalBottomSheet<VoidCallback>(
     context: context,
     useSafeArea: true,
     showDragHandle: true,
@@ -84,6 +84,12 @@ Future<void> showOmcMoreSheet({
       );
     },
   );
+
+  if (selectedAction == null) return false;
+  if (!context.mounted) return true;
+
+  selectedAction();
+  return true;
 }
 
 List<OmcSheetAction> _moreActions({
@@ -266,16 +272,7 @@ List<OmcSheetAction> _moreActions({
 }
 
 void _closeThen(BuildContext context, VoidCallback onTap) {
-  final navigator = Navigator.of(context);
-
-  navigator.pop();
-
-  // Let the modal route finish detaching before changing auth or router state.
-  // Triggering both in the same frame can corrupt Flutter's Element and
-  // RenderObject ownership bookkeeping.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    Future<void>.delayed(const Duration(milliseconds: 320), onTap);
-  });
+  Navigator.of(context).pop(onTap);
 }
 
 class _MoreSheetContent extends StatelessWidget {

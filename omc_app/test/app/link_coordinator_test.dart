@@ -27,20 +27,25 @@ void main() {
     );
   });
 
-  test(
-    'queues one protected link until authentication and deduplicates it',
-    () {
-      final coordinator = LinkCoordinator();
-      final link = Uri.parse('/notifications/OMC-NOT-1');
-      coordinator.queue(link);
-      coordinator.queue(link);
-      expect(coordinator.takeFor(AuthStatus.unauthenticated), isNull);
-      expect(
-        coordinator.takeFor(AuthStatus.authenticated),
-        '/notifications/OMC-NOT-1',
-      );
-      coordinator.queue(link);
-      expect(coordinator.takeFor(AuthStatus.authenticated), isNull);
-    },
-  );
+  test('coalesces a pending protected link but allows later redelivery', () {
+    final coordinator = LinkCoordinator();
+    final link = Uri.parse('/notifications/OMC-NOT-1');
+
+    coordinator.queue(link);
+    coordinator.queue(link);
+
+    expect(coordinator.takeFor(AuthStatus.unauthenticated), isNull);
+    expect(
+      coordinator.takeFor(AuthStatus.authenticated),
+      '/notifications/OMC-NOT-1',
+    );
+    expect(coordinator.takeFor(AuthStatus.authenticated), isNull);
+
+    coordinator.queue(link);
+
+    expect(
+      coordinator.takeFor(AuthStatus.authenticated),
+      '/notifications/OMC-NOT-1',
+    );
+  });
 }
