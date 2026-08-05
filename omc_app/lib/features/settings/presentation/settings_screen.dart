@@ -344,7 +344,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<String?> _requestDeviceLockPassword(BuildContext context) async {
-    final controller = TextEditingController();
+    var passwordValue = '';
     var obscure = true;
 
     final password = await showDialog<String>(
@@ -363,8 +363,8 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   TextField(
-                    controller: controller,
                     obscureText: obscure,
+                    onChanged: (value) => passwordValue = value,
                     autofocus: true,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (value) {
@@ -396,9 +396,8 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 FilledButton(
                   onPressed: () {
-                    final value = controller.text;
-                    if (value.isNotEmpty) {
-                      Navigator.of(dialogContext).pop(value);
+                    if (passwordValue.isNotEmpty) {
+                      Navigator.of(dialogContext).pop(passwordValue);
                     }
                   },
                   child: const Text('Continue'),
@@ -410,7 +409,6 @@ class SettingsScreen extends ConsumerWidget {
       },
     );
 
-    controller.dispose();
     return password;
   }
 
