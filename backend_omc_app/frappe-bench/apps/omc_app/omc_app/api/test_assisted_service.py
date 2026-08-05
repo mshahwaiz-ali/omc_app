@@ -505,3 +505,55 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             manual_customer=manual,
             repair=True,
         )
+
+    def test_manual_customer_conversion_requires_cnic_or_ntn(self):
+        manual = SimpleNamespace(
+            name="MC-1",
+            full_name="Walk In Customer",
+            email="walkin@example.com",
+            mobile="03001234567",
+            cnic="",
+            ntn="",
+            address="",
+            linked_customer_profile="",
+        )
+        request = SimpleNamespace(
+            name="REQ-1",
+            manual_customer="MC-1",
+        )
+
+        def get_doc(doctype, _name):
+            if doctype == "OMC Manual Customer":
+                return manual
+            return request
+
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="manager@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Manager"},
+            ),
+            patch.object(
+                assisted_service.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "get_doc",
+                side_effect=get_doc,
+            ),
+            self.assertRaisesRegex(
+                frappe.ValidationError,
+                "CNIC or NTN is required",
+            ),
+        ):
+            assisted_service.convert_manual_customer(
+                manual_customer="MC-1",
+                request_name="REQ-1",
+            )
