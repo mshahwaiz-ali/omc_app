@@ -321,3 +321,187 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             get_all.call_args.kwargs["filters"],
             {"created_by_user": "support@example.com"},
         )
+
+    def test_manual_customer_conversion_requires_admin_role(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="support@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Support Agent"},
+            ),
+            self.assertRaises(frappe.PermissionError),
+        ):
+            assisted_service.convert_manual_customer(
+                manual_customer="MC-1",
+                request_name="REQ-1",
+            )
+
+    def test_manual_customer_conversion_requires_real_email(self):
+        manual = SimpleNamespace(
+            name="MC-1",
+            full_name="Walk In Customer",
+            email="",
+            mobile="03001234567",
+            cnic="",
+            address="",
+            linked_customer_profile="",
+        )
+        request = SimpleNamespace(
+            name="REQ-1",
+            manual_customer="MC-1",
+        )
+
+        def get_doc(doctype, _name):
+            if doctype == "OMC Manual Customer":
+                return manual
+            return request
+
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="manager@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Manager"},
+            ),
+            patch.object(
+                assisted_service.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "get_doc",
+                side_effect=get_doc,
+            ),
+            self.assertRaises(frappe.ValidationError),
+        ):
+            assisted_service.convert_manual_customer(
+                manual_customer="MC-1",
+                request_name="REQ-1",
+            )
+
+    def test_manual_customer_conversion_links_existing_task_workflow(self):
+        manual = MagicMock()
+        manual.name = "MC-1"
+        manual.full_name = "Walk In Customer"
+        manual.email = "walkin@example.com"
+        manual.mobile = "03001234567"
+        manual.cnic = "4210112345671"
+        manual.address = "Karachi"
+        manual.linked_customer_profile = ""
+
+        request = MagicMock()
+        request.name = "REQ-1"
+        request.manual_customer = "MC-1"
+        request.service = "SERVICE-1"
+
+        profile = MagicMock()
+        profile.name = "OMC-CUST-1"
+        profile.full_name = ""
+        profile.phone = ""
+        profile.cnic = ""
+        profile.address = ""
+
+        service = SimpleNamespace(
+            name="SERVICE-1",
+            erp_task_type="NTN Registration",
+        )
+
+        def get_doc(doctype, _name):
+            return {
+                "OMC Manual Customer": manual,
+                "OMC Service Request": request,
+                "OMC Service": service,
+            }[doctype]
+
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="manager@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Manager"},
+            ),
+            patch.object(
+                assisted_service.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "get_doc",
+                side_effect=get_doc,
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "new_doc",
+                return_value=profile,
+            ),
+            patch.object(
+                assisted_service,
+                "_manual_customer_profile_matches",
+                return_value=[],
+            ),
+            patch.object(
+                assisted_service.erp_customer_resolver,
+                "resolve_profile_customer",
+                return_value={
+                    "status": "Created",
+                    "customer": "ERP-CUST-1",
+                    "created": True,
+                    "reason": "",
+                },
+            ),
+            patch.object(
+                assisted_service.erp_service_task_adapter,
+                "sync_request",
+                return_value={
+                    "status": "Synced",
+                    "erp_customer": "ERP-CUST-1",
+                    "erp_service": "ERP-SERVICE-1",
+                    "erp_task": "TASK-1",
+                    "task_assignment": "TODO-1",
+                    "created": True,
+                },
+            ) as sync_request,
+        ):
+            result = assisted_service.convert_manual_customer(
+                manual_customer="MC-1",
+                request_name="REQ-1",
+            )
+
+        self.assertEqual(result["customer_profile"], "OMC-CUST-1")
+        self.assertEqual(result["erp_customer"], "ERP-CUST-1")
+        self.assertEqual(result["erp_service"], "ERP-SERVICE-1")
+        self.assertEqual(result["erp_task"], "TASK-1")
+        self.assertEqual(result["erp_sync_status"], "Synced")
+
+        self.assertEqual(manual.verification_status, "Verified")
+        self.assertEqual(manual.conversion_status, "Linked")
+        self.assertEqual(
+            manual.linked_customer_profile,
+            "OMC-CUST-1",
+        )
+        self.assertEqual(request.customer_profile, "OMC-CUST-1")
+
+        profile.insert.assert_called_once_with(ignore_permissions=True)
+        manual.save.assert_called_once_with(ignore_permissions=True)
+        sync_request.assert_called_once_with(
+            request,
+            service=service,
+            profile=profile,
+            manual_customer=manual,
+            repair=True,
+        )

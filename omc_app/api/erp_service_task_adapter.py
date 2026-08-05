@@ -259,7 +259,7 @@ def sync_request(
         customer = existing_customer
     task_type = _text(getattr(service, "erp_task_type", None))
     missing = []
-    if manual_customer:
+    if manual_customer and not profile:
         missing.append("walk-in customer requires ERP Customer conversion")
     elif not customer:
         missing.append("customer profile has no valid linked ERP Customer")
