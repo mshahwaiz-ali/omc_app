@@ -37,6 +37,28 @@ def _clean_secret(value, *, label: str) -> str:
 
 
 @frappe.whitelist(methods=["POST"])
+def verify_current_password(current_password: str | None = None):
+    user = _current_user()
+    current = _clean_secret(current_password, label="Current password")
+
+    if not current:
+        frappe.throw(_("Current password is required."), ValidationError)
+
+    if not frappe.db.exists("User", user):
+        frappe.throw(_("User account was not found."), ValidationError)
+
+    try:
+        check_password(user, current)
+    except AuthenticationError:
+        frappe.throw(_("Current password is incorrect."), AuthenticationError)
+
+    return {
+        "verified": True,
+        "user": user,
+    }
+
+
+@frappe.whitelist(methods=["POST"])
 def change_password(
     current_password: str | None = None,
     new_password: str | None = None,

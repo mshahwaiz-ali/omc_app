@@ -304,20 +304,9 @@ class SettingsScreen extends ConsumerWidget {
     }
 
     try {
-      final verifiedSession = await ref
+      await ref
           .read(authRepositoryProvider)
-          .loginWithPassword(email: identifier, password: password);
-
-      if (!context.mounted) return;
-
-      if (verifiedSession.userId.trim().toLowerCase() !=
-          identifier.toLowerCase()) {
-        _showSnack(context, 'Password verification failed.');
-        return;
-      }
-
-      await WidgetsBinding.instance.endOfFrame;
-      await Future<void>.delayed(const Duration(milliseconds: 220));
+          .verifyCurrentPassword(currentPassword: password);
 
       if (!context.mounted) return;
 
@@ -329,7 +318,7 @@ class SettingsScreen extends ConsumerWidget {
 
       if (enabled) {
         await service.enrollBiometricLogin(
-          identifier: verifiedSession.userId.trim(),
+          identifier: identifier,
           password: password,
         );
         ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();

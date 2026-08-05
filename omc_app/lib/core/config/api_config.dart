@@ -151,6 +151,8 @@ class ApiConfig {
       'omc_app.api.password_reset.reset_password';
   static const String changePasswordMethod =
       'omc_app.api.account_security.change_password';
+  static const String verifyCurrentPasswordMethod =
+      'omc_app.api.account_security.verify_current_password';
 
   static const String logoutMethod = 'logout';
   static const String googleLoginMethod =
