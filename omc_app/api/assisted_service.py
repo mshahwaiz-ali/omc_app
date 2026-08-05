@@ -640,6 +640,16 @@ def convert_manual_customer(manual_customer=None, request_name=None):
             frappe.ValidationError,
         )
 
+    identity = _text(
+        getattr(manual, "cnic", None)
+        or getattr(manual, "ntn", None)
+    )
+    if not identity:
+        frappe.throw(
+            "Customer CNIC or NTN is required before conversion.",
+            frappe.ValidationError,
+        )
+
     linked_profile = _text(
         getattr(manual, "linked_customer_profile", None)
     )
