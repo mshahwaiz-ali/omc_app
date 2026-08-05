@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageService {
@@ -17,6 +19,8 @@ class SecureStorageService {
   static const String _biometricLoginIdentifierKey =
       'biometric_login_identifier';
   static const String _biometricLoginPasswordKey = 'biometric_login_password';
+  static const String _biometricLoginAccountsKey =
+      'biometric_login_accounts_v2';
 
   Future<void> saveSessionCookie(String value) {
     return _storage.write(key: _sessionCookieKey, value: value);
@@ -98,10 +102,87 @@ class SecureStorageService {
     return _storage.read(key: _biometricLoginPasswordKey);
   }
 
+  Future<List<Map<String, String>>> readBiometricLoginAccounts() async {
+    final encoded = await _storage.read(key: _biometricLoginAccountsKey);
+
+    if (encoded != null && encoded.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(encoded);
+        if (decoded is List) {
+          return decoded
+              .whereType<Map>()
+              .map((item) {
+                final identifier = item['identifier']?.toString().trim() ?? '';
+                final password = item['password']?.toString() ?? '';
+                return <String, String>{
+                  'identifier': identifier,
+                  'password': password,
+                };
+              })
+              .where(
+                (item) =>
+                    item['identifier']!.isNotEmpty &&
+                    item['password']!.isNotEmpty,
+              )
+              .toList(growable: false);
+        }
+      } catch (_) {
+        // Fall through to legacy migration.
+      }
+    }
+
+    final legacyEnabled = await readBiometricLoginEnabled();
+    final legacyIdentifier = await readBiometricLoginIdentifier();
+    final legacyPassword = await readBiometricLoginPassword();
+
+    if (!legacyEnabled ||
+        legacyIdentifier == null ||
+        legacyIdentifier.trim().isEmpty ||
+        legacyPassword == null ||
+        legacyPassword.isEmpty) {
+      return const [];
+    }
+
+    final migrated = <Map<String, String>>[
+      {'identifier': legacyIdentifier.trim(), 'password': legacyPassword},
+    ];
+
+    await saveBiometricLoginAccounts(migrated);
+    return migrated;
+  }
+
+  Future<void> saveBiometricLoginAccounts(
+    List<Map<String, String>> accounts,
+  ) async {
+    final cleanAccounts = accounts
+        .map(
+          (item) => <String, String>{
+            'identifier': item['identifier']?.trim() ?? '',
+            'password': item['password'] ?? '',
+          },
+        )
+        .where(
+          (item) =>
+              item['identifier']!.isNotEmpty && item['password']!.isNotEmpty,
+        )
+        .toList(growable: false);
+
+    await _storage.write(
+      key: _biometricLoginAccountsKey,
+      value: jsonEncode(cleanAccounts),
+    );
+
+    await _storage.write(
+      key: _biometricLoginEnabledKey,
+      value: cleanAccounts.isEmpty ? '0' : '1',
+    );
+  }
+
   Future<void> clearBiometricLogin() async {
     await _storage.delete(key: _biometricLoginEnabledKey);
     await _storage.delete(key: _biometricLoginIdentifierKey);
     await _storage.delete(key: _biometricLoginPasswordKey);
+    await _storage.delete(key: _biometricLoginAccountsKey);
   }
 
   Future<void> clearSession() async {

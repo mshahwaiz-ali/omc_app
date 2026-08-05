@@ -75,18 +75,104 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     FocusScope.of(context).unfocus();
+
     setState(() {
       _biometricSubmissionInFlight = true;
       _loginError = null;
     });
 
+    final accounts = await ref.read(deviceLockServiceProvider).accounts();
+
+    if (!mounted) return;
+
+    if (accounts.isEmpty) {
+      setState(() {
+        _biometricSubmissionInFlight = false;
+        _loginError =
+            'No account is registered for biometric sign in on this device.';
+      });
+      return;
+    }
+
+    String? selectedIdentifier;
+
+    if (accounts.length == 1) {
+      selectedIdentifier = accounts.single.identifier;
+    } else {
+      selectedIdentifier = await showModalBottomSheet<String>(
+        context: context,
+        useSafeArea: true,
+        showDragHandle: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (sheetContext) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Choose an account',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Select which OMC account you want to sign in to, then verify your fingerprint or face.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                for (final account in accounts)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person_outline_rounded),
+                    ),
+                    title: Text(
+                      account.identifier,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop(account.identifier);
+                    },
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    if (!mounted) return;
+
+    if (selectedIdentifier == null || selectedIdentifier.trim().isEmpty) {
+      setState(() {
+        _biometricSubmissionInFlight = false;
+      });
+      return;
+    }
+
     final authenticated = await ref
         .read(authControllerProvider.notifier)
-        .loginWithBiometrics();
+        .loginWithBiometrics(selectedIdentifier);
 
     if (!mounted) return;
 
     final authState = ref.read(authControllerProvider);
+
     if (authenticated && authState.status == AuthStatus.authenticated) {
       context.go(authState.capabilities.isPending ? '/under-review' : '/home');
       return;
@@ -95,7 +181,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _biometricSubmissionInFlight = false;
       _loginError =
-          'Fingerprint sign in was not completed. '
+          'Biometric sign in was not completed. '
           'Try again or sign in with your password.';
     });
   }

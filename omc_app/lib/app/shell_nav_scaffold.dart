@@ -259,8 +259,9 @@ class ShellNavScaffold extends ConsumerWidget {
     try {
       await ref.read(authControllerProvider.notifier).logout();
       ref.invalidate(profileSummaryProvider);
-      if (!context.mounted) return;
-      context.go('/login');
+
+      // Authentication state drives the router redirect. Avoid a competing
+      // context.go call while the previous route tree is being removed.
     } catch (error) {
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(

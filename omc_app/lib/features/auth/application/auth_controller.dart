@@ -63,20 +63,37 @@ class AuthController extends Notifier<AuthState> {
         password: password,
       );
 
+      // Manual password authentication has already verified the user.
+      // Unlock this runtime session before authenticated state is exposed,
+      // so DeviceLockGate cannot flash or block after password login.
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+
       await _activateSession(session);
     } catch (error) {
       await _authRepository.clearSession();
+
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+
       state = AuthState.unauthenticated(message: _safeLoginMessage(error));
     }
   }
 
-  Future<bool> loginWithBiometrics() async {
+  Future<bool> loginWithBiometrics(String identifier) async {
+    final cleanIdentifier = identifier.trim();
+
+    if (cleanIdentifier.isEmpty) {
+      state = const AuthState.unauthenticated(
+        message: 'Select a biometric login account.',
+      );
+      return false;
+    }
+
     state = const AuthState.authenticating();
 
     try {
       final credentials = await ref
           .read(deviceLockServiceProvider)
-          .authenticateAndReadBiometricLogin();
+          .authenticateAndReadBiometricLoginFor(cleanIdentifier);
 
       if (credentials == null) {
         state = const AuthState.unauthenticated(
@@ -90,10 +107,13 @@ class AuthController extends Notifier<AuthState> {
         password: credentials.password,
       );
 
-      await _activateSession(session);
       ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+
+      await _activateSession(session);
       return true;
     } catch (error) {
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+
       state = AuthState.unauthenticated(message: _safeLoginMessage(error));
       return false;
     }
@@ -163,8 +183,12 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _authRepository.logout();
-    ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+
+    // Remove authenticated ownership first. Locking while still authenticated
+    // can briefly mount DeviceLockGate during logout and destabilize overlays.
     state = const AuthState.unauthenticated();
+
+    ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
     ref.read(sessionEpochProvider.notifier).advance();
     ref.invalidate(activeDirtyFormProvider);
   }
@@ -176,10 +200,12 @@ class AuthController extends Notifier<AuthState> {
     _sessionExpiryInFlight = true;
     try {
       await _authRepository.clearSession();
-      ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+
       state = const AuthState.unauthenticated(
         message: 'Your session has expired. Please sign in again.',
       );
+
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
       ref.read(sessionEpochProvider.notifier).advance();
       ref.invalidate(activeDirtyFormProvider);
     } finally {

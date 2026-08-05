@@ -37,8 +37,12 @@ class SettingsScreen extends ConsumerWidget {
     final mobileConfig =
         ref.watch(mobileAppConfigProvider).value ?? MobileAppConfig.fallback;
     final packageInfo = ref.watch(appPackageInfoProvider);
+    final activeIdentity = authState.userId?.trim() ?? '';
+
     final deviceLockEnabled =
-        ref.watch(deviceLockEnabledProvider).value ?? false;
+        activeIdentity.isNotEmpty &&
+        ref.watch(biometricLoginEnabledForProvider(activeIdentity)).value ==
+            true;
     final profile = profileSummary.maybeWhen(
       data: (profile) => profile,
       orElse: () => null,
@@ -257,11 +261,25 @@ class SettingsScreen extends ConsumerWidget {
   }) async {
     final service = ref.read(deviceLockServiceProvider);
     if (currentlyEnabled) {
-      await service.disable();
+      final identity = ref.read(authControllerProvider).userId?.trim() ?? '';
+
+      if (identity.isNotEmpty) {
+        await service.removeBiometricLoginFor(identity);
+      }
+
       ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
+
       ref.invalidate(deviceLockEnabledProvider);
       ref.invalidate(biometricLoginAvailableProvider);
-      if (context.mounted) _showSnack(context, 'Biometric sign in disabled.');
+      ref.invalidate(biometricLoginAccountsProvider);
+
+      if (identity.isNotEmpty) {
+        ref.invalidate(biometricLoginEnabledForProvider(identity));
+      }
+
+      if (context.mounted) {
+        _showSnack(context, 'Biometric sign in disabled for this account.');
+      }
       return;
     }
     if (!await service.isSupported()) {
@@ -302,6 +320,10 @@ class SettingsScreen extends ConsumerWidget {
       await Future<void>.delayed(const Duration(milliseconds: 220));
 
       if (!context.mounted) return;
+
+      // Password verification already authenticated this session.
+      // Enabling biometric must only affect future cold launches.
+      ref.read(deviceLockSessionUnlockedProvider.notifier).markUnlocked();
 
       final enabled = await service.enable();
 

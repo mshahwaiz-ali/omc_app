@@ -266,8 +266,16 @@ List<OmcSheetAction> _moreActions({
 }
 
 void _closeThen(BuildContext context, VoidCallback onTap) {
-  Navigator.of(context).pop();
-  onTap();
+  final navigator = Navigator.of(context);
+
+  navigator.pop();
+
+  // Let the modal route finish detaching before changing auth or router state.
+  // Triggering both in the same frame can corrupt Flutter's Element and
+  // RenderObject ownership bookkeeping.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future<void>.delayed(const Duration(milliseconds: 320), onTap);
+  });
 }
 
 class _MoreSheetContent extends StatelessWidget {

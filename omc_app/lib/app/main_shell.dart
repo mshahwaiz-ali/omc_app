@@ -159,8 +159,9 @@ class _MainShellState extends ConsumerState<MainShell> {
     try {
       await ref.read(authControllerProvider.notifier).logout();
       ref.invalidate(profileSummaryProvider);
-      if (!mounted) return;
-      context.go('/login');
+
+      // GoRouter observes AuthController and redirects unauthenticated users.
+      // Do not issue a second navigation during the same logout transition.
     } catch (error) {
       if (!mounted) return;
       final failure = AppFailureClassifier.classify(
