@@ -1,4 +1,4 @@
-package com.omchouse.app
+package com.wajid.omc_house
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

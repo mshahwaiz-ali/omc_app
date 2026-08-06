@@ -52,7 +52,7 @@ if (isReleaseBuild) {
 }
 
 android {
-    namespace = "com.omchouse.app"
+    namespace = "com.wajid.omc_house"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -62,7 +62,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.omchouse.app"
+        applicationId = "com.wajid.omc_house"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
