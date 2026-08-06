@@ -2012,7 +2012,7 @@ class _StatsGrid extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.34,
+        childAspectRatio: 1.20,
       ),
       itemBuilder: (_, index) => _MetricCard(item: items[index]),
     );
@@ -2082,12 +2082,23 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            item.label,
-            style: const TextStyle(
-              fontSize: 12.4,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textSecondary,
+          SizedBox(
+            height: 34,
+            width: double.infinity,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                item.label,
+                maxLines: 2,
+                softWrap: true,
+                overflow: TextOverflow.visible,
+                style: const TextStyle(
+                  fontSize: 12.4,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 10),

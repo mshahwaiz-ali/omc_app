@@ -886,10 +886,13 @@ class _HeroMetric extends StatelessWidget {
               ),
               Text(
                 label,
-                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                softWrap: true,
+                overflow: TextOverflow.visible,
                 style: const TextStyle(
                   color: _muted,
-                  fontSize: 12,
+                  fontSize: 11.5,
+                  height: 1.15,
                   fontWeight: FontWeight.w500,
                 ),
               ),

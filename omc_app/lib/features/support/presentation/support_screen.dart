@@ -95,20 +95,22 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
               topics: supportTopics,
             ),
             const SizedBox(height: 16),
-            _CreateSupportTicketCard(
-              selectedTopic: _selectedTopic,
-              messageController: _messageController,
-              isSubmitting: _isSubmitting,
-              canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
-              canCreateTicket: capabilities.canCreateSupportTicket,
-              lockedMessage: _lockedAccessMessage(capabilities),
-              topics: supportTopics
-                  .map((topic) => topic.title)
-                  .toList(growable: false),
-              onTopicChanged: _handleTopicChanged,
-              onSubmit: _submitSupportTicket,
-            ),
-            const SizedBox(height: 16),
+            if (!capabilities.canAccessInternalWorkspace) ...[
+              _CreateSupportTicketCard(
+                selectedTopic: _selectedTopic,
+                messageController: _messageController,
+                isSubmitting: _isSubmitting,
+                canSubmit: _canSubmit && capabilities.canCreateSupportTicket,
+                canCreateTicket: capabilities.canCreateSupportTicket,
+                lockedMessage: _lockedAccessMessage(capabilities),
+                topics: supportTopics
+                    .map((topic) => topic.title)
+                    .toList(growable: false),
+                onTopicChanged: _handleTopicChanged,
+                onSubmit: _submitSupportTicket,
+              ),
+              const SizedBox(height: 16),
+            ],
             _SupportTicketsCard(capabilities: capabilities),
             const SizedBox(height: 16),
             _BackendFaqCard(faqsAsync: faqsAsync),

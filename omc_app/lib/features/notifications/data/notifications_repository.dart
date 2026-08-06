@@ -14,18 +14,18 @@ final notificationsRepositoryProvider = Provider<NotificationsRepository>((
   return NotificationsRepository(frappeClient: frappeClient);
 });
 
-final notificationsProvider = FutureProvider<List<NotificationItem>>((
+final notificationsProvider = FutureProvider.autoDispose<List<NotificationItem>>((
   ref,
 ) async {
   final repository = ref.watch(notificationsRepositoryProvider);
   return repository.fetchNotifications();
 });
 
-final notificationPageProvider = FutureProvider<NotificationPage>((ref) {
+final notificationPageProvider = FutureProvider.autoDispose<NotificationPage>((ref) {
   return ref.watch(notificationsRepositoryProvider).fetchNotificationPage();
 });
 
-final unreadNotificationsProvider = FutureProvider<int>((ref) async {
+final unreadNotificationsProvider = FutureProvider.autoDispose<int>((ref) async {
   final repository = ref.watch(notificationsRepositoryProvider);
   return repository.fetchUnreadCount();
 });
