@@ -77,11 +77,13 @@ class OmcBottomNav extends StatelessWidget {
             ? Colors.white
             : const Color(0xFF111827));
 
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return Material(
       color: Colors.white,
       elevation: 0,
-      child: SafeArea(
-        top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
         child: Container(
           height: 72,
           padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),

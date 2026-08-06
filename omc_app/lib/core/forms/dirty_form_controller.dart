@@ -94,11 +94,13 @@ class UnsavedChangesGuard extends ConsumerStatefulWidget {
   const UnsavedChangesGuard({
     required this.controller,
     required this.child,
+    this.onDiscardConfirmed,
     super.key,
   });
 
   final DirtyFormController controller;
   final Widget child;
+  final Future<void> Function()? onDiscardConfirmed;
 
   @override
   ConsumerState<UnsavedChangesGuard> createState() =>
@@ -161,7 +163,16 @@ class _UnsavedChangesGuardState extends ConsumerState<UnsavedChangesGuard> {
         final discard = await showDiscardChangesDialog(context);
         if (!discard || !context.mounted) return;
         widget.controller.allowNextExit();
-        Navigator.of(context).pop(result);
+
+        final onDiscardConfirmed = widget.onDiscardConfirmed;
+        if (onDiscardConfirmed != null) {
+          await onDiscardConfirmed();
+          return;
+        }
+
+        if (context.mounted) {
+          await Navigator.of(context).maybePop(result);
+        }
       },
       child: widget.child,
     );

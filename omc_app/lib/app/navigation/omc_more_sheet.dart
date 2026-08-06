@@ -36,6 +36,8 @@ Future<bool> showOmcMoreSheet({
   required VoidCallback onOpenTasks,
   required VoidCallback onLogout,
 }) async {
+  final bottomSafeInset = MediaQuery.viewPaddingOf(context).bottom;
+
   final selectedAction = await showModalBottomSheet<VoidCallback>(
     context: context,
     useSafeArea: true,
@@ -74,6 +76,7 @@ Future<bool> showOmcMoreSheet({
       return _MoreSheetContent(
         actions: actions,
         capabilities: capabilities,
+        bottomSafeInset: bottomSafeInset,
         displayName: displayName,
         companyName: companyName,
         customerStatus: customerStatus,
@@ -279,6 +282,7 @@ class _MoreSheetContent extends StatelessWidget {
   const _MoreSheetContent({
     required this.actions,
     required this.capabilities,
+    required this.bottomSafeInset,
     required this.displayName,
     required this.companyName,
     required this.customerStatus,
@@ -288,6 +292,7 @@ class _MoreSheetContent extends StatelessWidget {
 
   final List<OmcSheetAction> actions;
   final AuthCapabilities capabilities;
+  final double bottomSafeInset;
   final String? displayName;
   final String? companyName;
   final String? customerStatus;
@@ -301,7 +306,7 @@ class _MoreSheetContent extends StatelessWidget {
         maxHeight: MediaQuery.sizeOf(context).height * 0.72,
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
+        padding: EdgeInsets.fromLTRB(18, 4, 18, bottomSafeInset + 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,

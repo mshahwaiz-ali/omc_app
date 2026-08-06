@@ -591,8 +591,12 @@ def sign_up(**kwargs):
         profile.user = email
         profile.email = email
         profile.full_name = full_name
-        profile.customer_status = "Pending"
-        profile.approval_status = "Pending Review"
+        if register_as.strip().lower() == "customer":
+            profile.customer_status = "Active"
+            profile.approval_status = "Approved"
+        else:
+            profile.customer_status = "Pending"
+            profile.approval_status = "Pending Review"
         profile.is_active = 1
         profile_created = True
 

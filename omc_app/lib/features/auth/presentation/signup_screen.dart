@@ -519,6 +519,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     return UnsavedChangesGuard(
       controller: _dirtyForm,
+      onDiscardConfirmed: () async {
+        if (mounted) context.go('/login');
+      },
       child: AuthEntryScaffold(
         title: 'Create your account',
         subtitle: 'A focused four-step setup for your OMC access.',

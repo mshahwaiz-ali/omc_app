@@ -439,7 +439,15 @@ class SignupPreferencesStep extends StatelessWidget {
                     LengthLimitingTextInputFormatter(12),
                   ],
                   onChanged: (value) {
-                    final normalized = value.toUpperCase().replaceAll(' ', '');
+                    final compact = value.toUpperCase().replaceAll(
+                      RegExp(r'[^A-Z0-9]'),
+                      '',
+                    );
+
+                    final normalized = compact.length <= 3
+                        ? compact
+                        : '${compact.substring(0, 3)}-${compact.substring(3)}';
+
                     if (normalized != value) {
                       referralCodeController.value = TextEditingValue(
                         text: normalized,
