@@ -9,8 +9,6 @@ import '../../home/data/home_dashboard_repository.dart';
 import '../data/notification_item.dart';
 import '../data/notifications_repository.dart';
 
-enum _NotificationFilter { all, unread }
-
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -20,7 +18,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
-  _NotificationFilter _filter = _NotificationFilter.all;
+  bool _autoReadScheduled = false;
   final Set<String> _hiddenIds = <String>{};
   final Set<String> _mutationIds = <String>{};
   final List<NotificationItem> _additionalItems = [];
@@ -32,7 +30,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final asyncNotifications = ref.watch(notificationPageProvider);
-    final canonicalUnread = ref.watch(unreadNotificationsProvider).value;
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator.adaptive(
@@ -49,47 +46,27 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   .where((item) => !_hiddenIds.contains(item.id))
                   .toList();
               final loadedUnread = visible.where((item) => !item.isRead).length;
-              final unreadCount = canonicalUnread ?? loadedUnread;
-              final filtered = _filter == _NotificationFilter.unread
-                  ? visible.where((item) => !item.isRead).toList()
-                  : visible;
+
+              if (loadedUnread > 0 && !_autoReadScheduled) {
+                _autoReadScheduled = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _markOpenedNotificationsAsRead();
+                });
+              }
+
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 144),
                 children: [
-                  _Header(
-                    unreadCount: unreadCount,
-                    onReadAll: unreadCount > 0 ? _readAll : null,
-                  ),
+                  _Header(unreadCount: loadedUnread, onReadAll: null),
                   const SizedBox(height: 16),
-                  SegmentedButton<_NotificationFilter>(
-                    segments: [
-                      const ButtonSegment(
-                        value: _NotificationFilter.all,
-                        label: Text('All'),
-                      ),
-                      ButtonSegment(
-                        value: _NotificationFilter.unread,
-                        label: Text(
-                          unreadCount > 0 ? 'Unread $unreadCount' : 'Unread',
-                        ),
-                      ),
-                    ],
-                    selected: {_filter},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (value) =>
-                        setState(() => _filter = value.first),
-                  ),
-                  const SizedBox(height: 12),
-                  if (filtered.isEmpty)
-                    _EmptyState(
-                      unreadOnly: _filter == _NotificationFilter.unread,
-                    )
+                  if (visible.isEmpty)
+                    const _EmptyState(unreadOnly: false)
                   else
                     _NotificationList(
-                      items: filtered,
+                      items: visible,
                       onOpen: _open,
                       onDismiss: _dismiss,
                     ),
@@ -129,6 +106,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   Future<void> _refresh() async {
+    _autoReadScheduled = false;
     _didSeedPage = false;
     _additionalItems.clear();
     _nextStart = null;
@@ -169,13 +147,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
-  Future<void> _readAll() async {
+  Future<void> _markOpenedNotificationsAsRead() async {
     try {
       await ref
           .read(notificationsRepositoryProvider)
           .markAllNotificationsAsRead();
-      await _refresh();
+
+      if (!mounted) return;
+      _invalidateNotificationSurfaces();
     } catch (error) {
+      _autoReadScheduled = false;
       _showError(error);
     }
   }

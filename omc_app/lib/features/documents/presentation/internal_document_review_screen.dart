@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/config/api_config.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -16,6 +14,7 @@ import '../../../core/widgets/premium_list_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
+import 'document_preview_screen.dart';
 
 const _documentIndigo = Color(0xFF4F46E5);
 const _reviewTeal = Color(0xFF0F9F8F);
@@ -219,60 +218,30 @@ class _InternalDocumentReviewScreenState
 
   Future<void> _openDocumentPreview(DocumentItem document) async {
     final messenger = ScaffoldMessenger.of(context);
-    final rawUrl =
-        (document.previewUrl ?? document.fileUrl ?? document.downloadUrl)
-            ?.trim();
-
-    if (rawUrl == null || rawUrl.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('No uploaded file is available to preview.'),
-        ),
-      );
-      return;
-    }
-
-    final parsed = Uri.tryParse(rawUrl);
-    Uri? uri;
-
-    if (parsed != null && parsed.hasScheme) {
-      final scheme = parsed.scheme.toLowerCase();
-      if (scheme == 'http' || scheme == 'https') {
-        uri = parsed;
-      }
-    } else if (rawUrl.startsWith('/')) {
-      final baseUri = Uri.tryParse(ApiConfig.baseUrl);
-      if (baseUri != null && baseUri.hasScheme) {
-        uri = baseUri.resolve(rawUrl);
-      }
-    }
-
-    if (uri == null) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('The uploaded file link is invalid.')),
-      );
-      return;
-    }
 
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final file = await ref
+          .read(documentsRepositoryProvider)
+          .downloadDocument(document);
 
       if (!mounted) return;
 
-      if (!opened) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('The uploaded file could not be opened.'),
-          ),
-        );
-      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) =>
+              DocumentPreviewScreen(fileName: file.name, bytes: file.bytes),
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
+
       final failure = AppFailureClassifier.classify(
         error,
         fallbackTitle: 'Preview unavailable',
-        fallbackMessage: 'The uploaded file could not be opened right now.',
+        fallbackMessage:
+            'The authenticated document could not be opened right now.',
       );
+
       messenger.showSnackBar(SnackBar(content: Text(failure.message)));
     }
   }

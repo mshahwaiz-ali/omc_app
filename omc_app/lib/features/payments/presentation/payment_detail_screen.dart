@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/mutation_invalidation.dart';
@@ -14,6 +13,7 @@ import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../documents/application/document_attachment_controller.dart';
+import '../../documents/presentation/document_preview_screen.dart';
 import '../data/payment_item.dart';
 import '../data/payments_repository.dart';
 import 'widgets/payment_action_card.dart';
@@ -757,13 +757,17 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () {
+              FocusScope.of(dialogContext).unfocus();
+              Navigator.pop(dialogContext);
+            },
             child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () {
               final value = remarksController.text.trim();
               if (status == 'Rejected' && value.isEmpty) return;
+              FocusScope.of(dialogContext).unfocus();
               Navigator.pop(dialogContext, value);
             },
             child: Text(status == 'Rejected' ? 'Reject' : 'Approve'),
@@ -771,6 +775,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
         ],
       ),
     );
+
+    await Future<void>.delayed(Duration.zero);
     remarksController.dispose();
     if (remarks == null || !mounted) return;
 
@@ -818,9 +824,14 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       final file = await ref
           .read(paymentsRepositoryProvider)
           .downloadReceipt(payment);
-      await Share.shareXFiles([
-        XFile.fromData(file.bytes, name: file.name),
-      ], subject: 'Payment receipt ${payment.id}');
+      if (!context.mounted) return;
+
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) =>
+              DocumentPreviewScreen(fileName: file.name, bytes: file.bytes),
+        ),
+      );
     } catch (error) {
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(

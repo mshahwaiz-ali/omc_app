@@ -2682,6 +2682,7 @@ def get_notifications(start=0, limit=50):
 
     filters = {
         "visible_to_customer": 1,
+        "is_read": 0,
     }
     if _doctype_has_field("OMC Notification", "is_dismissed"):
         filters["is_dismissed"] = 0
@@ -4084,7 +4085,19 @@ def get_internal_workspace_summary():
         ),
         "documents": frappe.db.count("OMC Service Document"),
         "payments_due": frappe.db.count("OMC Service Payment", {"status": "Pending"}),
-        "unread_notifications": frappe.db.count("OMC Notification", {"is_read": 0}),
+        "unread_notifications": frappe.db.count(
+            "OMC Notification",
+            {
+                "visible_to_customer": 1,
+                "is_read": 0,
+                "recipient_user": user,
+                **(
+                    {"is_dismissed": 0}
+                    if _doctype_has_field("OMC Notification", "is_dismissed")
+                    else {}
+                ),
+            },
+        ),
         "my_assigned_services": frappe.db.count(
             "OMC Service Request",
             my_filters,

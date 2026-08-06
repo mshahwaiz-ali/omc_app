@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -14,18 +15,21 @@ final notificationsRepositoryProvider = Provider<NotificationsRepository>((
   return NotificationsRepository(frappeClient: frappeClient);
 });
 
-final notificationsProvider = FutureProvider.autoDispose<List<NotificationItem>>((
-  ref,
-) async {
-  final repository = ref.watch(notificationsRepositoryProvider);
-  return repository.fetchNotifications();
-});
+final notificationsProvider =
+    FutureProvider.autoDispose<List<NotificationItem>>((ref) async {
+      final repository = ref.watch(notificationsRepositoryProvider);
+      return repository.fetchNotifications();
+    });
 
-final notificationPageProvider = FutureProvider.autoDispose<NotificationPage>((ref) {
+final notificationPageProvider = FutureProvider.autoDispose<NotificationPage>((
+  ref,
+) {
   return ref.watch(notificationsRepositoryProvider).fetchNotificationPage();
 });
 
-final unreadNotificationsProvider = FutureProvider.autoDispose<int>((ref) async {
+final unreadNotificationsProvider = FutureProvider.autoDispose<int>((
+  ref,
+) async {
   final repository = ref.watch(notificationsRepositoryProvider);
   return repository.fetchUnreadCount();
 });
@@ -56,6 +60,11 @@ class NotificationsRepository {
         queryParameters: {'start': start, 'limit': limit},
       );
       final items = _mapNotificationsResponse(response);
+      debugPrint(
+        '[NOTIFICATIONS] page start=$start items=${items.length} '
+        'ids=${items.map((item) => item.id).toList()} '
+        'unread=${items.where((item) => !item.isRead).length}',
+      );
       final message = response['message'];
       final payload = message is Map<String, dynamic> ? message : response;
       final hasMore = _boolValue(payload['has_more']);
@@ -85,8 +94,11 @@ class NotificationsRepository {
     final value = message is Map<String, dynamic>
         ? message['count']
         : response['count'];
-    if (value is num) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? 0;
+    final count = value is num
+        ? value.toInt()
+        : int.tryParse(value?.toString() ?? '') ?? 0;
+    debugPrint('[NOTIFICATIONS] backend unread count=$count');
+    return count;
   }
 
   Future<void> markNotificationAsRead(String notificationId) async {

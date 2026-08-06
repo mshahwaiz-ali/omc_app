@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
@@ -8,6 +10,13 @@ import '../../../core/network/mutation_intent.dart';
 import '../../../core/uploads/upload_coordinator.dart';
 import 'document_attachment.dart';
 import 'document_item.dart';
+
+class AuthenticatedDocumentFile {
+  const AuthenticatedDocumentFile({required this.name, required this.bytes});
+
+  final String name;
+  final Uint8List bytes;
+}
 
 final documentsRepositoryProvider = Provider<DocumentsRepository>((ref) {
   final frappeClient = ref.watch(frappeClientProvider);
@@ -83,6 +92,31 @@ class DocumentsRepository {
     );
 
     return _mapDocumentDetailResponse(response);
+  }
+
+  Future<AuthenticatedDocumentFile> downloadDocument(
+    DocumentItem document,
+  ) async {
+    final location =
+        (document.previewUrl ?? document.fileUrl ?? document.downloadUrl)
+            ?.trim() ??
+        '';
+
+    if (location.isEmpty) {
+      throw const ApiError(
+        message: 'No uploaded file is attached to this document.',
+      );
+    }
+
+    final uri = Uri.tryParse(location);
+    final name = uri?.pathSegments.isNotEmpty == true
+        ? Uri.decodeComponent(uri!.pathSegments.last)
+        : 'document-file';
+
+    return AuthenticatedDocumentFile(
+      name: name.isEmpty ? 'document-file' : name,
+      bytes: await _frappeClient.getAuthenticatedFile(location),
+    );
   }
 
   Future<void> updateServiceDocumentStatus({

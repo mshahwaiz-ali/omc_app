@@ -51,6 +51,7 @@ dependencies:
   package_info_plus: ^9.0.1
   local_auth: ^2.3.0
   sentry_flutter: ^9.26.0
+  pdfrx: ^2.4.7
 
 dev_dependencies:
   flutter_test:

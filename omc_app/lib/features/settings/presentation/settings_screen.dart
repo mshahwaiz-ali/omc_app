@@ -326,6 +326,8 @@ class SettingsScreen extends ConsumerWidget {
 
       ref.invalidate(deviceLockEnabledProvider);
       ref.invalidate(biometricLoginAvailableProvider);
+      ref.invalidate(biometricLoginAccountsProvider);
+      ref.invalidate(biometricLoginEnabledForProvider(identifier));
 
       if (context.mounted) {
         _showSnack(
