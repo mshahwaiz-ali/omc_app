@@ -2682,7 +2682,6 @@ def get_notifications(start=0, limit=50):
 
     filters = {
         "visible_to_customer": 1,
-        "is_read": 0,
     }
     if _doctype_has_field("OMC Notification", "is_dismissed"):
         filters["is_dismissed"] = 0
