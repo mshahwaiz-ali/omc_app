@@ -115,10 +115,17 @@ class TestSignupRoleNormalization(FrappeTestCase):
 
         user = frappe.get_doc("User", email)
         roles = {row.role for row in user.roles}
+        profile = frappe.get_doc(
+            "OMC Customer Profile",
+            result["profile"]["customer_id"],
+        )
+
         self.assertEqual(user.user_type, "Website User")
         self.assertIn(CUSTOMER_ROLE, roles)
         self.assertNotIn("OMC Customer Applicant", roles)
-        self.assertEqual(result["access_state"], "pending")
+        self.assertEqual(profile.customer_status, "Active")
+        self.assertEqual(profile.approval_status, "Approved")
+        self.assertEqual(result["access_state"], "approved")
 
     def test_existing_internal_user_cannot_be_targeted_by_guest_signup(self):
         email = self._email("internal-signup")

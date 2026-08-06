@@ -3,6 +3,9 @@ class TaskItem {
     required this.id,
     required this.title,
     required this.status,
+    required this.erpStatus,
+    required this.operationStatus,
+    required this.allowedTransitions,
     required this.priority,
     required this.dueDateLabel,
     required this.assignedTo,
@@ -18,6 +21,9 @@ class TaskItem {
   final String id;
   final String title;
   final String status;
+  final String erpStatus;
+  final String operationStatus;
+  final List<TaskTransition> allowedTransitions;
   final String priority;
   final String dueDateLabel;
   final String assignedTo;
@@ -36,7 +42,16 @@ class TaskItem {
         json['subject'] ?? json['title'] ?? json['task_name'],
         fallback: 'Untitled Task',
       ),
-      status: _stringValue(json['status'], fallback: 'Open'),
+      status: _stringValue(
+        json['display_status'] ?? json['status'],
+        fallback: 'Open',
+      ),
+      erpStatus: _stringValue(
+        json['erp_status'] ?? json['status'],
+        fallback: 'Open',
+      ),
+      operationStatus: _stringValue(json['operation_status']),
+      allowedTransitions: _transitionList(json['allowed_transitions']),
       priority: _stringValue(json['priority'], fallback: 'Normal'),
       dueDateLabel: _stringValue(
         json['exp_end_date'] ??
@@ -61,6 +76,16 @@ class TaskItem {
     );
   }
 
+  static List<TaskTransition> _transitionList(dynamic value) {
+    if (value is! List) return const [];
+
+    return value
+        .whereType<Map>()
+        .map((item) => TaskTransition.fromJson(Map<String, dynamic>.from(item)))
+        .where((item) => item.value.isNotEmpty)
+        .toList(growable: false);
+  }
+
   static String _stringValue(dynamic value, {String fallback = ''}) {
     final text = value?.toString().trim() ?? '';
     return text.isEmpty ? fallback : text;
@@ -70,5 +95,35 @@ class TaskItem {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) return null;
     return text;
+  }
+}
+
+class TaskTransition {
+  const TaskTransition({
+    required this.value,
+    required this.label,
+    required this.requiresConfirmation,
+    required this.terminal,
+  });
+
+  final String value;
+  final String label;
+  final bool requiresConfirmation;
+  final bool terminal;
+
+  factory TaskTransition.fromJson(Map<String, dynamic> json) {
+    return TaskTransition(
+      value: TaskItem._stringValue(json['value']),
+      label: TaskItem._stringValue(
+        json['label'],
+        fallback: TaskItem._stringValue(json['value']),
+      ),
+      requiresConfirmation: _boolValue(json['requires_confirmation']),
+      terminal: _boolValue(json['terminal']),
+    );
+  }
+
+  static bool _boolValue(dynamic value) {
+    return value == true || value == 1 || value == '1';
   }
 }

@@ -33,7 +33,7 @@ class TestErpTaskWriteGuard(FrappeTestCase):
         }
 
     def test_manager_can_update_linked_task_operation_status(self):
-        task = self._task()
+        task = self._task("Submitted by Operation")
         with (
             patch.object(
                 task_write_guard.mobile,
@@ -68,7 +68,7 @@ class TestErpTaskWriteGuard(FrappeTestCase):
         )
 
     def test_assigned_staff_can_update_assigned_task(self):
-        task = self._task()
+        task = self._task("Pending at Operation Side")
         with (
             patch.object(
                 task_write_guard.mobile,
@@ -208,6 +208,64 @@ class TestErpTaskWriteGuard(FrappeTestCase):
                 operation_status="Pending at Client",
             )
 
+    def test_rejects_invalid_direct_qc_completion_jump(self):
+        task = self._task("Open")
+        with (
+            patch.object(
+                task_write_guard.mobile,
+                "_assert_internal_workspace_access",
+                return_value="manager@example.com",
+            ),
+            patch.object(
+                task_write_guard.mobile,
+                "_require_canonical_capability",
+                return_value={"can_manage_tasks": True},
+            ),
+            patch.object(
+                task_write_guard,
+                "_load_linked_task",
+                return_value=(task, self._link()),
+            ),
+            self.assertRaisesRegex(
+                frappe.ValidationError,
+                "Task cannot move from Open to Submitted by QC",
+            ),
+        ):
+            task_write_guard.update_task_operation_status(
+                task_id="ERP-TASK-1",
+                operation_status="Submitted by QC",
+            )
+
+    def test_rejects_completed_erp_task_update(self):
+        task = self._task("Pending at QC")
+        task.status = "Completed"
+
+        with (
+            patch.object(
+                task_write_guard.mobile,
+                "_assert_internal_workspace_access",
+                return_value="manager@example.com",
+            ),
+            patch.object(
+                task_write_guard.mobile,
+                "_require_canonical_capability",
+                return_value={"can_manage_tasks": True},
+            ),
+            patch.object(
+                task_write_guard,
+                "_load_linked_task",
+                return_value=(task, self._link()),
+            ),
+            self.assertRaisesRegex(
+                frappe.ValidationError,
+                "completed or cancelled ERP Task cannot be updated",
+            ),
+        ):
+            task_write_guard.update_task_operation_status(
+                task_id="ERP-TASK-1",
+                operation_status="Submitted by QC",
+            )
+
     def test_rejects_unsupported_operation_status(self):
         task = self._task()
         with (
@@ -263,6 +321,99 @@ class TestErpTaskWriteGuard(FrappeTestCase):
             )
 
         self.assertFalse(result["updated"])
+
+    def test_manager_gets_secure_task_assignment_options(self):
+        task = self._task()
+        link = self._link()
+
+        def users_for_role(role):
+            return {
+                "OMC Consultant": ["consultant@example.com"],
+                "OMC Tax Associate": ["tax@example.com"],
+                "OMC Manager": ["manager@example.com"],
+                "OMC Business Partner": ["consultant@example.com"],
+            }.get(role, [])
+
+        with (
+            patch.object(
+                task_write_guard.mobile,
+                "_assert_internal_workspace_access",
+                return_value="manager@example.com",
+            ),
+            patch.object(
+                task_write_guard.mobile,
+                "_require_canonical_capability",
+                return_value={"can_manage_tasks": True},
+            ),
+            patch.object(
+                task_write_guard,
+                "_load_linked_task",
+                return_value=(task, link),
+            ),
+            patch.object(
+                task_write_guard.service_assignment,
+                "users_for_role",
+                side_effect=users_for_role,
+            ),
+            patch.object(
+                task_write_guard.task_read_guard,
+                "_assigned_users",
+                return_value=["tax@example.com"],
+            ) as assigned_users,
+            patch.object(
+                task_write_guard.frappe,
+                "get_meta",
+                return_value=SimpleNamespace(
+                    get_field=lambda fieldname: SimpleNamespace(
+                        options="Low\nMedium\nHigh\nUrgent"
+                    )
+                    if fieldname == "priority"
+                    else None
+                ),
+            ),
+            patch.object(
+                task_write_guard.frappe.db,
+                "get_value",
+                side_effect=lambda doctype, name, fieldname: {
+                    "consultant@example.com": "Consultant User",
+                    "manager@example.com": "Manager User",
+                    "tax@example.com": "Tax User",
+                }.get(name),
+            ),
+        ):
+            result = task_write_guard.get_task_assignment_options(
+                task_id="ERP-TASK-1",
+            )
+
+        self.assertEqual(result["task_id"], "ERP-TASK-1")
+        self.assertEqual(result["current_assignee"], "tax@example.com")
+        self.assertEqual(
+            [item["user_id"] for item in result["assignment_candidates"]],
+            [
+                "consultant@example.com",
+                "manager@example.com",
+                "tax@example.com",
+            ],
+        )
+        assigned_users.assert_called_once_with("ERP-TASK-1")
+
+    def test_non_manager_cannot_view_task_assignment_options(self):
+        with (
+            patch.object(
+                task_write_guard.mobile,
+                "_assert_internal_workspace_access",
+                return_value="staff@example.com",
+            ),
+            patch.object(
+                task_write_guard.mobile,
+                "_require_canonical_capability",
+                return_value={"can_manage_tasks": False},
+            ),
+            self.assertRaises(frappe.PermissionError),
+        ):
+            task_write_guard.get_task_assignment_options(
+                task_id="ERP-TASK-1",
+            )
 
     def test_manager_can_reassign_linked_task(self):
         task = self._task()

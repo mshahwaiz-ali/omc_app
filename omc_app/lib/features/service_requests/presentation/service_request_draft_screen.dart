@@ -528,7 +528,7 @@ class _ServiceRequestDraftScreenState
         SnackBar(
           content: Text(
             result.duplicate
-                ? 'Your existing active request is ready to continue.'
+                ? 'An active request already exists for this customer and service.'
                 : 'Service request submitted to OMC.',
           ),
         ),
@@ -594,10 +594,12 @@ class _ServiceRequestDraftScreenState
   void _openSubmittedRequest(String requestId) {
     final encodedRequestId = Uri.encodeComponent(requestId);
     final capabilities = ref.read(authControllerProvider).capabilities;
+
     if (capabilities.isInternal) {
-      context.go('/my-services/$encodedRequestId');
+      context.go('/internal-workspace/service-cases/$encodedRequestId');
       return;
     }
+
     context.go('/my-services/$encodedRequestId');
   }
 

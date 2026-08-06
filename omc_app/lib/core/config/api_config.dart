@@ -316,6 +316,8 @@ class ApiConfig {
   static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
   static const String updateTaskOperationStatusMethod =
       'omc_app.api.task_write_guard.update_task_operation_status';
+  static const String taskAssignmentOptionsMethod =
+      'omc_app.api.task_write_guard.get_task_assignment_options';
   static const String assignTaskMethod =
       'omc_app.api.task_write_guard.assign_task';
   static const String updateTaskDetailsMethod =

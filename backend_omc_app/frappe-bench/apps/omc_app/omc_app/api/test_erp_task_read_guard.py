@@ -202,6 +202,10 @@ class TestErpTaskReadGuard(FrappeTestCase):
             "title",
             "description",
             "status",
+            "display_status",
+            "erp_status",
+            "operation_status",
+            "allowed_transitions",
             "priority",
             "due_date",
             "assigned_to",
@@ -254,3 +258,62 @@ class TestErpTaskReadGuard(FrappeTestCase):
             )
 
         self.assertEqual(payload["status"], "Pending at QC")
+
+    def test_payload_exposes_allowed_transitions_for_qc_review(self):
+        task = self._task()
+        task.custom_operation_status = "Pending at QC"
+
+        with patch.object(
+            task_read_guard,
+            "_assigned_users",
+            return_value=[],
+        ):
+            payload = task_read_guard._task_to_payload(
+                task,
+                {
+                    "name": "OMC-SR-1",
+                    "erp_service": "ERP-SERVICE-1",
+                    "customer_profile": "OMC-CUST-1",
+                },
+            )
+
+        values = [
+            transition["value"]
+            for transition in payload["allowed_transitions"]
+        ]
+        self.assertEqual(
+            values,
+            [
+                "Pending at Operation Side",
+                "Pending at Tax Associate",
+                "Submitted by QC",
+            ],
+        )
+
+        completion = payload["allowed_transitions"][-1]
+        self.assertTrue(completion["requires_confirmation"])
+        self.assertTrue(completion["terminal"])
+
+    def test_terminal_operation_status_has_no_transitions(self):
+        task = self._task()
+        task.status = "Completed"
+        task.custom_operation_status = "Submitted by QC"
+
+        with patch.object(
+            task_read_guard,
+            "_assigned_users",
+            return_value=[],
+        ):
+            payload = task_read_guard._task_to_payload(
+                task,
+                {
+                    "name": "OMC-SR-1",
+                    "erp_service": "ERP-SERVICE-1",
+                    "customer_profile": "OMC-CUST-1",
+                },
+            )
+
+        self.assertEqual(payload["erp_status"], "Completed")
+        self.assertEqual(payload["operation_status"], "Submitted by QC")
+        self.assertEqual(payload["allowed_transitions"], [])
+

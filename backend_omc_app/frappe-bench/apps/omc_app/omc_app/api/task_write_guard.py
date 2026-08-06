@@ -7,18 +7,14 @@ from typing import Any
 import frappe
 
 from omc_app.api import mobile
+from omc_app.api import service_assignment
 from omc_app.api import task_read_guard
+from omc_app.api import task_workflow_contract
 
 
-ALLOWED_OPERATION_STATUSES = {
-    "Open",
-    "Pending at Operation Side",
-    "Pending at Tax Associate",
-    "Pending at Client",
-    "Pending at QC",
-    "Submitted by Operation",
-    "Submitted by QC",
-}
+ALLOWED_OPERATION_STATUSES = set(
+    task_workflow_contract.OPERATION_STATUSES
+)
 
 
 def _text(value: Any) -> str:
@@ -86,9 +82,12 @@ def update_task_operation_status(
             frappe.ValidationError,
         )
 
-    current_status = _text(
-        getattr(task, "custom_operation_status", None)
+    current_status = (
+        _text(getattr(task, "custom_operation_status", None))
+        or "Open"
     )
+    erp_status = _text(getattr(task, "status", None))
+
     if current_status == requested_status:
         return {
             "task": task_read_guard._task_to_payload(
@@ -97,6 +96,24 @@ def update_task_operation_status(
             ),
             "updated": False,
         }
+
+    if erp_status in {"Completed", "Cancelled"}:
+        frappe.throw(
+            "A completed or cancelled ERP Task cannot be updated.",
+            frappe.ValidationError,
+        )
+
+    if not task_workflow_contract.is_transition_allowed(
+        current_status,
+        requested_status,
+    ):
+        frappe.throw(
+            (
+                f"Task cannot move from {current_status} "
+                f"to {requested_status}."
+            ),
+            frappe.ValidationError,
+        )
 
     if not task.meta.has_field("custom_operation_status"):
         frappe.throw(
@@ -233,6 +250,60 @@ def _create_assignment(task, assigned_to: str):
     todo.priority = _text(getattr(task, "priority", None)) or "Medium"
     todo.insert(ignore_permissions=True)
     return todo
+
+
+@frappe.whitelist()
+def get_task_assignment_options(task_id=None):
+    mobile._assert_internal_workspace_access()
+    capabilities = mobile._require_canonical_capability(
+        "can_manage_tasks",
+        message="Only task managers may view assignment options.",
+    )
+
+    if not capabilities.get("can_manage_tasks"):
+        frappe.throw(
+            "Only task managers may view assignment options.",
+            frappe.PermissionError,
+        )
+
+    task, request_link = _load_linked_task(task_id)
+
+    candidates = sorted(
+        {
+            user
+            for role in service_assignment.ASSIGNABLE_SERVICE_ROLES
+            for user in service_assignment.users_for_role(role)
+        }
+    )
+
+    assigned_users = task_read_guard._assigned_users(task.name)
+
+    priority_field = frappe.get_meta("Task").get_field("priority")
+    priority_options = [
+        option.strip()
+        for option in str(getattr(priority_field, "options", "") or "").splitlines()
+        if option.strip()
+    ]
+
+    return {
+        "task_id": task.name,
+        "current_assignee": (
+            assigned_users[0]
+            if assigned_users
+            else _text(request_link.get("assigned_staff"))
+        ),
+        "priority_options": priority_options,
+        "assignment_candidates": [
+            {
+                "user_id": user,
+                "full_name": (
+                    frappe.db.get_value("User", user, "full_name")
+                    or user
+                ),
+            }
+            for user in candidates
+        ],
+    }
 
 
 @frappe.whitelist()

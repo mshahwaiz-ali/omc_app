@@ -27,6 +27,13 @@ final taskDetailProvider = FutureProvider.family<TaskItem?, String>((
   return repository.fetchTaskDetail(taskId);
 });
 
+final taskAssignmentOptionsProvider =
+    FutureProvider.family<TaskAssignmentOptions, String>((ref, taskId) {
+      final repository = ref.watch(tasksRepositoryProvider);
+
+      return repository.fetchAssignmentOptions(taskId);
+    });
+
 class TasksRepository {
   const TasksRepository(this._frappeClient);
 
@@ -110,6 +117,35 @@ class TasksRepository {
       data: {'task_id': cleanTaskId, 'operation_status': cleanStatus},
     );
     return _mapMutationTask(response);
+  }
+
+  Future<TaskAssignmentOptions> fetchAssignmentOptions(String taskId) async {
+    final cleanTaskId = taskId.trim();
+    if (cleanTaskId.isEmpty) {
+      throw const ApiError(message: 'Task is required.');
+    }
+
+    try {
+      final response = await _frappeClient.getMethod(
+        ApiConfig.taskAssignmentOptionsMethod,
+        queryParameters: {'task_id': cleanTaskId},
+      );
+
+      final message = response['message'];
+      final payload = message is Map
+          ? Map<String, dynamic>.from(message)
+          : response;
+
+      return TaskAssignmentOptions.fromJson(payload);
+    } on ApiError {
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message: 'Task assignment options could not be loaded.',
+        code: 'task_assignment_options_unavailable',
+        details: error,
+      );
+    }
   }
 
   Future<TaskItem> assignTask({
@@ -232,5 +268,59 @@ class TasksRepository {
     if (rawTask is! Map<String, dynamic>) return null;
 
     return TaskItem.fromJson(rawTask);
+  }
+}
+
+class TaskAssignmentOptions {
+  const TaskAssignmentOptions({
+    required this.taskId,
+    required this.currentAssignee,
+    required this.priorityOptions,
+    required this.candidates,
+  });
+
+  final String taskId;
+  final String currentAssignee;
+  final List<String> priorityOptions;
+  final List<TaskAssigneeCandidate> candidates;
+
+  factory TaskAssignmentOptions.fromJson(Map<String, dynamic> json) {
+    return TaskAssignmentOptions(
+      taskId: _text(json['task_id']),
+      currentAssignee: _text(json['current_assignee']),
+      priorityOptions: (json['priority_options'] as List? ?? const [])
+          .map(_text)
+          .where((value) => value.isNotEmpty)
+          .toList(growable: false),
+      candidates: (json['assignment_candidates'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (item) =>
+                TaskAssigneeCandidate.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .where((candidate) => candidate.userId.isNotEmpty)
+          .toList(growable: false),
+    );
+  }
+
+  static String _text(dynamic value) => value?.toString().trim() ?? '';
+}
+
+class TaskAssigneeCandidate {
+  const TaskAssigneeCandidate({required this.userId, required this.fullName});
+
+  final String userId;
+  final String fullName;
+
+  factory TaskAssigneeCandidate.fromJson(Map<String, dynamic> json) {
+    return TaskAssigneeCandidate(
+      userId: TaskAssignmentOptions._text(json['user_id']),
+      fullName: TaskAssignmentOptions._text(json['full_name']),
+    );
+  }
+
+  String get label {
+    if (fullName.isEmpty || fullName == userId) return userId;
+    return '$fullName — $userId';
   }
 }

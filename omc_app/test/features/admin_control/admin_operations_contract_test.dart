@@ -64,6 +64,8 @@ void main() {
     expect(repository, contains("'status': query.status.trim()"));
     expect(screen, contains('paymentPageProvider(query)'));
     expect(detail, contains('downloadReceipt(payment)'));
-    expect(detail, contains('Share.shareXFiles'));
+    expect(detail, contains('DocumentPreviewScreen'));
+    expect(detail, contains('fileName: file.name'));
+    expect(detail, contains('bytes: file.bytes'));
   });
 }
