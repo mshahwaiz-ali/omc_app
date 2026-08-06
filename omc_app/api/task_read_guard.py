@@ -6,6 +6,7 @@ from typing import Any
 import frappe
 
 from omc_app.api import mobile
+from omc_app.api import task_workflow_contract
 
 
 DEFAULT_PAGE_LENGTH = 100
@@ -163,6 +164,12 @@ def _task_to_payload(task, request_link: dict[str, Any]) -> dict[str, Any]:
         else ([service_request_assignee] if service_request_assignee else [])
     )
 
+    erp_status = _text(getattr(task, "status", None)) or "Open"
+    operation_status = _text(
+        getattr(task, "custom_operation_status", None)
+    )
+    display_status = operation_status or erp_status
+
     return {
         "name": task.name,
         "title": _text(
@@ -171,8 +178,15 @@ def _task_to_payload(task, request_link: dict[str, Any]) -> dict[str, Any]:
             or getattr(task, "task_name", None)
         ),
         "description": _task_description(task),
-        "status": _text(getattr(task, "custom_operation_status", None))
-        or _text(getattr(task, "status", None)),
+        # Preserve the existing Flutter contract while exposing canonical
+        # ERP and OMC workflow states separately.
+        "status": display_status,
+        "display_status": display_status,
+        "erp_status": erp_status,
+        "operation_status": operation_status,
+        "allowed_transitions": task_workflow_contract.allowed_transitions(
+            operation_status or erp_status
+        ),
         "priority": _text(getattr(task, "priority", None)) or "Normal",
         "due_date": _task_due_date(task),
         "assigned_to": assigned_to,
