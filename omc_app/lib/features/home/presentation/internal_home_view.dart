@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/application/auth_state.dart';
+import '../../notifications/data/notifications_repository.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
 import '../application/home_action_access.dart';
@@ -41,6 +42,8 @@ class InternalHomeView extends ConsumerWidget {
     final operations = summary.operationsSummary;
     final needsAttention = _buildAttentionItems(summary);
     final actions = _mergeInternalActions(quickActions);
+    final unreadNotifications =
+        ref.watch(unreadNotificationsProvider).value ?? 0;
 
     return Scaffold(
       backgroundColor: _pageBackground,
@@ -77,7 +80,7 @@ class InternalHomeView extends ConsumerWidget {
                   child: _Header(
                     displayName: displayName,
                     avatarUrl: avatarUrl,
-                    notificationCount: summary.unreadNotifications,
+                    notificationCount: unreadNotifications,
                     onNotifications: onOpenNotifications,
                     onAvatar: () => context.push('/profile'),
                   ),

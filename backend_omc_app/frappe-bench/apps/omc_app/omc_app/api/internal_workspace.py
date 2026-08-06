@@ -7,7 +7,12 @@ OMC Service Document as the child review object.
 
 import frappe
 
-from omc_app.api import access, assisted_service, mobile
+from omc_app.api import (
+    access,
+    assisted_service,
+    mobile,
+    workflow_contract,
+)
 
 
 def _capabilities():
@@ -132,6 +137,48 @@ def _case_to_queue_item(row):
     docs = _service_documents(case_id)
     required_templates = mobile._service_required_documents(row.service)
     doc_summary = _document_summary(docs, required_templates)
+    payments = _service_payments(case_id)
+
+    active_payments = [
+        payment
+        for payment in payments
+        if (payment.get("status") or "").strip() != "Cancelled"
+    ]
+    paid_payments = [
+        payment
+        for payment in active_payments
+        if (payment.get("status") or "").strip() == "Paid"
+    ]
+    open_payments = [
+        payment
+        for payment in active_payments
+        if (payment.get("status") or "").strip()
+        not in {"Paid", "Rejected"}
+    ]
+    rejected_payments = [
+        payment
+        for payment in active_payments
+        if (payment.get("status") or "").strip() == "Rejected"
+    ]
+
+    projection = workflow_contract.project(
+        {
+            "status": row.status,
+            "required_documents_count": doc_summary["required"],
+            "approved_documents_count": doc_summary["approved"],
+            "missing_documents_count": (
+                doc_summary["pending"] + doc_summary["rejected"]
+            ),
+            "rejected_documents_count": doc_summary["rejected"],
+            "payments_count": len(active_payments),
+            "paid_payments_count": len(paid_payments),
+            "open_payments_count": len(open_payments),
+            "rejected_payments_count": len(rejected_payments),
+            "operational_work_complete": (
+                (row.status or "").strip() == "Completed"
+            ),
+        }
+    )
 
     return {
         "name": case_id,
@@ -142,6 +189,12 @@ def _case_to_queue_item(row):
         "service": row.service or "",
         "service_title": row.service_title or "",
         "status": row.status or "",
+        "display_status": projection["display_status"],
+        "current_stage": projection["current_stage"],
+        "progress": projection["progress"],
+        "progress_percent": projection["progress_percent"],
+        "milestones": projection["milestones"],
+        "next_step": projection["next_step"],
         "priority": row.priority or "",
         "customer_profile": row.customer_profile or "",
         "customer_mode": row.customer_mode or "",
@@ -169,6 +222,15 @@ def _case_to_queue_item(row):
             or capabilities.get("can_update_assigned_service_status")
         ),
     }
+
+
+def _service_payments(service_request):
+    return frappe.get_all(
+        "OMC Service Payment",
+        filters={"service_request": service_request},
+        fields=["name", "status"],
+        order_by="creation asc",
+    )
 
 
 def _service_documents(service_request):

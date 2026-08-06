@@ -1728,62 +1728,98 @@ class _ProgressCard extends StatelessWidget {
   }
 
   List<ServiceCaseTimelineStep> _milestoneSteps(ServiceCase serviceCase) {
-    final progress = serviceCase.progress.clamp(0, 1).toDouble();
-    final status = serviceCase.status.trim().toLowerCase();
-    final completed = status.contains('complete') || status.contains('closed');
+    final milestones = serviceCase.milestones.map((value) {
+      return value.trim().toLowerCase();
+    }).toSet();
 
-    final required = serviceCase.requiredDocumentTotal;
-    final approved = serviceCase.approvedDocumentTotal;
-    final missing =
-        serviceCase.missingDocumentsCount ??
-        serviceCase.missingDocuments.length;
+    final currentStage = serviceCase.currentStage?.trim().toLowerCase() ?? '';
+    final completed =
+        serviceCase.status.trim().toLowerCase().contains('complete') ||
+        serviceCase.status.trim().toLowerCase().contains('closed');
 
-    final documentsDone = required > 0
-        ? approved >= required && missing == 0
-        : progress >= 0.35;
+    bool has(String milestone) => milestones.contains(milestone);
+
+    final informationDone = has('request_created');
+
+    final documentsDone = has('documents_approved');
+    final documentsActive =
+        !documentsDone &&
+        (currentStage == 'documents' ||
+            has('documents_requested') ||
+            has('documents_submitted'));
 
     final reviewDone =
-        progress >= 0.55 ||
-        status.contains('payment') ||
-        status.contains('progress') ||
-        completed;
+        documentsDone &&
+        (has('payment_opened') ||
+            has('payment_paid') ||
+            has('work_started') ||
+            currentStage == 'processing' ||
+            completed);
 
-    final processingDone = progress >= 0.80 || completed;
+    final reviewActive =
+        documentsDone &&
+        !reviewDone &&
+        (currentStage == 'payment' || has('receipt_submitted'));
+
+    final processingDone = has('service_completed') || completed;
+    final processingActive =
+        !processingDone &&
+        (currentStage == 'processing' || has('work_started'));
 
     return [
-      const ServiceCaseTimelineStep(
+      ServiceCaseTimelineStep(
         title: 'Information',
-        subtitle: 'Completed',
-        isDone: true,
+        subtitle: informationDone ? 'Completed' : 'Pending',
+        isDone: informationDone,
+        isActive: !informationDone,
       ),
       ServiceCaseTimelineStep(
         title: 'Documents',
-        subtitle: documentsDone ? 'Completed' : 'Pending',
+        subtitle: documentsDone
+            ? 'Completed'
+            : documentsActive
+            ? 'In progress'
+            : 'Pending',
         isDone: documentsDone,
+        isActive: documentsActive,
       ),
       ServiceCaseTimelineStep(
-        title: 'Review',
-        subtitle: reviewDone ? 'Completed' : 'In progress',
+        title: 'Review & payment',
+        subtitle: reviewDone
+            ? 'Completed'
+            : reviewActive
+            ? 'In progress'
+            : 'Pending',
         isDone: reviewDone,
+        isActive: reviewActive,
       ),
       ServiceCaseTimelineStep(
         title: 'Processing',
-        subtitle: processingDone ? 'Completed' : 'Pending',
+        subtitle: processingDone
+            ? 'Completed'
+            : processingActive
+            ? 'In progress'
+            : 'Pending',
         isDone: processingDone,
+        isActive: processingActive,
       ),
       ServiceCaseTimelineStep(
         title: 'Completion',
         subtitle: completed ? 'Completed' : 'Pending',
         isDone: completed,
+        isActive: false,
       ),
     ];
   }
 
   int _activeTimelineIndex(List<ServiceCaseTimelineStep> steps) {
-    for (var index = 0; index < steps.length; index++) {
-      if (!steps[index].isDone) return index;
-    }
-    return steps.isEmpty ? -1 : steps.length - 1;
+    final activeIndex = steps.indexWhere((step) => step.isActive);
+    if (activeIndex >= 0) return activeIndex;
+
+    final firstIncomplete = steps.indexWhere((step) => !step.isDone);
+    if (firstIncomplete >= 0) return firstIncomplete;
+
+    return steps.isEmpty ? 0 : steps.length - 1;
   }
 }
 

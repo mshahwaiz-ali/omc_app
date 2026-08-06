@@ -75,6 +75,11 @@ class InternalServiceCase {
     required this.serviceTitle,
     required this.status,
     required this.priority,
+    this.displayStatus,
+    this.currentStage,
+    this.progressPercent,
+    this.milestones = const [],
+    this.nextStep,
     required this.createdAt,
     required this.updatedAt,
     required this.documentSummaryLabel,
@@ -95,6 +100,11 @@ class InternalServiceCase {
       ),
       status: _readString(json['status']),
       priority: _readString(json['priority']),
+      displayStatus: _readNullableString(json['display_status']),
+      currentStage: _readNullableString(json['current_stage'] ?? json['stage']),
+      progressPercent: _readNullableInt(json['progress_percent']),
+      milestones: _readStringList(json['milestones']),
+      nextStep: _readNullableString(json['next_step']),
       createdAt: _readString(json['created_at']),
       updatedAt: _readString(json['updated_at']),
       documentSummaryLabel: _readString(json['document_summary_label']),
@@ -112,6 +122,11 @@ class InternalServiceCase {
   final String serviceTitle;
   final String status;
   final String priority;
+  final String? displayStatus;
+  final String? currentStage;
+  final int? progressPercent;
+  final List<String> milestones;
+  final String? nextStep;
   final String createdAt;
   final String updatedAt;
   final String documentSummaryLabel;
@@ -144,6 +159,26 @@ class InternalServiceCase {
 
 Map<String, int> _readIntMap(Map<String, dynamic> value) {
   return value.map((key, item) => MapEntry(key, _readInt(item)));
+}
+
+String? _readNullableString(dynamic value) {
+  final text = value?.toString().trim() ?? '';
+  return text.isEmpty ? null : text;
+}
+
+int? _readNullableInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString().trim());
+}
+
+List<String> _readStringList(dynamic value) {
+  if (value is! List) return const [];
+  return value
+      .map((item) => item?.toString().trim() ?? '')
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
 }
 
 String _readString(dynamic value) {

@@ -2807,7 +2807,7 @@ class _StatusProgressBlock extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                _progressHeading(serviceCase.status),
+                _progressHeading(serviceCase),
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 13,
@@ -2827,27 +2827,36 @@ class _StatusProgressBlock extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 17),
-        _WorkspaceProgressTracker(status: serviceCase.status),
+        _WorkspaceProgressTracker(serviceCase: serviceCase),
       ],
     );
   }
 }
 
 class _WorkspaceProgressTracker extends StatelessWidget {
-  const _WorkspaceProgressTracker({required this.status});
+  const _WorkspaceProgressTracker({required this.serviceCase});
 
-  final String status;
+  final InternalServiceCase serviceCase;
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Open', 'Processing', 'Review', 'Completed'];
+    const labels = [
+      'Open',
+      'Documents',
+      'Payment',
+      'Processing',
+      'Review',
+      'Completed',
+    ];
     const stageColors = [
       Color(0xFFE11D48),
+      Color(0xFF2563EB),
       Color(0xFFD97706),
+      Color(0xFF7C3AED),
       Color(0xFF7047C7),
       Color(0xFF16A34A),
     ];
-    final progress = _progressState(status);
+    final progress = _progressState(serviceCase);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3446,48 +3455,68 @@ class _CaseProgressState {
   final bool isCancelled;
 }
 
-_CaseProgressState _progressState(String rawStatus) {
-  final clean = rawStatus.trim().toLowerCase();
+_CaseProgressState _progressState(InternalServiceCase serviceCase) {
+  final status = serviceCase.status.trim().toLowerCase();
 
-  if (clean.contains('cancel') ||
-      clean.contains('rejected') ||
-      clean.contains('closed')) {
-    return const _CaseProgressState(index: 3, isCancelled: true);
+  if (status.contains('cancel') ||
+      status.contains('rejected') ||
+      status.contains('closed')) {
+    return const _CaseProgressState(index: 5, isCancelled: true);
   }
 
-  if (clean.contains('complete') || clean.contains('done')) {
+  if (status.contains('complete') || status.contains('done')) {
+    return const _CaseProgressState(index: 5, isCancelled: false);
+  }
+
+  final milestones = serviceCase.milestones.map((value) {
+    return value.trim().toLowerCase();
+  }).toSet();
+
+  final stage = serviceCase.currentStage?.trim().toLowerCase() ?? '';
+
+  if (milestones.contains('service_completed')) {
+    return const _CaseProgressState(index: 5, isCancelled: false);
+  }
+
+  if (stage == 'review') {
+    return const _CaseProgressState(index: 4, isCancelled: false);
+  }
+
+  if (stage == 'processing' || milestones.contains('work_started')) {
     return const _CaseProgressState(index: 3, isCancelled: false);
   }
 
-  if (clean.contains('review') ||
-      clean.contains('approval') ||
-      clean.contains('verification')) {
+  if (stage == 'payment' ||
+      milestones.contains('payment_opened') ||
+      milestones.contains('receipt_submitted') ||
+      milestones.contains('payment_paid')) {
     return const _CaseProgressState(index: 2, isCancelled: false);
   }
 
-  if (clean.contains('progress') ||
-      clean.contains('processing') ||
-      clean.contains('working') ||
-      clean.contains('pending') ||
-      clean.contains('waiting')) {
+  if (stage == 'documents' ||
+      milestones.contains('documents_requested') ||
+      milestones.contains('documents_submitted') ||
+      milestones.contains('documents_approved')) {
     return const _CaseProgressState(index: 1, isCancelled: false);
   }
 
   return const _CaseProgressState(index: 0, isCancelled: false);
 }
 
-String _progressHeading(String status) {
-  final state = _progressState(status);
+String _progressHeading(InternalServiceCase serviceCase) {
+  final state = _progressState(serviceCase);
 
   if (state.isCancelled) return 'Case closed without completion';
-  if (state.index == 3) return 'Service workflow completed';
-  if (state.index == 2) return 'Case is under review';
-  if (state.index == 1) return 'Service work is in progress';
+  if (state.index == 5) return 'Service workflow completed';
+  if (state.index == 4) return 'Case is under final review';
+  if (state.index == 3) return 'Service work is in progress';
+  if (state.index == 2) return 'Payment stage is in progress';
+  if (state.index == 1) return 'Document stage is in progress';
   return 'Case has entered the workflow';
 }
 
 String _caseNextAction(InternalServiceCase item) {
-  if (_progressState(item.status).isCancelled) {
+  if (_progressState(item).isCancelled) {
     return 'Review the closed case and available administrative actions';
   }
 

@@ -412,11 +412,13 @@ class ServiceCaseTimelineStep {
     required this.title,
     required this.subtitle,
     required this.isDone,
+    this.isActive = false,
   });
 
   final String title;
   final String subtitle;
   final bool isDone;
+  final bool isActive;
 }
 
 class ServiceCaseStatusStyle {
