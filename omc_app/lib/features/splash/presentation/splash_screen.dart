@@ -171,7 +171,7 @@ class _SplashContent extends StatelessWidget {
           padding: const EdgeInsets.all(17),
           child: const OmcLogo.symbol(size: 92, borderRadius: 0),
         ),
-        const SizedBox(height: 34),
+        const SizedBox(height: 20),
         const SizedBox(
           width: 28,
           height: 28,

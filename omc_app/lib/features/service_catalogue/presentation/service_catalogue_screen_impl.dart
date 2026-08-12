@@ -6,14 +6,12 @@ import '../../../app/theme.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
-import '../../support/application/support_launcher.dart';
 import '../application/service_catalogue_controller.dart';
 import '../data/service_item.dart';
 import 'service_visual_registry.dart';
 
 const Color _ink = AppTheme.textPrimary;
 const Color _slate = AppTheme.textSecondary;
-const Color _surface = AppTheme.cardSoft;
 const Color _border = AppTheme.border;
 const Color _primary = AppTheme.primary;
 
@@ -53,8 +51,7 @@ class _ServiceCatalogueScreenState
   @override
   Widget build(BuildContext context) {
     final servicesAsync = ref.watch(serviceCatalogueProvider);
-    final authState = ref.watch(authControllerProvider);
-    final capabilities = authState.capabilities;
+    ref.watch(authControllerProvider);
 
     return SafeArea(
       child: servicesAsync.when(
@@ -108,19 +105,6 @@ class _ServiceCatalogueScreenState
                   onSelected: (category) =>
                       setState(() => _selectedCategory = category),
                 ),
-                if (_shouldShowAccessNotice(capabilities)) ...[
-                  const SizedBox(height: 14),
-                  _AccessNotice(
-                    data: _accessNoticeFor(capabilities),
-                    onAction: () => _handleNoticeAction(capabilities),
-                  ),
-                ],
-                if (_shouldShowMyRequests(capabilities)) ...[
-                  const SizedBox(height: 14),
-                  _MyRequestsShortcut(
-                    onTap: () => context.push('/my-services'),
-                  ),
-                ],
                 const SizedBox(height: 20),
                 _SectionHeader(
                   resultCount: filteredServices.length,
@@ -145,23 +129,38 @@ class _ServiceCatalogueScreenState
                     onAction: _clearFilters,
                   )
                 else
-                  ...filteredServices.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final service = entry.value;
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        bottom: index == filteredServices.length - 1 ? 0 : 12,
-                      ),
-                      child: _ServiceCard(
-                        service: service,
-                        capabilities: capabilities,
-                        onOpen: () => _openService(service),
-                        onPrimaryAction: () =>
-                            _handlePrimaryAction(service, capabilities),
-                        onSupport: () => SupportLauncher.openWhatsApp(context),
-                      ),
-                    );
-                  }),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth;
+                      final crossAxisCount = width >= 900
+                          ? 6
+                          : width >= 650
+                          ? 5
+                          : width >= 480
+                          ? 4
+                          : 3;
+
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: filteredServices.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 18,
+                          childAspectRatio: 0.92,
+                        ),
+                        itemBuilder: (context, index) {
+                          final service = filteredServices[index];
+
+                          return _ServiceIconTile(
+                            service: service,
+                            onOpen: () => _openService(service),
+                          );
+                        },
+                      );
+                    },
+                  ),
               ],
             ),
           );
@@ -206,46 +205,6 @@ class _ServiceCatalogueScreenState
 
   void _openService(ServiceItem service) {
     context.push('/services/${Uri.encodeComponent(service.id)}');
-  }
-
-  void _handlePrimaryAction(
-    ServiceItem service,
-    AuthCapabilities capabilities,
-  ) {
-    if (capabilities.isInternal) {
-      _openService(service);
-      return;
-    }
-    if (capabilities.canCreateServiceRequest) {
-      context.push('/services/${Uri.encodeComponent(service.id)}/request');
-      return;
-    }
-    if (capabilities.isGuest) {
-      context.push('/signup');
-      return;
-    }
-    if (capabilities.isPending) {
-      context.go('/under-review');
-      return;
-    }
-    if (capabilities.isRejected) {
-      context.go('/support');
-      return;
-    }
-    _openService(service);
-  }
-
-  void _handleNoticeAction(AuthCapabilities capabilities) {
-    if (capabilities.isGuest) {
-      context.push('/signup');
-    } else if (capabilities.isPending) {
-      context.go('/under-review');
-    } else if (capabilities.isRejected) {
-      context.go('/support');
-    } else if (capabilities.isInternal &&
-        capabilities.canAccessInternalWorkspace) {
-      context.push('/internal-workspace');
-    }
   }
 
   void _openFilterSheet(BuildContext context, List<String> categories) {
@@ -551,126 +510,6 @@ class _ServiceFilterChip extends StatelessWidget {
   }
 }
 
-class _AccessNotice extends StatelessWidget {
-  const _AccessNotice({required this.data, required this.onAction});
-
-  final _AccessNoticeData data;
-  final VoidCallback onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(data.icon, color: _slate, size: 20),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data.title,
-                  style: const TextStyle(
-                    color: _ink,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  data.message,
-                  style: const TextStyle(
-                    color: _slate,
-                    fontSize: 11.8,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (data.actionLabel != null) ...[
-            const SizedBox(width: 8),
-            TextButton(onPressed: onAction, child: Text(data.actionLabel!)),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MyRequestsShortcut extends StatelessWidget {
-  const _MyRequestsShortcut({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _border),
-          ),
-          child: const Row(
-            children: [
-              _NeutralIconBox(icon: Icons.assignment_outlined),
-              SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'My Requests',
-                      style: TextStyle(
-                        color: _ink,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Track submitted and active service requests.',
-                      style: TextStyle(
-                        color: _slate,
-                        fontSize: 11.8,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded, color: _slate, size: 21),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.resultCount, required this.isFiltered});
 
@@ -709,238 +548,56 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({
-    required this.service,
-    required this.capabilities,
-    required this.onOpen,
-    required this.onPrimaryAction,
-    required this.onSupport,
-  });
+class _ServiceIconTile extends StatelessWidget {
+  const _ServiceIconTile({required this.service, required this.onOpen});
 
   final ServiceItem service;
-  final AuthCapabilities capabilities;
   final VoidCallback onOpen;
-  final VoidCallback onPrimaryAction;
-  final VoidCallback onSupport;
 
   @override
   Widget build(BuildContext context) {
     final visual = serviceVisualFor(service);
-    final internal = capabilities.isInternal;
 
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onOpen,
         borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _border),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: visual.color.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: visual.color.withValues(alpha: 0.14),
-                      ),
-                    ),
-                    child: Icon(visual.icon, color: visual.color, size: 21),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: visual.color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: visual.color.withValues(alpha: 0.16),
                   ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          service.category.trim().isEmpty
-                              ? 'OMC SERVICE'
-                              : service.category.toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _slate,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          service.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _ink,
-                            fontSize: 15.5,
-                            height: 1.22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: _slate,
-                    size: 21,
-                  ),
-                ],
+                ),
+                alignment: Alignment.center,
+                child: Icon(visual.icon, color: visual.color, size: 30),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 9),
               Text(
-                service.shortDescription ??
-                    service.description ??
-                    'View service details and requirements.',
+                service.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: _slate,
-                  fontSize: 12.3,
-                  height: 1.42,
-                  fontWeight: FontWeight.w600,
+                  color: _ink,
+                  fontSize: 12.5,
+                  height: 1.22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.1,
                 ),
               ),
-              const SizedBox(height: 11),
-              _ServiceMetaRow(service: service),
-              const SizedBox(height: 12),
-              if (internal)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: onOpen,
-                    child: const Text('View service'),
-                  ),
-                )
-              else
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: onPrimaryAction,
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(0, 44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 12.8,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        child: Text(_primaryActionLabel(capabilities)),
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    OutlinedButton(
-                      onPressed: onSupport,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _slate,
-                        minimumSize: const Size(46, 44),
-                        padding: const EdgeInsets.symmetric(horizontal: 13),
-                        side: const BorderSide(color: _border),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                      ),
-                      child: const Icon(Icons.support_agent_rounded, size: 19),
-                    ),
-                  ],
-                ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ServiceMetaRow extends StatelessWidget {
-  const _ServiceMetaRow({required this.service});
-
-  final ServiceItem service;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _MetaBadge(icon: Icons.payments_outlined, value: service.priceLabel),
-        _MetaBadge(icon: Icons.schedule_rounded, value: service.completionTime),
-      ],
-    );
-  }
-}
-
-class _MetaBadge extends StatelessWidget {
-  const _MetaBadge({required this.icon, required this.value});
-
-  final IconData icon;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 32),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: _slate),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NeutralIconBox extends StatelessWidget {
-  const _NeutralIconBox({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(icon, color: _slate, size: 20),
     );
   }
 }
@@ -1022,73 +679,6 @@ class _FilterPill extends StatelessWidget {
       compact: false,
     );
   }
-}
-
-class _AccessNoticeData {
-  const _AccessNoticeData({
-    required this.title,
-    required this.message,
-    required this.icon,
-    this.actionLabel,
-  });
-
-  final String title;
-  final String message;
-  final IconData icon;
-  final String? actionLabel;
-}
-
-bool _shouldShowAccessNotice(AuthCapabilities capabilities) {
-  return capabilities.isGuest ||
-      capabilities.isPending ||
-      capabilities.isRejected ||
-      capabilities.isInternal;
-}
-
-bool _shouldShowMyRequests(AuthCapabilities capabilities) {
-  return !capabilities.isInternal && capabilities.canTrackRequests;
-}
-
-_AccessNoticeData _accessNoticeFor(AuthCapabilities capabilities) {
-  if (capabilities.isGuest) {
-    return const _AccessNoticeData(
-      title: 'Ready to get started?',
-      message: 'Create an account to request services and track progress.',
-      icon: Icons.person_add_alt_1_rounded,
-      actionLabel: 'Sign up',
-    );
-  }
-  if (capabilities.isPending) {
-    return const _AccessNoticeData(
-      title: 'Profile under review',
-      message: 'You can browse services while OMC verifies your account.',
-      icon: Icons.hourglass_bottom_rounded,
-      actionLabel: 'View status',
-    );
-  }
-  if (capabilities.isRejected) {
-    return const _AccessNoticeData(
-      title: 'Service access restricted',
-      message: 'Contact OMC support for help with your account.',
-      icon: Icons.info_outline_rounded,
-      actionLabel: 'Support',
-    );
-  }
-  return _AccessNoticeData(
-    title: 'Internal catalogue view',
-    message:
-        'Browse service information here. Customer work remains in Internal Workspace.',
-    icon: Icons.business_center_outlined,
-    actionLabel: capabilities.canAccessInternalWorkspace ? 'Workspace' : null,
-  );
-}
-
-String _primaryActionLabel(AuthCapabilities capabilities) {
-  if (capabilities.canCreateServiceRequest) return 'Start request';
-  if (capabilities.isGuest) return 'Create account';
-  if (capabilities.isPending) return 'View account status';
-  if (capabilities.isRejected) return 'Contact support';
-  return 'View service';
 }
 
 String _displayCategoryLabel(String value) {

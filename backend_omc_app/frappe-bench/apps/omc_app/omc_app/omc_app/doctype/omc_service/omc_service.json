@@ -16,6 +16,7 @@
   "mobile_appearance_section",
   "icon",
   "color_family",
+  "icon_preview",
   "pricing_duration_section",
   "base_price",
   "currency",
@@ -191,6 +192,11 @@
    "description": "Canonical ERP Task Type used when this mobile service creates an ERP Service and ERP Task.",
    "in_standard_filter": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "icon_preview",
+   "fieldtype": "HTML",
+   "label": "Icon Preview"
   }
  ],
  "index_web_pages_for_search": 1,

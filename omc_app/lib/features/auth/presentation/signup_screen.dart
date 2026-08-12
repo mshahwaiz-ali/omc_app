@@ -429,6 +429,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (_step == 1 && !await _checkUsernameAvailability()) {
       return;
     }
+
+    if (_step == 2 &&
+        _isCustomer &&
+        _selectedAcquisitionSource == 'Referral' &&
+        !_referralAssistanceConsent) {
+      setState(() {
+        _referralValidationMessage =
+            'Consent is required when using a referral code.';
+        _referralCodeValid = false;
+        _submitError = null;
+      });
+      return;
+    }
+
     setState(() {
       _submitError = null;
       _step = (_step + 1).clamp(0, 3);
