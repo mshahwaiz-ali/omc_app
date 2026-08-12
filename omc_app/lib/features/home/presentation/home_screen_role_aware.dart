@@ -13,6 +13,8 @@ import '../../../app/route_access_policy.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../service_catalogue/application/service_catalogue_controller.dart';
 import '../../service_catalogue/data/service_item.dart';
+import '../data/home_content.dart';
+import '../data/home_content_repository.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
 import '../application/home_action_access.dart';
@@ -56,6 +58,7 @@ class HomeScreen extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final profileAsync = ref.watch(profileSummaryProvider);
     final quickActionsAsync = ref.watch(mobileQuickActionsProvider);
+    final homeContentAsync = ref.watch(homeContentProvider);
     final serviceCatalogueAsync = ref.watch(serviceCatalogueProvider);
 
     final profile = profileAsync.maybeWhen(
@@ -88,25 +91,34 @@ class HomeScreen extends ConsumerWidget {
           orElse: () => const <ServiceItem>[],
         );
 
+    final homeContent = homeContentAsync.maybeWhen(
+      data: (value) => value,
+      orElse: () => const HomeContent.empty(),
+    );
+
+    final backendQuickActions = quickActionsAsync.maybeWhen(
+      data: (value) => value,
+      orElse: () => const <MobileQuickAction>[],
+    );
     final quickActions = mode.isInternal
-        ? _internalQuickActions(
-            quickActionsAsync.maybeWhen(
-              data: (value) => value,
-              orElse: () => const [],
-            ),
-          )
-        : _customerQuickActions();
+        ? _internalQuickActions(backendQuickActions)
+        : backendQuickActions;
     final homeLoadMessage = dashboardAsync.hasError
         ? 'Home data could not be refreshed. Some information may be unavailable.'
-        : quickActionsAsync.hasError && mode.isInternal
-        ? 'Quick actions could not be refreshed. Existing options remain available.'
+        : homeContentAsync.hasError
+        ? 'Home content could not be refreshed.'
+        : quickActionsAsync.hasError
+        ? 'Quick actions could not be refreshed.'
         : null;
 
     void retryHomeLoad() {
       if (dashboardAsync.hasError) {
         ref.invalidate(homeDashboardSummaryProvider);
       }
-      if (quickActionsAsync.hasError && mode.isInternal) {
+      if (homeContentAsync.hasError) {
+        ref.invalidate(homeContentProvider);
+      }
+      if (quickActionsAsync.hasError) {
         ref.invalidate(mobileQuickActionsProvider);
       }
     }
@@ -116,6 +128,7 @@ class HomeScreen extends ConsumerWidget {
         displayName: displayName,
         avatarUrl: avatarUrl,
         summary: summary,
+        homeContent: homeContent,
         capabilities: capabilities,
         actions: quickActions,
         searchableServices: searchableServices,
@@ -126,6 +139,7 @@ class HomeScreen extends ConsumerWidget {
         onRetryHomeLoad: retryHomeLoad,
         onRefresh: () async {
           ref.invalidate(homeDashboardSummaryProvider);
+          ref.invalidate(homeContentProvider);
           ref.invalidate(mobileQuickActionsProvider);
           ref.invalidate(profileSummaryProvider);
         },
@@ -191,6 +205,9 @@ class HomeScreen extends ConsumerWidget {
 
           context.push('/my-services/${Uri.encodeComponent(service.id)}');
         },
+        onBannerTap: (banner) =>
+            _handleHomeBanner(context, banner, capabilities),
+        onContentTap: (item) => _handleHomeContentCard(context, item),
         onActivityTap: () {
           if (!_isAllowed('can_track_requests', capabilities)) {
             _showGuestAccessSheet(
@@ -504,59 +521,55 @@ class HomeScreen extends ConsumerWidget {
     return merged.take(5).toList(growable: false);
   }
 
-  List<MobileQuickAction> _customerQuickActions() {
-    return const [
-      MobileQuickAction(
-        id: 'customer-services',
-        title: 'My Services',
-        subtitle: 'Track',
-        iconKey: 'services',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/my-services',
-        requiredCapability: 'can_track_requests',
-        sortOrder: 10,
-      ),
-      MobileQuickAction(
-        id: 'customer-docs',
-        title: 'Documents',
-        subtitle: 'Files',
-        iconKey: 'documents',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/documents',
-        requiredCapability: 'can_view_documents',
-        sortOrder: 20,
-      ),
-      MobileQuickAction(
-        id: 'customer-payments',
-        title: 'Payments',
-        subtitle: 'Billing',
-        iconKey: 'payments',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/payments',
-        requiredCapability: 'can_view_payments',
-        sortOrder: 30,
-      ),
-      MobileQuickAction(
-        id: 'tax-calculator',
-        title: 'Tax Calc',
-        subtitle: 'Estimate',
-        iconKey: 'calculator',
-        targetType: MobileQuickActionTargetType.feature,
-        targetValue: 'calculator',
-        requiredCapability: 'can_use_tax_calculator',
-        sortOrder: 40,
-      ),
-      MobileQuickAction(
-        id: 'expense-tracker',
-        title: 'Expense Tracker',
-        subtitle: 'Manage',
-        iconKey: 'expense',
-        targetType: MobileQuickActionTargetType.route,
-        targetValue: '/expense-tracker',
-        requiredCapability: 'can_access_customer_dashboard',
-        sortOrder: 50,
-      ),
-    ];
+  void _handleHomeContentCard(BuildContext context, HomeContentCard item) {
+    final route = item.mobileRoute?.trim();
+
+    if (route != null && route.isNotEmpty) {
+      context.push(route.startsWith('/') ? route : '/$route');
+      return;
+    }
+
+    if (item.id.trim().isEmpty) return;
+
+    context.push('/knowledge/${Uri.encodeComponent(item.id)}');
+  }
+
+  void _handleHomeBanner(
+    BuildContext context,
+    HomeBanner banner,
+    AuthCapabilities capabilities,
+  ) {
+    final target = banner.action.target.trim();
+    if (target.isEmpty) return;
+
+    switch (banner.action.type) {
+      case HomeBannerActionType.none:
+        return;
+
+      case HomeBannerActionType.route:
+        final route = target.startsWith('/') ? target : '/$target';
+        if (!canAccessRoute(route, capabilities)) {
+          _showLockedSnack(context, capabilities);
+          return;
+        }
+        context.push(route);
+        return;
+
+      case HomeBannerActionType.knowledgeArticle:
+        context.push('/knowledge/${Uri.encodeComponent(target)}');
+        return;
+
+      case HomeBannerActionType.service:
+        context.push('/services/${Uri.encodeComponent(target)}');
+        return;
+
+      case HomeBannerActionType.externalUrl:
+        final uri = Uri.tryParse(target);
+        if (uri != null && (uri.scheme == 'https' || uri.scheme == 'http')) {
+          launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+        return;
+    }
   }
 
   void _handleQuickAction(

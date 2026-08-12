@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../auth/application/auth_state.dart';
 import '../../service_catalogue/data/service_item.dart';
+import '../data/home_content.dart';
 import '../data/home_dashboard_repository.dart';
 import '../data/mobile_quick_actions_repository.dart';
+import 'widgets/home_content_rail.dart';
+import 'widgets/home_featured_carousel.dart';
 
 const Color _red = Color(0xFFDA1735);
 const Color _navy = Color(0xFF111827);
@@ -17,6 +20,7 @@ class CustomerGuestHomeView extends StatelessWidget {
     required this.displayName,
     required this.avatarUrl,
     required this.summary,
+    required this.homeContent,
     required this.capabilities,
     required this.actions,
     required this.searchableServices,
@@ -36,6 +40,8 @@ class CustomerGuestHomeView extends StatelessWidget {
     required this.onOpenService,
     required this.onOpenServices,
     required this.onPrimaryServiceAction,
+    required this.onBannerTap,
+    required this.onContentTap,
     required this.onActivityTap,
     required this.onSignUp,
     required this.onSignIn,
@@ -45,6 +51,7 @@ class CustomerGuestHomeView extends StatelessWidget {
   final String displayName;
   final String? avatarUrl;
   final HomeDashboardSummary summary;
+  final HomeContent homeContent;
   final AuthCapabilities capabilities;
   final List<MobileQuickAction> actions;
   final List<ServiceItem> searchableServices;
@@ -65,6 +72,8 @@ class CustomerGuestHomeView extends StatelessWidget {
   final ValueChanged<String> onOpenService;
   final VoidCallback onOpenServices;
   final ValueChanged<HomeDashboardServiceSnapshot> onPrimaryServiceAction;
+  final ValueChanged<HomeBanner> onBannerTap;
+  final ValueChanged<HomeContentCard> onContentTap;
   final VoidCallback onActivityTap;
   final VoidCallback onSignUp;
   final VoidCallback onSignIn;
@@ -127,15 +136,20 @@ class CustomerGuestHomeView extends StatelessWidget {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverToBoxAdapter(
-                      child: _HeroArea(
-                        summary: summary,
-                        isGuest: isGuest,
-                        isPending: isPending,
-                        isRejected: isRejected,
-                        onPrimaryServiceAction: onPrimaryServiceAction,
-                        onOpenServices: onOpenServices,
-                        onSignUp: onSignUp,
-                      ),
+                      child: homeContent.featuredBanners.isNotEmpty
+                          ? HomeFeaturedCarousel(
+                              banners: homeContent.featuredBanners,
+                              onBannerTap: onBannerTap,
+                            )
+                          : _HeroArea(
+                              summary: summary,
+                              isGuest: isGuest,
+                              isPending: isPending,
+                              isRejected: isRejected,
+                              onPrimaryServiceAction: onPrimaryServiceAction,
+                              onOpenServices: onOpenServices,
+                              onSignUp: onSignUp,
+                            ),
                     ),
                   ),
                   SliverPadding(
@@ -155,13 +169,53 @@ class CustomerGuestHomeView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverToBoxAdapter(
-                      child: _SummaryStrip(summary: summary, locked: isGuest),
+                  if (homeContent.taxBusinessUpdates.isNotEmpty) ...[
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                      sliver: SliverToBoxAdapter(
+                        child: const _SectionHeading(
+                          title: 'Tax & Business Updates',
+                        ),
+                      ),
                     ),
-                  ),
+                    SliverToBoxAdapter(
+                      child: HomeContentRail(
+                        items: homeContent.taxBusinessUpdates,
+                        onTap: onContentTap,
+                      ),
+                    ),
+                  ],
+                  if (homeContent.learnGrow.isNotEmpty) ...[
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                      sliver: SliverToBoxAdapter(
+                        child: const _SectionHeading(title: 'Learn & Grow'),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: HomeContentRail(
+                        items: homeContent.learnGrow,
+                        onTap: onContentTap,
+                      ),
+                    ),
+                  ],
+                  if (!isGuest && _hasCustomerAttention(summary)) ...[
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 11),
+                      sliver: const SliverToBoxAdapter(
+                        child: _SectionHeading(title: 'Needs Your Attention'),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverToBoxAdapter(
+                        child: _NeedsAttentionCard(
+                          summary: summary,
+                          onTap: onPrimaryServiceAction,
+                        ),
+                      ),
+                    ),
+                  ],
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 11),
                     sliver: SliverToBoxAdapter(
@@ -209,6 +263,140 @@ class CustomerGuestHomeView extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+bool _hasCustomerAttention(HomeDashboardSummary summary) {
+  final action = summary.nextAction;
+  if (action == null) return false;
+
+  final normalized = action.type.trim().toLowerCase();
+
+  if (normalized.isEmpty) return false;
+
+  return normalized != 'browse_services' &&
+      normalized != 'track_services' &&
+      action.route.trim().isNotEmpty;
+}
+
+class _NeedsAttentionCard extends StatelessWidget {
+  const _NeedsAttentionCard({required this.summary, required this.onTap});
+
+  final HomeDashboardSummary summary;
+  final ValueChanged<HomeDashboardServiceSnapshot> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final action = summary.nextAction;
+    if (action == null) return const SizedBox.shrink();
+
+    final services = summary.serviceSnapshots;
+    final service = services.isNotEmpty ? services.first : null;
+
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBFB),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFFDA1735).withValues(alpha: 0.12),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A111827),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFDA1735).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.notification_important_outlined,
+              color: Color(0xFFDA1735),
+              size: 23,
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  action.title.trim().isEmpty
+                      ? 'Action required'
+                      : action.title,
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
+                    fontSize: 15.5,
+                    height: 1.2,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (action.subtitle.trim().isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    action.subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF6B7280),
+                      fontSize: 12,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                if (service != null) ...[
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () => onTap(service),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111827),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            action.buttonLabel.trim().isEmpty
+                                ? 'Review'
+                                : action.buttonLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 15,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -1360,142 +1548,6 @@ class _QuickActionTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SummaryStrip extends StatelessWidget {
-  const _SummaryStrip({required this.summary, required this.locked});
-
-  final HomeDashboardSummary summary;
-  final bool locked;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      _SummaryItem(
-        value: locked ? '—' : '${summary.activeCases}',
-        label: 'Active services',
-        icon: Icons.shopping_bag_outlined,
-        color: _blue,
-        background: const Color(0xFFEDF3FF),
-      ),
-      _SummaryItem(
-        value: locked ? '—' : '${summary.pendingDocuments}',
-        label: 'Need action',
-        icon: Icons.error_outline_rounded,
-        color: _orange,
-        background: const Color(0xFFFFF3E7),
-      ),
-      _SummaryItem(
-        value: locked ? '—' : '${summary.documentSummary.total}',
-        label: 'Documents',
-        icon: Icons.description_outlined,
-        color: _green,
-        background: const Color(0xFFECF9EF),
-      ),
-      _SummaryItem(
-        value: locked ? '—' : '${summary.paymentsDue}',
-        label: 'Payments due',
-        icon: Icons.event_note_outlined,
-        color: _red,
-        background: const Color(0xFFFDECEF),
-      ),
-    ];
-
-    return _SurfaceCard(
-      radius: 25,
-      padding: const EdgeInsets.all(10),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 700;
-          final columns = compact ? 2 : 4;
-
-          return GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: compact ? 2.05 : 1.95,
-            ),
-            itemCount: items.length,
-            itemBuilder: (context, index) => items[index],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _SummaryItem extends StatelessWidget {
-  const _SummaryItem({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.background,
-  });
-
-  final String value;
-  final String label;
-  final IconData icon;
-  final Color color;
-  final Color background;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: background.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 39,
-            height: 39,
-            decoration: BoxDecoration(
-              color: background,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 20, color: color),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _navy,
-                    fontSize: 19,
-                    height: 1.05,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF50617B),
-                    fontSize: 11.5,
-                    height: 1.2,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
