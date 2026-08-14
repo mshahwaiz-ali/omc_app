@@ -1,0 +1,579 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-07-06 00:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "request_section",
+  "naming_series",
+  "service",
+  "service_title",
+  "title",
+  "description",
+  "status",
+  "priority",
+  "pricing_section",
+  "original_price",
+  "pricing_currency",
+  "discount_type",
+  "discount_value",
+  "discount_amount",
+  "proposed_final_price",
+  "final_price",
+  "discount_reason",
+  "discount_status",
+  "discount_requested_by",
+  "discount_approved_by",
+  "discount_applied_by",
+  "customer_section",
+  "customer_profile",
+  "customer_name",
+  "requested_by",
+  "contact_email",
+  "contact_phone",
+  "assisted_request_section",
+  "requested_for_customer",
+  "manual_customer",
+  "customer_mode",
+  "submission_mode",
+  "submitted_by_user",
+  "submitted_by_internal_user",
+  "referral_owner",
+  "referral_record",
+  "created_on_behalf",
+  "customer_consent_reference",
+  "assigned_staff",
+  "source_channel",
+  "submission_integrity_section",
+  "submission_data_json",
+  "submission_integrity_status",
+  "submission_integrity_score",
+  "submission_integrity_reasons_json",
+  "submission_integrity_checked_at",
+  "submission_documents_due_at",
+  "potential_duplicate_of",
+  "timeline_section",
+  "expected_completion_date",
+  "closed_on",
+  "completed_by",
+  "completion_source",
+  "erp_integration_section",
+  "erp_customer",
+  "erp_service",
+  "erp_task",
+  "erp_sync_status",
+  "erp_sync_error",
+  "erp_retry_count",
+  "erp_last_attempt_at",
+  "erp_next_attempt_at",
+  "erp_last_failure_category",
+  "erp_retry_exhausted_at",
+  "erp_last_success_at",
+  "internal_section",
+  "internal_notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "request_section",
+   "fieldtype": "Section Break",
+   "label": "Request"
+  },
+  {
+   "default": "OMC-SR-.YY..MM..DD.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "OMC-SR-.YY..MM..DD.-.#####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "service",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Service",
+   "options": "OMC Service",
+   "search_index": 1
+  },
+  {
+   "fieldname": "service_title",
+   "fieldtype": "Data",
+   "label": "Service Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Request Pricing",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "original_price",
+   "fieldtype": "Currency",
+   "label": "Original Price",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_currency",
+   "fieldtype": "Data",
+   "label": "Pricing Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_type",
+   "fieldtype": "Select",
+   "label": "Discount Type",
+   "options": "\nPercentage\nFixed Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_value",
+   "fieldtype": "Float",
+   "label": "Discount Value",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "proposed_final_price",
+   "fieldtype": "Currency",
+   "label": "Proposed Final Price",
+   "read_only": 1
+  },
+  {
+   "fieldname": "final_price",
+   "fieldtype": "Currency",
+   "label": "Final Price",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_reason",
+   "fieldtype": "Small Text",
+   "label": "Discount Reason",
+   "read_only": 1
+  },
+  {
+   "default": "None",
+   "fieldname": "discount_status",
+   "fieldtype": "Select",
+   "label": "Discount Status",
+   "options": "None\nPending Approval\nApproved\nRejected",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_requested_by",
+   "fieldtype": "Link",
+   "label": "Discount Requested By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_approved_by",
+   "fieldtype": "Link",
+   "label": "Discount Approved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_applied_by",
+   "fieldtype": "Link",
+   "label": "Discount Applied By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Long Text",
+   "label": "Description"
+  },
+  {
+   "bold": 1,
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Open\nIn Progress\nWaiting for Customer\nWaiting for Payment\nCompleted\nCancelled",
+   "search_index": 1
+  },
+  {
+   "default": "Medium",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh\nUrgent",
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer_section",
+   "fieldtype": "Section Break",
+   "label": "Customer"
+  },
+  {
+   "fieldname": "customer_profile",
+   "fieldtype": "Link",
+   "label": "Customer Profile",
+   "options": "OMC Customer Profile"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Customer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email"
+  },
+  {
+   "fieldname": "contact_phone",
+   "fieldtype": "Data",
+   "label": "Contact Phone"
+  },
+  {
+   "fieldname": "assisted_request_section",
+   "fieldtype": "Section Break",
+   "label": "Assisted Request Context"
+  },
+  {
+   "fieldname": "requested_for_customer",
+   "fieldtype": "Link",
+   "label": "Requested For Customer",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "manual_customer",
+   "fieldtype": "Link",
+   "label": "Manual Customer",
+   "options": "OMC Manual Customer",
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer_mode",
+   "fieldtype": "Select",
+   "label": "Customer Mode",
+   "options": "Self\nMy Referral\nExisting Customer\nWalk-in Customer",
+   "default": "Self",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "submission_mode",
+   "fieldtype": "Select",
+   "label": "Submission Mode",
+   "options": "Customer Self-Service\nStaff on Behalf\nAdmin on Behalf\nWalk-in Assisted",
+   "default": "Customer Self-Service",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "submitted_by_user",
+   "fieldtype": "Link",
+   "label": "Submitted By User",
+   "options": "User",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "submitted_by_internal_user",
+   "fieldtype": "Link",
+   "label": "Submitted By Internal User",
+   "options": "User",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "referral_owner",
+   "fieldtype": "Link",
+   "label": "Referral Owner",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "referral_record",
+   "fieldtype": "Link",
+   "label": "Referral Record",
+   "options": "OMC Referral",
+   "search_index": 1
+  },
+  {
+   "fieldname": "created_on_behalf",
+   "fieldtype": "Check",
+   "label": "Created On Behalf",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_consent_reference",
+   "fieldtype": "Data",
+   "label": "Customer Consent Reference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assigned_staff",
+   "fieldtype": "Link",
+   "label": "Assigned Staff",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "source_channel",
+   "fieldtype": "Select",
+   "label": "Source Channel",
+   "options": "Mobile App\nDesk\nWebsite\nWalk-in\nImported\nAPI"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "submission_integrity_section",
+   "fieldtype": "Section Break",
+   "label": "Submission Integrity"
+  },
+  {
+   "fieldname": "submission_data_json",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Submission Data JSON",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "default": "Not Evaluated",
+   "fieldname": "submission_integrity_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Submission Integrity Status",
+   "options": "Not Evaluated\nClear\nNeeds Review\nIncomplete",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "submission_integrity_score",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Submission Integrity Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submission_integrity_reasons_json",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Submission Integrity Reasons JSON",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submission_integrity_checked_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Submission Integrity Checked At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submission_documents_due_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Submission Documents Due At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "potential_duplicate_of",
+   "fieldtype": "Link",
+   "label": "Potential Duplicate Of",
+   "options": "OMC Service Request",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "timeline_section",
+   "fieldtype": "Section Break",
+   "label": "Timeline"
+  },
+  {
+   "fieldname": "expected_completion_date",
+   "fieldtype": "Date",
+   "label": "Expected Completion Date"
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completed_by",
+   "fieldtype": "Link",
+   "label": "Completed By",
+   "options": "User",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "completion_source",
+   "fieldtype": "Select",
+   "label": "Completion Source",
+   "options": "\nMobile / Desk\nERP Task",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "internal_section",
+   "fieldtype": "Section Break",
+   "label": "Internal"
+  },
+  {
+   "fieldname": "internal_notes",
+   "fieldtype": "Long Text",
+   "label": "Internal Notes"
+  },
+  {
+   "fieldname": "erp_integration_section",
+   "fieldtype": "Section Break",
+   "label": "ERP Integration",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "erp_customer",
+   "fieldtype": "Link",
+   "label": "ERP Customer",
+   "options": "Customer",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "erp_service",
+   "fieldtype": "Link",
+   "label": "ERP Service",
+   "options": "Service",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "erp_task",
+   "fieldtype": "Link",
+   "label": "ERP Task",
+   "options": "Task",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Not Started",
+   "fieldname": "erp_sync_status",
+   "fieldtype": "Select",
+   "label": "ERP Sync Status",
+   "options": "Not Started\nPending Configuration\nSynced\nFailed\nRepair Required",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "erp_sync_error",
+   "fieldtype": "Small Text",
+   "label": "ERP Sync Error",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "erp_retry_count",
+   "fieldtype": "Int",
+   "label": "ERP Retry Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_last_attempt_at",
+   "fieldtype": "Datetime",
+   "label": "ERP Last Attempt At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_next_attempt_at",
+   "fieldtype": "Datetime",
+   "label": "ERP Next Attempt At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "erp_last_failure_category",
+   "fieldtype": "Select",
+   "label": "ERP Last Failure Category",
+   "options": "\nTransient\nRepairable\nConfiguration\nPermanent",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_retry_exhausted_at",
+   "fieldtype": "Datetime",
+   "label": "ERP Retry Exhausted At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "erp_last_success_at",
+   "fieldtype": "Datetime",
+   "label": "ERP Last Success At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-09 02:48:10.265347",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Service Request",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "title,customer_name,service,status,priority,requested_for_customer,manual_customer,referral_owner",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

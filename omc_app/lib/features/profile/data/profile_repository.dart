@@ -33,22 +33,6 @@ final profileSummaryProvider = FutureProvider<ProfileSummary?>((ref) async {
   final profile = await repository.fetchProfile(
     fallbackUserId: authIdentity.userId,
   );
-  if (profile != null) {
-    ref
-        .read(authControllerProvider.notifier)
-        .syncProfileSummary(
-          displayName: profile.displayName,
-          email: profile.email,
-          phone: profile.phone,
-          companyName: profile.companyName,
-          customerStatus: profile.status,
-          approvalStatus: profile.approvalStatus,
-          avatarUrl: profile.avatarUrl,
-          canAccessInternalWorkspace: profile.canAccessInternalWorkspace,
-          capabilities: profile.capabilities,
-        );
-  }
-
   return profile;
 });
 

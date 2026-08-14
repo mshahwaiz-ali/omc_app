@@ -1,0 +1,33 @@
+{
+ "actions": [],
+ "creation": "2026-07-09 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["income_type", "filer_status", "taxpayer_type", "from_amount", "to_amount", "fixed_tax", "rate_percent", "amount_over", "sort_order", "label"],
+ "fields": [
+  {"fieldname": "income_type", "fieldtype": "Select", "in_list_view": 1, "label": "Income Type", "options": "Salary\nBusiness\nRental", "reqd": 1},
+  {"fieldname": "filer_status", "fieldtype": "Select", "in_list_view": 1, "label": "Filer Status", "options": "Active Filer\nLate Filer\nNon-Filer", "reqd": 1},
+  {"fieldname": "taxpayer_type", "fieldtype": "Select", "label": "Taxpayer Type", "options": "Individual\nAOP\nCompany"},
+  {"fieldname": "from_amount", "fieldtype": "Currency", "in_list_view": 1, "label": "From Amount", "reqd": 1},
+  {"fieldname": "to_amount", "fieldtype": "Currency", "in_list_view": 1, "label": "To Amount"},
+  {"default": "0", "fieldname": "fixed_tax", "fieldtype": "Currency", "label": "Fixed Tax"},
+  {"default": "0", "fieldname": "rate_percent", "fieldtype": "Percent", "in_list_view": 1, "label": "Rate Percent"},
+  {"default": "0", "fieldname": "amount_over", "fieldtype": "Currency", "label": "Amount Over"},
+  {"default": "0", "fieldname": "sort_order", "fieldtype": "Int", "label": "Sort Order"},
+  {"fieldname": "label", "fieldtype": "Data", "in_list_view": 1, "label": "Label"}
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Tax Slab",
+ "owner": "Administrator",
+ "permissions": [],
+ "quick_entry": 0,
+ "sort_field": "sort_order",
+ "sort_order": "ASC",
+ "states": []
+}
