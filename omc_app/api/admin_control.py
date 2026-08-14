@@ -7,7 +7,12 @@ import json
 import frappe
 from frappe.utils import cint, flt, validate_email_address
 
-from omc_app.api import access, erp_sync_recovery, service_assignment
+from omc_app.api import (
+    access,
+    erp_sync_recovery,
+    mobile,
+    service_assignment,
+)
 from omc_app.setup.roles import (
     ADMIN_ROLE,
     BUSINESS_PARTNER_ROLE,
@@ -389,6 +394,69 @@ def get_case_admin_options(service_request=None):
 def retry_service_sync(service_request=None):
     _require("can_retry_sync")
     return erp_sync_recovery.retry_erp_sync(service_request, reset_exhaustion=1)
+
+
+@frappe.whitelist()
+def retry_paid_activation(service_request=None):
+    """Retry the full operational activation for an already-paid request."""
+    _require("can_retry_sync")
+
+    service_request = _text(service_request)
+    if not service_request:
+        frappe.throw(
+            "service_request is required.",
+            frappe.ValidationError,
+        )
+
+    if not frappe.db.exists("OMC Service Request", service_request):
+        frappe.throw(
+            "Service request was not found.",
+            frappe.DoesNotExistError,
+        )
+
+    from omc_app.api import service_activation
+
+    savepoint = "retry_paid_request_activation"
+    frappe.db.savepoint(savepoint)
+
+    try:
+        result = service_activation.activate_paid_request(service_request)
+
+        # The original Paid review only sends this notification when activation
+        # succeeds. Do the same on recovery, but avoid duplicate notifications
+        # when the request was already operationally active.
+        if not result.get("already_active") and result.get("assigned_staff"):
+            mobile._create_customer_notification(
+                recipient_user=result["assigned_staff"],
+                title="Payment confirmed - start work",
+                message=(
+                    f"Payment for {service_request} has been confirmed. "
+                    "The request is ready for processing."
+                ),
+                notification_type="Payment",
+                reference_doctype="OMC Service Request",
+                reference_name=service_request,
+            )
+
+        frappe.db.commit()
+
+        return {
+            "retried": True,
+            "service_request": service_request,
+            "activation": result,
+            "message": (
+                "Paid request is already operationally active."
+                if result.get("already_active")
+                else "Paid request activation completed successfully."
+            ),
+        }
+    except Exception:
+        frappe.db.rollback(save_point=savepoint)
+        frappe.log_error(
+            title=f"Paid activation retry failed: {service_request}",
+            message=frappe.get_traceback(),
+        )
+        raise
 
 
 @frappe.whitelist()

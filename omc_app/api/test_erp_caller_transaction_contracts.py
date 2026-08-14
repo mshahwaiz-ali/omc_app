@@ -41,16 +41,15 @@ def _function_node(function) -> ast.FunctionDef:
 
 
 class TestErpCallerTransactionContracts(FrappeTestCase):
-    def test_assisted_request_commit_occurs_after_bridge_and_side_effects(self):
+    def test_assisted_request_is_intake_only_before_commit(self):
         calls = _call_lines(assisted_service._create_request)
 
-        bridge_line = calls["erp_service_task_adapter.sync_request"][0]
         commit_line = calls["frappe.db.commit"][0]
-        assignment_line = calls["service_assignment.apply_assignment"][0]
         timeline_lines = calls["mobile._create_service_timeline_entry"]
 
-        self.assertLess(bridge_line, assignment_line)
-        self.assertLess(assignment_line, commit_line)
+        self.assertNotIn("erp_service_task_adapter.sync_request", calls)
+        self.assertNotIn("service_assignment.assign_new_request", calls)
+        self.assertNotIn("service_assignment.apply_assignment", calls)
         self.assertGreaterEqual(len(timeline_lines), 1)
         self.assertTrue(all(line < commit_line for line in timeline_lines))
 
@@ -62,7 +61,7 @@ class TestErpCallerTransactionContracts(FrappeTestCase):
 
         self.assertLess(bridge_line, commit_line)
 
-    def test_assisted_request_does_not_swallow_bridge_failures(self):
+    def test_assisted_request_has_no_operational_failure_handler(self):
         function = _function_node(assisted_service._create_request)
         handlers = [
             node
@@ -72,7 +71,7 @@ class TestErpCallerTransactionContracts(FrappeTestCase):
         self.assertEqual(
             handlers,
             [],
-            "_create_request must not swallow ERP bridge or downstream failures.",
+            "_create_request should remain a simple intake transaction.",
         )
 
     def test_recovery_does_not_swallow_bridge_failures(self):

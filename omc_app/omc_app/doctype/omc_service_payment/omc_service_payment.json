@@ -16,6 +16,11 @@
   "paid_on",
   "payment_reference",
   "receipt_attachment",
+  "erp_finance_section",
+  "erp_sales_invoice",
+  "erp_payment_entry",
+  "erp_finance_status",
+  "erp_finance_error",
   "visible_to_customer",
   "remarks"
  ],
@@ -111,6 +116,38 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "erp_finance_section",
+   "fieldtype": "Section Break",
+   "label": "ERP Finance"
+  },
+  {
+   "fieldname": "erp_sales_invoice",
+   "fieldtype": "Link",
+   "label": "ERP Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_payment_entry",
+   "fieldtype": "Link",
+   "label": "ERP Payment Entry",
+   "options": "Payment Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_finance_status",
+   "fieldtype": "Select",
+   "label": "ERP Finance Status",
+   "options": "\nPending\nPosted\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erp_finance_error",
+   "fieldtype": "Small Text",
+   "label": "ERP Finance Error",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
