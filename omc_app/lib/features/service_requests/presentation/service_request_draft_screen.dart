@@ -129,12 +129,22 @@ class _ServiceRequestDraftScreenState
       data: (services) {
         final service = _findService(services);
         if (service == null) {
-          return const Scaffold(
-            appBar: AppBackHeader(title: 'Start Request'),
+          final catalogueIsEmpty = services.isEmpty;
+
+          return Scaffold(
+            appBar: const AppBackHeader(title: 'Start Request'),
             body: EmptyState(
-              title: 'Service not found',
-              message: 'Select the service again from the catalogue.',
-              icon: Icons.search_off_rounded,
+              title: catalogueIsEmpty
+                  ? 'No services available'
+                  : 'Service unavailable',
+              message: catalogueIsEmpty
+                  ? 'OMC has not published any mobile services yet. Please check again later.'
+                  : 'This service is no longer available. Select another service from the catalogue.',
+              icon: catalogueIsEmpty
+                  ? Icons.inventory_2_outlined
+                  : Icons.search_off_rounded,
+              actionLabel: 'Back to services',
+              onAction: () => context.go('/services'),
             ),
           );
         }

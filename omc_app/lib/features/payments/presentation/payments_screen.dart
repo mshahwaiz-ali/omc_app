@@ -524,7 +524,7 @@ class _EmptyPaymentsView extends StatelessWidget {
             icon: Icons.account_balance_wallet_outlined,
             title: 'No payment is due',
             message:
-                'A payment will appear here after all required documents are approved.',
+                'A payment will appear here after all required documents are uploaded.',
           ),
         ),
       ],

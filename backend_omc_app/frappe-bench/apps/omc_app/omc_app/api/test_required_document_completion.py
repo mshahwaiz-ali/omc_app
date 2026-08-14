@@ -152,7 +152,7 @@ class TestRequiredDocumentCompletion(FrappeTestCase):
 
     @patch.object(payments.frappe, "get_all")
     @patch.object(payments.mobile, "_service_required_documents")
-    def test_payment_gate_uses_shared_strict_completion(
+    def test_payment_gate_uses_shared_uploaded_completion(
         self,
         required_documents,
         get_all,
@@ -173,7 +173,7 @@ class TestRequiredDocumentCompletion(FrappeTestCase):
             )
         ]
 
-        result = payments._approved_required_documents(
+        result = payments._uploaded_required_documents(
             SimpleNamespace(
                 name="OMC-SR-1",
                 service="OMC-SERVICE-1",

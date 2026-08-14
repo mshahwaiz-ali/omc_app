@@ -9,6 +9,7 @@
   "naming_series",
   "full_name",
   "cnic",
+  "ntn",
   "mobile",
   "email",
   "address",
@@ -51,6 +52,12 @@
    "fieldname": "cnic",
    "fieldtype": "Data",
    "label": "CNIC",
+   "search_index": 1
+  },
+  {
+   "fieldname": "ntn",
+   "fieldtype": "Data",
+   "label": "NTN",
    "search_index": 1
   },
   {

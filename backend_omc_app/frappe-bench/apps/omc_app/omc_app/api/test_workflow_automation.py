@@ -28,15 +28,15 @@ class TestWorkflowAutomation(TestCase):
         )
 
     @patch.object(payments.mobile, "_has_doctype", return_value=True)
-    @patch.object(payments, "_approved_required_documents", return_value=False)
+    @patch.object(payments, "_uploaded_required_documents", return_value=False)
     @patch.object(payments.frappe, "get_all", return_value=[])
-    def test_partial_approval_does_not_open_payment(
+    def test_missing_required_upload_does_not_open_payment(
         self, _get_all, _approved, _has_doctype
     ):
         self.assertIsNone(payments._ensure_payment_for_case(self._case()))
 
     @patch.object(payments.mobile, "_has_doctype", return_value=True)
-    @patch.object(payments, "_approved_required_documents", return_value=True)
+    @patch.object(payments, "_uploaded_required_documents", return_value=True)
     @patch.object(payments.frappe, "new_doc")
     @patch.object(payments.frappe, "get_doc")
     @patch.object(payments.frappe, "get_all", return_value=[])
@@ -51,7 +51,7 @@ class TestWorkflowAutomation(TestCase):
         log_error.assert_called_once()
 
     @patch.object(payments.mobile, "_has_doctype", return_value=True)
-    @patch.object(payments, "_approved_required_documents", return_value=True)
+    @patch.object(payments, "_uploaded_required_documents", return_value=True)
     @patch.object(payments.mobile, "_create_customer_notification")
     @patch.object(payments.mobile, "_create_service_timeline_entry")
     @patch.object(payments.frappe.db, "commit")
@@ -59,7 +59,7 @@ class TestWorkflowAutomation(TestCase):
     @patch.object(payments.frappe, "get_all", return_value=[])
     @patch.object(payments.frappe, "get_doc")
     @patch.object(payments.frappe, "new_doc")
-    def test_final_approval_opens_payment_and_advances_case(
+    def test_required_uploads_open_payment_and_advance_case(
         self, new_doc, get_doc, _get_all, _exists, _commit, timeline,
         notification, _approved, _has_doctype
     ):
