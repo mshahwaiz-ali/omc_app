@@ -124,6 +124,99 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         self.assertEqual(manual.customer_origin, "Walk-in")
         manual.insert.assert_called_once_with(ignore_permissions=True)
 
+    def test_walk_in_tax_id_maps_to_cnic(self):
+        manual = MagicMock()
+        manual.name = "MC-1"
+
+        with (
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Support Agent"},
+            ),
+            patch.object(
+                assisted_service,
+                "_manual_customer_duplicate_matches",
+                return_value=[],
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "new_doc",
+                return_value=manual,
+            ),
+        ):
+            assisted_service._create_manual_customer(
+                "staff@example.com",
+                {
+                    "full_name": "Walk In Customer",
+                    "phone": "03001234567",
+                    "tax_id": "42101-1234567-1",
+                },
+            )
+
+        self.assertEqual(manual.cnic, "4210112345671")
+        self.assertEqual(manual.ntn, "")
+
+    def test_walk_in_tax_id_maps_to_ntn(self):
+        manual = MagicMock()
+        manual.name = "MC-1"
+
+        with (
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Support Agent"},
+            ),
+            patch.object(
+                assisted_service,
+                "_manual_customer_duplicate_matches",
+                return_value=[],
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "new_doc",
+                return_value=manual,
+            ),
+        ):
+            assisted_service._create_manual_customer(
+                "staff@example.com",
+                {
+                    "full_name": "Walk In Customer",
+                    "phone": "03001234567",
+                    "tax_id": "1234567",
+                },
+            )
+
+        self.assertEqual(manual.cnic, "")
+        self.assertEqual(manual.ntn, "1234567")
+
+    def test_walk_in_invalid_tax_id_is_rejected(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_roles",
+                return_value={"OMC Support Agent"},
+            ),
+            patch.object(
+                assisted_service.frappe,
+                "new_doc",
+            ) as new_doc,
+            self.assertRaisesRegex(
+                frappe.ValidationError,
+                "valid 13-digit CNIC or 7 to 9-digit NTN",
+            ),
+        ):
+            assisted_service._create_manual_customer(
+                "staff@example.com",
+                {
+                    "full_name": "Walk In Customer",
+                    "phone": "03001234567",
+                    "tax_id": "12345",
+                },
+            )
+
+        new_doc.assert_not_called()
+
     def test_walk_in_duplicate_identity_is_rejected(self):
         with (
             patch.object(
@@ -389,7 +482,7 @@ class TestAssistedServiceAuthority(FrappeTestCase):
                 request_name="REQ-1",
             )
 
-    def test_manual_customer_conversion_links_existing_task_workflow(self):
+    def test_manual_customer_conversion_waits_for_paid_activation(self):
         manual = MagicMock()
         manual.name = "MC-1"
         manual.full_name = "Walk In Customer"
@@ -411,17 +504,16 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         profile.cnic = ""
         profile.address = ""
 
-        service = SimpleNamespace(
-            name="SERVICE-1",
-            erp_task_type="NTN Registration",
-        )
-
         def get_doc(doctype, _name):
             return {
                 "OMC Manual Customer": manual,
                 "OMC Service Request": request,
-                "OMC Service": service,
             }[doctype]
+
+        def exists(doctype, filters=None):
+            if doctype == "OMC Service Payment":
+                return False
+            return True
 
         with (
             patch.object(
@@ -437,7 +529,7 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             patch.object(
                 assisted_service.frappe.db,
                 "exists",
-                return_value=True,
+                side_effect=exists,
             ),
             patch.object(
                 assisted_service.frappe,
@@ -464,18 +556,6 @@ class TestAssistedServiceAuthority(FrappeTestCase):
                     "reason": "",
                 },
             ),
-            patch.object(
-                assisted_service.erp_service_task_adapter,
-                "sync_request",
-                return_value={
-                    "status": "Synced",
-                    "erp_customer": "ERP-CUST-1",
-                    "erp_service": "ERP-SERVICE-1",
-                    "erp_task": "TASK-1",
-                    "task_assignment": "TODO-1",
-                    "created": True,
-                },
-            ) as sync_request,
         ):
             result = assisted_service.convert_manual_customer(
                 manual_customer="MC-1",
@@ -484,9 +564,14 @@ class TestAssistedServiceAuthority(FrappeTestCase):
 
         self.assertEqual(result["customer_profile"], "OMC-CUST-1")
         self.assertEqual(result["erp_customer"], "ERP-CUST-1")
-        self.assertEqual(result["erp_service"], "ERP-SERVICE-1")
-        self.assertEqual(result["erp_task"], "TASK-1")
-        self.assertEqual(result["erp_sync_status"], "Synced")
+        self.assertEqual(result["erp_service"], "")
+        self.assertEqual(result["erp_task"], "")
+        self.assertEqual(result["erp_sync_status"], "")
+        self.assertTrue(result["activation_pending_payment"])
+        self.assertEqual(
+            result["reason"],
+            "Operational activation waits for confirmed payment.",
+        )
 
         self.assertEqual(manual.verification_status, "Verified")
         self.assertEqual(manual.conversion_status, "Linked")
@@ -497,14 +582,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         self.assertEqual(request.customer_profile, "OMC-CUST-1")
 
         profile.insert.assert_called_once_with(ignore_permissions=True)
+        profile.save.assert_called_once_with(ignore_permissions=True)
         manual.save.assert_called_once_with(ignore_permissions=True)
-        sync_request.assert_called_once_with(
-            request,
-            service=service,
-            profile=profile,
-            manual_customer=manual,
-            repair=True,
-        )
 
     def test_manual_customer_conversion_requires_cnic_or_ntn(self):
         manual = SimpleNamespace(

@@ -29,6 +29,72 @@ def _text(value) -> str:
     return str(value or "").strip()
 
 
+def _identity_digits(value) -> str:
+    return "".join(ch for ch in _text(value) if ch.isdigit())
+
+
+def _tax_identity_from_kwargs(kwargs: dict) -> tuple[str, str]:
+    explicit_cnic = _identity_digits(kwargs.get("cnic"))
+    explicit_ntn = _identity_digits(kwargs.get("ntn"))
+    tax_id = _identity_digits(kwargs.get("tax_id"))
+
+    if explicit_cnic and len(explicit_cnic) != 13:
+        frappe.throw("CNIC must contain 13 digits.", frappe.ValidationError)
+
+    if explicit_ntn and not 7 <= len(explicit_ntn) <= 9:
+        frappe.throw("NTN must contain 7 to 9 digits.", frappe.ValidationError)
+
+    tax_cnic = ""
+    tax_ntn = ""
+    if tax_id:
+        if len(tax_id) == 13:
+            tax_cnic = tax_id
+        elif 7 <= len(tax_id) <= 9:
+            tax_ntn = tax_id
+        else:
+            frappe.throw(
+                "tax_id must contain a valid 13-digit CNIC or 7 to 9-digit NTN.",
+                frappe.ValidationError,
+            )
+
+    if explicit_cnic and tax_cnic and explicit_cnic != tax_cnic:
+        frappe.throw("Submitted CNIC values conflict.", frappe.ValidationError)
+
+    if explicit_ntn and tax_ntn and explicit_ntn != tax_ntn:
+        frappe.throw("Submitted NTN values conflict.", frappe.ValidationError)
+
+    return explicit_cnic or tax_cnic, explicit_ntn or tax_ntn
+
+
+def _merge_profile_tax_identity(profile, *, cnic: str, ntn: str) -> None:
+    changed = False
+
+    if cnic:
+        current = _identity_digits(getattr(profile, "cnic", None))
+        if current and current != cnic:
+            frappe.throw(
+                "Submitted CNIC does not match the customer profile.",
+                frappe.ValidationError,
+            )
+        if not current:
+            profile.cnic = cnic
+            changed = True
+
+    if ntn:
+        current = _identity_digits(getattr(profile, "ntn", None))
+        if current and current != ntn:
+            frappe.throw(
+                "Submitted NTN does not match the customer profile.",
+                frappe.ValidationError,
+            )
+        if not current:
+            profile.ntn = ntn
+            changed = True
+
+    if changed:
+        profile.save(ignore_permissions=True)
+
+
 _active_system_user = service_assignment.active_assignable_user
 _users_for_role = service_assignment.users_for_role
 _open_assignment_count = service_assignment.open_assignment_count
@@ -272,11 +338,13 @@ def _manual_customer_duplicate_matches(
     mobile: str,
     email: str,
     cnic: str,
+    ntn: str = "",
 ) -> list[str]:
     identity_fields = {
         "mobile": _text(mobile),
         "email": _text(email).lower(),
         "cnic": _text(cnic),
+        "ntn": _text(ntn),
     }
     identity_fields = {
         fieldname: value
@@ -309,6 +377,7 @@ def _manual_customer_profile_matches(manual_customer) -> list[str]:
         "email": _text(getattr(manual_customer, "email", None)).lower(),
         "phone": _text(getattr(manual_customer, "mobile", None)),
         "cnic": _text(getattr(manual_customer, "cnic", None)),
+        "ntn": _text(getattr(manual_customer, "ntn", None)),
     }
 
     matches: set[str] = set()
@@ -344,7 +413,7 @@ def _create_manual_customer(user: str, kwargs: dict):
         or kwargs.get("contact_phone")
     )
     email = _text(kwargs.get("email") or kwargs.get("contact_email"))
-    cnic = _text(kwargs.get("cnic"))
+    cnic, ntn = _tax_identity_from_kwargs(kwargs)
 
     if not full_name:
         frappe.throw("Full name is required.", frappe.ValidationError)
@@ -358,6 +427,7 @@ def _create_manual_customer(user: str, kwargs: dict):
         mobile=mobile_no,
         email=email,
         cnic=cnic,
+        ntn=ntn,
     )
     if duplicate_matches:
         frappe.throw(
@@ -373,6 +443,7 @@ def _create_manual_customer(user: str, kwargs: dict):
     doc.mobile = mobile_no
     doc.email = email
     doc.cnic = cnic
+    doc.ntn = ntn
     doc.address = _text(kwargs.get("address"))
     doc.city = _text(kwargs.get("city"))
     doc.notes = _text(kwargs.get("notes") or kwargs.get("note"))
@@ -683,6 +754,7 @@ def convert_manual_customer(manual_customer=None, request_name=None):
             profile.email = email
             profile.phone = _text(manual.mobile)
             profile.cnic = _text(manual.cnic)
+            profile.ntn = _text(getattr(manual, "ntn", None))
             profile.address = _text(manual.address)
             profile.customer_origin = "Walk-in"
             profile.customer_status = "Active"
@@ -704,6 +776,8 @@ def convert_manual_customer(manual_customer=None, request_name=None):
         profile.phone = _text(manual.mobile)
     if not _text(getattr(profile, "cnic", None)):
         profile.cnic = _text(manual.cnic)
+    if not _text(getattr(profile, "ntn", None)):
+        profile.ntn = _text(getattr(manual, "ntn", None))
     if not _text(getattr(profile, "address", None)):
         profile.address = _text(manual.address)
 
@@ -875,6 +949,14 @@ def _create_request(**kwargs):
             manual_customer = _create_manual_customer(user, kwargs)
             submission_mode = "Walk-in Assisted"
             consent_reference = consent_reference or manual_customer.name
+
+    if profile:
+        submitted_cnic, submitted_ntn = _tax_identity_from_kwargs(kwargs)
+        _merge_profile_tax_identity(
+            profile,
+            cnic=submitted_cnic,
+            ntn=submitted_ntn,
+        )
 
     full_name = _text(kwargs.get("full_name") or kwargs.get("customer_name"))
     contact_email = _text(kwargs.get("contact_email") or kwargs.get("email"))

@@ -499,7 +499,7 @@ def _ensure_payment_for_case(service_case):
     _set_case_status(service_case, "Waiting for Payment")
 
     message = (
-        f"Your required documents are approved. Payment of "
+        f"Your required documents have been uploaded. Payment of "
         f"{payment.currency} {payment.amount:g} is now available."
     )
     mobile._create_service_timeline_entry(

@@ -234,7 +234,7 @@ class TestServiceCasePaymentContract(TestCase):
         self.assertFalse(result["payment_eligible"])
         self.assertEqual(
             result["payment_block_reason"],
-            "required_documents_not_approved",
+            "required_documents_missing",
         )
         self.assertEqual(result["next_action"], "upload_documents")
 
