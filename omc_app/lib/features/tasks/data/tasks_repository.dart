@@ -27,13 +27,6 @@ final taskDetailProvider = FutureProvider.family<TaskItem?, String>((
   return repository.fetchTaskDetail(taskId);
 });
 
-final taskAssignmentOptionsProvider =
-    FutureProvider.family<TaskAssignmentOptions, String>((ref, taskId) {
-      final repository = ref.watch(tasksRepositoryProvider);
-
-      return repository.fetchAssignmentOptions(taskId);
-    });
-
 class TasksRepository {
   const TasksRepository(this._frappeClient);
 
@@ -102,90 +95,6 @@ class TasksRepository {
     };
   }
 
-  Future<TaskItem> updateOperationStatus({
-    required String taskId,
-    required String operationStatus,
-  }) async {
-    final cleanTaskId = taskId.trim();
-    final cleanStatus = operationStatus.trim();
-    if (cleanTaskId.isEmpty || cleanStatus.isEmpty) {
-      throw const ApiError(message: 'Task and operation status are required.');
-    }
-
-    final response = await _frappeClient.postMethod(
-      ApiConfig.updateTaskOperationStatusMethod,
-      data: {'task_id': cleanTaskId, 'operation_status': cleanStatus},
-    );
-    return _mapMutationTask(response);
-  }
-
-  Future<TaskAssignmentOptions> fetchAssignmentOptions(String taskId) async {
-    final cleanTaskId = taskId.trim();
-    if (cleanTaskId.isEmpty) {
-      throw const ApiError(message: 'Task is required.');
-    }
-
-    try {
-      final response = await _frappeClient.getMethod(
-        ApiConfig.taskAssignmentOptionsMethod,
-        queryParameters: {'task_id': cleanTaskId},
-      );
-
-      final message = response['message'];
-      final payload = message is Map
-          ? Map<String, dynamic>.from(message)
-          : response;
-
-      return TaskAssignmentOptions.fromJson(payload);
-    } on ApiError {
-      rethrow;
-    } catch (error) {
-      throw ApiError(
-        message: 'Task assignment options could not be loaded.',
-        code: 'task_assignment_options_unavailable',
-        details: error,
-      );
-    }
-  }
-
-  Future<TaskItem> assignTask({
-    required String taskId,
-    required String assignedTo,
-  }) async {
-    final cleanTaskId = taskId.trim();
-    final cleanAssignee = assignedTo.trim();
-    if (cleanTaskId.isEmpty || cleanAssignee.isEmpty) {
-      throw const ApiError(message: 'Task and assignee are required.');
-    }
-
-    final response = await _frappeClient.postMethod(
-      ApiConfig.assignTaskMethod,
-      data: {'task_id': cleanTaskId, 'assigned_to': cleanAssignee},
-    );
-    return _mapMutationTask(response);
-  }
-
-  Future<TaskItem> updateTaskDetails({
-    required String taskId,
-    String? priority,
-    String? dueDate,
-  }) async {
-    final cleanTaskId = taskId.trim();
-    if (cleanTaskId.isEmpty) {
-      throw const ApiError(message: 'Task is required.');
-    }
-
-    final response = await _frappeClient.postMethod(
-      ApiConfig.updateTaskDetailsMethod,
-      data: {
-        'task_id': cleanTaskId,
-        if (priority != null) 'priority': priority.trim(),
-        if (dueDate != null) 'due_date': dueDate.trim(),
-      },
-    );
-    return _mapMutationTask(response);
-  }
-
   Future<TaskItem?> fetchTaskDetail(String taskId) async {
     final cleanTaskId = taskId.trim();
     if (cleanTaskId.isEmpty) return null;
@@ -206,18 +115,6 @@ class TasksRepository {
         details: error,
       );
     }
-  }
-
-  TaskItem _mapMutationTask(Map<String, dynamic> data) {
-    final message = data['message'];
-    final rawTask = message is Map<String, dynamic>
-        ? message['task'] ?? message['data'] ?? message
-        : data['task'] ?? data['data'];
-
-    if (rawTask is! Map<String, dynamic>) {
-      throw const ApiError(message: 'Task update response was invalid.');
-    }
-    return TaskItem.fromJson(rawTask);
   }
 
   List<TaskItem> _mapTasksResponse(Map<String, dynamic> data) {

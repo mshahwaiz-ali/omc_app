@@ -49,6 +49,7 @@ def validate_service_transition(current: Any, target: Any) -> tuple[str, str]:
 def project(case: Mapping[str, Any]) -> dict[str, Any]:
     status = normalize_service_status(case.get("status"))
     required = _number(case.get("required_documents_count"))
+    submitted = _number(case.get("submitted_documents_count"))
     approved = _number(case.get("approved_documents_count"))
     missing = _number(case.get("missing_documents_count"))
     rejected_documents = _number(case.get("rejected_documents_count"))
@@ -57,12 +58,16 @@ def project(case: Mapping[str, Any]) -> dict[str, Any]:
     open_payments = _number(case.get("open_payments_count"))
     rejected_payments = _number(case.get("rejected_payments_count"))
     operational_complete = bool(case.get("operational_work_complete"))
-    documents_complete = required == 0 or (approved >= required and missing == 0 and rejected_documents == 0)
+    documents_complete = required == 0 or (
+        submitted >= required
+        and missing == 0
+        and rejected_documents == 0
+    )
     payment_complete = active_payments == 0 or (paid_payments >= active_payments and open_payments == 0)
 
     blockers = []
     if not documents_complete:
-        blockers.append("Required documents are not fully approved.")
+        blockers.append("Required documents are not fully uploaded.")
     if not payment_complete:
         blockers.append("Required payment has not been confirmed.")
     if rejected_documents or rejected_payments or status == "Waiting for Customer":
@@ -88,7 +93,7 @@ def project(case: Mapping[str, Any]) -> dict[str, Any]:
         stage, progress, next_action = "cancelled", 0, None
     elif not documents_complete:
         stage = "documents"
-        progress = 15 + round((approved / required if required else 0) * 30)
+        progress = 15 + round((submitted / required if required else 0) * 30)
     elif not payment_complete or status == "Waiting for Payment":
         stage = "payment"
         progress = 50 + round((paid_payments / active_payments if active_payments else 0) * 20)
@@ -97,8 +102,8 @@ def project(case: Mapping[str, Any]) -> dict[str, Any]:
 
     milestones = ["request_created"]
     if required: milestones.append("documents_requested")
-    if approved or required and missing < required: milestones.append("documents_submitted")
-    if documents_complete: milestones.append("documents_approved")
+    if submitted or required and missing < required: milestones.append("documents_submitted")
+    if documents_complete: milestones.append("documents_uploaded")
     if active_payments: milestones.append("payment_opened")
     if active_payments and open_payments and not rejected_payments: milestones.append("receipt_submitted")
     if payment_complete and active_payments: milestones.append("payment_paid")

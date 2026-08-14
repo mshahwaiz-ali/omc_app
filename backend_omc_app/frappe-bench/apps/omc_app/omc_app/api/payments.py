@@ -6,7 +6,14 @@ from urllib.parse import quote
 import frappe
 from frappe.utils.file_manager import save_file
 
-from omc_app.api import access, idempotency, mobile, review_routing, upload_validation
+from omc_app.api import (
+    access,
+    erp_finance_adapter,
+    idempotency,
+    mobile,
+    review_routing,
+    upload_validation,
+)
 
 
 PAYMENT_ACCOUNT_DOCTYPE = "OMC Payment Account"
@@ -391,7 +398,8 @@ def _set_case_status(service_case, status):
 
 
 
-def _approved_required_documents(service_case):
+def _uploaded_required_documents(service_case):
+    """Check payment readiness from uploaded files, not review approval."""
     required_templates = mobile._service_required_documents(
         service_case.service
     )
@@ -420,7 +428,7 @@ def _approved_required_documents(service_case):
         for doc in uploaded_docs
     ]
 
-    return mobile._required_documents_complete(
+    return mobile._required_documents_uploaded(
         required_templates,
         documents,
     )
@@ -444,7 +452,7 @@ def _ensure_payment_for_case(service_case):
     if existing:
         return existing[0].name
 
-    if not _approved_required_documents(service_case):
+    if not _uploaded_required_documents(service_case):
         return None
 
     if getattr(service_case, "discount_status", None) == "Pending Approval":
@@ -485,7 +493,7 @@ def _ensure_payment_for_case(service_case):
     )
     payment.status = "Pending"
     payment.visible_to_customer = 1
-    payment.remarks = "Payment opened after required documents were approved."
+    payment.remarks = "Payment opened after all required documents were uploaded."
     payment.insert(ignore_permissions=True)
 
     _set_case_status(service_case, "Waiting for Payment")
@@ -1215,18 +1223,36 @@ def review_payment_receipt(
             frappe.ValidationError,
         )
 
-    payment.status = status
-
     if payment_reference is not None:
         payment.payment_reference = (payment_reference or "").strip()
 
     if remarks is not None:
         payment.remarks = clean_remarks
 
+    finance_result = None
+
     if status == "Paid":
+        # ERPNext is the financial system of record. Do not mark the OMC
+        # payment Paid until the verified payment has been posted into ERP.
+        finance_savepoint = "verified_payment_erp_finance"
+        frappe.db.savepoint(finance_savepoint)
+
+        try:
+            finance_result = erp_finance_adapter.finalize_verified_payment(
+                payment
+            )
+        except Exception:
+            frappe.db.rollback(save_point=finance_savepoint)
+            raise
+
+        payment.reload()
+        payment.status = "Paid"
         payment.paid_on = frappe.utils.now_datetime()
-    elif status in {"Rejected", "Cancelled"}:
-        payment.paid_on = None
+    else:
+        payment.status = status
+
+        if status in {"Rejected", "Cancelled"}:
+            payment.paid_on = None
 
     payment.save(ignore_permissions=True)
     if status in {"Paid", "Rejected", "Cancelled"}:
@@ -1251,19 +1277,29 @@ def review_payment_receipt(
 
     case_transition_status = None
 
+    activation_result = None
+    activation_error = ""
+
     if status == "Paid":
-        if _set_case_status(service_case, "In Progress"):
-            case_transition_status = "In Progress"
-            mobile._create_service_timeline_entry(
-                service_request=service_case.name,
-                event_type="Status Updated",
-                title="Work Started",
-                description=(
-                    "Payment has been confirmed and work on your "
-                    "service request is now in progress."
-                ),
-                visible_to_customer=1,
+        # Persist the verified payment first. Operational activation is a
+        # separate retryable step and must never invalidate a real payment.
+        frappe.db.commit()
+
+        savepoint = "paid_request_activation"
+        frappe.db.savepoint(savepoint)
+        try:
+            from omc_app.api import service_activation
+
+            activation_result = service_activation.activate_paid_request(
+                service_case.name
             )
+            service_case.reload()
+            case_transition_status = (
+                "In Progress"
+                if service_case.status == "In Progress"
+                else None
+            )
+
             if getattr(service_case, "assigned_staff", None):
                 mobile._create_customer_notification(
                     recipient_user=service_case.assigned_staff,
@@ -1276,6 +1312,16 @@ def review_payment_receipt(
                     reference_doctype="OMC Service Request",
                     reference_name=service_case.name,
                 )
+
+            frappe.db.commit()
+        except Exception as error:
+            frappe.db.rollback(save_point=savepoint)
+            activation_error = str(error or "").strip()[:1000]
+            frappe.log_error(
+                title=f"Paid request activation failed: {service_case.name}",
+                message=frappe.get_traceback(),
+            )
+            service_case.reload()
 
     elif status == "Rejected":
         if _set_case_status(service_case, "Waiting for Customer"):
@@ -1318,5 +1364,11 @@ def review_payment_receipt(
         "remarks": payment.remarks or "",
         "case_status": service_case.status,
         "case_transition_status": case_transition_status,
-        "message": "Payment receipt reviewed.",
+        "activation": activation_result,
+        "activation_error": activation_error,
+        "message": (
+            "Payment receipt reviewed."
+            if not activation_error
+            else "Payment confirmed; operational activation needs attention."
+        ),
     }

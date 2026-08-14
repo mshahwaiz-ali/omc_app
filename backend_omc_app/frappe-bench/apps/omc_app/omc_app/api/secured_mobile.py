@@ -477,11 +477,28 @@ def _weighted_service_case_progress(service_case):
         return 1.0
 
     required_documents_count = _int_number(service_case.get("required_documents_count"))
-    approved_documents_count = _int_number(service_case.get("approved_documents_count"))
+    submitted_documents_count = _int_number(
+        service_case.get("submitted_documents_count")
+    )
     payments_count = _int_number(service_case.get("payments_count"))
     paid_payments_count = _int_number(service_case.get("paid_payments_count"))
 
-    document_ratio = min(1.0, approved_documents_count / required_documents_count) if required_documents_count > 0 else (1.0 if status in {"waiting for payment", "payment under review", "in progress", "completed", "closed"} else 0.0)
+    document_ratio = (
+        min(1.0, submitted_documents_count / required_documents_count)
+        if required_documents_count > 0
+        else (
+            1.0
+            if status
+            in {
+                "waiting for payment",
+                "payment under review",
+                "in progress",
+                "completed",
+                "closed",
+            }
+            else 0.0
+        )
+    )
     payment_ratio = min(1.0, paid_payments_count / payments_count) if payments_count > 0 else (1.0 if status in {"in progress", "completed", "closed"} else 0.0)
 
     internal_stage_ratio = 0.0
@@ -555,12 +572,14 @@ def _fallback_service_case_timeline(service_case):
 
 def _documents_stage_subtitle(service_case, normalized_status):
     missing_count = _int_number(service_case.get("missing_documents_count"))
-    approved_count = _int_number(service_case.get("approved_documents_count"))
+    submitted_count = _int_number(
+        service_case.get("submitted_documents_count")
+    )
     required_count = _int_number(service_case.get("required_documents_count"))
     if missing_count > 0:
         return f"{missing_count} document(s) still needed."
     if required_count > 0:
-        return f"{approved_count}/{required_count} document(s) approved."
+        return f"{submitted_count}/{required_count} document(s) uploaded."
     if normalized_status == "waiting for customer":
         return "OMC is waiting for customer input."
     return "OMC will confirm document requirements."

@@ -14,7 +14,9 @@ ASSIGNABLE_SERVICE_ROLES = {
     "OMC Business Partner",
     "OMC Manager",
 }
-OPEN_CASE_STATUSES = ["Open", "In Progress", "Waiting for Customer", "Waiting for Payment"]
+# Automatic assignment recovery must never promote unpaid intake requests.
+# Paid activation is the authority that moves requests into In Progress.
+OPEN_CASE_STATUSES = ["In Progress"]
 RECOVERY_BATCH_SIZE = 50
 RECOVERY_RUNTIME_SECONDS = 45
 JOB_LOCK_TIMEOUT_SECONDS = 55 * 60

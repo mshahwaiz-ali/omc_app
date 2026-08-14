@@ -291,6 +291,13 @@ class PaymentsRepository {
             json['gateway_url'] ??
             json['payment_gateway_url'],
       ),
+      paymentChannel: _nullableString(
+        json['payment_channel'] ?? json['channel'],
+      ),
+      paymentActionLabel: _nullableString(
+        json['payment_action_label'] ?? json['action_label'],
+      ),
+      onlineGatewayAvailable: _boolValue(json['online_gateway_available']),
       paymentInstructions: _nullableString(
         json['payment_instructions'] ??
             json['payment_method_instructions'] ??

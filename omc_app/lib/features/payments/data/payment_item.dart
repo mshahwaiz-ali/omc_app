@@ -18,6 +18,9 @@ class PaymentItem {
     this.invoiceUrl,
     this.receiptUrl,
     this.paymentUrl,
+    this.paymentChannel,
+    this.paymentActionLabel,
+    this.onlineGatewayAvailable = false,
     this.paymentInstructions,
     this.bankAccountDetails,
     this.dueDateLabel,
@@ -37,6 +40,9 @@ class PaymentItem {
   final String? invoiceUrl;
   final String? receiptUrl;
   final String? paymentUrl;
+  final String? paymentChannel;
+  final String? paymentActionLabel;
+  final bool onlineGatewayAvailable;
   final String? paymentInstructions;
   final String? bankAccountDetails;
   final String? dueDateLabel;

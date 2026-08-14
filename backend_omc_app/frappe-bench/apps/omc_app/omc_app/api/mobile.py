@@ -1260,6 +1260,58 @@ def _document_match_identity(document):
     return title, document_type
 
 
+def _required_documents_uploaded(
+    required_document_templates,
+    documents,
+):
+    """Return True when every required document has a real uploaded file.
+
+    Document approval is intentionally NOT required here. This helper is used
+    for payment readiness; document review remains a separate workflow.
+    """
+    required_templates = [
+        template
+        for template in required_document_templates or []
+        if template.get("is_required")
+    ]
+    if not required_templates:
+        return True
+
+    uploaded_documents = [
+        document
+        for document in documents or []
+        if bool(
+            document.get("file_url")
+            or document.get("attachment")
+        )
+        and str(document.get("status") or "").strip().lower()
+        not in {"rejected", "cancelled", "archived"}
+    ]
+
+    unused_indexes = set(range(len(uploaded_documents)))
+
+    for template in required_templates:
+        template_identity = _document_match_identity(template)
+        if not all(template_identity):
+            return False
+
+        matched_index = None
+        for index in sorted(unused_indexes):
+            if (
+                _document_match_identity(uploaded_documents[index])
+                == template_identity
+            ):
+                matched_index = index
+                break
+
+        if matched_index is None:
+            return False
+
+        unused_indexes.remove(matched_index)
+
+    return True
+
+
 def _required_documents_complete(
     required_document_templates,
     documents,
@@ -1317,7 +1369,9 @@ def _service_case_payment_contract(
     documents,
     required_document_templates,
 ):
-    documents_complete = _required_documents_complete(
+    # Payment becomes available once all required files are uploaded.
+    # Approval/review is a separate operational workflow.
+    documents_complete = _required_documents_uploaded(
         required_document_templates,
         documents,
     )
@@ -1365,17 +1419,8 @@ def _service_case_payment_contract(
         payment_block_reason = "case_closed"
         next_action = "view_case"
     elif not documents_complete:
-        payment_block_reason = "required_documents_not_approved"
-        has_uploaded_unapproved = any(
-            bool(document.get("file_url") or document.get("attachment"))
-            and (document.get("status") or "").strip().lower() != "approved"
-            for document in documents or []
-        )
-        next_action = (
-            "await_document_review"
-            if has_uploaded_unapproved
-            else "upload_documents"
-        )
+        payment_block_reason = "required_documents_missing"
+        next_action = "upload_documents"
     elif service_amount <= 0:
         payment_block_reason = "service_fee_not_configured"
         next_action = "contact_support"

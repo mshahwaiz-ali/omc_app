@@ -740,13 +740,28 @@ def convert_manual_customer(manual_customer=None, request_name=None):
             frappe.ValidationError,
         )
 
-    sync_result = erp_service_task_adapter.sync_request(
-        request,
-        service=frappe.get_doc("OMC Service", service_name),
-        profile=profile,
-        manual_customer=manual,
-        repair=True,
+    # Walk-in/profile conversion must not bypass the paid activation gate.
+    paid_payment = frappe.db.exists(
+        "OMC Service Payment",
+        {
+            "service_request": request.name,
+            "status": "Paid",
+            "visible_to_customer": 1,
+        },
     )
+
+    activation_result = None
+    activation_error = ""
+
+    if paid_payment:
+        from omc_app.api import service_activation
+
+        try:
+            activation_result = service_activation.activate_paid_request(
+                request.name
+            )
+        except Exception as error:
+            activation_error = _text(error)
 
     return {
         "manual_customer": manual.name,
@@ -754,11 +769,28 @@ def convert_manual_customer(manual_customer=None, request_name=None):
         "profile_created": created_profile,
         "erp_customer": customer_result.get("customer") or "",
         "erp_customer_created": bool(customer_result.get("created")),
-        "erp_sync_status": sync_result.get("status") or "",
-        "erp_service": sync_result.get("erp_service") or "",
-        "erp_task": sync_result.get("erp_task") or "",
-        "task_assignment": sync_result.get("task_assignment"),
-        "reason": sync_result.get("reason") or "",
+        "erp_sync_status": (
+            (activation_result or {}).get("erp_sync_status") or ""
+        ),
+        "erp_service": (
+            (activation_result or {}).get("erp_service") or ""
+        ),
+        "erp_task": (
+            (activation_result or {}).get("erp_task") or ""
+        ),
+        "task_assignment": (
+            (activation_result or {}).get("erp_task_assignment")
+        ),
+        "activation_pending_payment": not bool(paid_payment),
+        "activation_error": activation_error,
+        "reason": (
+            activation_error
+            or (
+                "Operational activation waits for confirmed payment."
+                if not paid_payment
+                else ""
+            )
+        ),
     }
 
 
@@ -902,35 +934,13 @@ def _create_request(**kwargs):
         doc.referral_owner = profile.referred_by
         doc.referral_record = profile.referral_record
 
-    explicit_assignee = _text(kwargs.get("assigned_staff"))
-    referral_assignee = (
-        doc.referral_owner
-        if profile and customer_mode == "My Referral"
-        else ""
-    )
-    assignment_decision = service_assignment.assign_new_request(
-        doc,
-        service,
-        explicit_user=explicit_assignee,
-        referral_owner=referral_assignee,
-    )
+    # Service requests are intake records until payment is confirmed.
+    # Operational assignment, ERP Service/Task sync, and assignment ToDo
+    # are intentionally deferred to the paid-request activation workflow.
     doc.insert(ignore_permissions=True)
-
-    erp_bridge = erp_service_task_adapter.sync_request(
-        doc,
-        service=service,
-        profile=profile,
-        manual_customer=manual_customer,
-    )
 
     if doc.meta.get_field("submission_integrity_status"):
         submission_integrity.evaluate_request(doc)
-    assignment_result = service_assignment.apply_assignment(
-        doc,
-        assignment_decision,
-        set_assignee=False,
-    )
-    assignment_todo = assignment_result.get("todo")
 
     mobile._create_service_timeline_entry(
         service_request=doc.name,
@@ -950,11 +960,11 @@ def _create_request(**kwargs):
     frappe.db.commit()
     response = _request_response(doc)
     response["assigned_staff"] = doc.assigned_staff or ""
-    response["assignment_todo"] = assignment_todo
-    response["erp_sync_status"] = erp_bridge.get("status") or ""
-    response["erp_customer"] = erp_bridge.get("erp_customer") or ""
-    response["erp_service"] = erp_bridge.get("erp_service") or ""
-    response["erp_task"] = erp_bridge.get("erp_task") or ""
-    response["erp_task_assignment"] = erp_bridge.get("task_assignment")
+    response["assignment_todo"] = None
+    response["erp_sync_status"] = ""
+    response["erp_customer"] = ""
+    response["erp_service"] = ""
+    response["erp_task"] = ""
+    response["erp_task_assignment"] = None
     response.update(pricing)
     return response

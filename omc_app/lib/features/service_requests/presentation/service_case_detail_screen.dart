@@ -1741,7 +1741,8 @@ class _ProgressCard extends StatelessWidget {
 
     final informationDone = has('request_created');
 
-    final documentsDone = has('documents_approved');
+    final documentsDone =
+        has('documents_uploaded') || serviceCase.documentsComplete;
     final documentsActive =
         !documentsDone &&
         (currentStage == 'documents' ||
@@ -1784,7 +1785,7 @@ class _ProgressCard extends StatelessWidget {
         isActive: documentsActive,
       ),
       ServiceCaseTimelineStep(
-        title: 'Review & payment',
+        title: 'Payment',
         subtitle: reviewDone
             ? 'Completed'
             : reviewActive
@@ -2506,28 +2507,14 @@ class _CaseActionsCard extends StatelessWidget {
           !status.contains('reject');
     });
 
-    final allDocumentsApproved =
-        documents.isNotEmpty &&
-        !hasMissingDocuments &&
-        !hasRejectedDocuments &&
-        documents.every((document) {
-          final status = document.status.trim().toLowerCase();
-
-          return status.contains('approve') || status.contains('verified');
-        });
-
     final hasAvailablePayment =
         serviceCase.hasPayment && serviceCase.activePaymentTotal > 0;
 
     final action = _resolveAction(
       hasMissingDocuments: hasMissingDocuments,
-
       hasRejectedDocuments: hasRejectedDocuments,
-
       hasPendingReview: hasPendingReview,
-
-      allDocumentsApproved: allDocumentsApproved,
-
+      paymentEligible: serviceCase.paymentEligible,
       hasAvailablePayment: hasAvailablePayment,
       paymentBlockReason: serviceCase.paymentBlockReason,
     );
@@ -2652,7 +2639,7 @@ class _CaseActionsCard extends StatelessWidget {
     required bool hasMissingDocuments,
     required bool hasRejectedDocuments,
     required bool hasPendingReview,
-    required bool allDocumentsApproved,
+    required bool paymentEligible,
     required bool hasAvailablePayment,
     required String? paymentBlockReason,
   }) {
@@ -2680,41 +2667,41 @@ class _CaseActionsCard extends StatelessWidget {
       );
     }
 
-    if (allDocumentsApproved && hasAvailablePayment) {
+    if (paymentEligible && hasAvailablePayment) {
       return const _ResolvedCaseAction(
         icon: Icons.account_balance_wallet_outlined,
         color: Color(0xFF168D49),
         background: Color(0xFFE9F7EE),
         title: 'Payment is ready',
         message:
-            'All required documents are approved. Open payments to continue.',
+            'All required documents are uploaded. Open payment details to continue.',
         primaryType: _CasePrimaryAction.payment,
       );
     }
 
-    if (allDocumentsApproved) {
-      final blockedMessage = paymentBlockReason?.trim();
-
-      return _ResolvedCaseAction(
+    if (paymentEligible) {
+      return const _ResolvedCaseAction(
         icon: Icons.account_balance_wallet_outlined,
-        color: AppTheme.textSecondary,
-        background: AppTheme.background,
-        title: 'Payment review is not available yet',
-        message: blockedMessage != null && blockedMessage.isNotEmpty
-            ? blockedMessage
-            : 'All required documents are approved. This option will become available when OMC generates the payment.',
-        primaryType: _CasePrimaryAction.payment,
+        color: AppTheme.primary,
+        background: AppTheme.primarySoft,
+        title: 'Ready for payment',
+        message:
+            'All required documents are uploaded. Your payment record is being prepared.',
+        primaryType: _CasePrimaryAction.none,
       );
     }
 
     if (hasPendingReview) {
-      return const _ResolvedCaseAction(
+      final blockedMessage = paymentBlockReason?.trim();
+
+      return _ResolvedCaseAction(
         icon: Icons.hourglass_top_rounded,
-        color: Color(0xFF1769AA),
-        background: Color(0xFFEAF3FB),
-        title: 'Documents are under review',
-        message:
-            'No action is needed right now. OMC will notify you when the review is complete.',
+        color: AppTheme.textSecondary,
+        background: AppTheme.background,
+        title: 'Documents uploaded',
+        message: blockedMessage != null && blockedMessage.isNotEmpty
+            ? blockedMessage
+            : 'Your documents are uploaded. Payment will become available when the remaining payment requirements are satisfied.',
         primaryType: _CasePrimaryAction.none,
       );
     }

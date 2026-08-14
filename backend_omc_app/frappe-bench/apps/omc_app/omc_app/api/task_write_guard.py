@@ -21,6 +21,18 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _assert_mobile_task_read_only() -> None:
+    """ERP Task mutations are intentionally restricted to ERP Desk.
+
+    The mobile app may read OMC-linked tasks, but status, assignment,
+    priority, due-date and planning changes must be performed in ERP Desk.
+    """
+    frappe.throw(
+        "Tasks are read-only in the OMC app. Update this task in ERP Desk.",
+        frappe.PermissionError,
+    )
+
+
 def _load_linked_task(task_id: str):
     clean_task_id = _text(task_id)
     if not clean_task_id:
@@ -57,6 +69,7 @@ def update_task_operation_status(
     status=None,
     **kwargs,
 ):
+    _assert_mobile_task_read_only()
     user = mobile._assert_internal_workspace_access()
     capabilities = mobile._require_canonical_capability(
         "can_manage_tasks",
@@ -254,6 +267,7 @@ def _create_assignment(task, assigned_to: str):
 
 @frappe.whitelist()
 def get_task_assignment_options(task_id=None):
+    _assert_mobile_task_read_only()
     mobile._assert_internal_workspace_access()
     capabilities = mobile._require_canonical_capability(
         "can_manage_tasks",
@@ -308,6 +322,7 @@ def get_task_assignment_options(task_id=None):
 
 @frappe.whitelist()
 def assign_task(task_id=None, assigned_to=None, **kwargs):
+    _assert_mobile_task_read_only()
     mobile._assert_internal_workspace_access()
     capabilities = mobile._require_canonical_capability(
         "can_manage_tasks",
@@ -376,6 +391,7 @@ def update_task_details(
     due_date=None,
     **kwargs,
 ):
+    _assert_mobile_task_read_only()
     mobile._assert_internal_workspace_access()
     capabilities = mobile._require_canonical_capability(
         "can_manage_tasks",

@@ -305,10 +305,18 @@ def _upload_service_document(**kwargs):
     )
     review_routing.ensure_review_assignment(doc, service_case)
 
+    # Payment readiness depends on required files being uploaded, not approved.
+    # Import locally to avoid coupling module initialization paths.
+    from omc_app.api import payments
+
+    payment_name = payments._ensure_payment_for_case(service_case)
+
     frappe.db.commit()
 
     return {
         "uploaded": True,
+        "payment_id": payment_name or "",
+        "payment_ready": bool(payment_name),
         "document": {
             "name": doc.name,
             "case_id": doc.service_request,

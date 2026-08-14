@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/mutation_invalidation.dart';
-import '../../../core/forms/dirty_form_controller.dart';
-import '../../../core/widgets/premium_empty_state.dart';
+import '../../../app/theme.dart';
 import '../../../core/widgets/app_back_header.dart';
-import '../../auth/application/auth_controller.dart';
-import '../../crm/presentation/widgets/crm_detail_widgets.dart';
+import '../../../core/widgets/premium_empty_state.dart';
 import '../data/task_item.dart';
 import '../data/tasks_repository.dart';
 
@@ -19,38 +16,26 @@ class TaskDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final taskAsync = ref.watch(taskDetailProvider(taskId));
-    final capabilities = ref.watch(authControllerProvider).capabilities;
-    final canManageTasks = capabilities.canManageTasks;
-    final canUpdateStatus =
-        canManageTasks || capabilities.canManageAssignedTasks;
 
     return Scaffold(
       appBar: const AppBackHeader(title: 'Task', fallbackRoute: '/tasks'),
       body: taskAsync.when(
         data: (task) {
           if (task == null) {
-            return PremiumEmptyState(
+            return const PremiumEmptyState(
               icon: Icons.task_alt_rounded,
-              title: 'Task detail unavailable',
+              title: 'Task unavailable',
               message:
-                  'Status updates, assignment and activity timeline will appear here when task details are available.',
+                  'This ERP task is not currently available for your account.',
             );
           }
 
-          return _TaskDetailBody(
-            task: task,
-            onUpdateStatus: canUpdateStatus
-                ? () => _showOperationStatusSheet(context, ref, task)
-                : null,
-            onManageTask: canManageTasks
-                ? () => _showManagerTaskSheet(context, ref, task)
-                : null,
-          );
+          return _TaskDetailBody(task: task);
         },
         loading: () => const _TaskDetailLoadingView(),
         error: (_, _) => PremiumEmptyState(
           icon: Icons.task_alt_rounded,
-          title: 'Task detail unavailable',
+          title: 'Task unavailable',
           message:
               'Task $taskId could not be loaded right now. Please try again.',
           actionLabel: 'Try again',
@@ -59,503 +44,319 @@ class TaskDetailScreen extends ConsumerWidget {
       ),
     );
   }
-
-  Future<void> _showOperationStatusSheet(
-    BuildContext context,
-    WidgetRef ref,
-    TaskItem task,
-  ) async {
-    final transitions = task.allowedTransitions;
-    if (transitions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No status actions are currently available.'),
-        ),
-      );
-      return;
-    }
-
-    final selected = await showModalBottomSheet<TaskTransition>(
-      context: context,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (sheetContext) => ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-        children: [
-          const Text(
-            'Update operation status',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 12),
-          for (final transition in transitions)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(transition.label),
-              subtitle: transition.requiresConfirmation
-                  ? const Text('Confirmation required')
-                  : null,
-              trailing: transition.terminal
-                  ? const Icon(Icons.task_alt_rounded)
-                  : const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(sheetContext).pop(transition),
-            ),
-        ],
-      ),
-    );
-
-    if (selected == null || !context.mounted) {
-      return;
-    }
-
-    if (selected.requiresConfirmation) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(selected.label),
-          content: const Text(
-            'This action will complete the linked ERP Task and may complete '
-            'the service request after all blockers are validated.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Confirm'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed != true || !context.mounted) return;
-    }
-
-    try {
-      await ref
-          .read(tasksRepositoryProvider)
-          .updateOperationStatus(
-            taskId: task.id,
-            operationStatus: selected.value,
-          );
-      invalidateTaskMutation(ref, taskId: task.id, caseId: task.serviceRequest);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Task status updated to ${selected.label}.')),
-      );
-    } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Task status could not be updated: $error')),
-      );
-    }
-  }
-
-  Future<void> _showManagerTaskSheet(
-    BuildContext context,
-    WidgetRef ref,
-    TaskItem task,
-  ) async {
-    TaskAssignmentOptions assignmentOptions;
-
-    try {
-      assignmentOptions = await ref.read(
-        taskAssignmentOptionsProvider(task.id).future,
-      );
-    } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Task assignment options could not be loaded: $error'),
-        ),
-      );
-      return;
-    }
-
-    if (!context.mounted) return;
-
-    final dueDateController = TextEditingController(text: task.dueDateLabel);
-    final dirtyFormController = DirtyFormController();
-
-    void markDirty() => dirtyFormController.markDirty();
-
-    dueDateController.addListener(markDirty);
-
-    var selectedAssignee = assignmentOptions.currentAssignee.isNotEmpty
-        ? assignmentOptions.currentAssignee
-        : task.assignedTo.trim();
-    final availablePriorities = assignmentOptions.priorityOptions;
-    var priority = availablePriorities.contains(task.priority.trim())
-        ? task.priority.trim()
-        : availablePriorities.isNotEmpty
-        ? availablePriorities.first
-        : task.priority.trim();
-    var saving = false;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            Future<void> submit() async {
-              if (saving) return;
-              dirtyFormController.beginSubmitting();
-              setSheetState(() => saving = true);
-
-              try {
-                final repository = ref.read(tasksRepositoryProvider);
-                final cleanAssignee = selectedAssignee.trim();
-                final cleanDueDate = dueDateController.text.trim();
-
-                if (cleanAssignee.isNotEmpty &&
-                    cleanAssignee != task.assignedTo.trim()) {
-                  await repository.assignTask(
-                    taskId: task.id,
-                    assignedTo: cleanAssignee,
-                  );
-                }
-
-                final planningChanged =
-                    priority != task.priority.trim() ||
-                    cleanDueDate != task.dueDateLabel.trim();
-
-                if (planningChanged) {
-                  await repository.updateTaskDetails(
-                    taskId: task.id,
-                    priority: priority,
-                    dueDate: cleanDueDate,
-                  );
-                }
-
-                invalidateTaskMutation(
-                  ref,
-                  taskId: task.id,
-                  caseId: task.serviceRequest,
-                );
-
-                dirtyFormController.submissionSucceeded();
-                if (!sheetContext.mounted) return;
-                Navigator.of(sheetContext).pop();
-
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Task planning updated.')),
-                );
-              } catch (error) {
-                dirtyFormController.submissionFailed();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Task could not be updated: $error')),
-                );
-              } finally {
-                if (sheetContext.mounted) {
-                  setSheetState(() => saving = false);
-                }
-              }
-            }
-
-            return UnsavedChangesGuard(
-              controller: dirtyFormController,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  4,
-                  20,
-                  MediaQuery.viewInsetsOf(context).bottom + 24,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Manage task',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue:
-                            assignmentOptions.candidates.any(
-                              (candidate) =>
-                                  candidate.userId == selectedAssignee,
-                            )
-                            ? selectedAssignee
-                            : null,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Assigned user',
-                          hintText: 'Select an eligible staff member',
-                        ),
-                        items: assignmentOptions.candidates
-                            .map(
-                              (candidate) => DropdownMenuItem<String>(
-                                value: candidate.userId,
-                                child: Text(
-                                  candidate.label,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )
-                            .toList(growable: false),
-                        onChanged:
-                            saving || assignmentOptions.candidates.isEmpty
-                            ? null
-                            : (value) {
-                                if (value == null ||
-                                    value == selectedAssignee) {
-                                  return;
-                                }
-                                selectedAssignee = value;
-                                dirtyFormController.markDirty();
-                                setSheetState(() {});
-                              },
-                      ),
-                      if (assignmentOptions.candidates.isEmpty) ...[
-                        const SizedBox(height: 8),
-                        const Text(
-                          'No eligible internal staff members are currently available.',
-                        ),
-                      ],
-                      const SizedBox(height: 14),
-                      DropdownButtonFormField<String>(
-                        initialValue: priority,
-                        decoration: const InputDecoration(
-                          labelText: 'Priority',
-                        ),
-                        items: assignmentOptions.priorityOptions
-                            .map(
-                              (value) => DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              ),
-                            )
-                            .toList(growable: false),
-                        onChanged: saving
-                            ? null
-                            : (value) {
-                                if (value != null) {
-                                  dirtyFormController.markDirty();
-                                  setSheetState(() => priority = value);
-                                }
-                              },
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: dueDateController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'Due date',
-                          hintText: 'Select a date',
-                          suffixIcon: IconButton(
-                            tooltip: 'Select due date',
-                            icon: const Icon(Icons.calendar_month_rounded),
-                            onPressed: saving
-                                ? null
-                                : () async {
-                                    final currentValue = DateTime.tryParse(
-                                      dueDateController.text.trim(),
-                                    );
-
-                                    final selectedDate = await showDatePicker(
-                                      context: sheetContext,
-                                      initialDate:
-                                          currentValue ?? DateTime.now(),
-                                      firstDate: DateTime.now(),
-                                      lastDate: DateTime(
-                                        DateTime.now().year + 5,
-                                      ),
-                                    );
-
-                                    if (selectedDate == null) return;
-
-                                    final formattedDate =
-                                        '${selectedDate.year.toString().padLeft(4, '0')}-'
-                                        '${selectedDate.month.toString().padLeft(2, '0')}-'
-                                        '${selectedDate.day.toString().padLeft(2, '0')}';
-
-                                    dueDateController.text = formattedDate;
-                                    dirtyFormController.markDirty();
-                                    setSheetState(() {});
-                                  },
-                          ),
-                        ),
-                        onTap: saving
-                            ? null
-                            : () async {
-                                final currentValue = DateTime.tryParse(
-                                  dueDateController.text.trim(),
-                                );
-
-                                final selectedDate = await showDatePicker(
-                                  context: sheetContext,
-                                  initialDate: currentValue ?? DateTime.now(),
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime(DateTime.now().year + 5),
-                                );
-
-                                if (selectedDate == null) return;
-
-                                final formattedDate =
-                                    '${selectedDate.year.toString().padLeft(4, '0')}-'
-                                    '${selectedDate.month.toString().padLeft(2, '0')}-'
-                                    '${selectedDate.day.toString().padLeft(2, '0')}';
-
-                                dueDateController.text = formattedDate;
-                                dirtyFormController.markDirty();
-                                setSheetState(() {});
-                              },
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: saving ? null : submit,
-                          icon: saving
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.save_rounded),
-                          label: Text(saving ? 'Saving...' : 'Save changes'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    dueDateController.removeListener(markDirty);
-    dirtyFormController.dispose();
-    dueDateController.dispose();
-  }
 }
 
 class _TaskDetailBody extends StatelessWidget {
-  const _TaskDetailBody({
-    required this.task,
-    this.onUpdateStatus,
-    this.onManageTask,
-  });
+  const _TaskDetailBody({required this.task});
 
   final TaskItem task;
-  final VoidCallback? onUpdateStatus;
-  final VoidCallback? onManageTask;
 
   @override
   Widget build(BuildContext context) {
-    final referenceRows = <CrmInfoRow>[
-      CrmInfoRow(label: 'Task ID', value: task.id),
-    ];
-
-    if (task.customerProfile != null) {
-      referenceRows.add(
-        CrmInfoRow(label: 'Customer', value: task.customerProfile!),
-      );
-    }
-
-    if (task.serviceRequest != null) {
-      referenceRows.add(
-        CrmInfoRow(label: 'Service request', value: task.serviceRequest!),
-      );
-    }
-
-    if (task.supportTicket != null) {
-      referenceRows.add(
-        CrmInfoRow(label: 'Support ticket', value: task.supportTicket!),
-      );
-    }
+    final status = _valueOrFallback(task.status, 'Open');
+    final priority = _valueOrFallback(task.priority, 'Normal');
+    final assigned = _valueOrFallback(task.assignedTo, 'Unassigned');
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 34),
       children: [
-        CrmDetailHeaderCard(
-          icon: Icons.task_alt_rounded,
-          title: task.title,
-          subtitle: task.assignedTo.isEmpty ? 'Unassigned' : task.assignedTo,
-          statusLabel: task.status,
-        ),
+        _TaskHeroCard(task: task, status: status, assigned: assigned),
         const SizedBox(height: 16),
-        CrmDetailInfoCard(
-          title: 'Overview',
-          rows: [
-            CrmInfoRow(
-              label: 'Workflow status',
-              value: _valueOrDash(task.status),
+        _TaskSectionCard(
+          title: 'Task overview',
+          children: [
+            _TaskInfoRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Assigned to',
+              value: assigned,
             ),
-            CrmInfoRow(
-              label: 'ERP task state',
-              value: _valueOrDash(task.erpStatus),
+            _TaskInfoRow(
+              icon: Icons.flag_outlined,
+              label: 'Priority',
+              value: priority,
             ),
-            if (task.operationStatus.isNotEmpty)
-              CrmInfoRow(
+            _TaskInfoRow(
+              icon: Icons.calendar_today_outlined,
+              label: 'Due date',
+              value: _valueOrFallback(task.dueDateLabel, 'Not set'),
+            ),
+            if (task.operationStatus.trim().isNotEmpty)
+              _TaskInfoRow(
+                icon: Icons.timeline_rounded,
                 label: 'Operation status',
                 value: task.operationStatus,
               ),
-            CrmInfoRow(label: 'Priority', value: _valueOrDash(task.priority)),
-            CrmInfoRow(
-              label: 'Due date',
-              value: _valueOrDash(task.dueDateLabel),
-            ),
-            CrmInfoRow(label: 'Assigned', value: _valueOrDash(task.assignedTo)),
+            if (task.erpStatus.trim().isNotEmpty &&
+                task.erpStatus.trim() != task.status.trim())
+              _TaskInfoRow(
+                icon: Icons.account_tree_outlined,
+                label: 'ERP task state',
+                value: task.erpStatus,
+              ),
             if (task.completedOnLabel != null)
-              CrmInfoRow(label: 'Completed on', value: task.completedOnLabel!),
-            if (task.updatedAtLabel != null)
-              CrmInfoRow(label: 'Last updated', value: task.updatedAtLabel!),
-            if (task.createdAtLabel != null)
-              CrmInfoRow(label: 'Created', value: task.createdAtLabel!),
+              _TaskInfoRow(
+                icon: Icons.check_circle_outline_rounded,
+                label: 'Completed',
+                value: task.completedOnLabel!,
+              ),
           ],
         ),
-        if (task.description != null) ...[
+        if (task.description?.trim().isNotEmpty == true) ...[
           const SizedBox(height: 16),
-          CrmDetailInfoCard(
+          _TaskSectionCard(
             title: 'Description',
-            rows: [CrmInfoRow(label: 'Details', value: task.description!)],
-          ),
-        ],
-        if (onUpdateStatus != null || onManageTask != null) ...[
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
             children: [
-              if (onUpdateStatus != null)
-                FilledButton.icon(
-                  onPressed: onUpdateStatus,
-                  icon: const Icon(Icons.sync_alt_rounded),
-                  label: const Text('Update operation status'),
+              Text(
+                task.description!.trim(),
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                  height: 1.55,
+                  fontWeight: FontWeight.w500,
                 ),
-              if (onManageTask != null)
-                OutlinedButton.icon(
-                  onPressed: onManageTask,
-                  icon: const Icon(Icons.manage_accounts_rounded),
-                  label: const Text('Manage task'),
-                ),
+              ),
             ],
           ),
         ],
         const SizedBox(height: 16),
-        CrmDetailInfoCard(title: 'Reference', rows: referenceRows),
+        _TaskSectionCard(
+          title: 'References',
+          children: [
+            _TaskInfoRow(
+              icon: Icons.tag_rounded,
+              label: 'Task ID',
+              value: task.id,
+            ),
+            if (task.customerProfile?.trim().isNotEmpty == true)
+              _TaskInfoRow(
+                icon: Icons.person_outline_rounded,
+                label: 'Customer',
+                value: task.customerProfile!,
+              ),
+            if (task.serviceRequest?.trim().isNotEmpty == true)
+              _TaskInfoRow(
+                icon: Icons.assignment_outlined,
+                label: 'Service request',
+                value: task.serviceRequest!,
+              ),
+            if (task.supportTicket?.trim().isNotEmpty == true)
+              _TaskInfoRow(
+                icon: Icons.support_agent_outlined,
+                label: 'Support ticket',
+                value: task.supportTicket!,
+              ),
+          ],
+        ),
         if (task.serviceRequest != null || task.supportTicket != null) ...[
           const SizedBox(height: 16),
           _TaskReferenceActions(task: task),
         ],
+        if (task.updatedAtLabel != null || task.createdAtLabel != null) ...[
+          const SizedBox(height: 18),
+          _TaskAuditLine(task: task),
+        ],
       ],
+    );
+  }
+}
+
+class _TaskHeroCard extends StatelessWidget {
+  const _TaskHeroCard({
+    required this.task,
+    required this.status,
+    required this.assigned,
+  });
+
+  final TaskItem task;
+  final String status;
+  final String assigned;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE8ECF2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: AppTheme.primarySoft,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.task_alt_rounded,
+              color: AppTheme.primary,
+              size: 25,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 19,
+                    height: 1.2,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.35,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  assigned,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _TaskStatusBadge(label: status),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskSectionCard extends StatelessWidget {
+  const _TaskSectionCard({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 17, 18, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE9EDF3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (var index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index != children.length - 1)
+              const Divider(height: 25, color: Color(0xFFEEF1F5)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskInfoRow extends StatelessWidget {
+  const _TaskInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F7FA),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, size: 17, color: AppTheme.textSecondary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 13.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TaskStatusBadge extends StatelessWidget {
+  const _TaskStatusBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = label.trim().toLowerCase();
+
+    final muted =
+        normalized == 'completed' ||
+        normalized == 'cancelled' ||
+        normalized == 'canceled' ||
+        normalized == 'closed';
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: muted ? const Color(0xFFF3F5F7) : AppTheme.primarySoft,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: muted ? AppTheme.textSecondary : AppTheme.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -585,7 +386,7 @@ class _TaskReferenceActions extends StatelessWidget {
             onPressed: () => context.push(
               '/support-tickets/${Uri.encodeComponent(task.supportTicket!)}',
             ),
-            icon: const Icon(Icons.support_agent_rounded),
+            icon: const Icon(Icons.support_agent_outlined),
             label: const Text('Open ticket'),
           ),
       ],
@@ -593,9 +394,33 @@ class _TaskReferenceActions extends StatelessWidget {
   }
 }
 
-String _valueOrDash(String value) {
-  final trimmed = value.trim();
-  return trimmed.isEmpty ? '-' : trimmed;
+class _TaskAuditLine extends StatelessWidget {
+  const _TaskAuditLine({required this.task});
+
+  final TaskItem task;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = <String>[
+      if (task.createdAtLabel != null) 'Created ${task.createdAtLabel}',
+      if (task.updatedAtLabel != null) 'Updated ${task.updatedAtLabel}',
+    ];
+
+    return Text(
+      parts.join('  •  '),
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: AppTheme.textSecondary,
+        fontSize: 10.5,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
+String _valueOrFallback(String value, String fallback) {
+  final clean = value.trim();
+  return clean.isEmpty ? fallback : clean;
 }
 
 class _TaskDetailLoadingView extends StatelessWidget {
@@ -603,10 +428,20 @@ class _TaskDetailLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CrmDetailLoadingView(
-      icon: Icons.task_alt_rounded,
-      title: 'Loading task',
-      message: 'Fetching assignment, priority and activity context.',
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 34),
+      children: [
+        Container(
+          height: 128,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE8ECF2)),
+          ),
+          alignment: Alignment.center,
+          child: const CircularProgressIndicator(strokeWidth: 2.3),
+        ),
+      ],
     );
   }
 }

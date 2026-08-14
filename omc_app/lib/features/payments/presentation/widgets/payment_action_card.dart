@@ -28,8 +28,12 @@ class PaymentActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canContactSupport =
+    final canOpenPaymentAction =
         payment.requiresAction && payment.paymentUrl != null;
+    final paymentActionLabel =
+        payment.paymentActionLabel?.trim().isNotEmpty == true
+        ? payment.paymentActionLabel!.trim()
+        : 'Continue payment';
     final canOpenReceipt = payment.receiptUrl != null;
     final canUploadReceipt =
         payment.status != PaymentStatus.paid &&
@@ -61,7 +65,7 @@ class PaymentActionCard extends StatelessWidget {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Contact OMC, upload payment proof, and track review status.',
+                      'Complete payment, upload proof when required, and track verification.',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -77,12 +81,15 @@ class PaymentActionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          if (canContactSupport) ...[
+          if (canOpenPaymentAction) ...[
             _ActionTile(
-              icon: Icons.chat_rounded,
-              title: 'Contact OMC on WhatsApp',
-              subtitle:
-                  'Get account details and confirm this payment with OMC.',
+              icon: payment.onlineGatewayAvailable
+                  ? Icons.lock_outline_rounded
+                  : Icons.payment_rounded,
+              title: paymentActionLabel,
+              subtitle: payment.onlineGatewayAvailable
+                  ? 'Open the secure payment checkout.'
+                  : 'Open the available payment channel for this payment.',
               enabled: true,
               onTap: onPayNow,
             ),
