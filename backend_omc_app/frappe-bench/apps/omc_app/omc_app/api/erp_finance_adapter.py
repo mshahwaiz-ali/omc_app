@@ -285,9 +285,22 @@ def _existing_payment_entry(payment):
 
 
 def _create_payment_entry(payment, invoice, config):
+    # The payment record is the transaction-level source of truth.
+    # The global setting remains a backward-compatible fallback only.
+    mode_of_payment = (
+        _text(getattr(payment, "payment_method", None))
+        or config["mode_of_payment"]
+    )
+
+    if not frappe.db.exists("Mode of Payment", mode_of_payment):
+        frappe.throw(
+            f"Mode of Payment {mode_of_payment} does not exist.",
+            frappe.ValidationError,
+        )
+
     account = _mode_account(
         config["company"],
-        config["mode_of_payment"],
+        mode_of_payment,
     )
 
     payment_entry = get_payment_entry(
@@ -297,7 +310,7 @@ def _create_payment_entry(payment, invoice, config):
         ignore_permissions=True,
     )
 
-    payment_entry.mode_of_payment = config["mode_of_payment"]
+    payment_entry.mode_of_payment = mode_of_payment
 
     reference = _text(
         getattr(payment, "payment_reference", None)
