@@ -1,6 +1,6 @@
 import frappe
 
-from omc_app.api import access, mobile, review_routing
+from omc_app.api import access, customer_service_access, mobile, review_routing
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _can_access_internal_workspace,
@@ -137,7 +137,13 @@ def _customer_profile_map(customer_profile_names):
     return {row.name: row for row in rows}
 
 
-def _document_dict(doc, service_case=None, customer_profile=None, capabilities=None):
+def _document_dict(
+    doc,
+    service_case=None,
+    customer_profile=None,
+    capabilities=None,
+    customer_view=None,
+):
     service_status = (getattr(service_case, "status", None) or "").strip()
     derived_archive_reason = ARCHIVE_SERVICE_STATUSES.get(service_status, "")
     is_archived = int(getattr(doc, "is_archived", 0) or 0)
@@ -181,8 +187,10 @@ def _document_dict(doc, service_case=None, customer_profile=None, capabilities=N
     can_view_attachment = bool(
         capabilities.get("can_view_document_attachments") or can_review
     )
-    is_customer_view = not bool(
-        capabilities.get("can_access_internal_workspace")
+    is_customer_view = (
+        bool(customer_view)
+        if customer_view is not None
+        else not bool(capabilities.get("can_access_internal_workspace"))
     )
 
     if is_customer_view:
@@ -308,12 +316,45 @@ def sync_service_document_customer_profile(service_request=None):
 
 
 @frappe.whitelist()
-def get_documents(show_archived=None, queue=None, customer=None, service_request=None, status=None):
+def get_documents(
+    show_archived=None,
+    queue=None,
+    customer=None,
+    service_request=None,
+    status=None,
+    assisted=0,
+):
     is_internal = _can_access_internal_workspace()
+    assisted_view = str(assisted or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     profile = None if is_internal else _assert_approved_customer()
     allowed_service_requests = None
+    customer_view = not is_internal
 
-    if is_internal:
+    if assisted_view:
+        if not is_internal:
+            frappe.throw(
+                "Assisted document access is only available to internal users.",
+                frappe.PermissionError,
+            )
+        if not service_request:
+            frappe.throw(
+                "service_request is required for assisted document access.",
+                frappe.ValidationError,
+            )
+
+        authority = customer_service_access.assert_service_request_action(
+            service_request,
+            internal_capability="can_view_customer_documents",
+        )
+        capabilities = authority["capabilities"]
+        allowed_service_requests = {service_request}
+        customer_view = True
+    elif is_internal:
         _user, capabilities, allowed_service_requests = (
             mobile._require_service_case_read_scope()
         )
@@ -355,7 +396,7 @@ def get_documents(show_archived=None, queue=None, customer=None, service_request
 
     # Customer app view must never expose internal-only rows. Admin/review center
     # intentionally sees every service document, including archived/history rows.
-    if not is_internal:
+    if customer_view:
         filters["visible_to_customer"] = 1
 
     if status:
@@ -407,6 +448,7 @@ def get_documents(show_archived=None, queue=None, customer=None, service_request
                     or getattr(service_cases.get(doc.service_request), "customer_profile", None)
                 ),
                 capabilities=capabilities,
+                customer_view=customer_view,
             )
             for doc in docs
         ]
@@ -414,7 +456,7 @@ def get_documents(show_archived=None, queue=None, customer=None, service_request
 
 
 @frappe.whitelist()
-def get_document(document_id=None):
+def get_document(document_id=None, assisted=0):
     if not document_id:
         frappe.throw("document_id is required")
 
@@ -423,18 +465,43 @@ def get_document(document_id=None):
 
     doc = frappe.get_doc("OMC Service Document", document_id)
     is_internal = _can_access_internal_workspace()
+    assisted_view = str(assisted or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    customer_view = not is_internal
 
-    if not is_internal and not doc.visible_to_customer:
+    if assisted_view:
+        if not is_internal:
+            frappe.throw(
+                "Assisted document access is only available to internal users.",
+                frappe.PermissionError,
+            )
+
+        authority = customer_service_access.assert_service_request_action(
+            doc.service_request,
+            internal_capability="can_view_customer_documents",
+        )
+        capabilities = authority["capabilities"]
+        customer_view = True
+    else:
+        profile = None if is_internal else _assert_approved_customer()
+        if is_internal:
+            _user, capabilities, _allowed_service_requests = (
+                mobile._require_service_case_read_scope(doc.service_request)
+            )
+            _require_document_read_access(capabilities)
+        else:
+            capabilities = _canonical_capabilities()
+
+    if customer_view and not doc.visible_to_customer:
         frappe.throw("Document not found", frappe.DoesNotExistError)
 
-    profile = None if is_internal else _assert_approved_customer()
-    if is_internal:
-        _user, capabilities, _allowed_service_requests = (
-            mobile._require_service_case_read_scope(doc.service_request)
-        )
-        _require_document_read_access(capabilities)
-    else:
-        capabilities = _canonical_capabilities()
+    if assisted_view:
+        profile = None
+
     service_case = frappe.get_doc("OMC Service Request", doc.service_request)
 
     if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
@@ -446,7 +513,19 @@ def get_document(document_id=None):
         service_case=service_case,
         customer_profile=customer_profiles.get(getattr(service_case, "customer_profile", None)),
         capabilities=capabilities,
+        customer_view=customer_view,
     )
+
+
+def _assert_reviewer_did_not_upload_document(doc):
+    uploaded_by = (getattr(doc, "uploaded_by", None) or "").strip()
+    current_user = (frappe.session.user or "").strip()
+
+    if uploaded_by and uploaded_by == current_user:
+        frappe.throw(
+            "You cannot review a document that you uploaded yourself.",
+            frappe.PermissionError,
+        )
 
 
 @frappe.whitelist()
@@ -474,6 +553,7 @@ def update_service_document_status(
 
     doc = frappe.get_doc("OMC Service Document", document_id)
     mobile._require_service_case_read_scope(doc.service_request)
+    _assert_reviewer_did_not_upload_document(doc)
 
     service_case = frappe.get_doc(
         "OMC Service Request",

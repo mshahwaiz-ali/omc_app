@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import access, mobile, payments
+from omc_app.api import access, customer_service_access, mobile, payments
 
 
 def _payment_not_found():
@@ -41,28 +41,74 @@ def get_payments(
     limit_page_length=50,
     search=None,
     status=None,
+    service_request=None,
+    assisted=0,
 ):
     is_internal = mobile._can_access_internal_workspace()
     profile = None if is_internal else mobile._assert_approved_customer()
     capabilities = access.get_mobile_capabilities()
 
-    if is_internal and not (
-        capabilities.get("can_view_payment_queue")
-        or capabilities.get("can_view_payment_summaries")
-        or capabilities.get("can_review_payments")
-    ):
-        frappe.throw(
-            "You do not have permission to view payments.",
-            frappe.PermissionError,
-        )
+    assisted_mode = str(assisted or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
 
-    service_request_names = [
-        row.name
-        for row in payments._accessible_service_requests(
-            profile=profile,
-            internal_user=payments._current_user() if is_internal else None,
+    if assisted_mode:
+        if not is_internal:
+            frappe.throw(
+                "Assisted payment access is available to internal users only.",
+                frappe.PermissionError,
+            )
+
+        requested_case = payments._clean_text(service_request)
+        if not requested_case:
+            frappe.throw(
+                "service_request is required for assisted payment access.",
+                frappe.ValidationError,
+            )
+
+        allowed = customer_service_access.accessible_assisted_service_request_names(
+            internal_capability="can_view_customer_payments",
         )
-    ]
+        if requested_case not in allowed:
+            frappe.throw(
+                "You do not have permission to access this customer's payments.",
+                frappe.PermissionError,
+            )
+
+        service_request_names = [requested_case]
+        customer_view = True
+
+    else:
+        if is_internal and not (
+            capabilities.get("can_view_payment_queue")
+            or capabilities.get("can_view_payment_summaries")
+            or capabilities.get("can_review_payments")
+        ):
+            frappe.throw(
+                "You do not have permission to view payments.",
+                frappe.PermissionError,
+            )
+
+        service_request_names = [
+            row.name
+            for row in payments._accessible_service_requests(
+                profile=profile,
+                internal_user=payments._current_user() if is_internal else None,
+            )
+        ]
+
+        requested_case = payments._clean_text(service_request)
+        if requested_case:
+            if requested_case not in service_request_names:
+                frappe.throw(
+                    "You do not have permission to access this service request.",
+                    frappe.PermissionError,
+                )
+            service_request_names = [requested_case]
+
+        customer_view = profile is not None
     if not service_request_names:
         return {
             "payments": [],
@@ -147,7 +193,7 @@ def get_payments(
         payload = _safe_payment_payload(
             row.name,
             capabilities=capabilities,
-            customer_view=profile is not None,
+            customer_view=customer_view,
         )
         if payload:
             valid_payloads.append(payload)
@@ -163,7 +209,7 @@ def get_payments(
 
 
 @frappe.whitelist()
-def get_payment(payment_id=None, name=None):
+def get_payment(payment_id=None, name=None, assisted=0):
     resolved_id = payment_id or name
     if not resolved_id:
         frappe.throw("payment_id is required")
@@ -176,24 +222,46 @@ def get_payment(payment_id=None, name=None):
     profile = None if is_internal else mobile._assert_approved_customer()
     capabilities = access.get_mobile_capabilities()
 
-    payments._assert_service_request_payment_access(
-        payment.service_request,
-        profile=profile,
-        internal_user=payments._current_user() if is_internal else None,
-    )
+    assisted_mode = str(assisted or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
 
-    if is_internal and not (
-        capabilities.get("can_view_payment_summaries")
-        or capabilities.get("can_view_payment_receipts")
-        or capabilities.get("can_review_payments")
-    ):
-        frappe.throw(
-            "You do not have permission to access this payment.",
-            frappe.PermissionError,
+    if assisted_mode:
+        if not is_internal:
+            frappe.throw(
+                "Assisted payment access is available to internal users only.",
+                frappe.PermissionError,
+            )
+
+        customer_service_access.assert_service_request_action(
+            payment.service_request,
+            internal_capability="can_view_customer_payments",
         )
+        customer_view = True
+
+    else:
+        payments._assert_service_request_payment_access(
+            payment.service_request,
+            profile=profile,
+            internal_user=payments._current_user() if is_internal else None,
+        )
+
+        if is_internal and not (
+            capabilities.get("can_view_payment_summaries")
+            or capabilities.get("can_view_payment_receipts")
+            or capabilities.get("can_review_payments")
+        ):
+            frappe.throw(
+                "You do not have permission to access this payment.",
+                frappe.PermissionError,
+            )
+
+        customer_view = profile is not None
 
     return payments._payment_dict(
         payment,
         capabilities=capabilities,
-        customer_view=profile is not None,
+        customer_view=customer_view,
     )

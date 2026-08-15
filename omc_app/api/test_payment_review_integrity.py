@@ -54,6 +54,57 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
             ),
         )
 
+    @patch.object(
+        payments,
+        "_current_user",
+        return_value="reviewer@example.com",
+    )
+    @patch.object(
+        payments.frappe.db,
+        "get_value",
+        return_value="reviewer@example.com",
+    )
+    def test_reviewer_cannot_review_own_uploaded_receipt(
+        self,
+        get_value,
+        _current_user,
+    ):
+        payment = self._payment()
+
+        with self.assertRaises(frappe.PermissionError):
+            payments._assert_reviewer_did_not_submit_receipt(payment)
+
+        get_value.assert_called_once_with(
+            "File",
+            {"file_url": "/private/files/receipt.pdf"},
+            "owner",
+        )
+
+    @patch.object(
+        payments,
+        "_current_user",
+        return_value="reviewer@example.com",
+    )
+    @patch.object(
+        payments.frappe.db,
+        "get_value",
+        return_value="associate@example.com",
+    )
+    def test_reviewer_can_review_receipt_uploaded_by_another_user(
+        self,
+        get_value,
+        _current_user,
+    ):
+        payment = self._payment()
+
+        payments._assert_reviewer_did_not_submit_receipt(payment)
+
+        get_value.assert_called_once_with(
+            "File",
+            {"file_url": "/private/files/receipt.pdf"},
+            "owner",
+        )
+
     def test_same_status_is_idempotent_noop(self):
         payment = self._payment(status="Under Review")
         service_case = self._case()
