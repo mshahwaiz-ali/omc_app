@@ -75,6 +75,15 @@ def _extract_service_case_list(response):
 
 
 
+def _user_display_name(user_id):
+    user_id = str(user_id or "").strip()
+    if not user_id:
+        return ""
+
+    full_name = frappe.db.get_value("User", user_id, "full_name")
+    return str(full_name or user_id).strip()
+
+
 def _service_request_id(service_case):
     """Resolve a stable OMC Service Request id from mobile case payloads."""
     if not isinstance(service_case, dict):
@@ -132,6 +141,17 @@ def _hydrate_service_case(service_case):
     customer_profile_name = getattr(request, "customer_profile", None) or ""
     service_case["customer_profile"] = customer_profile_name
     service_case["customer_name"] = getattr(request, "customer_name", None) or service_case.get("customer_name") or ""
+
+    submitted_by_user = getattr(request, "submitted_by_user", None) or getattr(request, "requested_by", None) or request.owner or ""
+    submitted_by_internal_user = getattr(request, "submitted_by_internal_user", None) or ""
+
+    service_case["submitted_by_user"] = submitted_by_user
+    service_case["submitted_by_internal_user"] = submitted_by_internal_user
+    service_case["submitted_by_name"] = _user_display_name(submitted_by_user)
+    service_case["submitted_by_internal_name"] = _user_display_name(
+        submitted_by_internal_user
+    )
+
     service_case["contact_email"] = getattr(request, "contact_email", None) or service_case.get("contact_email") or ""
     service_case["contact_phone"] = getattr(request, "contact_phone", None) or service_case.get("contact_phone") or ""
     service_case["requested_by"] = getattr(request, "requested_by", None) or service_case.get("requested_by") or ""
