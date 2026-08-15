@@ -40,7 +40,6 @@ import '../features/profile/presentation/edit_profile_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/service_catalogue/presentation/service_catalogue_screen.dart';
 import '../features/service_catalogue/presentation/service_detail_screen.dart';
-import '../features/service_requests/presentation/internal_service_track_screen.dart';
 import '../features/service_requests/presentation/my_services_screen.dart';
 import '../features/service_requests/presentation/service_case_detail_screen.dart';
 import '../features/service_requests/presentation/service_request_draft_screen.dart';
@@ -592,14 +591,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/internal-service-requests',
-        name: 'internal-service-requests',
-        builder: (context, state) => _withShell(
-          ShellNavScaffold.moreIndex,
-          const InternalServiceTrackScreen(),
-        ),
-      ),
-      GoRoute(
         path: '/internal-workspace/customers',
         name: 'internal-customers',
         builder: (context, state) =>
@@ -688,11 +679,11 @@ class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(this._ref) {
     _authSubscription = _ref.listen<AuthState>(
       authControllerProvider,
-      (_, _) => notifyListeners(),
+      (_, _) => _scheduleRefresh(),
     );
     _capabilitiesSubscription = _ref.listen<AuthCapabilities>(
       effectiveCapabilitiesProvider,
-      (_, _) => notifyListeners(),
+      (_, _) => _scheduleRefresh(),
     );
   }
 
@@ -700,8 +691,25 @@ class _RouterRefreshNotifier extends ChangeNotifier {
   late final ProviderSubscription<AuthState> _authSubscription;
   late final ProviderSubscription<AuthCapabilities> _capabilitiesSubscription;
 
+  bool _refreshScheduled = false;
+  bool _disposed = false;
+
+  void _scheduleRefresh() {
+    if (_refreshScheduled || _disposed) return;
+
+    _refreshScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshScheduled = false;
+
+      if (_disposed) return;
+      notifyListeners();
+    });
+  }
+
   @override
   void dispose() {
+    _disposed = true;
     _authSubscription.close();
     _capabilitiesSubscription.close();
     super.dispose();

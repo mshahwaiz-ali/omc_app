@@ -113,12 +113,13 @@ class _ServiceCaseDetailScreenState
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
                     children: [
                       _CaseHero(serviceCase: serviceCase),
-                      if (serviceCase.customerAssistanceLabel != null) ...[
-                        const SizedBox(height: 12),
-                        _AssistedRequestNotice(
-                          label: serviceCase.customerAssistanceLabel!,
-                        ),
-                      ],
+                      const SizedBox(height: 12),
+                      _RequestAttributionNotice(
+                        serviceCase: serviceCase,
+                        isInternal:
+                            capabilities.canAccessInternalWorkspace ||
+                            capabilities.isInternal,
+                      ),
                       const SizedBox(height: 14),
                       _ProgressCard(serviceCase: serviceCase),
                       if (canAdministerCase) ...[
@@ -606,13 +607,49 @@ class _DiscountRejectionDialogState extends State<_DiscountRejectionDialog> {
   }
 }
 
-class _AssistedRequestNotice extends StatelessWidget {
-  const _AssistedRequestNotice({required this.label});
+class _RequestAttributionNotice extends StatelessWidget {
+  const _RequestAttributionNotice({
+    required this.serviceCase,
+    required this.isInternal,
+  });
 
-  final String label;
+  final ServiceCase serviceCase;
+  final bool isInternal;
 
   @override
   Widget build(BuildContext context) {
+    final customerName = serviceCase.displayCustomerName;
+    final internalCreatorValue = serviceCase.submittedByInternalName?.trim();
+    final internalCreator =
+        internalCreatorValue == null || internalCreatorValue.isEmpty
+        ? null
+        : internalCreatorValue;
+
+    final creatorNameValue = serviceCase.submittedByName?.trim();
+    final creatorName = creatorNameValue == null || creatorNameValue.isEmpty
+        ? null
+        : creatorNameValue;
+    final mode = serviceCase.internalCustomerModeLabel;
+
+    late final String title;
+    String? subtitle;
+
+    if (isInternal) {
+      if (serviceCase.createdOnBehalf) {
+        final creator = internalCreator ?? creatorName ?? 'OMC staff';
+        title = 'Created by $creator for $customerName';
+        subtitle = mode;
+      } else {
+        title = 'Created by ${creatorName ?? customerName}';
+        subtitle = 'Customer submitted';
+      }
+    } else if (serviceCase.createdOnBehalf) {
+      final creator = internalCreator ?? creatorName ?? 'OMC team';
+      title = 'Created by $creator from OMC on your behalf';
+    } else {
+      title = 'Submitted by you';
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -621,22 +658,39 @@ class _AssistedRequestNotice extends StatelessWidget {
         border: Border.all(color: const Color(0xFFD8E9DF)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(
-            Icons.support_agent_rounded,
+            Icons.account_circle_outlined,
             size: 20,
             color: Color(0xFF168D49),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12.5,
-                height: 1.3,
-                fontWeight: FontWeight.w800,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 12.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (subtitle?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle!,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -2893,7 +2947,8 @@ class _SecondaryCaseAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? AppTheme.primary : AppTheme.textPrimary;
+    const destructiveColor = Color(0xFFC62828);
+    final color = destructive ? destructiveColor : AppTheme.textPrimary;
 
     return SizedBox(
       height: 43,
@@ -2903,11 +2958,11 @@ class _SecondaryCaseAction extends StatelessWidget {
           foregroundColor: color,
           side: BorderSide(
             color: destructive
-                ? AppTheme.primary.withValues(alpha: 0.28)
+                ? destructiveColor.withValues(alpha: 0.42)
                 : Colors.black.withValues(alpha: 0.09),
           ),
           backgroundColor: destructive
-              ? AppTheme.primary.withValues(alpha: 0.025)
+              ? const Color(0xFFFFF1F1)
               : AppTheme.background,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

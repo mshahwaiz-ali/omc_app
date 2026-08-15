@@ -26,6 +26,10 @@ class ServiceCase {
     this.submissionMode,
     this.createdOnBehalf = false,
     this.customerName,
+    this.submittedByUser,
+    this.submittedByName,
+    this.submittedByInternalUser,
+    this.submittedByInternalName,
     this.customerEmail,
     this.customerPhone,
     this.customerNtn,
@@ -76,6 +80,10 @@ class ServiceCase {
   final String? submissionMode;
   final bool createdOnBehalf;
   final String? customerName;
+  final String? submittedByUser;
+  final String? submittedByName;
+  final String? submittedByInternalUser;
+  final String? submittedByInternalName;
   final String? customerEmail;
   final String? customerPhone;
   final String? customerNtn;

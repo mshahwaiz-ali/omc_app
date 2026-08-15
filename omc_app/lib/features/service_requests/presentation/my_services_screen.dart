@@ -787,7 +787,19 @@ class _ServiceCard extends StatelessWidget {
         (missingCount > 0 ||
             serviceCase.missingDocuments.isNotEmpty ||
             (nextStep?.toLowerCase().contains('upload') ?? false));
-    final route = '/my-services/${Uri.encodeComponent(serviceCase.id)}';
+    final isInternal = capabilities.canAccessInternalWorkspace;
+    final customerName = serviceCase.customerName?.trim();
+
+    final route = Uri(
+      path: '/my-services/${Uri.encodeComponent(serviceCase.id)}',
+      queryParameters: isInternal
+          ? {
+              'assisted': '1',
+              if (customerName != null && customerName.isNotEmpty)
+                'customer_name': customerName,
+            }
+          : null,
+    ).toString();
 
     return Material(
       color: Colors.white,

@@ -96,11 +96,7 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
         capabilities.canManageBusinessSettings;
   }
 
-  if (location == '/internal-service-requests') {
-    return capabilities.canViewAllServiceCases ||
-        capabilities.canViewRelevantServiceCases ||
-        capabilities.canViewAssignedServiceCases;
-  }
+
 
   if (location.startsWith('/internal-workspace/service-cases')) {
     return capabilities.canViewAllServiceCases ||

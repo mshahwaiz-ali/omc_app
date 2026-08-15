@@ -366,6 +366,14 @@ class ServiceCaseRepository {
       submissionMode: _nullableString(json['submission_mode']),
       createdOnBehalf: _boolValue(json['created_on_behalf']),
       customerName: _nullableString(json['customer_name'] ?? json['full_name']),
+      submittedByUser: _nullableString(json['submitted_by_user']),
+      submittedByName: _nullableString(json['submitted_by_name']),
+      submittedByInternalUser: _nullableString(
+        json['submitted_by_internal_user'],
+      ),
+      submittedByInternalName: _nullableString(
+        json['submitted_by_internal_name'],
+      ),
       customerEmail: _nullableString(json['contact_email'] ?? json['email']),
       customerPhone: _nullableString(json['contact_phone'] ?? json['phone']),
       customerNtn: _nullableString(json['ntn'] ?? json['customer_ntn']),
