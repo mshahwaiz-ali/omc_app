@@ -15,8 +15,8 @@ class PaymentItem {
     required this.amountLabel,
     required this.status,
     this.reference,
-    this.invoiceUrl,
-    this.receiptUrl,
+    this.invoiceNumber,
+    this.paymentProofUrl,
     this.paymentUrl,
     this.paymentChannel,
     this.paymentActionLabel,
@@ -37,8 +37,8 @@ class PaymentItem {
   final String title;
   final String amountLabel;
   final String? reference;
-  final String? invoiceUrl;
-  final String? receiptUrl;
+  final String? invoiceNumber;
+  final String? paymentProofUrl;
   final String? paymentUrl;
   final String? paymentChannel;
   final String? paymentActionLabel;

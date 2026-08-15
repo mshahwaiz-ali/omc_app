@@ -304,14 +304,6 @@ class _PaymentQuickStats extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _PaymentStatTile(
-            icon: Icons.receipt_long_outlined,
-            label: 'Invoice',
-            value: payment.invoiceUrl == null ? 'No' : 'Yes',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _PaymentStatTile(
             icon: Icons.payment_rounded,
             label: 'Payment',
             value: payment.paymentUrl == null ? 'No' : 'Available',
@@ -402,12 +394,8 @@ class _PaymentInfoCard extends StatelessWidget {
           const SizedBox(height: 14),
           _PaymentInfoRow(label: 'Reference', value: payment.reference ?? '-'),
           _PaymentInfoRow(
-            label: 'Invoice',
-            value: payment.invoiceUrl == null ? '-' : 'Available',
-          ),
-          _PaymentInfoRow(
-            label: 'Receipt',
-            value: payment.receiptUrl == null ? '-' : 'Available',
+            label: 'Payment proof',
+            value: payment.paymentProofUrl == null ? '-' : 'Available',
           ),
           _PaymentInfoRow(
             label: 'Payment channel',
@@ -699,18 +687,12 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
           isUploadingReceipt: _isUploadingReceipt,
           uploadProgress: _receiptUploadProgress,
           onCancelUpload: _isUploadingReceipt ? _cancelReceiptUpload : null,
-          onInvoice: () => _openPaymentUrl(
-            context,
-            payment.invoiceUrl,
-            fallbackMessage:
-                'Payment invoice link is not available for this record.',
-          ),
-          onReceipt: () => _openAuthenticatedReceipt(context),
+          onInvoice: () => _openAuthenticatedInvoice(context),
+          onReceipt: () => _openAuthenticatedPaymentProof(context),
           onUploadReceipt:
               _isUploadingReceipt ||
                   !(capabilities.canUploadPaymentReceipt ||
-                      (widget.assisted &&
-                          capabilities.canUploadCustomerPaymentReceipt))
+                      capabilities.canUploadCustomerPaymentReceipt)
               ? null
               : () => _pickAndUploadReceipt(context),
           onPayNow: () => _openPaymentUrl(
@@ -844,18 +826,48 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     }
   }
 
-  Future<void> _openAuthenticatedReceipt(BuildContext context) async {
-    if (payment.receiptUrl?.trim().isEmpty ?? true) {
-      _showSnack(
-        context,
-        'Payment receipt link is not available for this record.',
+  Future<void> _openAuthenticatedInvoice(BuildContext context) async {
+    if (payment.invoiceNumber?.trim().isEmpty ?? true) {
+      _showSnack(context, 'Invoice is not available for this payment.');
+      return;
+    }
+
+    try {
+      final file = await ref
+          .read(paymentsRepositoryProvider)
+          .downloadInvoice(payment, assisted: widget.assisted);
+
+      if (!context.mounted) return;
+
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) =>
+              DocumentPreviewScreen(fileName: file.name, bytes: file.bytes),
+        ),
       );
+    } catch (error) {
+      if (!context.mounted) return;
+
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Invoice unavailable',
+        fallbackMessage:
+            'The authenticated invoice could not be opened right now.',
+      );
+
+      _showSnack(context, failure.message);
+    }
+  }
+
+  Future<void> _openAuthenticatedPaymentProof(BuildContext context) async {
+    if (payment.paymentProofUrl?.trim().isEmpty ?? true) {
+      _showSnack(context, 'Payment proof is not available for this record.');
       return;
     }
     try {
       final file = await ref
           .read(paymentsRepositoryProvider)
-          .downloadReceipt(payment);
+          .downloadPaymentProof(payment);
       if (!context.mounted) return;
 
       await Navigator.of(context).push<void>(
@@ -868,9 +880,9 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
       if (!context.mounted) return;
       final failure = AppFailureClassifier.classify(
         error,
-        fallbackTitle: 'Receipt unavailable',
+        fallbackTitle: 'Payment proof unavailable',
         fallbackMessage:
-            'The authenticated receipt could not be opened right now.',
+            'The authenticated payment proof could not be opened right now.',
       );
       _showSnack(context, failure.message);
     }
@@ -882,7 +894,7 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     final capabilities = ref.read(authControllerProvider).capabilities;
     final canUploadReceipt =
         capabilities.canUploadPaymentReceipt ||
-        (widget.assisted && capabilities.canUploadCustomerPaymentReceipt);
+        capabilities.canUploadCustomerPaymentReceipt;
 
     if (!canUploadReceipt) {
       _showSnack(

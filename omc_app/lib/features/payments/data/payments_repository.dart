@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -203,17 +204,61 @@ class PaymentsRepository {
     return uploadedFiles;
   }
 
-  Future<AuthenticatedPaymentFile> downloadReceipt(PaymentItem payment) async {
-    final location = payment.receiptUrl?.trim() ?? '';
+  Future<AuthenticatedPaymentFile> downloadInvoice(
+    PaymentItem payment, {
+    bool assisted = false,
+  }) async {
+    final invoiceNumber = payment.invoiceNumber?.trim() ?? '';
+    if (invoiceNumber.isEmpty) {
+      throw const ApiError(
+        message: 'Invoice is not available for this payment.',
+      );
+    }
+
+    final response = await _frappeClient.getMethod(
+      ApiConfig.downloadPaymentInvoiceMethod,
+      queryParameters: {
+        'payment_id': payment.id,
+        'name': payment.id,
+        if (assisted) 'assisted': '1',
+      },
+    );
+
+    final payload = response['message'] is Map<String, dynamic>
+        ? response['message'] as Map<String, dynamic>
+        : response;
+
+    final encoded = _nullableString(payload['file_content']) ?? '';
+    if (encoded.isEmpty) {
+      throw const ApiError(
+        message: 'Invoice PDF was not returned by the server.',
+      );
+    }
+
+    final fileName =
+        _nullableString(payload['file_name']) ?? '$invoiceNumber.pdf';
+
+    return AuthenticatedPaymentFile(
+      name: fileName,
+      bytes: base64Decode(encoded),
+    );
+  }
+
+  Future<AuthenticatedPaymentFile> downloadPaymentProof(
+    PaymentItem payment,
+  ) async {
+    final location = payment.paymentProofUrl?.trim() ?? '';
     if (location.isEmpty) {
-      throw const ApiError(message: 'No receipt is attached to this payment.');
+      throw const ApiError(
+        message: 'No payment proof is attached to this payment.',
+      );
     }
     final uri = Uri.tryParse(location);
     final name = uri?.pathSegments.isNotEmpty == true
         ? Uri.decodeComponent(uri!.pathSegments.last)
-        : 'payment-receipt';
+        : 'payment-proof';
     return AuthenticatedPaymentFile(
-      name: name.isEmpty ? 'payment-receipt' : name,
+      name: name.isEmpty ? 'payment-proof' : name,
       bytes: await _frappeClient.getAuthenticatedFile(location),
     );
   }
@@ -281,19 +326,12 @@ class PaymentsRepository {
         currency: json['currency'],
       ),
       reference: _nullableString(
-        json['reference'] ??
-            json['payment_reference'] ??
-            json['invoice_number'],
+        json['reference'] ?? json['payment_reference'],
       ),
-      invoiceUrl: _nullableString(
-        json['invoice_url'] ??
-            json['invoice_file'] ??
-            json['invoice_link'] ??
-            json['invoice_pdf'] ??
-            json['invoice_attachment'],
-      ),
-      receiptUrl: _nullableString(
-        json['receipt_url'] ??
+      invoiceNumber: _nullableString(json['invoice_number']),
+      paymentProofUrl: _nullableString(
+        json['payment_proof_url'] ??
+            json['receipt_url'] ??
             json['receipt_attachment'] ??
             json['receipt_file'] ??
             json['receipt_link'] ??

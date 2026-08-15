@@ -181,6 +181,61 @@ class TestERPFinanceAdapter(FrappeTestCase):
         )
         self.assertIs(result, generated)
 
+    def test_create_payment_entry_prefers_payment_level_mode(self):
+        payment = SimpleNamespace(
+            name="OMC-PAY-1",
+            service_request="OMC-SR-1",
+            payment_reference="WIRE-REF-1",
+            payment_method="Wire Transfer",
+            erp_payment_entry="",
+        )
+        invoice = SimpleNamespace(name="SINV-1")
+
+        generated = MagicMock()
+        generated.name = "ACC-PAY-1"
+        generated.meta.has_field.return_value = False
+
+        config = {
+            "company": "Testing-P1",
+            "mode_of_payment": "Cash",
+        }
+
+        with (
+            patch.object(
+                erp_finance_adapter.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                erp_finance_adapter,
+                "_mode_account",
+                return_value="Test Bank - T",
+            ) as mode_account,
+            patch.object(
+                erp_finance_adapter,
+                "get_payment_entry",
+                return_value=generated,
+            ),
+            patch.object(
+                erp_finance_adapter.frappe.db,
+                "set_value",
+            ),
+        ):
+            erp_finance_adapter._create_payment_entry(
+                payment,
+                invoice,
+                config,
+            )
+
+        mode_account.assert_called_once_with(
+            "Testing-P1",
+            "Wire Transfer",
+        )
+        self.assertEqual(generated.mode_of_payment, "Wire Transfer")
+        self.assertEqual(generated.reference_no, "WIRE-REF-1")
+        self.assertIsNone(generated.custom_structure_name)
+        self.assertIsNone(generated.custom_omc_customer)
+
     def test_finalize_verified_payment_is_idempotent_when_erp_records_exist(self):
         payment = MagicMock()
         payment.doctype = "OMC Service Payment"

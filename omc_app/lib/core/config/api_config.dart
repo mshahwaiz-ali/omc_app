@@ -226,6 +226,8 @@ class ApiConfig {
 
   static const String paymentsMethod = 'omc_app.api.payments.get_payments';
   static const String paymentDetailMethod = 'omc_app.api.payments.get_payment';
+  static const String downloadPaymentInvoiceMethod =
+      'omc_app.api.payment_read_guard.download_invoice_pdf';
   static const String uploadPaymentReceiptMethod =
       'omc_app.api.mobile.upload_payment_receipt';
   static const String uploadPaymentReceiptFileMethod =

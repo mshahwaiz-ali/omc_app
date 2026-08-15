@@ -34,7 +34,8 @@ class PaymentActionCard extends StatelessWidget {
         payment.paymentActionLabel?.trim().isNotEmpty == true
         ? payment.paymentActionLabel!.trim()
         : 'Continue payment';
-    final canOpenReceipt = payment.receiptUrl != null;
+    final canOpenInvoice = payment.invoiceNumber?.trim().isNotEmpty == true;
+    final canOpenPaymentProof = payment.paymentProofUrl != null;
     final canUploadReceipt =
         payment.status != PaymentStatus.paid &&
         payment.status != PaymentStatus.cancelled &&
@@ -101,10 +102,10 @@ class PaymentActionCard extends StatelessWidget {
                   ? Icons.hourglass_top_rounded
                   : Icons.upload_file_rounded,
               title: isUploadingReceipt
-                  ? 'Uploading receipt'
-                  : 'Upload receipt',
+                  ? 'Uploading payment proof'
+                  : 'Upload payment proof',
               subtitle: isUploadingReceipt
-                  ? 'Please wait while the receipt is uploaded.'
+                  ? 'Please wait while the payment proof is uploaded.'
                   : payment.status == PaymentStatus.rejected
                   ? 'Upload corrected proof for finance review.'
                   : 'Attach payment proof for verification.',
@@ -121,12 +122,22 @@ class PaymentActionCard extends StatelessWidget {
             const SizedBox(height: 10),
           ],
           _ActionTile(
+            icon: Icons.receipt_long_outlined,
+            title: 'View Invoice',
+            subtitle: canOpenInvoice
+                ? 'Open the official Sales Invoice.'
+                : 'Invoice is not available yet.',
+            enabled: canOpenInvoice,
+            onTap: onInvoice,
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
             icon: Icons.verified_outlined,
-            title: 'Download receipt',
-            subtitle: canOpenReceipt
-                ? 'Download the paid receipt.'
-                : 'Receipt will be available after reconciliation.',
-            enabled: canOpenReceipt,
+            title: 'View Payment Proof',
+            subtitle: canOpenPaymentProof
+                ? 'Open the submitted payment proof.'
+                : 'Payment proof has not been submitted yet.',
+            enabled: canOpenPaymentProof,
             onTap: onReceipt,
           ),
         ],
@@ -149,8 +160,8 @@ class _UploadProgressPanel extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       label: percent == null
-          ? 'Uploading payment receipt'
-          : 'Uploading payment receipt, $percent percent',
+          ? 'Uploading payment proof'
+          : 'Uploading payment proof, $percent percent',
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -167,7 +178,7 @@ class _UploadProgressPanel extends StatelessWidget {
                   child: Text(
                     percent == null
                         ? 'Preparing upload...'
-                        : 'Uploading receipt — $percent%',
+                        : 'Uploading payment proof — $percent%',
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 13,
