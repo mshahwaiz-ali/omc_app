@@ -1555,7 +1555,18 @@ def _require_service_case_update_scope(case_id):
 def get_service_cases():
     if _can_access_internal_workspace():
         profile = None
-        _user, _capabilities, allowed_names = _require_service_case_read_scope()
+        capabilities = _canonical_capabilities()
+
+        if capabilities.get("can_manage_customer_service_flow"):
+            from omc_app.api import customer_service_access
+
+            allowed_names = sorted(
+                customer_service_access.accessible_assisted_service_request_names(
+                    internal_capability="can_manage_customer_service_flow",
+                )
+            )
+        else:
+            _user, _capabilities, allowed_names = _require_service_case_read_scope()
     else:
         profile = _assert_approved_customer()
         allowed_names = None
@@ -1745,7 +1756,18 @@ def get_service_case(case_id=None):
     service_case = frappe.get_doc("OMC Service Request", case_id)
     can_access_internal_workspace = _can_access_internal_workspace()
     if can_access_internal_workspace:
-        _require_service_case_read_scope(case_id)
+        capabilities = _canonical_capabilities()
+
+        if capabilities.get("can_manage_customer_service_flow"):
+            from omc_app.api import customer_service_access
+
+            customer_service_access.assert_service_request_action(
+                case_id,
+                internal_capability="can_manage_customer_service_flow",
+            )
+        else:
+            _require_service_case_read_scope(case_id)
+
         profile = None
     else:
         profile = _assert_approved_customer()
