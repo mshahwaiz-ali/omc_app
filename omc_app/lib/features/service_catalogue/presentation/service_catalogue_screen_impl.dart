@@ -16,9 +16,18 @@ const Color _border = AppTheme.border;
 const Color _primary = AppTheme.primary;
 
 class ServiceCatalogueScreen extends ConsumerStatefulWidget {
-  const ServiceCatalogueScreen({this.initialQuery = '', super.key});
+  const ServiceCatalogueScreen({
+    this.initialQuery = '',
+    this.assisted = false,
+    this.customerProfile,
+    this.customerName,
+    super.key,
+  });
 
   final String initialQuery;
+  final bool assisted;
+  final String? customerProfile;
+  final String? customerName;
 
   @override
   ConsumerState<ServiceCatalogueScreen> createState() =>
@@ -204,7 +213,20 @@ class _ServiceCatalogueScreenState
   }
 
   void _openService(ServiceItem service) {
-    context.push('/services/${Uri.encodeComponent(service.id)}');
+    final base = '/services/${Uri.encodeComponent(service.id)}';
+
+    if (!widget.assisted) {
+      context.push(base);
+      return;
+    }
+
+    final path =
+        '$base'
+        '?assisted=1'
+        '&customer_profile=${Uri.encodeQueryComponent(widget.customerProfile ?? '')}'
+        '&customer_name=${Uri.encodeQueryComponent(widget.customerName ?? '')}';
+
+    context.push(path);
   }
 
   void _openFilterSheet(BuildContext context, List<String> categories) {

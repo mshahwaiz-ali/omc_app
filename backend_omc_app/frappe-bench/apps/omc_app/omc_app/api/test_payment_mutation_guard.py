@@ -5,7 +5,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from omc_app import hooks
-from omc_app.api import payment_mutation_guard
+from omc_app.api import payment_mutation_guard, payments
 
 
 class TestPaymentMutationGuard(FrappeTestCase):
@@ -26,6 +26,12 @@ class TestPaymentMutationGuard(FrappeTestCase):
                 "omc_app.api.payments.upload_payment_receipt_file"
             ],
             "omc_app.api.payment_mutation_guard.upload_payment_receipt_file",
+        )
+        self.assertEqual(
+            hooks.override_whitelisted_methods[
+                "omc_app.api.payments.upload_payment_receipt_multipart"
+            ],
+            "omc_app.api.payment_mutation_guard.upload_payment_receipt_multipart",
         )
         self.assertEqual(
             hooks.override_whitelisted_methods[
@@ -103,6 +109,122 @@ class TestPaymentMutationGuard(FrappeTestCase):
             idempotency_key=None,
         )
         self.assertTrue(result["updated"])
+
+
+    @patch(
+        "omc_app.api.payment_mutation_guard.payments.upload_payment_receipt_multipart"
+    )
+    @patch("omc_app.api.payment_mutation_guard._load_mutable_payment")
+    def test_multipart_receipt_upload_delegates_only_after_guard(
+        self,
+        load_payment,
+        upload,
+    ):
+        load_payment.return_value = self._payment(status="Pending")
+        upload.return_value = {"updated": True}
+
+        result = payment_mutation_guard.upload_payment_receipt_multipart(
+            payment_id="OMC-PAY-TEST",
+            payment_reference="BANK-2",
+            remarks="Multipart receipt",
+            idempotency_key="idem-1",
+        )
+
+        load_payment.assert_called_once_with("OMC-PAY-TEST")
+        upload.assert_called_once_with(
+            payment_id="OMC-PAY-TEST",
+            payment_reference="BANK-2",
+            remarks="Multipart receipt",
+            idempotency_key="idem-1",
+        )
+        self.assertTrue(result["updated"])
+
+    @patch.object(payments, "_apply_payment_receipt")
+    @patch.object(payments, "save_file")
+    @patch.object(payments.idempotency, "begin", return_value=None)
+    @patch.object(
+        payments.upload_validation,
+        "read_multipart_upload",
+        return_value=("receipt.pdf", b"receipt-data"),
+    )
+    @patch.object(
+        payments.customer_service_access,
+        "assert_service_request_action",
+    )
+    @patch.object(payments.frappe, "get_doc")
+    @patch.object(payments.frappe.db, "exists", return_value=True)
+    def test_multipart_receipt_uses_assisted_customer_authority(
+        self,
+        _exists,
+        get_doc,
+        assert_action,
+        _read_upload,
+        _idempotency,
+        save_file,
+        apply_receipt,
+    ):
+        payment = self._payment(status="Pending")
+        service_case = SimpleNamespace(
+            name="OMC-SR-TEST",
+            status="Waiting for Payment",
+        )
+        get_doc.return_value = payment
+
+        assert_action.return_value = {
+            "service_case": service_case,
+            "profile": None,
+            "is_internal": True,
+            "scope_type": "my_referral",
+            "capabilities": {
+                "can_upload_payment_receipt": False,
+                "can_upload_payment_receipts": False,
+                "can_upload_customer_payment_receipt": True,
+            },
+        }
+
+        file_doc = SimpleNamespace(
+            name="FILE-1",
+            file_url="/private/files/receipt.pdf",
+        )
+        save_file.return_value = file_doc
+        apply_receipt.return_value = {"updated": True}
+
+        result = payments.upload_payment_receipt_multipart(
+            payment_id="OMC-PAY-TEST",
+            payment_reference="BANK-3",
+            remarks="Customer paid",
+        )
+
+        assert_action.assert_called_once_with(
+            "OMC-SR-TEST",
+            internal_capability="can_upload_customer_payment_receipt",
+        )
+        apply_receipt.assert_called_once()
+        self.assertTrue(result["updated"])
+
+    @patch.object(payments.upload_validation, "read_multipart_upload")
+    @patch.object(
+        payments.customer_service_access,
+        "assert_service_request_action",
+        side_effect=frappe.PermissionError,
+    )
+    @patch.object(payments.frappe, "get_doc")
+    @patch.object(payments.frappe.db, "exists", return_value=True)
+    def test_denied_assisted_payment_scope_rejects_before_reading_upload(
+        self,
+        _exists,
+        get_doc,
+        _assert_action,
+        read_upload,
+    ):
+        get_doc.return_value = self._payment(status="Pending")
+
+        with self.assertRaises(frappe.PermissionError):
+            payments.upload_payment_receipt_multipart(
+                payment_id="OMC-PAY-TEST",
+            )
+
+        read_upload.assert_not_called()
 
     @patch("omc_app.api.payment_mutation_guard.payments.review_payment_receipt")
     @patch("omc_app.api.payment_mutation_guard._noop_review_response")

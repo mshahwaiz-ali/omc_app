@@ -18,9 +18,16 @@ import '../data/service_case_repository.dart';
 import '../data/service_request_repository.dart';
 
 class ServiceCaseDetailScreen extends ConsumerStatefulWidget {
-  const ServiceCaseDetailScreen({super.key, required this.caseId});
+  const ServiceCaseDetailScreen({
+    super.key,
+    required this.caseId,
+    this.assisted = false,
+    this.customerName,
+  });
 
   final String caseId;
+  final bool assisted;
+  final String? customerName;
 
   @override
   ConsumerState<ServiceCaseDetailScreen> createState() =>
@@ -40,7 +47,9 @@ class _ServiceCaseDetailScreenState
     final caseAsync = ref.watch(serviceCaseDetailProvider(widget.caseId));
     final capabilities = ref.watch(authControllerProvider).capabilities;
     final canReviewDocuments = capabilities.canReviewDocuments;
-    final canUploadDocuments = capabilities.canUploadDocuments;
+    final canUploadDocuments =
+        capabilities.canUploadDocuments ||
+        (widget.assisted && capabilities.canUploadCustomerDocuments);
     final canCancelOwnRequest =
         capabilities.isApproved && capabilities.canTrackRequests;
     final canAdministerCase =
@@ -142,6 +151,11 @@ class _ServiceCaseDetailScreenState
                       const SizedBox(height: 14),
                       _CaseActionsCard(
                         serviceCase: serviceCase,
+                        assisted: widget.assisted,
+                        customerName: widget.customerName,
+                        canViewDocuments: widget.assisted
+                            ? capabilities.canViewCustomerDocuments
+                            : capabilities.canViewDocuments,
                         isUploading: _isUploadingDocument,
                         onUploadMissingDocument: canUploadDocuments
                             ? () => _showUploadDocumentSheet(serviceCase)
@@ -391,7 +405,12 @@ class _ServiceCaseDetailScreenState
   Future<void> _showUploadDocumentSheet(ServiceCase serviceCase) async {
     if (_isUploadingDocument) return;
 
-    if (!ref.read(authControllerProvider).capabilities.canUploadDocuments) {
+    final capabilities = ref.read(authControllerProvider).capabilities;
+    final canUploadDocuments =
+        capabilities.canUploadDocuments ||
+        (widget.assisted && capabilities.canUploadCustomerDocuments);
+
+    if (!canUploadDocuments) {
       _showSnack('Your account cannot upload documents for this request.');
       return;
     }
@@ -2467,6 +2486,9 @@ class _DocumentRequirementRow extends StatelessWidget {
 class _CaseActionsCard extends StatelessWidget {
   const _CaseActionsCard({
     required this.serviceCase,
+    required this.assisted,
+    required this.customerName,
+    required this.canViewDocuments,
     required this.isUploading,
     required this.onUploadMissingDocument,
     required this.isCancelling,
@@ -2474,6 +2496,9 @@ class _CaseActionsCard extends StatelessWidget {
   });
 
   final ServiceCase serviceCase;
+  final bool assisted;
+  final String? customerName;
+  final bool canViewDocuments;
   final bool isUploading;
   final VoidCallback? onUploadMissingDocument;
   final bool isCancelling;
@@ -2581,6 +2606,8 @@ class _CaseActionsCard extends StatelessWidget {
               isUploading: isUploading,
               onUpload: onUploadMissingDocument,
               paymentId: serviceCase.paymentId,
+              assisted: assisted,
+              customerName: customerName,
             ),
           ],
           const SizedBox(height: 16),
@@ -2589,6 +2616,26 @@ class _CaseActionsCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 390;
+
+              final documentsButton = canViewDocuments
+                  ? _SecondaryCaseAction(
+                      icon: Icons.folder_open_outlined,
+                      label: 'View documents',
+                      onPressed: () {
+                        if (assisted) {
+                          final path =
+                              '/documents'
+                              '?assisted=1'
+                              '&service_request=${Uri.encodeQueryComponent(serviceCase.id)}'
+                              '&customer_name=${Uri.encodeQueryComponent(customerName ?? '')}';
+                          context.push(path);
+                          return;
+                        }
+
+                        context.push('/documents');
+                      },
+                    )
+                  : null;
 
               final supportButton = _SecondaryCaseAction(
                 icon: Icons.support_agent_outlined,
@@ -2610,6 +2657,10 @@ class _CaseActionsCard extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (documentsButton != null) ...[
+                      documentsButton,
+                      const SizedBox(height: 10),
+                    ],
                     supportButton,
                     if (cancelButton != null) ...[
                       const SizedBox(height: 10),
@@ -2621,6 +2672,10 @@ class _CaseActionsCard extends StatelessWidget {
 
               return Row(
                 children: [
+                  if (documentsButton != null) ...[
+                    Expanded(child: documentsButton),
+                    const SizedBox(width: 10),
+                  ],
                   Expanded(child: supportButton),
                   if (cancelButton != null) ...[
                     const SizedBox(width: 10),
@@ -2744,12 +2799,16 @@ class _PrimaryCaseActionButton extends StatelessWidget {
     required this.isUploading,
     required this.onUpload,
     required this.paymentId,
+    required this.assisted,
+    required this.customerName,
   });
 
   final _CasePrimaryAction action;
   final bool isUploading;
   final VoidCallback? onUpload;
   final String? paymentId;
+  final bool assisted;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context) {
@@ -2772,9 +2831,14 @@ class _PrimaryCaseActionButton extends StatelessWidget {
             ? null
             : isPayment
             ? canOpenPayment
-                  ? () => context.push(
-                      '/payments/${Uri.encodeComponent(cleanPaymentId)}',
-                    )
+                  ? () {
+                      final path = assisted
+                          ? '/payments/${Uri.encodeComponent(cleanPaymentId)}'
+                                '?assisted=1'
+                                '&customer_name=${Uri.encodeQueryComponent(customerName ?? '')}'
+                          : '/payments/${Uri.encodeComponent(cleanPaymentId)}';
+                      context.push(path);
+                    }
                   : null
             : onUpload,
         style: FilledButton.styleFrom(

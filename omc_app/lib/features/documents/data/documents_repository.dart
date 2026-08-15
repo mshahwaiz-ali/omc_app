@@ -29,6 +29,18 @@ final documentsProvider = FutureProvider<List<DocumentItem>>((ref) async {
   return repository.fetchDocuments();
 });
 
+final assistedDocumentsProvider =
+    FutureProvider.family<List<DocumentItem>, String>((
+      ref,
+      serviceRequest,
+    ) async {
+      final repository = ref.watch(documentsRepositoryProvider);
+      return repository.fetchDocuments(
+        serviceRequest: serviceRequest,
+        assisted: true,
+      );
+    });
+
 final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
   ref,
   documentId,
@@ -37,6 +49,13 @@ final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
 
   return repository.fetchDocumentDetail(documentId);
 });
+
+final assistedDocumentDetailProvider =
+    FutureProvider.family<DocumentItem?, String>((ref, documentId) {
+      final repository = ref.watch(documentsRepositoryProvider);
+
+      return repository.fetchDocumentDetail(documentId, assisted: true);
+    });
 
 class DocumentsRepository {
   DocumentsRepository(FrappeClient frappeClient)
@@ -53,6 +72,7 @@ class DocumentsRepository {
     String? customer,
     String? serviceRequest,
     String? status,
+    bool assisted = false,
   }) async {
     final queryParameters = <String, dynamic>{};
 
@@ -71,6 +91,9 @@ class DocumentsRepository {
     if (status != null && status.trim().isNotEmpty) {
       queryParameters['status'] = status.trim();
     }
+    if (assisted) {
+      queryParameters['assisted'] = '1';
+    }
 
     final response = await _frappeClient.getMethod(
       ApiConfig.documentsMethod,
@@ -79,7 +102,10 @@ class DocumentsRepository {
     return _mapDocumentsResponse(response);
   }
 
-  Future<DocumentItem?> fetchDocumentDetail(String documentId) async {
+  Future<DocumentItem?> fetchDocumentDetail(
+    String documentId, {
+    bool assisted = false,
+  }) async {
     final cleanDocumentId = documentId.trim();
     if (cleanDocumentId.isEmpty) return null;
 
@@ -88,6 +114,7 @@ class DocumentsRepository {
       queryParameters: {
         'document_id': cleanDocumentId,
         'name': cleanDocumentId,
+        if (assisted) 'assisted': '1',
       },
     );
 

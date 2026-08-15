@@ -26,9 +26,18 @@ const Color _surface = Color(0xFFF8FAFC);
 const Color _border = Color(0xFFE5E7EB);
 
 class ServiceDetailScreen extends ConsumerWidget {
-  const ServiceDetailScreen({super.key, required this.serviceId});
+  const ServiceDetailScreen({
+    super.key,
+    required this.serviceId,
+    this.assisted = false,
+    this.customerProfile,
+    this.customerName,
+  });
 
   final String serviceId;
+  final bool assisted;
+  final String? customerProfile;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -291,7 +300,20 @@ class ServiceDetailScreen extends ConsumerWidget {
   }
 
   void _openNewRequest(BuildContext context, ServiceItem service) {
-    context.push('/services/${Uri.encodeComponent(service.id)}/request');
+    final base = '/services/${Uri.encodeComponent(service.id)}/request';
+
+    if (!assisted) {
+      context.push(base);
+      return;
+    }
+
+    final path =
+        '$base'
+        '?assisted=1'
+        '&customer_profile=${Uri.encodeQueryComponent(customerProfile ?? '')}'
+        '&customer_name=${Uri.encodeQueryComponent(customerName ?? '')}';
+
+    context.push(path);
   }
 
   void _openExistingRequest(

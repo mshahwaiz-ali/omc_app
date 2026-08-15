@@ -19,6 +19,8 @@ bool canUseHomeActionCapability(
     'can_manage_leads' => canAccessRoute('/leads', capabilities),
     'can_manage_tasks' => canAccessRoute('/tasks', capabilities),
     'can_use_tax_calculator' => capabilities.canUseTaxCalculator,
+    'can_create_support_ticket' => capabilities.canCreateSupportTicket,
+    'can_view_support_tickets' => capabilities.canViewSupportTickets,
     'can_access_customer_dashboard' => canAccessRoute(
       '/dashboard',
       capabilities,

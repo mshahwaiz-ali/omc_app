@@ -35,6 +35,11 @@ class AuthController extends Notifier<AuthState> {
       canAccessInternalWorkspace: session.canAccessInternalWorkspace,
       capabilities: session.capabilities,
     );
+
+    // Auth state changes can cause GoRouter to mount a new screen immediately.
+    // Defer dependent-provider refreshes so Riverpod is not invalidated while
+    // that widget tree is still building.
+    await Future<void>.delayed(Duration.zero);
     ref.read(sessionEpochProvider.notifier).advance();
     ref.invalidate(activeDirtyFormProvider);
   }
@@ -189,6 +194,8 @@ class AuthController extends Notifier<AuthState> {
     state = const AuthState.unauthenticated();
 
     ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+
+    await Future<void>.delayed(Duration.zero);
     ref.read(sessionEpochProvider.notifier).advance();
     ref.invalidate(activeDirtyFormProvider);
   }
@@ -206,6 +213,8 @@ class AuthController extends Notifier<AuthState> {
       );
 
       ref.read(deviceLockSessionUnlockedProvider.notifier).markLocked();
+
+      await Future<void>.delayed(Duration.zero);
       ref.read(sessionEpochProvider.notifier).advance();
       ref.invalidate(activeDirtyFormProvider);
     } finally {

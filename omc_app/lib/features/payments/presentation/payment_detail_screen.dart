@@ -19,13 +19,22 @@ import '../data/payments_repository.dart';
 import 'widgets/payment_action_card.dart';
 
 class PaymentDetailScreen extends ConsumerWidget {
-  const PaymentDetailScreen({required this.paymentId, super.key});
+  const PaymentDetailScreen({
+    required this.paymentId,
+    this.assisted = false,
+    this.customerName,
+    super.key,
+  });
 
   final String paymentId;
+  final bool assisted;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paymentAsync = ref.watch(paymentDetailProvider(paymentId));
+    final paymentAsync = assisted
+        ? ref.watch(assistedPaymentDetailProvider(paymentId))
+        : ref.watch(paymentDetailProvider(paymentId));
 
     return Scaffold(
       appBar: const AppBackHeader(title: 'Payment Details'),
@@ -43,7 +52,11 @@ class PaymentDetailScreen extends ConsumerWidget {
             );
           }
 
-          return _PaymentDetailBody(payment: payment);
+          return _PaymentDetailBody(
+            payment: payment,
+            assisted: assisted,
+            customerName: customerName,
+          );
         },
         loading: () => const _DetailLoadingView(
           icon: Icons.account_balance_wallet_outlined,
@@ -57,7 +70,9 @@ class PaymentDetailScreen extends ConsumerWidget {
             fallbackTitle: 'Payment unavailable',
             fallbackMessage:
                 'Payment details could not be loaded right now. Please try again.',
-            onRetry: () => ref.invalidate(paymentDetailProvider(paymentId)),
+            onRetry: () => assisted
+                ? ref.invalidate(assistedPaymentDetailProvider(paymentId))
+                : ref.invalidate(paymentDetailProvider(paymentId)),
           ),
         ),
       ),
@@ -635,9 +650,15 @@ class _PaymentAdminReviewCard extends StatelessWidget {
 }
 
 class _PaymentDetailBody extends ConsumerStatefulWidget {
-  const _PaymentDetailBody({required this.payment});
+  const _PaymentDetailBody({
+    required this.payment,
+    required this.assisted,
+    required this.customerName,
+  });
 
   final PaymentItem payment;
+  final bool assisted;
+  final String? customerName;
 
   @override
   ConsumerState<_PaymentDetailBody> createState() => _PaymentDetailBodyState();
@@ -686,7 +707,10 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
           ),
           onReceipt: () => _openAuthenticatedReceipt(context),
           onUploadReceipt:
-              _isUploadingReceipt || !capabilities.canUploadPaymentReceipt
+              _isUploadingReceipt ||
+                  !(capabilities.canUploadPaymentReceipt ||
+                      (widget.assisted &&
+                          capabilities.canUploadCustomerPaymentReceipt))
               ? null
               : () => _pickAndUploadReceipt(context),
           onPayNow: () => _openPaymentUrl(
@@ -695,7 +719,8 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
             fallbackMessage: 'Payment action is not available for this record.',
           ),
         ),
-        if (_canReviewReceipt(payment, capabilities.canReviewPayments)) ...[
+        if (!widget.assisted &&
+            _canReviewReceipt(payment, capabilities.canReviewPayments)) ...[
           const SizedBox(height: 16),
           _PaymentAdminReviewCard(
             payment: payment,
@@ -732,6 +757,10 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
   void _invalidatePaymentRelatedState() {
     final caseId = payment.serviceReference?.trim();
     invalidatePaymentMutation(ref, paymentId: payment.id, caseId: caseId);
+
+    if (widget.assisted) {
+      ref.invalidate(assistedPaymentDetailProvider(payment.id));
+    }
   }
 
   Future<void> _reviewPaymentReceipt(
@@ -851,7 +880,11 @@ class _PaymentDetailBodyState extends ConsumerState<_PaymentDetailBody> {
     if (_isUploadingReceipt) return;
 
     final capabilities = ref.read(authControllerProvider).capabilities;
-    if (!capabilities.canUploadPaymentReceipt) {
+    final canUploadReceipt =
+        capabilities.canUploadPaymentReceipt ||
+        (widget.assisted && capabilities.canUploadCustomerPaymentReceipt);
+
+    if (!canUploadReceipt) {
       _showSnack(
         context,
         capabilities.isPending

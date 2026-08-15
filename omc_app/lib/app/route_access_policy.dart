@@ -40,11 +40,14 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location == '/my-services' || location.startsWith('/my-services/')) {
-    return capabilities.canTrackRequests;
+    return capabilities.canTrackRequests ||
+        capabilities.canManageCustomerServiceFlow;
   }
 
   if (location == '/documents' || location.startsWith('/documents/')) {
     return capabilities.canViewDocuments ||
+        capabilities.canViewCustomerDocuments ||
+        capabilities.canUploadCustomerDocuments ||
         capabilities.canViewDocumentQueue ||
         capabilities.canViewDocumentSummaries ||
         capabilities.canViewDocumentAttachments ||
@@ -53,6 +56,8 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
 
   if (location == '/payments' || location.startsWith('/payments/')) {
     return capabilities.canViewPayments ||
+        capabilities.canViewCustomerPayments ||
+        capabilities.canUploadCustomerPaymentReceipt ||
         capabilities.canViewPaymentQueue ||
         capabilities.canViewPaymentSummaries ||
         capabilities.canViewPaymentReceipts ||

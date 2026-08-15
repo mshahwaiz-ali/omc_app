@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/app_back_header.dart';
@@ -153,6 +154,24 @@ class _ReferralDetailScreenState extends ConsumerState<ReferralDetailScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: customer.consentGranted
+                    ? () {
+                        final path =
+                            '/services'
+                            '?assisted=1'
+                            '&customer_profile=${Uri.encodeQueryComponent(widget.customerProfile)}'
+                            '&customer_name=${Uri.encodeQueryComponent(customer.displayName)}';
+                        context.push(path);
+                      }
+                    : null,
+                icon: const Icon(Icons.add_business_outlined),
+                label: const Text('Start service for this customer'),
+              ),
+            ),
           ],
         ),
       ),
@@ -204,7 +223,7 @@ class _ReferralDetailScreenState extends ConsumerState<ReferralDetailScreen> {
         )
       else
         for (final request in detail.requests) ...[
-          _RequestCard(request: request),
+          _RequestCard(request: request, customerName: customer.displayName),
           const SizedBox(height: 10),
         ],
     ];
@@ -302,49 +321,62 @@ class _ServiceCard extends StatelessWidget {
 }
 
 class _RequestCard extends StatelessWidget {
-  const _RequestCard({required this.request});
+  const _RequestCard({required this.request, required this.customerName});
 
   final ReferralRequestSummary request;
+  final String customerName;
 
   @override
   Widget build(BuildContext context) {
     final source = request.createdByReferrer
         ? 'Created by you'
         : 'Customer created';
+    final path =
+        '/my-services/${Uri.encodeComponent(request.id)}'
+        '?assisted=1'
+        '&customer_name=${Uri.encodeQueryComponent(customerName)}';
+
     return PremiumCard(
-      padding: const EdgeInsets.all(15),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.receipt_long_outlined,
-            color: AppTheme.textSecondary,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  request.title.isEmpty ? request.id : request.title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: request.id.trim().isEmpty ? null : () => context.push(path),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.receipt_long_outlined,
+                color: AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.title.isEmpty ? request.id : request.title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$source • ${request.status}',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$source • ${request.status}',
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -38,6 +38,11 @@ class AuthCapabilities {
     this.canManageTasks = false,
     this.canManageAssignedTasks = false,
     this.canCreateServiceForCustomer = false,
+    this.canManageCustomerServiceFlow = false,
+    this.canUploadCustomerDocuments = false,
+    this.canViewCustomerDocuments = false,
+    this.canViewCustomerPayments = false,
+    this.canUploadCustomerPaymentReceipt = false,
     this.canViewAllServiceCases = false,
     this.canViewRelevantServiceCases = false,
     this.canViewAssignedServiceCases = false,
@@ -88,6 +93,11 @@ class AuthCapabilities {
   final bool canManageTasks;
   final bool canManageAssignedTasks;
   final bool canCreateServiceForCustomer;
+  final bool canManageCustomerServiceFlow;
+  final bool canUploadCustomerDocuments;
+  final bool canViewCustomerDocuments;
+  final bool canViewCustomerPayments;
+  final bool canUploadCustomerPaymentReceipt;
   final bool canViewAllServiceCases;
   final bool canViewRelevantServiceCases;
   final bool canViewAssignedServiceCases;
@@ -151,6 +161,13 @@ class AuthCapabilities {
             canManageLeads == other.canManageLeads &&
             canManageTasks == other.canManageTasks &&
             canCreateServiceForCustomer == other.canCreateServiceForCustomer &&
+            canManageCustomerServiceFlow ==
+                other.canManageCustomerServiceFlow &&
+            canUploadCustomerDocuments == other.canUploadCustomerDocuments &&
+            canViewCustomerDocuments == other.canViewCustomerDocuments &&
+            canViewCustomerPayments == other.canViewCustomerPayments &&
+            canUploadCustomerPaymentReceipt ==
+                other.canUploadCustomerPaymentReceipt &&
             canViewRelevantServiceCases == other.canViewRelevantServiceCases &&
             canViewAssignedServiceCases == other.canViewAssignedServiceCases &&
             canManageAssignedTasks == other.canManageAssignedTasks &&
@@ -210,6 +227,11 @@ class AuthCapabilities {
     canViewRelevantServiceCases,
     canViewAssignedServiceCases,
     canCreateServiceForCustomer,
+    canManageCustomerServiceFlow,
+    canUploadCustomerDocuments,
+    canViewCustomerDocuments,
+    canViewCustomerPayments,
+    canUploadCustomerPaymentReceipt,
     canUpdateAssignedServiceStatus,
     canViewDocumentQueue,
     canViewDocumentSummaries,
@@ -309,6 +331,17 @@ class AuthCapabilities {
       canManageAssignedTasks: _boolValue(json['can_manage_assigned_tasks']),
       canCreateServiceForCustomer: _boolValue(
         json['can_create_service_for_customer'],
+      ),
+      canManageCustomerServiceFlow: _boolValue(
+        json['can_manage_customer_service_flow'],
+      ),
+      canUploadCustomerDocuments: _boolValue(
+        json['can_upload_customer_documents'],
+      ),
+      canViewCustomerDocuments: _boolValue(json['can_view_customer_documents']),
+      canViewCustomerPayments: _boolValue(json['can_view_customer_payments']),
+      canUploadCustomerPaymentReceipt: _boolValue(
+        json['can_upload_customer_payment_receipt'],
       ),
       canViewAllServiceCases: _boolValue(json['can_view_all_service_cases']),
       canViewRelevantServiceCases: _boolValue(

@@ -8,6 +8,7 @@ from frappe.utils.file_manager import save_file
 
 from omc_app.api import (
     access,
+    customer_service_access,
     erp_finance_adapter,
     idempotency,
     mobile,
@@ -858,21 +859,19 @@ def upload_payment_receipt_file(
         )
 
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
-    profile, service_case = _assert_payment_customer_access(
-        payment
+    authority = customer_service_access.assert_service_request_action(
+        payment.service_request,
+        internal_capability="can_upload_customer_payment_receipt",
     )
-    if not profile:
-        frappe.throw(
-            "Payment receipt upload is a customer action.",
-            frappe.PermissionError,
-        )
+    service_case = authority["service_case"]
 
     _assert_payment_accepts_receipt(payment)
 
-    capabilities = mobile._get_mobile_capabilities()
+    capabilities = authority["capabilities"]
     if not (
         capabilities.get("can_upload_payment_receipt")
         or capabilities.get("can_upload_payment_receipts")
+        or capabilities.get("can_upload_customer_payment_receipt")
     ):
         frappe.throw(
             "You do not have permission to upload payment receipts.",
@@ -941,17 +940,18 @@ def upload_payment_receipt_multipart(
     if not payment_id or not frappe.db.exists(PAYMENT_DOCTYPE, payment_id):
         frappe.throw("Payment not found", frappe.DoesNotExistError)
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
-    profile, service_case = _assert_payment_customer_access(payment)
-    if not profile:
-        frappe.throw(
-            "Payment receipt upload is a customer action.",
-            frappe.PermissionError,
-        )
+    authority = customer_service_access.assert_service_request_action(
+        payment.service_request,
+        internal_capability="can_upload_customer_payment_receipt",
+    )
+    service_case = authority["service_case"]
+
     _assert_payment_accepts_receipt(payment)
-    capabilities = mobile._get_mobile_capabilities()
+    capabilities = authority["capabilities"]
     if not (
         capabilities.get("can_upload_payment_receipt")
         or capabilities.get("can_upload_payment_receipts")
+        or capabilities.get("can_upload_customer_payment_receipt")
     ):
         frappe.throw(
             "You do not have permission to upload payment receipts.",
@@ -1093,6 +1093,23 @@ def _apply_payment_receipt(
 
 
 
+def _assert_reviewer_did_not_submit_receipt(payment):
+    receipt_url = (getattr(payment, "receipt_attachment", None) or "").strip()
+    if not receipt_url:
+        return
+
+    owner = frappe.db.get_value(
+        "File",
+        {"file_url": receipt_url},
+        "owner",
+    )
+    if owner and owner == _current_user():
+        frappe.throw(
+            "You cannot review a payment receipt that you submitted yourself.",
+            frappe.PermissionError,
+        )
+
+
 @frappe.whitelist()
 def review_payment_receipt(
     payment_id=None,
@@ -1127,6 +1144,8 @@ def review_payment_receipt(
         )
 
     payment = frappe.get_doc(PAYMENT_DOCTYPE, payment_id)
+    _assert_reviewer_did_not_submit_receipt(payment)
+
     service_case = frappe.get_doc(
         "OMC Service Request",
         payment.service_request,

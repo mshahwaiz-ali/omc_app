@@ -27,9 +27,16 @@ class AssistedCustomerDraftSelection {
 }
 
 class AssistedCustomerCard extends ConsumerStatefulWidget {
-  const AssistedCustomerCard({super.key, required this.onChanged});
+  const AssistedCustomerCard({
+    super.key,
+    required this.onChanged,
+    this.initialMode,
+    this.initialCustomerId,
+  });
 
   final ValueChanged<AssistedCustomerDraftSelection?> onChanged;
+  final String? initialMode;
+  final String? initialCustomerId;
 
   @override
   ConsumerState<AssistedCustomerCard> createState() =>
@@ -80,12 +87,20 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
           .read(serviceRequestRepositoryProvider)
           .getAssistedCustomerSelection(limitPageLength: 100);
       if (!mounted) return;
-      final firstMode = selection.modes.isEmpty ? null : selection.modes.first;
+      final preferredMode = widget.initialMode?.trim();
+      final firstMode =
+          preferredMode != null &&
+              preferredMode.isNotEmpty &&
+              selection.modes.contains(preferredMode)
+          ? preferredMode
+          : (selection.modes.isEmpty ? null : selection.modes.first);
+
       setState(() {
         _modes = selection.modes;
         _selectedMode = firstMode;
         _loading = false;
       });
+
       if (firstMode != null) await _loadItems();
     } catch (error) {
       if (!mounted) return;
@@ -132,10 +147,29 @@ class _AssistedCustomerCardState extends ConsumerState<AssistedCustomerCard> {
             limitPageLength: 100,
           );
       if (!mounted) return;
+      AssistedCustomerOption? initialCustomer;
+      final initialCustomerId = widget.initialCustomerId?.trim();
+
+      if (initialCustomerId != null && initialCustomerId.isNotEmpty) {
+        for (final customer in selection.items) {
+          if (customer.id == initialCustomerId) {
+            initialCustomer = customer;
+            break;
+          }
+        }
+      }
+
       setState(() {
         _items = selection.items;
+        _selectedCustomer = initialCustomer;
         _loading = false;
+
+        if (initialCustomer != null) {
+          _customerController.text = initialCustomer.fullName;
+        }
       });
+
+      _emit();
     } catch (error) {
       if (!mounted) return;
       final failure = AppFailureClassifier.classify(

@@ -38,6 +38,13 @@ final paymentDetailProvider = FutureProvider.family<PaymentItem?, String>((
   return repository.fetchPaymentDetail(paymentId);
 });
 
+final assistedPaymentDetailProvider =
+    FutureProvider.family<PaymentItem?, String>((ref, paymentId) {
+      final repository = ref.watch(paymentsRepositoryProvider);
+
+      return repository.fetchPaymentDetail(paymentId, assisted: true);
+    });
+
 class PaymentsRepository {
   PaymentsRepository({required FrappeClient frappeClient})
     : _frappeClient = frappeClient,
@@ -81,13 +88,20 @@ class PaymentsRepository {
     );
   }
 
-  Future<PaymentItem?> fetchPaymentDetail(String paymentId) async {
+  Future<PaymentItem?> fetchPaymentDetail(
+    String paymentId, {
+    bool assisted = false,
+  }) async {
     final cleanPaymentId = paymentId.trim();
     if (cleanPaymentId.isEmpty) return null;
 
     final response = await _frappeClient.getMethod(
       ApiConfig.paymentDetailMethod,
-      queryParameters: {'payment_id': cleanPaymentId, 'name': cleanPaymentId},
+      queryParameters: {
+        'payment_id': cleanPaymentId,
+        'name': cleanPaymentId,
+        if (assisted) 'assisted': '1',
+      },
     );
 
     return _mapPaymentDetailResponse(response);

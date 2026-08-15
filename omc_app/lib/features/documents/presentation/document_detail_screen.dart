@@ -16,13 +16,22 @@ import '../data/documents_repository.dart';
 import 'widgets/document_action_card.dart';
 
 class DocumentDetailScreen extends ConsumerWidget {
-  const DocumentDetailScreen({required this.documentId, super.key});
+  const DocumentDetailScreen({
+    required this.documentId,
+    this.assisted = false,
+    this.customerName,
+    super.key,
+  });
 
   final String documentId;
+  final bool assisted;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final documentAsync = ref.watch(documentDetailProvider(documentId));
+    final documentAsync = assisted
+        ? ref.watch(assistedDocumentDetailProvider(documentId))
+        : ref.watch(documentDetailProvider(documentId));
 
     return Scaffold(
       appBar: const AppBackHeader(title: 'Document Details'),
@@ -54,7 +63,9 @@ class DocumentDetailScreen extends ConsumerWidget {
             fallbackTitle: 'Document unavailable',
             fallbackMessage:
                 'Document details could not be loaded right now. Please try again.',
-            onRetry: () => ref.invalidate(documentDetailProvider(documentId)),
+            onRetry: () => assisted
+                ? ref.invalidate(assistedDocumentDetailProvider(documentId))
+                : ref.invalidate(documentDetailProvider(documentId)),
           ),
         ),
       ),

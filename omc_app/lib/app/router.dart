@@ -214,6 +214,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 name: 'services',
                 builder: (context, state) => ServiceCatalogueScreen(
                   initialQuery: state.uri.queryParameters['query'] ?? '',
+                  assisted: state.uri.queryParameters['assisted'] == '1',
+                  customerProfile:
+                      state.uri.queryParameters['customer_profile'],
+                  customerName: state.uri.queryParameters['customer_name'],
                 ),
               ),
             ],
@@ -241,7 +245,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/documents',
                 name: 'documents',
-                builder: (context, state) => const _DocumentsRootScreen(),
+                builder: (context, state) => _DocumentsRootScreen(
+                  assisted: state.uri.queryParameters['assisted'] == '1',
+                  serviceRequest: state.uri.queryParameters['service_request'],
+                  customerName: state.uri.queryParameters['customer_name'],
+                ),
               ),
             ],
           ),
@@ -267,7 +275,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
           return _withShell(
             ShellNavScaffold.servicesIndex,
-            ServiceDetailScreen(serviceId: serviceId),
+            ServiceDetailScreen(
+              serviceId: serviceId,
+              assisted: state.uri.queryParameters['assisted'] == '1',
+              customerProfile: state.uri.queryParameters['customer_profile'],
+              customerName: state.uri.queryParameters['customer_name'],
+            ),
           );
         },
       ),
@@ -280,7 +293,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
           return _withShell(
             ShellNavScaffold.servicesIndex,
-            ServiceRequestDraftScreen(serviceId: serviceId),
+            ServiceRequestDraftScreen(
+              serviceId: serviceId,
+              assisted: state.uri.queryParameters['assisted'] == '1',
+              customerProfile: state.uri.queryParameters['customer_profile'],
+              customerName: state.uri.queryParameters['customer_name'],
+            ),
           );
         },
       ),
@@ -299,7 +317,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
           return _withShell(
             ShellNavScaffold.documentsIndex,
-            DocumentDetailScreen(documentId: documentId),
+            DocumentDetailScreen(
+              documentId: documentId,
+              assisted: state.uri.queryParameters['assisted'] == '1',
+              customerName: state.uri.queryParameters['customer_name'],
+            ),
           );
         },
       ),
@@ -318,7 +340,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
           return _withShell(
             ShellNavScaffold.moreIndex,
-            PaymentDetailScreen(paymentId: paymentId),
+            PaymentDetailScreen(
+              paymentId: paymentId,
+              assisted: state.uri.queryParameters['assisted'] == '1',
+              customerName: state.uri.queryParameters['customer_name'],
+            ),
           );
         },
       ),
@@ -392,7 +418,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
           return _withShell(
             ShellNavScaffold.trackIndex,
-            ServiceCaseDetailScreen(caseId: caseId),
+            ServiceCaseDetailScreen(
+              caseId: caseId,
+              assisted: state.uri.queryParameters['assisted'] == '1',
+              customerName: state.uri.queryParameters['customer_name'],
+            ),
           );
         },
       ),
@@ -627,13 +657,30 @@ class _TrackRootScreen extends ConsumerWidget {
 }
 
 class _DocumentsRootScreen extends ConsumerWidget {
-  const _DocumentsRootScreen();
+  const _DocumentsRootScreen({
+    this.assisted = false,
+    this.serviceRequest,
+    this.customerName,
+  });
+
+  final bool assisted;
+  final String? serviceRequest;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (assisted) {
+      return DocumentsScreen(
+        assisted: true,
+        serviceRequest: serviceRequest,
+        customerName: customerName,
+      );
+    }
+
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final canReview =
         capabilities.canViewDocumentQueue || capabilities.canReviewDocuments;
+
     return canReview
         ? const InternalDocumentReviewScreen()
         : const DocumentsScreen();

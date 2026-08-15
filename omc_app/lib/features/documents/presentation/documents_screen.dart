@@ -10,11 +10,22 @@ import '../data/document_item.dart';
 import '../data/documents_repository.dart';
 
 class DocumentsScreen extends ConsumerWidget {
-  const DocumentsScreen({super.key});
+  const DocumentsScreen({
+    super.key,
+    this.assisted = false,
+    this.serviceRequest,
+    this.customerName,
+  });
+
+  final bool assisted;
+  final String? serviceRequest;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final documentsAsync = ref.watch(documentsProvider);
+    final documentsAsync = assisted && serviceRequest?.trim().isNotEmpty == true
+        ? ref.watch(assistedDocumentsProvider(serviceRequest!.trim()))
+        : ref.watch(documentsProvider);
 
     return Scaffold(
       backgroundColor: OmcPremium.canvas,
@@ -22,11 +33,24 @@ class DocumentsScreen extends ConsumerWidget {
         child: RefreshIndicator(
           color: OmcPremium.documents,
           onRefresh: () async {
-            ref.invalidate(documentsProvider);
-            await ref.read(documentsProvider.future);
+            if (assisted && serviceRequest?.trim().isNotEmpty == true) {
+              final provider = assistedDocumentsProvider(
+                serviceRequest!.trim(),
+              );
+              ref.invalidate(provider);
+              await ref.read(provider.future);
+            } else {
+              ref.invalidate(documentsProvider);
+              await ref.read(documentsProvider.future);
+            }
           },
           child: documentsAsync.when(
-            data: (documents) => _DocumentsWorkspace(documents: documents),
+            data: (documents) => _DocumentsWorkspace(
+              documents: documents,
+              assisted: assisted,
+              serviceRequest: serviceRequest,
+              customerName: customerName,
+            ),
             loading: () => const _DocumentsLoadingView(),
             error: (error, _) => _DocumentsErrorView(
               error: error,
@@ -52,9 +76,17 @@ enum _DocumentFilter {
 }
 
 class _DocumentsWorkspace extends StatefulWidget {
-  const _DocumentsWorkspace({required this.documents});
+  const _DocumentsWorkspace({
+    required this.documents,
+    required this.assisted,
+    required this.serviceRequest,
+    required this.customerName,
+  });
 
   final List<DocumentItem> documents;
+  final bool assisted;
+  final String? serviceRequest;
+  final String? customerName;
 
   @override
   State<_DocumentsWorkspace> createState() => _DocumentsWorkspaceState();
@@ -83,7 +115,11 @@ class _DocumentsWorkspaceState extends State<_DocumentsWorkspace> {
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 164),
       children: [
-        _Header(documents: widget.documents),
+        _Header(
+          documents: widget.documents,
+          assisted: widget.assisted,
+          customerName: widget.customerName,
+        ),
         const SizedBox(height: 16),
         _SearchField(
           controller: _searchController,
@@ -134,7 +170,11 @@ class _DocumentsWorkspaceState extends State<_DocumentsWorkspace> {
           )
         else
           for (var index = 0; index < groups.length; index++) ...[
-            _RequestDocumentCard(group: groups[index]),
+            _RequestDocumentCard(
+              group: groups[index],
+              assisted: widget.assisted,
+              customerName: widget.customerName,
+            ),
             if (index != groups.length - 1) const SizedBox(height: 12),
           ],
       ],
@@ -187,9 +227,15 @@ class _DocumentsWorkspaceState extends State<_DocumentsWorkspace> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.documents});
+  const _Header({
+    required this.documents,
+    required this.assisted,
+    required this.customerName,
+  });
 
   final List<DocumentItem> documents;
+  final bool assisted;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context) {
@@ -225,8 +271,10 @@ class _Header extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'My Documents',
+                    Text(
+                      assisted && customerName?.trim().isNotEmpty == true
+                          ? '${customerName!.trim()}\'s Documents'
+                          : 'My Documents',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 27,
@@ -556,9 +604,15 @@ class _DocumentRequestGroup {
 }
 
 class _RequestDocumentCard extends StatelessWidget {
-  const _RequestDocumentCard({required this.group});
+  const _RequestDocumentCard({
+    required this.group,
+    required this.assisted,
+    required this.customerName,
+  });
 
   final _DocumentRequestGroup group;
+  final bool assisted;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context) {
@@ -667,7 +721,11 @@ class _RequestDocumentCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           for (var index = 0; index < group.documents.length; index++) ...[
-            _CompactDocumentRow(document: group.documents[index]),
+            _CompactDocumentRow(
+              document: group.documents[index],
+              assisted: assisted,
+              customerName: customerName,
+            ),
             if (index != group.documents.length - 1) const SizedBox(height: 8),
           ],
         ],
@@ -677,9 +735,15 @@ class _RequestDocumentCard extends StatelessWidget {
 }
 
 class _CompactDocumentRow extends StatelessWidget {
-  const _CompactDocumentRow({required this.document});
+  const _CompactDocumentRow({
+    required this.document,
+    required this.assisted,
+    required this.customerName,
+  });
 
   final DocumentItem document;
+  final bool assisted;
+  final String? customerName;
 
   @override
   Widget build(BuildContext context) {
@@ -690,8 +754,13 @@ class _CompactDocumentRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(15),
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
-        onTap: () =>
-            context.push('/documents/${Uri.encodeComponent(document.id)}'),
+        onTap: () => context.push(
+          assisted
+              ? '/documents/${Uri.encodeComponent(document.id)}'
+                    '?assisted=1'
+                    '&customer_name=${Uri.encodeQueryComponent(customerName ?? '')}'
+              : '/documents/${Uri.encodeComponent(document.id)}',
+        ),
         child: Ink(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(

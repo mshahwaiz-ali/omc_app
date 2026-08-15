@@ -25,9 +25,18 @@ import '../data/service_request_repository.dart';
 import 'assisted_customer_card.dart';
 
 class ServiceRequestDraftScreen extends ConsumerStatefulWidget {
-  const ServiceRequestDraftScreen({super.key, required this.serviceId});
+  const ServiceRequestDraftScreen({
+    super.key,
+    required this.serviceId,
+    this.assisted = false,
+    this.customerProfile,
+    this.customerName,
+  });
 
   final String serviceId;
+  final bool assisted;
+  final String? customerProfile;
+  final String? customerName;
 
   @override
   ConsumerState<ServiceRequestDraftScreen> createState() =>
@@ -186,6 +195,10 @@ class _ServiceRequestDraftScreenState
                         .isInternal) ...[
                       const SizedBox(height: 12),
                       AssistedCustomerCard(
+                        initialMode: widget.assisted ? 'My Referral' : null,
+                        initialCustomerId: widget.assisted
+                            ? widget.customerProfile
+                            : null,
                         onChanged: _onAssistedSelectionChanged,
                       ),
                       const SizedBox(height: 12),
