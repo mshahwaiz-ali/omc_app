@@ -46,8 +46,7 @@ class AuthEntryScaffold extends StatelessWidget {
           maintainBottomViewPadding: true,
           child: Center(
             child: SingleChildScrollView(
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),

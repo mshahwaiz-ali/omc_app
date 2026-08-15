@@ -1,5 +1,8 @@
 class SettingsPreferences {
   const SettingsPreferences({
+    this.inAppNotificationsEnabled = true,
+    this.pushNotificationsEnabled = true,
+    this.pushProviderOperational = false,
     this.serviceUpdatesEnabled = true,
     this.documentRemindersEnabled = true,
     this.paymentAlertsEnabled = true,
@@ -7,6 +10,10 @@ class SettingsPreferences {
     this.emailNotificationsEnabled = true,
     this.whatsAppNotificationsEnabled = true,
   });
+
+  final bool inAppNotificationsEnabled;
+  final bool pushNotificationsEnabled;
+  final bool pushProviderOperational;
 
   final bool serviceUpdatesEnabled;
   final bool documentRemindersEnabled;
@@ -16,6 +23,8 @@ class SettingsPreferences {
   final bool whatsAppNotificationsEnabled;
 
   SettingsPreferences copyWith({
+    bool? inAppNotificationsEnabled,
+    bool? pushNotificationsEnabled,
     bool? serviceUpdatesEnabled,
     bool? documentRemindersEnabled,
     bool? paymentAlertsEnabled,
@@ -24,6 +33,11 @@ class SettingsPreferences {
     bool? whatsAppNotificationsEnabled,
   }) {
     return SettingsPreferences(
+      inAppNotificationsEnabled:
+          inAppNotificationsEnabled ?? this.inAppNotificationsEnabled,
+      pushNotificationsEnabled:
+          pushNotificationsEnabled ?? this.pushNotificationsEnabled,
+      pushProviderOperational: pushProviderOperational,
       serviceUpdatesEnabled:
           serviceUpdatesEnabled ?? this.serviceUpdatesEnabled,
       documentRemindersEnabled:
@@ -39,6 +53,8 @@ class SettingsPreferences {
 
   Map<String, dynamic> toJson() {
     return {
+      'in_app_notifications_enabled': inAppNotificationsEnabled,
+      'push_notifications_enabled': pushNotificationsEnabled,
       'service_updates_enabled': serviceUpdatesEnabled,
       'document_reminders_enabled': documentRemindersEnabled,
       'payment_alerts_enabled': paymentAlertsEnabled,

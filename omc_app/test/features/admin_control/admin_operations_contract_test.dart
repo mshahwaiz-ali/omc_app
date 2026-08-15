@@ -63,7 +63,7 @@ void main() {
     expect(repository, contains("'search': query.search.trim()"));
     expect(repository, contains("'status': query.status.trim()"));
     expect(screen, contains('paymentPageProvider(query)'));
-    expect(detail, contains('downloadReceipt(payment)'));
+    expect(detail, contains('downloadPaymentProof(payment)'));
     expect(detail, contains('DocumentPreviewScreen'));
     expect(detail, contains('fileName: file.name'));
     expect(detail, contains('bytes: file.bytes'));

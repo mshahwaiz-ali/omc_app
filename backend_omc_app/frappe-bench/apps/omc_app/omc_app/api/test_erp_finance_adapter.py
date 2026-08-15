@@ -301,6 +301,14 @@ class TestERPFinanceAdapter(FrappeTestCase):
                 "_ensure_payment_entry",
                 return_value=(payment_entry, False),
             ),
+            patch(
+                "omc_app.api.referral_commissions.create_earning_for_posted_payment",
+                return_value={
+                    "created": False,
+                    "earning": None,
+                    "reason": "commission_disabled",
+                },
+            ),
         ):
             result = erp_finance_adapter.finalize_verified_payment(payment)
 
@@ -310,6 +318,7 @@ class TestERPFinanceAdapter(FrappeTestCase):
         self.assertEqual(result["sales_invoice"], "SINV-1")
         self.assertEqual(result["payment_entry"], "ACC-PAY-1")
         self.assertEqual(result["invoice_outstanding"], 0)
+        self.assertEqual(result["commission"]["reason"], "commission_disabled")
 
         self.assertEqual(payment.erp_finance_status, "Posted")
         self.assertEqual(payment.erp_finance_error, "")

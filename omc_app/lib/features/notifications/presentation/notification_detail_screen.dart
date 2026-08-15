@@ -349,6 +349,8 @@ class _NotificationDetailBodyState
       '/notifications/',
       '/services/',
       '/support',
+      '/tasks/',
+      '/my-commissions/',
     ];
     return allowedPrefixes.any(uri.path.startsWith) ? uri.toString() : null;
   }

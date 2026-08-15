@@ -63,6 +63,8 @@ class AuthCapabilities {
     this.canReassignServiceCases = false,
     this.canRetrySync = false,
     this.canViewInternalNotes = false,
+    this.canViewReferralCommissions = false,
+    this.canManageReferralCommissions = false,
   });
 
   final AccountAccessState accessState;
@@ -118,6 +120,8 @@ class AuthCapabilities {
   final bool canReassignServiceCases;
   final bool canRetrySync;
   final bool canViewInternalNotes;
+  final bool canViewReferralCommissions;
+  final bool canManageReferralCommissions;
 
   static const guest = AuthCapabilities(accessState: AccountAccessState.guest);
 
@@ -191,7 +195,9 @@ class AuthCapabilities {
             canManageBusinessSettings == other.canManageBusinessSettings &&
             canReassignServiceCases == other.canReassignServiceCases &&
             canRetrySync == other.canRetrySync &&
-            canViewInternalNotes == other.canViewInternalNotes;
+            canViewInternalNotes == other.canViewInternalNotes &&
+            canViewReferralCommissions == other.canViewReferralCommissions &&
+            canManageReferralCommissions == other.canManageReferralCommissions;
   }
 
   @override
@@ -248,6 +254,8 @@ class AuthCapabilities {
     canReassignServiceCases,
     canRetrySync,
     canViewInternalNotes,
+    canViewReferralCommissions,
+    canManageReferralCommissions,
   ]);
 
   factory AuthCapabilities.fromJson(Map<String, dynamic>? json) {
@@ -370,6 +378,12 @@ class AuthCapabilities {
       canReassignServiceCases: _boolValue(json['can_reassign_service_cases']),
       canRetrySync: _boolValue(json['can_retry_sync']),
       canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
+      canViewReferralCommissions: _boolValue(
+        json['can_view_referral_commissions'],
+      ),
+      canManageReferralCommissions: _boolValue(
+        json['can_manage_referral_commissions'],
+      ),
     );
   }
 

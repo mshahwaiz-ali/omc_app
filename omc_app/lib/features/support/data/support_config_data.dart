@@ -1,4 +1,5 @@
 import '../../../core/config/support_config.dart' as local_config;
+import '../../../core/config/env.dart';
 
 class SupportConfigData {
   const SupportConfigData({
@@ -18,6 +19,7 @@ class SupportConfigData {
   final bool isFallback;
 
   static SupportConfigData get fallback {
+    if (!Env.allowSupportPreview) return empty;
     return const SupportConfigData(
       channels: [
         SupportChannelConfig(
@@ -91,6 +93,15 @@ class SupportConfigData {
     );
   }
 
+  static const empty = SupportConfigData(
+    channels: [],
+    topics: [],
+    businessHours: '',
+    officeAddress: '',
+    whatsappMessage: '',
+    isFallback: false,
+  );
+
   factory SupportConfigData.fromApiResponse(Map<String, dynamic>? data) {
     if (data == null || data.isEmpty) return fallback;
 
@@ -121,11 +132,7 @@ class SupportConfigData {
       whatsappMessage: _stringValue(raw['whatsapp_message']).isNotEmpty
           ? _stringValue(raw['whatsapp_message'])
           : fallbackConfig.whatsappMessage,
-      isFallback:
-          raw['fallback'] == true ||
-          raw['is_fallback'] == true ||
-          channels.isEmpty ||
-          topics.isEmpty,
+      isFallback: raw['fallback'] == true || raw['is_fallback'] == true,
     );
   }
 

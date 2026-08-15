@@ -31,6 +31,7 @@ Future<bool> showOmcMoreSheet({
   required VoidCallback onOpenInternalWorkspace,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenMyReferrals,
+  required VoidCallback onOpenMyCommissions,
   required VoidCallback onOpenLeads,
   required VoidCallback onOpenTasks,
   required VoidCallback onLogout,
@@ -67,6 +68,7 @@ Future<bool> showOmcMoreSheet({
         onOpenInternalWorkspace: onOpenInternalWorkspace,
         onOpenCustomers: onOpenCustomers,
         onOpenMyReferrals: onOpenMyReferrals,
+        onOpenMyCommissions: onOpenMyCommissions,
         onOpenLeads: onOpenLeads,
         onOpenTasks: onOpenTasks,
         onLogout: onLogout,
@@ -113,6 +115,7 @@ List<OmcSheetAction> _moreActions({
   required VoidCallback onOpenInternalWorkspace,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenMyReferrals,
+  required VoidCallback onOpenMyCommissions,
   required VoidCallback onOpenLeads,
   required VoidCallback onOpenTasks,
   required VoidCallback onLogout,
@@ -150,6 +153,11 @@ List<OmcSheetAction> _moreActions({
     if (capabilities.canViewRelevantCustomers &&
         !capabilities.canViewAllCustomers) {
       items.add(action('My Referrals', Icons.hub_outlined, onOpenMyReferrals));
+    }
+    if (capabilities.canViewReferralCommissions) {
+      items.add(
+        action('Commissions', Icons.payments_outlined, onOpenMyCommissions),
+      );
     }
     if (capabilities.canViewDocumentQueue ||
         capabilities.canViewDocumentSummaries ||

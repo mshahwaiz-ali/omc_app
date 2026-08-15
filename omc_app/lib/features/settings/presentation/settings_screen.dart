@@ -686,6 +686,25 @@ class _PreferencesSection extends StatelessWidget {
           const _DividerIndent(),
         ],
         _SwitchTile(
+          title: 'In-app notifications',
+          value: preferences.inAppNotificationsEnabled,
+          onChanged: onToggle == null
+              ? null
+              : (value) => onToggle!(
+                  preferences.copyWith(inAppNotificationsEnabled: value),
+                ),
+        ),
+        if (preferences.pushProviderOperational)
+          _SwitchTile(
+            title: 'Push notifications',
+            value: preferences.pushNotificationsEnabled,
+            onChanged: onToggle == null
+                ? null
+                : (value) => onToggle!(
+                    preferences.copyWith(pushNotificationsEnabled: value),
+                  ),
+          ),
+        _SwitchTile(
           title: 'Service updates',
           value: preferences.serviceUpdatesEnabled,
           onChanged: onToggle == null

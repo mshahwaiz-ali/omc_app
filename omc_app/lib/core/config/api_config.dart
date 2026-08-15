@@ -157,7 +157,6 @@ class ApiConfig {
   static const String logoutMethod = 'logout';
   static const String googleLoginMethod =
       'omc_app.api.mobile.google_mobile_login';
-  static const String signUpMethod = 'omc_app.api.access.sign_up';
   static const String startRegistrationMethod =
       'omc_app.api.pending_registration.start_registration';
   static const String resendVerificationMethod =
@@ -311,20 +310,17 @@ class ApiConfig {
       'omc_app.api.referrals.get_my_referrals';
   static const String getMyReferralDetailMethod =
       'omc_app.api.referral_analytics.get_my_referral_detail';
+  static const String getMyCommissionSummaryMethod =
+      'omc_app.api.referral_commissions.get_my_commission_summary';
+  static const String getMyCommissionsMethod =
+      'omc_app.api.referral_commissions.get_my_commissions';
+  static const String getMyCommissionMethod =
+      'omc_app.api.referral_commissions.get_my_commission';
 
   static const String leadsMethod = 'omc_app.api.mobile.get_leads';
   static const String leadDetailMethod = 'omc_app.api.mobile.get_lead';
   static const String tasksMethod = 'omc_app.api.mobile.get_tasks';
   static const String taskDetailMethod = 'omc_app.api.mobile.get_task';
-  static const String updateTaskOperationStatusMethod =
-      'omc_app.api.task_write_guard.update_task_operation_status';
-  static const String taskAssignmentOptionsMethod =
-      'omc_app.api.task_write_guard.get_task_assignment_options';
-  static const String assignTaskMethod =
-      'omc_app.api.task_write_guard.assign_task';
-  static const String updateTaskDetailsMethod =
-      'omc_app.api.task_write_guard.update_task_details';
-
   static const String internalWorkspaceSummaryMethod =
       'omc_app.api.mobile.get_internal_workspace_summary';
   static const String internalServiceCasesMethod =

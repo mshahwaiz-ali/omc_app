@@ -1,4 +1,10 @@
-enum HomeBannerActionType { none, route, knowledgeArticle, service, externalUrl }
+enum HomeBannerActionType {
+  none,
+  route,
+  knowledgeArticle,
+  service,
+  externalUrl,
+}
 
 class HomeContent {
   const HomeContent({
@@ -9,10 +15,10 @@ class HomeContent {
   });
 
   const HomeContent.empty()
-      : audience = 'All',
-        featuredBanners = const [],
-        taxBusinessUpdates = const [],
-        learnGrow = const [];
+    : audience = 'All',
+      featuredBanners = const [],
+      taxBusinessUpdates = const [],
+      learnGrow = const [];
 
   final String audience;
   final List<HomeBanner> featuredBanners;
@@ -28,9 +34,9 @@ class HomeBannerAction {
   });
 
   const HomeBannerAction.none()
-      : type = HomeBannerActionType.none,
-        target = '',
-        label = '';
+    : type = HomeBannerActionType.none,
+      target = '',
+      label = '';
 
   final HomeBannerActionType type;
   final String target;

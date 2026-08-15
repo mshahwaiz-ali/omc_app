@@ -323,7 +323,16 @@ def get_documents(
     service_request=None,
     status=None,
     assisted=0,
+    start=0,
+    limit=50,
+    limit_start=None,
+    limit_page_length=None,
 ):
+    try:
+        start = max(int(limit_start if limit_start is not None else start), 0)
+        limit = min(max(int(limit_page_length if limit_page_length is not None else limit), 1), 100)
+    except (TypeError, ValueError):
+        frappe.throw("Invalid document pagination values.", frappe.ValidationError)
     is_internal = _can_access_internal_workspace()
     assisted_view = str(assisted or "").strip().lower() in {
         "1",
@@ -373,7 +382,7 @@ def get_documents(
             allowed_service_requests is not None
             and service_request not in allowed_service_requests
         ):
-            return {"documents": []}
+            return {"items": [], "documents": [], "start": start, "limit": limit, "has_more": False, "next_start": None}
         service_filters["name"] = service_request
     elif allowed_service_requests is not None:
         service_filters["name"] = [
@@ -388,7 +397,7 @@ def get_documents(
     )
 
     if not service_request_names:
-        return {"documents": []}
+        return {"items": [], "documents": [], "start": start, "limit": limit, "has_more": False, "next_start": None}
 
     filters = {
         "service_request": ["in", service_request_names],
@@ -427,7 +436,12 @@ def get_documents(
         filters=filters,
         fields=_document_fields(),
         order_by="uploaded_on desc, creation desc",
+        limit_start=start,
+        limit_page_length=limit + 1,
     )
+
+    has_more = len(docs) > limit
+    docs = docs[:limit]
 
     service_cases = _service_case_map({doc.service_request for doc in docs})
     customer_profiles = _customer_profile_map(
@@ -438,8 +452,7 @@ def get_documents(
         }
     )
 
-    return {
-        "documents": [
+    items = [
             _document_dict(
                 doc,
                 service_case=service_cases.get(doc.service_request),
@@ -452,7 +465,7 @@ def get_documents(
             )
             for doc in docs
         ]
-    }
+    return {"items": items, "documents": items, "start": start, "limit": limit, "has_more": has_more, "next_start": start + limit if has_more else None}
 
 
 @frappe.whitelist()

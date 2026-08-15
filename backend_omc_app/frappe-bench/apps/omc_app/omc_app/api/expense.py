@@ -11,28 +11,6 @@ DEFAULT_GUEST_LIMIT = 30
 DEFAULT_RECEIPT_MAX_SIZE_MB = 5
 DEFAULT_RECEIPT_EXTENSIONS = ".jpg,.jpeg,.png,.webp,.pdf"
 
-DEFAULT_EXPENSE_CATEGORIES = [
-    {"name": "Food", "title": "Food", "transaction_type": "Expense", "icon": "restaurant", "sort_order": 10},
-    {"name": "Fuel", "title": "Fuel", "transaction_type": "Expense", "icon": "local_gas_station", "sort_order": 20},
-    {"name": "Bills", "title": "Bills", "transaction_type": "Expense", "icon": "receipt", "sort_order": 30},
-    {"name": "Rent", "title": "Rent", "transaction_type": "Expense", "icon": "home", "sort_order": 40},
-    {"name": "Shopping", "title": "Shopping", "transaction_type": "Expense", "icon": "shopping_bag", "sort_order": 50},
-    {"name": "Transport", "title": "Transport", "transaction_type": "Expense", "icon": "directions_car", "sort_order": 60},
-    {"name": "Health", "title": "Health", "transaction_type": "Expense", "icon": "health_and_safety", "is_tax_relevant": 1, "sort_order": 70},
-    {"name": "Education", "title": "Education", "transaction_type": "Expense", "icon": "school", "is_tax_relevant": 1, "sort_order": 80},
-    {"name": "Business", "title": "Business", "transaction_type": "Expense", "icon": "business_center", "business_default": 1, "sort_order": 90},
-    {"name": "Tax / Legal", "title": "Tax / Legal", "transaction_type": "Expense", "icon": "gavel", "is_tax_relevant": 1, "sort_order": 100},
-    {"name": "Utilities", "title": "Utilities", "transaction_type": "Expense", "icon": "bolt", "sort_order": 110},
-    {"name": "Other", "title": "Other", "transaction_type": "Expense", "icon": "category", "sort_order": 999},
-    {"name": "Salary", "title": "Salary", "transaction_type": "Income", "icon": "payments", "sort_order": 10},
-    {"name": "Business Income", "title": "Business Income", "transaction_type": "Income", "icon": "storefront", "sort_order": 20},
-    {"name": "Freelance", "title": "Freelance", "transaction_type": "Income", "icon": "laptop", "sort_order": 30},
-    {"name": "Rental Income", "title": "Rental Income", "transaction_type": "Income", "icon": "apartment", "sort_order": 40},
-    {"name": "Investment", "title": "Investment", "transaction_type": "Income", "icon": "trending_up", "sort_order": 50},
-    {"name": "Other Income", "title": "Other Income", "transaction_type": "Income", "icon": "add_card", "sort_order": 999},
-]
-
-
 def _has_doctype(doctype):
     try:
         return bool(frappe.db.exists("DocType", doctype))
@@ -181,27 +159,6 @@ def _category_to_dict(row):
     }
 
 
-def _seed_default_categories():
-    if not _has_doctype("OMC Expense Category"):
-        return
-
-    for category in DEFAULT_EXPENSE_CATEGORIES:
-        title = category["title"]
-        if frappe.db.exists("OMC Expense Category", title):
-            continue
-        doc = frappe.new_doc("OMC Expense Category")
-        doc.title = title
-        doc.transaction_type = category["transaction_type"]
-        doc.icon = category.get("icon") or "category"
-        doc.color = category.get("color") or ""
-        doc.is_default = 1
-        doc.is_tax_relevant = category.get("is_tax_relevant") or 0
-        doc.business_default = category.get("business_default") or 0
-        doc.sort_order = category.get("sort_order") or 0
-        doc.enabled = 1
-        doc.insert(ignore_permissions=True)
-
-
 def _ensure_category(title, transaction_type):
     title = _clean_text(title, "Uncategorized")
     if not _has_doctype("OMC Expense Category"):
@@ -304,7 +261,7 @@ def get_expense_categories():
         return {"categories": [], "fallback": False, "enabled": False}
 
     if not _has_doctype("OMC Expense Category"):
-        return {"categories": DEFAULT_EXPENSE_CATEGORIES, "fallback": True, "enabled": True}
+        return {"categories": [], "fallback": False, "enabled": True}
 
     rows = frappe.get_all(
         "OMC Expense Category",
@@ -314,8 +271,8 @@ def get_expense_categories():
     )
 
     return {
-        "categories": [_category_to_dict(row) for row in rows] or DEFAULT_EXPENSE_CATEGORIES,
-        "fallback": not bool(rows),
+        "categories": [_category_to_dict(row) for row in rows],
+        "fallback": False,
         "enabled": True,
     }
 

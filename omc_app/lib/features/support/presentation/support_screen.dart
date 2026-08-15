@@ -26,11 +26,13 @@ class SupportScreen extends ConsumerStatefulWidget {
 class _SupportScreenState extends ConsumerState<SupportScreen> {
   final TextEditingController _messageController = TextEditingController();
   final DirtyFormController _dirtyFormController = DirtyFormController();
-  String _selectedTopic = SupportConfigData.fallback.topics.first.title;
+  String _selectedTopic = '';
   bool _isSubmitting = false;
 
   bool get _canSubmit =>
-      !_isSubmitting && _messageController.text.trim().length >= 10;
+      !_isSubmitting &&
+      _selectedTopic.isNotEmpty &&
+      _messageController.text.trim().length >= 10;
 
   @override
   void initState() {
@@ -66,7 +68,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         ? supportConfig.topics
         : SupportConfigData.fallback.topics;
 
-    if (!supportTopics.any((topic) => topic.title == _selectedTopic)) {
+    if (supportTopics.isNotEmpty &&
+        !supportTopics.any((topic) => topic.title == _selectedTopic)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() => _selectedTopic = supportTopics.first.title);
@@ -390,6 +393,8 @@ class _SupportCategoriesCard extends StatelessWidget {
             subtitle: 'Tap a topic to open WhatsApp with a ready message.',
           ),
           const SizedBox(height: 14),
+          if (sorted.isEmpty)
+            const Text('Support topics are not configured yet.'),
           for (final topic in sorted.take(6)) ...[
             _TopicRow(
               topic: topic,

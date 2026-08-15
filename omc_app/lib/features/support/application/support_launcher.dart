@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/support_config.dart';
+import '../../../core/config/env.dart';
 
 class SupportLauncher {
   const SupportLauncher._();
@@ -14,7 +15,9 @@ class SupportLauncher {
     await openWhatsAppWithMessage(
       context,
       phoneNumber: phoneNumber,
-      message: message ?? SupportConfig.whatsappMessage,
+      message:
+          message ??
+          (Env.allowSupportPreview ? SupportConfig.whatsappMessage : ''),
     );
   }
 
@@ -24,7 +27,8 @@ class SupportLauncher {
     required String message,
   }) async {
     final cleanNumber = _digitsOnly(
-      phoneNumber ?? SupportConfig.whatsappNumber,
+      phoneNumber ??
+          (Env.allowSupportPreview ? SupportConfig.whatsappNumber : ''),
     );
     if (cleanNumber.isEmpty) {
       _showFailure(context, 'WhatsApp support number is not configured.');
@@ -41,7 +45,10 @@ class SupportLauncher {
     BuildContext context, {
     String? phoneNumber,
   }) async {
-    final cleanNumber = (phoneNumber ?? SupportConfig.phoneNumber).trim();
+    final cleanNumber =
+        (phoneNumber ??
+                (Env.allowSupportPreview ? SupportConfig.phoneNumber : ''))
+            .trim();
     if (cleanNumber.isEmpty) {
       _showFailure(context, 'Support phone number is not configured.');
       return;
@@ -56,7 +63,8 @@ class SupportLauncher {
     String? email,
     String subject = 'OMC App Support',
   }) async {
-    final cleanEmail = (email ?? SupportConfig.email).trim();
+    final cleanEmail =
+        (email ?? (Env.allowSupportPreview ? SupportConfig.email : '')).trim();
     if (cleanEmail.isEmpty) {
       _showFailure(context, 'Support email is not configured.');
       return;

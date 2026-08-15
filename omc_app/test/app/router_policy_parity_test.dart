@@ -46,6 +46,8 @@ void main() {
     '/profile/edit',
     '/my-referrals',
     '/my-referrals/:customerId',
+    '/my-commissions',
+    '/my-commissions/:earningId',
     '/expense-tracker',
     '/expense-budget',
     '/support-tickets/:ticketId',
@@ -54,7 +56,6 @@ void main() {
     '/internal-workspace',
     '/admin-control',
     '/admin-control/operations',
-    '/internal-service-requests',
     '/internal-workspace/service-cases',
     '/internal-workspace/customers',
     '/internal-workspace/documents',
@@ -112,6 +113,7 @@ void main() {
   const referralStaff = AuthCapabilities(
     accessState: AccountAccessState.internal,
     canViewRelevantCustomers: true,
+    canViewReferralCommissions: true,
   );
 
   const routeAudiences = <AuthCapabilities>[

@@ -5,6 +5,7 @@ import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/app_config/presentation/app_brand_registry.dart';
 import '../features/device_lock/presentation/device_lock_gate.dart';
+import '../core/push/push_registration.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -13,6 +14,7 @@ class OmcApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(pushAuthBindingProvider);
     final router = ref.watch(appRouterProvider);
     final appConfig = ref
         .watch(mobileAppConfigProvider)

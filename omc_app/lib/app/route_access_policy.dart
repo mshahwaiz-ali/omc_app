@@ -96,8 +96,6 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
         capabilities.canManageBusinessSettings;
   }
 
-
-
   if (location.startsWith('/internal-workspace/service-cases')) {
     return capabilities.canViewAllServiceCases ||
         capabilities.canViewRelevantServiceCases ||
@@ -126,6 +124,11 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.isInternal &&
         capabilities.canViewRelevantCustomers &&
         !capabilities.canViewAllCustomers;
+  }
+
+  if (location == '/my-commissions' ||
+      location.startsWith('/my-commissions/')) {
+    return capabilities.canViewReferralCommissions;
   }
 
   if (location == '/profile' ||

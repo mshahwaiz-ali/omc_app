@@ -60,6 +60,8 @@ INTERNAL_CAPABILITY_KEYS = (
     "can_manage_business_settings",
     "can_reassign_service_cases",
     "can_retry_sync",
+    "can_view_referral_commissions",
+    "can_manage_referral_commissions",
 )
 
 ROLE_CAPABILITIES = {
@@ -121,6 +123,7 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
+        "can_view_referral_commissions",
     },
     TAX_ASSOCIATE_ROLE: {
         "can_access_internal_workspace",
@@ -137,6 +140,7 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
+        "can_view_referral_commissions",
     },
     BUSINESS_PARTNER_ROLE: {
         "can_access_internal_workspace",
@@ -153,6 +157,7 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
+        "can_view_referral_commissions",
     },
 }
 
@@ -319,8 +324,10 @@ def _validated_signup_kwargs(kwargs):
 
 @frappe.whitelist(allow_guest=True)
 def sign_up(**kwargs):
-    """Validate public input before delegating to the mobile signup workflow."""
-    return mobile.sign_up(**_validated_signup_kwargs(kwargs))
+    """Compatibility route; public account creation always verifies email."""
+    from omc_app.api import signup_policy
+
+    return signup_policy.sign_up(**_validated_signup_kwargs(kwargs))
 
 
 @frappe.whitelist()

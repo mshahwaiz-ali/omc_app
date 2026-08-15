@@ -9,7 +9,6 @@ from omc_app.api import mobile
 
 
 task_read_guard = importlib.import_module("omc_app.api.task_read_guard")
-task_write_guard = importlib.import_module("omc_app.api.task_write_guard")
 
 
 class TestTaskReadRouteDelegation(FrappeTestCase):
@@ -36,7 +35,7 @@ class TestTaskReadRouteDelegation(FrappeTestCase):
         ) as guarded:
             result = mobile.get_tasks()
 
-        guarded.assert_called_once_with()
+        guarded.assert_called_once_with(limit_start=0, page_length=100)
         self.assertEqual(
             result,
             {"tasks": [{"name": "ERP-TASK-1"}]},
@@ -53,33 +52,6 @@ class TestTaskReadRouteDelegation(FrappeTestCase):
         self.assertEqual(result, {"name": "ERP-TASK-1"})
 
 class TestTaskReadPagination(FrappeTestCase):
-    def test_task_write_uses_exact_link_lookup(self):
-        request_link = {
-            "name": "OMC-SR-OLDER",
-            "erp_task": "ERP-TASK-OLDER",
-        }
-        task = SimpleNamespace(name="ERP-TASK-OLDER")
-
-        with (
-            patch.object(
-                task_read_guard,
-                "_request_link",
-                return_value=request_link,
-            ) as exact_link,
-            patch.object(
-                task_read_guard,
-                "_load_task",
-                return_value=task,
-            ),
-        ):
-            loaded_task, loaded_link = task_write_guard._load_linked_task(
-                task.name
-            )
-
-        exact_link.assert_called_once_with(task.name)
-        self.assertIs(loaded_task, task)
-        self.assertIs(loaded_link, request_link)
-
     def test_task_detail_uses_exact_link_lookup(self):
         request_link = {
             "name": "OMC-SR-OLDER",

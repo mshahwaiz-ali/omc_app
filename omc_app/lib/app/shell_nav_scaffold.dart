@@ -236,6 +236,12 @@ class ShellNavScaffold extends ConsumerWidget {
         path: '/my-referrals',
         capabilities: capabilities,
       ),
+      onOpenMyCommissions: () => _openWhenAllowed(
+        context: context,
+        allowed: canAccessRoute('/my-commissions', capabilities),
+        path: '/my-commissions',
+        capabilities: capabilities,
+      ),
       onOpenLeads: () => context.go('/leads'),
       onOpenTasks: () => context.go('/tasks'),
       onLogout: authState.status == AuthStatus.guest

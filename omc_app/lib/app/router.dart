@@ -17,6 +17,8 @@ import '../features/auth/presentation/signup_screen.dart';
 import '../features/auth/presentation/under_review_screen.dart';
 import '../features/customers/presentation/customer_detail_screen.dart';
 import '../features/customers/presentation/customers_screen.dart';
+import '../features/commissions/presentation/commission_detail_screen.dart';
+import '../features/commissions/presentation/my_commissions_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/documents/presentation/document_detail_screen.dart';
@@ -518,6 +520,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           );
         },
+      ),
+      GoRoute(
+        path: '/my-commissions',
+        name: 'my-commissions',
+        builder: (context, state) =>
+            _withShell(ShellNavScaffold.moreIndex, const MyCommissionsScreen()),
+      ),
+      GoRoute(
+        path: '/my-commissions/:earningId',
+        name: 'my-commission-detail',
+        builder: (context, state) => _withShell(
+          ShellNavScaffold.moreIndex,
+          CommissionDetailScreen(
+            earningId: Uri.decodeComponent(
+              state.pathParameters['earningId'] ?? '',
+            ),
+          ),
+        ),
       ),
       GoRoute(
         path: '/expense-tracker',

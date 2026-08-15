@@ -74,6 +74,15 @@ class Env {
   static bool get allowServiceCatalogueFallback =>
       isDevelopment && _allowServiceCatalogueFallbackFlag;
 
+  /// Explicit local-only preview data for support channels and topics.
+  static const bool _allowSupportPreviewFlag = bool.fromEnvironment(
+    'OMC_ALLOW_SUPPORT_PREVIEW',
+    defaultValue: false,
+  );
+
+  static bool get allowSupportPreview =>
+      isDevelopment && _allowSupportPreviewFlag;
+
   /// Backend service catalogue is the normal source of truth.
   ///
   /// This getter is kept for older call sites, but no longer gates backend

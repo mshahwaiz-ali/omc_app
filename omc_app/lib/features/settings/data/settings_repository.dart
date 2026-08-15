@@ -53,6 +53,18 @@ class SettingsRepository {
     if (rawPreferences is! Map<String, dynamic>) return null;
 
     return SettingsPreferences(
+      inAppNotificationsEnabled: _boolValue(
+        rawPreferences['in_app_notifications_enabled'],
+        fallback: true,
+      ),
+      pushNotificationsEnabled: _boolValue(
+        rawPreferences['push_notifications_enabled'],
+        fallback: true,
+      ),
+      pushProviderOperational: _boolValue(
+        rawPreferences['push_provider_operational'],
+        fallback: false,
+      ),
       serviceUpdatesEnabled: _boolValue(
         rawPreferences['service_updates_enabled'] ??
             rawPreferences['service_updates'],

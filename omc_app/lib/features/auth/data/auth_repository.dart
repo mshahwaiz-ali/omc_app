@@ -320,9 +320,7 @@ class AuthRepository {
     return defaultTargetPlatform.name.toLowerCase();
   }
 
-  Future<void> verifyCurrentPassword({
-    required String currentPassword,
-  }) async {
+  Future<void> verifyCurrentPassword({required String currentPassword}) async {
     await _frappeClient.postMethod(
       ApiConfig.verifyCurrentPasswordMethod,
       data: {'current_password': currentPassword},

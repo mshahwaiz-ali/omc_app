@@ -47,7 +47,9 @@ class TestCustomerDocumentScope(FrappeTestCase):
 
         result = customer_documents.get_documents()
 
-        self.assertEqual(result, {"documents": []})
+        self.assertEqual(result["documents"], [])
+        self.assertEqual(result["items"], [])
+        self.assertFalse(result["has_more"])
         self.assertEqual(
             get_all.call_args_list[0],
             call(
@@ -91,7 +93,9 @@ class TestCustomerDocumentScope(FrappeTestCase):
 
         result = customer_documents.get_documents()
 
-        self.assertEqual(result, {"documents": []})
+        self.assertEqual(result["documents"], [])
+        self.assertEqual(result["items"], [])
+        self.assertFalse(result["has_more"])
         self.assertEqual(
             get_all.call_args_list[0],
             call(
@@ -127,7 +131,9 @@ class TestCustomerDocumentScope(FrappeTestCase):
             service_request="OMC-SR-OTHER",
         )
 
-        self.assertEqual(result, {"documents": []})
+        self.assertEqual(result["documents"], [])
+        self.assertEqual(result["items"], [])
+        self.assertFalse(result["has_more"])
         get_all.assert_not_called()
 
     @patch.object(customer_documents.frappe.db, "exists", return_value=True)
@@ -228,7 +234,9 @@ class TestCustomerDocumentScope(FrappeTestCase):
             assisted=1,
         )
 
-        self.assertEqual(result, {"documents": []})
+        self.assertEqual(result["documents"], [])
+        self.assertEqual(result["items"], [])
+        self.assertFalse(result["has_more"])
         assert_action.assert_called_once_with(
             "OMC-SR-REFERRAL",
             internal_capability="can_view_customer_documents",

@@ -4,7 +4,10 @@ import 'package:omc_app/core/config/env.dart';
 
 void main() {
   test('signup uses canonical access endpoint', () {
-    expect(ApiConfig.signUpMethod, 'omc_app.api.access.sign_up');
+    expect(
+      ApiConfig.startRegistrationMethod,
+      'omc_app.api.pending_registration.start_registration',
+    );
   });
 
   test('release profile accepts only the canonical production origin', () {

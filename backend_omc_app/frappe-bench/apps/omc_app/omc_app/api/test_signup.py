@@ -87,7 +87,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
     def test_canonical_signup_creates_pending_website_customer(self):
         email = self._email("canonical-signup")
 
-        result = access.sign_up(**self._signup_payload(email))
+        result = mobile._activate_verified_registration(**self._signup_payload(email))
 
         user = frappe.get_doc("User", email)
         roles = {row.role for row in user.roles}
@@ -111,7 +111,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
     def test_direct_mobile_signup_uses_same_canonical_customer_role(self):
         email = self._email("direct-signup")
 
-        result = mobile.sign_up(**self._signup_payload(email, register_as="Customer", customer_type="Customer"))
+        result = mobile._activate_verified_registration(**self._signup_payload(email, register_as="Customer", customer_type="Customer"))
 
         user = frappe.get_doc("User", email)
         roles = {row.role for row in user.roles}
@@ -139,7 +139,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         user.insert(ignore_permissions=True)
 
         with self.assertRaises(frappe.DuplicateEntryError):
-            mobile.sign_up(**self._signup_payload(email))
+            mobile._activate_verified_registration(**self._signup_payload(email))
 
         user.reload()
         roles = {row.role for row in user.roles}
@@ -152,7 +152,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
 
     def test_duplicate_guest_signup_cannot_modify_existing_profile(self):
         email = self._email("duplicate-signup")
-        first = access.sign_up(
+        first = mobile._activate_verified_registration(
             **self._signup_payload(
                 email,
                 register_as="Customer",
@@ -169,7 +169,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         profile.save(ignore_permissions=True)
 
         with self.assertRaises(frappe.DuplicateEntryError):
-            access.sign_up(
+            mobile._activate_verified_registration(
                 **self._signup_payload(email, company="Attacker Company")
             )
 
@@ -182,7 +182,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         email = self._email("passwordless-signup")
 
         with self.assertRaises(frappe.ValidationError):
-            access.sign_up(**self._signup_payload(email, password=""))
+            mobile._activate_verified_registration(**self._signup_payload(email, password=""))
 
         self.assertFalse(frappe.db.exists("User", email))
         self.assertFalse(
@@ -193,7 +193,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         email = self._email("short-password-signup")
 
         with self.assertRaises(frappe.ValidationError):
-            mobile.sign_up(**self._signup_payload(email, password="short"))
+            mobile._activate_verified_registration(**self._signup_payload(email, password="short"))
 
         self.assertFalse(frappe.db.exists("User", email))
 
@@ -201,7 +201,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         referral = self._referral_record()
         email = self._email("referral-signup")
 
-        result = access.sign_up(
+        result = mobile._activate_verified_registration(
             **self._signup_payload(
                 email,
                 acquisition_source="Referral",
@@ -230,7 +230,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         email = self._email("invalid-referral")
 
         with self.assertRaises(frappe.ValidationError):
-            access.sign_up(
+            mobile._activate_verified_registration(
                 **self._signup_payload(
                     email,
                     acquisition_source="Referral",
@@ -249,7 +249,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         email = self._email("referral-no-consent")
 
         with self.assertRaises(frappe.ValidationError):
-            access.sign_up(
+            mobile._activate_verified_registration(
                 **self._signup_payload(
                     email,
                     acquisition_source="Referral",
@@ -263,7 +263,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
     def test_non_referral_signup_preserves_source_detail(self):
         email = self._email("other-source")
 
-        result = access.sign_up(
+        result = mobile._activate_verified_registration(
             **self._signup_payload(
                 email,
                 acquisition_source="Other",

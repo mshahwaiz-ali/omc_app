@@ -71,11 +71,9 @@ class HomeContentRepository {
       title: _readString(json, const ['title']),
       subtitle: _readString(json, const ['subtitle']),
       badge: _readString(json, const ['badge']),
-      contentType: _readString(
-        json,
-        const ['content_type'],
-        fallback: 'Featured',
-      ),
+      contentType: _readString(json, const [
+        'content_type',
+      ], fallback: 'Featured'),
       imageUrl: ApiConfig.resolveFileUrl(
         _readNullableString(json, const ['image', 'image_url']),
       ),
@@ -98,11 +96,9 @@ class HomeContentRepository {
       summary: _readString(json, const ['summary', 'subtitle']),
       category: _readString(json, const ['category']),
       contentType: _readString(json, const ['content_type']),
-      detailType: _readString(
-        json,
-        const ['detail_type'],
-        fallback: 'knowledge',
-      ),
+      detailType: _readString(json, const [
+        'detail_type',
+      ], fallback: 'knowledge'),
       imageUrl: ApiConfig.resolveFileUrl(
         _readNullableString(json, const ['image', 'cover_image']),
       ),
@@ -117,10 +113,7 @@ class HomeContentRepository {
     );
   }
 
-  List<Map<String, dynamic>> _readList(
-    Map<String, dynamic> data,
-    String key,
-  ) {
+  List<Map<String, dynamic>> _readList(Map<String, dynamic> data, String key) {
     final value = data[key];
     if (value is! List) return const [];
 
@@ -136,8 +129,8 @@ class HomeContentRepository {
     final normalized = value.trim().toLowerCase().replaceAll('_', ' ');
     return switch (normalized) {
       'route' => HomeBannerActionType.route,
-      'knowledge article' || 'knowledge' =>
-        HomeBannerActionType.knowledgeArticle,
+      'knowledge article' ||
+      'knowledge' => HomeBannerActionType.knowledgeArticle,
       'service' => HomeBannerActionType.service,
       'external url' || 'url' => HomeBannerActionType.externalUrl,
       _ => HomeBannerActionType.none,
