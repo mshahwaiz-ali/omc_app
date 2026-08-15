@@ -8,6 +8,8 @@
  "field_order": [
   "customer_profile",
   "notification_section",
+  "in_app_notifications_enabled",
+  "push_notifications_enabled",
   "service_updates_enabled",
   "document_reminders_enabled",
   "payment_alerts_enabled",
@@ -35,6 +37,18 @@
    "fieldname": "notification_section",
    "fieldtype": "Section Break",
    "label": "Notifications"
+  },
+  {
+   "default": "1",
+   "fieldname": "in_app_notifications_enabled",
+   "fieldtype": "Check",
+   "label": "In-app Notifications Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "push_notifications_enabled",
+   "fieldtype": "Check",
+   "label": "Push Notifications Enabled"
   },
   {
    "default": "1",

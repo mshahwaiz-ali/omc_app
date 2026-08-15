@@ -19,7 +19,6 @@ from omc_app.api import (
 
 PAYMENT_ACCOUNT_DOCTYPE = "OMC Payment Account"
 PAYMENT_DOCTYPE = "OMC Service Payment"
-DEFAULT_PAYMENT_WHATSAPP_NUMBER = "923122114116"
 ALLOWED_RECEIPT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png"}
 MAX_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -261,9 +260,6 @@ def _payment_support_payload(payment=None, service_case=None):
     branch = _clean_text(getattr(account, "branch", "")) if account else ""
     whatsapp_number = _clean_text(getattr(account, "whatsapp_number", "")) if account else ""
     instructions = _clean_text(getattr(account, "instructions", "")) if account else ""
-
-    if not whatsapp_number:
-        whatsapp_number = DEFAULT_PAYMENT_WHATSAPP_NUMBER
 
     bank_lines = []
     if bank_name:
@@ -705,7 +701,7 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
             if customer_view or can_view_receipt
             else ""
         ),
-        "invoice_number": payment.erp_sales_invoice or "",
+        "invoice_number": getattr(payment, "erp_sales_invoice", None) or "",
         "payment_proof_url": (
             payment.receipt_attachment or ""
             if customer_view or can_view_receipt
@@ -765,7 +761,10 @@ def get_payments(
     ]
     if not service_request_names:
         return {
+            "items": [],
             "payments": [],
+            "start": 0,
+            "limit": 0,
             "limit_start": 0,
             "limit_page_length": 0,
             "total": 0,
@@ -834,19 +833,25 @@ def get_payments(
     total = len(filtered_rows)
     page_rows = filtered_rows[start : start + page_length]
 
-    return {
-        "payments": [
+    items = [
             _payment_dict(
                 frappe.get_doc(PAYMENT_DOCTYPE, row.name),
                 capabilities=capabilities,
                 customer_view=profile is not None,
             )
             for row in page_rows
-        ],
+        ]
+    has_more = start + len(page_rows) < total
+    return {
+        "items": items,
+        "payments": items,
+        "start": start,
+        "limit": page_length,
+        "next_start": start + page_length if has_more else None,
         "limit_start": start,
         "limit_page_length": page_length,
         "total": total,
-        "has_more": start + len(page_rows) < total,
+        "has_more": has_more,
     }
 
 
@@ -1317,13 +1322,16 @@ def review_payment_receipt(
             finance_result = erp_finance_adapter.finalize_verified_payment(
                 payment
             )
-        except Exception:
+        except Exception as error:
             frappe.db.rollback(save_point=finance_savepoint)
 
             payment.reload()
             payment.status = "Under Review"
             payment.paid_on = None
+            payment.erp_finance_status = "Failed"
+            payment.erp_finance_error = str(error or "").strip()[:1000]
             payment.save(ignore_permissions=True)
+            frappe.db.commit()
 
             raise
 
@@ -1363,12 +1371,9 @@ def review_payment_receipt(
     activation_error = ""
 
     if status == "Paid":
-        # Persist the verified payment first. Operational activation is a
-        # separate retryable step and must never invalidate a real payment.
-        frappe.db.commit()
-
-        savepoint = "paid_request_activation"
-        frappe.db.savepoint(savepoint)
+        # Finance posting, commission snapshot, Paid state and operational
+        # activation are one transaction. Any activation failure rolls the
+        # complete attempt back to a retryable review state.
         try:
             from omc_app.api import service_activation
 
@@ -1395,15 +1400,22 @@ def review_payment_receipt(
                     reference_name=service_case.name,
                 )
 
-            frappe.db.commit()
         except Exception as error:
-            frappe.db.rollback(save_point=savepoint)
+            frappe.db.rollback(save_point=finance_savepoint)
             activation_error = str(error or "").strip()[:1000]
             frappe.log_error(
                 title=f"Paid request activation failed: {service_case.name}",
                 message=frappe.get_traceback(),
             )
+            payment.reload()
+            payment.status = "Under Review"
+            payment.paid_on = None
+            payment.erp_finance_status = "Failed"
+            payment.erp_finance_error = activation_error
+            payment.save(ignore_permissions=True)
+            frappe.db.commit()
             service_case.reload()
+            raise
 
     elif status == "Rejected":
         if _set_case_status(service_case, "Waiting for Customer"):

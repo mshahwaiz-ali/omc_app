@@ -17,10 +17,10 @@ def _require_capability(*capability_names, message):
 
 
 @frappe.whitelist()
-def get_service_cases():
+def get_service_cases(**kwargs):
     """Return service case list with the same tracking summary used by detail."""
 
-    response = mobile.get_service_cases()
+    response = mobile.get_service_cases(**kwargs)
     cases = _extract_service_case_list(response)
     if not isinstance(cases, list):
         return response

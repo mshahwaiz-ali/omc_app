@@ -254,6 +254,11 @@ def get_tasks(limit_start=0, page_length=None):
         tasks.append(_task_to_payload(task, request_link))
 
     return {
+        "items": tasks,
+        "start": start,
+        "limit": limit,
+        "has_more": has_more,
+        "next_start": start + limit if has_more else None,
         "tasks": tasks,
         "pagination": {
             "limit_start": start,

@@ -435,6 +435,14 @@ def finalize_verified_payment(payment):
         payment.erp_payment_entry = payment_entry.name
         payment.save(ignore_permissions=True)
 
+        from omc_app.api import referral_commissions
+
+        commission = referral_commissions.create_earning_for_posted_payment(
+            payment,
+            request=request,
+            invoice=invoice,
+        )
+
         return {
             "status": "Posted",
             "customer": customer,
@@ -443,6 +451,7 @@ def finalize_verified_payment(payment):
             "invoice_created": invoice_created,
             "payment_entry_created": payment_entry_created,
             "invoice_outstanding": flt(invoice.outstanding_amount),
+            "commission": commission,
         }
 
     except Exception as error:

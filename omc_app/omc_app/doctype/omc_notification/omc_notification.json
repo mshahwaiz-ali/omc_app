@@ -14,6 +14,7 @@
   "reference_doctype",
   "reference_name",
   "mobile_route",
+  "dedupe_key",
   "is_read",
   "read_on",
   "visible_to_customer",
@@ -54,7 +55,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Notification Type",
-   "options": "General\nService Request\nDocument\nPayment\nTax\nSupport",
+   "options": "General\nService Request\nDocument\nPayment\nTax\nSupport\nCommission",
    "reqd": 1
   },
   {
@@ -72,6 +73,12 @@
    "fieldname": "mobile_route",
    "fieldtype": "Data",
    "label": "Mobile Route"
+  },
+  {
+   "fieldname": "dedupe_key",
+   "fieldtype": "Data",
+   "label": "Dedupe Key",
+   "unique": 1
   },
   {
    "default": "0",

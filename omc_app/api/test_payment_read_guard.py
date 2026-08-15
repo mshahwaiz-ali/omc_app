@@ -226,7 +226,6 @@ class TestPaymentReadGuard(FrappeTestCase):
 
         authorize.assert_called_once_with(payment, assisted=0)
 
-    @patch("omc_app.api.payment_read_guard.save_file")
     @patch("omc_app.api.payment_read_guard.frappe.get_print")
     @patch("omc_app.api.payment_read_guard.frappe.get_doc")
     @patch("omc_app.api.payment_read_guard.frappe.db.exists")
@@ -239,7 +238,6 @@ class TestPaymentReadGuard(FrappeTestCase):
         exists,
         get_doc,
         get_print,
-        save_file,
     ):
         payment = self._payment()
         payment.erp_sales_invoice = "SINV-1"
@@ -252,12 +250,6 @@ class TestPaymentReadGuard(FrappeTestCase):
         )
         get_print.return_value = b"%PDF-1.7 invoice"
 
-        file_doc = SimpleNamespace(
-            file_name="SINV-1.pdf",
-            file_url="/private/files/SINV-1.pdf",
-        )
-        save_file.return_value = file_doc
-
         result = payment_read_guard.download_invoice_pdf(
             payment_id=payment.name,
         )
@@ -268,21 +260,13 @@ class TestPaymentReadGuard(FrappeTestCase):
             "SINV-1",
             as_pdf=True,
         )
-        save_file.assert_called_once_with(
-            "SINV-1.pdf",
-            b"%PDF-1.7 invoice",
-            "OMC Service Payment",
-            payment.name,
-            is_private=1,
-        )
-
         self.assertEqual(
             result,
             {
                 "payment_id": payment.name,
                 "invoice": "SINV-1",
                 "file_name": "SINV-1.pdf",
-                "file_url": "/private/files/SINV-1.pdf",
+                "file_content": "JVBERi0xLjcgaW52b2ljZQ==",
             },
         )
 

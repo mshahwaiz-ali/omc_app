@@ -281,7 +281,6 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
     def test_erp_finance_failure_blocks_paid_transition_and_activation(self):
         payment = self._payment()
         service_case = self._case()
-        original_status = payment.status
         patches = self._base_patches(payment, service_case)
 
         with patches[0], patches[1], patches[2], patches[3]:
@@ -311,7 +310,7 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
                         status="Paid",
                     )
 
-        self.assertEqual(payment.status, original_status)
+        self.assertEqual(payment.status, "Under Review")
         self.assertIsNone(payment.paid_on)
         activate.assert_not_called()
 
@@ -324,7 +323,7 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
 
 
 class TestPaidActivationDurability(FrappeTestCase):
-    def test_activation_failure_does_not_undo_paid_payment(self):
+    def test_activation_failure_rolls_back_finance_and_keeps_retryable_review(self):
         payment = MagicMock()
         payment.name = "OMC-PAY-FAIL-1"
         payment.service_request = "OMC-SR-FAIL-1"
@@ -416,45 +415,24 @@ class TestPaidActivationDurability(FrappeTestCase):
                 "log_error",
             ),
         ):
-            result = payments.review_payment_receipt(
-                payment_id=payment.name,
-                status="Paid",
-            )
+            with self.assertRaises(frappe.ValidationError):
+                payments.review_payment_receipt(
+                    payment_id=payment.name,
+                    status="Paid",
+                )
 
-        self.assertTrue(result["updated"])
-        self.assertEqual(payment.status, "Paid")
-        self.assertEqual(
-            payment.paid_on,
-            "2026-08-15 00:00:00",
-        )
-
-        payment.save.assert_called_once_with(
-            ignore_permissions=True,
-        )
-
-        # First commit makes verified payment durable before activation.
-        self.assertGreaterEqual(commit.call_count, 2)
-
-        self.assertEqual(
-            savepoint.call_args_list,
-            [
-                (("verified_payment_erp_finance",), {}),
-                (("paid_request_activation",), {}),
-            ],
-        )
+        self.assertEqual(payment.status, "Under Review")
+        self.assertIsNone(payment.paid_on)
+        self.assertEqual(payment.erp_finance_status, "Failed")
+        self.assertIn("ERP Task Type missing", payment.erp_finance_error)
+        self.assertEqual(payment.save.call_count, 2)
+        commit.assert_called_once_with()
+        savepoint.assert_called_once_with("verified_payment_erp_finance")
         rollback.assert_called_once_with(
-            save_point="paid_request_activation"
+            save_point="verified_payment_erp_finance"
         )
 
         self.assertEqual(
             service_case.status,
             "Waiting for Payment",
         )
-        self.assertIsNone(
-            result["case_transition_status"],
-        )
-        self.assertIn(
-            "ERP Task Type missing",
-            result["activation_error"],
-        )
-        self.assertIsNone(result["activation"])

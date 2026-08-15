@@ -1,0 +1,21 @@
+{
+ "actions": [],
+ "creation": "2026-08-16 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "fields": [
+  {"fieldname":"earning","fieldtype":"Link","in_list_view":1,"label":"Earning","options":"OMC Referral Commission","reqd":1},
+  {"fieldname":"customer_profile","fieldtype":"Link","in_list_view":1,"label":"Customer","options":"OMC Customer Profile","read_only":1},
+  {"fieldname":"service_request","fieldtype":"Link","in_list_view":1,"label":"Service Request","options":"OMC Service Request","read_only":1},
+  {"fieldname":"amount","fieldtype":"Currency","in_list_view":1,"label":"Amount","read_only":1,"reqd":1}
+ ],
+ "field_order": ["earning","customer_profile","service_request","amount"],
+ "istable": 1,
+ "modified": "2026-08-16 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Commission Settlement Item",
+ "owner": "Administrator",
+ "permissions": []
+}
