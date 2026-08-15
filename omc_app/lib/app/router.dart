@@ -645,14 +645,7 @@ class _TrackRootScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final capabilities = ref.watch(effectiveCapabilitiesProvider);
-    final canUseInternalTrack =
-        capabilities.canViewAllServiceCases ||
-        capabilities.canViewRelevantServiceCases ||
-        capabilities.canViewAssignedServiceCases;
-    return canUseInternalTrack
-        ? const InternalServiceCasesScreen()
-        : const MyServicesScreen();
+    return const MyServicesScreen();
   }
 }
 
