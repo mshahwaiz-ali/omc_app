@@ -189,6 +189,7 @@ def _first_payment_account():
             "iban",
             "branch",
             "currency",
+            "mode_of_payment",
             "whatsapp_number",
             "instructions",
             "sort_order",
@@ -222,7 +223,37 @@ def _assert_payment_customer_access(payment):
 
 
 def _payment_support_payload(payment=None, service_case=None):
-    account = _first_payment_account()
+    payment_account = (
+        _clean_text(getattr(payment, "payment_account", ""))
+        if payment
+        else ""
+    )
+
+    if (
+        payment_account
+        and mobile._has_doctype(PAYMENT_ACCOUNT_DOCTYPE)
+        and frappe.db.exists(PAYMENT_ACCOUNT_DOCTYPE, payment_account)
+    ):
+        account = frappe.db.get_value(
+            PAYMENT_ACCOUNT_DOCTYPE,
+            payment_account,
+            [
+                "name",
+                "title",
+                "bank_name",
+                "account_title",
+                "account_number",
+                "iban",
+                "branch",
+                "currency",
+                "mode_of_payment",
+                "whatsapp_number",
+                "instructions",
+            ],
+            as_dict=True,
+        )
+    else:
+        account = _first_payment_account()
     account_title = _clean_text(getattr(account, "account_title", "")) if account else ""
     bank_name = _clean_text(getattr(account, "bank_name", "")) if account else ""
     account_number = _clean_text(getattr(account, "account_number", "")) if account else ""
@@ -465,11 +496,19 @@ def _ensure_payment_for_case(service_case):
         and frappe.db.exists("OMC Service", service_case.service)
         else None
     )
-    request_final_price = getattr(service_case, "final_price", None)
-    amount = frappe.utils.flt(
+    request_final_price = frappe.utils.flt(
+        getattr(service_case, "final_price", None) or 0
+    )
+    service_base_price = frappe.utils.flt(
+        getattr(service, "base_price", None) or 0
+    )
+
+    # A zero/default request final price is not a payable override.
+    # Fall back to the configured service price.
+    amount = (
         request_final_price
-        if request_final_price is not None
-        else getattr(service, "base_price", None) or 0
+        if request_final_price > 0
+        else service_base_price
     )
     if amount <= 0:
         frappe.log_error(
@@ -494,6 +533,16 @@ def _ensure_payment_for_case(service_case):
     )
     payment.status = "Pending"
     payment.visible_to_customer = 1
+
+    payment_account = _first_payment_account()
+    if payment_account:
+        payment.payment_account = _clean_text(
+            getattr(payment_account, "name", "")
+        )
+        payment.payment_method = _clean_text(
+            getattr(payment_account, "mode_of_payment", "")
+        )
+
     payment.remarks = "Payment opened after all required documents were uploaded."
     payment.insert(ignore_permissions=True)
 
