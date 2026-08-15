@@ -166,6 +166,62 @@ class TestPaymentAccessScope(TestCase):
         )
 
 
+class TestPaymentSerializationContract(TestCase):
+    @patch.object(payments, "_customer_profile_name_for_user", return_value="CUST-1")
+    @patch.object(payments, "_current_user", return_value="customer@example.com")
+    @patch.object(payments, "_payment_support_payload", return_value={})
+    @patch.object(payments.frappe.db, "exists", return_value=True)
+    @patch.object(payments.frappe, "get_doc")
+    def test_customer_payment_proof_uses_canonical_field_and_legacy_alias(
+        self,
+        get_doc,
+        _exists,
+        _support,
+        _current_user,
+        _profile_name,
+    ):
+        service_case = SimpleNamespace(
+            name="CASE-1",
+            customer_profile="CUST-1",
+            customer_name="Test Customer",
+            referral_owner="",
+            customer_mode="",
+        )
+        customer_profile = SimpleNamespace(full_name="Test Customer")
+        get_doc.side_effect = [service_case, customer_profile]
+
+        payment = SimpleNamespace(
+            name="PAY-1",
+            service_request="CASE-1",
+            payment_title="Service Payment",
+            amount=5000,
+            currency="PKR",
+            status="Receipt Submitted",
+            due_date=None,
+            paid_on=None,
+            payment_reference="WIRE-REF-1",
+            receipt_attachment="/private/files/payment-proof.pdf",
+            remarks="Verification pending.",
+        )
+
+        result = payments._payment_dict(
+            payment,
+            capabilities={},
+            customer_view=True,
+        )
+
+        self.assertEqual(
+            result["payment_proof_url"],
+            "/private/files/payment-proof.pdf",
+        )
+        self.assertEqual(
+            result["receipt_url"],
+            result["payment_proof_url"],
+        )
+
+
+
+
 class TestPaymentNotificationRouting(TestCase):
     def _case(self):
         return SimpleNamespace(

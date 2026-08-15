@@ -312,12 +312,23 @@ def _create_payment_entry(payment, invoice, config):
 
     payment_entry.mode_of_payment = mode_of_payment
 
-    reference = _text(
-        getattr(payment, "payment_reference", None)
+    # Compatibility with client ERPNext builds that contain legacy
+    # Payment Entry commission hooks but no corresponding Custom Fields.
+    # These are transient document attributes only; ERPNext core/schema
+    # remains untouched.
+    if not payment_entry.meta.has_field("custom_structure_name"):
+        payment_entry.custom_structure_name = None
+
+    if not payment_entry.meta.has_field("custom_omc_customer"):
+        payment_entry.custom_omc_customer = None
+
+    reference = (
+        _text(getattr(payment, "payment_reference", None))
+        or f"OMC-{payment.name}"
     )
-    if reference:
-        payment_entry.reference_no = reference
-        payment_entry.reference_date = nowdate()
+
+    payment_entry.reference_no = reference
+    payment_entry.reference_date = nowdate()
 
     payment_entry.remarks = (
         f"OMC verified payment {payment.name} "

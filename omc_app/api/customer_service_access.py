@@ -39,7 +39,7 @@ def _assert_internal_capability(capability, *, user=None):
     return capabilities
 
 
-def _internal_scope_type(service_case, *, user, capabilities):
+def _internal_scope_type(service_case, *, user, capabilities, profile=None):
     # Admin/manager-style users with global case visibility may assist any case,
     # but the action-specific capability is still required separately.
     if capabilities.get("can_view_all_service_cases"):
@@ -50,6 +50,13 @@ def _internal_scope_type(service_case, *, user, capabilities):
     if (
         mode == "My Referral"
         and _text(getattr(service_case, "referral_owner", None)) == user
+    ):
+        return "my_referral"
+
+    if (
+        profile
+        and _text(getattr(profile, "referred_by", None)) == user
+        and int(getattr(profile, "referral_assistance_consent", 0) or 0)
     ):
         return "my_referral"
 
@@ -114,11 +121,6 @@ def assert_service_request_action(
         internal_capability,
         user=user,
     )
-    scope_type = _internal_scope_type(
-        service_case,
-        user=user,
-        capabilities=capabilities,
-    )
 
     profile = None
     if service_case.customer_profile and frappe.db.exists(
@@ -129,6 +131,13 @@ def assert_service_request_action(
             "OMC Customer Profile",
             service_case.customer_profile,
         )
+
+    scope_type = _internal_scope_type(
+        service_case,
+        user=user,
+        capabilities=capabilities,
+        profile=profile,
+    )
 
     return {
         "service_case": service_case,

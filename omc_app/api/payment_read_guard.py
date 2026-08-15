@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+
 import frappe
 
 from omc_app.api import access, customer_service_access, mobile, payments
@@ -208,13 +210,7 @@ def get_payments(
     }
 
 
-@frappe.whitelist()
-def get_payment(payment_id=None, name=None, assisted=0):
-    resolved_id = payment_id or name
-    if not resolved_id:
-        frappe.throw("payment_id is required")
-
-    payment = _load_readable_payment(resolved_id)
+def _authorize_payment_read(payment, *, assisted=0):
     if not payment.visible_to_customer:
         _payment_not_found()
 
@@ -240,7 +236,6 @@ def get_payment(payment_id=None, name=None, assisted=0):
             internal_capability="can_view_customer_payments",
         )
         customer_view = True
-
     else:
         payments._assert_service_request_payment_access(
             payment.service_request,
@@ -259,6 +254,74 @@ def get_payment(payment_id=None, name=None, assisted=0):
             )
 
         customer_view = profile is not None
+
+    return capabilities, customer_view
+
+
+@frappe.whitelist()
+def download_invoice_pdf(payment_id=None, name=None, assisted=0):
+    resolved_id = payment_id or name
+    if not resolved_id:
+        frappe.throw("payment_id is required", frappe.ValidationError)
+
+    payment = _load_readable_payment(resolved_id)
+    _authorize_payment_read(payment, assisted=assisted)
+
+    invoice_name = (
+        getattr(payment, "erp_sales_invoice", None) or ""
+    ).strip()
+    if not invoice_name:
+        frappe.throw(
+            "Invoice is not available for this payment.",
+            frappe.DoesNotExistError,
+        )
+
+    if not frappe.db.exists("Sales Invoice", invoice_name):
+        frappe.throw(
+            "The linked Sales Invoice no longer exists.",
+            frappe.DoesNotExistError,
+        )
+
+    invoice = frappe.get_doc("Sales Invoice", invoice_name)
+    if invoice.docstatus != 1:
+        frappe.throw(
+            "Only submitted Sales Invoices can be downloaded.",
+            frappe.ValidationError,
+        )
+
+    original_user = frappe.session.user
+    try:
+        frappe.set_user("Administrator")
+        pdf_bytes = frappe.get_print(
+            "Sales Invoice",
+            invoice.name,
+            as_pdf=True,
+        )
+    finally:
+        frappe.set_user(original_user)
+
+    filename = f"{invoice.name}.pdf"
+
+    return {
+        "payment_id": payment.name,
+        "invoice": invoice.name,
+        "file_name": filename,
+        "file_content": base64.b64encode(pdf_bytes).decode("utf-8"),
+    }
+
+
+
+@frappe.whitelist()
+def get_payment(payment_id=None, name=None, assisted=0):
+    resolved_id = payment_id or name
+    if not resolved_id:
+        frappe.throw("payment_id is required")
+
+    payment = _load_readable_payment(resolved_id)
+    capabilities, customer_view = _authorize_payment_read(
+        payment,
+        assisted=assisted,
+    )
 
     return payments._payment_dict(
         payment,

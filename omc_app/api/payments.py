@@ -705,6 +705,14 @@ def _payment_dict(payment, capabilities=None, *, customer_view=False):
             if customer_view or can_view_receipt
             else ""
         ),
+        "invoice_number": payment.erp_sales_invoice or "",
+        "payment_proof_url": (
+            payment.receipt_attachment or ""
+            if customer_view or can_view_receipt
+            else ""
+        ),
+        # Backward-compatible alias. This attachment is customer-submitted
+        # payment proof, not an official OMC receipt.
         "receipt_url": (
             payment.receipt_attachment or ""
             if customer_view or can_view_receipt
@@ -1311,6 +1319,12 @@ def review_payment_receipt(
             )
         except Exception:
             frappe.db.rollback(save_point=finance_savepoint)
+
+            payment.reload()
+            payment.status = "Under Review"
+            payment.paid_on = None
+            payment.save(ignore_permissions=True)
+
             raise
 
         payment.reload()

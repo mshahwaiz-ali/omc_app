@@ -153,6 +153,139 @@ class TestPaymentReadGuard(FrappeTestCase):
         )
         self.assertEqual(safe_payload.call_count, 2)
 
+    @patch("omc_app.api.payment_read_guard._authorize_payment_read")
+    @patch("omc_app.api.payment_read_guard._load_readable_payment")
+    def test_invoice_download_requires_linked_invoice(
+        self,
+        load_payment,
+        authorize,
+    ):
+        payment = self._payment()
+        payment.erp_sales_invoice = ""
+        load_payment.return_value = payment
+
+        with self.assertRaises(frappe.DoesNotExistError):
+            payment_read_guard.download_invoice_pdf(
+                payment_id=payment.name,
+            )
+
+        authorize.assert_called_once_with(payment, assisted=0)
+
+    @patch("omc_app.api.payment_read_guard._authorize_payment_read")
+    @patch("omc_app.api.payment_read_guard._load_readable_payment")
+    def test_invoice_download_rejects_missing_sales_invoice(
+        self,
+        load_payment,
+        authorize,
+    ):
+        payment = self._payment()
+        payment.erp_sales_invoice = "SINV-MISSING"
+        load_payment.return_value = payment
+
+        with patch(
+            "omc_app.api.payment_read_guard.frappe.db.exists",
+            return_value=False,
+        ):
+            with self.assertRaises(frappe.DoesNotExistError):
+                payment_read_guard.download_invoice_pdf(
+                    payment_id=payment.name,
+                )
+
+        authorize.assert_called_once_with(payment, assisted=0)
+
+    @patch("omc_app.api.payment_read_guard._authorize_payment_read")
+    @patch("omc_app.api.payment_read_guard._load_readable_payment")
+    def test_invoice_download_requires_submitted_invoice(
+        self,
+        load_payment,
+        authorize,
+    ):
+        payment = self._payment()
+        payment.erp_sales_invoice = "SINV-DRAFT"
+        load_payment.return_value = payment
+
+        invoice = SimpleNamespace(
+            name="SINV-DRAFT",
+            docstatus=0,
+        )
+
+        with (
+            patch(
+                "omc_app.api.payment_read_guard.frappe.db.exists",
+                return_value=True,
+            ),
+            patch(
+                "omc_app.api.payment_read_guard.frappe.get_doc",
+                return_value=invoice,
+            ),
+        ):
+            with self.assertRaises(frappe.ValidationError):
+                payment_read_guard.download_invoice_pdf(
+                    payment_id=payment.name,
+                )
+
+        authorize.assert_called_once_with(payment, assisted=0)
+
+    @patch("omc_app.api.payment_read_guard.save_file")
+    @patch("omc_app.api.payment_read_guard.frappe.get_print")
+    @patch("omc_app.api.payment_read_guard.frappe.get_doc")
+    @patch("omc_app.api.payment_read_guard.frappe.db.exists")
+    @patch("omc_app.api.payment_read_guard._authorize_payment_read")
+    @patch("omc_app.api.payment_read_guard._load_readable_payment")
+    def test_invoice_download_returns_private_pdf(
+        self,
+        load_payment,
+        authorize,
+        exists,
+        get_doc,
+        get_print,
+        save_file,
+    ):
+        payment = self._payment()
+        payment.erp_sales_invoice = "SINV-1"
+        load_payment.return_value = payment
+
+        exists.return_value = True
+        get_doc.return_value = SimpleNamespace(
+            name="SINV-1",
+            docstatus=1,
+        )
+        get_print.return_value = b"%PDF-1.7 invoice"
+
+        file_doc = SimpleNamespace(
+            file_name="SINV-1.pdf",
+            file_url="/private/files/SINV-1.pdf",
+        )
+        save_file.return_value = file_doc
+
+        result = payment_read_guard.download_invoice_pdf(
+            payment_id=payment.name,
+        )
+
+        authorize.assert_called_once_with(payment, assisted=0)
+        get_print.assert_called_once_with(
+            "Sales Invoice",
+            "SINV-1",
+            as_pdf=True,
+        )
+        save_file.assert_called_once_with(
+            "SINV-1.pdf",
+            b"%PDF-1.7 invoice",
+            "OMC Service Payment",
+            payment.name,
+            is_private=1,
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "payment_id": payment.name,
+                "invoice": "SINV-1",
+                "file_name": "SINV-1.pdf",
+                "file_url": "/private/files/SINV-1.pdf",
+            },
+        )
+
     @patch("omc_app.api.payment_read_guard._load_readable_payment")
     def test_hidden_payment_detail_is_not_found(self, load_payment):
         load_payment.return_value = self._payment(visible=0)
