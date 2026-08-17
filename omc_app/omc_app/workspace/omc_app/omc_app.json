@@ -223,6 +223,26 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Pending Registrations",
+   "link_count": 0,
+   "link_to": "OMC Pending Registration",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Profile Change Logs",
+   "link_count": 0,
+   "link_to": "OMC Profile Change Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Mobile Content",
    "link_count": 0,
    "link_type": "DocType",
@@ -285,6 +305,16 @@
    "label": "Push Tokens",
    "link_count": 0,
    "link_to": "OMC Push Token",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Onboarding Slides",
+   "link_count": 0,
+   "link_to": "OMC Onboarding Slide",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -423,6 +453,26 @@
    "label": "Expense Budget",
    "link_count": 0,
    "link_to": "OMC Expense Budget",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Referral Commissions",
+   "link_count": 0,
+   "link_to": "OMC Referral Commission",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Commission Settlements",
+   "link_count": 0,
+   "link_to": "OMC Commission Settlement",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
