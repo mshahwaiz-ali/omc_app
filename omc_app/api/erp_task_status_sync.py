@@ -18,12 +18,14 @@ CUSTOMER_STATUS_MAP = {
     "waiting for customer": "Waiting for Customer",
     "customer action required": "Waiting for Customer",
     "awaiting customer": "Waiting for Customer",
+    "pending at client": "Waiting for Customer",
     "payment pending": "Waiting for Payment",
     "waiting for payment": "Waiting for Payment",
     "awaiting payment": "Waiting for Payment",
     "completed": "Completed",
     "complete": "Completed",
     "closed": "Completed",
+    "submitted by qc": "Completed",
     "cancelled": "Cancelled",
     "canceled": "Cancelled",
 }
@@ -119,6 +121,203 @@ def cancel_linked_erp_records(request) -> dict[str, Any]:
     return result
 
 
+def prepare_task_completion(doc, method=None) -> dict[str, Any]:
+    """Complete an OMC-linked ERP Task when QC submits the final stage."""
+
+    operation_status = _text(
+        getattr(doc, "custom_operation_status", None)
+    )
+    if operation_status != "Submitted by QC":
+        return {
+            "updated": False,
+            "reason": "operation status is not terminal",
+        }
+
+    task_name = _text(getattr(doc, "name", None))
+    if not task_name:
+        return {
+            "updated": False,
+            "reason": "missing task name",
+        }
+
+    request_name = frappe.db.get_value(
+        "OMC Service Request",
+        {"erp_task": task_name},
+        "name",
+    )
+    if not request_name:
+        return {
+            "updated": False,
+            "reason": "task is not linked to an OMC request",
+        }
+
+    request = frappe.get_doc(
+        "OMC Service Request",
+        request_name,
+    )
+    request_status = _text(getattr(request, "status", None))
+
+    if request_status == "Cancelled":
+        frappe.throw(
+            "Cancelled OMC service requests cannot be completed.",
+            frappe.ValidationError,
+        )
+
+    if request_status != "Completed":
+        from omc_app.api import workflow_automation
+
+        blockers = workflow_automation.completion_blockers(
+            request,
+            require_erp_task_completed=False,
+        )
+        if blockers:
+            frappe.throw(
+                " ".join(blockers),
+                frappe.ValidationError,
+            )
+
+    # Set the document value instead of db_set/set_value so ERPNext's normal
+    # Task validation/save lifecycle runs: dependency checks, progress=100,
+    # assignment closure, and the existing on_update OMC status sync.
+    doc.status = "Completed"
+
+    return {
+        "updated": True,
+        "task": task_name,
+        "request": request_name,
+        "task_status": "Completed",
+        "operation_status": operation_status,
+    }
+
+
+def _previous_operation_status(doc):
+    getter = getattr(doc, "get_doc_before_save", None)
+    if not callable(getter):
+        return None
+
+    try:
+        previous = getter()
+    except Exception:
+        return None
+
+    if previous is None:
+        return None
+
+    return _text(
+        getattr(previous, "custom_operation_status", None)
+    )
+
+
+def _notify_operation_stage(doc, request, operation_status):
+    """Emit action-oriented notifications for ERP Task workflow stages."""
+
+    previous_status = _previous_operation_status(doc)
+    if previous_status is None or previous_status == operation_status:
+        return []
+
+    task_name = _text(getattr(doc, "name", None))
+    if not task_name or not operation_status:
+        return []
+
+    from omc_app.api import mobile, notification_events, workflow_automation
+
+    actor = _text(getattr(frappe.session, "user", None))
+    version = (
+        _text(getattr(doc, "modified", None))
+        or operation_status
+    )
+    created = []
+
+    if operation_status == "Pending at Client":
+        customer_profile = _text(
+            getattr(request, "customer_profile", None)
+        )
+        if customer_profile:
+            contract = notification_events.event_contract(
+                "service.status",
+                request.name,
+            )
+            notification = mobile._create_customer_notification(
+                customer_profile=customer_profile,
+                title="Action required",
+                message=(
+                    f"OMC needs information or action from you for "
+                    f"{request.name}. Open the service request to "
+                    "review the required next step."
+                ),
+                notification_type=contract["category"],
+                reference_doctype=contract["reference_doctype"],
+                reference_name=contract["reference_name"],
+                mobile_route=contract["mobile_route"],
+                event_key=(
+                    f"task.pending_client:{task_name}:{version}"
+                ),
+            )
+            if notification:
+                created.append(notification.name)
+
+        return created
+
+    recipients = []
+    title = ""
+    message = ""
+
+    if operation_status in {
+        "Pending at Operation Side",
+        "Pending at Tax Associate",
+    }:
+        assigned_staff = _text(
+            getattr(request, "assigned_staff", None)
+        )
+        if assigned_staff:
+            recipients = [assigned_staff]
+
+        title = "Task requires your action"
+        message = (
+            f"{task_name} for {request.name} is now "
+            f"{operation_status.lower()}."
+        )
+
+    elif operation_status == "Pending at QC":
+        recipients = workflow_automation._reviewer_users()
+        title = "QC review required"
+        message = (
+            f"{task_name} for {request.name} is ready for QC review."
+        )
+
+    # Submitted by QC is terminal; customer completion notification is
+    # emitted by finalize_completed_case(), so do not create another alert.
+    if not recipients:
+        return created
+
+    contract = notification_events.event_contract(
+        "task.stage",
+        task_name,
+    )
+
+    for recipient in sorted(set(recipients)):
+        clean_recipient = _text(recipient)
+        if not clean_recipient or clean_recipient == actor:
+            continue
+
+        notification = mobile._create_customer_notification(
+            recipient_user=clean_recipient,
+            title=title,
+            message=message,
+            notification_type=contract["category"],
+            reference_doctype=contract["reference_doctype"],
+            reference_name=contract["reference_name"],
+            mobile_route=contract["mobile_route"],
+            event_key=(
+                f"{contract['event_key']}:{operation_status}:{version}"
+            ),
+        )
+        if notification:
+            created.append(notification.name)
+
+    return created
+
+
 def sync_task_status(doc, method=None) -> dict[str, Any]:
     task_name = _text(getattr(doc, "name", None))
     if not task_name:
@@ -193,6 +392,18 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
 
     request.status = mapped_status
     request.closed_on = request_values["closed_on"]
+
+    try:
+        _notify_operation_stage(
+            doc,
+            request,
+            operation_status,
+        )
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            "OMC Task workflow notification failed",
+        )
 
     if mapped_status == "Completed" and current_status != "Completed":
         from omc_app.api import workflow_automation

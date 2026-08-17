@@ -26,6 +26,25 @@
   "register_as",
   "customer_type",
   "address",
+  "work_address_section",
+  "work_address_empty_state",
+  "work_address",
+  "work_address_details",
+  "work_address_column",
+  "work_city",
+  "work_district",
+  "work_province",
+  "work_postal_code",
+  "work_country",
+  "work_map_section",
+  "work_latitude",
+  "work_longitude",
+  "work_location_source",
+  "google_place_id",
+  "work_location_updated_on",
+  "work_google_maps_url",
+  "work_geolocation",
+  "work_address_prompt_dismissed",
   "acquisition_section",
   "acquisition_source",
   "acquisition_source_detail",
@@ -180,7 +199,126 @@
   {
    "fieldname": "address",
    "fieldtype": "Small Text",
-   "label": "Address"
+   "label": "Address",
+   "hidden": 1
+  },
+  {
+   "fieldname": "work_address_section",
+   "fieldtype": "Section Break",
+   "label": "Work / Business Address"
+  },
+  {
+   "fieldname": "work_address_empty_state",
+   "fieldtype": "HTML",
+   "label": "Location Status",
+   "depends_on": "eval:!doc.work_geolocation",
+   "options": "<div class=\"text-muted small\" style=\"padding:8px 0 12px;\"><strong>Location not set yet.</strong><br>Customer can add the Work / Business Address from the OMC App using Current Location, Search Address, or Map Pin.</div>"
+  },
+  {
+   "fieldname": "work_address",
+   "fieldtype": "Small Text",
+   "label": "Work / Business Address"
+  },
+  {
+   "fieldname": "work_address_details",
+   "fieldtype": "Small Text",
+   "label": "Shop / Office / Unit / Landmark"
+  },
+  {
+   "fieldname": "work_address_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "work_city",
+   "fieldtype": "Data",
+   "label": "City"
+  },
+  {
+   "fieldname": "work_district",
+   "fieldtype": "Data",
+   "label": "District"
+  },
+  {
+   "fieldname": "work_province",
+   "fieldtype": "Data",
+   "label": "Province / State"
+  },
+  {
+   "fieldname": "work_postal_code",
+   "fieldtype": "Data",
+   "label": "Postal Code"
+  },
+  {
+   "fieldname": "work_country",
+   "fieldtype": "Data",
+   "label": "Country"
+  },
+  {
+   "fieldname": "work_map_section",
+   "fieldtype": "Section Break",
+   "label": "Map Pin",
+   "depends_on": "eval:doc.work_geolocation"
+  },
+  {
+   "fieldname": "work_latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "precision": "8",
+   "read_only": 1,
+   "depends_on": "eval:doc.work_geolocation"
+  },
+  {
+   "fieldname": "work_longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "precision": "8",
+   "read_only": 1,
+   "depends_on": "eval:doc.work_geolocation"
+  },
+  {
+   "fieldname": "work_location_source",
+   "fieldtype": "Select",
+   "label": "Location Source",
+   "options": "\nGPS\nGoogle Search\nMap Pin",
+   "read_only": 1,
+   "depends_on": "eval:doc.work_geolocation"
+  },
+  {
+   "fieldname": "google_place_id",
+   "fieldtype": "Data",
+   "label": "Google Place ID",
+   "length": 255,
+   "read_only": 1,
+   "depends_on": "eval:doc.work_geolocation"
+  },
+  {
+   "fieldname": "work_location_updated_on",
+   "fieldtype": "Datetime",
+   "label": "Location Updated On",
+   "read_only": 1,
+   "depends_on": "eval:doc.work_geolocation"
+  },
+  {
+   "fieldname": "work_google_maps_url",
+   "fieldtype": "Data",
+   "label": "Google Maps Link",
+   "options": "URL",
+   "read_only": 1,
+   "depends_on": "eval:doc.work_geolocation"
+  },
+  {
+   "fieldname": "work_geolocation",
+   "fieldtype": "Geolocation",
+   "label": "Work / Business Address Map",
+   "read_only": 1,
+   "depends_on": "eval:doc.work_geolocation"
+  },
+  {
+   "fieldname": "work_address_prompt_dismissed",
+   "fieldtype": "Check",
+   "label": "Work Address Prompt Dismissed",
+   "default": "0",
+   "hidden": 1
   },
   {
    "fieldname": "acquisition_section",

@@ -116,6 +116,11 @@ def _profile_payload(profile, user):
             "access_state": "guest" if user == "Guest" else "pending",
         }
 
+    # Import lazily because profile_self_service also depends on profile APIs.
+    from omc_app.api import profile_self_service
+
+    profile_edit_policy = profile_self_service._profile_edit_policy(profile)
+
     return {
         "full_name": profile.full_name or "",
         "display_name": profile.full_name or "",
@@ -137,6 +142,7 @@ def _profile_payload(profile, user):
         "education": profile.get("education") or "",
         "experience": profile.get("experience") or "",
         "remarks": profile.get("remarks") or "",
+        "profile_edit_policy": profile_edit_policy,
         "access_state": "approved"
         if (profile.customer_status or "").lower() == "active"
         and (profile.approval_status or "").lower() == "approved"

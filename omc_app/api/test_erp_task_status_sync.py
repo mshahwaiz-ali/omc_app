@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import frappe
+
 from frappe.tests.utils import FrappeTestCase
 
 from omc_app.api import erp_task_status_sync
@@ -32,6 +34,87 @@ class TestErpTaskStatusSync(FrappeTestCase):
             ),
             "Waiting for Customer",
         )
+
+    def test_submitted_by_qc_maps_to_completed(self):
+        self.assertEqual(
+            erp_task_status_sync.customer_status(
+                "Open",
+                "Submitted by QC",
+            ),
+            "Completed",
+        )
+
+    def test_submitted_by_qc_prepares_normal_task_completion(self):
+        task = SimpleNamespace(
+            name="TASK-1",
+            status="Open",
+            custom_operation_status="Submitted by QC",
+        )
+        request = SimpleNamespace(
+            name="OMC-SR-1",
+            status="In Progress",
+            erp_task="TASK-1",
+        )
+
+        with (
+            patch.object(
+                erp_task_status_sync.frappe.db,
+                "get_value",
+                return_value="OMC-SR-1",
+            ),
+            patch.object(
+                erp_task_status_sync.frappe,
+                "get_doc",
+                return_value=request,
+            ),
+            patch(
+                "omc_app.api.workflow_automation.completion_blockers",
+                return_value=[],
+            ) as blockers,
+        ):
+            result = erp_task_status_sync.prepare_task_completion(task)
+
+        self.assertTrue(result["updated"])
+        self.assertEqual(task.status, "Completed")
+        blockers.assert_called_once_with(
+            request,
+            require_erp_task_completed=False,
+        )
+
+    def test_submitted_by_qc_respects_completion_blockers(self):
+        task = SimpleNamespace(
+            name="TASK-1",
+            status="Open",
+            custom_operation_status="Submitted by QC",
+        )
+        request = SimpleNamespace(
+            name="OMC-SR-1",
+            status="In Progress",
+            erp_task="TASK-1",
+        )
+
+        with (
+            patch.object(
+                erp_task_status_sync.frappe.db,
+                "get_value",
+                return_value="OMC-SR-1",
+            ),
+            patch.object(
+                erp_task_status_sync.frappe,
+                "get_doc",
+                return_value=request,
+            ),
+            patch(
+                "omc_app.api.workflow_automation.completion_blockers",
+                return_value=[
+                    "Required payment has not been confirmed."
+                ],
+            ),
+        ):
+            with self.assertRaises(frappe.ValidationError):
+                erp_task_status_sync.prepare_task_completion(task)
+
+        self.assertEqual(task.status, "Open")
 
     def test_unlinked_task_is_ignored(self):
         task = SimpleNamespace(

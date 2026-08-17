@@ -7,9 +7,11 @@ single reviewable matrix used by tests and new event producers.
 
 EVENT_MATRIX = {
     "service.status": ("Service Request", "OMC Service Request", "/my-services/{reference}"),
+    "service.assignment": ("Service Request", "OMC Service Request", "/internal-workspace/service-cases/{reference}"),
     "document.review": ("Document", "OMC Service Document", "/documents/{reference}"),
-    "payment.review": ("Payment", "OMC Payment", "/payments/{reference}"),
+    "payment.review": ("Payment", "OMC Service Payment", "/payments/{reference}"),
     "task.assignment": ("Service Request", "Task", "/tasks/{reference}"),
+    "task.stage": ("Service Request", "Task", "/tasks/{reference}"),
     "support.reply": ("Support", "OMC Support Ticket", "/support/tickets/{reference}"),
     "service.escalation": ("Service Request", "OMC Service Request", "/my-services/{reference}"),
     "commission.earned": ("Commission", "OMC Referral Commission", "/my-commissions/{reference}"),
@@ -33,6 +35,7 @@ def validated_mobile_route(route: str) -> str:
     clean = str(route or "").strip()
     allowed_roots = (
         "/my-services/",
+        "/internal-workspace/service-cases/",
         "/documents/",
         "/payments/",
         "/tasks/",
