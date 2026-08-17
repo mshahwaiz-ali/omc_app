@@ -468,6 +468,10 @@ def _activate_verified_registration(**kwargs):
     register_as = (kwargs.get("register_as") or kwargs.get("customer_type") or "Customer").strip()
     customer_type = (kwargs.get("customer_type") or register_as or "Customer").strip()
     address = (kwargs.get("address") or "").strip()
+
+    from omc_app.api import profile_location
+
+    work_location = profile_location.signup_payload(kwargs)
     education = (kwargs.get("education") or "").strip()
     experience = (kwargs.get("experience") or "").strip()
     remarks = (kwargs.get("remarks") or kwargs.get("notes") or "").strip()
@@ -616,6 +620,17 @@ def _activate_verified_registration(**kwargs):
     _set_if_has_field(profile, "register_as", register_as)
     _set_if_has_field(profile, "customer_type", customer_type)
     _set_if_has_field(profile, "address", address)
+
+    for fieldname, value in work_location.items():
+        if profile.meta.has_field(fieldname):
+            profile.set(fieldname, value)
+
+    if (
+        work_location
+        and profile_location.has_work_address(work_location)
+        and profile.meta.has_field("work_address_prompt_dismissed")
+    ):
+        profile.work_address_prompt_dismissed = 1
     _set_if_has_field(profile, "education", education)
     _set_if_has_field(profile, "experience", experience)
     _set_if_has_field(profile, "remarks", remarks)
@@ -667,6 +682,7 @@ def _activate_verified_registration(**kwargs):
             "register_as": profile.get("register_as") or "",
             "customer_type": profile.get("customer_type") or "",
             "address": profile.get("address") or "",
+            **profile_location.api_payload(profile),
             "education": profile.get("education") or "",
             "experience": profile.get("experience") or "",
             "remarks": profile.get("remarks") or "",
@@ -795,6 +811,11 @@ def get_profile():
     profile = _get_customer_profile_for_user(user)
     capabilities = _get_mobile_capabilities(user=user, profile=profile)
 
+    # Import lazily because profile_self_service itself depends on mobile.
+    from omc_app.api import profile_location, profile_self_service
+
+    profile_edit_policy = profile_self_service._profile_edit_policy(profile)
+
     return {
         "full_name": profile.full_name or "",
         "email": profile.email or user,
@@ -812,9 +833,11 @@ def get_profile():
         "register_as": profile.get("register_as") or "",
         "customer_type": profile.get("customer_type") or "",
         "address": profile.get("address") or "",
+        **profile_location.api_payload(profile),
         "education": profile.get("education") or "",
         "experience": profile.get("experience") or "",
         "remarks": profile.get("remarks") or "",
+        "profile_edit_policy": profile_edit_policy,
         "access_state": capabilities["access_state"],
         "capabilities": capabilities,
         **capabilities,
@@ -835,6 +858,22 @@ def update_profile(**kwargs):
     from omc_app.api import profile_self_service
 
     return profile_self_service.update_profile(**kwargs)
+
+
+@frappe.whitelist()
+def update_work_address(**kwargs):
+    """Update the authenticated customer's Work / Business Address."""
+    from omc_app.api import profile_self_service
+
+    return profile_self_service.update_work_address(**kwargs)
+
+
+@frappe.whitelist()
+def dismiss_work_address_prompt():
+    """Do not force the optional Work Address prompt again."""
+    from omc_app.api import profile_self_service
+
+    return profile_self_service.dismiss_work_address_prompt()
 
 
 @frappe.whitelist()
@@ -1134,6 +1173,7 @@ def create_service(**kwargs):
             f"{doc.name} has been received. OMC will review it shortly."
         ),
         notification_type="Service Update",
+        event_key=f"service.request_received:{doc.name}",
     )
 
     frappe.db.commit()
@@ -1468,7 +1508,7 @@ def _service_case_scope_names(capabilities, user=None):
     names = set()
 
     if capabilities.get("can_view_assigned_service_cases"):
-        names.update(_assigned_record_names("OMC Service Request", user))
+        names.update(_assigned_service_request_names(user))
 
     if capabilities.get("can_view_relevant_service_cases"):
         if capabilities.get("can_view_support_tickets") and _has_doctype("OMC Support Ticket"):
@@ -1743,7 +1783,7 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
             visible_to_customer=1,
         )
 
-    if old_status != status:
+    if old_status != status and status not in {"Completed", "Cancelled"}:
         status_messages = {
             "Open": "Your service request is open and awaiting review.",
             "In Progress": "OMC has started working on your service request.",
@@ -1765,6 +1805,10 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
                 f"Your service request status changed to {status}.",
             ),
             notification_type="Service Update",
+            event_key=(
+                f"service.status:{doc.name}:{status}:"
+                f"{getattr(doc, 'modified', '')}"
+            ),
         )
 
     frappe.db.commit()
@@ -2102,68 +2146,15 @@ def upload_service_document(**kwargs):
 
 @frappe.whitelist()
 def update_service_document_status(document_id=None, status=None, remarks=None):
-    # Compatibility wrapper for the canonical document review endpoint.
+    """Compatibility wrapper for the canonical document review endpoint."""
     from omc_app.api import customer_documents
 
-    old_status = ""
-    document = None
-    if document_id and frappe.db.exists("OMC Service Document", document_id):
-        document = frappe.get_doc("OMC Service Document", document_id)
-        old_status = (document.status or "").strip()
-
-    result = customer_documents.update_service_document_status(
+    return customer_documents.update_service_document_status(
         document_id=document_id,
         status=status,
         remarks=remarks,
     )
 
-    if document_id and frappe.db.exists("OMC Service Document", document_id):
-        document = frappe.get_doc("OMC Service Document", document_id)
-        new_status = (document.status or "").strip()
-        if new_status and new_status != old_status:
-            service_request = frappe.get_doc(
-                "OMC Service Request",
-                document.service_request,
-            )
-            document_title = (
-                document.document_title
-                or document.document_type
-                or "Document"
-            )
-            normalized_status = new_status.lower()
-
-            if normalized_status == "approved":
-                title = "Document approved"
-                message = f"{document_title} has been approved by OMC."
-            elif normalized_status == "rejected":
-                title = "Document needs correction"
-                message = (
-                    remarks
-                    or document.remarks
-                    or (
-                        f"{document_title} was not approved. "
-                        "Please upload a corrected document."
-                    )
-                )
-            else:
-                title = f"Document status: {new_status}"
-                message = (
-                    remarks
-                    or document.remarks
-                    or f"{document_title} status changed to {new_status}."
-                )
-
-            _create_service_notification(
-                service_request,
-                title=title,
-                message=message,
-                notification_type="Document Request",
-                reference_doctype="OMC Service Document",
-                reference_name=document.name,
-            )
-            frappe.db.commit()
-
-    return result
 
 @frappe.whitelist()
 def get_documents():
@@ -3273,6 +3264,7 @@ def _create_service_notification(
     notification_type="Service Update",
     reference_doctype="OMC Service Request",
     reference_name=None,
+    event_key=None,
 ):
     service_request, customer_profile, recipient_user = (
         _service_notification_recipient(service_request)
@@ -3315,6 +3307,7 @@ def _create_service_notification(
         notification_type=notification_type,
         reference_doctype=reference_doctype,
         reference_name=resolved_reference,
+        event_key=event_key,
     )
 
 
@@ -4345,6 +4338,27 @@ def _assigned_record_names(reference_type, user=None):
         },
         pluck="reference_name",
     )
+
+
+def _assigned_service_request_names(user=None):
+    """Return service requests currently owned by the internal user.
+
+    Open ToDos remain useful for active assignment state, while assigned_staff
+    is the persistent OMC ownership authority after ERP/Frappe closes ToDos.
+    """
+    user = user or _current_user()
+    if not user or user == "Guest":
+        return []
+
+    names = set(_assigned_record_names("OMC Service Request", user))
+    names.update(
+        frappe.get_all(
+            "OMC Service Request",
+            filters={"assigned_staff": user},
+            pluck="name",
+        )
+    )
+    return sorted(name for name in names if name)
 
 
 def _relevant_customer_names(user=None):

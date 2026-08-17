@@ -239,6 +239,10 @@ class ApiConfig {
   static const String profileMethod = 'omc_app.api.access_v2.get_profile';
   static const String updateProfileMethod =
       'omc_app.api.profile_self_service.update_profile';
+  static const String updateWorkAddressMethod =
+      'omc_app.api.profile_self_service.update_work_address';
+  static const String dismissWorkAddressPromptMethod =
+      'omc_app.api.profile_self_service.dismiss_work_address_prompt';
   static const String updateContactMethod =
       'omc_app.api.mobile.update_contact_info';
   static const String uploadProfileImageMethod =

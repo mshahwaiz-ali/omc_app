@@ -319,6 +319,13 @@ def _validated_signup_kwargs(kwargs):
                 fieldname,
                 max_length,
             )
+    from omc_app.api import profile_location
+
+    location = profile_location.signup_payload(data)
+    for fieldname in profile_location.INPUT_FIELDS:
+        data.pop(fieldname, None)
+    data.update(location)
+
     return data
 
 

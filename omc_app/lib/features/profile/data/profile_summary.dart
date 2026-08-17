@@ -1,5 +1,75 @@
 import '../../auth/application/auth_state.dart';
 
+import 'work_address.dart';
+
+enum ProfileEditMode { add, correct, locked, unavailable }
+
+class ProfileFieldEditPolicy {
+  const ProfileFieldEditPolicy({required this.canEdit, required this.mode});
+
+  const ProfileFieldEditPolicy.unavailable()
+    : canEdit = false,
+      mode = ProfileEditMode.unavailable;
+
+  final bool canEdit;
+  final ProfileEditMode mode;
+
+  factory ProfileFieldEditPolicy.fromJson(dynamic raw) {
+    if (raw is! Map) {
+      return const ProfileFieldEditPolicy.unavailable();
+    }
+
+    final canEditValue = raw['can_edit'];
+    final canEdit =
+        canEditValue == true ||
+        canEditValue == 1 ||
+        canEditValue?.toString().toLowerCase() == 'true';
+
+    final modeValue = raw['mode']?.toString().trim().toLowerCase();
+
+    final mode = switch (modeValue) {
+      'add' => ProfileEditMode.add,
+      'correct' => ProfileEditMode.correct,
+      'locked' => ProfileEditMode.locked,
+      _ => ProfileEditMode.unavailable,
+    };
+
+    return ProfileFieldEditPolicy(canEdit: canEdit, mode: mode);
+  }
+}
+
+class ProfileEditPolicy {
+  const ProfileEditPolicy({
+    required this.email,
+    required this.cnic,
+    required this.ntn,
+    required this.companyName,
+  });
+
+  static const unavailable = ProfileEditPolicy(
+    email: ProfileFieldEditPolicy.unavailable(),
+    cnic: ProfileFieldEditPolicy.unavailable(),
+    ntn: ProfileFieldEditPolicy.unavailable(),
+    companyName: ProfileFieldEditPolicy.unavailable(),
+  );
+
+  final ProfileFieldEditPolicy email;
+  final ProfileFieldEditPolicy cnic;
+  final ProfileFieldEditPolicy ntn;
+  final ProfileFieldEditPolicy companyName;
+
+  factory ProfileEditPolicy.fromJson(dynamic raw) {
+    if (raw is! Map) return unavailable;
+
+    return ProfileEditPolicy(
+      email: ProfileFieldEditPolicy.fromJson(raw['email']),
+      cnic: ProfileFieldEditPolicy.fromJson(raw['cnic']),
+      ntn: ProfileFieldEditPolicy.fromJson(raw['ntn']),
+      companyName: ProfileFieldEditPolicy.fromJson(raw['company_name']),
+    );
+  }
+}
+
 class ProfileSummary {
   const ProfileSummary({
     required this.displayName,
@@ -7,6 +77,7 @@ class ProfileSummary {
     this.phone,
     this.whatsappNo,
     this.address,
+    this.workAddress = const WorkAddress.empty(),
     this.customerType,
     this.cnic,
     this.ntn,
@@ -21,6 +92,7 @@ class ProfileSummary {
     this.avatarUrl,
     this.canAccessInternalWorkspace = false,
     this.capabilities = AuthCapabilities.guest,
+    this.profileEditPolicy = ProfileEditPolicy.unavailable,
   });
 
   final String displayName;
@@ -28,6 +100,7 @@ class ProfileSummary {
   final String? phone;
   final String? whatsappNo;
   final String? address;
+  final WorkAddress workAddress;
   final String? customerType;
   final String? cnic;
   final String? ntn;
@@ -42,6 +115,7 @@ class ProfileSummary {
   final String? avatarUrl;
   final bool canAccessInternalWorkspace;
   final AuthCapabilities capabilities;
+  final ProfileEditPolicy profileEditPolicy;
 
   factory ProfileSummary.fromUserId(String? userId) {
     final email = userId?.trim() ?? '';

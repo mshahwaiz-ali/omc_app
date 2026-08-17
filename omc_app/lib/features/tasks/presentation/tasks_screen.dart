@@ -1014,22 +1014,31 @@ class _TaskStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalized = _normalise(label);
-    final muted =
-        normalized == 'completed' ||
-        normalized == 'cancelled' ||
-        normalized == 'canceled' ||
-        normalized == 'closed';
+    final completed = normalized == 'completed' || normalized == 'closed';
+    final cancelled = normalized == 'cancelled' || normalized == 'canceled';
+
+    final backgroundColor = completed
+        ? const Color(0xFFE8F7EE)
+        : cancelled
+        ? const Color(0xFFF3F5F7)
+        : AppTheme.primarySoft;
+
+    final foregroundColor = completed
+        ? const Color(0xFF15803D)
+        : cancelled
+        ? AppTheme.textSecondary
+        : AppTheme.primary;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: muted ? const Color(0xFFF3F5F7) : AppTheme.primarySoft,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: muted ? AppTheme.textSecondary : AppTheme.primary,
+          color: foregroundColor,
           fontSize: 10.5,
           fontWeight: FontWeight.w800,
         ),

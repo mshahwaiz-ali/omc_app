@@ -10,6 +10,7 @@ import '../../../core/network/frappe_client.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import 'profile_summary.dart';
+import 'work_address.dart';
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   final frappeClient = ref.watch(frappeClientProvider);
@@ -116,6 +117,27 @@ class ProfileRepository {
         updated?.toString().toLowerCase() == 'true';
   }
 
+  Future<void> updateWorkAddress(WorkAddress address) async {
+    await _frappeClient.postMethod(
+      ApiConfig.updateWorkAddressMethod,
+      data: address.toPayload(),
+    );
+  }
+
+  Future<void> clearWorkAddress() async {
+    await _frappeClient.postMethod(
+      ApiConfig.updateWorkAddressMethod,
+      data: const {'clear': 1},
+    );
+  }
+
+  Future<void> dismissWorkAddressPrompt() async {
+    await _frappeClient.postMethod(
+      ApiConfig.dismissWorkAddressPromptMethod,
+      data: const {},
+    );
+  }
+
   ProfileSummary? _mapProfileResponse(
     Map<String, dynamic>? data, {
     required String? fallbackUserId,
@@ -161,6 +183,7 @@ class ProfileRepository {
         profile['whatsapp_no'] ?? profile['whatsapp'],
       ),
       address: _nullableString(profile['address']),
+      workAddress: WorkAddress.fromProfileJson(profile),
       customerType: _nullableString(
         profile['customer_type'] ?? profile['user_type'],
       ),
@@ -192,6 +215,9 @@ class ProfileRepository {
                 envelope['canAccessInternalWorkspace'],
           ),
       capabilities: capabilities,
+      profileEditPolicy: ProfileEditPolicy.fromJson(
+        profile['profile_edit_policy'],
+      ),
     );
   }
 

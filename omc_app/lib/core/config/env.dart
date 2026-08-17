@@ -83,6 +83,18 @@ class Env {
   static bool get allowSupportPreview =>
       isDevelopment && _allowSupportPreviewFlag;
 
+  /// Optional Work / Business Address map experience.
+  ///
+  /// Keep disabled until Google Maps Platform usage/billing is approved.
+  /// When disabled, the app keeps the existing legacy Address experience and
+  /// must not render Google Maps or request location permission.
+  static const bool _workAddressMapsFlag = bool.fromEnvironment(
+    'OMC_ENABLE_WORK_ADDRESS_MAPS',
+    defaultValue: false,
+  );
+
+  static bool get workAddressMapsEnabled => _workAddressMapsFlag;
+
   /// Backend service catalogue is the normal source of truth.
   ///
   /// This getter is kept for older call sites, but no longer gates backend

@@ -2682,11 +2682,11 @@ class _CaseActionsCard extends StatelessWidget {
                               '?assisted=1'
                               '&service_request=${Uri.encodeQueryComponent(serviceCase.id)}'
                               '&customer_name=${Uri.encodeQueryComponent(customerName ?? '')}';
-                          context.push(path);
+                          context.go(path);
                           return;
                         }
 
-                        context.push('/documents');
+                        context.go('/documents');
                       },
                     )
                   : null;

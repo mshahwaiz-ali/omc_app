@@ -213,7 +213,7 @@ def run_daily_workflow_checks():
     return summary
 
 
-def completion_blockers(service_case):
+def completion_blockers(service_case, *, require_erp_task_completed=True):
     blockers = []
 
     required_templates = mobile._service_required_documents(
@@ -284,7 +284,7 @@ def completion_blockers(service_case):
     erp_task = str(
         getattr(service_case, "erp_task", None) or ""
     ).strip()
-    if erp_task:
+    if erp_task and require_erp_task_completed:
         task_status = frappe.db.get_value(
             "Task",
             erp_task,
@@ -474,4 +474,6 @@ def finalize_completed_case(service_case):
         notification_type="Service",
         reference_doctype="OMC Service Request",
         reference_name=service_case.name,
+        mobile_route=f"/my-services/{service_case.name}",
+        event_key=f"service.completed:{service_case.name}",
     )

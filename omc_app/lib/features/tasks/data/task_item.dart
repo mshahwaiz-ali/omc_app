@@ -43,7 +43,7 @@ class TaskItem {
         fallback: 'Untitled Task',
       ),
       status: _stringValue(
-        json['display_status'] ?? json['status'],
+        json['erp_status'] ?? json['status'] ?? json['display_status'],
         fallback: 'Open',
       ),
       erpStatus: _stringValue(

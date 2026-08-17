@@ -324,17 +324,26 @@ def _notify_customer(
     notification_type="Service",
     reference_doctype="OMC Service Request",
     reference_name=None,
+    mobile_route=None,
+    event_key=None,
 ):
     if not getattr(service_case, "customer_profile", None):
         return None
-    return mobile._create_customer_notification(
-        customer_profile=service_case.customer_profile,
-        title=title,
-        message=message,
-        notification_type=notification_type,
-        reference_doctype=reference_doctype,
-        reference_name=reference_name or service_case.name,
-    )
+    kwargs = {
+        "customer_profile": service_case.customer_profile,
+        "title": title,
+        "message": message,
+        "notification_type": notification_type,
+        "reference_doctype": reference_doctype,
+        "reference_name": reference_name or service_case.name,
+    }
+
+    if mobile_route:
+        kwargs["mobile_route"] = mobile_route
+    if event_key:
+        kwargs["event_key"] = event_key
+
+    return mobile._create_customer_notification(**kwargs)
 
 
 def _cleanup_failed_receipt_file(file_doc, payment):
@@ -562,13 +571,20 @@ def _ensure_payment_for_case(service_case):
         notification_type="Payment",
         reference_doctype=PAYMENT_DOCTYPE,
         reference_name=payment.name,
+        mobile_route=f"/payments/{payment.name}",
+        event_key=f"payment.opened:{payment.name}",
     )
 
     frappe.db.commit()
     return payment.name
 
 
-def handle_document_review(service_request, status, remarks=None):
+def handle_document_review(
+    service_request,
+    status,
+    remarks=None,
+    document_id=None,
+):
     if not service_request or not frappe.db.exists(
         "OMC Service Request", service_request
     ):
@@ -577,6 +593,20 @@ def handle_document_review(service_request, status, remarks=None):
     service_case = frappe.get_doc("OMC Service Request", service_request)
     normalized = _clean_text(status).lower()
     payment_name = None
+    document_reference = _clean_text(document_id)
+    notification_reference_doctype = (
+        "OMC Service Document"
+        if document_reference
+        else "OMC Service Request"
+    )
+    notification_reference_name = (
+        document_reference or service_case.name
+    )
+    notification_route = (
+        f"/documents/{document_reference}"
+        if document_reference
+        else f"/my-services/{service_case.name}"
+    )
 
     if normalized == "rejected":
         changed = _set_case_status(service_case, "Waiting for Customer")
@@ -589,6 +619,12 @@ def handle_document_review(service_request, status, remarks=None):
             title="Document needs attention",
             message=message,
             notification_type="Document",
+            reference_doctype=notification_reference_doctype,
+            reference_name=notification_reference_name,
+            mobile_route=notification_route,
+            event_key=(
+                f"document.review:{notification_reference_name}:rejected"
+            ),
         )
         if changed:
             mobile._create_service_timeline_entry(
@@ -607,6 +643,12 @@ def handle_document_review(service_request, status, remarks=None):
                 title="Document approved",
                 message=remarks or "Your document has been approved.",
                 notification_type="Document",
+                reference_doctype=notification_reference_doctype,
+                reference_name=notification_reference_name,
+                mobile_route=notification_route,
+                event_key=(
+                    f"document.review:{notification_reference_name}:approved"
+                ),
             )
 
     return {
@@ -1330,6 +1372,7 @@ def review_payment_receipt(
             payment.paid_on = None
             payment.erp_finance_status = "Failed"
             payment.erp_finance_error = str(error or "").strip()[:1000]
+            payment.flags.omc_canonical_payment_review = True
             payment.save(ignore_permissions=True)
             frappe.db.commit()
 
@@ -1344,6 +1387,7 @@ def review_payment_receipt(
         if status in {"Rejected", "Cancelled"}:
             payment.paid_on = None
 
+    payment.flags.omc_canonical_payment_review = True
     payment.save(ignore_permissions=True)
     if status in {"Paid", "Rejected", "Cancelled"}:
         review_routing.close_review_todos(
@@ -1387,17 +1431,41 @@ def review_payment_receipt(
                 else None
             )
 
-            if getattr(service_case, "assigned_staff", None):
+            assigned_staff = _clean_text(
+                getattr(service_case, "assigned_staff", None)
+            )
+            if assigned_staff and assigned_staff != _current_user():
+                task_name = _clean_text(
+                    getattr(service_case, "erp_task", None)
+                )
                 mobile._create_customer_notification(
-                    recipient_user=service_case.assigned_staff,
-                    title="Payment confirmed - start work",
+                    recipient_user=assigned_staff,
+                    title=(
+                        "Task ready - payment confirmed"
+                        if task_name
+                        else "Payment confirmed - start work"
+                    ),
                     message=(
                         f"Payment for {service_case.name} has been confirmed. "
                         "The request is ready for processing."
                     ),
                     notification_type="Payment",
-                    reference_doctype="OMC Service Request",
-                    reference_name=service_case.name,
+                    reference_doctype=(
+                        "Task" if task_name else "OMC Service Request"
+                    ),
+                    reference_name=task_name or service_case.name,
+                    mobile_route=(
+                        f"/tasks/{task_name}"
+                        if task_name
+                        else (
+                            "/internal-workspace/service-cases/"
+                            f"{service_case.name}"
+                        )
+                    ),
+                    event_key=(
+                        f"payment.confirmed.internal:{payment.name}:"
+                        f"{assigned_staff}"
+                    ),
                 )
 
         except Exception as error:
@@ -1412,6 +1480,7 @@ def review_payment_receipt(
             payment.paid_on = None
             payment.erp_finance_status = "Failed"
             payment.erp_finance_error = activation_error
+            payment.flags.omc_canonical_payment_review = True
             payment.save(ignore_permissions=True)
             frappe.db.commit()
             service_case.reload()
@@ -1443,6 +1512,58 @@ def review_payment_receipt(
         reference_doctype=PAYMENT_DOCTYPE,
         reference_name=payment.name,
     )
+
+    # Canonical customer payment review notification.
+    if status == "Paid":
+        _notify_customer(
+            service_case,
+            title="Payment confirmed",
+            message=(
+                f"Your payment for {service_case.name} has been confirmed. "
+                "OMC has started processing your service request."
+            ),
+            notification_type="Payment",
+            reference_doctype=PAYMENT_DOCTYPE,
+            reference_name=payment.name,
+            mobile_route=f"/payments/{payment.name}",
+            event_key=f"payment.review:{payment.name}:paid",
+        )
+    elif status == "Rejected":
+        receipt_event = _clean_text(
+            getattr(payment, "receipt_attachment", None)
+        ) or "receipt"
+        _notify_customer(
+            service_case,
+            title="Payment receipt needs attention",
+            message=(
+                clean_remarks
+                or (
+                    "Your payment receipt could not be approved. "
+                    "Please review the remarks and submit a new receipt."
+                )
+            ),
+            notification_type="Payment",
+            reference_doctype=PAYMENT_DOCTYPE,
+            reference_name=payment.name,
+            mobile_route=f"/payments/{payment.name}",
+            event_key=(
+                f"payment.review:{payment.name}:rejected:{receipt_event}"
+            ),
+        )
+    elif status == "Cancelled":
+        _notify_customer(
+            service_case,
+            title="Payment cancelled",
+            message=(
+                f"The payment request for {service_case.name} "
+                "has been cancelled."
+            ),
+            notification_type="Payment",
+            reference_doctype=PAYMENT_DOCTYPE,
+            reference_name=payment.name,
+            mobile_route=f"/payments/{payment.name}",
+            event_key=f"payment.review:{payment.name}:cancelled",
+        )
 
     frappe.db.commit()
 

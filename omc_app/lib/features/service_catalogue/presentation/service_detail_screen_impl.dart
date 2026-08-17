@@ -935,8 +935,6 @@ class _MetaRow extends StatelessWidget {
           Flexible(
             child: Text(
               value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
               style: const TextStyle(
                 color: _ink,

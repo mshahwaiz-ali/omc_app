@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/config/env.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
@@ -52,6 +53,7 @@ class _ProfileEditorOverview extends ConsumerWidget {
     final isInternal =
         profile.capabilities.canAccessInternalWorkspace ||
         profile.capabilities.isInternal;
+    final workAddressMapsEnabled = Env.workAddressMapsEnabled;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -89,11 +91,12 @@ class _ProfileEditorOverview extends ConsumerWidget {
                 label: 'WhatsApp',
                 value: _displayValue(profile.whatsappNo),
               ),
-              _ProfileValueRow(
-                label: 'Address',
-                value: _displayValue(profile.address),
-                maxLines: 2,
-              ),
+              if (isInternal || !workAddressMapsEnabled)
+                _ProfileValueRow(
+                  label: 'Address',
+                  value: _displayValue(profile.address),
+                  maxLines: 2,
+                ),
             ],
             onEdit: () => _openContactSheet(context, ref, profile),
           ),
@@ -125,24 +128,15 @@ class _ProfileEditorOverview extends ConsumerWidget {
             const SizedBox(height: 14),
             _InternalAccountCard(profile: profile),
           ] else ...[
-            _ProfileEditSectionCard(
-              icon: Icons.business_center_outlined,
-              title: 'Business & tax details',
-              subtitle: 'Company details and your protected tax identifier.',
-              rows: [
-                _ProfileValueRow(
-                  label: 'Company',
-                  value: _displayValue(profile.companyName),
-                ),
-                _ProfileValueRow(
-                  label: 'NTN',
-                  value: _displayValue(profile.ntn),
-                ),
-              ],
-              onEdit: () => _openBusinessSheet(context, ref, profile),
+            _IdentityBusinessCard(
+              profile: profile,
+              onEditField: (fieldName) => _openProtectedProfileFieldSheet(
+                context,
+                ref,
+                profile,
+                fieldName,
+              ),
             ),
-            const SizedBox(height: 14),
-            _LockedIdentityCard(profile: profile),
           ],
           const SizedBox(height: 18),
           Text(
@@ -399,41 +393,191 @@ class _InternalAccountCard extends StatelessWidget {
   }
 }
 
-class _LockedIdentityCard extends StatelessWidget {
-  const _LockedIdentityCard({required this.profile});
+class _IdentityBusinessCard extends StatelessWidget {
+  const _IdentityBusinessCard({
+    required this.profile,
+    required this.onEditField,
+  });
 
   final ProfileSummary profile;
+  final ValueChanged<String> onEditField;
 
   @override
   Widget build(BuildContext context) {
+    final policy = profile.profileEditPolicy;
+
     return PremiumCard(
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          ListTile(
-            leading: const Icon(Icons.verified_user_outlined),
-            title: const Text(
-              'Verified identity',
-              style: TextStyle(fontWeight: FontWeight.w900),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.verified_user_outlined,
+                    color: AppTheme.primary,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Identity & business details',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Protected account and tax details. Eligible fields can be corrected once after signup.',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            subtitle: const Text(
-              'Protected identifiers cannot be changed from the app.',
-            ),
-            trailing: const Icon(Icons.lock_outline_rounded, size: 20),
-            onTap: () => _showLockedIdentityInfo(context),
           ),
           const Divider(height: 1),
-          _LockedValueTile(label: 'Email', value: profile.email),
-          const Divider(height: 1),
-          _LockedValueTile(
+          _IdentityBusinessRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: profile.email,
+            policy: policy.email,
+          ),
+          const Divider(height: 1, indent: 58),
+          _IdentityBusinessRow(
+            icon: Icons.badge_outlined,
             label: 'CNIC',
-            value: profile.cnic ?? 'Not available',
+            value: _displayValue(profile.cnic),
+            policy: policy.cnic,
+            onTap: policy.cnic.canEdit ? () => onEditField('cnic') : null,
           ),
-          if ((profile.ntn?.trim() ?? '').isNotEmpty) ...[
-            const Divider(height: 1),
-            _LockedValueTile(label: 'NTN', value: profile.ntn!),
-          ],
+          const Divider(height: 1, indent: 58),
+          _IdentityBusinessRow(
+            icon: Icons.confirmation_number_outlined,
+            label: 'NTN',
+            value: _displayValue(profile.ntn),
+            policy: policy.ntn,
+            onTap: policy.ntn.canEdit ? () => onEditField('ntn') : null,
+          ),
+          const Divider(height: 1, indent: 58),
+          _IdentityBusinessRow(
+            icon: Icons.business_outlined,
+            label: 'Company name',
+            value: _displayValue(profile.companyName),
+            policy: policy.companyName,
+            onTap: policy.companyName.canEdit
+                ? () => onEditField('company_name')
+                : null,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _IdentityBusinessRow extends StatelessWidget {
+  const _IdentityBusinessRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.policy,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final ProfileFieldEditPolicy policy;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final canEdit = policy.canEdit && onTap != null;
+
+    final actionLabel = switch (policy.mode) {
+      ProfileEditMode.add => 'Add',
+      ProfileEditMode.correct => 'Correct once',
+      ProfileEditMode.locked => 'Locked',
+      ProfileEditMode.unavailable => 'Locked',
+    };
+
+    return InkWell(
+      onTap: canEdit ? onTap : null,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 28,
+              child: Icon(icon, size: 20, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppTheme.textMuted,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              actionLabel,
+              style: TextStyle(
+                color: canEdit ? AppTheme.primary : AppTheme.textMuted,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Icon(
+              canEdit
+                  ? Icons.chevron_right_rounded
+                  : Icons.lock_outline_rounded,
+              size: 18,
+              color: canEdit ? AppTheme.primary : AppTheme.textMuted,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -508,7 +652,13 @@ Future<void> _openContactSheet(
 ) async {
   final phone = TextEditingController(text: profile.phone ?? '');
   final whatsapp = TextEditingController(text: profile.whatsappNo ?? '');
-  final address = TextEditingController(text: profile.address ?? '');
+  final isInternal =
+      profile.capabilities.canAccessInternalWorkspace ||
+      profile.capabilities.isInternal;
+  final useLegacyAddress = isInternal || !Env.workAddressMapsEnabled;
+  final address = useLegacyAddress
+      ? TextEditingController(text: profile.address ?? '')
+      : null;
 
   await _showEditSheet(
     context: context,
@@ -528,25 +678,26 @@ Future<void> _openContactSheet(
         icon: Icons.chat_outlined,
         keyboardType: TextInputType.phone,
       ),
-      _SheetTextField(
-        controller: address,
-        label: 'Address',
-        icon: Icons.location_on_outlined,
-        textCapitalization: TextCapitalization.sentences,
-        minLines: 2,
-        maxLines: 4,
-      ),
+      if (address != null)
+        _SheetTextField(
+          controller: address,
+          label: 'Address',
+          icon: Icons.location_on_outlined,
+          textCapitalization: TextCapitalization.sentences,
+          minLines: 2,
+          maxLines: 4,
+        ),
     ],
     payloadBuilder: () => {
       'phone': phone.text.trim(),
       'whatsapp_no': whatsapp.text.trim(),
-      'address': address.text.trim(),
+      if (address != null) 'address': address.text.trim(),
     },
   );
 
   phone.dispose();
   whatsapp.dispose();
-  address.dispose();
+  address?.dispose();
 }
 
 Future<void> _openProfessionalSheet(
@@ -601,62 +752,101 @@ Future<void> _openProfessionalSheet(
   remarks.dispose();
 }
 
-Future<void> _openBusinessSheet(
+Future<void> _openProtectedProfileFieldSheet(
   BuildContext context,
   WidgetRef ref,
   ProfileSummary profile,
+  String fieldName,
 ) async {
-  final company = TextEditingController(text: profile.companyName ?? '');
-  final currentNtn = profile.ntn?.trim() ?? '';
-  final ntn = TextEditingController();
+  final policy = switch (fieldName) {
+    'cnic' => profile.profileEditPolicy.cnic,
+    'ntn' => profile.profileEditPolicy.ntn,
+    'company_name' => profile.profileEditPolicy.companyName,
+    _ => const ProfileFieldEditPolicy.unavailable(),
+  };
 
-  final fields = <Widget>[
-    _SheetTextField(
-      controller: company,
-      label: 'Company name',
-      icon: Icons.business_outlined,
-      textCapitalization: TextCapitalization.words,
-    ),
-  ];
+  if (!policy.canEdit) return;
 
-  if (currentNtn.isEmpty) {
-    fields.add(
-      _SheetTextField(
-        controller: ntn,
-        label: 'NTN — can only be added once',
-        icon: Icons.confirmation_number_outlined,
-      ),
-    );
-  } else {
-    fields.add(
-      _ProtectedFieldNotice(
-        label: 'NTN',
-        value: currentNtn,
-        message:
-            'Your NTN is verified and locked. Contact OMC support for a legal correction.',
-      ),
-    );
+  final currentValue = switch (fieldName) {
+    'cnic' => profile.cnic ?? '',
+    'ntn' => profile.ntn ?? '',
+    'company_name' => profile.companyName ?? '',
+    _ => '',
+  };
+
+  final label = switch (fieldName) {
+    'cnic' => 'CNIC',
+    'ntn' => 'NTN',
+    'company_name' => 'Company name',
+    _ => 'Profile detail',
+  };
+
+  final icon = switch (fieldName) {
+    'cnic' => Icons.badge_outlined,
+    'ntn' => Icons.confirmation_number_outlined,
+    'company_name' => Icons.business_outlined,
+    _ => Icons.edit_outlined,
+  };
+
+  final controller = TextEditingController(text: currentValue);
+
+  String? validator(String? value) {
+    final clean = value?.trim() ?? '';
+
+    if (clean.isEmpty) {
+      return '$label is required.';
+    }
+
+    if (fieldName == 'cnic') {
+      final digits = clean.replaceAll(RegExp(r'\D'), '');
+      if (digits.length != 13) {
+        return 'CNIC must contain exactly 13 digits.';
+      }
+    }
+
+    if (fieldName == 'ntn') {
+      final digits = clean.replaceAll(RegExp(r'\D'), '');
+      if (digits.length < 7 || digits.length > 9) {
+        return 'NTN must contain 7 to 9 digits.';
+      }
+    }
+
+    if (fieldName == 'company_name' && clean.length < 2) {
+      return 'Enter a valid company name.';
+    }
+
+    return null;
   }
 
-  await _showEditSheet(
-    context: context,
-    ref: ref,
-    title: 'Business & tax details',
-    subtitle: currentNtn.isEmpty
-        ? 'Add your NTN carefully. It will be locked after the first save.'
-        : 'Update your company details. Your verified NTN is protected.',
-    fields: fields,
-    payloadBuilder: () {
-      final payload = <String, dynamic>{'company_name': company.text.trim()};
-      if (currentNtn.isEmpty && ntn.text.trim().isNotEmpty) {
-        payload['ntn'] = ntn.text.trim();
-      }
-      return payload;
-    },
-  );
+  final isAdd = policy.mode == ProfileEditMode.add;
 
-  company.dispose();
-  ntn.dispose();
+  try {
+    await _showEditSheet(
+      context: context,
+      ref: ref,
+      title: isAdd ? 'Add $label' : 'Correct $label',
+      subtitle: isAdd
+          ? 'Add this detail carefully. After saving, it will be protected from further self-service changes.'
+          : 'This is your one post-signup correction. Review it carefully before saving because this field will be locked afterwards.',
+      fields: [
+        _SheetTextField(
+          controller: controller,
+          label: label,
+          icon: icon,
+          keyboardType: fieldName == 'cnic'
+              ? TextInputType.number
+              : TextInputType.text,
+          textCapitalization: fieldName == 'company_name'
+              ? TextCapitalization.words
+              : TextCapitalization.none,
+          validator: validator,
+        ),
+      ],
+      payloadBuilder: () => {fieldName: controller.text.trim()},
+    );
+  } finally {
+    controller.dispose();
+  }
 }
 
 Future<void> _showEditSheet({
@@ -892,61 +1082,6 @@ class _SheetTextField extends StatelessWidget {
   }
 }
 
-class _ProtectedFieldNotice extends StatelessWidget {
-  const _ProtectedFieldNotice({
-    required this.label,
-    required this.value,
-    required this.message,
-  });
-
-  final String label;
-  final String value;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FA),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE3E8EF)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.lock_outline_rounded, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$label: $value',
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ProfileEditorLoading extends StatelessWidget {
   const _ProfileEditorLoading();
 
@@ -1017,7 +1152,7 @@ void _showLockedIdentityInfo(BuildContext context) {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Email and CNIC are protected account identifiers. NTN becomes protected after it is added once because it is used for verified tax records. Contact OMC support if a verified legal correction is required.',
+              'Staff account identifiers are managed as protected account data. Contact OMC support if a verified administrative correction is required.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 13.5,

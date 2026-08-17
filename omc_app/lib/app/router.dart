@@ -251,6 +251,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   serviceRequest: state.uri.queryParameters['service_request'],
                   customerName: state.uri.queryParameters['customer_name'],
                 ),
+                routes: [
+                  GoRoute(
+                    path: ':documentId',
+                    name: 'document-detail',
+                    builder: (context, state) {
+                      final documentId = Uri.decodeComponent(
+                        state.pathParameters['documentId'] ?? '',
+                      );
+                      return DocumentDetailScreen(
+                        documentId: documentId,
+                        assisted: state.uri.queryParameters['assisted'] == '1',
+                        customerName:
+                            state.uri.queryParameters['customer_name'],
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -308,23 +325,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'dashboard',
         builder: (context, state) =>
             _withShell(ShellNavScaffold.moreIndex, const DashboardScreen()),
-      ),
-      GoRoute(
-        path: '/documents/:documentId',
-        name: 'document-detail',
-        builder: (context, state) {
-          final documentId = Uri.decodeComponent(
-            state.pathParameters['documentId'] ?? '',
-          );
-          return _withShell(
-            ShellNavScaffold.documentsIndex,
-            DocumentDetailScreen(
-              documentId: documentId,
-              assisted: state.uri.queryParameters['assisted'] == '1',
-              customerName: state.uri.queryParameters['customer_name'],
-            ),
-          );
-        },
       ),
       GoRoute(
         path: '/payments',

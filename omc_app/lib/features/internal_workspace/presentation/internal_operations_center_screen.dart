@@ -2312,25 +2312,37 @@ class _NextCaseAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nextAction = serviceCase.nextStep?.trim().isNotEmpty == true
+    final completed = serviceCase.status.trim().toLowerCase() == 'completed';
+
+    final nextAction = completed
+        ? 'This service request has been completed. No further action is required.'
+        : serviceCase.nextStep?.trim().isNotEmpty == true
         ? serviceCase.nextStep!.trim()
         : _caseNextAction(serviceCase);
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F7FD),
+        color: completed ? const Color(0xFFF0FDF4) : const Color(0xFFF3F7FD),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0xFFDDE8F6)),
+        border: Border.all(
+          color: completed ? const Color(0xFFBBF7D0) : const Color(0xFFDDE8F6),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _WorkspaceIconTile(
-              icon: Icons.next_plan_outlined,
-              foreground: Color(0xFFE11D48),
-              background: Color(0xFFFFE8EE),
+            _WorkspaceIconTile(
+              icon: completed
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.next_plan_outlined,
+              foreground: completed
+                  ? const Color(0xFF15803D)
+                  : const Color(0xFFE11D48),
+              background: completed
+                  ? const Color(0xFFDCFCE7)
+                  : const Color(0xFFFFE8EE),
               size: 38,
               iconSize: 19,
             ),
@@ -2339,10 +2351,12 @@ class _NextCaseAction extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Next action',
+                  Text(
+                    completed ? 'Service completed' : 'Next action',
                     style: TextStyle(
-                      color: Color(0xFFE11D48),
+                      color: completed
+                          ? const Color(0xFF15803D)
+                          : const Color(0xFFE11D48),
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.2,
@@ -2359,9 +2373,11 @@ class _NextCaseAction extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Case status and progress update automatically with the service workflow.',
-                    style: TextStyle(
+                  Text(
+                    completed
+                        ? 'You can review the completed service, documents and payment history below.'
+                        : 'Case status and progress update automatically with the service workflow.',
+                    style: const TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 11.5,
                       height: 1.35,
@@ -2834,9 +2850,7 @@ class _PaymentsBlock extends StatelessWidget {
         _CaseNavigationAction(
           icon: Icons.payments_outlined,
           label: 'Open payment actions',
-          onTap: () => context.go(
-            '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}',
-          ),
+          onTap: () => context.push('/internal-workspace/payments'),
         ),
       ],
     );

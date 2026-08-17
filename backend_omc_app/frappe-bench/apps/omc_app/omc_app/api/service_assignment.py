@@ -192,19 +192,30 @@ def apply_assignment(service_request, decision: dict[str, Any], *, set_assignee:
     todo = ensure_assignment_todo(service_request, assignee)
     notification_created = False
     if todo["created"]:
-        notification_created = bool(
-            mobile._create_customer_notification(
-                recipient_user=assignee,
-                title="New service request assigned",
-                message=(
-                    f"{service_request.name} — "
-                    f"{service_request.service_title or service_request.title or 'Service Request'}"
-                ),
-                notification_type="Service",
-                reference_doctype="OMC Service Request",
-                reference_name=service_request.name,
+        actor = _text(getattr(frappe.session, "user", None))
+        if assignee != actor:
+            notification_created = bool(
+                mobile._create_customer_notification(
+                    recipient_user=assignee,
+                    title="New service request assigned",
+                    message=(
+                        f"{service_request.name} — "
+                        f"{service_request.service_title or service_request.title or 'Service Request'}"
+                    ),
+                    notification_type="Service",
+                    reference_doctype="OMC Service Request",
+                    reference_name=service_request.name,
+                    mobile_route=(
+                        "/internal-workspace/service-cases/"
+                        f"{service_request.name}"
+                    ),
+                    event_key=(
+                        f"service.assignment:{service_request.name}:"
+                        f"{todo['name']}"
+                    ),
+                )
             )
-        )
+
         mobile._create_service_timeline_entry(
             service_request=service_request.name,
             event_type="Assignment",
@@ -212,6 +223,7 @@ def apply_assignment(service_request, decision: dict[str, Any], *, set_assignee:
             description=f"Request assigned to {assignee}.",
             visible_to_customer=0,
         )
+
     task_result = None
     erp_task = _text(getattr(service_request, "erp_task", None))
     if erp_task and frappe.db.exists("Task", erp_task):

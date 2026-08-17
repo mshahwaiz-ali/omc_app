@@ -657,6 +657,7 @@ def update_service_document_status(
         doc.service_request,
         status,
         remarks=clean_remarks,
+        document_id=doc.name,
     )
 
     frappe.db.commit()
