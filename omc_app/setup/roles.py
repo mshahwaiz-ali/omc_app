@@ -28,6 +28,8 @@ TAX_ASSOCIATE_ROLE = ERP_TAX_ASSOCIATE_PERSONA
 BUSINESS_PARTNER_ROLE = ERP_BUSINESS_PARTNER_PERSONA
 EMPLOYEE_ROLE = ERP_EMPLOYEE_PERSONA
 
+# Kept only for the later controlled cleanup/backfill step. Normal install and
+# migrate intentionally do not touch these old assignments yet.
 RETIRED_EXTERNAL_OMC_ROLE_TO_PERSONA = {
     "OMC Consultant": ERP_CONSULTANT_PERSONA,
     "OMC Tax Associate": ERP_TAX_ASSOCIATE_PERSONA,
@@ -103,7 +105,7 @@ SPECIALIST_DOCTYPE_ACCESS = {
 }
 
 LEGACY_CLIENT_ROLES = {"OMC Customer Applicant"}
-LEGACY_STAFF_ROLES = {"OMC Customer Support"} | RETIRED_EXTERNAL_OMC_ROLES
+LEGACY_STAFF_ROLES = {"OMC Customer Support"}
 LEGACY_ROLES = LEGACY_CLIENT_ROLES | LEGACY_STAFF_ROLES
 PERMISSION_FIELDS = (
     "read",
@@ -290,20 +292,8 @@ def _remove_role_docperms(role_names):
         frappe.delete_doc("DocPerm", name, ignore_permissions=True, force=True)
 
 
-def _migrate_external_staff_personas():
-    if frappe.db.exists("DocType", "OMC Staff Profile"):
-        for legacy_role, persona in RETIRED_EXTERNAL_OMC_ROLE_TO_PERSONA.items():
-            frappe.db.set_value(
-                "OMC Staff Profile",
-                {"staff_role": legacy_role},
-                "staff_role",
-                persona,
-                update_modified=False,
-            )
-
-
 def _migrate_legacy_user_roles():
-    """Remove retired OMC role assignments without touching ERP role profiles."""
+    """Migrate old OMC-owned roles only; ERP roles/profiles stay untouched."""
     assignments = frappe.get_all(
         "Has Role",
         filters={"role": ["in", sorted(LEGACY_ROLES)]},
@@ -373,7 +363,6 @@ def sync_canonical_roles():
         _ensure_role(role_name, desk_access=True, disabled=False)
     for role_name in sorted(LEGACY_ROLES):
         _ensure_role(role_name, desk_access=False, disabled=True)
-    _migrate_external_staff_personas()
     _migrate_legacy_user_roles()
     _apply_permissions()
     frappe.clear_cache()
