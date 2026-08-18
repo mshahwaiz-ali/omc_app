@@ -38,8 +38,18 @@ def _employee_for_user(user: str) -> str:
 
 
 def _erp_omc_user_type(user_doc) -> str:
-    if user_doc.meta.has_field("omc_user_type"):
-        value = _text(user_doc.get("omc_user_type"))
+    # The client ERP stores omc_user_type as a legacy User table column. On
+    # restored/live sites the column can exist without corresponding Frappe
+    # Custom Field metadata, so read the ERP column directly and never mutate
+    # ERP metadata from the OMC bridge.
+    if frappe.db.has_column("User", "omc_user_type"):
+        value = _text(
+            frappe.db.get_value(
+                "User",
+                user_doc.name,
+                "omc_user_type",
+            )
+        )
         if value:
             return value
 
