@@ -16,6 +16,12 @@ def after_install():
     apply_branding()
 
 
+def after_sync():
+    """Re-apply OMC Desk links after fixtures/dashboard metadata are synced."""
+    sync_desk_metadata()
+    ensure_referral_workspace_links()
+
+
 def after_migrate():
     validate_client_erp_contract()
     sync_canonical_roles()
