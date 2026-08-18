@@ -222,14 +222,17 @@ SUPPORT_STAFF_ROLES = SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES | OMC_SUPPORT_ROLE
 
 def _current_user_roles(user=None):
     user = user or _current_user()
+
     if not user or user == "Guest":
         return set()
 
-    return set(frappe.get_roles(user))
+    roles = set(frappe.get_roles(user) or [])
+    roles.update(access.get_effective_omc_staff_roles(user))
+    return roles
 
 
 def _can_access_internal_workspace(user=None):
-    return bool(_current_user_roles(user).intersection(INTERNAL_WORKSPACE_ROLES))
+    return access.can_access_internal_workspace(user)
 
 
 def _has_any_role(user=None, roles=None):
@@ -266,8 +269,9 @@ def _customer_access_state(user=None, profile=None):
     if not user or user == "Guest":
         return "guest"
 
-    if _can_access_internal_workspace(user):
-        return "internal"
+    # Internal identity must never fall through into Customer Profile creation.
+    if access.is_internal_user(user):
+        return "internal" if _can_access_internal_workspace(user) else "pending"
 
     if not profile:
         profile = _get_customer_profile_for_user(user)
@@ -286,19 +290,41 @@ def _get_mobile_capabilities(user=None, profile=None):
     user = user or _current_user()
     roles = _current_user_roles(user)
     is_guest = not user or user == "Guest"
-    is_internal = bool(roles.intersection(INTERNAL_WORKSPACE_ROLES))
-    is_admin = bool(roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES))
-    is_support = bool(roles.intersection(SUPPORT_STAFF_ROLES))
-    is_document_reviewer = bool(roles.intersection(DOCUMENT_REVIEW_ROLES))
-    is_finance_reviewer = bool(roles.intersection(PAYMENT_REVIEW_ROLES))
-    can_update_service_status = bool(roles.intersection(SERVICE_STATUS_ROLES))
 
-    if not is_guest and profile is None and not is_internal:
+    is_internal_identity = access.is_internal_user(user)
+    has_internal_access = _can_access_internal_workspace(user)
+
+    is_admin = has_internal_access and bool(
+        roles.intersection(SYSTEM_OVERRIDE_ROLES | OMC_ADMIN_ROLES)
+    )
+    is_support = has_internal_access and bool(
+        roles.intersection(SUPPORT_STAFF_ROLES)
+    )
+    is_document_reviewer = has_internal_access and bool(
+        roles.intersection(DOCUMENT_REVIEW_ROLES)
+    )
+    is_finance_reviewer = has_internal_access and bool(
+        roles.intersection(PAYMENT_REVIEW_ROLES)
+    )
+    can_update_service_status = has_internal_access and bool(
+        roles.intersection(SERVICE_STATUS_ROLES)
+    )
+
+    if not is_guest and profile is None and not is_internal_identity:
         profile = _get_customer_profile_for_user(user)
 
-    is_approved = _is_approved_customer(profile)
+    is_approved = (
+        False
+        if is_internal_identity
+        else _is_approved_customer(profile)
+    )
+
     access_state = _customer_access_state(user=user, profile=profile)
-    payments_enabled = _settings_bool(_get_single_settings("OMC Mobile Settings"), "payments_enabled", True)
+    payments_enabled = _settings_bool(
+        _get_single_settings("OMC Mobile Settings"),
+        "payments_enabled",
+        True,
+    )
 
     return {
         "access_state": access_state,
@@ -320,15 +346,15 @@ def _get_mobile_capabilities(user=None, profile=None):
         "can_view_customer_dashboard": is_approved,
         "can_access_customer_dashboard": is_approved,
         "can_view_customer_notifications": is_approved,
-        "can_access_internal_workspace": is_internal,
+        "can_access_internal_workspace": has_internal_access,
         "can_update_service_status": can_update_service_status,
         "can_review_documents": is_document_reviewer,
         "can_review_payments": is_finance_reviewer,
         "can_update_support_ticket_status": is_support,
         "can_manage_customers": is_admin,
-        "can_manage_leads": is_admin or is_support,
-        "can_manage_tasks": is_internal,
-        "can_view_internal_notes": is_internal,
+        "can_manage_leads": has_internal_access and (is_admin or is_support),
+        "can_manage_tasks": has_internal_access,
+        "can_view_internal_notes": has_internal_access,
     }
 
 
@@ -422,12 +448,13 @@ def _assert_internal_workspace_access():
     if user == "Guest":
         frappe.throw("Login is required", frappe.PermissionError)
 
-    user_roles = set(frappe.get_roles(user) or [])
-    if not user_roles.intersection(INTERNAL_WORKSPACE_ROLES):
-        frappe.throw("You do not have permission to access internal workspace data.", frappe.PermissionError)
+    if not _can_access_internal_workspace(user):
+        frappe.throw(
+            "Internal workspace access requires an active and approved OMC staff profile.",
+            frappe.PermissionError,
+        )
 
     return user
-
 
 def require_omc_staff(required_roles=None, message=None):
     user = _assert_internal_workspace_access()
@@ -447,8 +474,8 @@ def get_mobile_capabilities():
     return _get_mobile_capabilities()
 
 
-def _activate_verified_registration(**kwargs):
-    """Create the account only after pending-registration token validation."""
+@frappe.whitelist(allow_guest=True)
+def sign_up(**kwargs):
     email = (kwargs.get("email") or kwargs.get("user") or "").strip().lower()
     password = kwargs.get("password") or kwargs.get("new_password")
     full_name = (kwargs.get("full_name") or kwargs.get("name") or "").strip()
@@ -468,10 +495,6 @@ def _activate_verified_registration(**kwargs):
     register_as = (kwargs.get("register_as") or kwargs.get("customer_type") or "Customer").strip()
     customer_type = (kwargs.get("customer_type") or register_as or "Customer").strip()
     address = (kwargs.get("address") or "").strip()
-
-    from omc_app.api import profile_location
-
-    work_location = profile_location.signup_payload(kwargs)
     education = (kwargs.get("education") or "").strip()
     experience = (kwargs.get("experience") or "").strip()
     remarks = (kwargs.get("remarks") or kwargs.get("notes") or "").strip()
@@ -620,17 +643,6 @@ def _activate_verified_registration(**kwargs):
     _set_if_has_field(profile, "register_as", register_as)
     _set_if_has_field(profile, "customer_type", customer_type)
     _set_if_has_field(profile, "address", address)
-
-    for fieldname, value in work_location.items():
-        if profile.meta.has_field(fieldname):
-            profile.set(fieldname, value)
-
-    if (
-        work_location
-        and profile_location.has_work_address(work_location)
-        and profile.meta.has_field("work_address_prompt_dismissed")
-    ):
-        profile.work_address_prompt_dismissed = 1
     _set_if_has_field(profile, "education", education)
     _set_if_has_field(profile, "experience", experience)
     _set_if_has_field(profile, "remarks", remarks)
@@ -682,7 +694,6 @@ def _activate_verified_registration(**kwargs):
             "register_as": profile.get("register_as") or "",
             "customer_type": profile.get("customer_type") or "",
             "address": profile.get("address") or "",
-            **profile_location.api_payload(profile),
             "education": profile.get("education") or "",
             "experience": profile.get("experience") or "",
             "remarks": profile.get("remarks") or "",
@@ -701,14 +712,6 @@ def _activate_verified_registration(**kwargs):
         "capabilities": _get_mobile_capabilities(user=email, profile=profile),
         "preferences": _settings_preferences_to_dict(preferences),
     }
-
-
-@frappe.whitelist(allow_guest=True)
-def sign_up(**kwargs):
-    """Compatibility route; all public signups require email verification."""
-    from omc_app.api import signup_policy
-
-    return signup_policy.sign_up(**kwargs)
 
 
 @frappe.whitelist(allow_guest=True)
@@ -748,6 +751,10 @@ def _get_customer_profile_for_user(user=None):
     user = user or _current_user()
 
     if not user or user == "Guest":
+        return None
+
+    # Customer Profile is strictly customer-only.
+    if _can_access_internal_workspace(user):
         return None
 
     profile_name = frappe.db.get_value("OMC Customer Profile", {"user": user}, "name")
@@ -811,11 +818,6 @@ def get_profile():
     profile = _get_customer_profile_for_user(user)
     capabilities = _get_mobile_capabilities(user=user, profile=profile)
 
-    # Import lazily because profile_self_service itself depends on mobile.
-    from omc_app.api import profile_location, profile_self_service
-
-    profile_edit_policy = profile_self_service._profile_edit_policy(profile)
-
     return {
         "full_name": profile.full_name or "",
         "email": profile.email or user,
@@ -833,11 +835,9 @@ def get_profile():
         "register_as": profile.get("register_as") or "",
         "customer_type": profile.get("customer_type") or "",
         "address": profile.get("address") or "",
-        **profile_location.api_payload(profile),
         "education": profile.get("education") or "",
         "experience": profile.get("experience") or "",
         "remarks": profile.get("remarks") or "",
-        "profile_edit_policy": profile_edit_policy,
         "access_state": capabilities["access_state"],
         "capabilities": capabilities,
         **capabilities,
@@ -858,22 +858,6 @@ def update_profile(**kwargs):
     from omc_app.api import profile_self_service
 
     return profile_self_service.update_profile(**kwargs)
-
-
-@frappe.whitelist()
-def update_work_address(**kwargs):
-    """Update the authenticated customer's Work / Business Address."""
-    from omc_app.api import profile_self_service
-
-    return profile_self_service.update_work_address(**kwargs)
-
-
-@frappe.whitelist()
-def dismiss_work_address_prompt():
-    """Do not force the optional Work Address prompt again."""
-    from omc_app.api import profile_self_service
-
-    return profile_self_service.dismiss_work_address_prompt()
 
 
 @frappe.whitelist()
@@ -1173,7 +1157,6 @@ def create_service(**kwargs):
             f"{doc.name} has been received. OMC will review it shortly."
         ),
         notification_type="Service Update",
-        event_key=f"service.request_received:{doc.name}",
     )
 
     frappe.db.commit()
@@ -1308,58 +1291,6 @@ def _document_match_identity(document):
     return title, document_type
 
 
-def _required_documents_uploaded(
-    required_document_templates,
-    documents,
-):
-    """Return True when every required document has a real uploaded file.
-
-    Document approval is intentionally NOT required here. This helper is used
-    for payment readiness; document review remains a separate workflow.
-    """
-    required_templates = [
-        template
-        for template in required_document_templates or []
-        if template.get("is_required")
-    ]
-    if not required_templates:
-        return True
-
-    uploaded_documents = [
-        document
-        for document in documents or []
-        if bool(
-            document.get("file_url")
-            or document.get("attachment")
-        )
-        and str(document.get("status") or "").strip().lower()
-        not in {"rejected", "cancelled", "archived"}
-    ]
-
-    unused_indexes = set(range(len(uploaded_documents)))
-
-    for template in required_templates:
-        template_identity = _document_match_identity(template)
-        if not all(template_identity):
-            return False
-
-        matched_index = None
-        for index in sorted(unused_indexes):
-            if (
-                _document_match_identity(uploaded_documents[index])
-                == template_identity
-            ):
-                matched_index = index
-                break
-
-        if matched_index is None:
-            return False
-
-        unused_indexes.remove(matched_index)
-
-    return True
-
-
 def _required_documents_complete(
     required_document_templates,
     documents,
@@ -1417,9 +1348,7 @@ def _service_case_payment_contract(
     documents,
     required_document_templates,
 ):
-    # Payment becomes available once all required files are uploaded.
-    # Approval/review is a separate operational workflow.
-    documents_complete = _required_documents_uploaded(
+    documents_complete = _required_documents_complete(
         required_document_templates,
         documents,
     )
@@ -1467,8 +1396,17 @@ def _service_case_payment_contract(
         payment_block_reason = "case_closed"
         next_action = "view_case"
     elif not documents_complete:
-        payment_block_reason = "required_documents_missing"
-        next_action = "upload_documents"
+        payment_block_reason = "required_documents_not_approved"
+        has_uploaded_unapproved = any(
+            bool(document.get("file_url") or document.get("attachment"))
+            and (document.get("status") or "").strip().lower() != "approved"
+            for document in documents or []
+        )
+        next_action = (
+            "await_document_review"
+            if has_uploaded_unapproved
+            else "upload_documents"
+        )
     elif service_amount <= 0:
         payment_block_reason = "service_fee_not_configured"
         next_action = "contact_support"
@@ -1508,7 +1446,7 @@ def _service_case_scope_names(capabilities, user=None):
     names = set()
 
     if capabilities.get("can_view_assigned_service_cases"):
-        names.update(_assigned_service_request_names(user))
+        names.update(_assigned_record_names("OMC Service Request", user))
 
     if capabilities.get("can_view_relevant_service_cases"):
         if capabilities.get("can_view_support_tickets") and _has_doctype("OMC Support Ticket"):
@@ -1600,33 +1538,10 @@ def _require_service_case_update_scope(case_id):
 
 
 @frappe.whitelist()
-def get_service_cases(start=0, limit=50, limit_start=None, limit_page_length=None):
-    start = _notification_page_value(
-        limit_start if limit_start is not None else start,
-        default=0,
-        minimum=0,
-        maximum=100000,
-    )
-    limit = _notification_page_value(
-        limit_page_length if limit_page_length is not None else limit,
-        default=50,
-        minimum=1,
-        maximum=100,
-    )
+def get_service_cases():
     if _can_access_internal_workspace():
         profile = None
-        capabilities = _canonical_capabilities()
-
-        if capabilities.get("can_manage_customer_service_flow"):
-            from omc_app.api import customer_service_access
-
-            allowed_names = sorted(
-                customer_service_access.accessible_assisted_service_request_names(
-                    internal_capability="can_manage_customer_service_flow",
-                )
-            )
-        else:
-            _user, _capabilities, allowed_names = _require_service_case_read_scope()
+        _user, _capabilities, allowed_names = _require_service_case_read_scope()
     else:
         profile = _assert_approved_customer()
         allowed_names = None
@@ -1656,14 +1571,10 @@ def get_service_cases(start=0, limit=50, limit_start=None, limit_page_length=Non
             "expected_completion_date",
         ],
         order_by="modified desc",
-        limit_start=start,
-        limit_page_length=limit + 1,
     )
 
-    has_more = len(cases) > limit
-    cases = cases[:limit]
-
-    items = [
+    return {
+        "cases": [
             {
                 "name": case.name,
                 "title": case.title or case.service_title or "Service Request",
@@ -1680,13 +1591,6 @@ def get_service_cases(start=0, limit=50, limit_start=None, limit_page_length=Non
             }
             for case in cases
         ]
-    return {
-        "items": items,
-        "cases": items,
-        "start": start,
-        "limit": limit,
-        "has_more": has_more,
-        "next_start": start + limit if has_more else None,
     }
 
 
@@ -1783,7 +1687,7 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
             visible_to_customer=1,
         )
 
-    if old_status != status and status not in {"Completed", "Cancelled"}:
+    if old_status != status:
         status_messages = {
             "Open": "Your service request is open and awaiting review.",
             "In Progress": "OMC has started working on your service request.",
@@ -1805,10 +1709,6 @@ def update_service_case_status(case_id=None, status=None, note=None, expected_co
                 f"Your service request status changed to {status}.",
             ),
             notification_type="Service Update",
-            event_key=(
-                f"service.status:{doc.name}:{status}:"
-                f"{getattr(doc, 'modified', '')}"
-            ),
         )
 
     frappe.db.commit()
@@ -1831,18 +1731,7 @@ def get_service_case(case_id=None):
     service_case = frappe.get_doc("OMC Service Request", case_id)
     can_access_internal_workspace = _can_access_internal_workspace()
     if can_access_internal_workspace:
-        capabilities = _canonical_capabilities()
-
-        if capabilities.get("can_manage_customer_service_flow"):
-            from omc_app.api import customer_service_access
-
-            customer_service_access.assert_service_request_action(
-                case_id,
-                internal_capability="can_manage_customer_service_flow",
-            )
-        else:
-            _require_service_case_read_scope(case_id)
-
+        _require_service_case_read_scope(case_id)
         profile = None
     else:
         profile = _assert_approved_customer()
@@ -2146,15 +2035,68 @@ def upload_service_document(**kwargs):
 
 @frappe.whitelist()
 def update_service_document_status(document_id=None, status=None, remarks=None):
-    """Compatibility wrapper for the canonical document review endpoint."""
+    # Compatibility wrapper for the canonical document review endpoint.
     from omc_app.api import customer_documents
 
-    return customer_documents.update_service_document_status(
+    old_status = ""
+    document = None
+    if document_id and frappe.db.exists("OMC Service Document", document_id):
+        document = frappe.get_doc("OMC Service Document", document_id)
+        old_status = (document.status or "").strip()
+
+    result = customer_documents.update_service_document_status(
         document_id=document_id,
         status=status,
         remarks=remarks,
     )
 
+    if document_id and frappe.db.exists("OMC Service Document", document_id):
+        document = frappe.get_doc("OMC Service Document", document_id)
+        new_status = (document.status or "").strip()
+        if new_status and new_status != old_status:
+            service_request = frappe.get_doc(
+                "OMC Service Request",
+                document.service_request,
+            )
+            document_title = (
+                document.document_title
+                or document.document_type
+                or "Document"
+            )
+            normalized_status = new_status.lower()
+
+            if normalized_status == "approved":
+                title = "Document approved"
+                message = f"{document_title} has been approved by OMC."
+            elif normalized_status == "rejected":
+                title = "Document needs correction"
+                message = (
+                    remarks
+                    or document.remarks
+                    or (
+                        f"{document_title} was not approved. "
+                        "Please upload a corrected document."
+                    )
+                )
+            else:
+                title = f"Document status: {new_status}"
+                message = (
+                    remarks
+                    or document.remarks
+                    or f"{document_title} status changed to {new_status}."
+                )
+
+            _create_service_notification(
+                service_request,
+                title=title,
+                message=message,
+                notification_type="Document Request",
+                reference_doctype="OMC Service Document",
+                reference_name=document.name,
+            )
+            frappe.db.commit()
+
+    return result
 
 @frappe.whitelist()
 def get_documents():
@@ -2505,6 +2447,26 @@ def _knowledge_content_articles():
     return articles
 
 
+def _fallback_service_articles():
+    services = frappe.get_all(
+        "OMC Service",
+        filters={"is_active": 1},
+        fields=[
+            "name",
+            "title",
+            "description",
+            "category",
+            "is_featured",
+            "creation",
+            "modified",
+        ],
+        order_by="is_featured desc, modified desc",
+        limit_page_length=100,
+    )
+
+    return [_knowledge_article_from_service(service) for service in services]
+
+
 @frappe.whitelist(allow_guest=True)
 def get_knowledge():
     return {"articles": _knowledge_content_articles()}
@@ -2693,11 +2655,7 @@ def get_faqs(category=None):
 
 
 def _notification_mobile_route(notification):
-    from omc_app.api.notification_events import validated_mobile_route
-
-    saved_route = validated_mobile_route(
-        getattr(notification, "mobile_route", None) or ""
-    )
+    saved_route = getattr(notification, "mobile_route", None) or ""
     reference_doctype = (notification.reference_doctype or "").strip()
     reference_name = (notification.reference_name or "").strip()
 
@@ -2706,8 +2664,6 @@ def _notification_mobile_route(notification):
         "OMC Service Document": "/documents/{name}",
         "OMC Service Payment": "/payments/{name}",
         "OMC Support Ticket": "/support-tickets/{name}",
-        "OMC Referral Commission": "/my-commissions/{name}",
-        "Task": "/tasks/{name}",
     }
 
     if reference_doctype in supported_routes and reference_name:
@@ -3264,7 +3220,6 @@ def _create_service_notification(
     notification_type="Service Update",
     reference_doctype="OMC Service Request",
     reference_name=None,
-    event_key=None,
 ):
     service_request, customer_profile, recipient_user = (
         _service_notification_recipient(service_request)
@@ -3307,7 +3262,6 @@ def _create_service_notification(
         notification_type=notification_type,
         reference_doctype=reference_doctype,
         reference_name=resolved_reference,
-        event_key=event_key,
     )
 
 
@@ -3319,8 +3273,6 @@ def _create_customer_notification(
     notification_type="General",
     reference_doctype=None,
     reference_name=None,
-    mobile_route=None,
-    event_key=None,
 ):
     if not title:
         return None
@@ -3336,22 +3288,11 @@ def _create_customer_notification(
         "payment": "Payment",
         "payment alert": "Payment",
         "support": "Support",
-        "commission": "Commission",
     }
     normalized_notification_type = notification_type_aliases.get(
         str(notification_type or "").strip().lower(),
         "General",
     )
-
-    dedupe_key = ""
-    if event_key:
-        recipient_key = customer_profile or recipient_user or "unknown"
-        dedupe_key = f"{recipient_key}:{str(event_key).strip()}"[:140]
-        existing = frappe.db.get_value(
-            "OMC Notification", {"dedupe_key": dedupe_key}, "name"
-        )
-        if existing:
-            return frappe.get_doc("OMC Notification", existing)
 
     if customer_profile and not _notification_preference_enabled(
         customer_profile=customer_profile,
@@ -3386,25 +3327,89 @@ def _create_customer_notification(
     notification.reference_doctype = reference_doctype or None
     notification.reference_name = reference_name or None
     if notification.meta.has_field("mobile_route"):
-        from omc_app.api.notification_events import validated_mobile_route
-
-        notification.mobile_route = validated_mobile_route(
-            str(mobile_route or "").strip()
-            or _notification_mobile_route(notification)
-        )
-    if dedupe_key and notification.meta.has_field("dedupe_key"):
-        notification.dedupe_key = dedupe_key
+        notification.mobile_route = _notification_mobile_route(notification)
     notification.is_read = 0
     if notification.meta.has_field("is_dismissed"):
         notification.is_dismissed = 0
     notification.visible_to_customer = 1
     notification.insert(ignore_permissions=True)
-    from omc_app.api import notification_delivery
-
-    notification_delivery.enqueue_notification(notification.name)
     return notification
 
 
+
+
+def _default_support_channels():
+    return [
+        {
+            "channel_type": "whatsapp",
+            "label": "WhatsApp support",
+            "value": "923122114116",
+            "subtitle": "Fastest option for service and document queries",
+            "is_active": 1,
+            "sort_order": 1,
+        },
+        {
+            "channel_type": "phone",
+            "label": "Call OMC",
+            "value": "+923122114116",
+            "subtitle": "Talk to OMC support during business hours",
+            "is_active": 1,
+            "sort_order": 2,
+        },
+        {
+            "channel_type": "email",
+            "label": "Email support",
+            "value": "support@omchouse.com",
+            "subtitle": "Send service, tax, document and payment queries",
+            "is_active": 1,
+            "sort_order": 3,
+        },
+    ]
+
+
+def _default_support_topics():
+    return [
+        {
+            "title": "Income Tax",
+            "subtitle": "Returns, NTN, IRIS and filing help",
+            "default_message": "Hello OMC, I need help with an income tax or IRIS matter.",
+            "icon_key": "tax",
+            "is_active": 1,
+            "sort_order": 1,
+        },
+        {
+            "title": "POS & Digital Invoicing",
+            "subtitle": "POS setup, FBR integration and invoices",
+            "default_message": "Hello OMC, I need help with POS or digital invoicing.",
+            "icon_key": "pos",
+            "is_active": 1,
+            "sort_order": 2,
+        },
+        {
+            "title": "Sales Tax",
+            "subtitle": "GST registration and sales tax queries",
+            "default_message": "Hello OMC, I need help with sales tax or GST registration.",
+            "icon_key": "sales_tax",
+            "is_active": 1,
+            "sort_order": 3,
+        },
+        {
+            "title": "Technical Support",
+            "subtitle": "App, login, upload or tracking issues",
+            "default_message": "Hello OMC, I need technical support for the mobile app.",
+            "icon_key": "technical",
+            "is_active": 1,
+            "sort_order": 4,
+        },
+        {
+            "title": "Payment Support",
+            "subtitle": "Invoices, receipts and payment follow-up",
+            "default_message": "Hello OMC, I need help with payment or invoice status.",
+            "icon_key": "payment",
+            "is_active": 1,
+            "sort_order": 5,
+        },
+    ]
 
 
 def _support_channel_to_dict(row):
@@ -3623,13 +3628,22 @@ def get_support_config():
             )
         ]
 
+    used_fallback = False
+    if not channels:
+        channels = _default_support_channels()
+        used_fallback = True
+
+    if not topics:
+        topics = _default_support_topics()
+        used_fallback = True
+
     return {
         "channels": channels,
         "topics": topics,
-        "business_hours": "",
-        "office_address": "",
-        "whatsapp_message": "",
-        "fallback": False,
+        "business_hours": "Monday to Saturday, 10:00 AM - 6:00 PM",
+        "office_address": "OMC House, Pakistan",
+        "whatsapp_message": "Hello OMC, I need help with my service request.",
+        "fallback": used_fallback,
     }
 
 
@@ -3738,11 +3752,11 @@ def _assert_support_ticket_access(ticket):
 
 
 @frappe.whitelist()
-def get_support_tickets(**kwargs):
+def get_support_tickets():
     """Backward-compatible route for the canonical support ticket list."""
     from omc_app.api import support_chat
 
-    return support_chat.get_support_tickets(**kwargs)
+    return support_chat.get_support_tickets()
 
 
 
@@ -3768,8 +3782,6 @@ def _get_customer_preferences(profile=None):
 
     preferences = frappe.new_doc("OMC Customer Preference")
     preferences.customer_profile = profile.name
-    preferences.in_app_notifications_enabled = 1
-    preferences.push_notifications_enabled = 1
     preferences.service_updates_enabled = 1
     preferences.document_reminders_enabled = 1
     preferences.payment_alerts_enabled = 1
@@ -3795,14 +3807,7 @@ def _preference_bool(preferences, fieldname, fallback_fieldname=None, default=Tr
 
 
 def _settings_preferences_to_dict(preferences):
-    from omc_app.api.notification_delivery import provider_status
-
-    push_status = provider_status()
     return {
-        "in_app_notifications_enabled": _preference_bool(preferences, "in_app_notifications_enabled"),
-        "push_notifications_enabled": _preference_bool(preferences, "push_notifications_enabled"),
-        "push_provider_configured": push_status.configured,
-        "push_provider_operational": push_status.operational,
         "service_updates_enabled": _preference_bool(preferences, "service_updates_enabled"),
         "document_reminders_enabled": _preference_bool(preferences, "document_reminders_enabled"),
         "payment_alerts_enabled": _preference_bool(preferences, "payment_alerts_enabled", "payment_reminders_enabled"),
@@ -3821,7 +3826,6 @@ _NOTIFICATION_PREFERENCE_FIELDS = {
     "support": "service_updates_enabled",
     "document": "document_reminders_enabled",
     "payment": "payment_alerts_enabled",
-    "commission": "payment_alerts_enabled",
     "tax": "tax_alerts_enabled",
 }
 
@@ -3856,6 +3860,10 @@ def _notification_preference_enabled(
     if not customer_profile:
         return True
 
+    preference_field = _notification_preference_field(
+        notification_type,
+        channel="push",
+    )
     preference_name = frappe.db.get_value(
         "OMC Customer Preference",
         {"customer_profile": customer_profile},
@@ -3863,17 +3871,6 @@ def _notification_preference_enabled(
     )
     if not preference_name:
         return True
-
-    in_app_enabled = frappe.db.get_value(
-        "OMC Customer Preference", preference_name, "in_app_notifications_enabled"
-    )
-    if in_app_enabled is not None and not frappe.utils.cint(in_app_enabled):
-        return False
-
-    preference_field = _notification_preference_field(
-        notification_type,
-        channel="push",
-    )
 
     value = frappe.db.get_value(
         "OMC Customer Preference",
@@ -3906,10 +3903,6 @@ def _notification_delivery_enabled(
         return True
 
     preferences = _get_customer_preferences(profile)
-    if str(channel or "push").strip().lower() == "push" and not _preference_bool(
-        preferences, "push_notifications_enabled"
-    ):
-        return False
     fieldname = _notification_preference_field(notification_type, channel)
     return _preference_bool(preferences, fieldname)
 
@@ -3992,7 +3985,8 @@ def update_settings_preferences(**kwargs):
     preferences = _get_customer_preferences(profile)
 
     field_aliases = {
-        "notifications_enabled": "in_app_notifications_enabled",
+        "notifications_enabled": "service_updates_enabled",
+        "push_notifications_enabled": "service_updates_enabled",
         "email_updates_enabled": "email_notifications_enabled",
         "payment_reminders_enabled": "payment_alerts_enabled",
     }
@@ -4002,8 +3996,6 @@ def update_settings_preferences(**kwargs):
             kwargs[target_field] = kwargs.get(incoming_field)
 
     allowed_check_fields = [
-        "in_app_notifications_enabled",
-        "push_notifications_enabled",
         "service_updates_enabled",
         "document_reminders_enabled",
         "payment_alerts_enabled",
@@ -4110,7 +4102,7 @@ def get_internal_workspace_summary():
     }
 
     return {
-        "leads": frappe.db.count("OMC Lead"),
+        "leads": frappe.db.count("Lead"),
         "customers": frappe.db.count("OMC Customer Profile"),
         "tasks": _pending_linked_erp_task_count(),
         "open_services": frappe.db.count(
@@ -4170,7 +4162,7 @@ def create_lead(**kwargs):
         return idempotency.complete(
             claim,
             response,
-            reference_doctype="OMC Lead",
+            reference_doctype="Lead",
             reference_name=lead.get("name") or "",
             stored_response={
                 "created": True,
@@ -4183,6 +4175,103 @@ def create_lead(**kwargs):
         raise
 
 
+def _lead_task_type_from_payload(kwargs):
+    task_type = (
+        kwargs.get("task_type")
+        or kwargs.get("erp_task_type")
+        or ""
+    ).strip()
+
+    if task_type:
+        if not frappe.db.exists("Task Type", task_type):
+            frappe.throw(
+                "Select a valid ERP Task Type.",
+                frappe.ValidationError,
+            )
+        return task_type
+
+    service_ref = (
+        kwargs.get("service_interest")
+        or kwargs.get("service")
+        or ""
+    ).strip()
+
+    if not service_ref:
+        return ""
+
+    if frappe.db.exists("Task Type", service_ref):
+        return service_ref
+
+    service_name = (
+        frappe.db.get_value(
+            "OMC Service",
+            {"service_id": service_ref},
+            "name",
+        )
+        or service_ref
+    )
+
+    if frappe.db.exists("OMC Service", service_name):
+        mapped = (
+            frappe.db.get_value(
+                "OMC Service",
+                service_name,
+                "erp_task_type",
+            )
+            or ""
+        ).strip()
+
+        if mapped and frappe.db.exists("Task Type", mapped):
+            return mapped
+
+    frappe.throw(
+        "The selected service is not mapped to a valid ERP Task Type.",
+        frappe.ValidationError,
+    )
+
+
+def _erp_customer_from_lead_payload(kwargs):
+    customer = (
+        kwargs.get("custom_customer_id")
+        or kwargs.get("erp_customer")
+        or kwargs.get("customer")
+        or ""
+    ).strip()
+
+    if customer:
+        if not frappe.db.exists("Customer", customer):
+            frappe.throw(
+                "The linked ERP Customer does not exist.",
+                frappe.ValidationError,
+            )
+        return customer
+
+    profile_name = (
+        kwargs.get("customer_profile")
+        or kwargs.get("converted_customer_profile")
+        or ""
+    ).strip()
+
+    if (
+        profile_name
+        and frappe.db.exists("OMC Customer Profile", profile_name)
+        and _doctype_has_field(
+            "OMC Customer Profile",
+            "linked_erpnext_customer",
+        )
+    ):
+        return (
+            frappe.db.get_value(
+                "OMC Customer Profile",
+                profile_name,
+                "linked_erpnext_customer",
+            )
+            or ""
+        ).strip()
+
+    return ""
+
+
 def _create_lead(**kwargs):
     _assert_internal_workspace_access()
     _require_canonical_capability(
@@ -4190,25 +4279,71 @@ def _create_lead(**kwargs):
         message="You do not have permission to create leads.",
     )
 
-    title = (kwargs.get("title") or kwargs.get("subject") or "").strip()
+    title = (
+        kwargs.get("title")
+        or kwargs.get("subject")
+        or ""
+    ).strip()
     first_name = (kwargs.get("first_name") or "").strip()
     middle_name = (kwargs.get("middle_name") or "").strip()
     last_name = (kwargs.get("last_name") or "").strip()
-    supplied_name = (kwargs.get("lead_name") or kwargs.get("name") or kwargs.get("full_name") or "").strip()
-    derived_name = " ".join(part for part in (first_name, middle_name, last_name) if part)
+    supplied_name = (
+        kwargs.get("lead_name")
+        or kwargs.get("name")
+        or kwargs.get("full_name")
+        or ""
+    ).strip()
+    derived_name = " ".join(
+        part
+        for part in (first_name, middle_name, last_name)
+        if part
+    )
     lead_name = supplied_name or derived_name
-    company_name = (kwargs.get("company_name") or kwargs.get("company") or "").strip()
-    email_id = (kwargs.get("email_id") or kwargs.get("email") or "").strip()
-    mobile_no = (kwargs.get("mobile_no") or kwargs.get("mobile") or kwargs.get("phone") or "").strip()
+    company_name = (
+        kwargs.get("company_name")
+        or kwargs.get("company")
+        or ""
+    ).strip()
+    email_id = (
+        kwargs.get("email_id")
+        or kwargs.get("email")
+        or ""
+    ).strip()
+    mobile_no = (
+        kwargs.get("mobile_no")
+        or kwargs.get("mobile")
+        or kwargs.get("phone")
+        or ""
+    ).strip()
     phone = (kwargs.get("phone") or mobile_no).strip()
-    source = (kwargs.get("source") or "Mobile App").strip()
-    service_interest = (kwargs.get("service_interest") or kwargs.get("service") or "").strip()
-    notes = (kwargs.get("notes") or kwargs.get("message") or kwargs.get("description") or "").strip()
+    notes = (
+        kwargs.get("notes")
+        or kwargs.get("message")
+        or kwargs.get("description")
+        or ""
+    ).strip()
 
     if not lead_name and not company_name and not title:
-        frappe.throw("lead_name, company_name, title, or personal name is required")
+        frappe.throw(
+            "lead_name, company_name, title, or personal name is required"
+        )
 
-    lead = frappe.new_doc("OMC Lead")
+    # Client ERP Lead requires Business Name / Full Name and Mobile No.
+    # For an individual lead, use the person's name as company_name.
+    company_name = company_name or lead_name or title
+
+    if not mobile_no:
+        frappe.throw(
+            "mobile_no or phone is required",
+            frappe.ValidationError,
+        )
+
+    task_type = _lead_task_type_from_payload(kwargs)
+    erp_customer = _erp_customer_from_lead_payload(kwargs)
+
+    # ERP Lead is now the canonical lead record.
+    lead = frappe.new_doc("Lead")
+
     values = {
         "title": title or company_name or lead_name,
         "first_name": first_name,
@@ -4217,19 +4352,23 @@ def _create_lead(**kwargs):
         "lead_name": lead_name or title or company_name,
         "company_name": company_name,
         "email_id": email_id,
-        "email": email_id,
         "mobile_no": mobile_no,
         "phone": phone,
         "whatsapp_no": kwargs.get("whatsapp_no"),
         "phone_ext": kwargs.get("phone_ext"),
         "website": kwargs.get("website"),
-        "status": kwargs.get("status") or "New",
-        "source": source,
-        "lead_type": kwargs.get("lead_type") or kwargs.get("type"),
+
+        # Do not invent OMC-only ERP values. ERP defaults/workflow remain
+        # authoritative when these fields are not supplied.
+        "status": kwargs.get("status"),
+        "source": kwargs.get("source"),
+
         "request_type": kwargs.get("request_type"),
-        "service_interest": service_interest,
-        "lead_owner": kwargs.get("lead_owner"),
-        "assigned_to": kwargs.get("assigned_to"),
+        "task_type": task_type,
+        "lead_owner": (
+            kwargs.get("lead_owner")
+            or kwargs.get("assigned_to")
+        ),
         "sales_person": kwargs.get("sales_person"),
         "industry": kwargs.get("industry"),
         "market_segment": kwargs.get("market_segment"),
@@ -4239,15 +4378,32 @@ def _create_lead(**kwargs):
         "city": kwargs.get("city"),
         "state": kwargs.get("state"),
         "country": kwargs.get("country"),
-        "qualification_status": kwargs.get("qualification_status"),
+        "qualification_status": kwargs.get(
+            "qualification_status"
+        ),
         "qualified_by": kwargs.get("qualified_by"),
         "qualified_on": kwargs.get("qualified_on"),
         "campaign_name": kwargs.get("campaign_name"),
-        "reference_business_partner": kwargs.get("reference_business_partner"),
+        "reference_business_partner": kwargs.get(
+            "reference_business_partner"
+        ),
         "notes": notes,
-        "customer_profile": kwargs.get("customer_profile"),
-        "converted_customer_profile": kwargs.get("converted_customer_profile"),
+
+        # Existing client ERP Lead custom fields.
+        "custom_lead_source": (
+            kwargs.get("custom_lead_source")
+            or kwargs.get("lead_channel")
+        ),
+        "custom_customer_id": erp_customer,
+        "custom_direct_converted": kwargs.get(
+            "custom_direct_converted"
+        ),
+        "custom_cnic": (
+            kwargs.get("custom_cnic")
+            or kwargs.get("cnic")
+        ),
     }
+
     for fieldname, value in values.items():
         _set_if_has_field(lead, fieldname, value)
 
@@ -4261,12 +4417,42 @@ def _create_lead(**kwargs):
     }
 
 
+def _lead_customer_profile(lead):
+    customer = (
+        getattr(lead, "custom_customer_id", None)
+        or ""
+    ).strip()
+
+    if not customer:
+        return ""
+
+    if not _doctype_has_field(
+        "OMC Customer Profile",
+        "linked_erpnext_customer",
+    ):
+        return ""
+
+    return (
+        frappe.db.get_value(
+            "OMC Customer Profile",
+            {"linked_erpnext_customer": customer},
+            "name",
+        )
+        or ""
+    )
+
+
 def _lead_to_dict(lead):
     def value(fieldname):
         return getattr(lead, fieldname, None) or ""
 
-    email_id = value("email_id") or value("email")
+    email_id = value("email_id")
     mobile_no = value("mobile_no") or value("phone")
+    task_type = value("task_type")
+    lead_owner = value("lead_owner")
+    erp_customer = value("custom_customer_id")
+    customer_profile = _lead_customer_profile(lead)
+
     return {
         "name": lead.name,
         "title": value("title"),
@@ -4285,32 +4471,61 @@ def _lead_to_dict(lead):
         "website": value("website"),
         "status": value("status"),
         "source": value("source"),
-        "lead_type": value("lead_type"),
+        "custom_lead_source": value("custom_lead_source"),
+
+        # Backward-compatible API aliases, backed by ERP fields.
+        "lead_type": "",
         "request_type": value("request_type"),
-        "service_interest": value("service_interest"),
-        "lead_owner": value("lead_owner"),
-        "assigned_to": value("assigned_to"),
+        "service_interest": task_type,
+        "task_type": task_type,
+        "lead_owner": lead_owner,
+        "assigned_to": lead_owner,
+
         "sales_person": value("sales_person"),
         "industry": value("industry"),
         "market_segment": value("market_segment"),
         "territory": value("territory"),
         "no_of_employees": value("no_of_employees"),
-        "annual_revenue": getattr(lead, "annual_revenue", None) or 0,
+        "annual_revenue": (
+            getattr(lead, "annual_revenue", None)
+            or 0
+        ),
         "city": value("city"),
         "state": value("state"),
         "country": value("country"),
-        "qualification_status": value("qualification_status"),
+        "qualification_status": value(
+            "qualification_status"
+        ),
         "qualified_by": value("qualified_by"),
-        "qualified_on": str(getattr(lead, "qualified_on", None) or ""),
+        "qualified_on": str(
+            getattr(lead, "qualified_on", None)
+            or ""
+        ),
         "campaign_name": value("campaign_name"),
-        "reference_business_partner": value("reference_business_partner"),
+        "reference_business_partner": value(
+            "reference_business_partner"
+        ),
         "notes": value("notes"),
-        "customer_profile": value("customer_profile"),
-        "converted_customer_profile": value("converted_customer_profile"),
-        "created_at": str(lead.creation) if lead.creation else "",
-        "updated_at": str(lead.modified) if lead.modified else "",
-    }
 
+        "erp_customer": erp_customer,
+        "customer_profile": customer_profile,
+        "converted_customer_profile": customer_profile,
+        "custom_direct_converted": int(
+            getattr(lead, "custom_direct_converted", None)
+            or 0
+        ),
+
+        "created_at": (
+            str(lead.creation)
+            if lead.creation
+            else ""
+        ),
+        "updated_at": (
+            str(lead.modified)
+            if lead.modified
+            else ""
+        ),
+    }
 
 
 
@@ -4340,27 +4555,6 @@ def _assigned_record_names(reference_type, user=None):
     )
 
 
-def _assigned_service_request_names(user=None):
-    """Return service requests currently owned by the internal user.
-
-    Open ToDos remain useful for active assignment state, while assigned_staff
-    is the persistent OMC ownership authority after ERP/Frappe closes ToDos.
-    """
-    user = user or _current_user()
-    if not user or user == "Guest":
-        return []
-
-    names = set(_assigned_record_names("OMC Service Request", user))
-    names.update(
-        frappe.get_all(
-            "OMC Service Request",
-            filters={"assigned_staff": user},
-            pluck="name",
-        )
-    )
-    return sorted(name for name in names if name)
-
-
 def _relevant_customer_names(user=None):
     user = user or _current_user()
     names = set()
@@ -4388,6 +4582,7 @@ def _relevant_customer_names(user=None):
     return sorted(name for name in names if name)
 
 @frappe.whitelist()
+@frappe.whitelist()
 def get_leads():
     from omc_app.api import lead_read_guard
 
@@ -4395,6 +4590,7 @@ def get_leads():
 
 
 
+@frappe.whitelist()
 @frappe.whitelist()
 def get_lead(lead_id=None):
     from omc_app.api import lead_read_guard
@@ -4508,9 +4704,7 @@ def _customer_profile_to_dict(profile):
 
 
 @frappe.whitelist()
-def get_customers(start=0, limit=50, limit_start=None, limit_page_length=None):
-    start = _notification_page_value(limit_start if limit_start is not None else start, default=0, minimum=0, maximum=100000)
-    limit = _notification_page_value(limit_page_length if limit_page_length is not None else limit, default=50, minimum=1, maximum=100)
+def get_customers():
     user = _assert_internal_workspace_access()
     capabilities = _require_canonical_capability(
         "can_manage_customers",
@@ -4526,7 +4720,7 @@ def get_customers(start=0, limit=50, limit_start=None, limit_page_length=None):
     ):
         relevant_names = _relevant_customer_names(user)
         if not relevant_names:
-            return {"items": [], "customers": [], "start": start, "limit": limit, "has_more": False, "next_start": None}
+            return {"customers": []}
         filters["name"] = ["in", relevant_names]
 
     customer_names = frappe.get_all(
@@ -4534,12 +4728,8 @@ def get_customers(start=0, limit=50, limit_start=None, limit_page_length=None):
         filters=filters,
         pluck="name",
         order_by="modified desc",
-        limit_start=start,
-        limit_page_length=limit + 1,
+        limit_page_length=100,
     )
-
-    has_more = len(customer_names) > limit
-    customer_names = customer_names[:limit]
 
     customers = [
         _customer_profile_to_dict(
@@ -4548,7 +4738,7 @@ def get_customers(start=0, limit=50, limit_start=None, limit_page_length=None):
         for customer_name in customer_names
     ]
 
-    return {"items": customers, "customers": customers, "start": start, "limit": limit, "has_more": has_more, "next_start": start + limit if has_more else None}
+    return {"customers": customers}
 
 
 @frappe.whitelist()
@@ -4598,14 +4788,11 @@ def _task_to_dict(task):
 
 
 @frappe.whitelist()
-def get_tasks(start=0, limit=100, limit_start=None, limit_page_length=None):
+def get_tasks():
     """Stable mobile route delegated to canonical ERP Task authority."""
     from omc_app.api.task_read_guard import get_tasks as guarded_get_tasks
 
-    return guarded_get_tasks(
-        limit_start=limit_start if limit_start is not None else start,
-        page_length=limit_page_length if limit_page_length is not None else limit,
-    )
+    return guarded_get_tasks()
 
 
 

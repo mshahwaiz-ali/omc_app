@@ -9,6 +9,8 @@ import '../features/documents/presentation/internal_document_review_screen.dart'
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
+import '../features/auth/presentation/activate_existing_account_screen.dart';
+import '../features/auth/presentation/complete_customer_activation_screen.dart';
 import '../features/auth/presentation/email_verification_screen.dart';
 import '../features/auth/presentation/forgot_password_screen.dart';
 import '../features/auth/presentation/reset_password_screen.dart';
@@ -142,6 +144,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         name: 'forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/activate-existing-account',
+        name: 'activate-existing-account',
+        builder: (context, state) => const ActivateExistingAccountScreen(),
+      ),
+      GoRoute(
+        path: '/activate-account',
+        name: 'activate-account',
+        builder: (context, state) => CompleteCustomerActivationScreen(
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: '/app/activate-account',
+        redirect: (context, state) => Uri(
+          path: '/activate-account',
+          queryParameters: state.uri.queryParameters,
+        ).toString(),
       ),
       GoRoute(
         path: '/reset-password',

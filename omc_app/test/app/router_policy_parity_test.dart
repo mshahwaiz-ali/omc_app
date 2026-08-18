@@ -10,6 +10,9 @@ void main() {
     '/onboarding',
     '/login',
     '/forgot-password',
+    '/activate-existing-account',
+    '/activate-account',
+    '/app/activate-account',
     '/reset-password',
     '/app/reset-password',
     '/signup',
@@ -68,6 +71,9 @@ void main() {
     '/onboarding',
     '/login',
     '/forgot-password',
+    '/activate-existing-account',
+    '/activate-account',
+    '/app/activate-account',
     '/reset-password',
     '/app/reset-password',
     '/signup',
@@ -127,9 +133,14 @@ void main() {
     test('router declarations exactly match the audited route registry', () {
       final routerSource = File('lib/app/router.dart').readAsStringSync();
       final routePattern = RegExp(r"path:\s*'([^']+)'");
+      const relativeRouteTemplates = <String, String>{
+        ':documentId': '/documents/:documentId',
+      };
+
       final declaredRoutes = routePattern
           .allMatches(routerSource)
           .map((match) => match.group(1)!)
+          .map((path) => relativeRouteTemplates[path] ?? path)
           .toSet();
 
       expect(

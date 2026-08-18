@@ -368,14 +368,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 return null;
               },
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: isLoading
-                    ? null
-                    : () => context.go('/forgot-password'),
-                child: const Text('Forgot password?'),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => context.go('/activate-existing-account'),
+                  child: const Text('Activate existing account'),
+                ),
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => context.go('/forgot-password'),
+                  child: const Text('Forgot password?'),
+                ),
+              ],
             ),
             if (loginErrorMessage != null &&
                 loginErrorMessage.trim().isNotEmpty) ...[

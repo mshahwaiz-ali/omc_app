@@ -4,6 +4,8 @@ from __future__ import annotations
 from time import monotonic
 
 import frappe
+
+from omc_app.api import erp_activation
 from frappe.utils import add_to_date, cint, get_datetime, now_datetime
 
 from omc_app.api import erp_service_task_adapter
@@ -224,13 +226,22 @@ def retry_erp_sync(request_name=None, reset_exhaustion=0):
             frappe.ValidationError,
         )
 
-    result = erp_service_task_adapter.sync_request(
+    result = erp_activation.activate_request(
         request,
         service=frappe.get_doc("OMC Service", service_name),
         profile=_profile_for_request(request),
         manual_customer=_manual_customer_for_request(request),
         repair=True,
     )
+
+    if not result.get("eligible", True):
+        return {
+            "request_name": request.name,
+            **result,
+            "exhausted": False,
+            "next_attempt_at": None,
+        }
+
     attempt = int(getattr(request, "erp_retry_count", 0) or 0) + 1
     retry_state = _record_attempt_result(
         request,
@@ -314,13 +325,18 @@ def run_automatic_erp_sync_recovery():
                     )
                     summary["exhausted"] += 1
                     continue
-                result = erp_service_task_adapter.sync_request(
+                result = erp_activation.activate_request(
                     request,
                     service=frappe.get_doc("OMC Service", service_name),
                     profile=_profile_for_request(request),
                     manual_customer=_manual_customer_for_request(request),
                     repair=True,
                 )
+
+                if not result.get("eligible", True):
+                    summary["not_due"] += 1
+                    continue
+
                 retry_state = _record_attempt_result(
                     request,
                     status=result.get("status") or "Failed",

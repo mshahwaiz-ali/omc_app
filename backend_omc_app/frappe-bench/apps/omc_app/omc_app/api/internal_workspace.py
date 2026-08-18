@@ -165,9 +165,6 @@ def _case_to_queue_item(row):
         {
             "status": row.status,
             "required_documents_count": doc_summary["required"],
-            "submitted_documents_count": (
-                doc_summary["uploaded"] + doc_summary["approved"]
-            ),
             "approved_documents_count": doc_summary["approved"],
             "missing_documents_count": (
                 doc_summary["pending"] + doc_summary["rejected"]

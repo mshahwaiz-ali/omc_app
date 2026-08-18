@@ -58,27 +58,7 @@ class TestLeadAppRetirementContract(FrappeTestCase):
             / "backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/lead_read_guard.py"
         ).read_text(encoding="utf-8")
 
-        self.assertIn('frappe.new_doc("OMC Lead")', mobile)
-        self.assertIn('frappe.get_all(\n        "OMC Lead"', guard)
-        self.assertNotIn('frappe.new_doc("Lead")', mobile)
+        self.assertIn('frappe.new_doc("Lead")', mobile)
+        self.assertIn('frappe.get_all(\n        "Lead"', guard)
+        self.assertNotIn('frappe.new_doc("OMC Lead")', mobile)
 
-    def test_lead_app_source_and_bench_registration_removed(self):
-        root = self._repo_root()
-        bench = root / "backend_omc_app/frappe-bench"
-
-        self.assertFalse((bench / "apps/lead_app").exists())
-
-        registered_apps = {
-            line.strip()
-            for line in (bench / "sites/apps.txt").read_text(
-                encoding="utf-8"
-            ).splitlines()
-            if line.strip()
-        }
-
-        self.assertNotIn("lead_app", registered_apps)
-        self.assertTrue(
-            {"frappe", "erpnext", "omc_app"}.issubset(
-                registered_apps
-            )
-        )

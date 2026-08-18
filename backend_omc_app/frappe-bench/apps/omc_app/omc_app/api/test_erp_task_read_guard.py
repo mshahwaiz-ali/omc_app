@@ -69,7 +69,7 @@ class TestErpTaskReadGuard(FrappeTestCase):
         self.assertEqual(payload["source_doctype"], "Task")
         load_task.assert_called_once_with("ERP-TASK-1")
 
-    def test_assigned_staff_list_uses_persistent_visibility_scope(self):
+    def test_assigned_staff_list_is_todo_scoped(self):
         link_map = {
             "ERP-TASK-1": self._link(),
             "ERP-TASK-2": {
@@ -97,7 +97,7 @@ class TestErpTaskReadGuard(FrappeTestCase):
             ),
             patch.object(
                 task_read_guard,
-                "_task_visibility_names",
+                "_task_assignment_names",
                 return_value={"ERP-TASK-1"},
             ),
             patch.object(
@@ -116,33 +116,6 @@ class TestErpTaskReadGuard(FrappeTestCase):
         self.assertEqual(
             [row["name"] for row in result["tasks"]],
             ["ERP-TASK-1"],
-        )
-
-    def test_task_visibility_survives_closed_todo_for_current_request_assignee(self):
-        with (
-            patch.object(
-                task_read_guard,
-                "_task_assignment_names",
-                return_value=set(),
-            ),
-            patch.object(
-                task_read_guard.frappe,
-                "get_all",
-                return_value=["ERP-TASK-1"],
-            ) as get_all,
-        ):
-            names = task_read_guard._task_visibility_names(
-                "staff@example.com"
-            )
-
-        self.assertEqual(names, {"ERP-TASK-1"})
-        get_all.assert_called_once_with(
-            "OMC Service Request",
-            filters={
-                "assigned_staff": "staff@example.com",
-                "erp_task": ["is", "set"],
-            },
-            pluck="erp_task",
         )
 
     def test_unlinked_erp_task_is_not_exposed(self):
@@ -185,7 +158,7 @@ class TestErpTaskReadGuard(FrappeTestCase):
             ),
             patch.object(
                 task_read_guard,
-                "_task_visibility_names",
+                "_task_assignment_names",
                 return_value=set(),
             ),
             self.assertRaises(Exception),

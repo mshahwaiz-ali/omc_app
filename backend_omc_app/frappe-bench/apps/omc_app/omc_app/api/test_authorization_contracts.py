@@ -150,7 +150,6 @@ class TestAuthorizationContracts(FrappeTestCase):
             permissions.service_document_has_permission,
             permissions.service_payment_has_permission,
             permissions.support_ticket_has_permission,
-            permissions.lead_has_permission,
         )
         with patch.object(
             permissions,

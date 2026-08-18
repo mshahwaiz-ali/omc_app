@@ -1,23 +1,21 @@
 import frappe
 
 
-TASK_TYPES = {
-    "NTN Registration",
-}
-
 SERVICE_MAPPINGS = {
     "ntn-registration": "NTN Registration",
 }
 
 
 def execute():
-    for task_type_name in sorted(TASK_TYPES):
-        if not frappe.db.exists("Task Type", task_type_name):
-            task_type = frappe.new_doc("Task Type")
-            task_type.service_name = task_type_name
-            task_type.insert(ignore_permissions=True)
+    """Map OMC services only to ERP Task Types that already exist.
+
+    OMC App must not create or own client ERP Task Type master data.
+    """
 
     for service_id, task_type_name in SERVICE_MAPPINGS.items():
+        if not frappe.db.exists("Task Type", task_type_name):
+            continue
+
         service_name = frappe.db.get_value(
             "OMC Service",
             {"service_id": service_id},

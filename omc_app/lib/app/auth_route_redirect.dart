@@ -1,7 +1,11 @@
 import '../features/auth/application/auth_state.dart';
 import 'route_access_policy.dart';
 
-const _tokenConsumptionRoutes = <String>{'/verify-email', '/reset-password'};
+const _tokenConsumptionRoutes = <String>{
+  '/verify-email',
+  '/reset-password',
+  '/activate-account',
+};
 const _accessDeniedHome = '/home?notice=access-denied';
 
 const _anonymousEntryRoutes = <String>{
@@ -9,6 +13,7 @@ const _anonymousEntryRoutes = <String>{
   '/login',
   '/signup',
   '/forgot-password',
+  '/activate-existing-account',
 };
 
 /// Returns a redirect location, or `null` when the requested route is allowed.

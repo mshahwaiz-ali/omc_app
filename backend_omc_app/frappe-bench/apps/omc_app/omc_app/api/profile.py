@@ -4,6 +4,7 @@ import frappe
 from frappe.utils.file_manager import save_file
 
 from omc_app.api import access
+from omc_app.api import staff_profile
 
 
 ALLOWED_PROFILE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
@@ -58,44 +59,100 @@ def _get_user_image_url(user=None):
 
 
 def _internal_role_label(user):
+    profile_role = staff_profile.get_staff_role(user)
+    if profile_role:
+        return profile_role
+
     roles = set(frappe.get_roles(user) or [])
-    if "OMC Admin" in roles or "System Manager" in roles or user == "Administrator":
+
+    if user == "Administrator" or "System Manager" in roles:
         return "OMC Admin"
-    if "OMC Manager" in roles:
-        return "OMC Manager"
-    if "OMC Customer Support" in roles:
-        return "OMC Customer Support"
+
+    priority = (
+        "OMC Admin",
+        "OMC Manager",
+        "OMC Support Agent",
+        "OMC Document Reviewer",
+        "OMC Finance Reviewer",
+        "OMC Consultant",
+        "OMC Tax Associate",
+        "OMC Business Partner",
+    )
+
+    for role in priority:
+        if role in roles:
+            return role
+
     return "Internal"
 
 
 def _internal_profile_payload(user):
-    full_name = frappe.db.get_value("User", user, "full_name") or user
+    profile = staff_profile.ensure_staff_profile(user)
+    user_doc = frappe.get_doc("User", user)
     role_label = _internal_role_label(user)
     capabilities = access.get_mobile_capabilities(user=user)
+
+    def profile_value(fieldname):
+        if not profile or not profile.meta.has_field(fieldname):
+            return ""
+        return str(profile.get(fieldname) or "")
+
+    full_name = (
+        profile_value("full_name")
+        or str(user_doc.get("full_name") or "")
+        or str(user_doc.get("first_name") or "")
+        or user
+    )
+
+    email = (
+        profile_value("email")
+        or str(user_doc.get("email") or "")
+        or user
+    )
+
+    phone = (
+        profile_value("phone")
+        or str(user_doc.get("mobile_no") or "")
+    )
 
     return {
         "full_name": full_name,
         "display_name": full_name,
-        "email": user,
+        "email": email,
         "user": user,
-        "phone": "",
-        "whatsapp_no": "",
+        "username": str(user_doc.get("username") or ""),
+        "phone": phone,
+        "whatsapp_no": profile_value("whatsapp_no"),
         "avatar_url": _get_user_image_url(user),
+        "profile_image": _get_user_image_url(user),
         "user_image": _get_user_image_url(user),
+
+        # Preserve Flutter response compatibility while keeping domains clean.
         "customer_id": "",
-        "customer_status": "Active",
-        "approval_status": "Internal",
+        "staff_profile_id": str(profile.name if profile else ""),
+        "linked_employee": profile_value("linked_employee"),
+        "staff_role": profile_value("staff_role"),
+        "referral_record": profile_value("referral_record"),
+        "own_referral_code": profile_value("own_referral_code"),
+
+        "staff_status": profile_value("staff_status") or "Pending",
+        # Compatibility alias expected by the current Flutter profile model.
+        "customer_status": profile_value("staff_status") or "Pending",
+        "approval_status": profile_value("approval_status") or "Pending Review",
+        "is_active": int(profile.get("is_active") or 0) if profile else 0,
         "customer_type": role_label,
-        "company_name": "OMC HOUSE",
-        "cnic": "",
-        "ntn": "",
-        "register_as": "",
-        "address": "",
-        "education": "",
-        "experience": "",
-        "remarks": "",
-        "access_state": "internal",
-        "can_access_internal_workspace": True,
+        "company_name": profile_value("company_name"),
+        "cnic": profile_value("cnic"),
+        "ntn": profile_value("ntn"),
+        "register_as": role_label,
+        "address": profile_value("address"),
+        "education": profile_value("education"),
+        "experience": profile_value("experience"),
+        "remarks": profile_value("remarks"),
+        "access_state": capabilities.get("access_state", "pending"),
+        "can_access_internal_workspace": bool(
+            capabilities.get("can_access_internal_workspace")
+        ),
         "capabilities": capabilities,
         **capabilities,
     }
@@ -115,11 +172,6 @@ def _profile_payload(profile, user):
             "approval_status": "",
             "access_state": "guest" if user == "Guest" else "pending",
         }
-
-    # Import lazily because profile_self_service also depends on profile APIs.
-    from omc_app.api import profile_self_service
-
-    profile_edit_policy = profile_self_service._profile_edit_policy(profile)
 
     return {
         "full_name": profile.full_name or "",
@@ -142,7 +194,6 @@ def _profile_payload(profile, user):
         "education": profile.get("education") or "",
         "experience": profile.get("experience") or "",
         "remarks": profile.get("remarks") or "",
-        "profile_edit_policy": profile_edit_policy,
         "access_state": "approved"
         if (profile.customer_status or "").lower() == "active"
         and (profile.approval_status or "").lower() == "approved"

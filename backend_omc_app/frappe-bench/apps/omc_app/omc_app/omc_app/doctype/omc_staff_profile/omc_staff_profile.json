@@ -1,0 +1,200 @@
+{
+ "actions": [],
+ "autoname": "field:user",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "user",
+  "linked_employee",
+  "full_name",
+  "email",
+  "phone",
+  "whatsapp_no",
+  "professional_section",
+  "address",
+  "education",
+  "experience",
+  "remarks",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "user_section",
+   "label": "User",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "linked_employee",
+   "fieldtype": "Link",
+   "label": "ERP Employee",
+   "options": "Employee",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "Full Name",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "username",
+   "label": "Username",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "whatsapp_no",
+   "fieldtype": "Data",
+   "label": "WhatsApp No",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "status_section",
+   "label": "Status",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "staff_status",
+   "label": "Staff Status",
+   "fieldtype": "Select",
+   "options": "Pending\nActive\nSuspended\nRejected",
+   "default": "Pending"
+  },
+  {
+   "fieldname": "approval_status",
+   "label": "Approval Status",
+   "fieldtype": "Select",
+   "options": "Pending Review\nApproved\nRejected",
+   "default": "Pending Review"
+  },
+  {
+   "fieldname": "staff_role",
+   "fieldtype": "Select",
+   "label": "OMC Staff Role",
+   "options": "\nOMC Admin\nOMC Manager\nOMC Support Agent\nOMC Document Reviewer\nOMC Finance Reviewer\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "cnic",
+   "label": "CNIC",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "ntn",
+   "label": "NTN",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "company_name",
+   "label": "Company",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "professional_section",
+   "fieldtype": "Section Break",
+   "label": "Professional Profile"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "education",
+   "fieldtype": "Small Text",
+   "label": "Education"
+  },
+  {
+   "fieldname": "experience",
+   "fieldtype": "Small Text",
+   "label": "Experience"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "referral_section",
+   "label": "Referral",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "referral_record",
+   "label": "Referral Record",
+   "fieldtype": "Link",
+   "options": "OMC Referral",
+   "read_only": 1
+  },
+  {
+   "fieldname": "own_referral_code",
+   "label": "My Referral Code",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "fetch_from": "referral_record.referral_code"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "module": "OMC App",
+ "name": "OMC Staff Profile",
+ "naming_rule": "By fieldname",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "user,full_name,email,phone,linked_employee,staff_status,referral_record,own_referral_code",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name",
+ "track_changes": 1
+}

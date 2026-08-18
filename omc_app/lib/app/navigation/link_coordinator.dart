@@ -37,7 +37,9 @@ class LinkCoordinator {
     if (pending == null) return null;
     final path = pending.path;
     final publicTokenRoute =
-        path == '/verify-email' || path == '/reset-password';
+        path == '/verify-email' ||
+        path == '/reset-password' ||
+        path == '/activate-account';
     if (status != AuthStatus.authenticated && !publicTokenRoute) return null;
     _pending = null;
     return pending.toString();
@@ -46,6 +48,7 @@ class LinkCoordinator {
   bool _isAllowedPath(String path) {
     return path == '/verify-email' ||
         path == '/reset-password' ||
+        path == '/activate-account' ||
         path == '/notifications' ||
         path.startsWith('/notifications/') ||
         path.startsWith('/my-services/') ||

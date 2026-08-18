@@ -149,6 +149,10 @@ class ApiConfig {
       'omc_app.api.password_reset.request_reset';
   static const String resetPasswordMethod =
       'omc_app.api.password_reset.reset_password';
+  static const String requestCustomerActivationMethod =
+      'omc_app.api.customer_activation.request_activation';
+  static const String completeCustomerActivationMethod =
+      'omc_app.api.customer_activation.complete_activation';
   static const String changePasswordMethod =
       'omc_app.api.account_security.change_password';
   static const String verifyCurrentPasswordMethod =

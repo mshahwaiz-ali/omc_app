@@ -344,6 +344,33 @@ class AuthRepository {
     return response;
   }
 
+  Future<Map<String, dynamic>> requestCustomerActivation({
+    required String email,
+  }) {
+    return _frappeClient.postMethod(
+      ApiConfig.requestCustomerActivationMethod,
+      data: {'email': email.trim()},
+    );
+  }
+
+  Future<Map<String, dynamic>> completeCustomerActivation({
+    required String token,
+    required String password,
+    required String confirmPassword,
+  }) async {
+    final response = await _frappeClient.postMethod(
+      ApiConfig.completeCustomerActivationMethod,
+      data: {
+        'token': token.trim(),
+        'password': password,
+        'confirm_password': confirmPassword,
+      },
+    );
+
+    await _secureStorageService.clearBiometricLogin();
+    return response;
+  }
+
   Future<Map<String, dynamic>> requestPasswordReset({
     required String identifier,
   }) {

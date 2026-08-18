@@ -50,5 +50,5 @@ class TestLeadAuthorityContract(FrappeTestCase):
             source, "_create_lead"
         )
         self.assertIn("idempotency.begin", creator)
-        self.assertIn('frappe.new_doc("OMC Lead")', creator)
-        self.assertNotIn('frappe.new_doc("Lead")', creator)
+        self.assertIn('frappe.new_doc("Lead")', creator)
+        self.assertNotIn('frappe.new_doc("OMC Lead")', creator)

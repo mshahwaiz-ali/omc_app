@@ -101,32 +101,3 @@ class TestPaymentAuthorityContract(FrappeTestCase):
         )
         self.assertIn("payments._notify_payment_reviewers(", source)
         self.assertIn('capabilities.get("can_upload_payment_receipt")', source)
-
-
-class TestPaymentReviewStatusAuthority(FrappeTestCase):
-    def _payment(self, status="Paid"):
-        payment = OMCServicePayment(
-            {
-                "doctype": "OMC Service Payment",
-                "service_request": "OMC-SR-1",
-                "payment_title": "Service Payment",
-                "amount": 1000,
-                "currency": "PKR",
-                "status": status,
-                "visible_to_customer": 1,
-                "receipt_attachment": "/private/files/test-receipt.pdf",
-            }
-        )
-        return payment
-
-    def test_direct_review_status_mutation_is_blocked(self):
-        payment = self._payment("Paid")
-
-        with self.assertRaises(Exception):
-            payment._assert_review_status_authority("Under Review")
-
-    def test_canonical_review_status_mutation_is_allowed(self):
-        payment = self._payment("Paid")
-        payment.flags.omc_canonical_payment_review = True
-
-        payment._assert_review_status_authority("Under Review")

@@ -16,9 +16,9 @@ def _lead_not_found():
 
 
 def _load_lead(lead_id):
-    if not lead_id or not frappe.db.exists("OMC Lead", lead_id):
+    if not lead_id or not frappe.db.exists("Lead", lead_id):
         _lead_not_found()
-    return frappe.get_doc("OMC Lead", lead_id)
+    return frappe.get_doc("Lead", lead_id)
 
 
 def _sanitize_lead_payload(payload):
@@ -42,7 +42,7 @@ def get_leads():
     )
 
     lead_names = frappe.get_all(
-        "OMC Lead",
+        "Lead",
         pluck="name",
         order_by="modified desc",
         limit_page_length=100,

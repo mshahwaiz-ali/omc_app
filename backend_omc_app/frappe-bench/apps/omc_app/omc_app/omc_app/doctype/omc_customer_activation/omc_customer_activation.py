@@ -1,5 +1,5 @@
 from frappe.model.document import Document
 
 
-class OMCCommissionSettlementItem(Document):
+class OMCCustomerActivation(Document):
     pass

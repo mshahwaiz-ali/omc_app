@@ -18,6 +18,7 @@ TOKEN_TTL_MINUTES = 30
 RESEND_COOLDOWN_SECONDS = 60
 ACTIVE_PENDING_STATUSES = ("Pending",)
 TERMINAL_STATUSES = ("Activated", "Expired", "Superseded", "Cancelled")
+TERMINAL_STATUSES = ("Activated", "Expired", "Superseded", "Cancelled")
 GENERIC_PUBLIC_MESSAGE = (
     "If the details are eligible, a verification email will be sent shortly."
 )
@@ -124,6 +125,31 @@ def _public_payload(data: dict) -> dict:
         "token",
     }
     return {key: value for key, value in data.items() if key not in blocked}
+
+
+def _sanitized_payload(doc) -> str:
+    return json.dumps(
+        {
+            "email": str(doc.email or "").strip().lower(),
+            "username": str(doc.username or "").strip().lower(),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def sanitize_registration(doc, *, status: str | None = None) -> None:
+    """Remove recoverable secrets once a registration reaches a terminal state."""
+    if status is not None:
+        doc.status = status
+    if doc.status not in TERMINAL_STATUSES:
+        frappe.throw(
+            "Pending registration secrets can only be cleared for terminal states.",
+            frappe.ValidationError,
+        )
+    doc.password_secret = ""
+    doc.payload_json = _sanitized_payload(doc)
+    doc.token_digest = secrets.token_hex(32)
 
 
 def _sanitized_payload(doc) -> str:
@@ -363,7 +389,7 @@ def verify_registration(token: str | None = None):
     )
 
     if not user_exists or not profile_exists:
-        mobile._activate_verified_registration(**payload)
+        mobile.sign_up(**payload)
 
     doc.reload()
     doc.activated_user = (

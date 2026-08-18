@@ -5,6 +5,8 @@ import secrets
 import frappe
 from frappe.utils import now_datetime
 
+from omc_app.api import staff_profile
+
 from omc_app.referral_capabilities import REFERRAL_OWNER_ROLES
 
 CODE_PREFIX = "OMC-"
@@ -19,11 +21,33 @@ def _current_user() -> str:
     return user or "Guest"
 
 
-def _roles(user: str | None = None) -> set[str]:
-    user = user or _current_user()
-    if not user or user == "Guest":
-        return set()
-    return set(frappe.get_roles(user) or [])
+def is_referral_owner(user: str | None = None) -> bool:
+    """Return whether this user may own/use an OMC referral code."""
+    user = str(user or _current_user() or "").strip()
+
+    if not user or user in {"Guest", "Administrator"}:
+        return False
+
+    if not frappe.db.exists("User", user):
+        return False
+
+    enabled, user_type = frappe.db.get_value(
+        "User",
+        user,
+        ["enabled", "user_type"],
+    ) or (0, "")
+
+    if not int(enabled or 0) or user_type != "System User":
+        return False
+
+    if not staff_profile.is_staff_profile_approved(user):
+        return False
+
+    effective_roles = staff_profile.get_effective_staff_roles(user)
+
+    return bool(
+        effective_roles.intersection(REFERRAL_OWNER_ROLES)
+    )
 
 
 def _require_login() -> str:
@@ -35,11 +59,13 @@ def _require_login() -> str:
 
 def _require_referral_owner() -> str:
     user = _require_login()
-    if not _roles(user).intersection(REFERRAL_OWNER_ROLES):
+
+    if not is_referral_owner(user):
         frappe.throw(
-            "You do not have permission to manage a referral code.",
+            "An active and approved referral-capable OMC staff profile is required.",
             frappe.PermissionError,
         )
+
     return user
 
 
@@ -104,7 +130,14 @@ def _owner_record_to_dict(doc) -> dict:
 
 
 def get_or_create_owner_record(user: str | None = None):
-    user = user or _require_referral_owner()
+    user = str(user or _require_referral_owner() or "").strip()
+
+    if not is_referral_owner(user):
+        frappe.throw(
+            "An active and approved referral-capable OMC staff profile is required.",
+            frappe.PermissionError,
+        )
+
     existing = _get_owner_record(user)
     if existing:
         return frappe.get_doc("OMC Referral", existing)
@@ -135,11 +168,7 @@ def resolve_active_referral(code: str | None):
     if (doc.status or "").strip() not in ACTIVE_STATUSES:
         return None
 
-    user_enabled = frappe.db.get_value("User", doc.referrer_user, "enabled")
-    if not int(user_enabled or 0):
-        return None
-
-    if not _roles(doc.referrer_user).intersection(REFERRAL_OWNER_ROLES):
+    if not is_referral_owner(doc.referrer_user):
         return None
 
     return doc

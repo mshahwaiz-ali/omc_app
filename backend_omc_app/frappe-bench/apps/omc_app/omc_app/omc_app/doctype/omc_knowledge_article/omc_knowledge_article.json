@@ -6,7 +6,18 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["article_id", "title", "category", "summary", "content", "cover_image", "content_type", "home_section", "audience", "is_featured", "priority", "sort_order", "read_time_minutes", "status", "published_on", "expires_on"],
+ "field_order": [
+  "article_id",
+  "title",
+  "category",
+  "summary",
+  "content",
+  "cover_image",
+  "is_featured",
+  "sort_order",
+  "status",
+  "published_on"
+ ],
  "fields": [
   {"fieldname": "article_id", "fieldtype": "Data", "label": "Article ID", "reqd": 1, "unique": 1},
   {"fieldname": "title", "fieldtype": "Data", "in_list_view": 1, "label": "Title", "reqd": 1},
@@ -14,16 +25,10 @@
   {"fieldname": "summary", "fieldtype": "Small Text", "label": "Summary"},
   {"fieldname": "content", "fieldtype": "Text Editor", "label": "Content"},
   {"fieldname": "cover_image", "fieldtype": "Attach Image", "label": "Cover Image"},
-  {"default": "Guide", "fieldname": "content_type", "fieldtype": "Select", "label": "Content Type", "options": "Guide\nArticle\nFAQ\nTip\nBusiness\nCompliance\nAccounting\nRegistration"},
-  {"default": "Learn & Grow", "fieldname": "home_section", "fieldtype": "Select", "in_list_view": 1, "label": "Home Section", "options": "Learn & Grow\nHidden"},
-  {"default": "All", "fieldname": "audience", "fieldtype": "Select", "label": "Audience", "options": "All\nGuest\nCustomer\nApproved Customer"},
   {"default": "0", "fieldname": "is_featured", "fieldtype": "Check", "in_list_view": 1, "label": "Is Featured"},
-  {"default": "0", "fieldname": "priority", "fieldtype": "Int", "label": "Priority"},
   {"default": "0", "fieldname": "sort_order", "fieldtype": "Int", "label": "Sort Order"},
-  {"default": "0", "fieldname": "read_time_minutes", "fieldtype": "Int", "label": "Read Time (Minutes)"},
   {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "Draft\nPublished\nArchived"},
-  {"fieldname": "published_on", "fieldtype": "Datetime", "label": "Published On"},
-  {"fieldname": "expires_on", "fieldtype": "Datetime", "label": "Expires On"}
+  {"fieldname": "published_on", "fieldtype": "Datetime", "label": "Published On"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

@@ -106,12 +106,6 @@ def support_ticket_query(user=None):
         return ''
     return '1=0'
 
-def lead_query(user=None):
-    roles = _roles(user)
-    if roles.intersection(PRIVILEGED_ROLES | {SUPPORT_AGENT_ROLE}):
-        return ''
-    return '1=0'
-
 def _record_matches_query(doctype, name, condition):
     if not condition:
         return True
@@ -142,7 +136,3 @@ def support_ticket_has_permission(doc, user=None, permission_type=None):
         return None
     return _record_matches_query('OMC Support Ticket', doc.name, support_ticket_query(user))
 
-def lead_has_permission(doc, user=None, permission_type=None):
-    if permission_type not in {None, 'read', 'write', 'create'}:
-        return None
-    return _record_matches_query('OMC Lead', doc.name, lead_query(user))

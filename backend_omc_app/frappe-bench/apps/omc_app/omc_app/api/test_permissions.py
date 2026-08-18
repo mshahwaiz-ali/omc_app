@@ -48,11 +48,16 @@ class TestPermissionQueryConditions(FrappeTestCase):
         self.assertEqual(payment_query, '')
         self.assertEqual(document_query, '1=0')
 
-    def test_support_agent_has_support_and_lead_domains(self):
-        support_query = self._query_for(permissions.support_ticket_query, SUPPORT_AGENT_ROLE)
-        lead_query = self._query_for(permissions.lead_query, SUPPORT_AGENT_ROLE)
+    def test_support_agent_has_support_domain_without_native_lead_override(self):
+        support_query = self._query_for(
+            permissions.support_ticket_query,
+            SUPPORT_AGENT_ROLE,
+        )
         self.assertEqual(support_query, '')
-        self.assertEqual(lead_query, '')
+
+        # ERPNext Lead remains governed by the client's native ERP permissions.
+        self.assertFalse(hasattr(permissions, 'lead_query'))
+        self.assertFalse(hasattr(permissions, 'lead_has_permission'))
 
 class TestManagerConfigurationBoundary(FrappeTestCase):
 
@@ -64,33 +69,9 @@ class TestMobileServiceCaseScope(FrappeTestCase):
 
     def test_assigned_service_case_scope_returns_only_assigned_names(self):
         capabilities = {'can_view_all_service_cases': False, 'can_view_relevant_service_cases': False, 'can_view_assigned_service_cases': True}
-        with patch.object(mobile, '_assigned_service_request_names', return_value=['SR-ASSIGNED-1', 'SR-ASSIGNED-2']):
+        with patch.object(mobile, '_assigned_record_names', return_value=['SR-ASSIGNED-1', 'SR-ASSIGNED-2']):
             names = mobile._service_case_scope_names(capabilities, user='consultant@example.com')
         self.assertEqual(names, ['SR-ASSIGNED-1', 'SR-ASSIGNED-2'])
-
-    def test_assigned_service_case_visibility_survives_closed_todo(self):
-        with (
-            patch.object(
-                mobile,
-                '_assigned_record_names',
-                return_value=[],
-            ),
-            patch.object(
-                mobile.frappe,
-                'get_all',
-                return_value=['SR-COMPLETED'],
-            ) as get_all,
-        ):
-            names = mobile._assigned_service_request_names(
-                'consultant@example.com'
-            )
-
-        self.assertEqual(names, ['SR-COMPLETED'])
-        get_all.assert_called_once_with(
-            'OMC Service Request',
-            filters={'assigned_staff': 'consultant@example.com'},
-            pluck='name',
-        )
 
     def test_unassigned_service_case_status_update_is_rejected(self):
         capabilities = {'can_update_service_status': False, 'can_update_assigned_service_status': True}

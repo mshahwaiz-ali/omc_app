@@ -369,7 +369,7 @@ class TestNotificationPreferenceGating(FrappeTestCase):
 
     @patch("omc_app.api.mobile.frappe.db.get_value")
     def test_type_specific_preference_field_is_used(self, get_value):
-        get_value.side_effect = ["PREF-0001", 1, 0]
+        get_value.side_effect = ["PREF-0001", 0]
 
         result = mobile._notification_preference_enabled(
             customer_profile="CUST-0001",
@@ -384,11 +384,6 @@ class TestNotificationPreferenceGating(FrappeTestCase):
                     "OMC Customer Preference",
                     {"customer_profile": "CUST-0001"},
                     "name",
-                ),
-                call(
-                    "OMC Customer Preference",
-                    "PREF-0001",
-                    "in_app_notifications_enabled",
                 ),
                 call(
                     "OMC Customer Preference",

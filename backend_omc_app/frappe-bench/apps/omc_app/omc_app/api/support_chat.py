@@ -542,27 +542,19 @@ def _create_support_ticket(**kwargs):
 
 
 @frappe.whitelist()
-def get_support_tickets(start=0, limit=50, limit_start=None, limit_page_length=None):
-    try:
-        start = max(int(limit_start if limit_start is not None else start), 0)
-        limit = min(max(int(limit_page_length if limit_page_length is not None else limit), 1), 100)
-    except (TypeError, ValueError):
-        frappe.throw("Invalid support pagination values.", frappe.ValidationError)
+def get_support_tickets():
     user, _profile, filters = _support_ticket_filters_for_current_user()
     if user == "Guest" or filters is None:
-        return {"items": [], "tickets": [], "start": start, "limit": limit, "has_more": False, "next_start": None}
+        return {"tickets": []}
 
     ticket_names = frappe.get_all(
         "OMC Support Ticket",
         filters=filters,
         pluck="name",
         order_by="modified desc",
-        limit_start=start,
-        limit_page_length=limit + 1,
+        limit_page_length=50,
     )
-    has_more = len(ticket_names) > limit
-    items = [_support_ticket_to_dict(frappe.get_doc("OMC Support Ticket", name)) for name in ticket_names[:limit]]
-    return {"items": items, "tickets": items, "start": start, "limit": limit, "has_more": has_more, "next_start": start + limit if has_more else None}
+    return {"tickets": [_support_ticket_to_dict(frappe.get_doc("OMC Support Ticket", name)) for name in ticket_names]}
 
 
 @frappe.whitelist()
