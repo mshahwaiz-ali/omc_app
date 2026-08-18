@@ -53,3 +53,12 @@ def password_reset_links(token: str) -> dict[str, str]:
         "universal_url": _universal_url("reset-password", token),
         "web_url": _web_url("reset-password", token),
     }
+
+
+
+def customer_activation_links(token: str) -> dict[str, str]:
+    return {
+        "app_url": _app_url("activate-account", token),
+        "universal_url": _universal_url("activate-account", token),
+        "web_url": _web_url("activate-account", token),
+    }

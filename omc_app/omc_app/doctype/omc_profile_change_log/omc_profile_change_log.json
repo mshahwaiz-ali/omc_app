@@ -6,7 +6,9 @@
   "engine": "InnoDB",
   "field_order": [
     "user",
+    "profile_scope",
     "customer_profile",
+    "staff_profile",
     "changed_fields",
     "before_json",
     "after_json",
@@ -23,12 +25,27 @@
       "reqd": 1
     },
     {
+      "default": "Customer",
+      "fieldname": "profile_scope",
+      "fieldtype": "Select",
+      "label": "Profile Scope",
+      "options": "Customer\nStaff",
+      "reqd": 1
+    },
+    {
       "fieldname": "customer_profile",
       "fieldtype": "Link",
       "in_list_view": 1,
       "label": "Customer Profile",
       "options": "OMC Customer Profile",
-      "reqd": 1
+      "reqd": 0
+    },
+    {
+      "fieldname": "staff_profile",
+      "fieldtype": "Link",
+      "label": "Staff Profile",
+      "options": "OMC Staff Profile",
+      "reqd": 0
     },
     {
       "fieldname": "changed_fields",

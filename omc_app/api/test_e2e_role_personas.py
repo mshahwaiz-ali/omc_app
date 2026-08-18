@@ -93,9 +93,9 @@ def cleanup_qa_smtp_account(commit=False):
 
 
 def setup_reserved_http_admin(password="OmcQaAdmin2026!", commit=False):
-    """Create the fixed OMC Admin identity used only by local HTTP smoke."""
-    if frappe.db.exists("User", QA_HTTP_ADMIN):
-        frappe.delete_doc("User", QA_HTTP_ADMIN, force=True, ignore_permissions=True)
+    """Create the fixed approved OMC Admin identity for local HTTP smoke."""
+    cleanup_reserved_http_admin(commit=False)
+
     user = frappe.get_doc(
         {
             "doctype": "User",
@@ -110,6 +110,17 @@ def setup_reserved_http_admin(password="OmcQaAdmin2026!", commit=False):
     ).insert(ignore_permissions=True)
     user.new_password = password
     user.save(ignore_permissions=True)
+
+    profile = frappe.new_doc("OMC Staff Profile")
+    profile.user = QA_HTTP_ADMIN
+    profile.full_name = "Zain Abbas"
+    profile.email = QA_HTTP_ADMIN
+    profile.staff_role = ADMIN_ROLE
+    profile.staff_status = "Active"
+    profile.approval_status = "Approved"
+    profile.is_active = 1
+    profile.insert(ignore_permissions=True)
+
     frappe.clear_cache(user=QA_HTTP_ADMIN)
     if commit:
         frappe.db.commit()
@@ -118,9 +129,30 @@ def setup_reserved_http_admin(password="OmcQaAdmin2026!", commit=False):
 
 def cleanup_reserved_http_admin(commit=False):
     removed = False
-    if frappe.db.exists("User", QA_HTTP_ADMIN):
-        frappe.delete_doc("User", QA_HTTP_ADMIN, force=True, ignore_permissions=True)
+
+    staff_profile = frappe.db.get_value(
+        "OMC Staff Profile",
+        {"user": QA_HTTP_ADMIN},
+        "name",
+    )
+    if staff_profile:
+        frappe.delete_doc(
+            "OMC Staff Profile",
+            staff_profile,
+            force=True,
+            ignore_permissions=True,
+        )
         removed = True
+
+    if frappe.db.exists("User", QA_HTTP_ADMIN):
+        frappe.delete_doc(
+            "User",
+            QA_HTTP_ADMIN,
+            force=True,
+            ignore_permissions=True,
+        )
+        removed = True
+
     frappe.clear_cache(user=QA_HTTP_ADMIN)
     if commit:
         frappe.db.commit()
@@ -131,9 +163,42 @@ def cleanup_reserved_personas(commit=False):
     """Remove only the fixed reserved-domain identities owned by this suite."""
     removed = []
     frappe.set_user("Administrator")
-    for _full_name, email, _roles, _user_type in reversed(list(PERSONAS.values())):
+
+    for _full_name, email, _roles, _user_type in reversed(
+        list(PERSONAS.values())
+    ):
+        staff_profile = frappe.db.get_value(
+            "OMC Staff Profile",
+            {"user": email},
+            "name",
+        )
+        if staff_profile:
+            frappe.delete_doc(
+                "OMC Staff Profile",
+                staff_profile,
+                force=True,
+                ignore_permissions=True,
+            )
+
+        for referral_name in frappe.get_all(
+            "OMC Referral",
+            filters={"referrer_user": email},
+            pluck="name",
+        ):
+            frappe.delete_doc(
+                "OMC Referral",
+                referral_name,
+                force=True,
+                ignore_permissions=True,
+            )
+
         if frappe.db.exists("User", email):
-            frappe.delete_doc("User", email, force=True, ignore_permissions=True)
+            frappe.delete_doc(
+                "User",
+                email,
+                force=True,
+                ignore_permissions=True,
+            )
             removed.append(email)
     reserved_emails = set(
         frappe.get_all(
@@ -344,6 +409,22 @@ class TestEndToEndRolePersonas(FrappeTestCase):
                 }
             )
             user.insert(ignore_permissions=True)
+
+            if user_type == "System User":
+                profile = frappe.new_doc("OMC Staff Profile")
+                profile.user = email
+                profile.full_name = full_name
+                profile.email = email
+
+                # Single canonical persona lives on Staff Profile.
+                # Combined-role fixture intentionally keeps its second
+                # legacy Frappe OMC role to verify compatibility union.
+                profile.staff_role = roles[0]
+                profile.staff_status = "Active"
+                profile.approval_status = "Approved"
+                profile.is_active = 1
+                profile.insert(ignore_permissions=True)
+
         frappe.clear_cache()
 
     def tearDown(self):

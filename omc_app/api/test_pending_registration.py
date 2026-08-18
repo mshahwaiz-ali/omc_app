@@ -270,7 +270,7 @@ class TestPendingRegistration(FrappeTestCase):
         self.assertIn("Verification link unavailable", call["html"])
         self.assertIn("invalid or has expired", call["html"])
 
-    @patch("omc_app.api.mobile._activate_verified_registration")
+    @patch("omc_app.api.mobile.sign_up")
     def test_verify_registration_activates_once(self, sign_up):
         payload = self._payload()
         secret = pending_registration.create_pending_registration(payload)
@@ -303,7 +303,7 @@ class TestPendingRegistration(FrappeTestCase):
             pending_registration._token_digest(secret.verification_token),
         )
 
-    @patch("omc_app.api.mobile._activate_verified_registration")
+    @patch("omc_app.api.mobile.sign_up")
     def test_consumed_token_cannot_activate_again(self, sign_up):
         payload = self._payload()
         secret = pending_registration.create_pending_registration(payload)

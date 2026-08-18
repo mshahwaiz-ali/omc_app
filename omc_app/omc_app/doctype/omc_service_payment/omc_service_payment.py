@@ -45,7 +45,6 @@ class OMCServicePayment(Document):
 
         if previous_status != self.status:
             self._assert_parent_is_mutable()
-            self._assert_review_status_authority(previous_status)
 
         self._assert_financial_integrity(previous)
 
@@ -54,29 +53,6 @@ class OMCServicePayment(Document):
 
         if self.status != "Paid":
             self.paid_on = None
-
-    def _assert_review_status_authority(self, previous_status=None):
-        review_statuses = {
-            "Under Review",
-            "Paid",
-            "Rejected",
-            "Cancelled",
-        }
-
-        if self.status not in review_statuses:
-            return
-
-        if getattr(self.flags, "omc_canonical_payment_review", False):
-            return
-
-        frappe.throw(
-            (
-                "Payment review status cannot be changed directly. "
-                "Use the payment review action so ERP finance and "
-                "service activation run together."
-            ),
-            frappe.ValidationError,
-        )
 
     def _assert_financial_integrity(self, previous=None):
         amount = frappe.utils.flt(self.amount or 0)

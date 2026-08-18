@@ -1,5 +1,5 @@
 import frappe
-_AUTOMATIC_NAMING_SERIES_DOCTYPES = ('OMC Customer Profile', 'OMC Expense Budget', 'OMC Expense Entry', 'OMC Lead', 'OMC Service Document', 'OMC Service Payment', 'OMC Service Request', 'OMC Support Ticket', 'OMC Support Ticket Message')
+_AUTOMATIC_NAMING_SERIES_DOCTYPES = ('OMC Customer Profile', 'OMC Expense Budget', 'OMC Expense Entry', 'OMC Service Document', 'OMC Service Payment', 'OMC Service Request', 'OMC Support Ticket', 'OMC Support Ticket Message')
 
 def sync_desk_metadata():
     """Keep internal identifiers out of Desk forms and remove child-table links."""

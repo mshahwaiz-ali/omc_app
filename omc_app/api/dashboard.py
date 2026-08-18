@@ -333,7 +333,7 @@ def _pending_erp_task_count():
     )
 
 def _internal_operations_summary(customer_summary):
-    open_leads = _count("OMC Lead", {"status": ["not in", ["Closed", "Converted", "Lost"]]})
+    open_leads = _count("Lead", {"status": ["not in", ["Converted", "Do Not Contact", "Lost Quotation"]]})
     active_customers = _count("OMC Customer Profile", {"customer_status": "Active"})
     pending_tasks = _pending_erp_task_count()
     payment_review_filters = {"status": ["in", PAYMENT_REVIEW_STATUSES]}

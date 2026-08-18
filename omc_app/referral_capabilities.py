@@ -1,8 +1,4 @@
-"""Central role capability declarations for referral/assisted services.
-
-These declarations are intentionally non-operative in Batch 1. Later API batches
-must use them together with record-level permission and consent checks.
-"""
+"""Canonical OMC referral and assisted-service capability declarations."""
 
 from __future__ import annotations
 

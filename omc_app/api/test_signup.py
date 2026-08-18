@@ -26,13 +26,20 @@ class TestSignupRoleNormalization(FrappeTestCase):
                     force=True,
                     ignore_permissions=True,
                 )
-            if frappe.db.exists("User", email):
+
+            staff_profile = frappe.db.get_value(
+                "OMC Staff Profile",
+                {"user": email},
+                "name",
+            )
+            if staff_profile:
                 frappe.delete_doc(
-                    "User",
-                    email,
+                    "OMC Staff Profile",
+                    staff_profile,
                     force=True,
                     ignore_permissions=True,
                 )
+
         for referral_name in reversed(self.created_referrals):
             if frappe.db.exists("OMC Referral", referral_name):
                 frappe.delete_doc(
@@ -41,6 +48,16 @@ class TestSignupRoleNormalization(FrappeTestCase):
                     force=True,
                     ignore_permissions=True,
                 )
+
+        for email in reversed(self.created_users):
+            if frappe.db.exists("User", email):
+                frappe.delete_doc(
+                    "User",
+                    email,
+                    force=True,
+                    ignore_permissions=True,
+                )
+
         frappe.db.commit()
         super().tearDown()
 
@@ -71,23 +88,41 @@ class TestSignupRoleNormalization(FrappeTestCase):
 
     def _referral_record(self):
         staff_email = self._email("referral-owner")
+
         user = frappe.new_doc("User")
         user.email = staff_email
         user.first_name = "Referral Owner"
         user.enabled = 1
-        user.user_type = "System User"
         user.send_welcome_email = 0
-        user.append("roles", {"role": "OMC Consultant"})
+
+        # Keep this a genuine System User without using an OMC role as
+        # the referral persona. OMC persona belongs to Staff Profile.
+        user.append("roles", {"role": "System Manager"})
         user.insert(ignore_permissions=True)
 
+        profile = frappe.new_doc("OMC Staff Profile")
+        profile.user = staff_email
+        profile.full_name = "Referral Owner"
+        profile.email = staff_email
+        profile.staff_role = "OMC Consultant"
+        profile.staff_status = "Active"
+        profile.approval_status = "Approved"
+        profile.is_active = 1
+        profile.insert(ignore_permissions=True)
+
+        # Staff Profile on_update normally creates this automatically.
+        # Calling the canonical helper also verifies idempotent ownership.
         doc = referrals.get_or_create_owner_record(staff_email)
-        self.created_referrals.append(doc.name)
+
+        if doc.name not in self.created_referrals:
+            self.created_referrals.append(doc.name)
+
         return doc
 
     def test_canonical_signup_creates_pending_website_customer(self):
         email = self._email("canonical-signup")
 
-        result = mobile._activate_verified_registration(**self._signup_payload(email))
+        result = access.sign_up(**self._signup_payload(email))
 
         user = frappe.get_doc("User", email)
         roles = {row.role for row in user.roles}
@@ -111,7 +146,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
     def test_direct_mobile_signup_uses_same_canonical_customer_role(self):
         email = self._email("direct-signup")
 
-        result = mobile._activate_verified_registration(**self._signup_payload(email, register_as="Customer", customer_type="Customer"))
+        result = mobile.sign_up(**self._signup_payload(email, register_as="Customer", customer_type="Customer"))
 
         user = frappe.get_doc("User", email)
         roles = {row.role for row in user.roles}
@@ -139,7 +174,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         user.insert(ignore_permissions=True)
 
         with self.assertRaises(frappe.DuplicateEntryError):
-            mobile._activate_verified_registration(**self._signup_payload(email))
+            mobile.sign_up(**self._signup_payload(email))
 
         user.reload()
         roles = {row.role for row in user.roles}
@@ -152,7 +187,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
 
     def test_duplicate_guest_signup_cannot_modify_existing_profile(self):
         email = self._email("duplicate-signup")
-        first = mobile._activate_verified_registration(
+        first = access.sign_up(
             **self._signup_payload(
                 email,
                 register_as="Customer",
@@ -169,7 +204,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         profile.save(ignore_permissions=True)
 
         with self.assertRaises(frappe.DuplicateEntryError):
-            mobile._activate_verified_registration(
+            access.sign_up(
                 **self._signup_payload(email, company="Attacker Company")
             )
 
@@ -182,7 +217,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         email = self._email("passwordless-signup")
 
         with self.assertRaises(frappe.ValidationError):
-            mobile._activate_verified_registration(**self._signup_payload(email, password=""))
+            access.sign_up(**self._signup_payload(email, password=""))
 
         self.assertFalse(frappe.db.exists("User", email))
         self.assertFalse(
@@ -193,7 +228,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         email = self._email("short-password-signup")
 
         with self.assertRaises(frappe.ValidationError):
-            mobile._activate_verified_registration(**self._signup_payload(email, password="short"))
+            mobile.sign_up(**self._signup_payload(email, password="short"))
 
         self.assertFalse(frappe.db.exists("User", email))
 
@@ -201,7 +236,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         referral = self._referral_record()
         email = self._email("referral-signup")
 
-        result = mobile._activate_verified_registration(
+        result = access.sign_up(
             **self._signup_payload(
                 email,
                 acquisition_source="Referral",
@@ -230,7 +265,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         email = self._email("invalid-referral")
 
         with self.assertRaises(frappe.ValidationError):
-            mobile._activate_verified_registration(
+            access.sign_up(
                 **self._signup_payload(
                     email,
                     acquisition_source="Referral",
@@ -249,7 +284,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         email = self._email("referral-no-consent")
 
         with self.assertRaises(frappe.ValidationError):
-            mobile._activate_verified_registration(
+            access.sign_up(
                 **self._signup_payload(
                     email,
                     acquisition_source="Referral",
@@ -263,7 +298,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
     def test_non_referral_signup_preserves_source_detail(self):
         email = self._email("other-source")
 
-        result = mobile._activate_verified_registration(
+        result = access.sign_up(
             **self._signup_payload(
                 email,
                 acquisition_source="Other",

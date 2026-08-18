@@ -51,30 +51,6 @@ def _task_assignment_names(user: str) -> set[str]:
     )
 
 
-def _task_visibility_names(user: str) -> set[str]:
-    """Return OMC-linked Tasks the user may continue to see.
-
-    Open Task ToDos represent active ERP assignment. The linked service
-    request's assigned_staff preserves ownership after Task completion closes
-    the ToDo.
-    """
-    names = set(_task_assignment_names(user))
-    if not user or user == "Guest":
-        return names
-
-    names.update(
-        frappe.get_all(
-            "OMC Service Request",
-            filters={
-                "assigned_staff": user,
-                "erp_task": ["is", "set"],
-            },
-            pluck="erp_task",
-        )
-    )
-    return {name for name in names if _text(name)}
-
-
 def _request_links(
     *,
     task_names: set[str] | None = None,
@@ -242,7 +218,7 @@ def _can_read_task(
 ) -> bool:
     if capabilities.get("can_manage_tasks"):
         return True
-    return task_name in _task_visibility_names(user)
+    return task_name in _task_assignment_names(user)
 
 
 @frappe.whitelist()
@@ -258,7 +234,7 @@ def get_tasks(limit_start=0, page_length=None):
     limit = _page_length(page_length)
     assigned_names = None
     if not capabilities.get("can_manage_tasks"):
-        assigned_names = _task_visibility_names(user)
+        assigned_names = _task_assignment_names(user)
 
     rows = _request_links(
         task_names=assigned_names,
@@ -278,11 +254,6 @@ def get_tasks(limit_start=0, page_length=None):
         tasks.append(_task_to_payload(task, request_link))
 
     return {
-        "items": tasks,
-        "start": start,
-        "limit": limit,
-        "has_more": has_more,
-        "next_start": start + limit if has_more else None,
         "tasks": tasks,
         "pagination": {
             "limit_start": start,

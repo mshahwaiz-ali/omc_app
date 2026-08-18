@@ -10,55 +10,11 @@ class TestProfileSelfService(FrappeTestCase):
     def setUp(self):
         super().setUp()
         self.user = "profile-edit-test@example.com"
-        self.renamed_user = "profile-edit-renamed@example.com"
 
         # A previously interrupted test can leave this unique fixture behind
         # because tearDown is not reached when setUp itself fails. Always start
         # from a clean fixture state.
         frappe.set_user("Administrator")
-
-        # Clean a renamed-email fixture left by an interrupted email test.
-        renamed_profiles = set(
-            frappe.get_all(
-                "OMC Customer Profile",
-                filters={"email": self.renamed_user},
-                pluck="name",
-            )
-        )
-        renamed_profiles.update(
-            frappe.get_all(
-                "OMC Customer Profile",
-                filters={"user": self.renamed_user},
-                pluck="name",
-            )
-        )
-        for profile_name in renamed_profiles:
-            for log_name in frappe.get_all(
-                "OMC Profile Change Log",
-                filters={"customer_profile": profile_name},
-                pluck="name",
-            ):
-                frappe.delete_doc(
-                    "OMC Profile Change Log",
-                    log_name,
-                    force=True,
-                    ignore_permissions=True,
-                )
-            if frappe.db.exists("OMC Customer Profile", profile_name):
-                frappe.delete_doc(
-                    "OMC Customer Profile",
-                    profile_name,
-                    force=True,
-                    ignore_permissions=True,
-                )
-
-        if frappe.db.exists("User", self.renamed_user):
-            frappe.delete_doc(
-                "User",
-                self.renamed_user,
-                force=True,
-                ignore_permissions=True,
-            )
 
         for name in frappe.get_all(
             "OMC Profile Change Log",
@@ -210,88 +166,21 @@ class TestProfileSelfService(FrappeTestCase):
         with self.assertRaises(frappe.ValidationError):
             profile_self_service.update_profile(ntn="7654321-0")
 
-    def test_allows_one_cnic_correction_then_locks_it(self):
-        first = profile_self_service.update_profile(
-            cnic="1111111111111",
-        )
-
-        self.assertTrue(first["updated"])
-        self.assertIn("cnic", first["updated_fields"])
-
-        profile = frappe.get_doc(
-            "OMC Customer Profile",
-            self.profile.name,
-        )
-        self.assertEqual(profile.cnic, "1111111111111")
-
+    def test_rejects_cnic_change(self):
         with self.assertRaises(frappe.ValidationError):
-            profile_self_service.update_profile(
-                cnic="2222222222222",
-            )
-
-    def test_company_name_allows_one_correction_then_locks_it(self):
-        first = profile_self_service.update_profile(
-            company_name="First Company",
-        )
-
-        self.assertTrue(first["updated"])
-        self.assertIn("company_name", first["updated_fields"])
-
-        with self.assertRaises(frappe.ValidationError):
-            profile_self_service.update_profile(
-                company_name="Second Company",
-            )
-
-    def test_same_protected_value_does_not_consume_correction(self):
-        no_change = profile_self_service.update_profile(
-            cnic="3520212345671",
-        )
-
-        self.assertFalse(no_change["updated"])
-
-        profile = frappe.get_doc(
-            "OMC Customer Profile",
-            self.profile.name,
-        )
-        policy = profile_self_service._profile_edit_policy(profile)
-        self.assertTrue(policy["cnic"]["can_edit"])
-        self.assertEqual(policy["cnic"]["mode"], "correct")
-
-        changed = profile_self_service.update_profile(
-            cnic="1111111111111",
-        )
-        self.assertTrue(changed["updated"])
+            profile_self_service.update_profile(cnic="1111111111111")
 
     def test_rejects_email_change(self):
         with self.assertRaises(frappe.ValidationError):
             profile_self_service.update_profile(email="new@example.com")
 
-    def test_legacy_mobile_update_profile_uses_same_cnic_policy(self):
-        first = mobile.update_profile(
-            cnic="1111111111111",
-        )
-
-        self.assertTrue(first["updated"])
-
+    def test_legacy_mobile_update_profile_cannot_change_cnic(self):
         with self.assertRaises(frappe.ValidationError):
-            mobile.update_profile(
-                cnic="2222222222222",
-            )
+            mobile.update_profile(cnic="1111111111111")
 
     def test_legacy_mobile_update_contact_cannot_change_email(self):
         with self.assertRaises(frappe.ValidationError):
             mobile.update_contact_info(email="new@example.com")
-
-    def test_email_is_permanently_locked_after_signup(self):
-        policy = profile_self_service._profile_edit_policy(self.profile)
-
-        self.assertFalse(policy["email"]["can_edit"])
-        self.assertEqual(policy["email"]["mode"], "locked")
-
-        with self.assertRaises(frappe.ValidationError):
-            profile_self_service.update_profile(
-                email="new@example.com",
-            )
 
     def test_no_change_does_not_create_audit(self):
         result = profile_self_service.update_profile(

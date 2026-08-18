@@ -18,9 +18,33 @@ from omc_app.setup.roles import (
 
 
 class TestCanonicalAccessCapabilities(FrappeTestCase):
+    def _capabilities_for_roles(self, roles):
+        roles = set(roles)
+
+        # These tests verify the role->capability matrix itself.
+        # Staff lifecycle approval is covered by database-backed tests.
+        effective_staff_roles = roles - {SYSTEM_ROLE}
+
+        with (
+            patch.object(access, "_roles", return_value=roles),
+            patch.object(access, "is_internal_user", return_value=True),
+            patch.object(
+                access,
+                "can_access_internal_workspace",
+                return_value=True,
+            ),
+            patch.object(
+                access,
+                "get_effective_omc_staff_roles",
+                return_value=effective_staff_roles,
+            ),
+        ):
+            return access.get_mobile_capabilities(
+                user="capability-persona@example.com"
+            )
+
     def _capabilities_for(self, role):
-        with patch.object(access, "_roles", return_value={role}):
-            return access.get_mobile_capabilities(user=f"{role}@example.com")
+        return self._capabilities_for_roles({role})
 
     def test_guest_capabilities_are_public_only(self):
         with patch.object(access, "_roles", return_value=set()):
@@ -56,12 +80,9 @@ class TestCanonicalAccessCapabilities(FrappeTestCase):
         self.assertTrue(capabilities["can_retry_sync"])
 
     def test_combined_roles_receive_safe_capability_union(self):
-        with patch.object(
-            access,
-            "_roles",
-            return_value={DOCUMENT_REVIEWER_ROLE, FINANCE_REVIEWER_ROLE},
-        ):
-            capabilities = access.get_mobile_capabilities(user="hira.qureshi@qa.omc.test")
+        capabilities = self._capabilities_for_roles(
+            {DOCUMENT_REVIEWER_ROLE, FINANCE_REVIEWER_ROLE}
+        )
 
         self.assertTrue(capabilities["can_review_documents"])
         self.assertTrue(capabilities["can_review_payments"])

@@ -8,7 +8,7 @@ from frappe import _
 from frappe.exceptions import PermissionError, ValidationError
 from frappe.utils import now_datetime
 
-from omc_app.api import mobile, profile_location
+from omc_app.api import access, mobile, staff_profile
 
 
 ALLOWED_FIELDS = {
@@ -16,25 +16,16 @@ ALLOWED_FIELDS = {
     "phone": 40,
     "whatsapp_no": 40,
     "address": 500,
-}
-PROTECTED_ONCE_FIELDS = {
-    "cnic": 40,
-    "ntn": 40,
     "company_name": 140,
 }
-SELF_SERVICE_ONCE_FIELDS = {
-    *PROTECTED_ONCE_FIELDS,
-}
-PROTECTED_FIELD_LABELS = {
-    "email": "Email",
-    "cnic": "CNIC",
-    "ntn": "NTN",
-    "company_name": "Company name",
+SET_ONCE_FIELDS = {
+    "ntn": 40,
 }
 LOCKED_FIELDS = {
     "email",
     "user",
     "username",
+    "cnic",
     "tax_id",
     "customer_type",
     "register_as",
@@ -42,7 +33,6 @@ LOCKED_FIELDS = {
     "customer_status",
 }
 AUDIT_DOCTYPE = "OMC Profile Change Log"
-PROTECTED_CORRECTION_SOURCE = "Mobile App Protected Correction"
 
 INTERNAL_ALLOWED_FIELDS = {
     "full_name",
@@ -52,6 +42,16 @@ INTERNAL_ALLOWED_FIELDS = {
     "education",
     "experience",
     "remarks",
+}
+
+INTERNAL_FIELD_LIMITS = {
+    "full_name": 140,
+    "phone": 40,
+    "whatsapp_no": 40,
+    "address": 500,
+    "education": 1000,
+    "experience": 1000,
+    "remarks": 1000,
 }
 
 
@@ -95,7 +95,7 @@ def _clean_payload(kwargs) -> dict[str, str]:
         )
 
     cleaned: dict[str, str] = {}
-    editable_limits = {**ALLOWED_FIELDS, **PROTECTED_ONCE_FIELDS}
+    editable_limits = {**ALLOWED_FIELDS, **SET_ONCE_FIELDS}
     for fieldname, max_length in editable_limits.items():
         if fieldname not in data:
             continue
@@ -120,20 +120,6 @@ def _clean_payload(kwargs) -> dict[str, str]:
         if fieldname in {"phone", "whatsapp_no"}:
             text = _normalise_phone(text)
 
-        if fieldname in PROTECTED_ONCE_FIELDS and not text:
-            frappe.throw(
-                _("{0} cannot be cleared once it is being corrected.").format(
-                    PROTECTED_FIELD_LABELS[fieldname],
-                ),
-                ValidationError,
-            )
-
-        if fieldname == "cnic":
-            digits = re.sub(r"\D", "", text)
-            if len(digits) != 13:
-                frappe.throw(_("CNIC must contain exactly 13 digits."), ValidationError)
-            text = digits
-
         cleaned[fieldname] = text
 
     if "full_name" in cleaned and len(cleaned["full_name"]) < 2:
@@ -142,78 +128,62 @@ def _clean_payload(kwargs) -> dict[str, str]:
     return cleaned
 
 
-def _self_service_changed_fields(profile_name: str) -> set[str]:
-    rows = frappe.get_all(
-        AUDIT_DOCTYPE,
-        filters={
-            "customer_profile": profile_name,
-            "source": PROTECTED_CORRECTION_SOURCE,
-        },
-        pluck="changed_fields",
-    )
-
-    used: set[str] = set()
-    for row in rows:
-        used.update(
-            field.strip()
-            for field in str(row or "").split(",")
-            if field.strip()
-        )
-    return used
-
-
-def _profile_edit_policy(profile) -> dict[str, dict[str, object]]:
-    used = _self_service_changed_fields(profile.name)
-    policy: dict[str, dict[str, object]] = {
-        "email": {
-            "can_edit": False,
-            "mode": "locked",
-        },
-    }
-
-    for fieldname in SELF_SERVICE_ONCE_FIELDS:
-        current = str(profile.get(fieldname) or "").strip()
-        already_used = fieldname in used
-
-        policy[fieldname] = {
-            "can_edit": not already_used,
-            "mode": (
-                "locked"
-                if already_used
-                else ("correct" if current else "add")
-            ),
-        }
-
-    return policy
-
-
-def _assert_once_field_available(profile, fieldname: str, value: str) -> None:
-    if fieldname not in {"cnic", "ntn"}:
-        return
-
-    duplicate = frappe.db.get_value(
-        "OMC Customer Profile",
-        {
-            fieldname: value,
-            "name": ["!=", profile.name],
-        },
-        "name",
-    )
-    if duplicate:
+def _clean_internal_payload(kwargs) -> dict[str, str]:
+    data = dict(kwargs or {})
+    unsupported = sorted(set(data) - INTERNAL_ALLOWED_FIELDS)
+    if unsupported:
         frappe.throw(
-            _("{0} is already linked to another customer profile.").format(
-                PROTECTED_FIELD_LABELS[fieldname],
+            _("Internal accounts cannot update these fields: {0}").format(
+                ", ".join(unsupported)
             ),
             ValidationError,
         )
 
+    cleaned: dict[str, str] = {}
+
+    for fieldname, max_length in INTERNAL_FIELD_LIMITS.items():
+        if fieldname not in data:
+            continue
+
+        value = data.get(fieldname)
+        if value is not None and not isinstance(value, (str, int, float)):
+            frappe.throw(
+                _("{0} must be text.").format(fieldname),
+                ValidationError,
+            )
+
+        value = str(value or "").strip()
+
+        if len(value) > max_length:
+            frappe.throw(
+                _("{0} must be {1} characters or fewer.").format(
+                    fieldname,
+                    max_length,
+                ),
+                ValidationError,
+            )
+
+        if fieldname in {"phone", "whatsapp_no"}:
+            value = _normalise_phone(value)
+
+        cleaned[fieldname] = value
+
+    if "full_name" in cleaned and len(cleaned["full_name"]) < 2:
+        frappe.throw(_("Full name is required."), ValidationError)
+
+    return cleaned
+
+
+def _staff_snapshot(profile) -> dict[str, str]:
+    return {
+        fieldname: str(profile.get(fieldname) or "")
+        for fieldname in INTERNAL_ALLOWED_FIELDS
+        if profile.meta.has_field(fieldname)
+    }
+
 
 def _snapshot(profile) -> dict[str, str]:
-    tracked_fields = {
-        **ALLOWED_FIELDS,
-        **PROTECTED_ONCE_FIELDS,
-        "email": 140,
-    }
+    tracked_fields = {**ALLOWED_FIELDS, **SET_ONCE_FIELDS}
     return {
         fieldname: str(profile.get(fieldname) or "")
         for fieldname in tracked_fields
@@ -227,43 +197,36 @@ def _create_audit(
     changed_fields: list[str],
     before: dict[str, str],
     after: dict[str, str],
-    source: str = "Mobile App",
+    profile_scope: str = "Customer",
 ) -> None:
-    frappe.get_doc(
-        {
-            "doctype": AUDIT_DOCTYPE,
-            "user": user,
-            "customer_profile": profile.name,
-            "changed_fields": ", ".join(changed_fields),
-            "before_json": json.dumps(before, ensure_ascii=False, sort_keys=True),
-            "after_json": json.dumps(after, ensure_ascii=False, sort_keys=True),
-            "source": source,
-            "changed_at": now_datetime(),
-        }
-    ).insert(ignore_permissions=True)
+    values = {
+        "doctype": AUDIT_DOCTYPE,
+        "user": user,
+        "profile_scope": profile_scope,
+        "changed_fields": ", ".join(changed_fields),
+        "before_json": json.dumps(before, ensure_ascii=False, sort_keys=True),
+        "after_json": json.dumps(after, ensure_ascii=False, sort_keys=True),
+        "source": "Mobile App",
+        "changed_at": now_datetime(),
+    }
+
+    if profile_scope == "Staff":
+        values["staff_profile"] = profile.name
+    else:
+        values["customer_profile"] = profile.name
+
+    frappe.get_doc(values).insert(ignore_permissions=True)
 
 
 
-
-def _existing_profile_for_user(user: str):
-    profile_name = frappe.db.get_value(
-        "OMC Customer Profile",
-        {"linked_app_user": user},
-        "name",
-    )
-    if not profile_name:
-        profile_name = frappe.db.get_value(
-            "OMC Customer Profile",
-            {"email": user},
-            "name",
-        )
-    return frappe.get_doc("OMC Customer Profile", profile_name) if profile_name else None
+def _existing_staff_profile_for_user(user: str):
+    return staff_profile.get_staff_profile(user)
 
 
 def _internal_profile_payload(*, user: str, user_doc=None, profile=None) -> dict:
     user_doc = user_doc or frappe.get_doc("User", user)
-    profile = profile or _existing_profile_for_user(user)
-    capabilities = mobile._get_mobile_capabilities(user=user, profile=profile)
+    profile = profile or staff_profile.ensure_staff_profile(user)
+    capabilities = mobile._get_mobile_capabilities(user=user, profile=None)
 
     def profile_value(fieldname: str) -> str:
         if not profile or not profile.meta.has_field(fieldname):
@@ -276,32 +239,43 @@ def _internal_profile_payload(*, user: str, user_doc=None, profile=None) -> dict
         if role not in {"All", "Desk User", "Guest"}
     ]
 
+    full_name = (
+        profile_value("full_name")
+        or str(user_doc.get("full_name") or "")
+        or str(user_doc.get("first_name") or "")
+    )
+
     return {
-        "full_name": str(
-            user_doc.get("full_name")
-            or profile_value("full_name")
-            or user_doc.get("first_name")
-            or ""
-        ),
-        "email": str(user_doc.get("email") or user),
-        "username": str(user_doc.get("username") or profile_value("username")),
-        "phone": str(user_doc.get("mobile_no") or profile_value("phone")),
+        "full_name": full_name,
+        "email": str(user_doc.get("email") or profile_value("email") or user),
+        "username": str(user_doc.get("username") or ""),
+        "phone": profile_value("phone") or str(user_doc.get("mobile_no") or ""),
         "whatsapp_no": profile_value("whatsapp_no"),
         "address": profile_value("address"),
         "education": profile_value("education"),
         "experience": profile_value("experience"),
         "remarks": profile_value("remarks"),
-        "register_as": profile_value("register_as") or (roles[0] if roles else "Internal"),
-        "customer_type": profile_value("customer_type"),
+        "staff_role": profile_value("staff_role"),
+        "referral_record": profile_value("referral_record"),
+        "own_referral_code": profile_value("own_referral_code"),
+        "register_as": profile_value("staff_role") or "Internal",
+        "customer_type": profile_value("staff_role") or "Internal",
         "company_name": profile_value("company_name"),
         "cnic": profile_value("cnic"),
         "ntn": profile_value("ntn"),
         "avatar_url": str(user_doc.get("user_image") or ""),
         "profile_image": str(user_doc.get("user_image") or ""),
         "user_image": str(user_doc.get("user_image") or ""),
-        "customer_id": str(profile.name if profile else ""),
-        "customer_status": "Internal",
-        "approval_status": profile_value("approval_status"),
+
+        "customer_id": "",
+        "staff_profile_id": str(profile.name if profile else ""),
+        "linked_employee": profile_value("linked_employee"),
+
+        "staff_status": profile_value("staff_status") or "Pending",
+        # Compatibility alias for the current app model.
+        "customer_status": profile_value("staff_status") or "Pending",
+        "approval_status": profile_value("approval_status") or "Pending Review",
+        "is_active": int(profile.get("is_active") or 0) if profile else 0,
         "access_state": capabilities["access_state"],
         "capabilities": capabilities,
         **capabilities,
@@ -309,68 +283,59 @@ def _internal_profile_payload(*, user: str, user_doc=None, profile=None) -> dict
 
 
 def _update_internal_profile(*, user: str, payload: dict[str, str]):
-    unsupported = sorted(set(payload) - INTERNAL_ALLOWED_FIELDS)
-    if unsupported:
-        frappe.throw(
-            _("Internal accounts can only update full name and mobile number."),
-            ValidationError,
-        )
-
     if not frappe.db.exists("User", user):
         frappe.throw(_("User account was not found."), ValidationError)
 
     user_doc = frappe.get_doc("User", user)
-    profile = _existing_profile_for_user(user)
+    profile = staff_profile.ensure_staff_profile(user)
+
+    before = _staff_snapshot(profile)
     changed_fields: list[str] = []
 
     if "full_name" in payload:
         full_name = payload["full_name"]
+
         if str(user_doc.get("full_name") or "").strip() != full_name:
             user_doc.first_name = full_name
             user_doc.full_name = full_name
             changed_fields.append("full_name")
 
+        if str(profile.get("full_name") or "").strip() != full_name:
+            profile.full_name = full_name
+            if "full_name" not in changed_fields:
+                changed_fields.append("full_name")
+
     if "phone" in payload:
         phone = payload["phone"]
+
         if str(user_doc.get("mobile_no") or "").strip() != phone:
             user_doc.mobile_no = phone
             changed_fields.append("phone")
 
-    profile_fields = {
-        "full_name",
-        "phone",
+        if str(profile.get("phone") or "").strip() != phone:
+            profile.phone = phone
+            if "phone" not in changed_fields:
+                changed_fields.append("phone")
+
+    for fieldname in (
         "whatsapp_no",
         "address",
         "education",
         "experience",
         "remarks",
-    }
-    profile_required_fields = {
-        "whatsapp_no",
-        "address",
-        "education",
-        "experience",
-        "remarks",
-    }
-    requested_profile_fields = profile_fields.intersection(payload)
-    requested_profile_only_fields = profile_required_fields.intersection(payload)
+    ):
+        if fieldname not in payload:
+            continue
 
-    if requested_profile_only_fields and not profile:
-        frappe.throw(
-            _("Your professional profile record was not found. Contact OMC support."),
-            ValidationError,
-        )
+        value = payload[fieldname]
 
-    if profile:
-        for fieldname in requested_profile_fields:
-            if not profile.meta.has_field(fieldname):
-                continue
-            value = payload[fieldname]
-            if str(profile.get(fieldname) or "").strip() == value:
-                continue
-            profile.set(fieldname, value)
-            if fieldname not in changed_fields:
-                changed_fields.append(fieldname)
+        if str(profile.get(fieldname) or "").strip() == value:
+            continue
+
+        profile.set(fieldname, value)
+
+        if fieldname not in changed_fields:
+            changed_fields.append(fieldname)
 
     if not changed_fields:
         return {
@@ -385,8 +350,19 @@ def _update_internal_profile(*, user: str, payload: dict[str, str]):
         }
 
     user_doc.save(ignore_permissions=True)
-    if profile:
-        profile.save(ignore_permissions=True)
+    profile.save(ignore_permissions=True)
+
+    after = _staff_snapshot(profile)
+
+    _create_audit(
+        user=user,
+        profile=profile,
+        changed_fields=changed_fields,
+        before=before,
+        after=after,
+        profile_scope="Staff",
+    )
+
     frappe.db.commit()
 
     return {
@@ -402,215 +378,34 @@ def _update_internal_profile(*, user: str, payload: dict[str, str]):
 
 
 
-def _location_audit_snapshot(profile) -> dict[str, object]:
-    payload = profile_location.api_payload(profile)
-    return {
-        fieldname: payload.get(fieldname)
-        for fieldname in profile_location.INPUT_FIELDS
-    }
-
-
-@frappe.whitelist()
-def update_work_address(**kwargs):
-    """Replace or partially update the customer's Work / Business Address."""
-
-    user = _current_user()
-
-    if mobile._can_access_internal_workspace(user):
-        frappe.throw(
-            _("Work / Business Address self-service is for customer profiles."),
-            ValidationError,
-        )
-
-    profile = mobile._get_customer_profile_for_user(user)
-
-    frappe.db.get_value(
-        "OMC Customer Profile",
-        profile.name,
-        "name",
-        for_update=True,
-    )
-    profile.reload()
-
-    clear_requested = str(
-        kwargs.pop("clear", "") or ""
-    ).strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
-    before = _location_audit_snapshot(profile)
-
-    if clear_requested:
-        candidate = {
-            fieldname: (
-                None
-                if fieldname in {"work_latitude", "work_longitude"}
-                else ""
-            )
-            for fieldname in profile_location.INPUT_FIELDS
-        }
-    else:
-        changes = profile_location.clean_input(kwargs)
-
-        if not changes:
-            return {
-                "updated": False,
-                "updated_fields": [],
-                "message": "No Work / Business Address details changed.",
-                "profile": mobile.get_profile(),
-            }
-
-        candidate = profile_location.merged_candidate(
-            profile,
-            changes,
-        )
-
-    changed_fields = []
-
-    for fieldname in profile_location.INPUT_FIELDS:
-        if not profile.meta.has_field(fieldname):
-            continue
-
-        new_value = candidate.get(fieldname)
-        current_value = profile.get(fieldname)
-
-        if fieldname in {"work_latitude", "work_longitude"}:
-            current_normalized = (
-                None
-                if current_value is None
-                or str(current_value).strip() == ""
-                else float(current_value)
-            )
-            changed = current_normalized != new_value
-        else:
-            changed = (
-                str(current_value or "").strip()
-                != str(new_value or "").strip()
-            )
-
-        if not changed:
-            continue
-
-        profile.set(fieldname, new_value)
-        changed_fields.append(fieldname)
-
-    if not changed_fields:
-        return {
-            "updated": False,
-            "updated_fields": [],
-            "message": "No Work / Business Address details changed.",
-            "profile": mobile.get_profile(),
-        }
-
-    if profile.meta.has_field("work_address_prompt_dismissed"):
-        profile.work_address_prompt_dismissed = 1
-
-    profile.save(ignore_permissions=True)
-
-    after = _location_audit_snapshot(profile)
-
-    _create_audit(
-        user=user,
-        profile=profile,
-        changed_fields=changed_fields,
-        before=before,
-        after=after,
-        source="Mobile App Work Address",
-    )
-
-    frappe.db.commit()
-
-    return {
-        "updated": True,
-        "updated_fields": changed_fields,
-        "message": (
-            "Work / Business Address updated successfully."
-            if not clear_requested
-            else "Work / Business Address removed."
-        ),
-        "profile": mobile.get_profile(),
-    }
-
-
-@frappe.whitelist()
-def dismiss_work_address_prompt():
-    """Allow signup-skippers to continue without repeated login prompts."""
-
-    user = _current_user()
-
-    if mobile._can_access_internal_workspace(user):
-        return {
-            "dismissed": True,
-            "needs_work_address_prompt": False,
-        }
-
-    profile = mobile._get_customer_profile_for_user(user)
-
-    if not profile.meta.has_field("work_address_prompt_dismissed"):
-        return {
-            "dismissed": True,
-            "needs_work_address_prompt": False,
-        }
-
-    if int(profile.work_address_prompt_dismissed or 0):
-        return {
-            "dismissed": True,
-            "needs_work_address_prompt": False,
-        }
-
-    profile.work_address_prompt_dismissed = 1
-    profile.save(ignore_permissions=True)
-    frappe.db.commit()
-
-    return {
-        "dismissed": True,
-        "needs_work_address_prompt": False,
-    }
-
-
 @frappe.whitelist()
 def update_profile(**kwargs):
     user = _current_user()
-    payload = _clean_payload(kwargs)
 
-    if mobile._can_access_internal_workspace(user):
+    if access.is_internal_user(user):
+        payload = _clean_internal_payload(kwargs)
         return _update_internal_profile(user=user, payload=payload)
+
+    payload = _clean_payload(kwargs)
 
     profile = mobile._get_customer_profile_for_user(user)
 
-    # Serialize competing profile corrections so two simultaneous requests
-    # cannot consume the same one-time correction allowance.
-    frappe.db.get_value(
-        "OMC Customer Profile",
-        profile.name,
-        "name",
-        for_update=True,
-    )
-    profile.reload()
-
-    used_once_fields = _self_service_changed_fields(profile.name)
     before = _snapshot(profile)
     changed_fields: list[str] = []
 
     for fieldname, value in payload.items():
         current_value = str(profile.get(fieldname) or "").strip()
 
-        if current_value == value:
-            continue
-
-        if fieldname in PROTECTED_ONCE_FIELDS:
-            if fieldname in used_once_fields:
+        if fieldname in SET_ONCE_FIELDS and current_value:
+            if current_value != value:
                 frappe.throw(
-                    _("{0} has already used its one-time profile correction. Contact OMC support if another legal correction is required.").format(
-                        PROTECTED_FIELD_LABELS[fieldname],
-                    ),
+                    _("NTN can only be added once from the app. Contact OMC support for a verified correction."),
                     ValidationError,
                 )
+            continue
 
-            _assert_once_field_available(profile, fieldname, value)
+        if current_value == value:
+            continue
 
         profile.set(fieldname, value)
         changed_fields.append(fieldname)
@@ -632,20 +427,12 @@ def update_profile(**kwargs):
         user_doc.save(ignore_permissions=True)
 
     after = _snapshot(profile)
-    protected_changed = bool(
-        set(changed_fields).intersection(PROTECTED_ONCE_FIELDS)
-    )
     _create_audit(
         user=user,
         profile=profile,
         changed_fields=changed_fields,
         before=before,
         after=after,
-        source=(
-            PROTECTED_CORRECTION_SOURCE
-            if protected_changed
-            else "Mobile App"
-        ),
     )
     frappe.db.commit()
 

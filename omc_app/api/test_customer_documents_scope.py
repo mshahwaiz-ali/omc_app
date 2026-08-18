@@ -47,9 +47,7 @@ class TestCustomerDocumentScope(FrappeTestCase):
 
         result = customer_documents.get_documents()
 
-        self.assertEqual(result["documents"], [])
-        self.assertEqual(result["items"], [])
-        self.assertFalse(result["has_more"])
+        self.assertEqual(result, {"documents": []})
         self.assertEqual(
             get_all.call_args_list[0],
             call(
@@ -93,9 +91,7 @@ class TestCustomerDocumentScope(FrappeTestCase):
 
         result = customer_documents.get_documents()
 
-        self.assertEqual(result["documents"], [])
-        self.assertEqual(result["items"], [])
-        self.assertFalse(result["has_more"])
+        self.assertEqual(result, {"documents": []})
         self.assertEqual(
             get_all.call_args_list[0],
             call(
@@ -131,9 +127,7 @@ class TestCustomerDocumentScope(FrappeTestCase):
             service_request="OMC-SR-OTHER",
         )
 
-        self.assertEqual(result["documents"], [])
-        self.assertEqual(result["items"], [])
-        self.assertFalse(result["has_more"])
+        self.assertEqual(result, {"documents": []})
         get_all.assert_not_called()
 
     @patch.object(customer_documents.frappe.db, "exists", return_value=True)
@@ -198,184 +192,3 @@ class TestCustomerDocumentScope(FrappeTestCase):
 
         with self.assertRaises(frappe.PermissionError):
             customer_documents.get_document("OMC-DOC-1")
-
-    @patch.object(customer_documents, "_has_field", return_value=False)
-    @patch.object(customer_documents.frappe, "get_all")
-    @patch.object(
-        customer_documents.customer_service_access,
-        "assert_service_request_action",
-    )
-    @patch.object(
-        customer_documents,
-        "_can_access_internal_workspace",
-        return_value=True,
-    )
-    def test_assisted_document_list_is_scoped_to_authorized_request(
-        self,
-        _is_internal,
-        assert_action,
-        get_all,
-        _has_field,
-    ):
-        assert_action.return_value = {
-            "capabilities": {
-                "can_access_internal_workspace": True,
-                "can_manage_customer_service_flow": True,
-                "can_view_customer_documents": True,
-            },
-        }
-        get_all.side_effect = [
-            ["OMC-SR-REFERRAL"],
-            [],
-        ]
-
-        result = customer_documents.get_documents(
-            service_request="OMC-SR-REFERRAL",
-            assisted=1,
-        )
-
-        self.assertEqual(result["documents"], [])
-        self.assertEqual(result["items"], [])
-        self.assertFalse(result["has_more"])
-        assert_action.assert_called_once_with(
-            "OMC-SR-REFERRAL",
-            internal_capability="can_view_customer_documents",
-        )
-        self.assertEqual(
-            get_all.call_args_list[0],
-            call(
-                "OMC Service Request",
-                filters={"name": "OMC-SR-REFERRAL"},
-                pluck="name",
-            ),
-        )
-
-    @patch.object(customer_documents.frappe, "get_all")
-    @patch.object(
-        customer_documents.customer_service_access,
-        "assert_service_request_action",
-        side_effect=frappe.PermissionError,
-    )
-    @patch.object(
-        customer_documents,
-        "_can_access_internal_workspace",
-        return_value=True,
-    )
-    def test_assisted_document_list_rejects_out_of_scope_request(
-        self,
-        _is_internal,
-        assert_action,
-        get_all,
-    ):
-        with self.assertRaises(frappe.PermissionError):
-            customer_documents.get_documents(
-                service_request="OMC-SR-OTHER",
-                assisted=1,
-            )
-
-        assert_action.assert_called_once_with(
-            "OMC-SR-OTHER",
-            internal_capability="can_view_customer_documents",
-        )
-        get_all.assert_not_called()
-
-    @patch.object(customer_documents, "_document_dict")
-    @patch.object(customer_documents, "_customer_profile_map", return_value={})
-    @patch.object(customer_documents.frappe.db, "exists", return_value=True)
-    @patch.object(customer_documents.frappe, "get_doc")
-    @patch.object(
-        customer_documents.customer_service_access,
-        "assert_service_request_action",
-    )
-    @patch.object(
-        customer_documents,
-        "_can_access_internal_workspace",
-        return_value=True,
-    )
-    def test_assisted_document_detail_uses_customer_view(
-        self,
-        _is_internal,
-        assert_action,
-        get_doc,
-        _exists,
-        _profile_map,
-        document_dict,
-    ):
-        document = SimpleNamespace(
-            name="OMC-DOC-1",
-            service_request="OMC-SR-REFERRAL",
-            visible_to_customer=1,
-        )
-        service_case = SimpleNamespace(
-            name="OMC-SR-REFERRAL",
-            customer_profile="OMC-CUST-1",
-        )
-        capabilities = {
-            "can_access_internal_workspace": True,
-            "can_manage_customer_service_flow": True,
-            "can_view_customer_documents": True,
-        }
-
-        get_doc.side_effect = [document, service_case]
-        assert_action.return_value = {
-            "capabilities": capabilities,
-        }
-        document_dict.return_value = {"id": "OMC-DOC-1"}
-
-        result = customer_documents.get_document(
-            "OMC-DOC-1",
-            assisted=1,
-        )
-
-        self.assertEqual(result, {"id": "OMC-DOC-1"})
-        assert_action.assert_called_once_with(
-            "OMC-SR-REFERRAL",
-            internal_capability="can_view_customer_documents",
-        )
-        self.assertTrue(document_dict.call_args.kwargs["customer_view"])
-        self.assertEqual(
-            document_dict.call_args.kwargs["capabilities"],
-            capabilities,
-        )
-
-    @patch.object(customer_documents.frappe.db, "exists", return_value=True)
-    @patch.object(customer_documents.frappe, "get_doc")
-    @patch.object(
-        customer_documents.customer_service_access,
-        "assert_service_request_action",
-    )
-    @patch.object(
-        customer_documents,
-        "_can_access_internal_workspace",
-        return_value=True,
-    )
-    def test_assisted_document_detail_hides_internal_only_document(
-        self,
-        _is_internal,
-        assert_action,
-        get_doc,
-        _exists,
-    ):
-        get_doc.return_value = SimpleNamespace(
-            name="OMC-DOC-INTERNAL",
-            service_request="OMC-SR-REFERRAL",
-            visible_to_customer=0,
-        )
-        assert_action.return_value = {
-            "capabilities": {
-                "can_access_internal_workspace": True,
-                "can_manage_customer_service_flow": True,
-                "can_view_customer_documents": True,
-            },
-        }
-
-        with self.assertRaises(frappe.DoesNotExistError):
-            customer_documents.get_document(
-                "OMC-DOC-INTERNAL",
-                assisted=1,
-            )
-
-        assert_action.assert_called_once_with(
-            "OMC-SR-REFERRAL",
-            internal_capability="can_view_customer_documents",
-        )

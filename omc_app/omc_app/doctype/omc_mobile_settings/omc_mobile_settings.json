@@ -46,9 +46,6 @@
   "invoice_outstanding_field",
   "invoice_status_field",
   "invoice_due_date_field",
-  "erp_company",
-  "erp_default_payment_mode",
-  "erp_service_item",
   "payment_section",
   "payment_doctype",
   "payment_party_field",
@@ -296,27 +293,6 @@
    "fieldname": "invoice_due_date_field",
    "fieldtype": "Data",
    "label": "Invoice Due Date Field"
-  },
-  {
-   "fieldname": "erp_service_item",
-   "fieldtype": "Link",
-   "label": "ERP Service Item",
-   "options": "Item",
-   "description": "Non-stock ERP Item used when verified OMC service payments are posted to Sales Invoice."
-  },
-  {
-   "fieldname": "erp_company",
-   "fieldtype": "Link",
-   "label": "ERP Company",
-   "options": "Company",
-   "description": "Company used for verified OMC finance postings."
-  },
-  {
-   "fieldname": "erp_default_payment_mode",
-   "fieldtype": "Link",
-   "label": "ERP Default Payment Mode",
-   "options": "Mode of Payment",
-   "description": "Mode of Payment used for verified manual OMC payments. Its ERP account mapping must be configured."
   },
   {
    "fieldname": "payment_section",

@@ -11,18 +11,11 @@
   "payment_title",
   "amount",
   "currency",
-  "payment_account",
   "status",
   "due_date",
   "paid_on",
   "payment_reference",
-  "payment_method",
   "receipt_attachment",
-  "erp_finance_section",
-  "erp_sales_invoice",
-  "erp_payment_entry",
-  "erp_finance_status",
-  "erp_finance_error",
   "visible_to_customer",
   "remarks"
  ],
@@ -68,14 +61,6 @@
    "label": "Currency"
   },
   {
-   "description": "OMC payment account/instructions selected when this payment was opened.",
-   "fieldname": "payment_account",
-   "fieldtype": "Link",
-   "label": "Payment Account",
-   "options": "OMC Payment Account",
-   "read_only": 1
-  },
-  {
    "bold": 1,
    "default": "Pending",
    "fieldname": "status",
@@ -109,13 +94,6 @@
    "label": "Payment Reference"
   },
   {
-   "description": "Actual verified ERPNext Mode of Payment. This value is used when posting the Payment Entry.",
-   "fieldname": "payment_method",
-   "fieldtype": "Link",
-   "label": "Payment Method",
-   "options": "Mode of Payment"
-  },
-  {
    "fieldname": "receipt_attachment",
    "fieldtype": "Attach",
    "label": "Receipt Attachment"
@@ -133,38 +111,6 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
-  },
-  {
-   "fieldname": "erp_finance_section",
-   "fieldtype": "Section Break",
-   "label": "ERP Finance"
-  },
-  {
-   "fieldname": "erp_sales_invoice",
-   "fieldtype": "Link",
-   "label": "ERP Sales Invoice",
-   "options": "Sales Invoice",
-   "read_only": 1
-  },
-  {
-   "fieldname": "erp_payment_entry",
-   "fieldtype": "Link",
-   "label": "ERP Payment Entry",
-   "options": "Payment Entry",
-   "read_only": 1
-  },
-  {
-   "fieldname": "erp_finance_status",
-   "fieldtype": "Select",
-   "label": "ERP Finance Status",
-   "options": "\nPending\nPosted\nFailed",
-   "read_only": 1
-  },
-  {
-   "fieldname": "erp_finance_error",
-   "fieldtype": "Small Text",
-   "label": "ERP Finance Error",
-   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,

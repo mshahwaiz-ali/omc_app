@@ -6,7 +6,7 @@ from typing import Any
 import frappe
 from frappe.utils import add_to_date, get_datetime, now_datetime
 
-from omc_app.api import access, mobile, notification_events
+from omc_app.api import access, mobile
 
 DOCUMENT_DOCTYPE = "OMC Service Document"
 PAYMENT_DOCTYPE = "OMC Service Payment"
@@ -201,32 +201,14 @@ def ensure_review_assignment(record, service_case=None) -> dict[str, Any]:
     todo.status = "Open"
     todo.priority = "High" if _text(service_case.priority) in {"High", "Urgent"} else "Medium"
     todo.insert(ignore_permissions=True)
-    notification = None
-    actor = _text(getattr(frappe.session, "user", None))
-    if reviewer != actor:
-        event_name = (
-            "document.review"
-            if record.doctype == DOCUMENT_DOCTYPE
-            else "payment.review"
-        )
-        contract = notification_events.event_contract(
-            event_name,
-            record.name,
-        )
-        notification = mobile._create_customer_notification(
-            recipient_user=reviewer,
-            title=config["title"],
-            message=(
-                f"Review task {todo.name}: {record.name} "
-                f"for {record.service_request} is ready for review."
-            ),
-            notification_type=contract["category"],
-            reference_doctype=contract["reference_doctype"],
-            reference_name=contract["reference_name"],
-            mobile_route=contract["mobile_route"],
-            event_key=f"{contract['event_key']}:{todo.name}",
-        )
-
+    notification = mobile._create_customer_notification(
+        recipient_user=reviewer,
+        title=config["title"],
+        message=f"Review task {todo.name}: {record.name} for {record.service_request} is ready for review.",
+        notification_type=config["type"],
+        reference_doctype=record.doctype,
+        reference_name=record.name,
+    )
     return {
         **decision,
         "status": "assigned",

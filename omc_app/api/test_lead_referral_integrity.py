@@ -50,7 +50,7 @@ class TestLeadReferralIntegrity(FrappeTestCase):
             result = lead_read_guard.get_leads()
 
         self.assertEqual([row["name"] for row in result["leads"]], ["LEAD-VALID"])
-        get_doc.assert_called_once_with("OMC Lead", "LEAD-VALID")
+        get_doc.assert_called_once_with("Lead", "LEAD-VALID")
 
     @patch("omc_app.api.lead_read_guard.frappe.db.exists")
     def test_sanitize_clears_only_stale_lead_references(self, exists):

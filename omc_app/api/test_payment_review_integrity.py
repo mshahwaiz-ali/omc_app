@@ -25,12 +25,12 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
         return payment
 
     def _case(self, status="Waiting for Payment"):
-        service_case = MagicMock()
-        service_case.name = "OMC-SR-1"
-        service_case.status = status
-        service_case.customer_profile = "OMC-CUST-1"
-        service_case.assigned_staff = None
-        return service_case
+        return SimpleNamespace(
+            name="OMC-SR-1",
+            status=status,
+            customer_profile="OMC-CUST-1",
+            assigned_staff=None,
+        )
 
     def _base_patches(self, payment, service_case):
         return (
@@ -52,57 +52,6 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
                 "get_doc",
                 side_effect=[payment, service_case],
             ),
-        )
-
-    @patch.object(
-        payments,
-        "_current_user",
-        return_value="reviewer@example.com",
-    )
-    @patch.object(
-        payments.frappe.db,
-        "get_value",
-        return_value="reviewer@example.com",
-    )
-    def test_reviewer_cannot_review_own_uploaded_receipt(
-        self,
-        get_value,
-        _current_user,
-    ):
-        payment = self._payment()
-
-        with self.assertRaises(frappe.PermissionError):
-            payments._assert_reviewer_did_not_submit_receipt(payment)
-
-        get_value.assert_called_once_with(
-            "File",
-            {"file_url": "/private/files/receipt.pdf"},
-            "owner",
-        )
-
-    @patch.object(
-        payments,
-        "_current_user",
-        return_value="reviewer@example.com",
-    )
-    @patch.object(
-        payments.frappe.db,
-        "get_value",
-        return_value="associate@example.com",
-    )
-    def test_reviewer_can_review_receipt_uploaded_by_another_user(
-        self,
-        get_value,
-        _current_user,
-    ):
-        payment = self._payment()
-
-        payments._assert_reviewer_did_not_submit_receipt(payment)
-
-        get_value.assert_called_once_with(
-            "File",
-            {"file_url": "/private/files/receipt.pdf"},
-            "owner",
         )
 
     def test_same_status_is_idempotent_noop(self):
@@ -213,8 +162,16 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
         payments.mobile,
         "_create_service_timeline_entry",
     )
-    def test_paid_transition_runs_activation_once(
+    @patch.object(payments, "_activate_case_erp")
+    @patch.object(
+        payments,
+        "_set_case_status",
+        return_value=True,
+    )
+    def test_paid_transition_runs_side_effects_once(
         self,
+        _set_status,
+        activate_erp,
         timeline,
         notification,
         _commit,
@@ -224,215 +181,16 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
         service_case = self._case()
         patches = self._base_patches(payment, service_case)
 
-        activation_result = {
-            "activated": True,
-            "case_status": "In Progress",
-            "assigned_staff": "consultant@example.com",
-            "erp_service": "SERVICE-ERP-1",
-            "erp_task": "TASK-ERP-1",
-        }
-
-        def reload_case():
-            service_case.status = "In Progress"
-            service_case.assigned_staff = "consultant@example.com"
-
-        service_case.reload.side_effect = reload_case
-
-        finance_result = {
-            "status": "Posted",
-            "customer": "CUST-1",
-            "sales_invoice": "SINV-1",
-            "payment_entry": "ACC-PAY-1",
-            "invoice_created": True,
-            "payment_entry_created": True,
-            "invoice_outstanding": 0,
-        }
-
         with patches[0], patches[1], patches[2], patches[3]:
-            with (
-                patch.object(
-                    payments.erp_finance_adapter,
-                    "finalize_verified_payment",
-                    return_value=finance_result,
-                ) as finance,
-                patch(
-                    "omc_app.api.service_activation.activate_paid_request",
-                    return_value=activation_result,
-                ) as activate,
-            ):
-                result = payments.review_payment_receipt(
-                    payment_id=payment.name,
-                    status="Paid",
-                )
-
-        finance.assert_called_once_with(payment)
+            result = payments.review_payment_receipt(
+                payment_id=payment.name,
+                status="Paid",
+            )
 
         self.assertTrue(result["updated"])
         payment.save.assert_called_once_with(
             ignore_permissions=True,
         )
-        activate.assert_called_once_with(service_case.name)
-        self.assertEqual(result["activation"], activation_result)
-        self.assertEqual(result["case_transition_status"], "In Progress")
-        self.assertEqual(result["activation_error"], "")
-        notification.assert_called()
-
-
-    def test_erp_finance_failure_blocks_paid_transition_and_activation(self):
-        payment = self._payment()
-        service_case = self._case()
-        patches = self._base_patches(payment, service_case)
-
-        with patches[0], patches[1], patches[2], patches[3]:
-            with (
-                patch.object(
-                    payments.erp_finance_adapter,
-                    "finalize_verified_payment",
-                    side_effect=frappe.ValidationError(
-                        "Mode of Payment account is not configured"
-                    ),
-                ),
-                patch(
-                    "omc_app.api.service_activation.activate_paid_request",
-                ) as activate,
-                patch.object(
-                    payments.frappe.db,
-                    "savepoint",
-                ) as savepoint,
-                patch.object(
-                    payments.frappe.db,
-                    "rollback",
-                ) as rollback,
-            ):
-                with self.assertRaises(frappe.ValidationError):
-                    payments.review_payment_receipt(
-                        payment_id=payment.name,
-                        status="Paid",
-                    )
-
-        self.assertEqual(payment.status, "Under Review")
-        self.assertIsNone(payment.paid_on)
-        activate.assert_not_called()
-
-        savepoint.assert_called_once_with(
-            "verified_payment_erp_finance"
-        )
-        rollback.assert_called_once_with(
-            save_point="verified_payment_erp_finance"
-        )
-
-
-class TestPaidActivationDurability(FrappeTestCase):
-    def test_activation_failure_rolls_back_finance_and_keeps_retryable_review(self):
-        payment = MagicMock()
-        payment.name = "OMC-PAY-FAIL-1"
-        payment.service_request = "OMC-SR-FAIL-1"
-        payment.status = "Receipt Submitted"
-        payment.receipt_attachment = "/private/files/receipt.pdf"
-        payment.payment_reference = ""
-        payment.remarks = ""
-        payment.payment_title = "Service Payment"
-        payment.paid_on = None
-
-        service_case = MagicMock()
-        service_case.name = "OMC-SR-FAIL-1"
-        service_case.status = "Waiting for Payment"
-        service_case.customer_profile = "OMC-CUST-1"
-        service_case.assigned_staff = None
-
-        def reload_case():
-            service_case.status = "Waiting for Payment"
-            service_case.assigned_staff = None
-
-        service_case.reload.side_effect = reload_case
-
-        with (
-            patch.object(payments, "_require_payment_review_access"),
-            patch.object(
-                payments,
-                "_assert_service_request_payment_access",
-            ),
-            patch.object(
-                payments.frappe.db,
-                "exists",
-                return_value=True,
-            ),
-            patch.object(
-                payments.frappe,
-                "get_doc",
-                side_effect=[payment, service_case],
-            ),
-            patch.object(
-                payments.frappe.utils,
-                "now_datetime",
-                return_value="2026-08-15 00:00:00",
-            ),
-            patch.object(
-                payments.review_routing,
-                "close_review_todos",
-            ),
-            patch.object(
-                payments.mobile,
-                "_create_service_timeline_entry",
-            ),
-            patch.object(
-                payments.mobile,
-                "_create_customer_notification",
-            ),
-            patch.object(
-                payments.frappe.db,
-                "savepoint",
-            ) as savepoint,
-            patch.object(
-                payments.frappe.db,
-                "rollback",
-            ) as rollback,
-            patch.object(
-                payments.frappe.db,
-                "commit",
-            ) as commit,
-            patch.object(
-                payments.erp_finance_adapter,
-                "finalize_verified_payment",
-                return_value={
-                    "status": "Posted",
-                    "customer": "CUST-1",
-                    "sales_invoice": "SINV-1",
-                    "payment_entry": "ACC-PAY-1",
-                    "invoice_created": True,
-                    "payment_entry_created": True,
-                    "invoice_outstanding": 0,
-                },
-            ),
-            patch(
-                "omc_app.api.service_activation.activate_paid_request",
-                side_effect=frappe.ValidationError(
-                    "ERP Task Type missing"
-                ),
-            ),
-            patch.object(
-                payments.frappe,
-                "log_error",
-            ),
-        ):
-            with self.assertRaises(frappe.ValidationError):
-                payments.review_payment_receipt(
-                    payment_id=payment.name,
-                    status="Paid",
-                )
-
-        self.assertEqual(payment.status, "Under Review")
-        self.assertIsNone(payment.paid_on)
-        self.assertEqual(payment.erp_finance_status, "Failed")
-        self.assertIn("ERP Task Type missing", payment.erp_finance_error)
-        self.assertEqual(payment.save.call_count, 2)
-        commit.assert_called_once_with()
-        savepoint.assert_called_once_with("verified_payment_erp_finance")
-        rollback.assert_called_once_with(
-            save_point="verified_payment_erp_finance"
-        )
-
-        self.assertEqual(
-            service_case.status,
-            "Waiting for Payment",
-        )
+        self.assertEqual(timeline.call_count, 2)
+        notification.assert_called_once()
+        activate_erp.assert_called_once_with(service_case)

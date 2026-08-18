@@ -17,20 +17,10 @@ def _require_capability(*capability_names, message):
 
 
 @frappe.whitelist()
-def get_service_cases(
-    start=0,
-    limit=50,
-    limit_start=None,
-    limit_page_length=None,
-):
+def get_service_cases():
     """Return service case list with the same tracking summary used by detail."""
 
-    response = mobile.get_service_cases(
-        start=start,
-        limit=limit,
-        limit_start=limit_start,
-        limit_page_length=limit_page_length,
-    )
+    response = mobile.get_service_cases()
     cases = _extract_service_case_list(response)
     if not isinstance(cases, list):
         return response
@@ -83,15 +73,6 @@ def _extract_service_case_list(response):
 
     return None
 
-
-
-def _user_display_name(user_id):
-    user_id = str(user_id or "").strip()
-    if not user_id:
-        return ""
-
-    full_name = frappe.db.get_value("User", user_id, "full_name")
-    return str(full_name or user_id).strip()
 
 
 def _service_request_id(service_case):
@@ -151,17 +132,6 @@ def _hydrate_service_case(service_case):
     customer_profile_name = getattr(request, "customer_profile", None) or ""
     service_case["customer_profile"] = customer_profile_name
     service_case["customer_name"] = getattr(request, "customer_name", None) or service_case.get("customer_name") or ""
-
-    submitted_by_user = getattr(request, "submitted_by_user", None) or getattr(request, "requested_by", None) or request.owner or ""
-    submitted_by_internal_user = getattr(request, "submitted_by_internal_user", None) or ""
-
-    service_case["submitted_by_user"] = submitted_by_user
-    service_case["submitted_by_internal_user"] = submitted_by_internal_user
-    service_case["submitted_by_name"] = _user_display_name(submitted_by_user)
-    service_case["submitted_by_internal_name"] = _user_display_name(
-        submitted_by_internal_user
-    )
-
     service_case["contact_email"] = getattr(request, "contact_email", None) or service_case.get("contact_email") or ""
     service_case["contact_phone"] = getattr(request, "contact_phone", None) or service_case.get("contact_phone") or ""
     service_case["requested_by"] = getattr(request, "requested_by", None) or service_case.get("requested_by") or ""
@@ -507,28 +477,11 @@ def _weighted_service_case_progress(service_case):
         return 1.0
 
     required_documents_count = _int_number(service_case.get("required_documents_count"))
-    submitted_documents_count = _int_number(
-        service_case.get("submitted_documents_count")
-    )
+    approved_documents_count = _int_number(service_case.get("approved_documents_count"))
     payments_count = _int_number(service_case.get("payments_count"))
     paid_payments_count = _int_number(service_case.get("paid_payments_count"))
 
-    document_ratio = (
-        min(1.0, submitted_documents_count / required_documents_count)
-        if required_documents_count > 0
-        else (
-            1.0
-            if status
-            in {
-                "waiting for payment",
-                "payment under review",
-                "in progress",
-                "completed",
-                "closed",
-            }
-            else 0.0
-        )
-    )
+    document_ratio = min(1.0, approved_documents_count / required_documents_count) if required_documents_count > 0 else (1.0 if status in {"waiting for payment", "payment under review", "in progress", "completed", "closed"} else 0.0)
     payment_ratio = min(1.0, paid_payments_count / payments_count) if payments_count > 0 else (1.0 if status in {"in progress", "completed", "closed"} else 0.0)
 
     internal_stage_ratio = 0.0
@@ -602,14 +555,12 @@ def _fallback_service_case_timeline(service_case):
 
 def _documents_stage_subtitle(service_case, normalized_status):
     missing_count = _int_number(service_case.get("missing_documents_count"))
-    submitted_count = _int_number(
-        service_case.get("submitted_documents_count")
-    )
+    approved_count = _int_number(service_case.get("approved_documents_count"))
     required_count = _int_number(service_case.get("required_documents_count"))
     if missing_count > 0:
         return f"{missing_count} document(s) still needed."
     if required_count > 0:
-        return f"{submitted_count}/{required_count} document(s) uploaded."
+        return f"{approved_count}/{required_count} document(s) approved."
     if normalized_status == "waiting for customer":
         return "OMC is waiting for customer input."
     return "OMC will confirm document requirements."

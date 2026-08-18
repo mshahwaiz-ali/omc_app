@@ -239,7 +239,7 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
             patch.object(payments.frappe, "get_all", return_value=[]),
             patch.object(
                 payments,
-                "_uploaded_required_documents",
+                "_approved_required_documents",
                 return_value=True,
             ),
             patch.object(

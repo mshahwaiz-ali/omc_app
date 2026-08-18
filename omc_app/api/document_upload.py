@@ -1,12 +1,8 @@
 import frappe
 
-from omc_app.api import (
-    customer_service_access,
-    idempotency,
-    review_routing,
-    upload_validation,
-)
+from omc_app.api import idempotency, review_routing, upload_validation
 from omc_app.api.mobile import (
+    _assert_approved_customer,
     _clean_file_reference,
     _create_service_timeline_entry,
     _current_user,
@@ -238,13 +234,14 @@ def _upload_service_document(**kwargs):
     if not frappe.db.exists("OMC Service Request", case_id):
         frappe.throw("Service request not found", frappe.DoesNotExistError)
 
-    authority = customer_service_access.assert_service_request_action(
-        case_id,
-        internal_capability="can_upload_customer_documents",
-    )
-    service_case = authority["service_case"]
-    profile = authority["profile"]
+    service_case = frappe.get_doc("OMC Service Request", case_id)
     _assert_service_request_accepts_documents(service_case)
+    profile = _assert_approved_customer()
+    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
+        frappe.throw(
+            "You do not have permission to upload documents for this service request",
+            frappe.PermissionError,
+        )
 
     _assert_document_submission_available(
         service_case,
@@ -308,18 +305,10 @@ def _upload_service_document(**kwargs):
     )
     review_routing.ensure_review_assignment(doc, service_case)
 
-    # Payment readiness depends on required files being uploaded, not approved.
-    # Import locally to avoid coupling module initialization paths.
-    from omc_app.api import payments
-
-    payment_name = payments._ensure_payment_for_case(service_case)
-
     frappe.db.commit()
 
     return {
         "uploaded": True,
-        "payment_id": payment_name or "",
-        "payment_ready": bool(payment_name),
         "document": {
             "name": doc.name,
             "case_id": doc.service_request,

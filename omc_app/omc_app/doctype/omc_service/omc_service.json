@@ -24,9 +24,6 @@
   "government_fee_label",
   "estimated_duration",
   "completion_time",
-  "referral_commission_section",
-  "referral_commission_enabled",
-  "referral_commission_percent",
   "request_configuration_section",
   "support_message",
   "default_assignee",
@@ -149,26 +146,6 @@
    "fieldname": "completion_time",
    "fieldtype": "Data",
    "label": "Completion Time"
-  },
-  {
-   "fieldname": "referral_commission_section",
-   "fieldtype": "Section Break",
-   "label": "Referral Commission"
-  },
-  {
-   "default": "0",
-   "description": "Create an immutable referral earning after the linked payment is fully posted in ERP.",
-   "fieldname": "referral_commission_enabled",
-   "fieldtype": "Check",
-   "label": "Referral Commission Enabled"
-  },
-  {
-   "default": "0",
-   "depends_on": "eval:doc.referral_commission_enabled == 1",
-   "fieldname": "referral_commission_percent",
-   "fieldtype": "Percent",
-   "label": "Referral Commission Percent",
-   "precision": "4"
   },
   {
    "fieldname": "support_message",

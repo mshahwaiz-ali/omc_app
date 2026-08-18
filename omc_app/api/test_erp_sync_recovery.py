@@ -130,16 +130,17 @@ class TestErpSyncRecovery(FrappeTestCase):
             ),
             patch.object(erp_sync_recovery.frappe, "get_doc", side_effect=get_doc),
             patch.object(
-                erp_sync_recovery.erp_service_task_adapter,
-                "sync_request",
+                erp_sync_recovery.erp_activation,
+                "activate_request",
                 return_value={
                     "status": "Synced",
                     "created": True,
+                    "eligible": True,
                     "erp_customer": "CUST-1",
                     "erp_service": "SERVICE-1",
                     "erp_task": "TASK-1",
                 },
-            ) as sync_request,
+            ) as activate_request,
             patch.object(erp_sync_recovery.frappe.db, "commit") as commit,
             patch.object(
                 erp_sync_recovery.frappe,
@@ -156,8 +157,103 @@ class TestErpSyncRecovery(FrappeTestCase):
 
         self.assertEqual(result["status"], "Synced")
         self.assertEqual(result["request_name"], "OMC-SR-1")
-        self.assertTrue(sync_request.call_args.kwargs["repair"])
+        self.assertTrue(activate_request.call_args.kwargs["repair"])
         commit.assert_called_once_with()
+
+    def test_unpaid_retry_does_not_cross_erp_activation_gate(self):
+        request = SimpleNamespace(
+            name="OMC-SR-UNPAID",
+            service="OMC-SERVICE-1",
+            customer_profile="",
+            manual_customer="",
+            erp_sync_status="Repair Required",
+            erp_retry_exhausted_at=None,
+            erp_retry_count=0,
+            erp_customer="",
+            erp_service="",
+            erp_task="",
+            final_price=25000,
+            status="Waiting for Payment",
+        )
+        request.meta = MagicMock()
+        request.meta.get_field.return_value = False
+
+        service = SimpleNamespace(
+            name="OMC-SERVICE-1",
+            base_price=25000,
+            erp_task_type="GST Registration",
+        )
+
+        def exists(doctype, name):
+            return (doctype, name) in {
+                ("OMC Service Request", "OMC-SR-UNPAID"),
+                ("OMC Service", "OMC-SERVICE-1"),
+            }
+
+        def get_doc(doctype, name):
+            return {
+                ("OMC Service Request", "OMC-SR-UNPAID"): request,
+                ("OMC Service", "OMC-SERVICE-1"): service,
+            }[(doctype, name)]
+
+        with (
+            patch.object(
+                erp_sync_recovery.frappe.local,
+                "session",
+                SimpleNamespace(user="manager@example.com"),
+            ),
+            patch.object(
+                erp_sync_recovery.frappe,
+                "get_roles",
+                return_value=["OMC Manager"],
+            ),
+            patch.object(
+                erp_sync_recovery.frappe.db,
+                "exists",
+                side_effect=exists,
+            ),
+            patch.object(
+                erp_sync_recovery.frappe,
+                "get_doc",
+                side_effect=get_doc,
+            ),
+            patch.object(
+                erp_sync_recovery.erp_activation,
+                "_paid_payment_exists",
+                return_value=False,
+            ),
+            patch.object(
+                erp_sync_recovery.erp_activation.erp_service_task_adapter,
+                "sync_request",
+            ) as sync_request,
+            patch.object(
+                erp_sync_recovery,
+                "_record_attempt_result",
+            ) as record_attempt,
+            patch.object(
+                erp_sync_recovery.frappe.db,
+                "commit",
+            ) as commit,
+            patch.object(
+                erp_sync_recovery.frappe,
+                "logger",
+                return_value=MagicMock(),
+            ),
+        ):
+            result = erp_sync_recovery.retry_erp_sync(
+                "OMC-SR-UNPAID"
+            )
+
+        self.assertEqual(result["status"], "Not Started")
+        self.assertFalse(result["eligible"])
+        self.assertEqual(
+            result["request_name"],
+            "OMC-SR-UNPAID",
+        )
+
+        sync_request.assert_not_called()
+        record_attempt.assert_not_called()
+        commit.assert_not_called()
 
     def test_synced_retry_revalidates_links_without_creating_duplicates(self):
         request = SimpleNamespace(
