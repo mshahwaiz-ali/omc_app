@@ -2,19 +2,25 @@
 
 from __future__ import annotations
 
+from omc_app.setup.roles import (
+    BUSINESS_PARTNER_ROLE,
+    CONSULTANT_ROLE,
+    TAX_ASSOCIATE_ROLE,
+)
+
 REFERRAL_OWNER_ROLES = frozenset({
-    "OMC Consultant",
-    "OMC Tax Associate",
-    "OMC Business Partner",
+    CONSULTANT_ROLE,
+    TAX_ASSOCIATE_ROLE,
+    BUSINESS_PARTNER_ROLE,
 })
 
 WALK_IN_CUSTOMER_ROLES = frozenset({
     "OMC Admin",
     "OMC Manager",
     "OMC Support Agent",
-    "OMC Consultant",
-    "OMC Tax Associate",
-    "OMC Business Partner",
+    CONSULTANT_ROLE,
+    TAX_ASSOCIATE_ROLE,
+    BUSINESS_PARTNER_ROLE,
     "System Manager",
 })
 
