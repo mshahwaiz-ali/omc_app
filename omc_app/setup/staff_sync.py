@@ -4,20 +4,14 @@ import frappe
 
 from omc_app.api import staff_profile
 from omc_app.referral_automation import ensure_referral_code_for_user
-from omc_app.setup.roles import (
-    ACTIVE_STAFF_ROLES,
-    BUSINESS_PARTNER_ROLE,
-    CONSULTANT_ROLE,
-    EMPLOYEE_ROLE,
-    TAX_ASSOCIATE_ROLE,
-)
+from omc_app.setup.roles import ERP_STAFF_PERSONAS
 
-ERP_USER_TYPE_TO_OMC_ROLE = {
-    "Consultant": CONSULTANT_ROLE,
-    "Business Partner": BUSINESS_PARTNER_ROLE,
-    "Tax Associates": TAX_ASSOCIATE_ROLE,
-    "Tax Associate": TAX_ASSOCIATE_ROLE,
-    "Employee": EMPLOYEE_ROLE,
+ERP_USER_TYPE_TO_PERSONA = {
+    "Consultant": "Consultant",
+    "Business Partner": "Business Partner",
+    "Tax Associates": "Tax Associates",
+    "Tax Associate": "Tax Associates",
+    "Employee": "Employee",
 }
 
 
@@ -72,14 +66,7 @@ def preview_staff_user(user: str | None = None) -> dict:
 
     user_doc = frappe.get_doc("User", user)
     omc_user_type = _erp_omc_user_type(user_doc)
-    mapped_role = ERP_USER_TYPE_TO_OMC_ROLE.get(omc_user_type, "")
-    existing_roles = sorted(
-        {
-            row.role
-            for row in (user_doc.roles or [])
-            if _text(row.role)
-        }
-    )
+    mapped_persona = ERP_USER_TYPE_TO_PERSONA.get(omc_user_type, "")
     existing_profile = staff_profile.get_staff_profile(user)
 
     reason = ""
@@ -93,7 +80,7 @@ def preview_staff_user(user: str | None = None) -> dict:
     elif _text(user_doc.user_type) != "System User":
         eligible = False
         reason = "not_system_user"
-    elif not mapped_role:
+    elif mapped_persona not in ERP_STAFF_PERSONAS:
         eligible = False
         reason = "unsupported_or_missing_omc_user_type"
 
@@ -103,11 +90,8 @@ def preview_staff_user(user: str | None = None) -> dict:
         "enabled": int(user_doc.enabled or 0),
         "user_type": _text(user_doc.user_type),
         "erp_omc_user_type": omc_user_type,
-        "mapped_omc_role": mapped_role,
+        "mapped_staff_persona": mapped_persona,
         "linked_employee": _employee_for_user(user),
-        "existing_omc_roles": [
-            role for role in existing_roles if role in ACTIVE_STAFF_ROLES
-        ],
         "staff_profile_exists": bool(existing_profile),
         "staff_profile": existing_profile.name if existing_profile else "",
         "reason": reason,
@@ -119,10 +103,10 @@ def sync_staff_user(
     *,
     apply: bool = False,
 ) -> dict:
-    """Preview or synchronize exactly one legacy ERP user into OMC staff.
+    """Preview or synchronize exactly one ERP user into OMC staff.
 
-    This intentionally does not bulk-scan users. Bulk/bootstrap hooks are added
-    only after the single-user contract has been validated on a real site.
+    ERP roles and Role Profiles remain untouched. OMC stores the ERP persona on
+    OMC Staff Profile and uses that profile for mobile/referral authorization.
     """
 
     preview = preview_staff_user(user)
@@ -133,20 +117,7 @@ def sync_staff_user(
         }
 
     user = preview["user"]
-    mapped_role = preview["mapped_omc_role"]
-    user_doc = frappe.get_doc("User", user)
-
-    existing_roles = {
-        _text(row.role)
-        for row in (user_doc.roles or [])
-        if _text(row.role)
-    }
-    role_added = False
-    if mapped_role not in existing_roles:
-        user_doc.append("roles", {"role": mapped_role})
-        user_doc.save(ignore_permissions=True)
-        frappe.clear_cache(user=user)
-        role_added = True
+    mapped_persona = preview["mapped_staff_persona"]
 
     profile = staff_profile.ensure_staff_profile(user)
     if not profile:
@@ -155,7 +126,7 @@ def sync_staff_user(
             frappe.ValidationError,
         )
 
-    profile.staff_role = mapped_role
+    profile.staff_role = mapped_persona
     profile.staff_status = "Active"
     profile.approval_status = "Approved"
     profile.is_active = 1
@@ -167,7 +138,7 @@ def sync_staff_user(
     return {
         **preview_staff_user(user),
         "applied": True,
-        "role_added": role_added,
+        "erp_roles_untouched": True,
         "staff_profile": profile.name,
         "staff_status": profile.staff_status,
         "approval_status": profile.approval_status,
