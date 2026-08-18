@@ -98,7 +98,7 @@
    "fieldname": "staff_role",
    "fieldtype": "Select",
    "label": "OMC Staff Role",
-   "options": "\nOMC Admin\nOMC Manager\nOMC Support Agent\nOMC Document Reviewer\nOMC Finance Reviewer\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner"
+   "options": "\nOMC Admin\nOMC Manager\nOMC Support Agent\nOMC Document Reviewer\nOMC Finance Reviewer\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner\nOMC Employee"
   },
   {
    "default": "0",
