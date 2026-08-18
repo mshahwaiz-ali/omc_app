@@ -1,901 +1,980 @@
-# OMC App — Complete Feature Catalogue
+# OMC App — Current Feature Catalogue
 
-This document lists the features currently present in the OMC App project in simple, non-technical language.
+This document describes the features that are present in the current OMC App repository and separates completed behaviour from partially aligned or still-unverified flows.
 
-It is based on the current Flutter app routes, screens, repositories, backend workflows, permissions, and project documentation. Features that are not present in the source code are not included.
+Last source cross-check: **18 August 2026** on branch `feature/customer-home-dashboard`.
 
-Last source cross-check: **3 August 2026**.
-
-> **Important distinction:** a feature is listed as implemented only when an app or backend path exists for it. Hardware-dependent behaviour, external delivery services, and production deployment are called out separately where they still require environment or real-device verification.
+> **Authority rule:** Flutter controls presentation and navigation. The OMC/Frappe backend remains authoritative for identity, approval, ownership, assignment, workflow state, permissions, and protected mutations.
 
 ---
 
-## 1. App Entry and General Experience
+## Status legend
 
-- Branded splash screen
-- First-time onboarding screens
-- Guest access without creating an account
-- Role-aware home screen
-- Different app experience for:
-  - Guests
-  - Customers waiting for approval
-  - Approved customers
-  - OMC internal staff
-- Bottom navigation for main areas
-- “More” menu for secondary features
-- Safe back navigation
-- App links for email verification and password-reset entry
-- Friendly recovery screen for broken or unavailable routes
-- Access-denied notice when a user opens a restricted page
-- Loading states and skeleton screens
-- Empty-state messages when no records are available
-- Retry actions when data fails to load
-- User-friendly error messages instead of technical errors
-- Duplicate-tap protection for important actions
-- Protection against submitting the same form multiple times
-- Responsive layouts for mobile screens
-- Modern cards, filters, tabs, dialogs, sheets, and action menus
+- **Implemented** — current Flutter/backend wiring exists for the feature.
+- **Validated** — the current automated test snapshot covers the relevant implementation boundary.
+- **Manual E2E pending** — code and focused tests exist, but the real browser/device flow still needs a final rehearsal.
+- **Partially aligned** — a UI/API path still exists, but it does not fully match the newest source-of-truth architecture and must not be presented as production-complete.
+- **Not implemented** — the current source does not provide a complete feature.
+
+Current recorded validation snapshot:
+
+```text
+Backend OMC suite:            591 / 591 passed
+Customer activation tests:      8 / 8 passed
+Flutter analyze:              No issues found
+Flutter suite:                326 / 326 passed
+Router policy parity suite:    51 / 51 passed
+```
+
+The permanent existing-customer migration has **not** been run. The imported-customer browser/device activation journey is **manual E2E pending**.
 
 ---
 
-## 2. Login and Account Access
+# 1. App entry, navigation, and general UX
 
-- Login using:
-  - Email
-  - Username
-  - Mobile number
-  - CNIC
-- Password-based sign-in
-- Show or hide password
-- Keyboard submit support
-- System password autofill support
-- Secure session storage on the device
-- Session restoration when the app is reopened
-- Automatic routing after login
-- Pending customers are sent to the approval-review screen
-- Approved users are sent to the main app
-- Continue as guest option
-- Helpful login error messages
-- Duplicate login attempt prevention
-- Login help sheet
-- OMC support email shown on login
-- OMC phone or WhatsApp contact shown on login
-- OMC business hours shown on login
-- Logout from the main app
-- Logout from settings
-- Logout duplicate-action protection
-- Session cleanup on logout
-- Failed logout recovery message
-- Optional device lock for an already signed-in session
-- Fingerprint, Face ID, or the device credential can unlock the app where the operating system supports it
-- Device-lock setting stored in encrypted device storage
-- Device lock re-engages when the app is paused, hidden, or moved to the background
-- Locked screen with a manual retry action when authentication is cancelled or fails
-- Unsupported or unconfigured device authentication is detected without enabling the lock
-- Device lock is removed during logout and session cleanup
+**Implemented**
 
-> Device lock protects a restored signed-in session; it is not a replacement for the initial OMC username/password login. There is no separate “Remember password” switch.
+- branded splash and onboarding flow;
+- guest entry without creating an account;
+- role/capability-aware routing;
+- bottom-navigation shell for Home, Services, Track, Documents, and More;
+- safe route-failure recovery;
+- access-denied handling;
+- loading, empty, error, and retry states;
+- duplicate-action protection for sensitive UI operations;
+- responsive Flutter layouts;
+- app/deep-link normalisation through `LinkCoordinator`;
+- authenticated route policy that fails closed for unknown protected routes.
+
+Current authentication-related public routes include:
+
+```text
+/login
+/signup
+/forgot-password
+/reset-password
+/app/reset-password
+/verify-email
+/app/verify-email
+/activate-existing-account
+/activate-account
+/app/activate-account
+/under-review
+```
 
 ---
 
-## 3. Signup and Registration
+# 2. Login and session access
 
-- Multi-step signup process
-- Account type selection
-- Supported signup roles:
-  - Customer
-  - Consultant
-  - Business Partner
-  - Tax Associate
-- Full-name field
-- Email field
-- Username field
-- Mobile number field
-- WhatsApp number field
-- “WhatsApp same as mobile” option
-- CNIC field
-- Address field
-- Education details
-- Experience details
-- Additional remarks
-- Password field
-- Confirm-password field
-- Show or hide both password fields
-- Terms and conditions acceptance
-- Username formatting
-- Automatic username suggestion
-- Live username availability check
-- Prevention of already-used usernames
-- Signup input validation
-- Duplicate signup prevention
-- Signup success state
-- Signup failure recovery
-- Verification email sent immediately after an eligible registration starts
-- Verification email contains app and browser-compatible verification paths
-- Browser verification redirects the user back to the app login state when the custom app scheme is available
-- Invalid or expired verification links return a safe failure state
-- Resend cooldown and verification-token rotation
-- Account approval workflow after registration
+**Implemented**
+
+Login supports the existing multi-identifier backend path, including identifiers such as:
+
+- email;
+- username;
+- mobile number;
+- CNIC where the backend can resolve it safely.
+
+The app also includes:
+
+- password sign-in;
+- show/hide password;
+- session restoration;
+- secure session storage;
+- approval-aware routing after authentication;
+- logout and local session cleanup;
+- friendly authentication failure handling;
+- guest continuation where allowed by application configuration.
+
+## Device lock
+
+**Implemented in Flutter; real-device behaviour remains environment/device dependent.**
+
+- optional local post-login lock;
+- `local_auth` integration;
+- fingerprint / Face ID / device credential where supported;
+- encrypted device-lock preference storage;
+- re-lock after app background/resume;
+- failed/cancelled unlock keeps the app locked.
+
+Device lock protects an already authenticated session. It is **not** passwordless OMC backend login.
 
 ---
 
-## 4. Referral During Signup
+# 3. New-account signup and email verification
 
-- Referral acquisition-source option
-- Referral code field
-- Referral code normalisation
-- Referral code validation
-- Invalid or inactive referral warning
-- Referral assistance consent
-- Referral source details
-- Other acquisition sources:
-  - Website
-  - Social media
-  - Advertisement
-  - Existing customer
-  - Event
-  - Other
+**Implemented**
 
----
+Flutter currently exposes signup application types:
 
-## 5. Email and Password Recovery
+```text
+Customer
+Consultant
+Business Partner
+Tax Associate
+```
 
-- Forgot-password screen
-- Password reset request
-- Reset-password screen
-- Reset token support
-- Email verification screen
-- Verification-token support
-- Resend or retry behaviour where supported
-- Change-password screen for signed-in users
-- Password validation
-- Friendly failure messages
-- Safe routing between login, verification, reset, and home screens
+The signup UI includes:
 
----
+- multi-step registration;
+- full name;
+- email;
+- username;
+- mobile and WhatsApp numbers;
+- CNIC;
+- address;
+- education;
+- experience;
+- remarks;
+- acquisition source;
+- referral code for customer referral signup;
+- password and confirmation;
+- terms acceptance;
+- username normalisation/suggestion/availability checks.
 
-## 6. Customer Approval and Account Status
+The new-registration backend uses `OMC Pending Registration` with:
 
-- Pending-review screen
-- Clear account review status
-- Approval-status messaging
-- Retry account-status check
-- Contact support while waiting
-- Logout from the review screen
-- Failed logout recovery
-- Approved-customer access activation
-- Guest-safe access while full features remain locked
-- Backend-controlled approval status
+- cryptographically random verification token;
+- SHA-256 token digest storage;
+- 30-minute token lifetime;
+- 60-second resend cooldown;
+- superseding/rotation behaviour;
+- email and app/browser verification links;
+- terminal secret sanitisation after activation/expiry/supersede/cancel.
 
----
+## Staff-application alignment note
 
-## 7. Role and Permission System
+**Partially aligned.**
 
-- Guest access rules
-- Pending-customer access rules
-- Approved-customer access rules
-- Internal-staff access rules
-- Capability-based navigation
-- Capability-based buttons and actions
-- Route-level access checks
-- Backend-level permission enforcement
-- Ownership-based customer data access
-- Assignment-based internal data access
-- Fail-closed behaviour for unknown protected routes
-- Effective capability authority shared across routing and navigation
-- Profile capabilities used when available
-- Session capabilities used as a safe fallback
-- Restricted internal tools hidden from customers
-- Restricted customer tools hidden from internal users where appropriate
+The signup UI still allows Consultant, Business Partner, and Tax Associate applications, and the current registration-review API still begins from an `OMC Customer Profile` application record and grants direct Frappe OMC roles on approval.
 
-Supported internal roles include:
+The newer internal-authorisation architecture now requires an approved `OMC Staff Profile` for ordinary staff access. The public staff-application approval bridge therefore still needs alignment so that approving a staff applicant deliberately creates/updates and approves the corresponding Staff Profile rather than relying only on direct user-role assignment.
 
-- OMC Admin
-- OMC Manager
-- OMC Support Agent
-- OMC Document Reviewer
-- OMC Finance Reviewer
-- OMC Consultant
-- OMC Tax Associate
-- OMC Business Partner
+Do not describe public staff signup as fully production-complete until that bridge is reconciled and retested.
 
 ---
 
-## 8. Home Dashboard
+# 4. Existing ERP customer migration
 
-### Customer and Guest Home
+**Migration engine implemented and rehearsed; permanent apply not run.**
 
-- Time-aware welcome area
-- Personalised customer greeting
-- Guest welcome experience
-- Quick access to services
-- Quick access to tracked requests
-- Quick access to documents
-- Quick access to support
-- Quick access to tax tools
-- Quick access to expense tools
-- Notifications shortcut
-- Profile shortcut
-- Current account or approval status
-- Service-request summaries
-- Outstanding-action summaries
-- Data-loading error feedback
-- Retry support for failed dashboard sections
+`omc_app.api.customer_migration` analyses existing ERPNext `Customer` records and creates OMC application profiles without creating thousands of Frappe login users in advance.
 
-### Internal Staff Home
+Identity resolution priority is:
 
-- Internal operations overview
-- Role-aware work shortcuts
-- Assigned work summaries
-- Customer queues
-- Service-case queues
-- Document-review queues
-- Payment-review queues
-- Lead shortcuts
-- Task shortcuts
-- Support shortcuts
-- Capability-aware visibility
-- Failure notices and retry actions
+```text
+1. unique valid Customer email
+2. unique linked-Lead CNIC
+3. unique safe resolved phone with no Customer/Lead phone conflict
+4. identity review
+```
 
----
+The restored client-data rehearsal produced:
 
-## 9. Service Catalogue
+```text
+Total ERP Customers:          4,886
+Auto/profile-only migratable: 4,530
+Identity review:                356
+```
 
-- Browse available OMC services
-- View active service categories
-- Search services
-- Filter service catalogue
-- Public service browsing for guests
-- Service cards with useful summary information
-- Service-detail page
-- Service description
-- Service requirements
-- Required-document information
-- Service instructions
-- Service pricing information where configured
-- Service availability checks
-- Start-service-request action
-- Login or approval prompts when required
-- Backend-managed catalogue content
-- Inactive services hidden from public request creation
+Profile-only migration creates or reuses `OMC Customer Profile` with the ERP customer link while leaving:
+
+```text
+user = blank
+linked_app_user = blank
+```
+
+until secure app activation occurs.
+
+The migration code includes:
+
+- read-only dry run;
+- read-only preflight;
+- identity conflict classification;
+- no default/shared password creation;
+- no mass User creation;
+- existing-profile reuse;
+- idempotent planning/apply behaviour;
+- separation of migration blockers and activation-time warnings.
 
 ---
 
-## 10. Service Request Creation
+# 5. Existing-customer first-time app activation
 
-- Start a request from a service
-- Compact service-request form
-- Request title
-- Request description
-- Contact phone
-- Contact email
-- Priority selection where supported
-- Customer and internal assisted-request modes
-- Required-field validation
-- Access and approval checks
-- Active-service validation
-- Existing active request warning
-- Resume an existing request
-- Start a new request when allowed
-- Request draft flow
-- Attachment selection
-- Document upload support
-- Safe request submission
-- Duplicate submission prevention
-- Submission loading indicator
-- Friendly submission failure message
-- Navigation to the created request
+**Backend + Flutter implemented and automated tests green; manual browser/device E2E pending.**
 
----
+Existing imported customers do not need a pre-generated password.
 
-## 11. Service Request Tracking
+Flutter provides:
 
-- “My Services” or tracking screen
-- Customer-owned request list
-- Request-status filters
-- Request progress display
-- Current stage
-- Next required action
-- Request timeline
-- Assigned staff information where allowed
-- Service information
-- Request details
-- Required-document status
-- Payment status
-- Customer assistance details
-- Open individual case details
-- Retry failed case loading
-- Cancel eligible service requests
-- Cancellation confirmation
-- Cancellation duplicate-action protection
-- Cancellation success and failure feedback
-- Start another request when appropriate
+```text
+Login
+  -> Activate existing account
+  -> enter registered email
+  -> receive activation email
+  -> open secure activation link
+  -> choose password
+  -> continue to normal login
+```
+
+Backend activation is provided by `omc_app.api.customer_activation` and `OMC Customer Activation`.
+
+Security behaviour includes:
+
+- enumeration-safe activation request response;
+- imported + Active + Approved + active-profile eligibility gate;
+- no activation if the profile is already linked to a User;
+- no automatic merge when an existing Frappe User collides with the email;
+- cryptographically random token;
+- only SHA-256 token digest stored in the activation DocType;
+- 30-minute expiry;
+- 60-second request cooldown;
+- pending-token supersede;
+- one-time token consumption;
+- row locking during token consumption;
+- password minimum and confirmation validation;
+- Website User creation only after successful proof of email control;
+- `OMC Customer` role normalisation;
+- linkage back to the same imported Customer Profile;
+- `manual_customer_status = Linked` after success;
+- token destruction after use;
+- collision/ineligibility path to `Review Required` instead of identity guessing.
+
+Initial self-service activation is deliberately email-based. CNIC-only and phone-only migrated profiles require a future secure activation method such as verified SMS/OTP or controlled staff-assisted identity verification.
 
 ---
 
-## 12. Automated Service Workflow
+# 6. Customer lifecycle and approval
 
-- Automatic assignee resolution
-- Referral-owner assignment where valid
-- Service-default assignee support
-- Role-based fallback assignment
-- Least-loaded eligible staff selection
-- Manager fallback assignment
-- Duplicate-safe internal ToDo creation
-- Assigned-staff notification
-- Customer-visible progress updates
-- Audit timeline entries
-- Request movement to “Waiting for Customer”
-- Request movement to “Waiting for Payment”
-- Request movement to “In Progress”
-- Request completion checks
-- Open task closure during completion
-- Completion date recording
-- Customer completion notification
-- Prevention of completion while blockers remain
+**Implemented**
+
+Customer application state supports guest, pending, approved, rejected, and imported/unlinked business states.
+
+Approved customer state is based on the profile lifecycle, typically:
+
+```text
+customer_status = Active
+approval_status = Approved
+is_active = 1
+```
+
+Customer permissions remain ownership-scoped even after approval.
+
+Imported business records may already be Active/Approved before they have an app login. Business approval and login activation are intentionally separate.
 
 ---
 
-## 13. Documents
+# 7. Internal staff identity, approval, and capabilities
 
-### Customer Documents
+**Core Staff Profile architecture implemented and backend regression-tested.**
 
-- View document list
-- Open document details
-- View required documents for a service request
-- Select files from the device
-- Upload PDF and image files
-- Upload supported office-document files where enabled
-- File-size validation
-- Empty-file validation
-- Missing-file-data validation
-- Upload progress state
-- Prevent duplicate upload taps
-- Replace or re-upload rejected documents
-- View document status
-- View rejection remarks
-- View re-upload instructions
-- Link documents to the correct service request
-- Protection against cross-request file reuse
+Internal identity now uses:
 
-### Internal Document Review
+```text
+Frappe User
+    -> OMC Staff Profile
+       -> ERP Employee where linked
+```
 
-- Internal document-review queue
-- Filter documents needing review
-- Filter by service request
-- Open linked service case
-- Open document detail
-- Approve document
-- Reject document
-- Add rejection reason
-- Add re-upload instruction
-- Review loading state
-- Duplicate-review prevention
-- Reviewer permission checks
-- Friendly review failure message
-- Automatic request-state update after rejection
-- Automatic payment-eligibility check after all required approvals
+New ordinary staff profiles default to:
 
----
+```text
+staff_status = Pending
+approval_status = Pending Review
+is_active = 0
+```
 
-## 14. Payments and Receipts
+Normal staff access requires:
 
-### Customer Payments
+- enabled Frappe User;
+- recognised effective OMC staff persona;
+- `OMC Staff Profile` present;
+- Staff Profile Active;
+- Staff Profile Approved;
+- `is_active = 1`;
+- linked ERP Employee Active when one is linked.
 
-- Payment list
-- Payment-detail screen
-- Payment amount
-- Currency
-- Payment status
-- Payment instructions
-- Receipt status
-- Submit payment receipt
-- Replace rejected receipt where allowed
-- View finance-review state
-- Customer-only payment ownership
+Current staff personas are:
 
-### Internal Payment Review
+```text
+OMC Admin
+OMC Manager
+OMC Support Agent
+OMC Document Reviewer
+OMC Finance Reviewer
+OMC Consultant
+OMC Tax Associate
+OMC Business Partner
+```
 
-- Finance-review queue
-- View customer payment context
-- View submitted receipt
-- Review receipt
-- Mark payment paid
-- Mark payment rejected
-- Mark payment under review
-- Role-specific receipt visibility
-- Duplicate active-payment prevention
-- Automatic payment creation after required documents are approved
-- Automatic request-status updates after payment review
-- Notifications to Finance Reviewers, Managers, and assigned staff
-- Protection against zero or missing service prices
+The backend combines direct recognised OMC Frappe roles with `OMC Staff Profile.staff_role` into an effective staff-role set.
+
+Existing client Frappe Role Profiles must not be modified merely to assign an OMC persona.
+
+`Administrator` and `System Manager` remain explicit trusted system overrides.
+
+## Admin staff-management alignment note
+
+**Partially aligned.**
+
+The current Admin Control API still contains legacy-style `invite_staff`, registration-role approval, and user-role editing paths that directly assign Frappe OMC roles. Those paths do not yet fully drive the new Staff Profile approval/persona lifecycle.
+
+Until aligned, the Staff Profile gate is the authoritative access rule and the Admin Control staff-management workflow should not be represented as end-to-end complete.
 
 ---
 
-## 15. Customer Management
+# 8. Capability and permission system
 
-- Internal customer list
-- Customer search
-- Customer filters
-- Customer-detail page
-- Customer profile information
-- Contact details
-- Approval information
-- Linked service requests
-- Linked documents
-- Linked payments
-- Referral relationship information where available
-- Capability-based customer access
-- Restricted customer records hidden from unauthorised staff
+**Implemented**
 
----
+The backend exposes canonical capability state for Flutter navigation and protected operations.
 
-## 16. Leads and Sales Tracking
+Major internal capability groups include:
 
-- Lead list
-- Lead-detail page
-- Create lead action
-- Lead search and filters
-- Lead status tracking
-- Lead source information
-- Lead contact information
-- Lead notes and details
-- Internal lead management
-- Support-agent and manager access where authorised
-- Capability-based lead visibility
-- Safe loading and error handling
+- internal workspace access;
+- customer management and scoped customer viewing;
+- lead management;
+- all-task and assigned-task management;
+- all/relevant/assigned service-case access;
+- assisted service creation;
+- global/assigned service-status updates;
+- document queue, attachment, and review permissions;
+- payment queue, receipt, and review permissions;
+- support viewing/reply/status/assignment;
+- internal notes;
+- settings;
+- staff management;
+- registration review;
+- business settings;
+- service-case reassignment;
+- ERP synchronisation retry.
+
+Capability checks do not replace record ownership/assignment checks.
+
+Frappe DocPerm, permission-query conditions, record-level `has_permission`, endpoint guards, and Flutter route policy form layered protection.
 
 ---
 
-## 17. Tasks and Internal Work
+# 9. Home and dashboards
 
-- Task list
-- Task-detail page
-- Assigned-task view
-- Task status
-- Task priority
-- Due date information
-- Linked customer or service context
-- Assignment-scoped access
-- Internal-user validation before assignment
-- Retry failed task loading
-- Task completion and update flows where authorised
-- Update operational task states through the allowed OMC status list
-- “Submitted by QC” completion path for eligible tasks
-- Transaction-safe closing of only the ToDos linked to the exact ERP Task
-- Rollback protection if ERP Task completion fails
-- Assign or reassign a task to an eligible active System User
-- Close replaced open assignments during reassignment
-- Update task priority and expected completion date
-- Keep linked service-request planning fields aligned where configured
-- Duplicate-safe no-change responses for repeated status or assignment actions
-- Capability-based task access
+**Implemented**
+
+Customer/guest home provides a role-aware entry experience with shortcuts into the main customer features.
+
+The repository includes:
+
+- home screen;
+- customer dashboard;
+- account/approval-aware presentation;
+- service/activity context;
+- quick actions;
+- notification/profile access;
+- retry/error states.
+
+Internal users have dedicated workspace/dashboard surfaces for operational queues and role-appropriate shortcuts.
+
+Partial backend failures are represented as unavailable/error states rather than fabricated zero values where implemented by the current repositories.
 
 ---
 
-## 18. Internal Operations Workspace
+# 10. Service catalogue
 
-- Dedicated internal workspace
-- Service-case operations
-- Customer operations
-- Document operations
-- Payment operations
-- Internal service-case detail workspace
-- Role-specific queues
-- Capability-specific actions
-- Assigned-work filtering
-- Operational summaries
-- Access-denied protection
-- Backend-authorised mutations
-- Separation between document and finance responsibilities
-- Manager and admin oversight
-- Searchable and paginated operational queues
-- Server-side payment status filtering and search
-- Authenticated private receipt opening and sharing
+**Implemented**
 
-### Admin Control and Recovery Operations
+`OMC Service` is the mobile/customer service catalogue authority.
 
-- Pending registration review
-- Approve or reject registrations with the appropriate decision context
-- Invite internal staff
-- Grant only supported OMC staff roles
-- Edit staff roles
-- Enable or disable eligible staff accounts
-- View and update guarded business settings
-- Reassignment queue for service cases
-- Load eligible assignee options before reassignment
-- Require and record a reassignment reason
-- Exhausted ERP-sync recovery queue
-- Inspect sync status, last error, and retry count
-- Retry only eligible failed or exhausted service synchronisations
-- Pending-discount review queue
-- Review original price, proposed final price, discount type, value, amount, and reason
-- Approve or reject a discount
-- Require remarks when rejecting a discount
-- Capability-specific access to each administration queue
-- Focused refresh of cases, tasks, payments, documents, dashboards, and admin data after a successful operation
+Supported service configuration includes:
+
+- generated service ID;
+- title;
+- OMC service category;
+- description and short description;
+- mobile icon/accent configuration;
+- base price and currency;
+- fee labels;
+- government fee label;
+- estimated/completion time;
+- support message;
+- default assignee;
+- default assignment role;
+- parallel-request flag;
+- sort/featured/active state;
+- canonical ERP `Task Type` mapping through `erp_task_type`.
+
+Flutter supports:
+
+- service list;
+- search/filter presentation;
+- service detail;
+- requirements and required documents;
+- pricing/duration context;
+- start-service flow;
+- assisted-service query context where authorised.
+
+Inactive services are not valid for normal public request creation.
 
 ---
 
-## 19. Notifications
+# 11. Service requests and tracking
 
-- Notification list
-- Notification-detail screen
-- Unread notification count
-- All-notifications filter
-- Unread-only filter
-- Open notification-linked content
-- Mark notification as read
-- Mark a notification as unread
-- Mark all as read where supported
-- Swipe or dismiss notification behaviour
-- Clear-notification confirmation feedback
-- Undo cleared notification
-- Restore dismissed notification
-- Per-notification duplicate-action protection
-- Refresh notifications
-- Ownership-safe customer notifications
-- Backend-generated workflow notifications
-- Internal assignment notifications
-- Document-review notifications
-- Payment-review notifications
-- Completion notifications
-- Reminder and escalation notifications
-- Push-token registration and unregistration contracts
-- Notification-category preference enforcement where applicable
+**Implemented**
 
-> The current app includes in-app notifications. Device-level Firebase/APNs push notification delivery is not confirmed in the current source.
+Customer features include:
+
+- start a request from a service;
+- request draft/form flow;
+- approved-customer gate;
+- duplicate/parallel-request handling;
+- request detail and tracking;
+- status/progress/timeline context;
+- next-action presentation;
+- required-document and payment state;
+- cancellation where allowed;
+- retry and safe failure handling.
+
+Internal/assisted flow includes creating service requests on behalf of authorised customers where the caller has the required capability and customer scope.
 
 ---
 
-## 20. Support Centre
+# 12. Assignment and operational workflow
 
-### Customer Support
+**Implemented**
 
-- Support home screen
-- Create support ticket
-- Support topic or category selection
-- Subject
-- Message
-- Submit-ticket loading state
-- Duplicate submission prevention
-- Support-ticket list
-- Open ticket detail
-- Conversation-style ticket messages
-- Send a reply
-- Reply with text only
-- Reply with attachment only
-- Reply with text and attachment
-- PDF, image, DOC, and DOCX attachment support
-- Attachment-size validation
-- Keep reply text and attachment after a failed send
-- Retry sending after upload failure
-- Closed-ticket restrictions
-- Ticket-status display
-- OMC contact details
+The current backend includes:
 
-### Internal Support
+- explicit/default assignment resolution;
+- referral-owner assignment where valid;
+- role-based fallback;
+- least-loaded eligible assignee selection;
+- manager fallback;
+- duplicate-safe Frappe ToDo creation;
+- unassigned-request recovery;
+- assignment notifications;
+- workflow timeline/audit handling;
+- service-case reassignment for authorised operations;
+- completion blockers and completion attribution.
 
-- Internal support queue
-- Reply to customer tickets
-- Capability check for ticket replies
-- Update ticket status
-- Status-selection sheet
-- Duplicate status-update protection
-- Open customer or service-request context
-- Support failure recovery
+Specialist access remains assignment/relevance-scoped.
 
 ---
 
-## 21. Knowledge, FAQs, and Content
+# 13. ERP service and task activation
 
-- Knowledge article list
-- Knowledge article detail
-- Search or browse customer information
-- FAQs
-- Announcements
-- Onboarding content
-- Contact information
-- Public customer-safe content
-- Backend-managed content
-- Separation of public and internal content
-- External link opening where configured
+**Implemented**
 
----
+OMC does not modify ERPNext source files to create the service workflow.
 
-## 22. Tax Calculator
+The integration boundary is:
 
-- Public tax calculator
-- Guest access
-- Approved-customer access
-- Tax-year selection
-- Income-type selection
-- Filer-status selection
-- Income-mode selection
-- Income amount entry
-- Advanced tax inputs
-- Input validation
-- Protection against negative or malformed amounts
-- Tax calculation result
-- Calculation breakdown
-- Filer versus non-filer comparison where returned by the backend
-- Backend-authored tax insights
-- Tax-readiness/health result where configured
-- Recommended next steps
-- Tax calculation history
-- Open previous calculation
-- Start a linked tax service from a saved calculation when permitted and configured
-- Backend-controlled tax slabs
-- Supported-year handling
-- Safe error feedback
+```text
+OMC Service.erp_task_type
+        -> existing ERP Task Type
+
+OMC Service Request
+        -> guarded ERP activation
+        -> ERP Service
+        -> ERP Task
+```
+
+For paid services, ERP Service/Task creation is gated until an `OMC Service Payment` is confirmed `Paid`.
+
+For a zero-price request, ERP activation becomes eligible when the request is `In Progress`.
+
+Existing valid ERP links are preserved and can be reconciled rather than recreated destructively.
 
 ---
 
-## 23. Expense Tracker
+# 14. Documents
 
-### Transactions
+**Implemented**
 
-- Personal income tracking
-- Personal expense tracking
-- Add transaction
-- Edit transaction
-- Archive transaction
-- Clear local tracker
-- Transaction date
-- Amount
-- Income or expense type
-- Category
-- Account
-- Payment method
-- Merchant
-- Notes
-- Tax-relevant flag
-- Business-expense flag
-- Recurring flag
-- Reimbursable flag
-- Receipt attachment
-- Local guest mode
-- Pending-customer local mode
-- Approved-customer cloud mode
-- Local-to-cloud synchronisation
-- Manual cloud sync
-- Refresh local data
-- Load cloud data
-- Duplicate-save prevention
-- Save progress indicator
-- Persistence-first save behaviour
-- Archive confirmation
-- Clear-data confirmation
-- Success feedback
-- Failure feedback without false data removal
-- Import backup JSON
-- Export backup JSON
-- Import validation
-- Import progress state
-- Duplicate-import prevention
-- Import success only after data is saved
+Customer document capabilities include:
 
-### Expense Views and Insights
+- own-document listing;
+- document detail;
+- required-document context;
+- multipart/file upload;
+- file-size/type/content validation;
+- request ownership validation;
+- cross-request file-reuse prevention;
+- rejected-document replacement/re-upload;
+- status, rejection reason, and re-upload guidance.
 
-- Current-month balance
-- Total income
-- Total expenses
-- Transaction count
-- This-month filter
-- Last-month filter
-- All-time filter
-- Category summaries
-- Tax-relevant total
-- Business-expense total
-- Receipt count
-- Recurring-entry count
-- Tax-readiness score
-- Tax-readiness label
-- Quick-add categories
-- Empty-period message
+Internal document-review capabilities include:
+
+- review queue;
+- related service/customer context;
+- guarded attachment access;
+- approve/reject decisions;
+- rejection reason/re-upload instruction;
+- duplicate-review protection;
+- capability enforcement;
+- request-state update after rejection;
+- payment eligibility evaluation after required approvals.
+
+Human review remains required. Document upload does not auto-approve a document.
 
 ---
 
-## 24. Expense Budget
+# 15. Payments and receipts
 
-- Expense-budget screen
-- Budget threshold setup
-- Validated budget values
-- Expense-to-budget comparison
-- Budget progress visualisation
-- Budget-related customer guidance
-- Customer-owned budget data
+**Implemented**
 
----
+Customer payment features include:
 
-## 25. Profile
+- own-payment list/detail;
+- amount/currency/status;
+- payment instructions;
+- receipt submission/replacement where allowed;
+- finance-review state;
+- guarded invoice/receipt access where supported by the backend endpoints.
 
-- Profile screen
-- Personal information
-- Contact information
-- Business information
-- Account status
-- Customer status
-- Approval status
-- Role information
-- Edit-profile screen
-- Update personal details
-- Update contact details
-- Update business details
-- Protected profile updates
-- Account email protected from profile-edit changes
-- Profile loading state
-- Profile update feedback
-- Canonical backend profile authority
+Internal finance features include:
+
+- payment-review queue;
+- authenticated receipt access;
+- receipt review;
+- `Paid`, `Rejected`, and `Under Review` decisions;
+- duplicate active-payment prevention;
+- service-price validation;
+- capability/relationship checks;
+- workflow updates and notifications after review.
+
+Paid-service ERP activation occurs only after payment confirmation.
 
 ---
 
-## 26. Referrals
+# 16. ERP-native leads
 
-- “My Referrals” screen
-- Referral list
-- Referral-detail screen
-- Referral customer name
-- Referral customer profile link
-- Referral status information
-- Referral code used during signup
-- Referral-code validation
-- Referral-owner service assignment where configured
-- Referral assistance consent
-- Capability-aware access
+**Implemented**
+
+Native ERPNext `Lead` is the canonical lead record.
+
+The retired `OMC Lead` DocType is not the current source of truth.
+
+Flutter still provides lead list/detail/create experiences for authorised internal users. Backend lead creation writes to ERP `Lead` and supports the existing client ERP Lead custom metadata required by the integration.
+
+Lead reads/writes are capability guarded.
 
 ---
 
-## 27. Settings
+# 17. Customer management
 
-- Settings screen
-- Profile-preferences shortcut
-- Security shortcut
-- Change-password shortcut
-- Logout
-- Delete-account request
-- Account-support request forms
-- App preferences
-- Preference save protection
-- Preference failure recovery
-- Privacy-policy access
-- Terms and conditions access
-- App version information
-- Backend-driven legal text or URLs
-- Retry failed settings loading
-- Safe external-link opening
+**Implemented**
+
+Internal customer screens support:
+
+- customer list;
+- search/filtering;
+- customer detail;
+- profile/contact status;
+- related service context;
+- role/capability-aware access.
+
+The customer application record is `OMC Customer Profile`; ERP customer master remains ERPNext `Customer`.
+
+The project also contains profile-only import tooling for the existing ERP customer population as described earlier.
 
 ---
 
-## 28. Account Requests
+# 18. ERP tasks and internal work
 
-- Delete-account request
-- Reason or instructions field
-- Submit request to OMC
-- Duplicate request prevention
-- Success feedback
-- Failure feedback
-- Support-based account processing rather than unsafe instant deletion
+**Implemented**
 
----
+Flutter includes task list/detail surfaces. The backend uses ERPNext `Task` for operational task authority rather than a duplicate OMC task DocType.
 
-## 29. Data Safety and Reliability
+Current guarded task behaviour includes:
 
-- Secure session storage
-- Backend-first authentication
-- Backend-first authorisation
-- CSRF-aware API communication
-- Ownership checks
-- Assignment checks
-- Capability checks
-- Input-length limits
-- Numeric-value validation
-- File-type validation
-- File-size validation
-- Bulk-operation limits
-- Duplicate request prevention
-- Duplicate payment prevention
-- Duplicate ToDo prevention
-- Duplicate notification prevention
-- Duplicate button-tap prevention
-- Mounted-state safety after async actions
-- Persistence-first local data changes
-- Friendly retry states
-- Safe fallback when profile capabilities cannot load
-- Fail-closed protected routes
-- Sensitive files excluded from source control
-
-### Deliberate Fallback and Recovery Behaviour
-
-- Offline, timeout, unauthorised, forbidden, missing-record, configuration, validation, server, malformed-response, and unknown failures are converted into user-safe messages
-- Retry is offered only where repeating the action is meaningful
-- Session expiry returns the user to authentication instead of exposing protected screens
-- Unknown authenticated routes fail closed
-- Broken back-stack navigation uses a safe route fallback
-- App branding, legal text, support channels, and application configuration have packaged safe defaults
-- Onboarding uses packaged slides if backend content is unavailable or empty
-- Mobile quick actions use capability-filtered packaged defaults when backend actions are unavailable
-- Profile identity can fall back to the authenticated user ID while protected profile data remains unavailable
-- Service templates fail soft: the base backend service remains usable if optional template enrichment fails
-- Development can explicitly enable local service preview or catalogue fallback; production never substitutes fake catalogue data
-- Empty backend catalogues remain honest empty states rather than fabricated services
-- Guest and pending-user expense records remain local; approved-customer records use guarded cloud APIs
-- Expense import reports success only after local persistence succeeds
-- Clearing the expense tracker removes local cache only and does not claim to delete cloud records
-- Failed support replies retain the selected attachment reference and message for retry where possible
-- Failed uploads, reviews, mutations, and settings changes do not show false success
-- Images and avatars have visual placeholders when remote assets fail
-- Partial internal-dashboard queue failures show unavailable indicators instead of misleading zero counts
+- task reads based on internal capabilities/scope;
+- assignment/reassignment to eligible users;
+- task priority and expected-completion updates;
+- allowed operational status updates;
+- linked service-planning synchronisation where configured;
+- transaction-safe completion handling;
+- closing ToDos linked to the exact ERP Task;
+- rollback protection;
+- ERP Task status synchronisation back into the OMC service workflow.
 
 ---
 
-## 30. Backend Automation and Reminders
+# 19. Referrals
 
-- Hourly unreviewed-document checks
-- Hourly pending-receipt-review checks
-- Hourly unassigned-request alerts
-- Daily waiting-for-customer reminders
-- Daily waiting-for-payment reminders
-- Daily overdue escalation
-- Notifications to assigned staff
-- Notifications to managers and admins
-- Notification deduplication window
-- Human approval required for documents
-- Human approval required for payment receipts
-- Automatic workflow movement only after authorised decisions
+**Implemented for approved referral-capable staff.**
 
----
+Canonical referral-owner personas are:
 
-## 31. Technical Platform Capabilities
+```text
+OMC Consultant
+OMC Tax Associate
+OMC Business Partner
+```
 
-- Flutter mobile application
-- Android application support
-- Flutter web build support
-- iOS-compatible Flutter codebase
-- Frappe Framework backend
-- REST and whitelisted API integration
-- Riverpod state management
-- GoRouter navigation
-- Dio networking
-- Flutter Secure Storage
-- Shared Preferences
-- File Picker
-- Image Picker
-- Cached network images
-- Charts
-- URL launcher
-- Share support
-- Local OS authentication through `local_auth`
-- Fingerprint, Face ID, and device-credential session lock support
-- Android biometric permission
-- iOS Face ID usage declaration
-- `omchouse://auth/...` custom-scheme authentication links
-- Backend DocTypes
-- Backend permission hooks
-- Backend scheduled jobs
-- Production nginx and Supervisor deployment support
+Referral ownership additionally requires:
+
+- existing enabled Frappe User;
+- System User type;
+- approved active `OMC Staff Profile`;
+- effective referral-capable staff persona.
+
+Eligible staff own an `OMC Referral` and the Staff Profile can display:
+
+```text
+referral_record
+own_referral_code
+```
+
+Customers do not own a referral code. Referred-customer profiles store attribution such as the referrer, referral record/code used, and assistance consent.
+
+Flutter includes:
+
+- My Referrals;
+- referral customer list/detail;
+- referral customer service analytics;
+- referral-code validation during customer signup;
+- capability-aware referral access.
+
+Referral codes become inactive when the owner no longer satisfies the referral-owner eligibility contract.
 
 ---
 
-## 32. Features Not Confirmed in Current Source
+# 20. Commission screens
 
-The following should not be presented as completed features unless they are added later:
+**Partially wired / currently not an end-to-end supported feature.**
 
-- Passwordless fingerprint or Face ID login to the OMC backend (the implemented biometric feature is a local post-login device lock)
-- A separate “Remember password” toggle
-- Production Google sign-in (the current backend explicitly rejects it until verified token validation is configured)
-- Firebase Cloud Messaging push notifications
-- Apple Push Notification Service integration
-- In-app payment gateway or card charging
-- Real-time chat through sockets
-- Offline synchronisation for every module
-- Fully offline service, document, payment, support, tax, or staff workflows
-- A customer-facing tax-estimate PDF download/share screen (repository/backend contracts alone are not presented as a completed UI feature)
+Flutter still contains:
+
+```text
+/my-commissions
+/my-commissions/:earningId
+```
+
+and a commission repository that calls:
+
+```text
+omc_app.api.referral_commissions.get_my_commission_summary
+omc_app.api.referral_commissions.get_my_commissions
+omc_app.api.referral_commissions.get_my_commission
+```
+
+However, the current branch no longer contains `omc_app/api/referral_commissions.py`, and the old OMC referral-commission / settlement DocTypes were retired from the backend in the current changeset.
+
+Therefore the commission UI must **not** be advertised as a working production feature in the current state. It needs either:
+
+```text
+A. a new authoritative commission backend and contract,
+or
+B. removal of the stale Flutter commission routes/repository.
+```
 
 ---
 
-## Summary
+# 21. Internal operations workspace
 
-OMC App is a role-aware customer service and internal operations platform. It combines customer onboarding, service discovery, request processing, document collection, payments, referrals, support, notifications, tax tools, expense management, customer management, leads, tasks, and internal review workflows in one Flutter application backed by Frappe.
+**Implemented**
 
-The app keeps the customer experience simple while the backend controls ownership, permissions, approvals, assignment, workflow automation, and audit-safe operations.
+Flutter routes include:
+
+```text
+/internal-workspace
+/internal-workspace/service-cases
+/internal-workspace/service-cases/:caseId
+/internal-workspace/customers
+/internal-workspace/documents
+/internal-workspace/payments
+```
+
+The workspace supports capability-aware queues for:
+
+- service cases;
+- customers;
+- document review;
+- payment review;
+- assigned/relevant work;
+- operational service-case details.
+
+The backend remains authoritative for every queue read and mutation.
+
+---
+
+# 22. Admin Control and recovery operations
+
+**Operational queues implemented; staff-management portion partially aligned as noted earlier.**
+
+Admin Control currently includes APIs/UI for:
+
+- registration review;
+- staff invitation/editing;
+- business settings;
+- service-case reassignment;
+- eligible assignee options;
+- exhausted ERP-sync recovery;
+- pending-discount review;
+- reason/audit capture;
+- searchable/paginated operation queues.
+
+Capability boundaries include Admin-only and Manager-allowed operations according to `omc_app.api.access`.
+
+The staff invitation/role-edit part still needs migration to the new Staff Profile approval/persona authority before it should be considered production-complete.
+
+---
+
+# 23. Support centre
+
+**Implemented**
+
+Customer support includes:
+
+- create ticket;
+- support ticket list/detail;
+- threaded messages;
+- reply with text and/or supported attachment;
+- upload validation;
+- status handling;
+- retry/failure preservation;
+- contact/support configuration.
+
+Internal support includes guarded ticket reads, replies, status changes, read-state handling, and role/capability checks.
+
+Customer ticket visibility remains ownership-scoped.
+
+---
+
+# 24. Notifications
+
+**Implemented for in-app notification records and workflow delivery.**
+
+The app includes:
+
+- notification list/detail;
+- unread count;
+- read/unread operations;
+- dismiss/restore;
+- mark-all-read;
+- linked-content navigation;
+- ownership-safe customer notification reads;
+- backend-authored workflow notifications;
+- assignment/review/payment/completion/reminder/escalation events;
+- push-token registration/unregistration contracts;
+- notification preference handling where configured.
+
+The current repository should not be described as having confirmed production Firebase Cloud Messaging / APNs delivery unless that external push delivery is separately configured and verified.
+
+---
+
+# 25. Scheduler, recovery, and automation
+
+**Implemented**
+
+Current scheduler entry points are consolidated through `omc_app.api.scheduler_jobs`.
+
+Hourly jobs include:
+
+- unassigned-service recovery;
+- automatic ERP-sync recovery;
+- review-assignment checks;
+- submission-integrity rescore;
+- pending-registration cleanup.
+
+Daily jobs include:
+
+- workflow reminder/escalation checks;
+- notification cleanup;
+- idempotency-record cleanup through the configured scheduler event.
+
+Daily workflow checks currently include customer reminders for:
+
+```text
+Waiting for Customer
+Waiting for Payment
+```
+
+and overdue escalation notifications to relevant operational recipients.
+
+Each scheduler task is isolated so one failing job does not automatically roll back or suppress every other scheduled task in that scheduler run.
+
+---
+
+# 26. Knowledge, FAQs, banners, onboarding, and content
+
+**Implemented**
+
+The repository includes backend-managed customer-safe content for areas such as:
+
+- knowledge articles;
+- FAQs;
+- app banners;
+- onboarding slides;
+- announcements/content surfaces;
+- support/contact information;
+- mobile application configuration.
+
+Flutter also carries safe packaged fallbacks for selected customer-facing configuration/content so a temporary optional-content failure does not fabricate protected business data.
+
+---
+
+# 27. Tax calculator
+
+**Implemented**
+
+Current tax module includes:
+
+- public/guest calculator access;
+- backend tax configuration;
+- tax-year handling;
+- filer/income mode inputs;
+- advanced inputs where configured;
+- validation of malformed/negative/non-finite values;
+- backend-authored calculation result and breakdown;
+- calculation history;
+- previous-calculation opening;
+- link/start-tax-service backend contracts where allowed.
+
+A backend tax-estimate PDF method exists, but a complete customer-facing PDF download/share UI should not be advertised unless the Flutter presentation for that exact behaviour is verified.
+
+---
+
+# 28. Expense tracker and budget
+
+**Implemented**
+
+Expense features include:
+
+- income and expense entries;
+- create/edit/archive/delete flows according to mode;
+- categories;
+- date, amount, account, payment method, merchant, notes;
+- tax-relevant/business/recurring/reimbursable flags;
+- receipt upload;
+- guest/pending local mode;
+- approved-customer guarded cloud mode;
+- local/cloud synchronisation helpers;
+- bounded bulk sync;
+- summary views;
+- budget records;
+- budget progress/comparison;
+- backup import/export in Flutter local mode;
+- persistence-aware success/failure behaviour.
+
+Clearing local expense data must not be represented as deleting cloud records.
+
+---
+
+# 29. Profile and settings
+
+**Implemented**
+
+Customer/profile UI includes:
+
+- profile display;
+- edit profile;
+- contact/business/profile fields;
+- account status;
+- approval state;
+- guarded self-service updates;
+- protected account-email authority;
+- profile image upload where supported;
+- work-address self-service endpoints;
+- settings/preferences;
+- change password;
+- notification preferences;
+- legal/support links;
+- logout;
+- support-based delete-account request rather than unsafe immediate deletion.
+
+Internal staff profile state is separately represented by `OMC Staff Profile`; customer and staff profiles are not interchangeable.
+
+---
+
+# 30. Security and reliability behaviour
+
+**Implemented across the current backend/Flutter boundary**
+
+The codebase contains layered controls for:
+
+- backend-first authentication and authorisation;
+- CSRF/session-aware Frappe communication;
+- customer ownership checks;
+- internal assignment/relevance checks;
+- capability checks;
+- DocPerm + permission-query + record-level permissions;
+- bounded text/numeric inputs;
+- file validation;
+- duplicate/idempotent mutation protection;
+- payment/request/ToDo duplication prevention;
+- fail-closed routing;
+- token hashing and expiry for verification/activation/reset-style flows;
+- safe identity-collision handling;
+- retry/error classification;
+- transaction rollback on guarded multi-step operations;
+- secrets/runtime/private data excluded from source control.
+
+The project deliberately does **not** patch ERPNext source code for OMC-specific behaviour. Integrations live in the custom OMC app through APIs, hooks, adapters, permissions, fixtures, and migrations.
+
+---
+
+# 31. Technical platform
+
+Current application stack includes:
+
+```text
+Flutter / Dart
+Riverpod
+GoRouter
+Dio
+Flutter Secure Storage
+Shared Preferences
+File Picker / Image Picker
+Cached Network Image
+Charts
+URL launcher / share support
+local_auth
+Frappe Framework / ERPNext
+Python
+MariaDB
+Redis workers / scheduler
+Custom OMC DocTypes and whitelisted APIs
+nginx / Supervisor deployment assets
+```
+
+Flutter supports Android and web builds in the repository. The Flutter codebase is iOS-capable, but iOS signing/archive/App Store validation still requires macOS/Xcode and real release verification.
+
+---
+
+# 32. Current known gaps and release gates
+
+The following items should remain explicit instead of being presented as completed:
+
+1. **Imported-customer activation manual E2E** — backend/Flutter implementation and tests are green, but the real email-link → Flutter/web password creation → actual login rehearsal is still pending.
+2. **Permanent ERP Customer migration** — the 4,530 profile-only apply has not been run on the client dataset.
+3. **CNIC/phone-only imported customer activation** — no secure SMS/OTP or equivalent first-login method has been implemented yet.
+4. **Staff application/Admin Control alignment** — the newest Staff Profile approval/persona authority is not yet fully wired into legacy registration approval, staff invitation, and direct role-edit APIs.
+5. **Commission UI/backend mismatch** — Flutter commission routes/repository remain, but the referenced `referral_commissions` backend API has been retired.
+6. **Manager Desk permission alignment** — API capabilities make staff-management/settings authority narrower than Admin, while direct Desk DocPerm should be reviewed so Frappe Desk access matches that intent.
+7. **Production external services** — email, push delivery, HTTPS, scheduler/workers, release signing, and physical-device behaviour require environment-specific verification.
+
+---
+
+# 33. Features not confirmed as complete
+
+Do not advertise the following as completed current features:
+
+- passwordless biometric login to the OMC backend;
+- a separate remember-password feature;
+- production Google sign-in;
+- confirmed production Firebase/APNs push delivery;
+- in-app card/payment-gateway charging;
+- socket-based real-time chat;
+- full offline operation for every business module;
+- secure SMS/OTP first-time activation for imported customers;
+- a working end-to-end commission/settlement module in the current branch;
+- automatic customer/user identity merging when records conflict.
+
+---
+
+# Summary
+
+OMC App currently provides a broad customer-service and internal-operations platform around ERPNext/Frappe: customer onboarding and activation, service catalogue and requests, documents, payments, ERP Task/Service execution, native ERP leads and tasks, referrals, support, notifications, tax tools, expense tracking, customer management, internal queues, and operational recovery.
+
+The newest architecture intentionally removes duplicated OMC authority where ERPNext already owns the business record, while preserving OMC-specific mobile approval, customer profile, staff profile, referral, service-workflow, and security state inside the custom app.
+
+The catalogue above should be treated as the release-facing truth: implemented features are listed as implemented, while known wiring gaps and unverified environment-dependent behaviour remain explicitly labelled.
