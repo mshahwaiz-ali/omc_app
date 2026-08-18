@@ -21,22 +21,20 @@ ERP_STAFF_PERSONAS = {
     ERP_EMPLOYEE_PERSONA,
 }
 
-# Compatibility names for old code paths while the role model is migrated.
-# These role records are retired below and must not be assigned to ERP users.
-CONSULTANT_ROLE = "OMC Consultant"
-TAX_ASSOCIATE_ROLE = "OMC Tax Associate"
-BUSINESS_PARTNER_ROLE = "OMC Business Partner"
-EMPLOYEE_ROLE = "OMC Employee"
-ERP_PERSONA_TO_LEGACY_ROLE = {
-    ERP_CONSULTANT_PERSONA: CONSULTANT_ROLE,
-    ERP_TAX_ASSOCIATE_PERSONA: TAX_ASSOCIATE_ROLE,
-    ERP_BUSINESS_PARTNER_PERSONA: BUSINESS_PARTNER_ROLE,
-    ERP_EMPLOYEE_PERSONA: EMPLOYEE_ROLE,
+# Existing OMC code imports these names as capability/persona constants. They
+# now resolve directly to the ERP personas instead of duplicate OMC roles.
+CONSULTANT_ROLE = ERP_CONSULTANT_PERSONA
+TAX_ASSOCIATE_ROLE = ERP_TAX_ASSOCIATE_PERSONA
+BUSINESS_PARTNER_ROLE = ERP_BUSINESS_PARTNER_PERSONA
+EMPLOYEE_ROLE = ERP_EMPLOYEE_PERSONA
+
+RETIRED_EXTERNAL_OMC_ROLE_TO_PERSONA = {
+    "OMC Consultant": ERP_CONSULTANT_PERSONA,
+    "OMC Tax Associate": ERP_TAX_ASSOCIATE_PERSONA,
+    "OMC Business Partner": ERP_BUSINESS_PARTNER_PERSONA,
+    "OMC Employee": ERP_EMPLOYEE_PERSONA,
 }
-LEGACY_ROLE_TO_ERP_PERSONA = {
-    legacy_role: persona for persona, legacy_role in ERP_PERSONA_TO_LEGACY_ROLE.items()
-}
-RETIRED_EXTERNAL_OMC_ROLES = set(LEGACY_ROLE_TO_ERP_PERSONA)
+RETIRED_EXTERNAL_OMC_ROLES = set(RETIRED_EXTERNAL_OMC_ROLE_TO_PERSONA)
 
 ACTIVE_PORTAL_ROLES = {CUSTOMER_ROLE}
 MANAGED_OMC_STAFF_ROLES = {
@@ -294,7 +292,7 @@ def _remove_role_docperms(role_names):
 
 def _migrate_external_staff_personas():
     if frappe.db.exists("DocType", "OMC Staff Profile"):
-        for legacy_role, persona in LEGACY_ROLE_TO_ERP_PERSONA.items():
+        for legacy_role, persona in RETIRED_EXTERNAL_OMC_ROLE_TO_PERSONA.items():
             frappe.db.set_value(
                 "OMC Staff Profile",
                 {"staff_role": legacy_role},
