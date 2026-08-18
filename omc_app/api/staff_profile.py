@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.setup.roles import ACTIVE_STAFF_ROLES
+from omc_app.setup.roles import ACTIVE_STAFF_ROLES, MANAGED_OMC_STAFF_ROLES
 
 
 DOCTYPE = "OMC Staff Profile"
@@ -34,15 +34,15 @@ def get_staff_role(user: str, profile=None) -> str:
 
 
 def get_effective_staff_roles(user: str, profile=None) -> set[str]:
-    """OMC roles may come from Frappe or the Staff Profile persona."""
+    """Return OMC-owned roles plus the Staff Profile's authoritative persona."""
     user = _text(user)
 
     if not user or user == "Guest":
         return set()
 
-    roles = set(frappe.get_roles(user) or []).intersection(
-        ACTIVE_STAFF_ROLES
-    )
+    # ERP Has Role / Role Profile values are not reliable persona classifiers.
+    # Only OMC-owned operational roles may come from Frappe role assignments.
+    roles = set(frappe.get_roles(user) or []).intersection(MANAGED_OMC_STAFF_ROLES)
 
     profile_role = get_staff_role(user, profile=profile)
     if profile_role:
@@ -198,7 +198,7 @@ def ensure_staff_profile(user: str):
 
         existing_omc_roles = set(
             frappe.get_roles(user) or []
-        ).intersection(ACTIVE_STAFF_ROLES)
+        ).intersection(MANAGED_OMC_STAFF_ROLES)
 
         if (
             profile.meta.has_field("staff_role")
