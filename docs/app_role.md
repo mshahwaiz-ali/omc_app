@@ -1,487 +1,330 @@
-# OMC App Role System and Capability Implementation Plan
+# OMC App Role, Identity and Capability Architecture
 
 ## Purpose
 
-OMC App has two user-facing sides:
+This document is the canonical description of OMC App identity, approval, persona, capability, ownership, and internal-access rules.
 
-1. Customer App
-2. Internal App
+The application has two user-facing domains:
 
-The interface should remain simple, but backend authorization must be role-based and capability-driven.
+1. **Customer domain** — guest, pending customer, approved customer, and imported-customer activation.
+2. **Internal domain** — Frappe users who are classified as staff identities and are authorised through an approved `OMC Staff Profile` plus an effective OMC staff persona.
 
-Internal users must not automatically receive access to every internal action merely because they can open the Internal App.
+The central rule is:
 
-This document defines the final role architecture, Frappe roles, capabilities, permission boundaries, implementation phases, migration strategy, and validation requirements.
+> Identity classification, approval, role/persona, capability, and record scope are separate checks. Passing one check must never silently satisfy the others.
 
----
-
-# 1. Core Access Model
-
-## 1.1 Customer Side
-
-The Customer App supports three access states:
-
-### Guest
-
-A user who is not logged in.
-
-Allowed access:
-
-* Public service catalogue
-* Public service details
-* FAQs
-* Knowledge articles
-* Tax calculator
-* Signup
-* Login
-* Guest-safe onboarding and banners
-
-Not allowed:
-
-* Service requests
-* Customer dashboard
-* Customer documents
-* Payments
-* Notifications
-* Support tickets
-* Customer profile records
-* Any internal functionality
+Flutter may hide or show navigation based on the capability payload, but the Frappe backend remains authoritative for every protected read and mutation.
 
 ---
 
-### Pending Customer
+# 1. Identity domains
 
-A registered customer whose account has not yet been approved.
-
-Allowed access:
-
-* Everything available to guests
-* Own profile
-* Approval status
-* Pending-account information
-* Logout and account settings
-
-Not allowed:
-
-* Creating service requests
-* Viewing private customer service cases
-* Uploading documents
-* Viewing payments
-* Uploading payment receipts
-* Creating support tickets
-* Viewing customer notifications
-
----
-
-### Approved Customer
-
-A verified and active customer.
-
-Allowed access:
-
-* Public service catalogue
-* Customer dashboard
-* Own service requests
-* Own service request details
-* Own documents
-* Uploading own service documents
-* Own payments
-* Uploading own payment receipts
-* Own support tickets
-* Own customer notifications
-* Own profile and preferences
-
-Customer rule:
-
-> An approved customer may only view or mutate records belonging to their own customer profile.
-
-An approved customer must never be allowed to:
-
-* View another customer
-* View another customer's service request
-* View another customer's documents
-* View another customer's payments
-* View another customer's support tickets
-* Review documents
-* Review payments
-* Change internal service statuses
-* View internal notes
-* Manage leads
-* Manage internal tasks
-* Access the Internal App
-
----
-
-# 2. Internal Side
-
-The Internal App is one application area shared by OMC staff.
-
-All internal users may use the same shell and overall navigation structure, but modules, records, and actions must be controlled through capabilities.
-
-The following principle is mandatory:
-
-> Internal workspace access does not grant permission to perform every internal action.
-
-Entering the Internal App only means:
+OMC App deliberately separates customer identity from internal staff identity.
 
 ```text
-can_access_internal_workspace = true
+CUSTOMER
+
+ERP Customer
+    |
+    +--> OMC Customer Profile
+             |
+             +--> Frappe Website User when app login exists
+
+
+INTERNAL STAFF
+
+Frappe System User
+    |
+    +--> OMC Staff Profile
+             |
+             +--> ERP Employee when one is linked
 ```
 
-Every sensitive read or mutation must require an additional specific capability.
+A customer is not modelled as staff, and staff must not accidentally fall through into customer-profile creation merely because their OMC approval is still pending.
+
+## 1.1 Customer identity
+
+Customer application state is centred on `OMC Customer Profile`.
+
+A customer may have:
+
+- an ERPNext `Customer` master record;
+- an `OMC Customer Profile` containing OMC lifecycle and application state;
+- a Frappe `User` only when an app/web login exists.
+
+Imported ERP customers are intentionally allowed to have an active approved OMC profile without a Frappe User until secure account activation is completed.
+
+## 1.2 Staff identity
+
+`access.is_internal_user()` classifies identity; it does **not** grant OMC authorisation.
+
+A user is treated as an internal identity when any of the following is true:
+
+- the Frappe user has `System Manager` or an OMC staff role;
+- the Frappe user is a `System User`;
+- an `OMC Staff Profile` exists for the user;
+- an ERP `Employee` is linked to the user.
+
+This fail-safe classification is important: a pending or unapproved System User must remain in the internal domain and must not be treated as a customer.
 
 ---
 
-# 3. Built-in Frappe Roles
+# 2. Customer access states
 
-The following roles must be created automatically during app installation or migration.
+Customer permissions are lifecycle- and ownership-driven. `OMC Customer` is a portal identity role; the role by itself is never enough to grant approved-customer access.
 
-These roles must be shipped with the OMC Frappe app so administrators do not need to create them manually.
+## 2.1 Guest
 
-## 3.1 OMC Customer
+A guest may use guest-safe functionality such as:
 
-Purpose:
+- public service catalogue and service detail;
+- approved public content;
+- FAQs and knowledge content;
+- tax calculator;
+- login and signup;
+- registration verification;
+- password recovery;
+- imported-customer activation request and activation-token completion.
 
-* Customer portal identity
-* Assigned to registered customer accounts
-* Used together with customer profile approval status
+A guest cannot access private customer records or internal workspaces.
 
-User type:
+## 2.2 Pending customer
+
+A newly registered customer may exist before OMC approval.
+
+Typical lifecycle state:
 
 ```text
-Website User
+customer_status = Pending
+approval_status = Pending Review
 ```
 
-This role alone must not grant approved-customer capabilities.
+Pending customers may use the permitted profile/account experience and public functionality, but approved-only workflows remain closed.
 
-Approved access must still depend on:
+## 2.3 Approved customer
+
+Typical approved lifecycle state:
 
 ```text
 customer_status = Active
 approval_status = Approved
+is_active = 1
 ```
+
+Approved customers may use customer workflows exposed by the current capability payload, including service requests, documents, payments, support, dashboard data, and notifications where applicable.
+
+The non-negotiable customer boundary is:
+
+> An approved customer may only read or mutate records belonging to that customer's own OMC customer identity and its authorised relationships.
+
+A customer must never gain internal review, assignment, lead-management, staff-management, or cross-customer authority merely because a route exists in Flutter.
+
+## 2.4 Imported customer before login activation
+
+Existing ERP customers may be migrated profile-only:
+
+```text
+ERP Customer
+    -> OMC Customer Profile
+       customer_origin = Imported
+       customer_status = Active
+       approval_status = Approved
+       is_active = 1
+       manual_customer_status = Unregistered
+       user = blank
+       linked_app_user = blank
+```
+
+This represents **business approval**, not login activation.
+
+A Frappe Website User is created and linked only after the customer proves control of an eligible identity through the secure activation flow. No shared/default password is used.
 
 ---
 
-## 3.2 OMC Admin
+# 3. Internal staff lifecycle
 
-Purpose:
+Internal staff use `OMC Staff Profile` as the OMC-specific approval and persona record.
 
-* Full OMC application administration
-* Full operational access
-* Full customer and workflow management
-
-User type:
+The profile currently contains identity/professional fields including:
 
 ```text
-System User
+user
+linked_employee
+full_name
+email
+username
+phone
+whatsapp_no
+staff_status
+approval_status
+staff_role
+is_active
+cnic
+ntn
+company_name
+address
+education
+experience
+remarks
+referral_record
+own_referral_code
 ```
 
-Capabilities:
+`linked_employee` connects the profile to the existing ERP Employee where available. ERP Employee remains an ERP record; the OMC Staff Profile owns OMC approval/persona state.
+
+## 3.1 New staff state
+
+`ensure_staff_profile()` creates new staff profiles conservatively:
 
 ```text
-can_access_internal_workspace
-can_manage_customers
-can_manage_leads
-can_manage_tasks
-can_update_service_status
-can_review_documents
-can_review_payments
-can_view_support_tickets
-can_reply_support_tickets
-can_update_support_ticket_status
-can_assign_support_tickets
-can_view_internal_notes
-can_manage_settings
+staff_status = Pending
+approval_status = Pending Review
+is_active = 0
 ```
 
-Data access:
+If the user already has exactly one recognised OMC staff role, that role may seed `staff_role`; otherwise the persona remains unset until deliberately configured.
 
-* All customers
-* All leads
-* All service requests
-* All documents
-* All payments
-* All support tickets
-* All tasks
-* All internal notes
-* OMC settings
+No new staff identity becomes authorised merely because an Employee is Active or a System User exists.
+
+## 3.2 Approved staff state
+
+Normal OMC staff authorisation requires all of the following:
+
+```text
+Frappe User exists
+Frappe User enabled = 1
+at least one effective OMC staff role exists
+OMC Staff Profile exists
+staff_status = Active
+approval_status = Approved
+is_active = 1
+```
+
+If `linked_employee` is present, the linked ERP Employee must also have:
+
+```text
+status = Active
+```
+
+The Employee status is a safety condition only. It does not replace OMC approval.
+
+## 3.3 Suspended, rejected, or pending staff
+
+When the profile is not fully approved, internal operational capabilities fail closed.
+
+A pending internal user receives an internal-pending capability payload rather than customer capabilities.
+
+This prevents the dangerous fallback:
+
+```text
+unapproved staff
+    -> treated as customer
+    -> customer profile accidentally created
+```
+
+That fallback is not part of the OMC architecture.
 
 ---
 
-## 3.3 OMC Manager
+# 4. OMC persona vs Frappe Role Profile
 
-Purpose:
-
-* Daily operational management
-* Workflow supervision
-* Team and service oversight
-
-User type:
+The project previously treated Frappe role assignment as the main OMC persona mechanism. The current architecture deliberately separates ERP/Frappe role-profile management from the OMC application persona.
 
 ```text
-System User
+Existing ERP/Frappe authorisation
+User
+    -> existing Role Profile, e.g. Operations
+       -> Accounts User / Mobile / Projects User / other ERP roles
+
+OMC application authorisation
+User
+    -> OMC Staff Profile
+       -> staff_role
+       -> staff_status
+       -> approval_status
+       -> is_active
+       -> OMC capabilities
 ```
 
-Capabilities:
+## 4.1 Do not modify shared client Role Profiles
+
+OMC must not add/remove roles from a client's shared Frappe Role Profile merely to give a user an OMC persona.
+
+Reasons:
+
+- Role Profiles are shared ERP/Frappe configuration;
+- changing one profile can affect many users;
+- Frappe can repopulate a user's roles from the assigned Role Profile;
+- direct user-role edits can therefore be overwritten;
+- the OMC persona should remain owned by `omc_app`, not by unrelated ERP role-profile configuration.
+
+Existing client Role Profiles should remain intact unless the client deliberately changes them for ERP purposes.
+
+## 4.2 Effective OMC staff roles
+
+`staff_profile.get_effective_staff_roles(user)` combines two sources:
 
 ```text
-can_access_internal_workspace
-can_manage_customers
-can_manage_leads
-can_manage_tasks
-can_update_service_status
-can_review_documents
-can_review_payments
-can_view_support_tickets
-can_reply_support_tickets
-can_update_support_ticket_status
-can_assign_support_tickets
-can_view_internal_notes
+recognised OMC roles returned by frappe.get_roles(user)
++
+OMC Staff Profile.staff_role
 ```
 
-Recommended restriction:
+The result is a set. Capabilities from all effective OMC staff roles are unioned.
 
-```text
-can_manage_settings = false
-```
+This provides compatibility with intentionally assigned OMC Frappe roles while allowing the Staff Profile persona to remain authoritative for normal OMC staff setup.
 
-A manager may receive settings access later if explicitly required.
+Least privilege still applies: do not assign additional direct OMC roles unless their additional capabilities are actually required.
 
 ---
 
-## 3.4 OMC Support Agent
+# 5. Canonical roles
 
-Purpose:
+`omc_app.setup.roles` declares the canonical OMC roles.
 
-* Customer support
-* Lead handling
-* Customer communication
-* Support-ticket operations
-
-User type:
+## 5.1 Customer portal role
 
 ```text
-System User
+OMC Customer
 ```
 
-Capabilities:
+Characteristics:
+
+- portal/customer identity;
+- configured without Desk access;
+- customer lifecycle and ownership checks remain mandatory;
+- role presence alone does not mean approved customer access.
+
+## 5.2 Staff roles
 
 ```text
-can_access_internal_workspace
-can_manage_leads
-can_view_support_tickets
-can_reply_support_tickets
-can_update_support_ticket_status
-can_assign_support_tickets
-can_view_relevant_customers
-can_view_relevant_service_cases
-can_view_internal_notes
-can_manage_assigned_tasks
+OMC Admin
+OMC Manager
+OMC Support Agent
+OMC Document Reviewer
+OMC Finance Reviewer
+OMC Consultant
+OMC Tax Associate
+OMC Business Partner
 ```
 
-Not allowed:
+These are staff roles with Desk access at the Frappe Role definition layer.
 
-```text
-can_review_documents = false
-can_review_payments = false
-can_manage_settings = false
-can_view_all_financial_data = false
-```
+For ordinary OMC staff, having one of these roles or selecting the corresponding Staff Profile persona does **not** bypass Staff Profile approval.
 
-Support agents should only receive the customer and service information required to resolve support cases.
+## 5.3 System override
+
+`System Manager` and `Administrator` are emergency/system-level overrides in the OMC capability resolver.
+
+An Administrator/System Manager receives internal capability authority without requiring ordinary Staff Profile approval.
+
+This override is for trusted system administration. It must not be reproduced for normal operational roles.
 
 ---
 
-## 3.5 OMC Document Reviewer
+# 6. Canonical internal capability keys
 
-Purpose:
-
-* Document verification
-* Document approval and rejection
-* Document review remarks
-
-User type:
-
-```text
-System User
-```
-
-Capabilities:
-
-```text
-can_access_internal_workspace
-can_view_document_queue
-can_view_document_attachments
-can_review_documents
-can_view_related_customer_summary
-can_view_related_service_cases
-can_view_internal_notes
-can_manage_assigned_tasks
-```
-
-Not allowed:
-
-```text
-can_review_payments = false
-can_manage_support_tickets = false
-can_manage_leads = false
-can_manage_settings = false
-```
-
-Document reviewers should only see customer information required for document verification.
-
----
-
-## 3.6 OMC Finance Reviewer
-
-Purpose:
-
-* Payment verification
-* Receipt review
-* Payment approval and rejection
-* Finance review remarks
-
-User type:
-
-```text
-System User
-```
-
-Capabilities:
-
-```text
-can_access_internal_workspace
-can_view_payment_queue
-can_view_payment_receipts
-can_review_payments
-can_view_related_customer_summary
-can_view_related_service_cases
-can_view_internal_notes
-can_manage_assigned_tasks
-```
-
-Not allowed:
-
-```text
-can_review_documents = false
-can_manage_support_tickets = false
-can_manage_leads = false
-can_manage_settings = false
-```
-
-Finance reviewers should only see customer and service information required for payment verification.
-
----
-
-## 3.7 OMC Consultant
-
-Purpose:
-
-* Assigned service-case work
-* Customer service execution
-* Task completion
-* Service progress updates
-
-User type:
-
-```text
-System User
-```
-
-Capabilities:
-
-```text
-can_access_internal_workspace
-can_view_assigned_service_cases
-can_update_assigned_service_status
-can_manage_assigned_tasks
-can_view_related_customer_summary
-can_view_related_documents
-can_view_internal_notes
-```
-
-Not allowed by default:
-
-```text
-can_view_all_customers = false
-can_review_documents = false
-can_review_payments = false
-can_manage_support_tickets = false
-can_manage_settings = false
-```
-
----
-
-## 3.8 OMC Tax Associate
-
-Purpose:
-
-* Tax-related service execution
-* Assigned tax tasks
-* Relevant service and customer access
-
-User type:
-
-```text
-System User
-```
-
-Capabilities should initially match OMC Consultant, with future tax-specific capabilities added only when needed.
-
----
-
-## 3.9 OMC Business Partner
-
-Purpose:
-
-* Assigned partner-managed cases
-* Assigned operational tasks
-* Limited customer and service visibility
-
-User type:
-
-```text
-System User
-```
-
-Capabilities should initially match OMC Consultant but remain assignment-scoped.
-
----
-
-# 4. Capability Matrix
-
-| Capability                  | Admin | Manager |  Support | Documents |       Finance | Consultant |
-| --------------------------- | ----: | ------: | -------: | --------: | ------------: | ---------: |
-| Access internal workspace   |   Yes |     Yes |      Yes |       Yes |           Yes |        Yes |
-| Manage settings             |   Yes |      No |       No |        No |            No |         No |
-| View all customers          |   Yes |     Yes |  Limited |   Related |       Related |   Assigned |
-| Manage customers            |   Yes |     Yes |  Limited |        No |            No |         No |
-| Manage leads                |   Yes |     Yes |      Yes |        No |            No |   Optional |
-| View all service cases      |   Yes |     Yes | Relevant |   Related |       Related |   Assigned |
-| Create service for customer |   Yes |     Yes |      Yes |        No |            No |   Optional |
-| Update service status       |   Yes |     Yes |  Limited |        No |            No |   Assigned |
-| View document summaries     |   Yes |     Yes | Relevant |       Yes |       Related |    Related |
-| Open document attachments   |   Yes |     Yes |  Limited |       Yes | No by default |    Related |
-| Review documents            |   Yes |     Yes |       No |       Yes |            No |         No |
-| View payment summaries      |   Yes |     Yes |  Limited |   Limited |           Yes |    Limited |
-| Open payment receipts       |   Yes |     Yes |       No |        No |           Yes |         No |
-| Review payments             |   Yes |     Yes |       No |        No |           Yes |         No |
-| View support tickets        |   Yes |     Yes |      Yes |        No |            No |   Optional |
-| Reply as support            |   Yes |     Yes |      Yes |        No |            No |         No |
-| Update ticket status        |   Yes |     Yes |      Yes |        No |            No |         No |
-| Assign support tickets      |   Yes |     Yes |      Yes |        No |            No |         No |
-| Manage all tasks            |   Yes |     Yes |       No |        No |            No |         No |
-| Manage assigned tasks       |   Yes |     Yes |      Yes |       Yes |           Yes |        Yes |
-| View internal notes         |   Yes |     Yes | Relevant |  Relevant |      Relevant |   Assigned |
-
----
-
-# 5. Canonical Capabilities
-
-The backend must return one canonical capability payload.
-
-Recommended internal capability keys:
+`omc_app.api.access.INTERNAL_CAPABILITY_KEYS` is the canonical internal capability inventory:
 
 ```text
 can_access_internal_workspace
@@ -519,962 +362,738 @@ can_assign_support_tickets
 
 can_view_internal_notes
 can_manage_settings
+can_manage_staff
+can_review_registrations
+can_manage_business_settings
+can_reassign_service_cases
+can_retry_sync
 ```
 
-Existing customer capabilities should remain:
+`can_access_internal_workspace` means only that the user may enter the internal application area. Every sensitive operation must still require its specific capability and record-scope check.
+
+---
+
+# 7. Role capability mapping
+
+The current backend mapping is defined by `ROLE_CAPABILITIES` in `omc_app.api.access`.
+
+## 7.1 OMC Admin
+
+`OMC Admin` receives every canonical internal capability.
+
+This includes:
 
 ```text
-can_view_public_catalogue
-can_view_public_content
-can_use_tax_calculator
-can_create_service_request
-can_upload_documents
-can_track_requests
-can_view_documents
-can_view_payments
-can_upload_payment_receipt
-can_upload_payment_receipts
-can_create_support_ticket
+internal workspace
+customer management
+lead management
+all/assigned task management
+all/relevant/assigned service access
+assisted service creation
+service-status control
+document queue/review
+payment queue/review
+support operations
+internal notes
+settings
+staff management
+registration review
+business settings
+service-case reassignment
+sync retry
+```
+
+Normal OMC Admin users still require an approved active Staff Profile. The System Manager/Administrator override is separate.
+
+## 7.2 OMC Manager
+
+`OMC Manager` receives the canonical internal set except:
+
+```text
+can_manage_settings = false
+can_manage_staff = false
+can_review_registrations = false
+can_manage_business_settings = false
+```
+
+Manager retains broad operational capabilities including:
+
+```text
+can_reassign_service_cases
+can_retry_sync
+can_manage_customers
+can_manage_leads
+can_manage_tasks
+can_review_documents
+can_review_payments
+support operations
+```
+
+## 7.3 OMC Support Agent
+
+Current capabilities:
+
+```text
+can_access_internal_workspace
+can_manage_leads
 can_view_support_tickets
-can_view_customer_dashboard
-can_access_customer_dashboard
-can_view_customer_notifications
+can_reply_support_tickets
+can_update_support_ticket_status
+can_assign_support_tickets
+can_view_relevant_customers
+can_view_relevant_service_cases
+can_view_internal_notes
+can_manage_assigned_tasks
+can_create_service_for_customer
+```
+
+Support is intentionally excluded from document-review, payment-review, global settings, staff administration, and broad all-customer/all-case authority.
+
+## 7.4 OMC Document Reviewer
+
+Current capabilities:
+
+```text
+can_access_internal_workspace
+can_view_document_queue
+can_view_document_summaries
+can_view_document_attachments
+can_review_documents
+can_view_relevant_customers
+can_view_relevant_service_cases
+can_view_internal_notes
+can_manage_assigned_tasks
+```
+
+Document review does not imply finance review, support administration, lead management, or settings authority.
+
+## 7.5 OMC Finance Reviewer
+
+Current capabilities:
+
+```text
+can_access_internal_workspace
+can_view_payment_queue
+can_view_payment_summaries
+can_view_payment_receipts
+can_review_payments
+can_view_relevant_customers
+can_view_relevant_service_cases
+can_view_internal_notes
+can_manage_assigned_tasks
+```
+
+Finance review does not imply document review, support administration, lead management, or settings authority.
+
+## 7.6 OMC Consultant
+
+Current capabilities:
+
+```text
+can_access_internal_workspace
+can_create_service_for_customer
+can_view_assigned_service_cases
+can_update_assigned_service_status
+can_manage_assigned_tasks
+can_view_relevant_customers
+can_view_document_summaries
+can_view_document_attachments
+can_view_internal_notes
+```
+
+Consultant service access is assignment/relevance-scoped; it is not global operational authority.
+
+## 7.7 OMC Tax Associate
+
+Current capability set is the same as OMC Consultant:
+
+```text
+can_access_internal_workspace
+can_create_service_for_customer
+can_view_assigned_service_cases
+can_update_assigned_service_status
+can_manage_assigned_tasks
+can_view_relevant_customers
+can_view_document_summaries
+can_view_document_attachments
+can_view_internal_notes
+```
+
+Tax-specific capabilities can be introduced later if the actual tax workflow requires a different authority boundary.
+
+## 7.8 OMC Business Partner
+
+Current capability set is also assignment-scoped and matches Consultant/Tax Associate:
+
+```text
+can_access_internal_workspace
+can_create_service_for_customer
+can_view_assigned_service_cases
+can_update_assigned_service_status
+can_manage_assigned_tasks
+can_view_relevant_customers
+can_view_document_summaries
+can_view_document_attachments
+can_view_internal_notes
 ```
 
 ---
 
-# 6. Frappe Role Creation
+# 8. Capability matrix
 
-## 6.1 Automatic Setup
+| Capability group | Admin | Manager | Support | Document Reviewer | Finance Reviewer | Consultant | Tax Associate | Business Partner |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Internal workspace | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Global customer management | Yes | Yes | No | No | No | No | No | No |
+| Relevant customer view | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Lead management | Yes | Yes | Yes | No | No | No | No | No |
+| Manage all tasks | Yes | Yes | No | No | No | No | No | No |
+| Manage assigned tasks | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| View all service cases | Yes | Yes | No | No | No | No | No | No |
+| Relevant service cases | Yes | Yes | Yes | Yes | Yes | No* | No* | No* |
+| Assigned service cases | Yes | Yes | No | No | No | Yes | Yes | Yes |
+| Assisted service creation | Yes | Yes | Yes | No | No | Yes | Yes | Yes |
+| Global service-status update | Yes | Yes | No | No | No | No | No | No |
+| Assigned status update | Yes | Yes | No | No | No | Yes | Yes | Yes |
+| Document review | Yes | Yes | No | Yes | No | No | No | No |
+| Payment review | Yes | Yes | No | No | Yes | No | No | No |
+| Support operations | Yes | Yes | Yes | No | No | No | No | No |
+| Internal notes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| OMC settings | Yes | No | No | No | No | No | No | No |
+| Staff management | Yes | No | No | No | No | No | No | No |
+| Registration review | Yes | No | No | No | No | No | No | No |
+| Business settings | Yes | No | No | No | No | No | No | No |
+| Service-case reassignment | Yes | Yes | No | No | No | No | No | No |
+| ERP sync retry | Yes | Yes | No | No | No | No | No | No |
 
-The OMC Frappe app must create all required roles automatically.
+`*` Consultant, Tax Associate, and Business Partner receive assignment-scoped service-case authority rather than the generic `can_view_relevant_service_cases` capability.
 
-Recommended location:
+The matrix is a capability summary. Endpoint-specific ownership, assignment, relationship, workflow-state, and validation checks remain mandatory.
+
+---
+
+# 9. Capability resolution algorithm
+
+The backend resolves access in this order.
 
 ```text
-omc_app/setup/roles.py
+1. Determine current Frappe user.
+
+2. Classify whether the identity is internal.
+
+3. If internal but not approved:
+      return internal-pending capabilities
+      all internal action capabilities = false
+      do not fall through to customer capabilities
+
+4. If Administrator/System Manager:
+      grant canonical internal capability set
+
+5. Otherwise:
+      resolve effective OMC staff roles
+      union ROLE_CAPABILITIES for those roles
+
+6. If identity is not internal:
+      use the customer/mobile capability resolver
 ```
 
-The setup must be idempotent.
-
-Running it multiple times must not:
-
-* create duplicate roles
-* create duplicate role assignments
-* remove unrelated user roles
-* reset administrator configuration unexpectedly
-
-Roles to create:
+This separation is why these concepts must not be collapsed:
 
 ```text
-OMC Customer
-OMC Admin
-OMC Manager
-OMC Support Agent
-OMC Document Reviewer
-OMC Finance Reviewer
+is_internal_user(user)
+!=
+is_approved_staff(user)
+!=
+can_access_internal_workspace(user)
+!=
+has a specific operation capability
+!=
+may access this specific record
+```
+
+---
+
+# 10. Referral role rules
+
+Referral ownership is intentionally narrower than general staff access.
+
+Canonical referral-owner personas are:
+
+```text
 OMC Consultant
 OMC Tax Associate
 OMC Business Partner
 ```
 
-The app installation and migration workflow should call the role setup function.
-
-Recommended integration points:
+A referral owner must also be:
 
 ```text
-after_install
-after_migrate
+an existing Frappe User
+enabled
+a System User
+backed by an approved active OMC Staff Profile
+holding an effective referral-capable OMC role
 ```
 
----
+`Administrator` is explicitly not treated as a referral-code owner.
 
-## 6.2 Role Profile Support
-
-Optional but recommended Frappe Role Profiles:
+When a staff profile becomes eligible, referral automation can create/reactivate the user's `OMC Referral` and sync:
 
 ```text
-OMC Administrator
-OMC Operations Manager
-OMC Customer Support
-OMC Document Review
-OMC Finance Review
-OMC Consultant
+OMC Staff Profile.referral_record
+OMC Staff Profile.own_referral_code
 ```
 
-Role Profiles make staff account setup easier.
+When the user is no longer eligible, the referral record is made inactive and the Staff Profile referral linkage is cleared.
 
-Example:
+Customers do **not** own their own referral code. Referred-customer attribution belongs on the customer side, while the referral code belongs to the eligible staff referrer.
 
-```text
-OMC Customer Support
-- OMC Support Agent
-```
+## 10.1 Assisted-service role declarations
 
-Example combined profile:
+The current referral/assisted-service capability declarations also define:
 
 ```text
-OMC Operations Manager
+Walk-in customer roles:
+- OMC Admin
 - OMC Manager
 - OMC Support Agent
-- OMC Document Reviewer
-- OMC Finance Reviewer
+- OMC Consultant
+- OMC Tax Associate
+- OMC Business Partner
+- System Manager
+
+All-customer assist roles:
+- OMC Admin
+- OMC Manager
+- System Manager
+
+Referral administration roles:
+- OMC Admin
+- OMC Manager
+- System Manager
 ```
 
-Role Profiles must not replace backend capability checks.
+These declarations do not bypass normal endpoint checks, customer resolution, assignment, or workflow validation.
 
 ---
 
-# 7. Frappe DocType Permissions
+# 11. Record-scope rules
 
-Frappe DocType permissions should provide a baseline protection layer.
+Capabilities answer **what kind of action** a user may perform. Object checks answer **which records** the user may perform it on.
 
-Backend endpoint checks remain mandatory, especially where code uses:
+Both are required.
 
-```python
-ignore_permissions=True
-```
+## 11.1 Customer ownership
 
-## Recommended permission direction
-
-### OMC Customer Profile
-
-* OMC Admin: full
-* OMC Manager: full
-* OMC Support Agent: read/write limited by backend endpoint
-* Document Reviewer: related read only through guarded endpoint
-* Finance Reviewer: related read only through guarded endpoint
-* Consultant: assigned related read only through guarded endpoint
-* OMC Customer: own-profile access through guarded API only
-
-### OMC Service Request
-
-* Admin: full
-* Manager: full
-* Support: relevant read/create
-* Consultant/Associate/Partner: assigned read/update
-* Document Reviewer: related read
-* Finance Reviewer: related read
-* Customer: own records through guarded API only
-
-### OMC Service Document
-
-* Admin: full
-* Manager: full
-* Document Reviewer: read/write
-* Consultant: related read where needed
-* Finance Reviewer: no attachment access by default
-* Customer: own visible documents through guarded API only
-
-### OMC Service Payment
-
-* Admin: full
-* Manager: full
-* Finance Reviewer: read/write
-* Other internal roles: summary-only through guarded APIs
-* Customer: own visible payments through guarded API only
-
-### OMC Support Ticket
-
-* Admin: full
-* Manager: full
-* Support Agent: read/write
-* Other internal roles: no access by default
-* Customer: own tickets through guarded API only
-
-### OMC Lead
-
-* Admin: full
-* Manager: full
-* Support Agent: read/write
-* Other roles: no access unless explicitly required
-
-### OMC Internal Task
-
-* Admin: full
-* Manager: full
-* Internal users: assigned tasks only through guarded APIs
-
----
-
-# 8. Backend Enforcement Rules
-
-## 8.1 Never use workspace access as universal authorization
-
-This pattern is not sufficient:
-
-```python
-if _can_access_internal_workspace():
-    allow()
-```
-
-It should only be used to determine whether the user may enter the Internal App.
-
-Sensitive operations must use specific checks:
-
-```python
-require_capability("can_review_documents")
-require_capability("can_review_payments")
-require_capability("can_update_support_ticket_status")
-require_capability("can_manage_customers")
-```
-
----
-
-## 8.2 Recommended Shared Helpers
-
-Create or consolidate helpers such as:
-
-```python
-get_current_capabilities()
-require_internal_workspace()
-require_capability(capability_name)
-require_any_capability(*capability_names)
-require_role_set(roles, message)
-```
-
-Recommended object-level helpers:
-
-```python
-require_customer_owns_service_request(service_request)
-require_customer_owns_document(document)
-require_customer_owns_payment(payment)
-require_customer_owns_support_ticket(ticket)
-
-require_assigned_service_case_access(service_request)
-require_related_customer_access(customer_profile)
-```
-
----
-
-## 8.3 Customer Ownership Checks
-
-Every customer read or mutation must verify ownership.
-
-Required examples:
+Customer endpoints must continue to verify relationships such as:
 
 ```text
-service_request.customer_profile == current_customer_profile.name
-document.service_request belongs to current customer
-payment.service_request belongs to current customer
-support_ticket.customer_profile == current_customer_profile.name
-notification.customer_profile == current_customer_profile.name
+current user
+    -> own OMC Customer Profile
+    -> own Service Request
+    -> own Document
+    -> own Payment
+    -> own Support Ticket
+    -> own Notification
 ```
 
-Do not rely only on route visibility or Flutter navigation.
+Knowing a record name or URL must never grant access.
 
----
+## 11.2 Staff assignment/relevance
 
-## 8.4 Internal Object Scope
-
-Internal roles must use scoped access where appropriate.
+Specialist staff access must be constrained by the relevant scope model.
 
 Examples:
 
-Support Agent:
-
-```text
-support tickets
-related customer
-related service request
-assigned or relevant leads
-```
-
-Document Reviewer:
-
-```text
-document queue
-related service request
-related customer verification fields
-```
-
-Finance Reviewer:
-
-```text
-payment queue
-receipt attachment
-related service summary
-limited customer identity
-```
-
-Consultant:
-
-```text
-assigned service requests
-assigned tasks
-related documents
-related internal notes
-```
-
----
-
-# 9. Required Backend Corrections
-
-The following issues should be corrected during implementation.
-
-## 9.1 Support Ticket Mutations
-
-Restrict these endpoints to support-capable roles:
-
-```text
-update_support_ticket_status
-assign_support_ticket
-internal support replies
-```
-
-Required capability checks:
-
-```text
-can_update_support_ticket_status
-can_assign_support_tickets
-can_reply_support_tickets
-```
-
-A generic internal user must not automatically reply as OMC Support.
-
----
-
-## 9.2 Customer Payment Receipt Upload
-
-Customer receipt upload must require:
-
-```text
-approved customer
-payment belongs to current customer
-can_upload_payment_receipt = true
-```
-
-Internal users must not use the customer receipt-upload endpoint.
-
-Finance review must use a separate endpoint.
-
----
-
-## 9.3 Payment Review
-
-Move payment review into a dedicated endpoint such as:
-
-```text
-omc_app.api.payments.review_payment_receipt
-```
-
-Required capability:
-
-```text
-can_review_payments
-```
-
-The Flutter app should stop calling the legacy payment review method after migration.
-
----
-
-## 9.4 Document Reads
-
-Separate document access into levels:
-
-### Customer document view
-
-* Own documents only
-* Only customer-visible rows
-* No internal remarks
-* No reviewer-sensitive metadata
-
-### Internal document summary
-
-* Case-level document status
-* Counts and required-document information
-* No attachment unless role permits it
-
-### Document review detail
-
-* Full attachment access
-* Review fields
-* Restricted to document reviewers, managers, and admins
-
----
-
-## 9.5 Payment Reads
-
-Separate payment access into levels:
-
-### Customer payment view
-
-* Own payments only
-* Customer-visible data
-* Own receipt and payment instructions
-
-### Internal payment summary
-
-* Status and amount summary
-* No receipt attachment unless required
-
-### Finance review detail
-
-* Full receipt
-* Payment reference
-* Review remarks
-* Restricted to finance reviewers, managers, and admins
-
----
-
-## 9.6 Service Request Creation for Customers
-
-Both internal service-request creation endpoints must use the same authorization rule.
-
-Recommended capability:
-
-```text
-can_create_service_for_customer
-```
-
-Suggested roles:
-
-```text
-OMC Admin
-OMC Manager
-OMC Support Agent
-```
-
-Consultants may receive it later only if required.
-
----
-
-## 9.7 Read Endpoints Must Not Create Records
-
-`get_payments()` or similar read endpoints must not create payment records or mutate workflow state.
-
-Payment creation should happen through an explicit workflow transition such as:
-
-```text
-required documents approved
-service stage changed to payment required
-staff explicitly opens payment
-```
-
----
-
-# 10. Flutter Implementation
-
-## 10.1 Two App Modes
-
-Keep only two high-level UI modes:
-
-```text
-Customer App
-Internal App
-```
-
-Customer mode handles:
-
-```text
-Guest
-Pending Customer
-Approved Customer
-```
-
-Internal mode handles all internal roles.
-
----
-
-## 10.2 Capability-Aware Navigation
-
-Routes must require explicit capabilities.
+- Consultants/Tax Associates/Business Partners: assigned service cases and tasks.
+- Document Reviewer: document review queue plus related customer/request context.
+- Finance Reviewer: payment review queue plus related customer/request context.
+- Support Agent: support/lead work plus only the customer/service context needed for that work.
+- Manager/Admin: broader operational scope according to canonical capabilities.
+
+## 11.3 Workflow-state checks
+
+A valid capability and valid record scope still do not mean every transition is legal.
 
 Examples:
 
 ```text
-Internal operations center:
-can_access_internal_workspace
+review document
+    -> correct reviewer capability
+    -> correct document/request relationship
+    -> document is in a reviewable state
 
-Document review:
-can_view_document_queue
+review payment
+    -> finance capability
+    -> correct payment/request relationship
+    -> payment is in a reviewable state
 
-Payment review:
-can_view_payment_queue
+complete assigned service work
+    -> assigned-service capability
+    -> current user is authorised for the case/task
+    -> required workflow gates are satisfied
+```
 
-Support center:
-can_view_support_tickets
+---
 
-Customer management:
-can_manage_customers or can_view_relevant_customers
+# 12. Frappe Role and DocPerm setup
 
-Lead management:
-can_manage_leads
+Canonical role/permission synchronisation lives in:
 
-Settings:
+```text
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/setup/roles.py
+```
+
+and is called by the OMC lifecycle setup during install/migrate.
+
+The setup is designed to be idempotent:
+
+- create missing canonical roles;
+- keep `OMC Customer` without Desk access;
+- keep staff roles with Desk access;
+- disable legacy OMC roles;
+- rebuild canonical OMC DocPerm rows;
+- preserve unrelated non-OMC user roles;
+- clear permission caches after synchronisation.
+
+Legacy declarations currently include:
+
+```text
+OMC Customer Applicant
+OMC Customer Support
+```
+
+They are retired/disabled. Customer Applicant assignments can be migrated to `OMC Customer`; legacy role state must not be treated as the current authorisation model.
+
+## 12.1 DocPerm is only the baseline
+
+Frappe DocPerm is a first protection layer, not the complete mobile/internal security model.
+
+The backend must still enforce:
+
+```text
+approval
+capability
+ownership or assignment
+record relationship
+workflow state
+validated mutation payload
+```
+
+This is especially important for methods that use `ignore_permissions=True` internally after their own explicit guards.
+
+## 12.2 Specialist DocPerm direction
+
+Current setup grants specialist DocPerm only to the OMC records required for their work. Examples include:
+
+- Support Agent: support tickets/messages, relevant customer/referral/manual-customer/service-request/notification records;
+- Document Reviewer: service documents, required-document metadata, service request, related customer/referral/manual-customer/timeline records;
+- Finance Reviewer: service payments, payment account read, service request, related customer/referral/manual-customer/timeline records;
+- Consultant/Tax Associate/Business Partner: service request, service-document read, related customer/referral/manual-customer/timeline records.
+
+These DocPerm rows must not be interpreted as permission to bypass guarded OMC endpoints or assignment scope.
+
+---
+
+# 13. Current permission-alignment note
+
+The canonical API capability model intentionally makes these Admin-only:
+
+```text
+can_manage_staff
+can_review_registrations
+can_manage_business_settings
 can_manage_settings
 ```
 
-Unknown authenticated routes must remain denied by default.
+`roles.py` also gives `OMC Manager` broad Frappe DocPerm on OMC DocTypes except those listed in `MANAGER_BLOCKED_DOCTYPES`.
+
+At the current repository state, `OMC Staff Profile` is not included in that blocked list. Therefore direct Desk-level Staff Profile permissions should be reviewed before production if the intended rule remains that Manager cannot manage staff.
+
+This does not change the API capability contract above; it is an explicit permission-alignment hardening item so documentation does not overstate the current Desk boundary.
 
 ---
 
-## 10.3 Capability-Aware Providers
+# 14. Backend enforcement rules
 
-Providers should avoid fetching protected data when access is absent.
+## 14.1 Never authorise from UI visibility
 
-Example behavior:
-
-```dart
-if (!capabilities.canViewPaymentQueue) {
-  return const [];
-}
-```
-
-For strict screens, providers may return an access-denied state instead of an empty list.
-
-Providers requiring capability guards include:
+This is invalid:
 
 ```text
-customer list and detail
-lead list and detail
-task list and detail
-internal service cases
-document review queue
-document review detail
-payment review queue
-payment review detail
-support ticket list and detail
-internal notes
-settings
+button hidden in Flutter
+therefore action is secure
 ```
+
+Every protected backend method must enforce its own authority.
+
+## 14.2 Never use internal-workspace access as universal authority
+
+This is not sufficient:
+
+```python
+if can_access_internal_workspace(user):
+    allow_sensitive_action()
+```
+
+The operation must require the relevant capability and scope.
+
+Conceptually:
+
+```python
+require_capability("can_review_documents")
+require_document_scope(document)
+require_reviewable_state(document)
+```
+
+## 14.3 Never grant staff access from Employee status alone
+
+This is invalid:
+
+```text
+ERP Employee.status = Active
+therefore OMC staff approved
+```
+
+Correct model:
+
+```text
+Employee Active
++
+User enabled
++
+OMC Staff Profile Active
++
+OMC approval Approved
++
+is_active = 1
++
+effective OMC staff persona
+```
+
+## 14.4 Never make pending staff a customer fallback
+
+A System User/Employee/Staff Profile identity remains internal even when pending.
+
+## 14.5 Never mutate a shared Role Profile to solve OMC persona assignment
+
+Use the Staff Profile persona unless there is a deliberate ERP/Frappe reason to change the shared Role Profile itself.
+
+## 14.6 Never auto-merge identity collisions
+
+If customer activation encounters an existing User identity collision, the flow moves to review rather than granting or merging identity based on a guess.
 
 ---
 
-## 10.4 Mutation Guards
+# 15. Flutter contract
 
-Controllers or repositories must check capability before invoking mutations.
+Flutter consumes backend-authored session/capability state and uses it for navigation and presentation.
 
-Examples:
+The Flutter layer may:
 
-```text
-review document:
-can_review_documents
+- route guest/customer/internal states;
+- hide unavailable internal modules;
+- disable operations the user cannot perform;
+- present pending-approval state;
+- expose only role-relevant navigation.
 
-review payment:
-can_review_payments
+Flutter must not become the authority for:
 
-change service status:
-can_update_service_status or can_update_assigned_service_status
+- staff approval;
+- customer approval;
+- capability calculation;
+- ownership;
+- assignment;
+- document/payment review permission;
+- service workflow transitions;
+- staff/referral eligibility.
 
-reply as support:
-can_reply_support_tickets
-
-change support status:
-can_update_support_ticket_status
-
-assign support ticket:
-can_assign_support_tickets
-
-manage customer:
-can_manage_customers
-
-manage lead:
-can_manage_leads
-
-manage task:
-can_manage_tasks or can_manage_assigned_tasks
-```
-
-Flutter checks improve UX, but backend checks remain authoritative.
+The backend remains authoritative even if a Flutter route is reached manually.
 
 ---
 
-# 11. Internal Notes
+# 16. Operational examples
 
-Internal notes must never be returned to customers.
-
-Recommended note access:
-
-* Admin: all
-* Manager: all
-* Support Agent: related support/customer notes
-* Document Reviewer: related document/service notes
-* Finance Reviewer: related payment/service notes
-* Consultant: assigned-case notes
-
-Internal note endpoints must require:
+## Example A — active ERP Employee, pending OMC approval
 
 ```text
-can_view_internal_notes
+Frappe User = System User
+ERP Employee = Active
+OMC Staff Profile = Pending / Pending Review / is_active 0
 ```
 
-They must also verify record scope.
+Result:
+
+```text
+identity domain = internal
+internal workspace = denied
+internal capabilities = false
+customer fallback = denied
+```
+
+## Example B — approved Consultant persona using an existing ERP Role Profile
+
+```text
+User Role Profile = Operations
+OMC Staff Profile.staff_role = OMC Consultant
+OMC Staff Profile = Active / Approved / is_active 1
+Employee = Active
+```
+
+Result:
+
+```text
+Role Profile remains unchanged
+OMC Consultant becomes an effective OMC persona
+consultant capabilities are enabled
+service access remains assignment-scoped
+```
+
+## Example C — approved staff profile but no OMC persona
+
+```text
+Staff Profile = Active / Approved / is_active 1
+staff_role = blank
+no recognised direct OMC staff role
+```
+
+Result:
+
+```text
+ordinary staff approval is insufficient
+no effective OMC staff role
+internal workspace remains denied
+```
+
+## Example D — referral-capable consultant is suspended
+
+Before suspension:
+
+```text
+OMC Consultant
+Active / Approved / is_active 1
+referral record active
+```
+
+After suspension/revocation:
+
+```text
+staff no longer referral-eligible
+referral record becomes inactive
+Staff Profile referral linkage is cleared
+referral code no longer resolves as active
+```
+
+## Example E — Manager vs Admin
+
+Manager may supervise broad operational work, reassign service cases, retry exhausted sync, review documents/payments, and manage normal operations.
+
+Admin additionally owns the canonical application-management capabilities for settings, staff, registration review, and business settings.
 
 ---
 
-# 12. User Assignment Workflow
+# 17. Validation expectations
 
-## 12.1 Customer Account
+Role/security changes are incomplete until validated at both capability and object-scope levels.
 
-On signup:
-
-```text
-assign OMC Customer
-set user_type = Website User
-create or link OMC Customer Profile
-set approval state to Pending
-```
-
-After approval:
-
-```text
-retain OMC Customer role
-set customer_status = Active
-set approval_status = Approved
-```
-
-Do not create separate approved-customer and pending-customer roles unless future Frappe Desk permissions require them.
-
-Customer approval state should remain profile-driven.
-
----
-
-## 12.2 Internal Account
-
-When creating an internal user:
-
-```text
-set user_type = System User
-assign one or more OMC internal roles
-```
-
-Examples:
-
-Support employee:
-
-```text
-OMC Support Agent
-```
-
-Finance employee:
-
-```text
-OMC Finance Reviewer
-```
-
-Operations manager:
-
-```text
-OMC Manager
-```
-
-Multi-function employee:
-
-```text
-OMC Support Agent
-OMC Document Reviewer
-OMC Finance Reviewer
-```
-
-Capabilities should be the union of all assigned roles.
-
----
-
-# 13. Migration Strategy
-
-## Phase 1 — Role Foundation
-
-* Create canonical role constants
-* Create all built-in Frappe roles
-* Add idempotent installation and migration setup
-* Remove or normalize legacy OMC role names
-* Preserve existing valid internal users
-* Ensure customer users remain Website Users
-* Ensure internal users remain System Users
-
-Deliverable:
-
-```text
-All required roles exist automatically after migrate.
-```
-
----
-
-## Phase 2 — Canonical Capability Engine
-
-* Define role-to-capability mapping
-* Return one canonical capability object
-* Remove conflicting capability implementations
-* Add unit tests for every role
-* Verify multi-role capability union
-* Verify Guest, Pending, Approved, and Internal states
-
-Deliverable:
-
-```text
-One backend capability source of truth.
-```
-
----
-
-## Phase 3 — Backend Mutation Enforcement
-
-Audit and secure:
-
-* document review
-* payment review
-* service status updates
-* support replies
-* support status changes
-* support assignment
-* customer mutations
-* lead mutations
-* task mutations
-* internal notes mutations
-* internal service creation
-
-Deliverable:
-
-```text
-Every mutation checks its specific capability.
-```
-
----
-
-## Phase 4 — Backend Read Enforcement
-
-Audit and secure:
-
-* customer list and detail
-* service case list and detail
-* document summary and attachment access
-* payment summary and receipt access
-* support ticket list and detail
-* leads
-* tasks
-* internal notes
-
-Deliverable:
-
-```text
-Every sensitive read checks role and object scope.
-```
-
----
-
-## Phase 5 — Flutter Provider and Controller Guards
-
-* Add capability checks before protected fetches
-* Add capability checks before mutations
-* Replace route-only assumptions
-* Clear stale protected provider data after logout or role change
-* Add explicit access-denied states
-* Remove legacy API method usage where replaced
-
-Deliverable:
-
-```text
-Flutter UI, providers, controllers, and backend enforce the same policy.
-```
-
----
-
-## Phase 6 — Frappe Permission Alignment
-
-* Configure DocType role permissions
-* Review `ignore_permissions=True` usage
-* Keep guarded API checks wherever permission bypass is necessary
-* Add user permission or assignment filters where appropriate
-* Verify Desk access does not exceed mobile access policy
-
-Deliverable:
-
-```text
-Frappe Desk and mobile APIs follow the same authorization model.
-```
-
----
-
-## Phase 7 — Tests and Production Validation
-
-Test each access state:
+Minimum regression coverage should include:
 
 ```text
 Guest
 Pending Customer
 Approved Customer
-OMC Admin
-OMC Manager
-OMC Support Agent
-OMC Document Reviewer
-OMC Finance Reviewer
-OMC Consultant
-Multi-role internal user
+Imported customer before activation
+Imported customer after activation
+Pending internal System User
+Approved OMC Admin
+Approved OMC Manager
+Approved OMC Support Agent
+Approved OMC Document Reviewer
+Approved OMC Finance Reviewer
+Approved OMC Consultant
+Approved OMC Tax Associate
+Approved OMC Business Partner
+System Manager / Administrator override
 ```
 
-For every role, test:
+For each persona, tests should include both:
 
 ```text
-allowed read
-forbidden read
-allowed mutation
-forbidden mutation
-cross-customer access
-direct endpoint invocation
-deep-link navigation
-stale session capability state
+allowed action -> succeeds
+forbidden action -> fails closed
 ```
 
----
-
-# 14. Required Security Test Matrix
-
-## Customer tests
-
-* Guest cannot access customer endpoints
-* Pending customer cannot access approved-customer endpoints
-* Approved customer can access own records
-* Approved customer cannot access another customer's records
-* Customer cannot invoke internal mutation endpoints
-* Customer cannot read internal notes
-* Customer cannot read archived/internal-only documents
-
-## Support tests
-
-* Support Agent can view support queue
-* Support Agent can reply
-* Support Agent can change support status
-* Support Agent cannot review documents
-* Support Agent cannot review payments
-* Support Agent cannot access settings
-
-## Document reviewer tests
-
-* Document Reviewer can view review queue
-* Document Reviewer can open allowed attachments
-* Document Reviewer can approve/reject documents
-* Document Reviewer cannot review payments
-* Document Reviewer cannot reply as support
-* Document Reviewer cannot change support status
-
-## Finance reviewer tests
-
-* Finance Reviewer can view payment queue
-* Finance Reviewer can open receipt
-* Finance Reviewer can approve/reject payment
-* Finance Reviewer cannot review customer identity documents by default
-* Finance Reviewer cannot reply as support
-* Finance Reviewer cannot manage leads
-
-## Consultant tests
-
-* Consultant can view assigned service cases
-* Consultant cannot view unrelated service cases
-* Consultant can update allowed assigned stages
-* Consultant cannot approve documents
-* Consultant cannot approve payments
-* Consultant cannot view all customers
-* Consultant cannot manage settings
-
-## Admin and manager tests
-
-* Admin has all expected capabilities
-* Manager has operational capabilities
-* Manager settings access follows final policy
-* Multi-role users receive the correct capability union
-
----
-
-# 15. Validation Rules
-
-Do not claim validation has passed unless actual terminal output is available.
-
-Recommended Flutter validation:
-
-```bash
-cd ~/data_drive/app_omc/omc_app
-
-flutter analyze
-flutter test
-git diff --check
-```
-
-Recommended backend validation:
-
-```bash
-cd ~/data_drive/app_omc/backend_omc_app/frappe-bench
-
-bench --site <site-name> migrate
-bench --site <site-name> run-tests --app omc_app
-git diff --check
-```
-
-Focused backend authorization tests should be added before the full suite.
-
----
-
-# 16. Implementation Principles
-
-The following rules are mandatory throughout implementation:
-
-1. Keep two high-level UI sides only:
-
-   * Customer
-   * Internal
-
-2. Do not make every internal user a full administrator.
-
-3. Create all OMC roles automatically through the Frappe app.
-
-4. Use one canonical capability engine.
-
-5. Treat capabilities as backend security rules, not only UI flags.
-
-6. Check object ownership for every customer record.
-
-7. Check assignment or domain scope for internal records.
-
-8. Do not rely only on route protection.
-
-9. Do not rely only on hidden buttons.
-
-10. Do not use general internal access for domain-specific mutations.
-
-11. Avoid exposing unnecessary customer PII.
-
-12. Keep customer and internal endpoints separated where their workflows differ.
-
-13. Keep read endpoints free from workflow mutations.
-
-14. Preserve existing working functionality unless a security change requires adjustment.
-
-15. Implement and validate one phase at a time.
-
----
-
-# 17. Final Target Architecture
+and where scope matters:
 
 ```text
-OMC App
-│
-├── Customer Side
-│   ├── Guest
-│   ├── Pending Customer
-│   └── Approved Customer
-│
-└── Internal Side
-    ├── OMC Admin
-    ├── OMC Manager
-    ├── OMC Support Agent
-    ├── OMC Document Reviewer
-    ├── OMC Finance Reviewer
-    ├── OMC Consultant
-    ├── OMC Tax Associate
-    └── OMC Business Partner
+own/assigned/related record -> succeeds
+unrelated/unassigned record -> denied
 ```
 
-Final authorization chain:
+Latest recorded repository validation after the current Staff Profile/persona, referral, migration, and customer-activation work:
 
 ```text
-Session
-→ Access state
-→ Assigned roles
-→ Canonical capabilities
-→ Route permission
-→ Provider/controller permission
-→ Backend endpoint permission
-→ Record ownership or assignment scope
+Backend OMC suite:            591 / 591 passed
+Customer activation tests:      8 / 8 passed
+Flutter analyze:              No issues found
+Flutter suite:                326 / 326 passed
+Router policy parity suite:    51 / 51 passed
 ```
 
-This architecture keeps the product simple for users while making the backend secure, maintainable, scalable, and production-ready.
+These numbers are evidence for the tested snapshot only; rerun the relevant suites after any role, permission, workflow, or identity change.
+
+---
+
+# 18. Source locations
+
+Primary implementation files for this architecture:
+
+```text
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access.py
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/staff_profile.py
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/setup/roles.py
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/setup/lifecycle.py
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/referral_capabilities.py
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/referral_automation.py
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/referrals.py
+backend_omc_app/frappe-bench/apps/omc_app/omc_app/omc_app/doctype/omc_staff_profile/
+```
+
+Customer lifecycle and activation are implemented separately from staff authorisation and should remain separate.
+
+---
+
+# 19. Final architecture summary
+
+```text
+CUSTOMER AUTHORITY
+
+Frappe User when login exists
+        |
+OMC Customer Profile
+        |
+customer lifecycle + approval
+        |
+ownership-scoped customer capabilities
+
+
+STAFF AUTHORITY
+
+Frappe User
+        |
+internal identity classification
+        |
+OMC Staff Profile approval gate
+        |
+effective OMC staff role(s)
+        |
+canonical capability union
+        |
+assignment/relevance/record/workflow checks
+        |
+protected internal operation
+```
+
+The defining OMC security rule is:
+
+> **A role does not replace approval, a capability does not replace record scope, and Flutter visibility does not replace backend authorisation.**
