@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../app/design_tokens.dart';
 import '../../app/theme.dart';
+import '../interaction/app_feedback.dart';
 
 class OmcIdentityHeader extends StatelessWidget {
   const OmcIdentityHeader({
@@ -79,54 +81,71 @@ class _NotificationButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            const SizedBox(
-              width: 46,
-              height: 46,
-              child: Icon(
-                Icons.notifications_none_rounded,
-                size: 22,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            if (unreadNotifications > 0)
-              Positioned(
-                right: 4,
-                top: 5,
-                child: Container(
-                  constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE11D48),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                  child: Text(
-                    unreadNotifications > 9 ? '9+' : '$unreadNotifications',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                    ),
+    final label = unreadNotifications > 0
+        ? 'Notifications, $unreadNotifications unread'
+        : 'Notifications';
+
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: Colors.white,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () {
+              AppFeedback.selection();
+              onTap();
+            },
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const SizedBox(
+                  width: AppTouchTarget.minimum,
+                  height: AppTouchTarget.minimum,
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    size: 22,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-              ),
-          ],
+                if (unreadNotifications > 0)
+                  Positioned(
+                    right: 3,
+                    top: 4,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppTheme.danger,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: Text(
+                        unreadNotifications > 9
+                            ? '9+'
+                            : '$unreadNotifications',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -151,8 +170,8 @@ class _Avatar extends StatelessWidget {
       ),
     );
     final avatar = Container(
-      width: 46,
-      height: 46,
+      width: AppTouchTarget.minimum,
+      height: AppTouchTarget.minimum,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
@@ -171,18 +190,29 @@ class _Avatar extends StatelessWidget {
                 avatarUrl!,
                 fit: BoxFit.cover,
                 webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                // Frappe files are served from the backend origin during web
-                // development. A browser image element can display them without
-                // Flutter's XMLHttpRequest image fetch being blocked by CORS.
+                // Remote account images can be rendered by the browser image
+                // element when cross-origin image requests are restricted.
                 errorBuilder: (_, _, _) => fallback,
               ),
       ),
     );
     if (onTap == null) return avatar;
-    return InkWell(
-      customBorder: const CircleBorder(),
-      onTap: onTap,
-      child: avatar,
+
+    return Tooltip(
+      message: 'Open profile',
+      child: Semantics(
+        button: true,
+        label: 'Open profile for $name',
+        excludeSemantics: true,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () {
+            AppFeedback.selection();
+            onTap!();
+          },
+          child: avatar,
+        ),
+      ),
     );
   }
 
