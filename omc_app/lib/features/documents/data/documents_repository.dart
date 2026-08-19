@@ -18,15 +18,53 @@ class AuthenticatedDocumentFile {
   final Uint8List bytes;
 }
 
+class DocumentPage {
+  const DocumentPage({
+    required this.items,
+    required this.start,
+    required this.pageLength,
+    required this.hasMore,
+    required this.nextStart,
+  });
+
+  const DocumentPage.empty()
+    : items = const [],
+      start = 0,
+      pageLength = 20,
+      hasMore = false,
+      nextStart = null;
+
+  final List<DocumentItem> items;
+  final int start;
+  final int pageLength;
+  final bool hasMore;
+  final int? nextStart;
+}
+
 final documentsRepositoryProvider = Provider<DocumentsRepository>((ref) {
   final frappeClient = ref.watch(frappeClientProvider);
 
   return DocumentsRepository(frappeClient);
 });
 
-final documentsProvider = FutureProvider<List<DocumentItem>>((ref) async {
+final documentPageProvider = FutureProvider<DocumentPage>((ref) async {
   final repository = ref.watch(documentsRepositoryProvider);
-  return repository.fetchDocuments();
+  return repository.fetchDocumentPage();
+});
+
+final assistedDocumentPageProvider =
+    FutureProvider.family<DocumentPage, String>((ref, serviceRequest) async {
+      final repository = ref.watch(documentsRepositoryProvider);
+      return repository.fetchDocumentPage(
+        serviceRequest: serviceRequest,
+        assisted: true,
+      );
+    });
+
+// Compatibility providers for callers that do not need pagination controls.
+// New list screens should consume DocumentPage so has_more is never discarded.
+final documentsProvider = FutureProvider<List<DocumentItem>>((ref) async {
+  return (await ref.watch(documentPageProvider.future)).items;
 });
 
 final assistedDocumentsProvider =
@@ -34,11 +72,8 @@ final assistedDocumentsProvider =
       ref,
       serviceRequest,
     ) async {
-      final repository = ref.watch(documentsRepositoryProvider);
-      return repository.fetchDocuments(
-        serviceRequest: serviceRequest,
-        assisted: true,
-      );
+      return (await ref.watch(assistedDocumentPageProvider(serviceRequest).future))
+          .items;
     });
 
 final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
@@ -66,15 +101,22 @@ class DocumentsRepository {
   final UploadCoordinator _uploadCoordinator;
   final Map<String, MutationIntent> _uploadIntents = {};
 
-  Future<List<DocumentItem>> fetchDocuments({
+  Future<DocumentPage> fetchDocumentPage({
     bool? showArchived,
     String? queue,
     String? customer,
     String? serviceRequest,
     String? status,
     bool assisted = false,
+    int start = 0,
+    int limit = 20,
   }) async {
-    final queryParameters = <String, dynamic>{};
+    final safeStart = start < 0 ? 0 : start;
+    final safeLimit = limit.clamp(1, 100);
+    final queryParameters = <String, dynamic>{
+      'limit_start': safeStart,
+      'limit_page_length': safeLimit,
+    };
 
     if (showArchived != null) {
       queryParameters['show_archived'] = showArchived ? '1' : '0';
@@ -97,9 +139,37 @@ class DocumentsRepository {
 
     final response = await _frappeClient.getMethod(
       ApiConfig.documentsMethod,
-      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+      queryParameters: queryParameters,
     );
-    return _mapDocumentsResponse(response);
+    return _mapDocumentPageResponse(
+      response,
+      requestedStart: safeStart,
+      requestedLimit: safeLimit,
+    );
+  }
+
+  Future<List<DocumentItem>> fetchDocuments({
+    bool? showArchived,
+    String? queue,
+    String? customer,
+    String? serviceRequest,
+    String? status,
+    bool assisted = false,
+    int start = 0,
+    int limit = 20,
+  }) async {
+    return (
+      await fetchDocumentPage(
+        showArchived: showArchived,
+        queue: queue,
+        customer: customer,
+        serviceRequest: serviceRequest,
+        status: status,
+        assisted: assisted,
+        start: start,
+        limit: limit,
+      )
+    ).items;
   }
 
   Future<DocumentItem?> fetchDocumentDetail(
@@ -272,6 +342,39 @@ class DocumentsRepository {
     return text;
   }
 
+  DocumentPage _mapDocumentPageResponse(
+    Map<String, dynamic>? data, {
+    required int requestedStart,
+    required int requestedLimit,
+  }) {
+    if (data == null) {
+      return DocumentPage(
+        items: const [],
+        start: requestedStart,
+        pageLength: requestedLimit,
+        hasMore: false,
+        nextStart: null,
+      );
+    }
+
+    final items = _mapDocumentsResponse(data);
+    final message = data['message'];
+    final payload = message is Map<String, dynamic> ? message : data;
+    final hasMore = _boolValue(payload['has_more']);
+    final start = _intValue(payload['limit_start']) ?? requestedStart;
+    final pageLength =
+        _intValue(payload['limit_page_length']) ?? requestedLimit;
+    final parsedNextStart = _intValue(payload['next_start']);
+
+    return DocumentPage(
+      items: items,
+      start: start,
+      pageLength: pageLength,
+      hasMore: hasMore,
+      nextStart: hasMore ? (parsedNextStart ?? start + items.length) : null,
+    );
+  }
+
   List<DocumentItem> _mapDocumentsResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];
 
@@ -424,6 +527,12 @@ class DocumentsRepository {
     }
 
     return DocumentStatus.pendingReview;
+  }
+
+  int? _intValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
   }
 
   String _stringValue(dynamic value) {
