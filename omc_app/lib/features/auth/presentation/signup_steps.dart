@@ -14,7 +14,7 @@ class SignupProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Account type', 'Basic details', 'Preferences', 'Verification'];
+    const labels = ['Access type', 'Basic details', 'Preferences', 'Verification'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -76,7 +76,8 @@ class SignupRoleStep extends StatelessWidget {
         children: [
           const SignupStepTitle(
             title: 'How will you use OMC?',
-            subtitle: 'Choose the account type that matches your work.',
+            subtitle:
+                'Customer creates a service account. Staff options submit an access application for OMC review.',
           ),
           const SizedBox(height: 16),
           for (final role in roles) ...[
@@ -403,10 +404,10 @@ class SignupPreferencesStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SignupStepTitle(
-            title: isCustomer ? 'Referral and preferences' : 'Review pathway',
+            title: isCustomer ? 'Referral and preferences' : 'Staff access review',
             subtitle: isCustomer
                 ? 'Referral information is optional unless you choose Referral as your source.'
-                : 'OMC will review this account type before protected access is enabled.',
+                : 'This is an application. Email verification does not approve or grant staff access.',
           ),
           const SizedBox(height: 16),
           if (!isCustomer)
@@ -575,10 +576,13 @@ class SignupSecurityStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SignupStepTitle(
-            title: 'Review and verify your email',
-            subtitle:
-                'OMC will email a single-use verification link. You will create your password only after opening that verified link.',
+          SignupStepTitle(
+            title: isCustomer
+                ? 'Review and verify your email'
+                : 'Verify and submit your application',
+            subtitle: isCustomer
+                ? 'OMC will email a single-use verification link. You will create your password only after opening that verified link.'
+                : 'OMC will email a single-use verification link. After verification, your staff access application is submitted for separate OMC review.',
           ),
           const SizedBox(height: 16),
           Container(
@@ -623,7 +627,7 @@ class SignupSecurityStep extends StatelessWidget {
               title: Text(
                 isCustomer
                     ? 'I confirm my details are correct and agree to verify my email before my OMC customer account is created.'
-                    : 'I confirm my details are correct and understand that email verification and OMC review are required before protected access is enabled.',
+                    : 'I confirm my details are correct and understand that email verification submits my staff access application for OMC review; it does not grant staff permissions.',
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12.5,
@@ -749,14 +753,20 @@ class SignupRoleCard extends StatelessWidget {
     final data = switch (role) {
       'Consultant' => (
         Icons.support_agent_rounded,
-        'Manage assigned customer work.',
+        'Apply for consultant staff access.',
       ),
-      'Business Partner' => (Icons.handshake_outlined, 'Collaborate with OMC.'),
+      'Business Partner' => (
+        Icons.handshake_outlined,
+        'Apply for business partner staff access.',
+      ),
       'Tax Associate' => (
         Icons.calculate_outlined,
-        'Apply for professional access.',
+        'Apply for tax associate staff access.',
       ),
-      _ => (Icons.person_outline_rounded, 'Request and track OMC services.'),
+      _ => (
+        Icons.person_outline_rounded,
+        'Create an account to request and track OMC services.',
+      ),
     };
 
     return InkWell(
@@ -836,7 +846,7 @@ class SignupReviewNotice extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'OMC will verify this profile before protected services are enabled.',
+              'This is a staff access application. OMC reviews it separately after email verification, and protected staff permissions are never enabled automatically.',
               style: TextStyle(
                 color: Color(0xFF9A3412),
                 fontSize: 13,
@@ -888,10 +898,10 @@ class SignupSuccessScreen extends StatelessWidget {
     return AuthEntryScaffold(
       title: isCustomer
           ? 'Customer account created'
-          : 'Account submitted for review',
+          : 'Staff access application submitted',
       subtitle: isCustomer
           ? 'Your customer account is active. You can sign in now.'
-          : 'OMC will review your profile before protected access is enabled.',
+          : 'OMC will review your application before protected staff access is enabled.',
       child: PremiumCard(
         padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
         child: Column(
@@ -909,7 +919,7 @@ class SignupSuccessScreen extends StatelessWidget {
             Text(
               isCustomer
                   ? 'Your account is ready.'
-                  : 'We received your details.',
+                  : 'We received your application.',
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 21,
@@ -920,7 +930,7 @@ class SignupSuccessScreen extends StatelessWidget {
             Text(
               isCustomer
                   ? 'Sign in to request services, upload documents and track your cases.'
-                  : 'Sign in after approval to access protected services and workflows.',
+                  : 'Staff permissions remain disabled until OMC completes its access review.',
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 14,
