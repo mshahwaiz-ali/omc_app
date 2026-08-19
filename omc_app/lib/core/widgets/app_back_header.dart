@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/design_tokens.dart';
 import '../../app/navigation/navigation_coordinator.dart';
 
 class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
@@ -24,12 +25,13 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
   final String? fallbackRoute;
 
   @override
-  Size get preferredSize => Size.fromHeight(subtitle == null ? 76 : 90);
+  Size get preferredSize => Size.fromHeight(subtitle == null ? 84 : 104);
 
   @override
   Widget build(BuildContext context) {
     final router = GoRouter.of(context);
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final resolvedFallbackRoute =
         fallbackRoute ?? _fallbackRouteFor(router.state.uri.path);
 
@@ -50,33 +52,38 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
           ),
           child: Row(
             children: [
-              Semantics(
-                button: true,
-                label: 'Go back',
-                child: Material(
-                  color: colors.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    onTap: goBack,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: colors.outlineVariant),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x0A111827),
-                            blurRadius: 12,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.arrow_back_rounded,
-                        size: 18,
-                        color: colors.onSurface,
+              Tooltip(
+                message: 'Back',
+                child: Semantics(
+                  button: true,
+                  label: 'Go back',
+                  excludeSemantics: true,
+                  child: Material(
+                    color: colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(AppRadius.small + 2),
+                    child: InkWell(
+                      onTap: goBack,
+                      borderRadius: BorderRadius.circular(AppRadius.small + 2),
+                      child: Container(
+                        constraints: AppTouchTarget.constraints,
+                        width: AppTouchTarget.minimum,
+                        height: AppTouchTarget.minimum,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppRadius.small + 2),
+                          border: Border.all(color: colors.outlineVariant),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0A111827),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          size: 20,
+                          color: colors.onSurface,
+                        ),
                       ),
                     ),
                   ),
@@ -88,28 +95,29 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.onSurface,
-                        fontSize: 19,
-                        height: 1.1,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.3,
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: colors.onSurface,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
+                        ),
                       ),
                     ),
                     if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xxs),
                       Text(
                         subtitle!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: colors.onSurfaceVariant,
-                          fontSize: 12,
-                          height: 1.2,
+                          height: 1.25,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -117,28 +125,41 @@ class AppBackHeader extends StatelessWidget implements PreferredSizeWidget {
                   ],
                 ),
               ),
-              if (action != null) ...[const SizedBox(width: 10), action!],
+              if (action != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                action!,
+              ],
               if (actionIcon != null && onAction != null) ...[
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.xs),
                 Tooltip(
                   message: actionTooltip ?? 'More action',
-                  child: Material(
-                    color: colors.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      onTap: onAction,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: colors.outlineVariant),
+                  child: Semantics(
+                    button: true,
+                    label: actionTooltip ?? 'More action',
+                    excludeSemantics: true,
+                    child: Material(
+                      color: colors.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.small + 2),
+                      child: InkWell(
+                        onTap: onAction,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.small + 2,
                         ),
-                        child: Icon(
-                          actionIcon,
-                          size: 21,
-                          color: colors.onSurface,
+                        child: Container(
+                          constraints: AppTouchTarget.constraints,
+                          width: AppTouchTarget.minimum,
+                          height: AppTouchTarget.minimum,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.small + 2,
+                            ),
+                            border: Border.all(color: colors.outlineVariant),
+                          ),
+                          child: Icon(
+                            actionIcon,
+                            size: 21,
+                            color: colors.onSurface,
+                          ),
                         ),
                       ),
                     ),
