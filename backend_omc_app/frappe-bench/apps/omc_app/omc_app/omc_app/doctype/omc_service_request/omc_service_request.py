@@ -48,15 +48,11 @@ class OMCServiceRequest(Document):
 			self.customer_name = frappe.db.get_value("OMC Customer Profile", self.customer_profile, "full_name") or ""
 
 		if self._entered_terminal_status():
-			try:
-				from omc_app.api.customer_documents import archive_service_documents_for_status
+			from omc_app.api.customer_documents import archive_service_documents_for_status
 
-				archive_service_documents_for_status(self.name, self.status)
-			except Exception:
-				frappe.log_error(
-					frappe.get_traceback(),
-					"OMC Service Document Auto Archive Failed",
-				)
+			# Terminal cleanup must be transactional. If archival fails, the save
+			# must fail too instead of committing a partially terminal request.
+			archive_service_documents_for_status(self.name, self.status)
 
 	def _validate_request_state(self, previous):
 		if not previous or previous.request_state == self.request_state:
@@ -69,12 +65,16 @@ class OMCServiceRequest(Document):
 			)
 		if self.request_state in {"Pending Payment", "Payment Not Required"} and not self.final_confirmation:
 			frappe.throw("Final confirmation is required before submitting a request.")
-		if self.request_state == "Activated" and not self.erp_task:
-			frappe.throw("An ERP Task is required before activation can complete.")
+		if self.request_state == "Activated":
+			if not self.erp_service or not self.erp_task:
+				frappe.throw(
+					"ERP Service and ERP Task evidence are required before activation can complete.",
+					frappe.ValidationError,
+				)
+			if not self.activated_at:
+				self.activated_at = now_datetime()
 		if self.request_state == "Ready for Activation" and not self.ready_for_activation_at:
 			self.ready_for_activation_at = now_datetime()
-		if self.request_state == "Activated" and not self.activated_at:
-			self.activated_at = now_datetime()
 
 	def _protect_snapshots(self, previous):
 		if not previous:
