@@ -4,14 +4,10 @@ from __future__ import annotations
 from time import monotonic
 
 import frappe
-
-from omc_app.api import erp_activation
 from frappe.utils import add_to_date, cint, get_datetime, now_datetime
 
-from omc_app.api import capabilities, erp_service_task_adapter
-from omc_app.setup.roles import ADMIN_ROLE, MANAGER_ROLE, SYSTEM_ROLE
+from omc_app.api import bridge_outbox, capabilities, erp_activation
 
-RECOVERY_ROLES = {ADMIN_ROLE, MANAGER_ROLE, SYSTEM_ROLE}
 RETRYABLE_STATUSES = {"Pending Configuration", "Repair Required", "Failed"}
 MAX_AUTOMATIC_ATTEMPTS = 5
 RETRY_DELAYS_HOURS = (1, 2, 4, 8, 24)
@@ -46,20 +42,6 @@ def _bounded_int(value, *, default: int, minimum: int, maximum: int) -> int:
     except (TypeError, ValueError):
         parsed = default
     return min(max(parsed, minimum), maximum)
-
-
-def _profile_for_request(request):
-    name = _text(getattr(request, "customer_profile", None))
-    if name and frappe.db.exists("OMC Customer Profile", name):
-        return frappe.get_doc("OMC Customer Profile", name)
-    return None
-
-
-def _manual_customer_for_request(request):
-    name = _text(getattr(request, "manual_customer", None))
-    if name and frappe.db.exists("OMC Manual Customer", name):
-        return frappe.get_doc("OMC Manual Customer", name)
-    return None
 
 
 def _set_retry_values(request, values):
@@ -129,49 +111,48 @@ def _record_attempt_result(request, *, status: str, attempt: int, category: str 
     return {"exhausted": exhausted, "next_attempt_at": next_attempt}
 
 
+def _bridge_operation(request_name: str):
+    row = frappe.db.get_value(
+        "OMC Bridge Operation",
+        {"service_request": request_name},
+        ["name", "state", "attempt_count", "next_attempt_at"],
+        as_dict=True,
+    )
+    return row or None
+
+
 @frappe.whitelist()
 def get_erp_sync_issues(limit_start=0, limit_page_length=50):
     """Return a bounded manager-only queue of unresolved synchronization records."""
     _assert_recovery_manager()
     start = _bounded_int(limit_start, default=0, minimum=0, maximum=1_000_000)
-    page_length = _bounded_int(
-        limit_page_length,
-        default=50,
-        minimum=1,
-        maximum=200,
-    )
+    page_length = _bounded_int(limit_page_length, default=50, minimum=1, maximum=200)
     filters = {"erp_sync_status": ["in", sorted(RETRYABLE_STATUSES)]}
     rows = frappe.get_all(
         "OMC Service Request",
         filters=filters,
         fields=[
-            "name",
-            "title",
-            "status",
-            "service",
-            "customer_profile",
-            "manual_customer",
-            "assigned_staff",
-            "erp_sync_status",
-            "erp_sync_error",
-            "erp_customer",
-            "erp_service",
-            "erp_task",
-            "erp_retry_count",
-            "erp_last_attempt_at",
-            "erp_next_attempt_at",
-            "erp_last_failure_category",
-            "erp_retry_exhausted_at",
-            "erp_last_success_at",
-            "modified",
+            "name", "title", "status", "request_state", "service", "customer_profile",
+            "manual_customer", "assigned_staff", "erp_sync_status", "erp_sync_error",
+            "erp_customer", "erp_service", "erp_task", "erp_retry_count",
+            "erp_last_attempt_at", "erp_next_attempt_at", "erp_last_failure_category",
+            "erp_retry_exhausted_at", "erp_last_success_at", "modified",
         ],
         order_by="modified asc, name asc",
         limit_start=start,
         limit_page_length=page_length,
     )
+    issues = []
+    for row in rows:
+        item = dict(row)
+        operation = _bridge_operation(row.name)
+        item["bridge_operation"] = operation.name if operation else ""
+        item["bridge_state"] = operation.state if operation else ""
+        item["bridge_attempt_count"] = operation.attempt_count if operation else 0
+        issues.append(item)
     return {
-        "issues": [dict(row) for row in rows],
-        "count": len(rows),
+        "issues": issues,
+        "count": len(issues),
         "total": frappe.db.count("OMC Service Request", filters=filters),
         "limit_start": start,
         "limit_page_length": page_length,
@@ -180,38 +161,70 @@ def get_erp_sync_issues(limit_start=0, limit_page_length=50):
 
 @frappe.whitelist(methods=["POST"])
 def retry_erp_sync(request_name=None, reset_exhaustion=0):
-    """Retry one unresolved request without duplicating valid ERP records."""
+    """Explicitly retry one request through the durable bridge authority."""
     actor = _assert_recovery_manager()
     request_name = _text(request_name)
     if not request_name:
         frappe.throw("request_name is required.", frappe.ValidationError)
-    if not frappe.db.exists("OMC Service Request", request_name):
-        frappe.throw("Service request not found.", frappe.DoesNotExistError)
 
-    request = frappe.get_doc("OMC Service Request", request_name)
-    if getattr(request, "erp_retry_exhausted_at", None) and not cint(reset_exhaustion):
+    locked = frappe.db.get_value("OMC Service Request", request_name, "name", for_update=True)
+    if not locked:
+        frappe.throw("Service request not found.", frappe.DoesNotExistError)
+    request = frappe.get_doc("OMC Service Request", locked)
+
+    operation = _bridge_operation(request.name)
+    if operation:
+        if operation.state == "Failed":
+            if getattr(request, "erp_retry_exhausted_at", None) and not cint(reset_exhaustion):
+                frappe.throw(
+                    "ERP synchronization retries are exhausted. Confirm reset_exhaustion to recover the failed bridge manually.",
+                    frappe.ValidationError,
+                )
+            result = bridge_outbox._recover_failed_operation(
+                operation.name,
+                actor=actor,
+                reason="Authorized ERP synchronization retry requested.",
+            )
+            _set_retry_values(
+                request,
+                {
+                    "erp_retry_count": 0,
+                    "erp_retry_exhausted_at": None,
+                    "erp_next_attempt_at": None,
+                    "erp_last_failure_category": None,
+                },
+            )
+            return {
+                "request_name": request.name,
+                "status": "Pending",
+                "operation": operation.name,
+                "bridge_state": result["state"],
+                "recovered": True,
+                "exhausted": False,
+                "next_attempt_at": None,
+            }
+        if operation.state in {"Pending", "Retry", "Processing"}:
+            return {
+                "request_name": request.name,
+                "status": "Pending",
+                "operation": operation.name,
+                "bridge_state": operation.state,
+                "recovered": False,
+                "exhausted": False,
+                "next_attempt_at": operation.next_attempt_at,
+            }
+        if operation.state == "Completed":
+            return {
+                "request_name": request.name,
+                "status": "Synced",
+                "operation": operation.name,
+                "bridge_state": "Completed",
+                "recovered": False,
+                "exhausted": False,
+                "next_attempt_at": None,
+            }
         frappe.throw(
-            "ERP synchronization retries are exhausted. Confirm reset_exhaustion to retry manually.",
-            frappe.ValidationError,
-        )
-    if cint(reset_exhaustion):
-        _set_retry_values(
-            request,
-            {
-                "erp_retry_count": 0,
-                "erp_retry_exhausted_at": None,
-                "erp_next_attempt_at": None,
-            },
-        )
-        frappe.logger("omc_app").info(
-            "ERP sync exhaustion reset for %s by %s",
-            request.name,
-            actor,
-        )
-    current_status = _text(getattr(request, "erp_sync_status", None))
-    if current_status not in RETRYABLE_STATUSES | {"Synced"}:
-        frappe.throw(
-            f"ERP synchronization cannot be retried from status {current_status or 'Unset'}.",
+            "The bridge operation is cancelled and cannot be revived implicitly. Reconcile the request before creating new activation eligibility.",
             frappe.ValidationError,
         )
 
@@ -225,11 +238,8 @@ def retry_erp_sync(request_name=None, reset_exhaustion=0):
     result = erp_activation.activate_request(
         request,
         service=frappe.get_doc("OMC Service", service_name),
-        profile=_profile_for_request(request),
-        manual_customer=_manual_customer_for_request(request),
         repair=True,
     )
-
     if not result.get("eligible", True):
         return {
             "request_name": request.name,
@@ -237,26 +247,12 @@ def retry_erp_sync(request_name=None, reset_exhaustion=0):
             "exhausted": False,
             "next_attempt_at": None,
         }
-
-    # Activation is now a durable outbox operation. A successfully enqueued
-    # operation is neither a legacy sync failure nor an exhausted retry.
-    if result.get("status") == "Pending":
-        retry_state = {"exhausted": False, "next_attempt_at": None}
-    else:
-        attempt = int(getattr(request, "erp_retry_count", 0) or 0) + 1
-        retry_state = _record_attempt_result(
-            request,
-            status=result.get("status") or "Failed",
-            attempt=attempt,
-        )
-        frappe.logger("omc_app").info(
-            "ERP sync retry for %s by %s finished with %s",
-            request.name,
-            actor,
-            result.get("status"),
-        )
-    frappe.db.commit()
-    return {"request_name": request.name, **result, **retry_state}
+    return {
+        "request_name": request.name,
+        **result,
+        "exhausted": False,
+        "next_attempt_at": None,
+    }
 
 
 def _job_lock():
@@ -269,11 +265,13 @@ def _job_lock():
 
 
 def run_automatic_erp_sync_recovery():
+    """Recover only pre-outbox configuration failures; terminal bridge failures require a human action."""
     summary = {
         "scanned": 0,
         "retried": 0,
         "synced": 0,
         "not_due": 0,
+        "manual_recovery_required": 0,
         "exhausted": 0,
         "locked": 0,
         "failed": 0,
@@ -303,6 +301,15 @@ def run_automatic_erp_sync_recovery():
             if row.erp_next_attempt_at and get_datetime(row.erp_next_attempt_at) > get_datetime(now):
                 summary["not_due"] += 1
                 continue
+
+            operation = _bridge_operation(row.name)
+            if operation:
+                if operation.state == "Failed":
+                    summary["manual_recovery_required"] += 1
+                else:
+                    summary["not_due"] += 1
+                continue
+
             savepoint = f"erp_retry_{index}"
             frappe.db.savepoint(savepoint)
             attempt = 1
@@ -318,36 +325,22 @@ def run_automatic_erp_sync_recovery():
                 attempt = int(getattr(request, "erp_retry_count", 0) or 0) + 1
                 service_name = _text(getattr(request, "service", None))
                 if not service_name or not frappe.db.exists("OMC Service", service_name):
-                    _record_attempt_result(
-                        request,
-                        status="Failed",
-                        attempt=attempt,
-                        category="Permanent",
-                    )
+                    _record_attempt_result(request, status="Failed", attempt=attempt, category="Permanent")
                     summary["exhausted"] += 1
                     continue
+
                 result = erp_activation.activate_request(
                     request,
                     service=frappe.get_doc("OMC Service", service_name),
-                    profile=_profile_for_request(request),
-                    manual_customer=_manual_customer_for_request(request),
                     repair=True,
                 )
-
                 if not result.get("eligible", True):
                     summary["not_due"] += 1
                     continue
 
-                retry_state = _record_attempt_result(
-                    request,
-                    status=result.get("status") or "Failed",
-                    attempt=attempt,
-                )
                 summary["retried"] += 1
                 if result.get("status") == "Synced":
                     summary["synced"] += 1
-                if retry_state["exhausted"]:
-                    summary["exhausted"] += 1
             except Exception as error:
                 frappe.db.rollback(save_point=savepoint)
                 category = _category_for_exception(error)
@@ -357,10 +350,7 @@ def run_automatic_erp_sync_recovery():
                     frappe.db.set_value(
                         "OMC Service Request",
                         request.name,
-                        {
-                            "erp_sync_status": "Failed",
-                            "erp_sync_error": _text(error)[:1000],
-                        },
+                        {"erp_sync_status": "Failed", "erp_sync_error": _text(error)[:1000]},
                         update_modified=False,
                     )
                     state = _record_attempt_result(
