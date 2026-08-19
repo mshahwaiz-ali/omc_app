@@ -177,27 +177,37 @@ class TestBackendRedesignFinance(TestCase):
                 )
 
     def test_payment_allocation_validates_party_company_currency_and_reference(self):
-        request = SimpleNamespace(erp_customer="CUST-1")
-        invoice = SimpleNamespace(company="OMC", currency="PKR")
-        payment = SimpleNamespace(
-            docstatus=1, payment_type="Receive", party_type="Customer",
-            party="CUST-1", company="OMC", paid_from_account_currency="PKR",
+        request = frappe._dict(
+            doctype="OMC Service Request",
+            name="OMC-SR-1",
+            modified="2026-08-19 12:00:00",
+            erp_customer="CUST-1",
+            company_snapshot="OMC",
         )
-        reference = SimpleNamespace(allocated_amount=100)
+        invoice = frappe._dict(name="SINV-1", company="OMC", currency="PKR")
+        payment = frappe._dict(
+            name="PAY-1",
+            modified="2026-08-19 12:00:00",
+            docstatus=1,
+            payment_type="Receive",
+            party_type="Customer",
+            party="CUST-1",
+            company="OMC",
+            paid_from_account_currency="PKR",
+        )
+        reference = frappe._dict(name="REF-1", allocated_amount=100)
 
-        self.assertEqual(
-            accounting_reconciliation._payment_allocation_error(
+        self.assertIsNone(
+            accounting_reconciliation._payment_allocation_issue(
                 request, invoice, payment, reference
-            ),
-            "",
+            )
         )
         payment.party = "CUST-OTHER"
-        self.assertIn(
-            "party",
-            accounting_reconciliation._payment_allocation_error(
-                request, invoice, payment, reference
-            ).lower(),
+        issue = accounting_reconciliation._payment_allocation_issue(
+            request, invoice, payment, reference
         )
+        self.assertEqual(issue["kind"], "human")
+        self.assertEqual(issue["code"], "payment_party_mismatch")
 
     def test_no_charge_and_full_settlement_activation_gates(self):
         free = SimpleNamespace(
