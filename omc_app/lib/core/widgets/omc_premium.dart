@@ -229,17 +229,15 @@ class OmcStatusBadge extends StatelessWidget {
               ),
               const SizedBox(width: 6),
             ],
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tone,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  height: 1.1,
-                ),
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                height: 1.1,
               ),
             ),
           ],
