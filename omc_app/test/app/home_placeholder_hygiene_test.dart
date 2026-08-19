@@ -4,7 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('home and placeholder hygiene', () {
-    test('active HomeScreen uses canonical capability authority', () {
+    test('active HomeScreen exports the lifecycle dispatcher', () {
+      final exportSource = File(
+        'lib/features/home/presentation/home_screen.dart',
+      ).readAsStringSync();
+      final dispatcherSource = File(
+        'lib/features/home/presentation/home_screen_dispatcher.dart',
+      ).readAsStringSync();
+
+      expect(exportSource, contains("export 'home_screen_dispatcher.dart';"));
+      expect(dispatcherSource, contains('effectiveCapabilitiesProvider'));
+      expect(dispatcherSource, contains('ApprovedCustomerHomeView'));
+      expect(dispatcherSource, contains("'home_screen_role_aware.dart' as legacy"));
+    });
+
+    test('legacy guest and internal Home path uses canonical capability authority', () {
       final source = File(
         'lib/features/home/presentation/home_screen_role_aware.dart',
       ).readAsStringSync();
@@ -25,18 +39,12 @@ void main() {
       );
     });
 
-    test('home compatibility exports remain intact', () {
-      expect(
-        File(
-          'lib/features/home/presentation/home_screen.dart',
-        ).readAsStringSync(),
-        contains("export 'home_screen_role_aware.dart';"),
-      );
+    test('obsolete HomeScreen v2 compatibility alias is absent', () {
       expect(
         File(
           'lib/features/home/presentation/home_screen_v2.dart',
-        ).readAsStringSync(),
-        contains("export 'home_screen_role_aware.dart';"),
+        ).existsSync(),
+        isFalse,
       );
     });
   });
