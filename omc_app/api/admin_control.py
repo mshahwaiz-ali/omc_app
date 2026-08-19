@@ -7,7 +7,7 @@ import json
 import frappe
 from frappe.utils import cint, flt, validate_email_address
 
-from omc_app.api import access, capabilities, erp_customer_resolver, erp_sync_recovery, identity, security, service_assignment
+from omc_app.api import access, capabilities, erp_customer_resolver, erp_sync_recovery, identity, pricing_guard, security, service_assignment
 from omc_app.setup.roles import (
     ADMIN_ROLE,
     BUSINESS_PARTNER_ROLE,
@@ -508,34 +508,12 @@ def retry_service_sync(service_request=None):
 @frappe.whitelist(methods=["POST"])
 def review_discount(service_request=None, decision=None, reason=None):
     _require("can_manage_business_settings")
-    decision = _text(decision).lower()
-    if decision not in {"approve", "reject"}:
-        frappe.throw("decision must be approve or reject.", frappe.ValidationError)
-    if not service_request or not frappe.db.exists("OMC Service Request", service_request):
-        frappe.throw("Service request was not found.", frappe.DoesNotExistError)
-    request = frappe.get_doc("OMC Service Request", service_request)
-    if _text(request.get("discount_status")) != "Pending Approval":
-        frappe.throw("This request does not have a pending discount.", frappe.ValidationError)
-    reason = _text(reason)
-    if decision == "reject" and not reason:
-        frappe.throw("Review remarks are required when rejecting a discount.", frappe.ValidationError)
-    request.discount_approved_by = _current_user()
-    if decision == "approve":
-        request.final_price = request.get("proposed_final_price") or request.original_price
-        request.discount_status = "Approved"
-    else:
-        request.final_price = request.original_price
-        request.discount_status = "Rejected"
-    request.add_comment(
-        "Comment",
-        text=(
-            f"Discount {'approved' if decision == 'approve' else 'rejected'} by {_current_user()}."
-            + (f" Review remarks: {reason}" if reason else "")
-        ),
+    return pricing_guard.finalize_discount_review(
+        service_request,
+        decision=decision,
+        reason=reason,
+        reviewer=_current_user(),
     )
-    request.save(ignore_permissions=True)
-    frappe.db.commit()
-    return {"service_request": request.name, "discount_status": request.discount_status, "final_price": flt(request.final_price)}
 
 
 @frappe.whitelist()
