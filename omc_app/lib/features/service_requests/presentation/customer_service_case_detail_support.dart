@@ -8,31 +8,12 @@ class _LoadingView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 36),
       children: const [
-        _LoadingCard(height: 170),
+        AppSkeleton(height: 170),
         SizedBox(height: 14),
-        _LoadingCard(height: 330),
+        AppSkeleton(height: 330),
         SizedBox(height: 14),
-        _LoadingCard(height: 140),
+        AppSkeleton(height: 140),
       ],
-    );
-  }
-}
-
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard({required this.height});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: AppTheme.primarySoft,
-          borderRadius: BorderRadius.circular(22),
-        ),
-      ),
     );
   }
 }
