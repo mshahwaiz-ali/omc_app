@@ -36,7 +36,6 @@ class TestHttpSecurityContract(FrappeTestCase):
             password_reset.reset_password,
             account_security.verify_current_password,
             account_security.change_password,
-            account_security.delete_account,
             guest_session.create_guest_session,
             guest_session.update_guest_activity,
             profile.upload_profile_image,

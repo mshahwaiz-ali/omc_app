@@ -1,5 +1,6 @@
 import frappe
 
+from omc_app.api import service_case_contract
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _can_access_internal_workspace,
@@ -11,6 +12,7 @@ from omc_app.api.mobile import (
 
 OPEN_SERVICE_STATUSES = ["Open", "In Progress", "Waiting for Customer"]
 CLOSED_SERVICE_STATUSES = ["Completed", "Cancelled"]
+TERMINAL_REQUEST_STATES = ["Cancelled", "Expired"]
 OPEN_SUPPORT_STATUSES = ["Open", "In Progress", "Waiting for Customer"]
 PAYMENT_REVIEW_STATUSES = ["Receipt Submitted", "Under Review"]
 
@@ -51,6 +53,47 @@ def _service_scope(profile=None):
     if profile:
         filters["customer_profile"] = profile.name
     return filters
+
+
+def _service_lifecycle_bucket(request_state, operational_status):
+    state = (request_state or "").strip()
+    status = (operational_status or "").strip()
+
+    if state == "Cancelled":
+        return "cancelled"
+    if state == "Expired":
+        return "expired"
+    if state == "Activated" and status == "Completed":
+        return "completed"
+    return "active"
+
+
+def _service_lifecycle_counts(filters):
+    base_filters = dict(filters or {})
+
+    cancelled_filters = dict(base_filters)
+    cancelled_filters["request_state"] = "Cancelled"
+
+    expired_filters = dict(base_filters)
+    expired_filters["request_state"] = "Expired"
+
+    completed_filters = dict(base_filters)
+    completed_filters["request_state"] = "Activated"
+    completed_filters["status"] = "Completed"
+
+    total = _count("OMC Service Request", base_filters)
+    cancelled = _count("OMC Service Request", cancelled_filters)
+    expired = _count("OMC Service Request", expired_filters)
+    completed = _count("OMC Service Request", completed_filters)
+    active = max(total - cancelled - expired - completed, 0)
+
+    return {
+        "total": total,
+        "active": active,
+        "completed": completed,
+        "cancelled": cancelled,
+        "expired": expired,
+    }
 
 
 def _related_filters(profile, doctype, service_names):
@@ -218,7 +261,8 @@ def _activity_color_family(row):
 
 def _service_snapshots(profile=None, limit=3):
     filters = _service_scope(profile)
-    filters["status"] = ["not in", CLOSED_SERVICE_STATUSES]
+    filters["request_state"] = ["not in", TERMINAL_REQUEST_STATES]
+    filters["status"] = ["!=", "Completed"]
 
     rows = _get_all(
         "OMC Service Request",
@@ -229,6 +273,7 @@ def _service_snapshots(profile=None, limit=3):
             "title",
             "service_title",
             "status",
+            "request_state",
             "priority",
             "customer_profile",
             "customer_name",
@@ -239,17 +284,41 @@ def _service_snapshots(profile=None, limit=3):
         limit_page_length=limit,
     )
 
+    contracts = service_case_contract._bulk_contract(
+        [row.name for row in rows]
+    )
+
     snapshots = []
     for row in rows:
+        contract = contracts.get(row.name) or {}
+        request_state = (
+            (contract.get("request_state") or "").strip()
+            or (row.request_state or "").strip()
+            or "Draft"
+        )
+        operational_status = (
+            (
+                contract.get("operational_status")
+                or contract.get("status")
+                or ""
+            ).strip()
+            or (row.status or "").strip()
+            or "Open"
+        )
+
+        if (
+            _service_lifecycle_bucket(request_state, operational_status)
+            != "active"
+        ):
+            continue
+
         docs = _service_document_summary(row.name)
         payments = _service_payment_summary(row.name)
         total_docs = docs.get("total") or 0
         approved_docs = docs.get("approved") or 0
-        progress = 0.0
+
         if total_docs:
             progress = min(1.0, max(0.0, approved_docs / total_docs))
-        elif (row.status or "") == "Completed":
-            progress = 1.0
         else:
             progress = 0.35
 
@@ -258,7 +327,20 @@ def _service_snapshots(profile=None, limit=3):
                 "id": row.name,
                 "name": row.name,
                 "title": _service_title(row),
-                "status": row.status or "Open",
+                "request_state": request_state,
+                "status": operational_status,
+                "operational_status": operational_status,
+                "display_status": (
+                    contract.get("display_status")
+                    or service_case_contract._display_status(
+                        request_state,
+                        operational_status,
+                    )
+                ),
+                "receipt": contract.get("receipt") or {},
+                "settlement": contract.get("settlement") or {},
+                "activation": contract.get("activation") or {},
+                "hold": contract.get("hold") or {},
                 "priority": row.priority or "Medium",
                 "customer_profile": row.customer_profile or "",
                 "customer_name": row.customer_name or "",
@@ -421,10 +503,7 @@ def get_dashboard_data():
     payment_filters = _related_filters(profile, "OMC Service Payment", service_names)
     timeline_filters = _related_filters(profile, "OMC Service Timeline", service_names)
 
-    open_service_filters = dict(service_filters)
-    open_service_filters["status"] = ["not in", CLOSED_SERVICE_STATUSES]
-    completed_service_filters = dict(service_filters)
-    completed_service_filters["status"] = "Completed"
+    service_lifecycle = _service_lifecycle_counts(service_filters)
 
     document_summary = _document_summary(document_filters)
     payment_summary = _payment_summary(payment_filters)
@@ -433,10 +512,10 @@ def get_dashboard_data():
         "access_state": "internal" if is_internal else "approved",
         "is_internal": is_internal,
         "capabilities": _get_mobile_capabilities(user=user, profile=profile),
-        "open_services": _count("OMC Service Request", open_service_filters),
-        "active_cases": _count("OMC Service Request", open_service_filters),
-        "completed_services": _count("OMC Service Request", completed_service_filters),
-        "completed_cases": _count("OMC Service Request", completed_service_filters),
+        "open_services": service_lifecycle["active"],
+        "active_cases": service_lifecycle["active"],
+        "completed_services": service_lifecycle["completed"],
+        "completed_cases": service_lifecycle["completed"],
         "documents": document_summary.get("total", 0),
         "pending_documents": document_summary.get("missing", 0),
         "payments_due": payment_summary.get("payments_due", 0),
