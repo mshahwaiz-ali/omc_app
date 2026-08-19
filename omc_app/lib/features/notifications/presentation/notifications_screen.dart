@@ -18,7 +18,6 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
-  bool _autoReadScheduled = false;
   final Set<String> _hiddenIds = <String>{};
   final Set<String> _mutationIds = <String>{};
   final List<NotificationItem> _additionalItems = [];
@@ -26,6 +25,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   bool _hasMore = false;
   bool _loadingMore = false;
   bool _didSeedPage = false;
+  bool _markingAllRead = false;
 
   @override
   Widget build(BuildContext context) {
@@ -47,20 +47,18 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   .toList();
               final loadedUnread = visible.where((item) => !item.isRead).length;
 
-              if (loadedUnread > 0 && !_autoReadScheduled) {
-                _autoReadScheduled = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _markOpenedNotificationsAsRead();
-                });
-              }
-
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 144),
                 children: [
-                  _Header(unreadCount: loadedUnread, onReadAll: null),
+                  _Header(
+                    unreadCount: loadedUnread,
+                    onReadAll: loadedUnread > 0 && !_markingAllRead
+                        ? () => _markAllAsRead()
+                        : null,
+                  ),
                   const SizedBox(height: 16),
                   if (visible.isEmpty)
                     const _EmptyState(unreadOnly: false)
@@ -89,7 +87,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             loading: () => const _LoadingView(),
             error: (error, _) => _ErrorView(
               error: error,
-              onRetry: () => ref.invalidate(notificationsProvider),
+              onRetry: _retryPage,
             ),
           ),
         ),
@@ -105,12 +103,20 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       ..invalidate(homeDashboardSummaryProvider);
   }
 
-  Future<void> _refresh() async {
-    _autoReadScheduled = false;
+  void _resetPagingState() {
     _didSeedPage = false;
     _additionalItems.clear();
     _nextStart = null;
     _hasMore = false;
+  }
+
+  void _retryPage() {
+    setState(_resetPagingState);
+    ref.invalidate(notificationPageProvider);
+  }
+
+  Future<void> _refresh() async {
+    setState(_resetPagingState);
     _invalidateNotificationSurfaces();
     await ref.read(notificationPageProvider.future);
   }
@@ -147,17 +153,19 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
-  Future<void> _markOpenedNotificationsAsRead() async {
+  Future<void> _markAllAsRead() async {
+    if (_markingAllRead) return;
+    setState(() => _markingAllRead = true);
     try {
       await ref
           .read(notificationsRepositoryProvider)
           .markAllNotificationsAsRead();
-
       if (!mounted) return;
       _invalidateNotificationSurfaces();
     } catch (error) {
-      _autoReadScheduled = false;
       _showError(error);
+    } finally {
+      if (mounted) setState(() => _markingAllRead = false);
     }
   }
 
