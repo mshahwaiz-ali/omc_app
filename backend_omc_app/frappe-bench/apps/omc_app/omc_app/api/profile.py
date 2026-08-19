@@ -77,7 +77,9 @@ def _internal_role_label(user):
 
 
 def _internal_profile_payload(user):
-    profile = staff_profile.ensure_staff_profile(user)
+    # Pure read: profile repair/creation is owned by explicit staff setup and
+    # reconciliation paths, never by a GET/profile render.
+    profile = staff_profile.get_staff_profile(user)
     user_doc = frappe.get_doc("User", user)
     role_label = _internal_role_label(user)
     capabilities = access.get_mobile_capabilities(user=user)
@@ -94,16 +96,8 @@ def _internal_profile_payload(user):
         or user
     )
 
-    email = (
-        profile_value("email")
-        or str(user_doc.get("email") or "")
-        or user
-    )
-
-    phone = (
-        profile_value("phone")
-        or str(user_doc.get("mobile_no") or "")
-    )
+    email = profile_value("email") or str(user_doc.get("email") or "") or user
+    phone = profile_value("phone") or str(user_doc.get("mobile_no") or "")
 
     return {
         "full_name": full_name,
@@ -116,17 +110,13 @@ def _internal_profile_payload(user):
         "avatar_url": _get_user_image_url(user),
         "profile_image": _get_user_image_url(user),
         "user_image": _get_user_image_url(user),
-
-        # Preserve Flutter response compatibility while keeping domains clean.
         "customer_id": "",
         "staff_profile_id": str(profile.name if profile else ""),
         "linked_employee": profile_value("linked_employee"),
         "staff_role": profile_value("staff_role"),
         "referral_record": profile_value("referral_record"),
         "own_referral_code": profile_value("own_referral_code"),
-
         "staff_status": profile_value("staff_status") or "Pending",
-        # Compatibility alias expected by the current Flutter profile model.
         "customer_status": profile_value("staff_status") or "Pending",
         "approval_status": profile_value("approval_status") or "Pending Review",
         "is_active": int(profile.get("is_active") or 0) if profile else 0,
@@ -247,7 +237,7 @@ def _read_uploaded_file():
     return filename, content
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def upload_profile_image():
     user = _current_user()
     if not user or user == "Guest":
@@ -284,6 +274,8 @@ def upload_profile_image():
         "user_image": file_url,
         "customer_id": profile.name if profile else "",
         "file_name": file_doc.name,
-        "profile": _internal_profile_payload(user) if access.is_internal_user(user) else _profile_payload(profile, user),
+        "profile": _internal_profile_payload(user)
+        if access.is_internal_user(user)
+        else _profile_payload(profile, user),
         "message": "Profile image updated.",
     }
