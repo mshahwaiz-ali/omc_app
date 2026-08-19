@@ -5,6 +5,7 @@ omc_app.patches.remove_omc_hs_code_substitute
 omc_app.patches.drop_retired_omc_hs_code_table
 omc_app.patches.fix_support_ticket_message_child_table
 omc_app.patches.backfill_service_request_assigned_staff
+omc_app.patches.normalize_accounting_base_keys_20260819
 
 [post_model_sync]
 # Keep only migrations required to preserve or transform existing application
