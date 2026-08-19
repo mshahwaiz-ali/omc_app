@@ -302,23 +302,21 @@ def lifecycle_presentation(snapshot: dict) -> dict:
     elif request_state == "financial hold":
         next_action = _action(
             "review_financial_hold",
-            "Finance review required",
-            "Open the request to see the current hold and what happens next.",
+            "Finance review in progress",
+            "OMC is reviewing the financial hold. You can open the request for the latest status; no new customer action is required right now.",
             _case_route(case_id),
-            "Review hold",
-            required=True,
+            "View status",
         )
-        attention_priority = 100
+        attention_priority = 70
     elif request_state == "activation failed":
         next_action = _action(
             "review_activation_issue",
-            "OMC needs to review activation",
-            "Open the request for the latest status. OMC will resolve the activation issue.",
+            "OMC is resolving an activation issue",
+            "OMC needs to resolve the activation issue before work can continue. No new customer action is required right now.",
             _case_route(case_id),
-            "Review case",
-            required=True,
+            "View status",
         )
-        attention_priority = 95
+        attention_priority = 65
     elif request_state == "pending payment" and not receipt_under_review:
         next_action = _action(
             "complete_payment",
@@ -328,7 +326,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
             "Open payment",
             required=True,
         )
-        attention_priority = 90
+        attention_priority = 100
     elif request_state == "pending payment" and receipt_under_review:
         next_action = _action(
             "await_payment_review",
@@ -357,7 +355,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
                 "Review request",
                 required=True,
             )
-        attention_priority = 85
+        attention_priority = 95
     elif rejected_docs > 0 or pending_docs > 0:
         next_action = _action(
             "upload_document",
@@ -367,7 +365,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
             "Open documents",
             required=True,
         )
-        attention_priority = 75
+        attention_priority = 90
     elif uploaded_docs > 0:
         next_action = _action(
             "await_document_review",
@@ -435,9 +433,9 @@ def enrich_dashboard(payload: dict) -> dict:
         if isinstance(item, dict)
     ]
 
-    # Home should surface the service that most needs customer attention, not
-    # merely the most recently modified row. Python sort is stable, so equal
-    # priorities preserve the authoritative backend ordering.
+    # Customer-required actions outrank informational OMC-side exceptions. The
+    # Python sort is stable, so equal priorities preserve authoritative backend
+    # ordering.
     snapshots.sort(
         key=lambda item: int(item.get("attention_priority") or 0),
         reverse=True,
