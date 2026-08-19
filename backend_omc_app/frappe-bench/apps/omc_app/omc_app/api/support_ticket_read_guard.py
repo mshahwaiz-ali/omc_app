@@ -7,6 +7,7 @@ from omc_app.api import support_chat
 
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
+TERMINAL_STATUSES = {"closed", "cancelled"}
 
 
 def _ticket_not_found():
@@ -35,6 +36,22 @@ def _sanitize_ticket_payload(payload):
     service_request = (payload.get("reference_service_request") or "").strip()
     if service_request and not frappe.db.exists("OMC Service Request", service_request):
         payload["reference_service_request"] = ""
+
+    # Customer support access is ownership-based. The canonical customer
+    # capability contract intentionally has no internal support read/reply key;
+    # creating support tickets is the customer-side support authority. Keep the
+    # read projection aligned with that contract and never expose staff
+    # assignment metadata to customers.
+    if not support_chat._can_access_internal_workspace():
+        capabilities = support_chat._capabilities()
+        status = str(payload.get("status") or "").strip().lower()
+        payload["can_reply"] = bool(
+            status not in TERMINAL_STATUSES
+            and capabilities.get("can_create_support_ticket")
+        )
+        payload["can_assign"] = False
+        payload["assigned_to"] = ""
+
     return payload
 
 
