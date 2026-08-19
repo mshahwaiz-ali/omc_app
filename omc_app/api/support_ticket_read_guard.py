@@ -5,8 +5,21 @@ import frappe
 from omc_app.api import support_chat
 
 
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
+
+
 def _ticket_not_found():
     frappe.throw("Support ticket not found", frappe.DoesNotExistError)
+
+
+def _pagination(limit_start=0, limit_page_length=20) -> tuple[int, int]:
+    try:
+        start = max(int(limit_start or 0), 0)
+        length = min(max(int(limit_page_length or DEFAULT_PAGE_SIZE), 1), MAX_PAGE_SIZE)
+    except (TypeError, ValueError):
+        frappe.throw("Invalid support pagination values.", frappe.ValidationError)
+    return start, length
 
 
 def _load_ticket(ticket_id):
@@ -34,25 +47,41 @@ def _safe_ticket_payload(ticket_name):
 
 
 @frappe.whitelist()
-def get_support_tickets():
+def get_support_tickets(limit_start=0, limit_page_length=20):
     user, _profile, filters = support_chat._support_ticket_filters_for_current_user()
+    start, length = _pagination(limit_start, limit_page_length)
     if user == "Guest" or filters is None:
-        return {"tickets": []}
+        return {
+            "tickets": [],
+            "limit_start": start,
+            "limit_page_length": length,
+            "next_start": None,
+            "has_more": False,
+        }
 
     ticket_names = frappe.get_all(
         "OMC Support Ticket",
         filters=filters,
         pluck="name",
-        order_by="modified desc",
-        limit_page_length=50,
+        order_by="modified desc, name desc",
+        limit_start=start,
+        limit_page_length=length + 1,
     )
+    has_more = len(ticket_names) > length
+    ticket_names = ticket_names[:length]
 
     tickets = []
     for ticket_name in ticket_names:
         payload = _safe_ticket_payload(ticket_name)
         if payload:
             tickets.append(payload)
-    return {"tickets": tickets}
+    return {
+        "tickets": tickets,
+        "limit_start": start,
+        "limit_page_length": length,
+        "next_start": start + len(ticket_names) if has_more else None,
+        "has_more": has_more,
+    }
 
 
 @frappe.whitelist()
@@ -82,7 +111,7 @@ def get_active_support_ticket():
         "OMC Support Ticket",
         filters=active_filters,
         pluck="name",
-        order_by="modified desc",
+        order_by="modified desc, name desc",
         limit_page_length=10,
     )
 
