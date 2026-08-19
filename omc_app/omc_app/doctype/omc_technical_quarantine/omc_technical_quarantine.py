@@ -9,7 +9,6 @@ IMMUTABLE_FIELDS = {
     "domain",
     "source_doctype",
     "source_name",
-    "source_version",
     "failure_code",
     "first_seen_at",
 }
@@ -29,7 +28,7 @@ class OMCTechnicalQuarantine(Document):
         ]
         if changed:
             frappe.throw(
-                "Technical quarantine identity/evidence fields are immutable.",
+                "Technical quarantine identity fields are immutable.",
                 frappe.ValidationError,
             )
 
