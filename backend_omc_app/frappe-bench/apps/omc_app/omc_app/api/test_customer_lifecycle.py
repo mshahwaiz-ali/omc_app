@@ -55,7 +55,7 @@ class TestCustomerLifecycle(TestCase):
         self.assertIn("No payment is required", payment["detail"])
         self.assertEqual(result["current_stage"], "Ready for processing")
 
-    def test_financial_hold_is_attention_not_fake_progress(self):
+    def test_financial_hold_is_omc_side_attention_not_customer_action(self):
         result = customer_lifecycle.lifecycle_presentation(
             {
                 "id": "SR-004",
@@ -66,8 +66,9 @@ class TestCustomerLifecycle(TestCase):
 
         self.assertEqual(result["current_stage"], "Finance review")
         self.assertEqual(result["next_action"]["type"], "review_financial_hold")
-        self.assertEqual(result["attention_priority"], 100)
-        self.assertTrue(result["action_required"])
+        self.assertEqual(result["attention_priority"], 70)
+        self.assertFalse(result["action_required"])
+        self.assertFalse(result["next_action"]["required"])
 
     def test_waiting_customer_prefers_document_action_when_documents_need_attention(self):
         result = customer_lifecycle.lifecycle_presentation(
@@ -83,6 +84,7 @@ class TestCustomerLifecycle(TestCase):
         self.assertEqual(result["current_stage"], "Waiting for you")
         self.assertEqual(result["next_action"]["type"], "upload_document")
         self.assertEqual(result["next_action"]["route"], "/documents")
+        self.assertTrue(result["action_required"])
 
     def test_completed_request_has_real_terminal_lifecycle(self):
         result = customer_lifecycle.lifecycle_presentation(
@@ -126,16 +128,15 @@ class TestCustomerLifecycle(TestCase):
         self.assertIn("1 document still required", documents["detail"])
         self.assertNotIn("2 documents still required", documents["detail"])
 
-    def test_dashboard_surfaces_highest_attention_service_and_matching_action(self):
+    def test_customer_required_action_outranks_omc_side_exception(self):
         payload = {
             "service_snapshots": [
                 {
-                    "id": "SR-RECENT",
-                    "request_state": "Activated",
-                    "operational_status": "In Progress",
+                    "id": "SR-HOLD",
+                    "request_state": "Financial Hold",
+                    "operational_status": "Open",
                     "document_summary": {},
                     "payment_summary": {},
-                    "settlement": {"state": "matched"},
                 },
                 {
                     "id": "SR-PAY",
