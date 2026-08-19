@@ -22,52 +22,63 @@ class AuthCapabilities {
     this.canUploadPaymentReceipt = false,
     this.canUploadPaymentReceipts = false,
     this.canCreateSupportTicket = false,
-    this.canViewSupportTickets = false,
     this.canViewCustomerDashboard = false,
     this.canAccessCustomerDashboard = false,
     this.canViewCustomerNotifications = false,
     this.canAccessInternalWorkspace = false,
-    this.canUpdateServiceStatus = false,
-    this.canReviewDocuments = false,
-    this.canReviewPayments = false,
-    this.canUpdateSupportTicketStatus = false,
     this.canManageCustomers = false,
     this.canViewAllCustomers = false,
     this.canViewRelevantCustomers = false,
     this.canManageLeads = false,
     this.canManageTasks = false,
     this.canManageAssignedTasks = false,
-    this.canCreateServiceForCustomer = false,
-    this.canManageCustomerServiceFlow = false,
-    this.canUploadCustomerDocuments = false,
-    this.canViewCustomerDocuments = false,
-    this.canViewCustomerPayments = false,
-    this.canUploadCustomerPaymentReceipt = false,
     this.canViewAllServiceCases = false,
     this.canViewRelevantServiceCases = false,
     this.canViewAssignedServiceCases = false,
+    this.canCreateServiceForCustomer = false,
+    this.canUpdateServiceStatus = false,
     this.canUpdateAssignedServiceStatus = false,
-
     this.canViewDocumentQueue = false,
     this.canViewDocumentSummaries = false,
     this.canViewDocumentAttachments = false,
+    this.canReviewDocuments = false,
     this.canViewPaymentQueue = false,
     this.canViewPaymentSummaries = false,
     this.canViewPaymentReceipts = false,
+    this.canReviewPayments = false,
+    this.canReconcileSettlement = false,
+    this.canApprovePostPaid = false,
+    this.canViewSupportTickets = false,
     this.canReplySupportTickets = false,
+    this.canUpdateSupportTicketStatus = false,
     this.canAssignSupportTickets = false,
+    this.canViewInternalNotes = false,
     this.canManageSettings = false,
     this.canManageStaff = false,
     this.canReviewRegistrations = false,
     this.canManageBusinessSettings = false,
     this.canReassignServiceCases = false,
     this.canRetrySync = false,
-    this.canViewInternalNotes = false,
     this.canViewReferralCommissions = false,
-    this.canManageReferralCommissions = false,
+    this.canApproveCommissions = false,
+    this.canMarkCommissionsPaid = false,
+    @Deprecated('Derived from canonical service-case capabilities.')
+    bool canManageCustomerServiceFlow = false,
+    @Deprecated('Derived from canonical document capabilities.')
+    bool canUploadCustomerDocuments = false,
+    @Deprecated('Derived from canonical document capabilities.')
+    bool canViewCustomerDocuments = false,
+    @Deprecated('Derived from canonical payment capabilities.')
+    bool canViewCustomerPayments = false,
+    @Deprecated('Derived from canonical payment capabilities.')
+    bool canUploadCustomerPaymentReceipt = false,
+    @Deprecated('Use canApproveCommissions/canMarkCommissionsPaid.')
+    bool canManageReferralCommissions = false,
   });
 
   final AccountAccessState accessState;
+
+  // Public/customer capability contract.
   final bool canViewPublicCatalogue;
   final bool canViewPublicContent;
   final bool canUseTaxCalculator;
@@ -79,49 +90,49 @@ class AuthCapabilities {
   final bool canUploadPaymentReceipt;
   final bool canUploadPaymentReceipts;
   final bool canCreateSupportTicket;
-  final bool canViewSupportTickets;
   final bool canViewCustomerDashboard;
   final bool canAccessCustomerDashboard;
   final bool canViewCustomerNotifications;
+
+  // Internal capability contract. Keep these names in direct 1:1 sync with
+  // omc_app.api.capabilities.INTERNAL_CAPABILITY_KEYS.
   final bool canAccessInternalWorkspace;
-  final bool canUpdateServiceStatus;
-  final bool canReviewDocuments;
-  final bool canReviewPayments;
-  final bool canUpdateSupportTicketStatus;
   final bool canManageCustomers;
   final bool canViewAllCustomers;
   final bool canViewRelevantCustomers;
   final bool canManageLeads;
   final bool canManageTasks;
   final bool canManageAssignedTasks;
-  final bool canCreateServiceForCustomer;
-  final bool canManageCustomerServiceFlow;
-  final bool canUploadCustomerDocuments;
-  final bool canViewCustomerDocuments;
-  final bool canViewCustomerPayments;
-  final bool canUploadCustomerPaymentReceipt;
   final bool canViewAllServiceCases;
   final bool canViewRelevantServiceCases;
   final bool canViewAssignedServiceCases;
+  final bool canCreateServiceForCustomer;
+  final bool canUpdateServiceStatus;
   final bool canUpdateAssignedServiceStatus;
-
   final bool canViewDocumentQueue;
   final bool canViewDocumentSummaries;
   final bool canViewDocumentAttachments;
+  final bool canReviewDocuments;
   final bool canViewPaymentQueue;
   final bool canViewPaymentSummaries;
   final bool canViewPaymentReceipts;
+  final bool canReviewPayments;
+  final bool canReconcileSettlement;
+  final bool canApprovePostPaid;
+  final bool canViewSupportTickets;
   final bool canReplySupportTickets;
+  final bool canUpdateSupportTicketStatus;
   final bool canAssignSupportTickets;
+  final bool canViewInternalNotes;
   final bool canManageSettings;
   final bool canManageStaff;
   final bool canReviewRegistrations;
   final bool canManageBusinessSettings;
   final bool canReassignServiceCases;
   final bool canRetrySync;
-  final bool canViewInternalNotes;
   final bool canViewReferralCommissions;
-  final bool canManageReferralCommissions;
+  final bool canApproveCommissions;
+  final bool canMarkCommissionsPaid;
 
   static const guest = AuthCapabilities(accessState: AccountAccessState.guest);
 
@@ -131,77 +142,57 @@ class AuthCapabilities {
   bool get isInternal => accessState == AccountAccessState.internal;
   bool get isRejected => accessState == AccountAccessState.rejected;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        other is AuthCapabilities &&
-            runtimeType == other.runtimeType &&
-            accessState == other.accessState &&
-            canViewPublicCatalogue == other.canViewPublicCatalogue &&
-            canViewPublicContent == other.canViewPublicContent &&
-            canUseTaxCalculator == other.canUseTaxCalculator &&
-            canCreateServiceRequest == other.canCreateServiceRequest &&
-            canUploadDocuments == other.canUploadDocuments &&
-            canTrackRequests == other.canTrackRequests &&
-            canViewDocuments == other.canViewDocuments &&
-            canViewPayments == other.canViewPayments &&
-            canUploadPaymentReceipt == other.canUploadPaymentReceipt &&
-            canUploadPaymentReceipts == other.canUploadPaymentReceipts &&
-            canCreateSupportTicket == other.canCreateSupportTicket &&
-            canViewSupportTickets == other.canViewSupportTickets &&
-            canViewCustomerDashboard == other.canViewCustomerDashboard &&
-            canAccessCustomerDashboard == other.canAccessCustomerDashboard &&
-            canViewCustomerNotifications ==
-                other.canViewCustomerNotifications &&
-            canAccessInternalWorkspace == other.canAccessInternalWorkspace &&
-            canUpdateServiceStatus == other.canUpdateServiceStatus &&
-            canReviewDocuments == other.canReviewDocuments &&
-            canReviewPayments == other.canReviewPayments &&
-            canUpdateSupportTicketStatus ==
-                other.canUpdateSupportTicketStatus &&
-            canManageCustomers == other.canManageCustomers &&
-            canViewAllCustomers == other.canViewAllCustomers &&
-            canViewRelevantCustomers == other.canViewRelevantCustomers &&
-            canManageLeads == other.canManageLeads &&
-            canManageTasks == other.canManageTasks &&
-            canCreateServiceForCustomer == other.canCreateServiceForCustomer &&
-            canManageCustomerServiceFlow ==
-                other.canManageCustomerServiceFlow &&
-            canUploadCustomerDocuments == other.canUploadCustomerDocuments &&
-            canViewCustomerDocuments == other.canViewCustomerDocuments &&
-            canViewCustomerPayments == other.canViewCustomerPayments &&
-            canUploadCustomerPaymentReceipt ==
-                other.canUploadCustomerPaymentReceipt &&
-            canViewRelevantServiceCases == other.canViewRelevantServiceCases &&
-            canViewAssignedServiceCases == other.canViewAssignedServiceCases &&
-            canManageAssignedTasks == other.canManageAssignedTasks &&
-            canViewAllServiceCases == other.canViewAllServiceCases &&
-            canViewRelevantServiceCases == other.canViewRelevantServiceCases &&
-            canViewAssignedServiceCases == other.canViewAssignedServiceCases &&
-            canCreateServiceForCustomer == other.canCreateServiceForCustomer &&
-            canUpdateAssignedServiceStatus ==
-                other.canUpdateAssignedServiceStatus &&
-            canViewDocumentQueue == other.canViewDocumentQueue &&
-            canViewDocumentSummaries == other.canViewDocumentSummaries &&
-            canViewDocumentAttachments == other.canViewDocumentAttachments &&
-            canViewPaymentQueue == other.canViewPaymentQueue &&
-            canViewPaymentSummaries == other.canViewPaymentSummaries &&
-            canViewPaymentReceipts == other.canViewPaymentReceipts &&
-            canReplySupportTickets == other.canReplySupportTickets &&
-            canAssignSupportTickets == other.canAssignSupportTickets &&
-            canManageSettings == other.canManageSettings &&
-            canManageStaff == other.canManageStaff &&
-            canReviewRegistrations == other.canReviewRegistrations &&
-            canManageBusinessSettings == other.canManageBusinessSettings &&
-            canReassignServiceCases == other.canReassignServiceCases &&
-            canRetrySync == other.canRetrySync &&
-            canViewInternalNotes == other.canViewInternalNotes &&
-            canViewReferralCommissions == other.canViewReferralCommissions &&
-            canManageReferralCommissions == other.canManageReferralCommissions;
-  }
+  bool get canViewAnyServiceCase =>
+      canViewAllServiceCases ||
+      canViewRelevantServiceCases ||
+      canViewAssignedServiceCases;
 
-  @override
-  int get hashCode => Object.hashAll([
+  bool get canViewAnyDocument =>
+      canViewDocumentQueue ||
+      canViewDocumentSummaries ||
+      canViewDocumentAttachments ||
+      canReviewDocuments;
+
+  bool get canViewAnyPayment =>
+      canViewPaymentQueue ||
+      canViewPaymentSummaries ||
+      canViewPaymentReceipts ||
+      canReviewPayments;
+
+  bool get canUseSupportWorkspace =>
+      canViewSupportTickets ||
+      canReplySupportTickets ||
+      canUpdateSupportTicketStatus ||
+      canAssignSupportTickets;
+
+  // Compatibility getters for older UI code. These derive from canonical
+  // backend capabilities and never parse or create independent authority.
+  @Deprecated('Use canViewAnyServiceCase/canonical service-case capabilities.')
+  bool get canManageCustomerServiceFlow =>
+      canViewAnyServiceCase ||
+      canUpdateServiceStatus ||
+      canUpdateAssignedServiceStatus;
+
+  @Deprecated('Use canonical document capabilities.')
+  bool get canUploadCustomerDocuments =>
+      canCreateServiceForCustomer &&
+      (canViewDocumentAttachments || canReviewDocuments);
+
+  @Deprecated('Use canViewAnyDocument.')
+  bool get canViewCustomerDocuments => canViewAnyDocument;
+
+  @Deprecated('Use canViewAnyPayment.')
+  bool get canViewCustomerPayments => canViewAnyPayment;
+
+  @Deprecated('Use canonical customer/payment capabilities.')
+  bool get canUploadCustomerPaymentReceipt =>
+      canCreateServiceForCustomer && canViewPaymentReceipts;
+
+  @Deprecated('Use canApproveCommissions/canMarkCommissionsPaid.')
+  bool get canManageReferralCommissions =>
+      canApproveCommissions || canMarkCommissionsPaid;
+
+  List<Object> get _equalityValues => [
     accessState,
     canViewPublicCatalogue,
     canViewPublicContent,
@@ -214,15 +205,10 @@ class AuthCapabilities {
     canUploadPaymentReceipt,
     canUploadPaymentReceipts,
     canCreateSupportTicket,
-    canViewSupportTickets,
     canViewCustomerDashboard,
     canAccessCustomerDashboard,
     canViewCustomerNotifications,
     canAccessInternalWorkspace,
-    canUpdateServiceStatus,
-    canReviewDocuments,
-    canReviewPayments,
-    canUpdateSupportTicketStatus,
     canManageCustomers,
     canViewAllCustomers,
     canViewRelevantCustomers,
@@ -233,47 +219,55 @@ class AuthCapabilities {
     canViewRelevantServiceCases,
     canViewAssignedServiceCases,
     canCreateServiceForCustomer,
-    canManageCustomerServiceFlow,
-    canUploadCustomerDocuments,
-    canViewCustomerDocuments,
-    canViewCustomerPayments,
-    canUploadCustomerPaymentReceipt,
+    canUpdateServiceStatus,
     canUpdateAssignedServiceStatus,
     canViewDocumentQueue,
     canViewDocumentSummaries,
     canViewDocumentAttachments,
+    canReviewDocuments,
     canViewPaymentQueue,
     canViewPaymentSummaries,
     canViewPaymentReceipts,
+    canReviewPayments,
+    canReconcileSettlement,
+    canApprovePostPaid,
+    canViewSupportTickets,
     canReplySupportTickets,
+    canUpdateSupportTicketStatus,
     canAssignSupportTickets,
+    canViewInternalNotes,
     canManageSettings,
     canManageStaff,
     canReviewRegistrations,
     canManageBusinessSettings,
     canReassignServiceCases,
     canRetrySync,
-    canViewInternalNotes,
     canViewReferralCommissions,
-    canManageReferralCommissions,
-  ]);
+    canApproveCommissions,
+    canMarkCommissionsPaid,
+  ];
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AuthCapabilities) return false;
+
+    final left = _equalityValues;
+    final right = other._equalityValues;
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index += 1) {
+      if (left[index] != right[index]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(_equalityValues);
 
   factory AuthCapabilities.fromJson(Map<String, dynamic>? json) {
     if (json == null || json.isEmpty) return guest;
 
     final accessState = _accessStateFromJson(json);
-    final isApprovedCustomer = accessState == AccountAccessState.approved;
-    final isInternal = accessState == AccountAccessState.internal;
-
-    final canUploadPaymentReceipt = _boolValue(
-      json['can_upload_payment_receipt'] ?? json['can_upload_payment_receipts'],
-      isApprovedCustomer,
-    );
-    final canViewCustomerDashboard = _boolValue(
-      json['can_view_customer_dashboard'] ??
-          json['can_access_customer_dashboard'],
-      isApprovedCustomer,
-    );
 
     return AuthCapabilities(
       accessState: accessState,
@@ -283,74 +277,36 @@ class AuthCapabilities {
       ),
       canViewPublicContent: _boolValue(json['can_view_public_content'], true),
       canUseTaxCalculator: _boolValue(json['can_use_tax_calculator'], true),
-      canCreateServiceRequest: _boolValue(
-        json['can_create_service_request'],
-        isApprovedCustomer,
+      canCreateServiceRequest: _boolValue(json['can_create_service_request']),
+      canUploadDocuments: _boolValue(json['can_upload_documents']),
+      canTrackRequests: _boolValue(json['can_track_requests']),
+      canViewDocuments: _boolValue(json['can_view_documents']),
+      canViewPayments: _boolValue(json['can_view_payments']),
+      canUploadPaymentReceipt: _boolValue(
+        json['can_upload_payment_receipt'],
       ),
-      canUploadDocuments: _boolValue(
-        json['can_upload_documents'],
-        isApprovedCustomer,
+      canUploadPaymentReceipts: _boolValue(
+        json['can_upload_payment_receipts'],
       ),
-      canTrackRequests: _boolValue(
-        json['can_track_requests'],
-        isApprovedCustomer,
+      canCreateSupportTicket: _boolValue(json['can_create_support_ticket']),
+      canViewCustomerDashboard: _boolValue(
+        json['can_view_customer_dashboard'],
       ),
-      canViewDocuments: _boolValue(
-        json['can_view_documents'],
-        isApprovedCustomer,
+      canAccessCustomerDashboard: _boolValue(
+        json['can_access_customer_dashboard'],
       ),
-      canViewPayments: _boolValue(
-        json['can_view_payments'],
-        isApprovedCustomer,
-      ),
-      canUploadPaymentReceipt: canUploadPaymentReceipt,
-      canUploadPaymentReceipts: canUploadPaymentReceipt,
-      canCreateSupportTicket: _boolValue(
-        json['can_create_support_ticket'],
-        isApprovedCustomer,
-      ),
-      canViewSupportTickets: _boolValue(
-        json['can_view_support_tickets'],
-        isApprovedCustomer,
-      ),
-      canViewCustomerDashboard: canViewCustomerDashboard,
-      canAccessCustomerDashboard: canViewCustomerDashboard,
       canViewCustomerNotifications: _boolValue(
         json['can_view_customer_notifications'],
-        isApprovedCustomer,
       ),
       canAccessInternalWorkspace: _boolValue(
         json['can_access_internal_workspace'],
-        isInternal,
       ),
-      canUpdateServiceStatus: _boolValue(json['can_update_service_status']),
-      canReviewDocuments: _boolValue(json['can_review_documents']),
-      canReviewPayments: _boolValue(json['can_review_payments']),
-      canUpdateSupportTicketStatus: _boolValue(
-        json['can_update_support_ticket_status'],
-      ),
-      canReplySupportTickets: _boolValue(json['can_reply_support_tickets']),
-      canAssignSupportTickets: _boolValue(json['can_assign_support_tickets']),
       canManageCustomers: _boolValue(json['can_manage_customers']),
       canViewAllCustomers: _boolValue(json['can_view_all_customers']),
       canViewRelevantCustomers: _boolValue(json['can_view_relevant_customers']),
       canManageLeads: _boolValue(json['can_manage_leads']),
       canManageTasks: _boolValue(json['can_manage_tasks']),
       canManageAssignedTasks: _boolValue(json['can_manage_assigned_tasks']),
-      canCreateServiceForCustomer: _boolValue(
-        json['can_create_service_for_customer'],
-      ),
-      canManageCustomerServiceFlow: _boolValue(
-        json['can_manage_customer_service_flow'],
-      ),
-      canUploadCustomerDocuments: _boolValue(
-        json['can_upload_customer_documents'],
-      ),
-      canViewCustomerDocuments: _boolValue(json['can_view_customer_documents']),
-      canViewCustomerPayments: _boolValue(json['can_view_customer_payments']),
-      canUploadCustomerPaymentReceipt: _boolValue(
-        json['can_upload_customer_payment_receipt'],
-      ),
       canViewAllServiceCases: _boolValue(json['can_view_all_service_cases']),
       canViewRelevantServiceCases: _boolValue(
         json['can_view_relevant_service_cases'],
@@ -358,6 +314,10 @@ class AuthCapabilities {
       canViewAssignedServiceCases: _boolValue(
         json['can_view_assigned_service_cases'],
       ),
+      canCreateServiceForCustomer: _boolValue(
+        json['can_create_service_for_customer'],
+      ),
+      canUpdateServiceStatus: _boolValue(json['can_update_service_status']),
       canUpdateAssignedServiceStatus: _boolValue(
         json['can_update_assigned_service_status'],
       ),
@@ -366,9 +326,20 @@ class AuthCapabilities {
       canViewDocumentAttachments: _boolValue(
         json['can_view_document_attachments'],
       ),
+      canReviewDocuments: _boolValue(json['can_review_documents']),
       canViewPaymentQueue: _boolValue(json['can_view_payment_queue']),
       canViewPaymentSummaries: _boolValue(json['can_view_payment_summaries']),
       canViewPaymentReceipts: _boolValue(json['can_view_payment_receipts']),
+      canReviewPayments: _boolValue(json['can_review_payments']),
+      canReconcileSettlement: _boolValue(json['can_reconcile_settlement']),
+      canApprovePostPaid: _boolValue(json['can_approve_post_paid']),
+      canViewSupportTickets: _boolValue(json['can_view_support_tickets']),
+      canReplySupportTickets: _boolValue(json['can_reply_support_tickets']),
+      canUpdateSupportTicketStatus: _boolValue(
+        json['can_update_support_ticket_status'],
+      ),
+      canAssignSupportTickets: _boolValue(json['can_assign_support_tickets']),
+      canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
       canManageSettings: _boolValue(json['can_manage_settings']),
       canManageStaff: _boolValue(json['can_manage_staff']),
       canReviewRegistrations: _boolValue(json['can_review_registrations']),
@@ -377,12 +348,12 @@ class AuthCapabilities {
       ),
       canReassignServiceCases: _boolValue(json['can_reassign_service_cases']),
       canRetrySync: _boolValue(json['can_retry_sync']),
-      canViewInternalNotes: _boolValue(json['can_view_internal_notes']),
       canViewReferralCommissions: _boolValue(
         json['can_view_referral_commissions'],
       ),
-      canManageReferralCommissions: _boolValue(
-        json['can_manage_referral_commissions'],
+      canApproveCommissions: _boolValue(json['can_approve_commissions']),
+      canMarkCommissionsPaid: _boolValue(
+        json['can_mark_commissions_paid'],
       ),
     );
   }
@@ -443,7 +414,9 @@ class AuthCapabilities {
     if (text == 'approved' || text == 'active') {
       return AccountAccessState.approved;
     }
-    if (text == 'rejected') return AccountAccessState.rejected;
+    if (text == 'rejected' || text == 'blocked') {
+      return AccountAccessState.rejected;
+    }
     if (text == 'pending' || text == 'pending_review') {
       return AccountAccessState.pending;
     }
