@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import frappe
 
+from omc_app.api import capabilities, security
+
 
 DEFAULT_FULL_LOGO = "/assets/omc_app/images/full_logo_transparent.png"
 DEFAULT_SYMBOL_LOGO = "/assets/omc_app/images/logo_symbol_transparent.png"
@@ -20,9 +22,8 @@ def _value(doc, fieldname: str, default: str) -> str:
     return value or default
 
 
-@frappe.whitelist()
-def apply_branding():
-    """Apply OMC branding to safe Frappe Website Settings fields."""
+def _apply_branding() -> dict[str, object]:
+    """Trusted internal branding mutation used by deliberate setup operations."""
     doc = _get_branding_settings()
     if doc and not getattr(doc, "enabled", 1):
         return {"ok": False, "message": "OMC branding is disabled."}
@@ -61,3 +62,19 @@ def apply_branding():
         "login_logo": login_logo,
         "favicon": favicon,
     }
+
+
+@frappe.whitelist(methods=["POST"])
+def apply_branding():
+    """Capability-guarded explicit branding mutation for OMC administrators."""
+    capabilities.require("can_manage_settings")
+    security.enforce_rate_limit("staff_mutation")
+    result = _apply_branding()
+    security.audit_event(
+        event_type="settings.branding_applied",
+        capability="can_manage_settings",
+        target_doctype="Website Settings",
+        target_name="Website Settings",
+        new_state="applied" if result.get("ok") else "disabled",
+    )
+    return result
