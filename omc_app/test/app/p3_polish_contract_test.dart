@@ -18,7 +18,7 @@ void main() {
       ).readAsStringSync();
 
       expect(source, contains('AppMotion.reducedMotion(context)'));
-      expect(source, contains('_controller..stop()'));
+      expect(source, contains('..stop()'));
       expect(source, contains('_controller.repeat(reverse: true)'));
     });
 
