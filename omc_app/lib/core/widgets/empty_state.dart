@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'app_button.dart';
+import 'app_state.dart';
 
+/// Compatibility wrapper for older screens that still import `EmptyState`.
+///
+/// New screens should prefer [AppEmptyState] directly so empty-state behavior,
+/// accessibility and interaction styling stay centralized.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -20,36 +24,12 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 58, color: Colors.grey.shade500),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(height: 1.45, color: Colors.grey.shade700),
-            ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 22),
-              AppButton(
-                label: actionLabel!,
-                onPressed: onAction,
-                isExpanded: false,
-              ),
-            ],
-          ],
-        ),
-      ),
+    return AppEmptyState(
+      title: title,
+      message: message,
+      icon: icon,
+      actionLabel: actionLabel,
+      onAction: onAction,
     );
   }
 }
