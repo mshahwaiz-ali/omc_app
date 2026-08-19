@@ -269,18 +269,17 @@ class HomeDashboardRepository {
       );
 
       return _summaryFromResponse(response);
-    } on ApiError catch (error) {
-      final statusCode = error.statusCode;
-      final isAuthError = statusCode == 401 || statusCode == 403;
-      final message = isAuthError
-          ? 'Dashboard summary is not available for this account yet.'
-          : error.message;
-
-      return HomeDashboardSummary.empty(fallbackMessage: message);
-    } catch (_) {
-      return const HomeDashboardSummary.empty(
-        fallbackMessage:
+    } on ApiError {
+      // Dashboard availability is business-significant. Preserve the backend
+      // failure so the UI enters an error/retry state instead of rendering an
+      // invented all-zero dashboard that looks like valid business data.
+      rethrow;
+    } catch (error) {
+      throw ApiError(
+        message:
             'Dashboard summary could not be loaded from the backend right now.',
+        code: 'dashboard_unavailable',
+        details: error,
       );
     }
   }
@@ -510,25 +509,22 @@ class HomeDashboardRepository {
   String? _readNullableString(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
-      final text = value?.toString().trim();
-
-      if (text != null && text.isNotEmpty) return text;
+      if (value == null) continue;
+      final text = value.toString().trim();
+      if (text.isNotEmpty) return text;
     }
-
     return null;
   }
 
   int _readInt(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
-
+      if (value == null) continue;
       if (value is int) return value;
-      if (value is num) return value.round();
-
-      final parsed = int.tryParse(value?.toString() ?? '');
+      if (value is num) return value.toInt();
+      final parsed = int.tryParse(value.toString());
       if (parsed != null) return parsed;
     }
-
     return 0;
   }
 }
