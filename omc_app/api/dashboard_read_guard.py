@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import dashboard, dashboard_scope
+from omc_app.api import customer_lifecycle, dashboard, dashboard_scope
 
 
 def _service_for_request(service_request):
@@ -39,13 +39,23 @@ def _correct_activity(payload):
     return corrected
 
 
+def _enrich_customer_response(response):
+    if not isinstance(response, dict):
+        return response
+    message = response.get("message")
+    if isinstance(message, dict):
+        return {**response, "message": customer_lifecycle.enrich_dashboard(message)}
+    return customer_lifecycle.enrich_dashboard(response)
+
+
 @frappe.whitelist()
 def get_dashboard_data():
     user = dashboard._current_user()
-    if dashboard._can_access_internal_workspace(user):
+    is_internal = dashboard._can_access_internal_workspace(user)
+    if is_internal:
         response = dashboard_scope.get_internal_dashboard_data(user)
     else:
-        response = dashboard.get_dashboard_data()
+        response = _enrich_customer_response(dashboard.get_dashboard_data())
 
     if not isinstance(response, dict):
         return response
