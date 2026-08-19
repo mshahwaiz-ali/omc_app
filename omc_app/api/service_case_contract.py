@@ -169,6 +169,10 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
             "Settlement requires OMC review." if request_state == "Financial Hold" else ""
         )
         hold_reason = raw_hold_reason if internal else customer_hold_reason
+        hold = {
+            "active": request_state == "Financial Hold",
+            "reason": hold_reason,
+        }
         evidence_complete = bool(
             request.activated_at and request.erp_service and request.erp_task
         )
@@ -178,10 +182,8 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
             "status": operational_status,
             "operational_status": operational_status,
             "display_status": _display_status(request_state, operational_status),
-            "financial_hold": {
-                "active": request_state == "Financial Hold",
-                "reason": hold_reason,
-            },
+            "hold": hold,
+            "financial_hold": hold,
             "receipt": {
                 "status": receipt_status,
                 "payment_status": payment_status,
