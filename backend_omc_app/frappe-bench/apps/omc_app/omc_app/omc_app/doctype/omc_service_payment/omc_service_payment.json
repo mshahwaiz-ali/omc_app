@@ -28,163 +28,26 @@
   "remarks"
  ],
  "fields": [
-  {
-   "default": "OMC-PAY-.YY..MM..DD.-.#####",
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "label": "Naming Series",
-   "options": "OMC-PAY-.YY..MM..DD.-.#####",
-   "reqd": 1
-  },
-  {
-   "fieldname": "service_request",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Service Request",
-   "options": "OMC Service Request",
-   "reqd": 1
-  },
-  {
-   "bold": 1,
-   "fieldname": "payment_title",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Payment Title",
-   "reqd": 1,
-   "search_index": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "amount",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Amount",
-   "reqd": 1
-  },
-  {
-   "default": "PKR",
-   "fieldname": "currency",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Currency"
-  },
-  {
-   "bold": 1,
-   "default": "Pending",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_filter": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Status",
-   "options": "Pending\nReceipt Submitted\nUnder Review\nPaid\nRejected\nCancelled",
-   "reqd": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "due_date",
-   "fieldtype": "Date",
-   "in_filter": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Due Date",
-   "search_index": 1
-  },
-  {
-   "fieldname": "paid_on",
-   "fieldtype": "Datetime",
-   "label": "Paid On",
-   "read_only": 1
-  },
-  {
-   "fieldname": "payment_reference",
-   "fieldtype": "Data",
-   "label": "Payment Reference"
-  },
-  {
-   "fieldname": "receipt_attachment",
-   "fieldtype": "Attach",
-   "label": "Receipt Attachment"
-  },
-  {
-   "default": "1",
-   "fieldname": "visible_to_customer",
-   "fieldtype": "Check",
-   "in_filter": 1,
-   "in_standard_filter": 1,
-   "label": "Visible To Customer",
-   "search_index": 1
-  },
-  {
-   "fieldname": "remarks",
-   "fieldtype": "Small Text",
-   "label": "Remarks"
-  },
-  {
-   "default": "Not Submitted",
-   "fieldname": "receipt_status",
-   "fieldtype": "Select",
-   "in_standard_filter": 1,
-   "label": "Receipt Status",
-   "options": "Not Submitted\nSubmitted\nUnder Review\nAccepted\nRejected",
-   "read_only": 1,
-   "search_index": 1
-  },
-  {
-   "default": "Unmatched",
-   "fieldname": "accounting_status",
-   "fieldtype": "Select",
-   "in_standard_filter": 1,
-   "label": "Accounting Status",
-   "options": "Unmatched\nPartially Settled\nSettled\nReversed",
-   "read_only": 1,
-   "search_index": 1
-  },
-  {
-   "default": "Not Required",
-   "fieldname": "quarantine_status",
-   "fieldtype": "Select",
-   "in_standard_filter": 1,
-   "label": "Quarantine Status",
-   "options": "Not Required\nPending Validation\nManual Review\nClean\nRejected",
-   "read_only": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "linked_invoice",
-   "fieldtype": "Link",
-   "label": "Linked Invoice",
-   "options": "Sales Invoice",
-   "read_only": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "linked_payment_entry",
-   "fieldtype": "Link",
-   "label": "Linked Payment Entry",
-   "options": "Payment Entry",
-   "read_only": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "reviewed_by",
-   "fieldtype": "Link",
-   "label": "Reviewed By",
-   "options": "User",
-   "read_only": 1
-  },
-  {
-   "fieldname": "reviewed_at",
-   "fieldtype": "Datetime",
-   "label": "Reviewed At",
-   "read_only": 1
-  },
-  {
-   "fieldname": "settled_at",
-   "fieldtype": "Datetime",
-   "label": "Settled At",
-   "read_only": 1
-  }
+  {"default": "OMC-PAY-.YY..MM..DD.-.#####", "fieldname": "naming_series", "fieldtype": "Select", "label": "Naming Series", "options": "OMC-PAY-.YY..MM..DD.-.#####", "reqd": 1},
+  {"fieldname": "service_request", "fieldtype": "Link", "in_list_view": 1, "label": "Service Request", "options": "OMC Service Request", "reqd": 1},
+  {"bold": 1, "fieldname": "payment_title", "fieldtype": "Data", "in_list_view": 1, "label": "Payment Title", "reqd": 1, "search_index": 1},
+  {"default": "0", "fieldname": "amount", "fieldtype": "Currency", "in_list_view": 1, "label": "Amount", "reqd": 1},
+  {"default": "PKR", "fieldname": "currency", "fieldtype": "Data", "in_list_view": 1, "label": "Currency"},
+  {"bold": 1, "default": "Pending", "fieldname": "status", "fieldtype": "Select", "in_filter": 1, "in_list_view": 1, "in_standard_filter": 1, "label": "Status", "options": "Pending\nReceipt Submitted\nUnder Review\nPaid\nRejected\nCancelled", "reqd": 1, "search_index": 1},
+  {"fieldname": "due_date", "fieldtype": "Date", "in_filter": 1, "in_list_view": 1, "in_standard_filter": 1, "label": "Due Date", "search_index": 1},
+  {"fieldname": "paid_on", "fieldtype": "Datetime", "label": "Paid On", "read_only": 1},
+  {"fieldname": "payment_reference", "fieldtype": "Data", "label": "Payment Reference"},
+  {"fieldname": "receipt_attachment", "fieldtype": "Attach", "label": "Receipt Attachment"},
+  {"default": "1", "fieldname": "visible_to_customer", "fieldtype": "Check", "in_filter": 1, "in_standard_filter": 1, "label": "Visible To Customer", "search_index": 1},
+  {"fieldname": "remarks", "fieldtype": "Small Text", "label": "Remarks"},
+  {"default": "Not Submitted", "fieldname": "receipt_status", "fieldtype": "Select", "in_standard_filter": 1, "label": "Receipt Status", "options": "Not Submitted\nSubmitted\nUnder Review\nAccepted\nRejected", "read_only": 1, "search_index": 1},
+  {"default": "Unmatched", "fieldname": "accounting_status", "fieldtype": "Select", "in_standard_filter": 1, "label": "Accounting Status", "options": "Unmatched\nPartially Settled\nSettled\nReversed\nReview Required", "read_only": 1, "search_index": 1},
+  {"default": "Not Required", "fieldname": "quarantine_status", "fieldtype": "Select", "in_standard_filter": 1, "label": "Quarantine Status", "options": "Not Required\nPending Validation\nManual Review\nClean\nRejected", "read_only": 1, "search_index": 1},
+  {"fieldname": "linked_invoice", "fieldtype": "Link", "label": "Linked Invoice", "options": "Sales Invoice", "read_only": 1, "search_index": 1},
+  {"fieldname": "linked_payment_entry", "fieldtype": "Link", "label": "Linked Payment Entry", "options": "Payment Entry", "read_only": 1, "search_index": 1},
+  {"fieldname": "reviewed_by", "fieldtype": "Link", "label": "Reviewed By", "options": "User", "read_only": 1},
+  {"fieldname": "reviewed_at", "fieldtype": "Datetime", "label": "Reviewed At", "read_only": 1},
+  {"fieldname": "settled_at", "fieldtype": "Datetime", "label": "Settled At", "read_only": 1}
  ],
  "index_web_pages_for_search": 1,
  "links": [],
@@ -194,20 +57,7 @@
  "name": "OMC Service Payment",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "OMC Admin",
-   "share": 1,
-   "write": 1
-  }
- ],
+ "permissions": [{"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "OMC Admin", "share": 1, "write": 1}],
  "row_format": "Dynamic",
  "search_fields": "payment_title,service_request,status,payment_reference",
  "sort_field": "due_date",
