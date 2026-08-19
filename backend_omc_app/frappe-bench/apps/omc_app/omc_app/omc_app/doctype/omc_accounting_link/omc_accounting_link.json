@@ -21,7 +21,7 @@
   {"default": "0", "fieldname": "invoice_docstatus", "fieldtype": "Int", "label": "Invoice DocStatus", "read_only": 1},
   {"default": "0", "fieldname": "payment_docstatus", "fieldtype": "Int", "label": "Payment DocStatus", "read_only": 1},
   {"default": "0", "fieldname": "invoice_outstanding_amount", "fieldtype": "Currency", "label": "Invoice Outstanding Amount", "read_only": 1},
-  {"default": "Unmatched", "fieldname": "accounting_status", "fieldtype": "Select", "in_list_view": 1, "label": "Accounting Status", "options": "Unmatched\nPartially Settled\nSettled\nReversed\nCancelled\nReview Required", "read_only": 1, "reqd": 1},
+  {"default": "Unmatched", "fieldname": "accounting_status", "fieldtype": "Select", "in_list_view": 1, "label": "Accounting Status", "options": "Unmatched\nPartially Settled\nSettled\nReversed\nCancelled\nReview Required\nQuarantined", "read_only": 1, "reqd": 1},
   {"fieldname": "source_version", "fieldtype": "Data", "label": "Source Version", "read_only": 1},
   {"fieldname": "reconciled_at", "fieldtype": "Datetime", "label": "Reconciled At", "read_only": 1},
   {"fieldname": "reconciliation_error", "fieldtype": "Small Text", "label": "Reconciliation Error", "read_only": 1}
