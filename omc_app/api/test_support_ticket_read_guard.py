@@ -33,6 +33,67 @@ class TestSupportTicketReadGuard(FrappeTestCase):
         for route, target in expected.items():
             self.assertEqual(hooks.override_whitelisted_methods[route], target)
 
+    @patch("omc_app.api.support_ticket_read_guard.support_chat._capabilities")
+    @patch(
+        "omc_app.api.support_ticket_read_guard.support_chat._can_access_internal_workspace",
+        return_value=False,
+    )
+    def test_customer_reply_uses_customer_support_capability(
+        self,
+        internal_access,
+        capabilities,
+    ):
+        capabilities.return_value = {"can_create_support_ticket": True}
+        payload = {
+            "name": "SUP-TEST",
+            "status": "Open",
+            "assigned_to": "agent@example.com",
+            "can_assign": True,
+            "can_reply": False,
+        }
+
+        result = support_ticket_read_guard._sanitize_ticket_payload(payload)
+
+        self.assertTrue(result["can_reply"])
+        self.assertFalse(result["can_assign"])
+        self.assertEqual(result["assigned_to"], "")
+
+    @patch("omc_app.api.support_ticket_read_guard.support_chat._capabilities")
+    @patch(
+        "omc_app.api.support_ticket_read_guard.support_chat._can_access_internal_workspace",
+        return_value=False,
+    )
+    def test_customer_cannot_reply_to_terminal_ticket(
+        self,
+        internal_access,
+        capabilities,
+    ):
+        capabilities.return_value = {"can_create_support_ticket": True}
+        payload = {"name": "SUP-TEST", "status": "Closed", "can_reply": True}
+
+        result = support_ticket_read_guard._sanitize_ticket_payload(payload)
+
+        self.assertFalse(result["can_reply"])
+
+    @patch(
+        "omc_app.api.support_ticket_read_guard.support_chat._can_access_internal_workspace",
+        return_value=True,
+    )
+    def test_internal_assignment_projection_is_preserved(self, internal_access):
+        payload = {
+            "name": "SUP-TEST",
+            "status": "Open",
+            "assigned_to": "agent@example.com",
+            "can_assign": True,
+            "can_reply": True,
+        }
+
+        result = support_ticket_read_guard._sanitize_ticket_payload(payload)
+
+        self.assertEqual(result["assigned_to"], "agent@example.com")
+        self.assertTrue(result["can_assign"])
+        self.assertTrue(result["can_reply"])
+
     @patch("omc_app.api.support_ticket_read_guard.frappe.db.exists", return_value=False)
     def test_stale_service_request_reference_is_cleared(self, exists):
         payload = {
