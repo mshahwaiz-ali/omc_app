@@ -45,12 +45,39 @@ def apply_site_branding(*, commit: bool = True) -> dict[str, object]:
     return {"operation": "apply_site_branding", **result}
 
 
+def seed_tax_calculator_defaults(*, commit: bool = True) -> dict[str, object]:
+    """Deliberately install the optional tax-calculator UI defaults."""
+    from omc_app.patches import seed_tax_calculator_defaults as seed_patch
+
+    seed_patch.execute()
+    _commit_if_requested(commit)
+    return {"ok": True, "operation": "seed_tax_calculator_defaults"}
+
+
+def seed_business_rental_tax_slabs() -> dict[str, object]:
+    """Deliberately install the optional Business/Rental tax schedules."""
+    from omc_app.patches import seed_business_rental_tax_slabs as seed_patch
+
+    # The retained historical seed performs and verifies its own commit.
+    seed_patch.execute()
+    return {"ok": True, "operation": "seed_business_rental_tax_slabs"}
+
+
+def sync_service_task_type_mappings(*, commit: bool = True) -> dict[str, object]:
+    """Deliberately map OMC Services to ERP Task Types that already exist."""
+    from omc_app.patches import seed_erp_task_types_and_service_mappings as seed_patch
+
+    seed_patch.execute()
+    _commit_if_requested(commit)
+    return {"ok": True, "operation": "sync_service_task_type_mappings"}
+
+
 def initialize_site(*, commit: bool = True) -> dict[str, object]:
     """Explicit, idempotent OMC site initialization/repair entrypoint.
 
-    This function intentionally performs business-facing setup and therefore is
-    never called by the normal migrate/sync lifecycle. It may be invoked after
-    a fresh install or deliberately by an operator:
+    This function intentionally performs site-facing setup and therefore is
+    never called by the normal migrate/sync lifecycle. Optional business data
+    seeds remain separate operations and are not installed implicitly.
 
         bench --site <site> execute omc_app.setup.operations.initialize_site
     """
