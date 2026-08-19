@@ -97,7 +97,7 @@ class TestServiceDocumentGuard(FrappeTestCase):
     @patch("omc_app.api.service_document_guard.customer_documents.update_service_document_status")
     @patch("omc_app.api.service_document_guard._load_document_with_parent")
     @patch("omc_app.api.service_document_guard.customer_documents._require_document_review_access")
-    def test_duplicate_review_returns_noop_without_side_effects(
+    def test_duplicate_review_returns_noop_without_duplicate_review_write(
         self,
         require_access,
         load_document,
@@ -107,14 +107,21 @@ class TestServiceDocumentGuard(FrappeTestCase):
         document.review_remarks = "Verified"
         load_document.return_value = (document, "OMC-SR-TEST", "In Progress")
 
-        result = service_document_guard.update_service_document_status(
-            document_id="OMC-DOC-TEST",
-            status="Approved",
-            remarks="Verified",
-        )
+        with patch.object(
+            service_document_guard.payment_opening,
+            "ensure_service_payment",
+            return_value="PAY-TEST",
+        ) as ensure_payment:
+            result = service_document_guard.update_service_document_status(
+                document_id="OMC-DOC-TEST",
+                status="Approved",
+                remarks="Verified",
+            )
 
         update_status.assert_not_called()
+        ensure_payment.assert_called_once_with("OMC-SR-TEST")
         self.assertFalse(result["updated"])
+        self.assertEqual(result["payment_id"], "PAY-TEST")
         self.assertEqual(result["case_status"], "In Progress")
 
     @patch("omc_app.api.service_document_guard.customer_documents.update_service_document_status")
@@ -133,15 +140,22 @@ class TestServiceDocumentGuard(FrappeTestCase):
         )
         update_status.return_value = {"updated": True, "status": "Approved"}
 
-        result = service_document_guard.update_service_document_status(
-            document_id="OMC-DOC-TEST",
-            status="Approved",
-            remarks="Verified",
-        )
+        with patch.object(
+            service_document_guard.payment_opening,
+            "ensure_service_payment",
+            return_value="PAY-TEST",
+        ) as ensure_payment:
+            result = service_document_guard.update_service_document_status(
+                document_id="OMC-DOC-TEST",
+                status="Approved",
+                remarks="Verified",
+            )
 
         update_status.assert_called_once_with(
             document_id="OMC-DOC-TEST",
             status="Approved",
             remarks="Verified",
         )
+        ensure_payment.assert_called_once_with("OMC-SR-TEST")
+        self.assertEqual(result["payment_id"], "PAY-TEST")
         self.assertTrue(result["updated"])
