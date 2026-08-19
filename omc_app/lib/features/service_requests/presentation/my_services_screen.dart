@@ -158,6 +158,12 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             serviceCase.title,
             serviceCase.category,
             serviceCase.status,
+            serviceCase.statusLabel,
+            serviceCase.lifecycleState,
+            serviceCase.effectiveOperationalStatus,
+            serviceCase.settlement.status,
+            serviceCase.activation.bridgeState,
+            serviceCase.hold.reason,
             serviceCase.reference ?? '',
             serviceCase.createdAtLabel,
             serviceCase.updatedAtLabel,
@@ -349,71 +355,6 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
       _query = '';
       _searchController.clear();
     });
-  }
-
-  _ServiceCaseState _stateFor(ServiceCase serviceCase) {
-    final status = serviceCase.status.trim().toLowerCase();
-    final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
-
-    final isCancelled =
-        status.contains('cancel') ||
-        status.contains('reject') ||
-        status.contains('declin') ||
-        status.contains('blocked');
-    final isClosed =
-        !isCancelled &&
-        (status.contains('complete') ||
-            status.contains('closed') ||
-            status.contains('done') ||
-            status.contains('resolved'));
-    final needsAction =
-        !isCancelled &&
-        !isClosed &&
-        (serviceCase.customerActionRequired ||
-            serviceCase.missingDocuments.isNotEmpty ||
-            (serviceCase.missingDocumentsCount ?? 0) > 0 ||
-            serviceCase.rejectedDocumentTotal > 0 ||
-            serviceCase.rejectedPaymentTotal > 0 ||
-            serviceCase.paymentDetails.any(
-              (payment) => payment.needsCustomerAction,
-            ) ||
-            status.contains('waiting for document') ||
-            status.contains('waiting for payment') ||
-            status.contains('waiting for customer') ||
-            status.contains('action required') ||
-            nextStep.contains('upload') ||
-            nextStep.contains('pay') ||
-            nextStep.contains('submit'));
-    final isInReview =
-        !isCancelled &&
-        !isClosed &&
-        !needsAction &&
-        (status.contains('review') ||
-            status.contains('processing') ||
-            status.contains('pending') ||
-            status.contains('documents under review') ||
-            status.contains('payment under review'));
-    final isInProgress =
-        !isCancelled &&
-        !isClosed &&
-        !needsAction &&
-        !isInReview &&
-        (status.contains('progress') || status.contains('working'));
-    final isOpen =
-        !isCancelled &&
-        !isClosed &&
-        !needsAction &&
-        !isInReview &&
-        !isInProgress;
-
-    return _ServiceCaseState(
-      isCancelled: isCancelled,
-      isClosed: isClosed,
-      needsAction: needsAction,
-      isInReview: isInReview,
-      isInProgress: isInProgress,
-      isOpen: isOpen,
-    );
   }
 
   int _stateRank(_ServiceCaseState state) {
@@ -1475,20 +1416,20 @@ class _ServiceCaseState {
 }
 
 _ServiceCaseState _stateFor(ServiceCase serviceCase) {
-  final status = serviceCase.status.trim().toLowerCase();
+  final lifecycle = serviceCase.normalizedLifecycleState;
+  final operational = serviceCase.normalizedOperationalStatus;
   final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
 
-  final isCancelled =
-      status.contains('cancel') ||
-      status.contains('reject') ||
-      status.contains('declin') ||
-      status.contains('blocked');
+  final isCancelled = serviceCase.isTerminalRequest;
   final isClosed =
       !isCancelled &&
-      (status.contains('complete') ||
-          status.contains('closed') ||
-          status.contains('done') ||
-          status.contains('resolved'));
+      (serviceCase.isCompletedRequest ||
+          (!serviceCase.hasCanonicalLifecycle &&
+              (operational.contains('complete') ||
+                  operational.contains('closed') ||
+                  operational.contains('done') ||
+                  operational.contains('resolved'))));
+
   final needsAction =
       !isCancelled &&
       !isClosed &&
@@ -1497,33 +1438,44 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
           (serviceCase.missingDocumentsCount ?? 0) > 0 ||
           serviceCase.rejectedDocumentTotal > 0 ||
           serviceCase.rejectedPaymentTotal > 0 ||
+          serviceCase.receipt.isRejected ||
+          lifecycle == 'pending payment' ||
           serviceCase.paymentDetails.any(
             (payment) => payment.needsCustomerAction,
           ) ||
-          status.contains('waiting for document') ||
-          status.contains('waiting for payment') ||
-          status.contains('waiting for customer') ||
-          status.contains('action required') ||
+          operational.contains('waiting for customer') ||
+          operational.contains('action required') ||
           nextStep.contains('upload') ||
           nextStep.contains('pay') ||
           nextStep.contains('submit'));
+
   final isInReview =
       !isCancelled &&
       !isClosed &&
       !needsAction &&
-      (status.contains('review') ||
-          status.contains('processing') ||
-          status.contains('pending') ||
-          status.contains('documents under review') ||
-          status.contains('payment under review'));
+      (serviceCase.isFinancialHold ||
+          serviceCase.settlement.requiresReview ||
+          lifecycle == 'activation failed' ||
+          lifecycle == 'activating' ||
+          operational.contains('review') ||
+          operational.contains('processing'));
+
   final isInProgress =
       !isCancelled &&
       !isClosed &&
       !needsAction &&
       !isInReview &&
-      (status.contains('progress') || status.contains('working'));
+      (lifecycle == 'ready for activation' ||
+          lifecycle == 'activated' ||
+          operational.contains('progress') ||
+          operational.contains('working'));
+
   final isOpen =
-      !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
+      !isCancelled &&
+      !isClosed &&
+      !needsAction &&
+      !isInReview &&
+      !isInProgress;
 
   return _ServiceCaseState(
     isCancelled: isCancelled,

@@ -1386,7 +1386,7 @@ class _CaseHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusStyle = _caseStatusVisual(serviceCase.status);
+    final statusStyle = _caseStatusVisual(serviceCase.statusLabel);
     final category = serviceCase.category.trim();
     final remarks = serviceCase.remarks?.trim() ?? '';
 
@@ -1464,7 +1464,7 @@ class _CaseHero extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     _CaseStatusBadge(
-                      label: serviceCase.status,
+                      label: serviceCase.statusLabel,
                       color: statusStyle.color,
                       background: statusStyle.background,
                     ),
@@ -1806,9 +1806,7 @@ class _ProgressCard extends StatelessWidget {
     }).toSet();
 
     final currentStage = serviceCase.currentStage?.trim().toLowerCase() ?? '';
-    final completed =
-        serviceCase.status.trim().toLowerCase().contains('complete') ||
-        serviceCase.status.trim().toLowerCase().contains('closed');
+    final completed = serviceCase.isCompletedRequest;
 
     bool has(String milestone) => milestones.contains(milestone);
 
@@ -2205,7 +2203,7 @@ class _CaseInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final summaryParts = <String>[
-      serviceCase.status,
+      serviceCase.statusLabel,
       if (serviceCase.currentStage?.trim().isNotEmpty == true)
         serviceCase.currentStage!.trim(),
       'Updated ${serviceCase.updatedAtLabel}',
@@ -2251,7 +2249,14 @@ class _CaseInfoCard extends StatelessWidget {
           ),
           children: [
             _InfoRow(label: 'Reference', value: serviceCase.displayReference),
-            _InfoRow(label: 'Status', value: serviceCase.status),
+            _InfoRow(label: 'Status', value: serviceCase.statusLabel),
+            if (serviceCase.requestState?.trim().isNotEmpty == true)
+              _InfoRow(label: 'Request state', value: serviceCase.lifecycleState),
+            if (serviceCase.operationalStatus?.trim().isNotEmpty == true)
+              _InfoRow(
+                label: 'Operational status',
+                value: serviceCase.effectiveOperationalStatus,
+              ),
             _InfoRow(label: 'Created', value: serviceCase.createdAtLabel),
             _InfoRow(label: 'Updated', value: serviceCase.updatedAtLabel),
             if (serviceCase.currentStage?.trim().isNotEmpty == true)

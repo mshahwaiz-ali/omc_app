@@ -73,13 +73,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _remarksController = TextEditingController();
   final _referralCodeController = TextEditingController();
   final _acquisitionSourceDetailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
 
   bool _isSubmitting = false;
   bool _acceptedTerms = false;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _submittedSuccessfully = false;
   bool _whatsappSameAsMobile = true;
   bool _referralExpanded = false;
@@ -117,8 +113,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _remarksController,
       _referralCodeController,
       _acquisitionSourceDetailController,
-      _passwordController,
-      _confirmPasswordController,
     ]) {
       controller.addListener(_dirtyForm.markDirty);
     }
@@ -139,8 +133,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _remarksController,
       _referralCodeController,
       _acquisitionSourceDetailController,
-      _passwordController,
-      _confirmPasswordController,
     ]) {
       controller.dispose();
     }
@@ -377,8 +369,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               .replaceAll(' ', ''),
           'referral_assistance_consent': _referralAssistanceConsent ? 1 : 0,
         },
-        'password': _passwordController.text,
-        'confirm_password': _confirmPasswordController.text,
         if (_selectedRole == 'Tax Associate') ...{
           'education': _educationController.text.trim(),
           'experience': _experienceController.text.trim(),
@@ -510,16 +500,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return value!.replaceAll(RegExp(r'\D'), '').length == 13
         ? null
         : 'CNIC must be exactly 13 digits.';
-  }
-
-  String? _passwordValidator(String? value) {
-    final required = _required(value, 'Password');
-    if (required != null) {
-      return required;
-    }
-    return value!.length >= 8
-        ? null
-        : 'Password must be at least 8 characters.';
   }
 
   @override
@@ -695,25 +675,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       _ => SignupSecurityStep(
                         formKey: _securityFormKey,
                         isCustomer: _isCustomer,
-                        passwordController: _passwordController,
-                        confirmPasswordController: _confirmPasswordController,
-                        obscurePassword: _obscurePassword,
-                        obscureConfirmPassword: _obscureConfirmPassword,
                         acceptedTerms: _acceptedTerms,
-                        onTogglePassword: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                        onToggleConfirmPassword: () => setState(
-                          () => _obscureConfirmPassword =
-                              !_obscureConfirmPassword,
-                        ),
                         onTermsChanged: _isSubmitting
                             ? null
                             : (value) => setState(
                                 () => _acceptedTerms = value ?? false,
                               ),
-                        requiredValidator: _required,
-                        passwordValidator: _passwordValidator,
                       ),
                     },
                   ),

@@ -262,10 +262,16 @@ class InternalHomeView extends ConsumerWidget {
         continue;
       }
 
-      final status = service.status.trim().toLowerCase();
-      if (status.contains('overdue') ||
-          status.contains('pending') ||
-          status.contains('waiting')) {
+      final lifecycle = service.lifecycleState.trim().toLowerCase();
+      final operational =
+          service.effectiveOperationalStatus.trim().toLowerCase();
+      if (lifecycle == 'financial hold' ||
+          lifecycle == 'activation failed' ||
+          lifecycle == 'pending payment' ||
+          operational.contains('overdue') ||
+          operational.contains('pending') ||
+          operational.contains('waiting') ||
+          operational.contains('review')) {
         result.add(
           _AttentionItem(
             title: service.customerName.trim().isNotEmpty
@@ -273,9 +279,9 @@ class InternalHomeView extends ConsumerWidget {
                 : service.title,
             subtitle: service.title,
             reference: id,
-            message: service.status.trim().isEmpty
+            message: service.statusLabel.trim().isEmpty
                 ? 'Request needs attention'
-                : service.status.trim(),
+                : service.statusLabel.trim(),
             statusLabel: 'Open',
             icon: Icons.assignment_turned_in_outlined,
             accent: const Color(0xFF16A34A),

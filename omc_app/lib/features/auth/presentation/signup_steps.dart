@@ -559,30 +559,14 @@ class SignupSecurityStep extends StatelessWidget {
     super.key,
     required this.formKey,
     required this.isCustomer,
-    required this.passwordController,
-    required this.confirmPasswordController,
-    required this.obscurePassword,
-    required this.obscureConfirmPassword,
     required this.acceptedTerms,
-    required this.onTogglePassword,
-    required this.onToggleConfirmPassword,
     required this.onTermsChanged,
-    required this.requiredValidator,
-    required this.passwordValidator,
   });
 
   final GlobalKey<FormState> formKey;
   final bool isCustomer;
-  final TextEditingController passwordController;
-  final TextEditingController confirmPasswordController;
-  final bool obscurePassword;
-  final bool obscureConfirmPassword;
   final bool acceptedTerms;
-  final VoidCallback onTogglePassword;
-  final VoidCallback onToggleConfirmPassword;
   final ValueChanged<bool?>? onTermsChanged;
-  final String? Function(String?, String) requiredValidator;
-  final String? Function(String?) passwordValidator;
 
   @override
   Widget build(BuildContext context) {

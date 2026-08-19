@@ -187,6 +187,9 @@ class HomeDashboardServiceSnapshot {
     required this.title,
     required this.status,
     required this.customerName,
+    this.requestState,
+    this.operationalStatus,
+    this.displayStatus,
     required this.documentSummary,
     required this.paymentSummary,
     required this.progress,
@@ -197,10 +200,45 @@ class HomeDashboardServiceSnapshot {
   final String title;
   final String status;
   final String customerName;
+  final String? requestState;
+  final String? operationalStatus;
+  final String? displayStatus;
   final HomeDashboardDocumentSummary documentSummary;
   final HomeDashboardPaymentSummary paymentSummary;
   final double progress;
   final String? colorFamily;
+
+  String get lifecycleState {
+    final value = requestState?.trim();
+    return value == null || value.isEmpty ? status.trim() : value;
+  }
+
+  String get effectiveOperationalStatus {
+    final value = operationalStatus?.trim();
+    return value == null || value.isEmpty ? status.trim() : value;
+  }
+
+  String get statusLabel {
+    final value = displayStatus?.trim();
+    if (value != null && value.isNotEmpty) return value;
+    if (lifecycleState.trim().toLowerCase() == 'activated') {
+      return effectiveOperationalStatus.isEmpty
+          ? 'Activated'
+          : effectiveOperationalStatus;
+    }
+    return lifecycleState.isEmpty
+        ? (effectiveOperationalStatus.isEmpty ? 'Open' : effectiveOperationalStatus)
+        : lifecycleState;
+  }
+
+  bool get isTerminal {
+    final state = lifecycleState.trim().toLowerCase();
+    return state == 'cancelled' || state == 'expired';
+  }
+
+  bool get isCompleted =>
+      lifecycleState.trim().toLowerCase() == 'activated' &&
+      effectiveOperationalStatus.trim().toLowerCase() == 'completed';
 }
 
 class HomeDashboardActivity {
@@ -399,8 +437,14 @@ class HomeDashboardRepository {
               'service_title',
               'service',
             ]),
-            status: _readString(item, const ['status']),
+            status: _readString(item, const ['status', 'operational_status']),
             customerName: _readString(item, const ['customer_name']),
+            requestState: _readNullableString(item, const ['request_state']),
+            operationalStatus: _readNullableString(item, const [
+              'operational_status',
+              'status',
+            ]),
+            displayStatus: _readNullableString(item, const ['display_status']),
             documentSummary: _documentSummary(
               item['document_summary'] ?? item['documents'],
             ),

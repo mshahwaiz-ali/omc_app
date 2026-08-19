@@ -11,6 +11,7 @@ from omc_app.api import (
     access,
     assisted_service,
     mobile,
+    service_case_contract,
     workflow_contract,
 )
 
@@ -38,6 +39,7 @@ SERVICE_CASE_FIELDS = [
     "name",
     "title",
     "status",
+    "request_state",
     "priority",
     "service",
     "service_title",
@@ -113,7 +115,13 @@ def get_service_cases(
         limit_page_length=min(max(_int_value(limit_page_length) or 100, 1), 200),
     )
 
-    cases = [_case_to_queue_item(row) for row in rows]
+    contracts = service_case_contract._bulk_contract(
+        [row.name for row in rows]
+    )
+    cases = [
+        _case_to_queue_item(row, contract=contracts.get(row.name))
+        for row in rows
+    ]
     cases = _filter_cases(cases, search=search, document_status=document_status)
 
     return {
@@ -131,13 +139,24 @@ def create_service_request_for_customer(**kwargs):
     return assisted_service.create_request(**kwargs)
 
 
-def _case_to_queue_item(row):
+def _case_to_queue_item(row, contract=None):
     capabilities = _capabilities()
     case_id = row.name
     docs = _service_documents(case_id)
     required_templates = mobile._service_required_documents(row.service)
     doc_summary = _document_summary(docs, required_templates)
     payments = _service_payments(case_id)
+    contract = dict(contract or {})
+    request_state = (
+        (contract.get("request_state") or "").strip()
+        or (getattr(row, "request_state", None) or "").strip()
+        or "Draft"
+    )
+    operational_status = (
+        (contract.get("operational_status") or contract.get("status") or "").strip()
+        or (row.status or "").strip()
+        or "Open"
+    )
 
     active_payments = [
         payment
@@ -163,7 +182,7 @@ def _case_to_queue_item(row):
 
     projection = workflow_contract.project(
         {
-            "status": row.status,
+            "status": operational_status,
             "required_documents_count": doc_summary["required"],
             "approved_documents_count": doc_summary["approved"],
             "missing_documents_count": (
@@ -175,7 +194,8 @@ def _case_to_queue_item(row):
             "open_payments_count": len(open_payments),
             "rejected_payments_count": len(rejected_payments),
             "operational_work_complete": (
-                (row.status or "").strip() == "Completed"
+                request_state == "Activated"
+                and operational_status == "Completed"
             ),
         }
     )
@@ -188,8 +208,17 @@ def _case_to_queue_item(row):
         "title": row.title or row.service_title or "Service Request",
         "service": row.service or "",
         "service_title": row.service_title or "",
-        "status": row.status or "",
-        "display_status": projection["display_status"],
+        "request_state": request_state,
+        "status": operational_status,
+        "operational_status": operational_status,
+        "display_status": (
+            contract.get("display_status")
+            or projection["display_status"]
+        ),
+        "receipt": contract.get("receipt") or {},
+        "settlement": contract.get("settlement") or {},
+        "activation": contract.get("activation") or {},
+        "hold": contract.get("hold") or {},
         "current_stage": projection["current_stage"],
         "progress": projection["progress"],
         "progress_percent": projection["progress_percent"],
@@ -306,6 +335,8 @@ def _filter_cases(cases, search=None, document_status=None):
                     item.get("customer_profile") or "",
                     item.get("service_title") or "",
                     item.get("status") or "",
+                    item.get("request_state") or "",
+                    item.get("display_status") or "",
                 ]
             ).lower()
             if search_text not in haystack:
@@ -324,23 +355,53 @@ def _filter_cases(cases, search=None, document_status=None):
 def _queue_summary(cases):
     summary = {
         "total": len(cases),
+        "active": 0,
         "open": 0,
         "waiting_for_customer": 0,
+        "waiting_for_payment": 0,
         "in_progress": 0,
         "completed": 0,
+        "cancelled": 0,
+        "expired": 0,
+        "financial_hold": 0,
         "pending_documents": 0,
         "uploaded_documents": 0,
     }
     for item in cases:
-        status = (item.get("status") or "").strip().lower()
-        if status == "open":
-            summary["open"] += 1
-        elif status == "waiting for customer":
-            summary["waiting_for_customer"] += 1
-        elif status == "in progress":
-            summary["in_progress"] += 1
-        elif status == "completed":
+        request_state = (item.get("request_state") or "").strip().lower()
+        operational_status = (
+            item.get("operational_status")
+            or item.get("status")
+            or ""
+        ).strip().lower()
+
+        is_cancelled = request_state == "cancelled"
+        is_expired = request_state == "expired"
+        is_completed = (
+            request_state == "activated"
+            and operational_status == "completed"
+        )
+        is_active = not (is_cancelled or is_expired or is_completed)
+
+        if is_active:
+            summary["active"] += 1
+        if is_cancelled:
+            summary["cancelled"] += 1
+        elif is_expired:
+            summary["expired"] += 1
+        elif is_completed:
             summary["completed"] += 1
+        elif request_state == "pending payment":
+            summary["waiting_for_payment"] += 1
+        elif request_state == "financial hold":
+            summary["financial_hold"] += 1
+        elif operational_status == "waiting for customer":
+            summary["waiting_for_customer"] += 1
+        elif operational_status == "in progress":
+            summary["in_progress"] += 1
+        else:
+            summary["open"] += 1
+
         doc_summary = item.get("document_summary") or {}
         summary["pending_documents"] += int(doc_summary.get("pending") or 0)
         summary["uploaded_documents"] += int(doc_summary.get("uploaded") or 0)

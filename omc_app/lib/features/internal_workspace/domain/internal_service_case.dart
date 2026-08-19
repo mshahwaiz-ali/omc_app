@@ -75,6 +75,8 @@ class InternalServiceCase {
     required this.serviceTitle,
     required this.status,
     required this.priority,
+    this.requestState,
+    this.operationalStatus,
     this.displayStatus,
     this.currentStage,
     this.progressPercent,
@@ -98,8 +100,12 @@ class InternalServiceCase {
       serviceTitle: _readString(
         json['service_title'] ?? json['service'] ?? json['title'],
       ),
-      status: _readString(json['status']),
+      status: _readString(json['status'] ?? json['operational_status']),
       priority: _readString(json['priority']),
+      requestState: _readNullableString(json['request_state']),
+      operationalStatus: _readNullableString(
+        json['operational_status'] ?? json['status'],
+      ),
       displayStatus: _readNullableString(json['display_status']),
       currentStage: _readNullableString(json['current_stage'] ?? json['stage']),
       progressPercent: _readNullableInt(json['progress_percent']),
@@ -122,6 +128,8 @@ class InternalServiceCase {
   final String serviceTitle;
   final String status;
   final String priority;
+  final String? requestState;
+  final String? operationalStatus;
   final String? displayStatus;
   final String? currentStage;
   final int? progressPercent;
@@ -150,6 +158,62 @@ class InternalServiceCase {
     }
     return 'Service Request';
   }
+
+  bool get hasCanonicalLifecycle => requestState?.trim().isNotEmpty == true;
+
+  String get lifecycleState {
+    final value = requestState?.trim();
+    if (value != null && value.isNotEmpty) return value;
+    return status == '-' ? '' : status.trim();
+  }
+
+  String get effectiveOperationalStatus {
+    final value = operationalStatus?.trim();
+    if (value != null && value.isNotEmpty) return value;
+    return status == '-' ? '' : status.trim();
+  }
+
+  String get statusLabel {
+    final value = displayStatus?.trim();
+    if (value != null && value.isNotEmpty) return value;
+    if (lifecycleState.trim().toLowerCase() == 'activated') {
+      return effectiveOperationalStatus.isEmpty
+          ? 'Activated'
+          : effectiveOperationalStatus;
+    }
+    return lifecycleState.isEmpty
+        ? (effectiveOperationalStatus.isEmpty ? 'Open' : effectiveOperationalStatus)
+        : lifecycleState;
+  }
+
+  String get normalizedLifecycleState => lifecycleState.trim().toLowerCase();
+
+  String get normalizedOperationalStatus =>
+      effectiveOperationalStatus.trim().toLowerCase();
+
+  bool get isCancelled => normalizedLifecycleState == 'cancelled';
+  bool get isExpired => normalizedLifecycleState == 'expired';
+  bool get isTerminal => isCancelled || isExpired;
+  bool get isCompleted =>
+      normalizedLifecycleState == 'activated' &&
+      normalizedOperationalStatus == 'completed';
+  bool get isActive => !isTerminal && !isCompleted;
+  bool get isWaitingPayment => normalizedLifecycleState == 'pending payment';
+  bool get isFinancialHold => normalizedLifecycleState == 'financial hold';
+  bool get isWaitingCustomer =>
+      normalizedOperationalStatus == 'waiting for customer';
+  bool get isInReview =>
+      isFinancialHold ||
+      normalizedLifecycleState == 'activation failed' ||
+      normalizedOperationalStatus.contains('review') ||
+      normalizedOperationalStatus.contains('processing');
+  bool get isInProgress =>
+      isActive &&
+      (normalizedLifecycleState == 'ready for activation' ||
+          normalizedLifecycleState == 'activating' ||
+          normalizedLifecycleState == 'activated' ||
+          normalizedOperationalStatus.contains('progress') ||
+          normalizedOperationalStatus.contains('working'));
 
   int get pendingDocuments => documentSummary['pending'] ?? 0;
   int get uploadedDocuments => documentSummary['uploaded'] ?? 0;

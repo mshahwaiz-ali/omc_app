@@ -136,6 +136,27 @@ class ServiceCase {
     return value == null || value.isEmpty ? status.trim() : value;
   }
 
+  bool get hasCanonicalLifecycle => requestState?.trim().isNotEmpty == true;
+
+  String get normalizedLifecycleState => lifecycleState.trim().toLowerCase();
+
+  String get normalizedOperationalStatus =>
+      effectiveOperationalStatus.trim().toLowerCase();
+
+  bool get isCancelledRequest => normalizedLifecycleState == 'cancelled';
+
+  bool get isExpiredRequest => normalizedLifecycleState == 'expired';
+
+  bool get isTerminalRequest => isCancelledRequest || isExpiredRequest;
+
+  bool get isActivatedRequest => normalizedLifecycleState == 'activated';
+
+  bool get isOperationalComplete => normalizedOperationalStatus == 'completed';
+
+  bool get isCompletedRequest => isActivatedRequest && isOperationalComplete;
+
+  bool get isActiveRequest => !isTerminalRequest && !isCompletedRequest;
+
   String get statusLabel {
     final value = displayStatus?.trim();
     if (value != null && value.isNotEmpty) return value;
@@ -368,8 +389,8 @@ class ServiceCase {
   }
 
   bool get isClosed {
-    final lifecycle = lifecycleState.toLowerCase();
-    if (lifecycle == 'cancelled' || lifecycle == 'expired') return true;
+    if (isTerminalRequest || isCompletedRequest) return true;
+    if (hasCanonicalLifecycle) return false;
     return _normalizedStatus.contains('complete') ||
         _normalizedStatus.contains('closed');
   }

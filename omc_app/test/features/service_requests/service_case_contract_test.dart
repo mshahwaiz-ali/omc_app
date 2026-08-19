@@ -95,5 +95,67 @@ void main() {
       expect(serviceCase.paymentSummaryLabel, 'No payment required');
       expect(serviceCase.hasPayment, isFalse);
     });
+
+    test('cancelled and expired lifecycle states are terminal even when status is open', () {
+      const cancelled = ServiceCase(
+        id: 'SR-5',
+        title: 'Cancelled request',
+        category: 'General',
+        status: 'Open',
+        requestState: 'Cancelled',
+        operationalStatus: 'Open',
+        createdAtLabel: 'Today',
+        updatedAtLabel: 'Today',
+        progress: 0.4,
+      );
+      const expired = ServiceCase(
+        id: 'SR-6',
+        title: 'Expired request',
+        category: 'General',
+        status: 'Open',
+        requestState: 'Expired',
+        operationalStatus: 'Open',
+        createdAtLabel: 'Today',
+        updatedAtLabel: 'Today',
+        progress: 0.4,
+      );
+
+      expect(cancelled.isTerminalRequest, isTrue);
+      expect(cancelled.isClosed, isTrue);
+      expect(cancelled.isActiveRequest, isFalse);
+      expect(expired.isTerminalRequest, isTrue);
+      expect(expired.isClosed, isTrue);
+      expect(expired.isActiveRequest, isFalse);
+    });
+
+    test('operational completion only closes an activated canonical request', () {
+      const preActivation = ServiceCase(
+        id: 'SR-7',
+        title: 'Ready request',
+        category: 'General',
+        status: 'Completed',
+        requestState: 'Ready for Activation',
+        operationalStatus: 'Completed',
+        createdAtLabel: 'Today',
+        updatedAtLabel: 'Today',
+        progress: 0.9,
+      );
+      const activated = ServiceCase(
+        id: 'SR-8',
+        title: 'Completed request',
+        category: 'General',
+        status: 'Completed',
+        requestState: 'Activated',
+        operationalStatus: 'Completed',
+        createdAtLabel: 'Today',
+        updatedAtLabel: 'Today',
+        progress: 1,
+      );
+
+      expect(preActivation.isCompletedRequest, isFalse);
+      expect(preActivation.isClosed, isFalse);
+      expect(activated.isCompletedRequest, isTrue);
+      expect(activated.isClosed, isTrue);
+    });
   });
 }

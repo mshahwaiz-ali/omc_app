@@ -1184,7 +1184,7 @@ class _ServiceHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = service.progress.clamp(0.0, 1.0);
     final percentage = (progress * 100).round();
-    final tone = _statusColor(service.status);
+    final tone = _statusColor(service.statusLabel);
     final missing = service.documentSummary.missing;
 
     return _SurfaceCard(
@@ -1237,7 +1237,7 @@ class _ServiceHeroCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _StatusPill(
-                label: service.status.isEmpty ? 'In Progress' : service.status,
+                label: service.statusLabel.isEmpty ? 'In Progress' : service.statusLabel,
                 color: tone,
               ),
             ],
@@ -1590,7 +1590,7 @@ class _ServiceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = service.progress.clamp(0.0, 1.0);
     final percentage = (progress * 100).round();
-    final tone = _ServiceHeroCard._statusColor(service.status);
+    final tone = _ServiceHeroCard._statusColor(service.statusLabel);
 
     return InkWell(
       onTap: onTap,
@@ -1633,7 +1633,7 @@ class _ServiceRow extends StatelessWidget {
                         ),
                       ),
                       _StatusPill(
-                        label: service.status,
+                        label: service.statusLabel,
                         color: tone,
                         compact: true,
                       ),

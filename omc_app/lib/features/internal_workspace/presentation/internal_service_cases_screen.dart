@@ -28,6 +28,7 @@ const List<String> _statusFilters = [
   'Waiting Payment',
   'Completed',
   'Cancelled',
+  'Expired',
 ];
 
 const List<String> _documentFilters = [
@@ -138,7 +139,7 @@ class _InternalServiceCasesScreenState
                 data: (queue) {
                   final visibleCases = _visibleCases(queue.cases);
                   final activeCount = queue.cases
-                      .where((item) => !_isClosedStatus(item.status))
+                      .where((item) => item.isActive)
                       .length;
                   final attentionCount = queue.cases
                       .where(_needsAttention)
@@ -214,6 +215,9 @@ class _InternalServiceCasesScreenState
           item.customerProfile,
           item.serviceTitle,
           item.status,
+          item.statusLabel,
+          item.lifecycleState,
+          item.effectiveOperationalStatus,
           item.priority,
         ].join(' ').toLowerCase();
 
@@ -225,14 +229,15 @@ class _InternalServiceCasesScreenState
       case 'Attention':
         result = result.where(_needsAttention);
       case 'In Progress':
-        result = result.where((item) {
-          final status = item.status.toLowerCase();
-          return status.contains('progress') ||
-              status.contains('review') ||
-              status.contains('waiting');
-        });
+        result = result.where(
+          (item) =>
+              item.isInProgress ||
+              item.isInReview ||
+              item.isWaitingCustomer ||
+              item.isWaitingPayment,
+        );
       case 'Completed':
-        result = result.where((item) => _isClosedStatus(item.status));
+        result = result.where((item) => item.isCompleted);
       case 'All':
         break;
     }
@@ -249,17 +254,27 @@ class _InternalServiceCasesScreenState
   }
 
   bool _matchesStatusFilter(InternalServiceCase item) {
-    final status = item.status.toLowerCase();
-
     switch (_statusFilter) {
       case 'Active':
-        return !_isClosedStatus(item.status);
+        return item.isActive;
+      case 'Open':
+        return item.isActive && item.normalizedOperationalStatus == 'open';
+      case 'In Review':
+        return item.isInReview;
+      case 'In Progress':
+        return item.isInProgress;
       case 'Waiting Customer':
-        return status.contains('waiting') && status.contains('customer');
+        return item.isWaitingCustomer;
       case 'Waiting Payment':
-        return status.contains('waiting') && status.contains('payment');
+        return item.isWaitingPayment;
+      case 'Completed':
+        return item.isCompleted;
+      case 'Cancelled':
+        return item.isCancelled;
+      case 'Expired':
+        return item.isExpired;
       default:
-        return status.contains(_statusFilter.toLowerCase());
+        return true;
     }
   }
 
@@ -587,7 +602,7 @@ class _InternalCaseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final workspacePath =
         '/internal-workspace/service-cases/${Uri.encodeComponent(serviceCase.id)}';
-    final tone = _statusTone(serviceCase.status);
+    final tone = _statusTone(serviceCase);
     final totalDocuments =
         serviceCase.pendingDocuments +
         serviceCase.uploadedDocuments +
@@ -703,7 +718,7 @@ class _CaseHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        _StatusPill(label: serviceCase.status, tone: tone),
+        _StatusPill(label: serviceCase.statusLabel, tone: tone),
       ],
     );
   }
@@ -722,7 +737,7 @@ class _DocumentProgressPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completed = _isClosedStatus(serviceCase.status);
+    final completed = serviceCase.isCompleted;
     final summary = completed
         ? 'Documents completed'
         : totalDocuments > 0
@@ -1347,16 +1362,20 @@ class _CaseTone {
   final Color color;
 }
 
-_CaseTone _statusTone(String status) {
-  final clean = status.toLowerCase();
-
-  if (_isClosedStatus(status)) {
+_CaseTone _statusTone(InternalServiceCase item) {
+  if (item.isCompleted) {
     return const _CaseTone(Color(0xFF2E9B58));
   }
 
-  if (clean.contains('progress') ||
-      clean.contains('review') ||
-      clean.contains('waiting')) {
+  if (item.isTerminal) {
+    return const _CaseTone(AppTheme.primary);
+  }
+
+  if (item.isFinancialHold ||
+      item.isInReview ||
+      item.isWaitingCustomer ||
+      item.isWaitingPayment ||
+      item.isInProgress) {
     return const _CaseTone(Color(0xFF2865C7));
   }
 
@@ -1378,20 +1397,26 @@ Color _priorityColor(String priority) {
 }
 
 bool _needsAttention(InternalServiceCase item) {
-  final status = item.status.toLowerCase();
-
   return item.pendingDocuments > 0 ||
       item.uploadedDocuments > 0 ||
       item.rejectedDocuments > 0 ||
-      status.contains('review') ||
-      status.contains('open');
+      item.isFinancialHold ||
+      item.normalizedLifecycleState == 'activation failed' ||
+      item.isInReview ||
+      (item.isActive && item.normalizedOperationalStatus == 'open');
 }
 
 String _nextStep(InternalServiceCase item) {
-  final status = item.status.toLowerCase();
-
-  if (_isClosedStatus(item.status)) {
+  if (item.isCompleted) {
     return 'Service request completed';
+  }
+
+  if (item.isCancelled) {
+    return 'Service request cancelled';
+  }
+
+  if (item.isExpired) {
+    return 'Service request expired';
   }
 
   if (item.rejectedDocuments > 0) {
@@ -1406,25 +1431,29 @@ String _nextStep(InternalServiceCase item) {
     return 'Review submitted documents';
   }
 
-  if (status.contains('waiting') && status.contains('customer')) {
+  if (item.isWaitingCustomer) {
     return 'Waiting for customer response';
   }
 
-  if (status.contains('waiting') && status.contains('payment')) {
+  if (item.isWaitingPayment) {
     return 'Confirm customer payment';
   }
 
-  if (status.contains('progress')) {
+  if (item.isFinancialHold) {
+    return 'Review financial hold';
+  }
+
+  if (item.normalizedLifecycleState == 'activation failed') {
+    return 'Review activation failure';
+  }
+
+  if (item.isInReview) {
+    return 'Review service request';
+  }
+
+  if (item.isInProgress) {
     return 'Continue service processing';
   }
 
   return 'Open workspace and review case';
-}
-
-bool _isClosedStatus(String status) {
-  final clean = status.toLowerCase();
-
-  return clean.contains('complete') ||
-      clean.contains('cancel') ||
-      clean.contains('closed');
 }

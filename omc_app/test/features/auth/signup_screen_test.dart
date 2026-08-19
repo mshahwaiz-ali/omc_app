@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/features/auth/presentation/signup_screen.dart';
 
 void main() {
-  testWidgets('final step submits exactly once with canonical payload', (
+  testWidgets('final step submits canonical verification payload', (
     tester,
   ) async {
     final calls = <Map<String, dynamic>>[];
@@ -85,22 +85,17 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Password'),
-      'StrongPass123!',
-    );
-    await tester.enterText(
+    expect(find.widgetWithText(TextFormField, 'Password'), findsNothing);
+    expect(
       find.widgetWithText(TextFormField, 'Confirm password'),
-      'StrongPass123!',
+      findsNothing,
     );
     await tester.tap(find.byType(Checkbox));
     await tester.pump();
 
-    final createAccount = find.text('Create account');
-    await tester.ensureVisible(createAccount);
-    await tester.tap(createAccount);
-    await tester.pump();
-    await tester.tap(createAccount);
+    final sendVerificationEmail = find.text('Send verification email');
+    await tester.ensureVisible(sendVerificationEmail);
+    await tester.tap(sendVerificationEmail);
     await tester.pump();
 
     expect(calls, hasLength(1));
@@ -120,8 +115,8 @@ void main() {
     expect(calls.single, containsPair('acquisition_source_detail', ''));
     expect(calls.single.containsKey('referral_code'), isFalse);
     expect(calls.single.containsKey('referral_assistance_consent'), isFalse);
-    expect(calls.single, containsPair('password', 'StrongPass123!'));
-    expect(calls.single, containsPair('confirm_password', 'StrongPass123!'));
+    expect(calls.single.containsKey('password'), isFalse);
+    expect(calls.single.containsKey('confirm_password'), isFalse);
 
     response.complete(<String, dynamic>{'message': 'Signup completed.'});
     await tester.pumpAndSettle();
