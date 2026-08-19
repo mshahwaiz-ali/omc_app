@@ -43,6 +43,7 @@ void main() {
         isTrue,
       );
     });
+
     const internalWorkspaceOnly = AuthCapabilities(
       accessState: AccountAccessState.internal,
       canAccessInternalWorkspace: true,
@@ -54,6 +55,25 @@ void main() {
       expect(canAccessRoute('/tasks', internalWorkspaceOnly), isFalse);
     });
 
+    test('does not let broad internal access unlock scoped workspaces', () {
+      expect(
+        canAccessRoute('/internal-workspace/customers', internalWorkspaceOnly),
+        isFalse,
+      );
+      expect(
+        canAccessRoute('/internal-workspace/documents', internalWorkspaceOnly),
+        isFalse,
+      );
+      expect(
+        canAccessRoute('/internal-workspace/payments', internalWorkspaceOnly),
+        isFalse,
+      );
+      expect(
+        canAccessRoute('/internal-workspace/future-area', internalWorkspaceOnly),
+        isFalse,
+      );
+    });
+
     test('requires explicit payment capability', () {
       expect(canAccessRoute('/payments', internalWorkspaceOnly), isFalse);
 
@@ -62,6 +82,10 @@ void main() {
         canReviewPayments: true,
       );
       expect(canAccessRoute('/payments', reviewer), isTrue);
+      expect(
+        canAccessRoute('/internal-workspace/payments', reviewer),
+        isTrue,
+      );
     });
 
     test('requires explicit tracking capability', () {
@@ -104,6 +128,31 @@ void main() {
         canAccessRoute('/support-tickets/OMC-SUP-0001', supportManager),
         isTrue,
       );
+    });
+
+    test('customer support capability permits owned ticket detail route', () {
+      const customer = AuthCapabilities(
+        accessState: AccountAccessState.approved,
+        canCreateSupportTicket: true,
+      );
+
+      expect(
+        canAccessRoute('/support-tickets/OMC-SUP-0001', customer),
+        isTrue,
+      );
+    });
+
+    test('internal workspace access does not imply notification authority', () {
+      expect(
+        canAccessRoute('/notifications', internalWorkspaceOnly),
+        isFalse,
+      );
+
+      const customer = AuthCapabilities(
+        accessState: AccountAccessState.approved,
+        canViewCustomerNotifications: true,
+      );
+      expect(canAccessRoute('/notifications', customer), isTrue);
     });
 
     test('keeps public guest routes available', () {
