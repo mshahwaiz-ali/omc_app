@@ -75,7 +75,11 @@ class TestSupportTicketReadGuard(FrappeTestCase):
 
         result = support_ticket_read_guard.get_support_tickets()
 
-        self.assertEqual(result, {"tickets": [{"name": "SUP-LIVE"}]})
+        self.assertEqual(result["tickets"], [{"name": "SUP-LIVE"}])
+        self.assertEqual(result["limit_start"], 0)
+        self.assertEqual(result["limit_page_length"], 20)
+        self.assertIsNone(result["next_start"])
+        self.assertFalse(result["has_more"])
 
     @patch("omc_app.api.support_ticket_read_guard._sanitize_ticket_payload")
     @patch("omc_app.api.support_ticket_read_guard.support_chat._support_ticket_to_dict")
