@@ -5,6 +5,11 @@ from unittest.mock import patch
 from omc_app.api import admin_read
 
 
+class Row(dict):
+    def __getattr__(self, key):
+        return self.get(key)
+
+
 class TestAdminRead(TestCase):
     def test_business_settings_only_does_not_receive_staff_or_registrations(self):
         values = {
@@ -39,23 +44,6 @@ class TestAdminRead(TestCase):
             "can_review_registrations": True,
             "can_manage_business_settings": False,
         }
-        row = SimpleNamespace(
-            name="OMC-CUST-0001",
-            full_name="Customer One",
-            email="customer@example.com",
-            phone="",
-            register_as="Customer",
-            customer_type="Customer",
-            customer_status="Pending",
-            approval_status="Pending Review",
-            creation="2026-08-20 00:00:00",
-        )
-        row.__iter__ = lambda self: iter(())
-
-        class Row(dict):
-            def __getattr__(self, key):
-                return self.get(key)
-
         pending = Row(
             name="OMC-CUST-0001",
             full_name="Customer One",
