@@ -28,12 +28,9 @@ class OmcAppColors {
         _tryParseHexColor(accentColor) ??
         _tryParseHexColor(primaryColorFamily) ??
         const Color(0xFF111827);
-    final brightness = ThemeData.estimateBrightnessForColor(accent);
     return OmcAppColors(
       accent: accent,
-      onAccent: brightness == Brightness.dark
-          ? Colors.white
-          : const Color(0xFF111827),
+      onAccent: _readableForeground(accent),
       accentSoft: accent.withValues(alpha: 0.08),
       accentBorder: accent.withValues(alpha: 0.22),
       accentPressed: _darken(accent, 0.10),
@@ -64,14 +61,33 @@ Color appPrimaryForegroundFor(
     accentColor,
     legacyAccentColor: legacyAccentColor,
   );
-  final brightness = ThemeData.estimateBrightnessForColor(primary);
-  return brightness == Brightness.dark ? Colors.white : const Color(0xFF111827);
+  return _readableForeground(primary);
 }
 
 Color? _tryParseHexColor(String? value) {
   final normalized = value?.trim().replaceFirst('#', '') ?? '';
   if (!RegExp(r'^[0-9A-Fa-f]{6}$').hasMatch(normalized)) return null;
   return Color(int.parse('FF$normalized', radix: 16));
+}
+
+Color _readableForeground(Color background) {
+  const darkForeground = Color(0xFF111827);
+  const lightForeground = Colors.white;
+  final darkContrast = _contrastRatio(background, darkForeground);
+  final lightContrast = _contrastRatio(background, lightForeground);
+  return darkContrast >= lightContrast ? darkForeground : lightForeground;
+}
+
+double _contrastRatio(Color first, Color second) {
+  final firstLuminance = first.computeLuminance();
+  final secondLuminance = second.computeLuminance();
+  final lighter = firstLuminance >= secondLuminance
+      ? firstLuminance
+      : secondLuminance;
+  final darker = firstLuminance >= secondLuminance
+      ? secondLuminance
+      : firstLuminance;
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 Color _darken(Color color, double amount) {
