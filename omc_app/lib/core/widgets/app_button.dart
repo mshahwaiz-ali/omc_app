@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/design_tokens.dart';
+
 class AppButton extends StatelessWidget {
   const AppButton({
     super.key,
@@ -8,6 +10,7 @@ class AppButton extends StatelessWidget {
     this.icon,
     this.isLoading = false,
     this.isExpanded = true,
+    this.semanticHint,
   });
 
   final String label;
@@ -15,17 +18,21 @@ class AppButton extends StatelessWidget {
   final IconData? icon;
   final bool isLoading;
   final bool isExpanded;
+  final String? semanticHint;
 
   @override
   Widget build(BuildContext context) {
+    final enabled = !isLoading && onPressed != null;
     final button = FilledButton(
       onPressed: isLoading ? null : onPressed,
       style: FilledButton.styleFrom(
-        minimumSize: const Size(0, 54),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        minimumSize: const Size(0, AppTouchTarget.prominentButtonHeight),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
       ),
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 180),
+        duration: AppMotion.quick,
         child: isLoading
             ? const SizedBox(
                 key: ValueKey('loading'),
@@ -40,12 +47,12 @@ class AppButton extends StatelessWidget {
                 children: [
                   if (icon != null) ...[
                     Flexible(flex: 0, child: Icon(icon, size: 20)),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.xs),
                   ],
                   Flexible(
                     child: Text(
                       label,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontWeight: FontWeight.w800),
@@ -56,8 +63,18 @@ class AppButton extends StatelessWidget {
       ),
     );
 
-    if (!isExpanded) return button;
+    final accessibleButton = Semantics(
+      button: true,
+      enabled: enabled,
+      label: isLoading ? '$label, loading' : label,
+      hint: semanticHint,
+      liveRegion: isLoading,
+      excludeSemantics: true,
+      child: button,
+    );
 
-    return SizedBox(width: double.infinity, child: button);
+    if (!isExpanded) return accessibleButton;
+
+    return SizedBox(width: double.infinity, child: accessibleButton);
   }
 }
