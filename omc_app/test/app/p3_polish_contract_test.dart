@@ -74,5 +74,10 @@ void main() {
         isFalse,
       );
     });
+
+    test('dormant primaryRed theme alias stays retired', () {
+      final source = File('lib/app/theme.dart').readAsStringSync();
+      expect(source, isNot(contains('primaryRed')));
+    });
   });
 }
