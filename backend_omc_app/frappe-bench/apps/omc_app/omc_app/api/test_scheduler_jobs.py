@@ -168,6 +168,7 @@ class TestSchedulerJobs(FrappeTestCase):
             (
                 scheduler_jobs.service_assignment.run_unassigned_recovery,
                 scheduler_jobs.erp_sync_recovery.run_automatic_erp_sync_recovery,
+                scheduler_jobs.customer_reconciliation.run_customer_account_reconciliation,
                 scheduler_jobs.review_routing.run_review_assignment_checks,
                 scheduler_jobs.submission_integrity.run_integrity_rescore,
                 scheduler_jobs.auth_cleanup.cleanup_pending_registrations,
