@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import customer_documents
+from omc_app.api import customer_documents, payment_opening
 
 TERMINAL_SERVICE_REQUEST_STATUSES = {"Completed", "Cancelled"}
 
@@ -67,18 +67,28 @@ def update_service_document_status(document_id=None, status=None, remarks=None):
         )
 
     if _review_is_noop(document, status=status, remarks=remarks):
+        payment_name = (
+            payment_opening.ensure_service_payment(service_request)
+            if (status or "").strip() == "Approved"
+            else None
+        )
         return {
             "name": document.name,
             "case_id": service_request,
             "status": document.status,
             "updated": False,
             "message": "Service document already has this status.",
-            "payment_id": None,
+            "payment_id": payment_name,
             "case_status": request_status,
         }
 
-    return customer_documents.update_service_document_status(
+    response = customer_documents.update_service_document_status(
         document_id=document_id,
         status=status,
         remarks=remarks,
     )
+    if (status or "").strip() == "Approved":
+        payment_name = payment_opening.ensure_service_payment(service_request)
+        if isinstance(response, dict):
+            response["payment_id"] = payment_name
+    return response
