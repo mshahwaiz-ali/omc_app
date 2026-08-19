@@ -17,8 +17,6 @@ class SupportScreen extends ConsumerStatefulWidget {
 
 class _SupportScreenState extends ConsumerState<SupportScreen>
     with WidgetsBindingObserver {
-  static const _feedRefreshInterval = Duration(seconds: 30);
-
   Timer? _refreshTimer;
   bool _isForeground = true;
   bool _retrying = false;
@@ -28,7 +26,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _refreshTimer = Timer.periodic(
-      _feedRefreshInterval,
+      SupportRefreshPolicy.feedRefreshInterval,
       (_) => _refreshLiveSupport(),
     );
   }
@@ -126,9 +124,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen>
         futures.add(ref.read(supportUnreadCountProvider.future));
       }
 
-      if (futures.isNotEmpty) {
-        await Future.wait(futures);
-      }
+      if (futures.isNotEmpty) await Future.wait(futures);
     } catch (_) {
       // The freshness banner remains visible with the latest failure state.
     } finally {
