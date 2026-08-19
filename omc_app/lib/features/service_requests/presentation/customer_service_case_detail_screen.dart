@@ -6,6 +6,7 @@ import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
+import '../../../core/widgets/app_skeleton.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../home/data/home_dashboard_repository.dart';
