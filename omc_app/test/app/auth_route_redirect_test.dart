@@ -9,6 +9,11 @@ void main() {
     accessState: AccountAccessState.internal,
     canAccessInternalWorkspace: true,
   );
+  const internalCaseViewer = AuthCapabilities(
+    accessState: AccountAccessState.internal,
+    canAccessInternalWorkspace: true,
+    canViewRelevantServiceCases: true,
+  );
 
   String? redirect(
     AuthStatus status,
@@ -147,6 +152,43 @@ void main() {
           capabilities: approved,
         ),
         '/home?notice=access-denied',
+      );
+    });
+
+    test('staff customer-style case links move to internal case detail', () {
+      expect(
+        redirect(
+          AuthStatus.authenticated,
+          '/my-services/OMC-SR-0001',
+          capabilities: internalCaseViewer,
+        ),
+        '/internal-workspace/service-cases/OMC-SR-0001',
+      );
+    });
+
+    test('staff customer-style case root moves to internal case queue', () {
+      expect(
+        redirect(
+          AuthStatus.authenticated,
+          '/my-services',
+          capabilities: internalCaseViewer,
+        ),
+        '/internal-workspace/service-cases',
+      );
+    });
+
+    test('customer case links remain customer case links', () {
+      const customer = AuthCapabilities(
+        accessState: AccountAccessState.approved,
+        canTrackRequests: true,
+      );
+      expect(
+        redirect(
+          AuthStatus.authenticated,
+          '/my-services/OMC-SR-0001',
+          capabilities: customer,
+        ),
+        isNull,
       );
     });
   });
