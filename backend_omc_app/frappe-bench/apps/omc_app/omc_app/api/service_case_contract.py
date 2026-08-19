@@ -2,11 +2,33 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import access, secured_mobile, service_case_read
+from omc_app.api import (
+    access,
+    customer_lifecycle,
+    secured_mobile,
+    service_case_read,
+)
+
+
+_FIXED_LIFECYCLE_ACTIVITY_TITLES = {
+    "request received",
+    "documents review",
+    "payment review",
+    "omc processing",
+    "completed",
+    "expected completion",
+}
 
 
 def _text(value) -> str:
     return str(value or "").strip()
+
+
+def _number(value) -> int:
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _display_status(request_state: str, operational_status: str) -> str:
@@ -197,13 +219,17 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
                 "payment_entry": _text(getattr(payment, "linked_payment_entry", None)),
                 "allocated_amount": allocation_totals.get(name, 0.0),
                 "payable_amount": payable,
-                "currency": _text(getattr(payment, "currency", None) or request.pricing_currency)
+                "currency": _text(
+                    getattr(payment, "currency", None) or request.pricing_currency
+                )
                 or "PKR",
                 "outstanding_amount": frappe.utils.flt(
                     getattr(base_link, "invoice_outstanding_amount", 0) or 0,
                     6,
                 ),
-                "reconciled_at": str(getattr(base_link, "reconciled_at", None) or ""),
+                "reconciled_at": str(
+                    getattr(base_link, "reconciled_at", None) or ""
+                ),
                 "review_kind": review_kind,
             },
             "activation": {
@@ -230,6 +256,80 @@ def _apply_contract(payload: dict, contract: dict) -> dict:
     return payload
 
 
+def _customer_lifecycle_snapshot(payload: dict) -> dict:
+    required = _number(payload.get("required_documents_count"))
+    submitted = _number(payload.get("submitted_documents_count"))
+    approved = _number(payload.get("approved_documents_count"))
+    rejected = _number(payload.get("rejected_documents_count"))
+    missing = _number(payload.get("missing_documents_count"))
+    uploaded = max(submitted - approved, 0)
+
+    receipt = payload.get("receipt") if isinstance(payload.get("receipt"), dict) else {}
+    receipt_status = _text(receipt.get("status")).lower()
+    payment_status = _text(receipt.get("payment_status")).lower()
+
+    return {
+        "id": payload.get("id") or payload.get("name"),
+        "name": payload.get("name") or payload.get("id"),
+        "request_state": payload.get("request_state"),
+        "status": payload.get("status"),
+        "operational_status": payload.get("operational_status") or payload.get("status"),
+        "receipt": receipt,
+        "settlement": payload.get("settlement") or {},
+        "activation": payload.get("activation") or {},
+        "hold": payload.get("hold") or payload.get("financial_hold") or {},
+        "document_summary": {
+            "total": required,
+            "pending": missing,
+            "missing": missing,
+            "uploaded": uploaded,
+            "under_review": uploaded,
+            "approved": approved,
+            "rejected": rejected,
+        },
+        "payment_summary": {
+            "total": _number(payload.get("payments_count")),
+            "pending": _number(payload.get("open_payments_count")),
+            "payments_due": _number(payload.get("open_payments_count")),
+            "paid": _number(payload.get("paid_payments_count")),
+            "rejected": _number(payload.get("rejected_payments_count")),
+            "receipt_submitted": 1
+            if receipt_status in {"submitted", "receipt submitted"}
+            else 0,
+            "under_review": 1
+            if (
+                receipt_status == "under review"
+                or payment_status == "under review"
+            )
+            else 0,
+        },
+    }
+
+
+def _customer_recent_activity(payload: dict) -> list[dict]:
+    timeline = payload.get("timeline")
+    if not isinstance(timeline, list):
+        return []
+
+    activity = []
+    for entry in timeline:
+        if not isinstance(entry, dict):
+            continue
+        title = _text(entry.get("title") or entry.get("event_type"))
+        if not title or title.lower() in _FIXED_LIFECYCLE_ACTIVITY_TITLES:
+            continue
+        activity.append(dict(entry))
+    return activity
+
+
+def _attach_customer_presentation(payload: dict) -> dict:
+    payload["customer_lifecycle"] = customer_lifecycle.lifecycle_presentation(
+        _customer_lifecycle_snapshot(payload)
+    )
+    payload["recent_activity"] = _customer_recent_activity(payload)
+    return payload
+
+
 @frappe.whitelist()
 def get_service_cases(start=0, limit=20, limit_start=None, limit_page_length=None):
     response = service_case_read.get_service_cases(
@@ -241,7 +341,10 @@ def get_service_cases(start=0, limit=20, limit_start=None, limit_page_length=Non
     cases = list(response.get("cases") or [])
     contracts = _bulk_contract([item.get("name") or item.get("id") for item in cases])
     response["cases"] = [
-        _apply_contract(item, contracts.get(_text(item.get("name") or item.get("id")), {}))
+        _apply_contract(
+            item,
+            contracts.get(_text(item.get("name") or item.get("id")), {}),
+        )
         for item in cases
     ]
     return response
@@ -267,4 +370,5 @@ def get_service_case(case_id=None, request_id=None, name=None, service_request=N
     )
     contract = _bulk_contract([request_name]).get(request_name, {})
     _apply_contract(payload, contract)
+    _attach_customer_presentation(payload)
     return response
