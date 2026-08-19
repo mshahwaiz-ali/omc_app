@@ -17,9 +17,7 @@ bool isGuestAllowedRoute(String location) {
 }
 
 bool canAccessRoute(String location, AuthCapabilities capabilities) {
-  // Expense Tracker is a utility available to guests, customers, and
-  // internal staff. Internal access supports assisted demos and training.
-
+  // Public utilities remain available to guest, customer, and staff personas.
   if (isGuestAllowedRoute(location)) return true;
 
   if (_isServiceRequestRoute(location)) {
@@ -29,51 +27,42 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
 
   if (location == '/dashboard') {
     return capabilities.canViewCustomerDashboard ||
+        capabilities.canAccessCustomerDashboard ||
         capabilities.canAccessInternalWorkspace;
   }
 
   if (location == '/track') {
-    return capabilities.canTrackRequests ||
-        capabilities.canViewAllServiceCases ||
-        capabilities.canViewRelevantServiceCases ||
-        capabilities.canViewAssignedServiceCases;
+    return capabilities.canTrackRequests || capabilities.canViewAnyServiceCase;
   }
 
   if (location == '/my-services' || location.startsWith('/my-services/')) {
-    return capabilities.canTrackRequests ||
-        capabilities.canManageCustomerServiceFlow;
+    return capabilities.canTrackRequests;
   }
 
   if (location == '/documents' || location.startsWith('/documents/')) {
     return capabilities.canViewDocuments ||
-        capabilities.canViewCustomerDocuments ||
-        capabilities.canUploadCustomerDocuments ||
-        capabilities.canViewDocumentQueue ||
-        capabilities.canViewDocumentSummaries ||
-        capabilities.canViewDocumentAttachments ||
-        capabilities.canReviewDocuments;
+        capabilities.canUploadDocuments ||
+        capabilities.canViewAnyDocument;
   }
 
   if (location == '/payments' || location.startsWith('/payments/')) {
     return capabilities.canViewPayments ||
-        capabilities.canViewCustomerPayments ||
-        capabilities.canUploadCustomerPaymentReceipt ||
-        capabilities.canViewPaymentQueue ||
-        capabilities.canViewPaymentSummaries ||
-        capabilities.canViewPaymentReceipts ||
-        capabilities.canReviewPayments;
+        capabilities.canUploadPaymentReceipt ||
+        capabilities.canUploadPaymentReceipts ||
+        capabilities.canViewAnyPayment;
   }
 
   if (location == '/notifications' || location.startsWith('/notifications/')) {
-    return capabilities.canViewCustomerNotifications ||
-        capabilities.canAccessInternalWorkspace;
+    // The backend currently exposes a customer notification capability only.
+    // Do not infer an internal notification permission from workspace access.
+    return capabilities.canViewCustomerNotifications;
   }
 
   if (location.startsWith('/support-tickets/')) {
-    return capabilities.canViewSupportTickets ||
-        capabilities.canReplySupportTickets ||
-        capabilities.canUpdateSupportTicketStatus ||
-        capabilities.canAssignSupportTickets;
+    // Customer support ownership is protected server-side. The customer
+    // contract exposes ticket creation rather than a separate read flag.
+    return capabilities.canCreateSupportTicket ||
+        capabilities.canUseSupportWorkspace;
   }
 
   if (location == '/expense-budget') {
@@ -97,14 +86,26 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location.startsWith('/internal-workspace/service-cases')) {
-    return capabilities.canViewAllServiceCases ||
-        capabilities.canViewRelevantServiceCases ||
-        capabilities.canViewAssignedServiceCases;
+    return capabilities.canViewAnyServiceCase;
   }
 
-  if (location.startsWith('/internal-workspace/')) {
-    return capabilities.canAccessInternalWorkspace;
+  if (location == '/internal-workspace/customers') {
+    return capabilities.canManageCustomers ||
+        capabilities.canViewAllCustomers ||
+        capabilities.canViewRelevantCustomers;
   }
+
+  if (location == '/internal-workspace/documents') {
+    return capabilities.canViewAnyDocument;
+  }
+
+  if (location == '/internal-workspace/payments') {
+    return capabilities.canViewAnyPayment;
+  }
+
+  // Unknown internal workspace sub-routes fail closed. New internal screens
+  // must declare their capability rule explicitly above.
+  if (location.startsWith('/internal-workspace/')) return false;
 
   if (location == '/leads' || location.startsWith('/leads/')) {
     return capabilities.canManageLeads;
