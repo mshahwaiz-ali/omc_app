@@ -1,11 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
-import '../../auth/application/auth_controller.dart';
 import 'notification_item.dart';
 
 final notificationsRepositoryProvider = Provider<NotificationsRepository>((
@@ -25,8 +24,8 @@ final notificationPageProvider = FutureProvider.autoDispose<NotificationPage>((
   ref,
 ) async {
   final canViewNotifications = ref.watch(
-    authControllerProvider.select(
-      (state) => state.capabilities.canViewCustomerNotifications,
+    effectiveCapabilitiesProvider.select(
+      (capabilities) => capabilities.canViewCustomerNotifications,
     ),
   );
   if (!canViewNotifications) return const NotificationPage.empty();
@@ -38,8 +37,8 @@ final unreadNotificationsProvider = FutureProvider.autoDispose<int>((
   ref,
 ) async {
   final canViewNotifications = ref.watch(
-    authControllerProvider.select(
-      (state) => state.capabilities.canViewCustomerNotifications,
+    effectiveCapabilitiesProvider.select(
+      (capabilities) => capabilities.canViewCustomerNotifications,
     ),
   );
   if (!canViewNotifications) return 0;
@@ -51,8 +50,8 @@ final unreadNotificationsProvider = FutureProvider.autoDispose<int>((
 final notificationDetailProvider =
     FutureProvider.family<NotificationItem?, String>((ref, notificationId) {
       final canViewNotifications = ref.watch(
-        authControllerProvider.select(
-          (state) => state.capabilities.canViewCustomerNotifications,
+        effectiveCapabilitiesProvider.select(
+          (capabilities) => capabilities.canViewCustomerNotifications,
         ),
       );
       if (!canViewNotifications) return null;
@@ -80,11 +79,6 @@ class NotificationsRepository {
         queryParameters: {'start': start, 'limit': limit},
       );
       final items = _mapNotificationsResponse(response);
-      debugPrint(
-        '[NOTIFICATIONS] page start=$start items=${items.length} '
-        'ids=${items.map((item) => item.id).toList()} '
-        'unread=${items.where((item) => !item.isRead).length}',
-      );
       final message = response['message'];
       final payload = message is Map<String, dynamic> ? message : response;
       final hasMore = _boolValue(payload['has_more']);
@@ -114,17 +108,15 @@ class NotificationsRepository {
     final value = message is Map<String, dynamic>
         ? message['count']
         : response['count'];
-    final count = value is num
+    return value is num
         ? value.toInt()
         : int.tryParse(value?.toString() ?? '') ?? 0;
-    debugPrint('[NOTIFICATIONS] backend unread count=$count');
-    return count;
   }
 
   Future<void> markNotificationAsRead(String notificationId) async {
     final cleanNotificationId = notificationId.trim();
     if (cleanNotificationId.isEmpty) {
-      throw const ApiError(message: 'Missing backend notification reference.');
+      throw const ApiError(message: 'Missing notification reference.');
     }
 
     await _frappeClient.postMethod(
@@ -143,7 +135,7 @@ class NotificationsRepository {
   Future<void> dismissNotification(String notificationId) async {
     final id = notificationId.trim();
     if (id.isEmpty) {
-      throw const ApiError(message: 'Missing backend notification reference.');
+      throw const ApiError(message: 'Missing notification reference.');
     }
     await _frappeClient.postMethod(
       ApiConfig.dismissNotificationMethod,
@@ -154,7 +146,7 @@ class NotificationsRepository {
   Future<void> restoreNotification(String notificationId) async {
     final id = notificationId.trim();
     if (id.isEmpty) {
-      throw const ApiError(message: 'Missing backend notification reference.');
+      throw const ApiError(message: 'Missing notification reference.');
     }
     await _frappeClient.postMethod(
       ApiConfig.restoreNotificationMethod,
@@ -165,7 +157,7 @@ class NotificationsRepository {
   Future<void> markNotificationAsUnread(String notificationId) async {
     final id = notificationId.trim();
     if (id.isEmpty) {
-      throw const ApiError(message: 'Missing backend notification reference.');
+      throw const ApiError(message: 'Missing notification reference.');
     }
     await _frappeClient.postMethod(
       ApiConfig.markNotificationUnreadMethod,
