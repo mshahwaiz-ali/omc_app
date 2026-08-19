@@ -39,7 +39,7 @@ class TestWorkspaceTaskRetirement(FrappeTestCase):
 
         self.assertGreater(found, 0)
 
-    def test_onboarding_shortcut_is_reapplied_after_fixture_sync(self):
+    def test_onboarding_shortcut_uses_explicit_desk_sync(self):
         app_root = Path(__file__).resolve().parents[1]
         desk_metadata = (app_root / "setup" / "desk_metadata.py").read_text(
             encoding="utf-8"
@@ -47,11 +47,13 @@ class TestWorkspaceTaskRetirement(FrappeTestCase):
         lifecycle = (app_root / "setup" / "lifecycle.py").read_text(
             encoding="utf-8"
         )
+        operations = (app_root / "setup" / "operations.py").read_text(
+            encoding="utf-8"
+        )
         hooks = (app_root / "hooks.py").read_text(encoding="utf-8")
 
         self.assertIn("OMC Onboarding Slide", desk_metadata)
-        self.assertIn("def after_sync():", lifecycle)
-        self.assertIn(
-            "after_sync = 'omc_app.setup.lifecycle.after_sync'",
-            hooks,
-        )
+        self.assertNotIn("def after_sync():", lifecycle)
+        self.assertNotIn("after_sync =", hooks)
+        self.assertIn("def sync_desk_configuration", operations)
+        self.assertIn("sync_desk_metadata()", operations)
