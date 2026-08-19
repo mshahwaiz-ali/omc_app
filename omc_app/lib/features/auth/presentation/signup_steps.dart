@@ -14,7 +14,7 @@ class SignupProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Account type', 'Basic details', 'Preferences', 'Security'];
+    const labels = ['Account type', 'Basic details', 'Preferences', 'Verification'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -433,7 +433,7 @@ class SignupPreferencesStep extends StatelessWidget {
               children: [
                 TextFormField(
                   controller: referralCodeController,
-                  textCapitalization: TextCapitalization.characters,
+                  textCapitalization: TextTextCapitalization.characters,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 -]')),
                     LengthLimitingTextInputFormatter(12),
@@ -591,70 +591,37 @@ class SignupSecurityStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SignupStepTitle(
-            title: isCustomer ? 'Secure your account' : 'Security and review',
-            subtitle: isCustomer
-                ? 'Create a password for your OMC account.'
-                : 'Create a password and confirm the access review process.',
+          const SignupStepTitle(
+            title: 'Review and verify your email',
+            subtitle:
+                'OMC will email a single-use verification link. You will create your password only after opening that verified link.',
           ),
           const SizedBox(height: 16),
-          TextFormField(
-            controller: passwordController,
-            obscureText: obscurePassword,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.newPassword],
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline_rounded),
-              suffixIcon: IconButton(
-                tooltip: obscurePassword ? 'Show password' : 'Hide password',
-                onPressed: onTogglePassword,
-                icon: Icon(
-                  obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFBBF7D0)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.verified_user_outlined, color: Color(0xFF15803D)),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'No password is collected or stored before email verification. After verification, the secure link asks you to set and confirm a new password.',
+                    style: TextStyle(
+                      color: Color(0xFF166534),
+                      fontSize: 12.5,
+                      height: 1.4,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-            validator: passwordValidator,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Use at least 8 characters.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: confirmPasswordController,
-            obscureText: obscureConfirmPassword,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.newPassword],
-            decoration: InputDecoration(
-              labelText: 'Confirm password',
-              prefixIcon: const Icon(Icons.lock_person_outlined),
-              suffixIcon: IconButton(
-                tooltip: obscureConfirmPassword
-                    ? 'Show password'
-                    : 'Hide password',
-                onPressed: onToggleConfirmPassword,
-                icon: Icon(
-                  obscureConfirmPassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
-              ),
-            ),
-            validator: (value) {
-              final required = requiredValidator(value, 'Confirm password');
-              if (required != null) return required;
-              return value == passwordController.text
-                  ? null
-                  : 'Passwords do not match.';
-            },
           ),
           const SizedBox(height: 16),
           Material(
@@ -671,8 +638,8 @@ class SignupSecurityStep extends StatelessWidget {
               controlAffinity: ListTileControlAffinity.leading,
               title: Text(
                 isCustomer
-                    ? 'I confirm my details are correct and agree to create my OMC customer account.'
-                    : 'I confirm my details are correct and understand that OMC will review this account before protected access is enabled.',
+                    ? 'I confirm my details are correct and agree to verify my email before my OMC customer account is created.'
+                    : 'I confirm my details are correct and understand that email verification and OMC review are required before protected access is enabled.',
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12.5,
@@ -729,9 +696,9 @@ class SignupBottomActions extends StatelessWidget {
           Expanded(
             flex: 2,
             child: AppButton(
-              label: isLast ? 'Create account' : 'Continue',
+              label: isLast ? 'Send verification email' : 'Continue',
               icon: isLast
-                  ? Icons.person_add_alt_1_rounded
+                  ? Icons.mark_email_unread_outlined
                   : Icons.arrow_forward_rounded,
               isLoading: isSubmitting,
               onPressed: isSubmitting ? null : onContinue,
