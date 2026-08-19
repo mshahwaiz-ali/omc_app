@@ -47,13 +47,18 @@ class InternalDocumentReviewScreen extends ConsumerStatefulWidget {
 class _InternalDocumentReviewScreenState
     extends ConsumerState<InternalDocumentReviewScreen> {
   final _searchController = TextEditingController();
+  final List<DocumentItem> _additionalDocuments = [];
   _ReviewFilter _selectedFilter = _ReviewFilter.needsReview;
-  late Future<List<DocumentItem>> _documentsFuture;
+  late Future<DocumentPage> _documentsFuture;
   String _query = '';
   String? _selectedCustomerProfile;
   String? _selectedDocumentType;
   String? _selectedServiceReference;
   String? _busyDocumentId;
+  int? _nextStart;
+  bool _hasMore = false;
+  bool _loadingMore = false;
+  bool _didSeedPage = false;
 
   @override
   void initState() {
@@ -67,13 +72,33 @@ class _InternalDocumentReviewScreenState
     super.dispose();
   }
 
-  Future<List<DocumentItem>> _loadDocuments() {
+  Future<DocumentPage> _loadDocuments() {
     final repository = ref.read(documentsRepositoryProvider);
-    return repository.fetchDocuments(queue: _selectedFilter.queue);
+    return repository.fetchDocumentPage(queue: _selectedFilter.queue);
+  }
+
+  void _resetPagingState() {
+    _additionalDocuments.clear();
+    _nextStart = null;
+    _hasMore = false;
+    _loadingMore = false;
+    _didSeedPage = false;
+  }
+
+  List<DocumentItem> _mergeDocuments(List<DocumentItem> firstPage) {
+    final seen = <String>{};
+    final result = <DocumentItem>[];
+    for (final item in [...firstPage, ..._additionalDocuments]) {
+      if (seen.add(item.id)) result.add(item);
+    }
+    return result;
   }
 
   Future<void> _refresh() async {
-    setState(() => _documentsFuture = _loadDocuments());
+    setState(() {
+      _resetPagingState();
+      _documentsFuture = _loadDocuments();
+    });
     await _documentsFuture;
   }
 
@@ -84,8 +109,51 @@ class _InternalDocumentReviewScreenState
       _selectedCustomerProfile = null;
       _selectedDocumentType = null;
       _selectedServiceReference = null;
+      _resetPagingState();
       _documentsFuture = _loadDocuments();
     });
+  }
+
+  Future<void> _loadMore() async {
+    final start = _nextStart;
+    if (_loadingMore || !_hasMore || start == null) return;
+
+    setState(() => _loadingMore = true);
+    try {
+      final page = await ref
+          .read(documentsRepositoryProvider)
+          .fetchDocumentPage(
+            queue: _selectedFilter.queue,
+            start: start,
+          );
+      if (!mounted) return;
+
+      final firstPage = await _documentsFuture;
+      if (!mounted) return;
+      setState(() {
+        final knownIds = <String>{
+          ...firstPage.items.map((item) => item.id),
+          ..._additionalDocuments.map((item) => item.id),
+        };
+        _additionalDocuments.addAll(
+          page.items.where((item) => knownIds.add(item.id)),
+        );
+        _nextStart = page.nextStart;
+        _hasMore = page.hasMore;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'More documents unavailable',
+        fallbackMessage: 'The next review queue page could not be loaded.',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   void _selectCustomer(String? customerProfile) {
@@ -257,7 +325,7 @@ class _InternalDocumentReviewScreenState
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
-          child: FutureBuilder<List<DocumentItem>>(
+          child: FutureBuilder<DocumentPage>(
             future: _documentsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -280,30 +348,67 @@ class _InternalDocumentReviewScreenState
                 );
               }
 
-              final documents = snapshot.data ?? const <DocumentItem>[];
-              return _ReviewContent(
-                documents: documents,
-                searchController: _searchController,
-                query: _query,
-                selectedFilter: _selectedFilter,
-                selectedCustomerProfile: _selectedCustomerProfile,
-                selectedDocumentType: _selectedDocumentType,
-                selectedServiceReference: _selectedServiceReference,
-                busyDocumentId: _busyDocumentId,
-                canReviewDocuments: canReviewDocuments,
-                onQueryChanged: (value) =>
-                    setState(() => _query = value.trim().toLowerCase()),
-                onClearQuery: () {
-                  _searchController.clear();
-                  setState(() => _query = '');
-                },
-                onFilterSelected: _selectFilter,
-                onCustomerSelected: _selectCustomer,
-                onDocumentTypeSelected: _selectDocumentType,
-                onServiceSelected: _selectService,
-                onPreview: _openDocumentPreview,
-                onApprove: (document) => _reviewDocument(document, 'Approved'),
-                onReject: _rejectWithRemarks,
+              final page = snapshot.data ?? const DocumentPage.empty();
+              if (!_didSeedPage) {
+                _didSeedPage = true;
+                _nextStart = page.nextStart;
+                _hasMore = page.hasMore;
+              }
+              final documents = _mergeDocuments(page.items);
+
+              return Stack(
+                children: [
+                  _ReviewContent(
+                    documents: documents,
+                    searchController: _searchController,
+                    query: _query,
+                    selectedFilter: _selectedFilter,
+                    selectedCustomerProfile: _selectedCustomerProfile,
+                    selectedDocumentType: _selectedDocumentType,
+                    selectedServiceReference: _selectedServiceReference,
+                    busyDocumentId: _busyDocumentId,
+                    canReviewDocuments: canReviewDocuments,
+                    onQueryChanged: (value) =>
+                        setState(() => _query = value.trim().toLowerCase()),
+                    onClearQuery: () {
+                      _searchController.clear();
+                      setState(() => _query = '');
+                    },
+                    onFilterSelected: _selectFilter,
+                    onCustomerSelected: _selectCustomer,
+                    onDocumentTypeSelected: _selectDocumentType,
+                    onServiceSelected: _selectService,
+                    onPreview: _openDocumentPreview,
+                    onApprove: (document) =>
+                        _reviewDocument(document, 'Approved'),
+                    onReject: _rejectWithRemarks,
+                  ),
+                  if (_hasMore)
+                    Positioned(
+                      left: 20,
+                      right: 20,
+                      bottom: 88,
+                      child: SafeArea(
+                        top: false,
+                        child: FilledButton.tonalIcon(
+                          onPressed: _loadingMore ? null : _loadMore,
+                          icon: _loadingMore
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.expand_more_rounded),
+                          label: Text(
+                            _loadingMore
+                                ? 'Loading review queue'
+                                : 'Load more documents',
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),
