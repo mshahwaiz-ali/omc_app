@@ -30,36 +30,7 @@ def _mobile_candidates(value: str) -> tuple[str, ...]:
     if len(local) != 10 or not local.startswith("3"):
         return ()
 
-    return tuple(
-        dict.fromkeys(
-            (
-                f"+92{local}",
-                f"92{local}",
-                f"0{local}",
-                local,
-            )
-        )
-    )
-
-
-def _profile_email_by_field(fieldname: str, values: tuple[str, ...]) -> str | None:
-    if not values:
-        return None
-
-    meta = frappe.get_meta(PROFILE_DOCTYPE)
-    if not meta.has_field(fieldname):
-        return None
-
-    for value in values:
-        email = frappe.db.get_value(
-            PROFILE_DOCTYPE,
-            {fieldname: value},
-            "email",
-        )
-        if email:
-            return str(email).strip().lower()
-
-    return None
+    return tuple(dict.fromkeys((f"+92{local}", f"92{local}", f"0{local}", local)))
 
 
 def _enabled_user_name(identifier: str) -> str | None:
@@ -67,28 +38,56 @@ def _enabled_user_name(identifier: str) -> str | None:
     if not clean:
         return None
 
-    direct = frappe.db.get_value(
-        "User",
-        {"name": clean, "enabled": 1},
-        "name",
-    )
+    direct = frappe.db.get_value("User", {"name": clean, "enabled": 1}, "name")
     if direct:
         return str(direct).strip()
 
     lowered = clean.lower()
+    matches = set()
     for fieldname in ("email", "username"):
-        user = frappe.db.get_value(
+        for user in frappe.get_all(
             "User",
-            {fieldname: lowered, "enabled": 1},
-            "name",
-        )
-        if user:
-            return str(user).strip()
+            filters={fieldname: lowered, "enabled": 1},
+            pluck="name",
+            limit_page_length=2,
+        ):
+            matches.add(str(user).strip())
+    return next(iter(matches)) if len(matches) == 1 else None
 
-    return None
+
+def _profile_users_by_field(fieldname: str, values: tuple[str, ...]) -> set[str]:
+    if not values:
+        return set()
+    meta = frappe.get_meta(PROFILE_DOCTYPE)
+    if not meta.has_field(fieldname):
+        return set()
+
+    users: set[str] = set()
+    rows = frappe.get_all(
+        PROFILE_DOCTYPE,
+        filters={fieldname: ["in", list(values)]},
+        fields=["email"],
+        limit_page_length=10,
+    )
+    for row in rows:
+        user = _enabled_user_name(str(row.email or "").strip().lower())
+        if user:
+            users.add(user)
+    return users
+
+
+def _unique_profile_user(fieldname: str, values: tuple[str, ...]) -> str | None:
+    users = _profile_users_by_field(fieldname, values)
+    return next(iter(users)) if len(users) == 1 else None
 
 
 def resolve_login_email(identifier: str) -> str | None:
+    """Resolve only an unambiguous enabled identity.
+
+    Ambiguous phone/CNIC/profile aliases intentionally collapse to the same
+    generic login failure as an unknown identifier; no candidate account is
+    selected by database ordering.
+    """
     clean = str(identifier or "").strip()
     if not clean:
         return None
@@ -100,24 +99,31 @@ def resolve_login_email(identifier: str) -> str | None:
     lowered = clean.lower()
     username = re.sub(r"[^a-z0-9._-]", "", lowered)
     if username:
-        profile_email = _profile_email_by_field("username", (username,))
-        user = _enabled_user_name(profile_email or "")
-        if user:
-            return user
+        users = _profile_users_by_field("username", (username,))
+        if len(users) != 1:
+            if users:
+                return None
+        else:
+            return next(iter(users))
 
     digits = _digits(clean)
     if len(digits) == 13:
-        profile_email = _profile_email_by_field("cnic", (digits,))
-        user = _enabled_user_name(profile_email or "")
-        if user:
-            return user
+        users = _profile_users_by_field("cnic", (digits,))
+        if len(users) != 1:
+            if users:
+                return None
+        else:
+            return next(iter(users))
 
     mobile_values = _mobile_candidates(clean)
-    for fieldname in ("mobile", "mobile_no", "phone"):
-        profile_email = _profile_email_by_field(fieldname, mobile_values)
-        user = _enabled_user_name(profile_email or "")
-        if user:
-            return user
+    if mobile_values:
+        users: set[str] = set()
+        for fieldname in ("mobile", "mobile_no", "phone"):
+            users.update(_profile_users_by_field(fieldname, mobile_values))
+        if len(users) == 1:
+            return next(iter(users))
+        if users:
+            return None
 
     return None
 
