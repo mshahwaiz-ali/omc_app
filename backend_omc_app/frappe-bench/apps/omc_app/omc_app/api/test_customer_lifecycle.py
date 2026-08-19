@@ -104,6 +104,28 @@ class TestCustomerLifecycle(TestCase):
             )
         )
 
+    def test_document_alias_counts_are_not_double_counted(self):
+        result = customer_lifecycle.lifecycle_presentation(
+            {
+                "id": "SR-ALIAS",
+                "request_state": "Draft",
+                "document_summary": {
+                    "pending": 1,
+                    "missing": 1,
+                    "uploaded": 2,
+                    "under_review": 2,
+                    "total": 3,
+                },
+            }
+        )
+        documents = next(
+            item for item in result["milestones"] if item["key"] == "documents"
+        )
+
+        self.assertEqual(documents["state"], "attention")
+        self.assertIn("1 document still required", documents["detail"])
+        self.assertNotIn("2 documents still required", documents["detail"])
+
     def test_dashboard_surfaces_highest_attention_service_and_matching_action(self):
         payload = {
             "service_snapshots": [
