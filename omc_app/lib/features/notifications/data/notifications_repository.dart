@@ -5,6 +5,7 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../auth/application/auth_controller.dart';
 import 'notification_item.dart';
 
 final notificationsRepositoryProvider = Provider<NotificationsRepository>((
@@ -17,27 +18,46 @@ final notificationsRepositoryProvider = Provider<NotificationsRepository>((
 
 final notificationsProvider =
     FutureProvider.autoDispose<List<NotificationItem>>((ref) async {
-      final repository = ref.watch(notificationsRepositoryProvider);
-      return repository.fetchNotifications();
+      return (await ref.watch(notificationPageProvider.future)).items;
     });
 
 final notificationPageProvider = FutureProvider.autoDispose<NotificationPage>((
   ref,
-) {
+) async {
+  final canViewNotifications = ref.watch(
+    authControllerProvider.select(
+      (state) => state.capabilities.canViewCustomerNotifications,
+    ),
+  );
+  if (!canViewNotifications) return const NotificationPage.empty();
+
   return ref.watch(notificationsRepositoryProvider).fetchNotificationPage();
 });
 
 final unreadNotificationsProvider = FutureProvider.autoDispose<int>((
   ref,
 ) async {
+  final canViewNotifications = ref.watch(
+    authControllerProvider.select(
+      (state) => state.capabilities.canViewCustomerNotifications,
+    ),
+  );
+  if (!canViewNotifications) return 0;
+
   final repository = ref.watch(notificationsRepositoryProvider);
   return repository.fetchUnreadCount();
 });
 
 final notificationDetailProvider =
     FutureProvider.family<NotificationItem?, String>((ref, notificationId) {
-      final repository = ref.watch(notificationsRepositoryProvider);
+      final canViewNotifications = ref.watch(
+        authControllerProvider.select(
+          (state) => state.capabilities.canViewCustomerNotifications,
+        ),
+      );
+      if (!canViewNotifications) return null;
 
+      final repository = ref.watch(notificationsRepositoryProvider);
       return repository.fetchNotificationDetail(notificationId);
     });
 
@@ -287,6 +307,11 @@ class NotificationPage {
     required this.hasMore,
     required this.nextStart,
   });
+
+  const NotificationPage.empty()
+    : items = const [],
+      hasMore = false,
+      nextStart = null;
 
   final List<NotificationItem> items;
   final bool hasMore;
