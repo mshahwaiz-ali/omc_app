@@ -84,7 +84,7 @@ class TestErpSyncRecovery(FrappeTestCase):
             "in",
         )
 
-    def test_retry_uses_repair_mode_and_commits(self):
+    def test_retry_uses_repair_mode_and_framework_transaction(self):
         request = SimpleNamespace(
             name="OMC-SR-1",
             service="OMC-SERVICE-1",
@@ -98,7 +98,6 @@ class TestErpSyncRecovery(FrappeTestCase):
 
         def exists(doctype, name):
             return (doctype, name) in {
-                ("OMC Service Request", "OMC-SR-1"),
                 ("OMC Service", "OMC-SERVICE-1"),
                 ("OMC Customer Profile", "PROFILE-1"),
             }
@@ -125,6 +124,16 @@ class TestErpSyncRecovery(FrappeTestCase):
             ),
             patch.object(
                 erp_sync_recovery.frappe.db,
+                "get_value",
+                return_value="OMC-SR-1",
+            ) as get_value,
+            patch.object(
+                erp_sync_recovery,
+                "_bridge_operation",
+                return_value=None,
+            ),
+            patch.object(
+                erp_sync_recovery.frappe.db,
                 "exists",
                 side_effect=exists,
             ),
@@ -142,23 +151,14 @@ class TestErpSyncRecovery(FrappeTestCase):
                 },
             ) as activate_request,
             patch.object(erp_sync_recovery.frappe.db, "commit") as commit,
-            patch.object(
-                erp_sync_recovery.frappe,
-                "logger",
-                return_value=MagicMock(),
-            ),
-            patch.object(
-                erp_sync_recovery,
-                "now_datetime",
-                return_value="2026-07-31 12:00:00",
-            ),
         ):
             result = erp_sync_recovery.retry_erp_sync("OMC-SR-1")
 
         self.assertEqual(result["status"], "Synced")
         self.assertEqual(result["request_name"], "OMC-SR-1")
         self.assertTrue(activate_request.call_args.kwargs["repair"])
-        commit.assert_called_once_with()
+        self.assertTrue(get_value.call_args.kwargs["for_update"])
+        commit.assert_not_called()
 
     def test_unpaid_retry_does_not_cross_erp_activation_gate(self):
         request = SimpleNamespace(
@@ -186,7 +186,6 @@ class TestErpSyncRecovery(FrappeTestCase):
 
         def exists(doctype, name):
             return (doctype, name) in {
-                ("OMC Service Request", "OMC-SR-UNPAID"),
                 ("OMC Service", "OMC-SERVICE-1"),
             }
 
@@ -206,6 +205,16 @@ class TestErpSyncRecovery(FrappeTestCase):
                 erp_sync_recovery.capabilities,
                 "require",
                 return_value={"can_retry_sync": True},
+            ),
+            patch.object(
+                erp_sync_recovery.frappe.db,
+                "get_value",
+                return_value="OMC-SR-UNPAID",
+            ),
+            patch.object(
+                erp_sync_recovery,
+                "_bridge_operation",
+                return_value=None,
             ),
             patch.object(
                 erp_sync_recovery.frappe.db,
@@ -235,11 +244,6 @@ class TestErpSyncRecovery(FrappeTestCase):
                 erp_sync_recovery.frappe.db,
                 "commit",
             ) as commit,
-            patch.object(
-                erp_sync_recovery.frappe,
-                "logger",
-                return_value=MagicMock(),
-            ),
         ):
             result = erp_sync_recovery.retry_erp_sync(
                 "OMC-SR-UNPAID"
@@ -280,6 +284,16 @@ class TestErpSyncRecovery(FrappeTestCase):
                 "require",
                 return_value={"can_retry_sync": True},
             ),
+            patch.object(
+                erp_sync_recovery.frappe.db,
+                "get_value",
+                return_value="OMC-SR-1",
+            ),
+            patch.object(
+                erp_sync_recovery,
+                "_bridge_operation",
+                return_value=None,
+            ),
             patch.object(erp_sync_recovery.frappe.db, "exists", return_value=True),
             patch.object(
                 erp_sync_recovery.frappe,
@@ -299,20 +313,10 @@ class TestErpSyncRecovery(FrappeTestCase):
                 },
             ) as activate_request,
             patch.object(erp_sync_recovery.frappe.db, "commit") as commit,
-            patch.object(
-                erp_sync_recovery.frappe,
-                "logger",
-                return_value=MagicMock(),
-            ),
-            patch.object(
-                erp_sync_recovery,
-                "now_datetime",
-                return_value="2026-07-31 12:00:00",
-            ),
         ):
             result = erp_sync_recovery.retry_erp_sync("OMC-SR-1")
 
         self.assertEqual(result["status"], "Pending")
         self.assertFalse(result["created"])
         self.assertTrue(activate_request.call_args.kwargs["repair"])
-        commit.assert_called_once_with()
+        commit.assert_not_called()
