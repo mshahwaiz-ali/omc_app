@@ -16,12 +16,12 @@ from omc_app.setup.roles import (
     FINANCE_REVIEWER_ROLE,
     MANAGER_ROLE,
     SUPPORT_AGENT_ROLE,
-    SYSTEM_ROLE,
     TAX_ASSOCIATE_ROLE,
 )
 
-INTERNAL_ROLES = {SYSTEM_ROLE} | ACTIVE_STAFF_ROLES
-ADMIN_ROLES = {SYSTEM_ROLE, ADMIN_ROLE}
+# Frappe System Manager is an infrastructure role, not OMC business authority.
+INTERNAL_ROLES = set(ACTIVE_STAFF_ROLES)
+ADMIN_ROLES = {ADMIN_ROLE}
 
 INTERNAL_CAPABILITY_KEYS = capability_policy.INTERNAL_CAPABILITY_KEYS
 
@@ -66,6 +66,9 @@ ROLE_CAPABILITIES = {
         "can_review_payments",
         "can_reconcile_settlement",
         "can_approve_post_paid",
+        "can_view_referral_commissions",
+        "can_approve_commissions",
+        "can_mark_commissions_paid",
         "can_view_relevant_customers",
         "can_view_relevant_service_cases",
         "can_view_internal_notes",
@@ -136,21 +139,42 @@ SIGNUP_TEXT_LIMITS = {
 }
 
 
-_RESERVED_USERNAMES = {"admin", "administrator", "api", "app", "help", "login", "logout", "omc", "omchouse", "root", "support", "system", "user", "www"}
+_RESERVED_USERNAMES = {
+    "admin",
+    "administrator",
+    "api",
+    "app",
+    "help",
+    "login",
+    "logout",
+    "omc",
+    "omchouse",
+    "root",
+    "support",
+    "system",
+    "user",
+    "www",
+}
 _USERNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._]{2,28}[a-z0-9]$")
+
 
 def normalize_username(value):
     text = str(value or "").strip().lower()
     text = re.sub(r"[^a-z0-9._]+", ".", text)
     return re.sub(r"[._]{2,}", ".", text).strip("._")
 
+
 def validate_username(value):
     username = normalize_username(value)
     if not username or not _USERNAME_PATTERN.fullmatch(username):
-        frappe.throw("Username must be 4 to 30 characters using lowercase letters, numbers, dots or underscores.", frappe.ValidationError)
+        frappe.throw(
+            "Username must be 4 to 30 characters using lowercase letters, numbers, dots or underscores.",
+            frappe.ValidationError,
+        )
     if username in _RESERVED_USERNAMES:
         frappe.throw("This username is reserved.", frappe.ValidationError)
     return username
+
 
 def username_exists(username):
     username = normalize_username(username)
@@ -162,6 +186,7 @@ def username_exists(username):
             or frappe.db.exists("User", username)
         )
     )
+
 
 @frappe.whitelist(allow_guest=True)
 def suggest_username(full_name=None, email=None):
@@ -179,11 +204,13 @@ def suggest_username(full_name=None, email=None):
         candidate = f"{base[:30-len(tail)]}{tail}"
     return {"username": candidate, "available": True}
 
+
 @frappe.whitelist(allow_guest=True)
 def check_username_availability(username=None):
     security.enforce_rate_limit("identity", actor=str(username or "guest"))
     normalized = validate_username(username)
     return {"username": normalized, "available": not username_exists(normalized)}
+
 
 def _current_user():
     user = frappe.session.user if getattr(frappe, "session", None) else "Guest"
@@ -312,7 +339,7 @@ def _validated_signup_kwargs(kwargs):
     return data
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def sign_up(**kwargs):
     """Validate public input before delegating to the mobile signup workflow."""
     data = _validated_signup_kwargs(kwargs)
