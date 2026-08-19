@@ -58,7 +58,7 @@ class TestAuthCleanup(FrappeTestCase):
             {"email": doc.email, "username": doc.username},
         )
 
-    def test_recent_verified_registration_keeps_recovery_secret(self):
+    def test_recent_verified_registration_keeps_no_recovery_secret(self):
         doc = self._create()
         doc.status = "Verified"
         doc.verified_at = now_datetime()
@@ -68,9 +68,9 @@ class TestAuthCleanup(FrappeTestCase):
         doc.reload()
 
         self.assertEqual(doc.status, "Verified")
-        self.assertEqual(
-            pending_registration.read_pending_password(doc), "StrongPass123!"
-        )
+        self.assertFalse(doc.get_password("password_secret", raise_exception=False))
+        with self.assertRaises(frappe.ValidationError):
+            pending_registration.read_pending_password(doc)
 
     def test_cleanup_is_idempotent_for_terminal_record(self):
         doc = self._create()
