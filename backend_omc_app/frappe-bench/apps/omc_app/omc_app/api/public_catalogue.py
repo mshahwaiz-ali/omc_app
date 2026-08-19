@@ -3,16 +3,31 @@ import frappe
 from omc_app.api import mobile
 
 
+DEFAULT_PAGE_SIZE = 50
+MAX_PAGE_SIZE = 100
+
+
 def _public_service_payload(service, include_required_documents=False):
-    payload = mobile._service_to_catalogue_dict(
+    return mobile._service_to_catalogue_dict(
         service,
         include_required_documents=include_required_documents,
     )
-    return payload
+
+
+def _pagination(start=0, limit=50, limit_start=None, limit_page_length=None):
+    raw_start = limit_start if limit_start is not None else start
+    raw_limit = limit_page_length if limit_page_length is not None else limit
+    try:
+        offset = max(int(raw_start or 0), 0)
+        length = min(max(int(raw_limit or DEFAULT_PAGE_SIZE), 1), MAX_PAGE_SIZE)
+    except (TypeError, ValueError):
+        frappe.throw("Invalid pagination values.", frappe.ValidationError)
+    return offset, length
 
 
 @frappe.whitelist(allow_guest=True)
-def get_service_catalogue():
+def get_service_catalogue(start=0, limit=50, limit_start=None, limit_page_length=None):
+    offset, length = _pagination(start, limit, limit_start, limit_page_length)
     services = frappe.get_all(
         "OMC Service",
         filters={"is_active": 1},
@@ -39,13 +54,22 @@ def get_service_catalogue():
             "support_message",
             "is_featured",
         ],
-        order_by="sort_order asc, modified desc",
+        order_by="sort_order asc, modified desc, name asc",
+        limit_start=offset,
+        limit_page_length=length + 1,
     )
+    has_more = len(services) > length
+    services = services[:length]
+    payload = [
+        _public_service_payload(service, include_required_documents=True)
+        for service in services
+    ]
     return {
-        "services": [
-            _public_service_payload(service, include_required_documents=True)
-            for service in services
-        ]
+        "services": payload,
+        "limit_start": offset,
+        "limit_page_length": length,
+        "next_start": offset + len(payload) if has_more else None,
+        "has_more": has_more,
     }
 
 
