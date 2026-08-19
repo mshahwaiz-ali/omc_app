@@ -2,6 +2,15 @@ from __future__ import annotations
 
 
 _TERMINAL_STATES = {"cancelled", "expired"}
+_PAYMENT_COMPLETE_STATES = {
+    "payment not required",
+    "ready for activation",
+    "activating",
+    "activation failed",
+    "activated",
+}
+_SETTLED_STATES = {"matched", "settled", "complete", "completed", "paid"}
+_RECEIPT_REVIEW_STATES = {"submitted", "receipt submitted", "under review"}
 
 
 def _text(value) -> str:
@@ -14,9 +23,58 @@ def _lower(value) -> str:
 
 def _count(summary, key) -> int:
     try:
-        return int((summary or {}).get(key) or 0)
+        return max(int((summary or {}).get(key) or 0), 0)
     except (TypeError, ValueError, AttributeError):
         return 0
+
+
+def _item_count(item, key) -> int:
+    try:
+        return max(int((item or {}).get(key) or 0), 0)
+    except (TypeError, ValueError, AttributeError):
+        return 0
+
+
+def _document_summary(item: dict) -> dict:
+    for key in ("document_summary", "documents"):
+        value = item.get(key)
+        if isinstance(value, dict):
+            return value
+
+    total = _item_count(item, "required_documents_count")
+    submitted = _item_count(item, "submitted_documents_count")
+    missing = _item_count(item, "missing_documents_count")
+    approved = _item_count(item, "approved_documents_count")
+    rejected = _item_count(item, "rejected_documents_count")
+    uploaded = max(submitted - approved, 0)
+    return {
+        "total": total,
+        "pending": missing,
+        "missing": missing,
+        "uploaded": uploaded,
+        "under_review": uploaded,
+        "approved": approved,
+        "rejected": rejected,
+    }
+
+
+def _payment_summary(item: dict) -> dict:
+    for key in ("payment_summary", "payments"):
+        value = item.get(key)
+        if isinstance(value, dict):
+            return value
+
+    total = _item_count(item, "payments_count")
+    paid = _item_count(item, "paid_payments_count")
+    open_count = _item_count(item, "open_payments_count")
+    rejected = _item_count(item, "rejected_payments_count")
+    return {
+        "total": total,
+        "pending": open_count,
+        "payments_due": open_count,
+        "paid": paid,
+        "rejected": rejected,
+    }
 
 
 def _milestone(key, label, state, detail=""):
@@ -44,11 +102,11 @@ def _action(action_type, title, subtitle, route, button_label, *, required=False
 
 
 def lifecycle_presentation(snapshot: dict) -> dict:
-    """Build a customer-facing lifecycle from canonical request/evidence state.
+    """Build customer-facing lifecycle metadata from canonical request evidence.
 
-    This is presentation metadata only. It never changes request state and never
-    grants authority. request_state plus receipt/settlement/activation evidence
-    remain the backend source of truth.
+    This projection is presentation-only. It never grants authority or mutates
+    business state. ``request_state`` plus receipt, settlement, activation and
+    document evidence remain authoritative.
     """
     item = dict(snapshot or {})
     case_id = _text(item.get("id") or item.get("name"))
@@ -60,13 +118,12 @@ def lifecycle_presentation(snapshot: dict) -> dict:
     settlement = (
         item.get("settlement") if isinstance(item.get("settlement"), dict) else {}
     )
-    documents = item.get("document_summary") or item.get("documents") or {}
-    payments = item.get("payment_summary") or item.get("payments") or {}
+    documents = _document_summary(item)
+    payments = _payment_summary(item)
 
     # Dashboard compatibility payloads expose pending/missing and
     # uploaded/under_review as aliases for the same underlying status. Use the
-    # larger alias value rather than summing them so lifecycle copy never
-    # doubles a customer's required-document count.
+    # larger alias value rather than summing so copy never double-counts.
     pending_docs = max(
         _count(documents, "pending"),
         _count(documents, "missing"),
@@ -81,10 +138,40 @@ def lifecycle_presentation(snapshot: dict) -> dict:
     if not total_docs:
         total_docs = pending_docs + rejected_docs + uploaded_docs + approved_docs
 
-    receipt_state = _lower(receipt.get("state"))
-    settlement_state = _lower(settlement.get("state"))
-    receipt_under_review = receipt_state == "submitted" or (
-        _count(payments, "receipt_submitted") + _count(payments, "under_review") > 0
+    receipt_state = _lower(
+        receipt.get("state")
+        or receipt.get("status")
+        or item.get("receipt_status")
+    )
+    payment_state = _lower(
+        receipt.get("payment_status") or item.get("payment_status")
+    )
+    settlement_state = _lower(
+        settlement.get("state")
+        or settlement.get("status")
+        or item.get("accounting_status")
+    )
+    receipt_under_review = (
+        receipt_state in _RECEIPT_REVIEW_STATES
+        or payment_state in _RECEIPT_REVIEW_STATES
+        or _count(payments, "receipt_submitted") > 0
+        or _count(payments, "under_review") > 0
+    )
+    receipt_rejected = (
+        receipt_state == "rejected"
+        or payment_state == "rejected"
+        or _count(payments, "rejected") > 0
+    )
+    payment_not_required = (
+        request_state == "payment not required"
+        or receipt_state == "not required"
+        or payment_state == "not required"
+        or settlement_state == "not required"
+    )
+    payment_complete = (
+        payment_not_required
+        or request_state in _PAYMENT_COMPLETE_STATES
+        or settlement_state in _SETTLED_STATES
     )
 
     terminal = request_state in _TERMINAL_STATES
@@ -133,12 +220,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
             "Required documents are approved.",
         )
 
-    payment_complete = (
-        request_state
-        in {"payment not required", "ready for activation", "activating", "activation failed", "activated"}
-        or settlement_state in {"matched", "settled", "complete", "completed", "paid"}
-    )
-    if request_state == "payment not required":
+    if payment_not_required:
         payment_milestone = _milestone(
             "payment",
             "Payment",
@@ -150,7 +232,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
             "payment",
             "Payment",
             "attention",
-            "A finance hold needs review before the request can continue.",
+            "A finance hold needs OMC review before the request can continue.",
         )
     elif payment_complete:
         payment_milestone = _milestone(
@@ -158,6 +240,13 @@ def lifecycle_presentation(snapshot: dict) -> dict:
             "Payment",
             "complete",
             "Payment requirements are complete.",
+        )
+    elif request_state == "pending payment" and receipt_rejected:
+        payment_milestone = _milestone(
+            "payment",
+            "Payment",
+            "attention",
+            "The submitted payment evidence needs correction.",
         )
     elif request_state == "pending payment" and receipt_under_review:
         payment_milestone = _milestone(
@@ -215,7 +304,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
             "Activation needs OMC attention before work can continue.",
         )
         completed_milestone = _milestone("completed", "Completed", "pending")
-    elif request_state in {"ready for activation", "activating"}:
+    elif request_state in {"ready for activation", "activating", "payment not required"}:
         processing_milestone = _milestone(
             "processing",
             "OMC processing",
@@ -274,7 +363,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
     elif request_state == "ready for activation":
         progress = 65
         current_stage = "Ready for processing"
-    elif request_state == "payment not required":
+    elif payment_not_required:
         progress = 60
         current_stage = "Ready for processing"
     elif request_state == "pending payment":
@@ -303,7 +392,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
         next_action = _action(
             "review_financial_hold",
             "Finance review in progress",
-            "OMC is reviewing the financial hold. You can open the request for the latest status; no new customer action is required right now.",
+            "OMC is reviewing the financial hold. No new customer action is required right now.",
             _case_route(case_id),
             "View status",
         )
@@ -317,6 +406,16 @@ def lifecycle_presentation(snapshot: dict) -> dict:
             "View status",
         )
         attention_priority = 65
+    elif request_state == "pending payment" and receipt_rejected:
+        next_action = _action(
+            "correct_payment_receipt",
+            "Payment evidence needs correction",
+            "Open payments and submit corrected payment evidence for this request.",
+            "/payments",
+            "Open payment",
+            required=True,
+        )
+        attention_priority = 100
     elif request_state == "pending payment" and not receipt_under_review:
         next_action = _action(
             "complete_payment",
@@ -379,7 +478,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
         next_action = _action(
             "view_service",
             "Service completed",
-            "Open the request to review its completed status and history.",
+            "Review the completed request and its recorded activity.",
             _case_route(case_id),
             "View service",
         )
@@ -388,7 +487,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
         next_action = _action(
             "view_service",
             "Track service progress",
-            "Open this request for its latest status and next expected step.",
+            "No new customer action is required right now. OMC will update this request as work progresses.",
             _case_route(case_id),
             "View progress",
         )
@@ -412,6 +511,7 @@ def lifecycle_presentation(snapshot: dict) -> dict:
         "attention_priority": attention_priority,
         "terminal": terminal,
         "completed": completed,
+        "payment_not_required": payment_not_required,
     }
 
 
@@ -429,13 +529,16 @@ def enrich_dashboard(payload: dict) -> dict:
     enriched = dict(payload or {})
     snapshots = [
         enrich_service_snapshot(item)
-        for item in (payload.get("service_snapshots") or payload.get("active_services") or [])
+        for item in (
+            payload.get("service_snapshots")
+            or payload.get("active_services")
+            or []
+        )
         if isinstance(item, dict)
     ]
 
-    # Customer-required actions outrank informational OMC-side exceptions. The
-    # Python sort is stable, so equal priorities preserve authoritative backend
-    # ordering.
+    # Customer-required actions outrank informational OMC-side exceptions.
+    # Python sort is stable, so equal priorities preserve backend ordering.
     snapshots.sort(
         key=lambda item: int(item.get("attention_priority") or 0),
         reverse=True,
