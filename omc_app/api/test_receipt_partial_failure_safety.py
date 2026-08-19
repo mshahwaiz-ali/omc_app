@@ -147,14 +147,18 @@ class TestReceiptPartialFailureSafety(FrappeTestCase):
             "can_upload_payment_receipt": True,
         }
 
-        with self.assertRaisesRegex(
-            RuntimeError,
-            "timeline failed",
+        with (
+            patch.object(payments.security, "enforce_rate_limit"),
+            patch.object(payments.idempotency, "begin", return_value=None),
+            patch.object(payments.upload_validation, "validate_upload_bytes", return_value="r.pdf"),
+            patch.object(payments.upload_validation, "scan_upload", return_value="Manual Review"),
+            self.assertRaisesRegex(RuntimeError, "timeline failed"),
         ):
             payments.upload_payment_receipt_file(
                 payment_id=payment.name,
                 file_name="r.pdf",
                 content_base64="JVBERi0xLjc=",
+                idempotency_key="receipt-failure-1",
             )
 
         cleanup.assert_called_once_with(

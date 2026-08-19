@@ -23,12 +23,14 @@ class TestPaymentLifecycleIntegrity(FrappeTestCase):
     def test_valid_payment_status_transition_is_allowed(self):
         _assert_payment_status_transition("Pending", "Receipt Submitted")
         _assert_payment_status_transition("Receipt Submitted", "Under Review")
-        _assert_payment_status_transition("Under Review", "Paid")
         _assert_payment_status_transition("Rejected", "Receipt Submitted")
 
     def test_invalid_payment_status_transition_is_rejected(self):
         with self.assertRaises(frappe.ValidationError):
             _assert_payment_status_transition("Pending", "Paid")
+
+        with self.assertRaises(frappe.ValidationError):
+            _assert_payment_status_transition("Under Review", "Paid")
 
         with self.assertRaises(frappe.ValidationError):
             _assert_payment_status_transition("Paid", "Receipt Submitted")
@@ -63,7 +65,7 @@ class TestPaymentLifecycleIntegrity(FrappeTestCase):
 
     @patch("frappe.utils.now_datetime", return_value="2026-07-29 21:30:00")
     @patch.object(OMCServicePayment, "_assert_parent_is_mutable")
-    def test_paid_on_is_set_and_cleared_consistently(
+    def test_paid_on_is_cleared_outside_reconciled_paid_state(
         self,
         assert_parent_is_mutable,
         now_datetime,
@@ -72,29 +74,20 @@ class TestPaymentLifecycleIntegrity(FrappeTestCase):
             {
                 "doctype": "OMC Service Payment",
                 "service_request": "OMC-SR-TEST",
-                "status": "Paid",
+                "status": "Under Review",
                 "amount": 100,
                 "currency": "PKR",
                 "receipt_attachment": "/private/files/receipt.pdf",
+                "paid_on": "2026-07-29 20:00:00",
             }
         )
         payment.get_doc_before_save = lambda: SimpleNamespace(
-            status="Under Review",
+            status="Receipt Submitted",
             service_request="OMC-SR-TEST",
             amount=100,
         )
 
-        payment.before_save()
-
-        self.assertEqual(payment.paid_on, "2026-07-29 21:30:00")
-        assert_parent_is_mutable.assert_called_once_with()
-
-        payment.status = "Rejected"
-        payment.get_doc_before_save = lambda: SimpleNamespace(
-            status="Under Review",
-            service_request="OMC-SR-TEST",
-            amount=100,
-        )
         payment.before_save()
 
         self.assertIsNone(payment.paid_on)
+        assert_parent_is_mutable.assert_called_once_with()

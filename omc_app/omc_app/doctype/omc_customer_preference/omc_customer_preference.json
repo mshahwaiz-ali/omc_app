@@ -19,7 +19,9 @@
   "language",
   "notifications_enabled",
   "email_updates_enabled",
-  "payment_reminders_enabled"
+  "payment_reminders_enabled",
+  "work_address_prompt_dismissed",
+  "work_address_prompt_dismissed_at"
  ],
  "fields": [
   {
@@ -110,6 +112,18 @@
    "fieldtype": "Check",
    "label": "Legacy Payment Reminders Enabled",
    "hidden": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "work_address_prompt_dismissed",
+   "fieldtype": "Check",
+   "label": "Work Address Prompt Dismissed"
+  },
+  {
+   "fieldname": "work_address_prompt_dismissed_at",
+   "fieldtype": "Datetime",
+   "label": "Work Address Prompt Dismissed At",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -129,7 +143,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager",
+   "role": "OMC Admin",
    "share": 1,
    "write": 1
   }

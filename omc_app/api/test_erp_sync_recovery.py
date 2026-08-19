@@ -38,9 +38,9 @@ class TestErpSyncRecovery(FrappeTestCase):
                 SimpleNamespace(user="staff@example.com"),
             ),
             patch.object(
-                erp_sync_recovery.frappe,
-                "get_roles",
-                return_value=["OMC Consultant"],
+                erp_sync_recovery.capabilities,
+                "require",
+                side_effect=frappe.PermissionError,
             ),
             self.assertRaises(frappe.PermissionError),
         ):
@@ -55,9 +55,9 @@ class TestErpSyncRecovery(FrappeTestCase):
                 SimpleNamespace(user="manager@example.com"),
             ),
             patch.object(
-                erp_sync_recovery.frappe,
-                "get_roles",
-                return_value=["OMC Manager"],
+                erp_sync_recovery.capabilities,
+                "require",
+                return_value={"can_retry_sync": True},
             ),
             patch.object(
                 erp_sync_recovery.frappe,
@@ -119,9 +119,9 @@ class TestErpSyncRecovery(FrappeTestCase):
                 SimpleNamespace(user="manager@example.com"),
             ),
             patch.object(
-                erp_sync_recovery.frappe,
-                "get_roles",
-                return_value=["OMC Manager"],
+                erp_sync_recovery.capabilities,
+                "require",
+                return_value={"can_retry_sync": True},
             ),
             patch.object(
                 erp_sync_recovery.frappe.db,
@@ -203,9 +203,9 @@ class TestErpSyncRecovery(FrappeTestCase):
                 SimpleNamespace(user="manager@example.com"),
             ),
             patch.object(
-                erp_sync_recovery.frappe,
-                "get_roles",
-                return_value=["OMC Manager"],
+                erp_sync_recovery.capabilities,
+                "require",
+                return_value={"can_retry_sync": True},
             ),
             patch.object(
                 erp_sync_recovery.frappe.db,
@@ -219,13 +219,14 @@ class TestErpSyncRecovery(FrappeTestCase):
             ),
             patch.object(
                 erp_sync_recovery.erp_activation,
-                "_paid_payment_exists",
-                return_value=False,
-            ),
-            patch.object(
-                erp_sync_recovery.erp_activation.erp_service_task_adapter,
-                "sync_request",
-            ) as sync_request,
+                "activate_request",
+                return_value={
+                    "status": "Not Started",
+                    "created": False,
+                    "eligible": False,
+                    "reason": "Full ERP settlement is required.",
+                },
+            ) as activate_request,
             patch.object(
                 erp_sync_recovery,
                 "_record_attempt_result",
@@ -251,7 +252,7 @@ class TestErpSyncRecovery(FrappeTestCase):
             "OMC-SR-UNPAID",
         )
 
-        sync_request.assert_not_called()
+        activate_request.assert_called_once()
         record_attempt.assert_not_called()
         commit.assert_not_called()
 
@@ -275,9 +276,9 @@ class TestErpSyncRecovery(FrappeTestCase):
                 SimpleNamespace(user="manager@example.com"),
             ),
             patch.object(
-                erp_sync_recovery.frappe,
-                "get_roles",
-                return_value=["OMC Manager"],
+                erp_sync_recovery.capabilities,
+                "require",
+                return_value={"can_retry_sync": True},
             ),
             patch.object(erp_sync_recovery.frappe.db, "exists", return_value=True),
             patch.object(
@@ -286,16 +287,17 @@ class TestErpSyncRecovery(FrappeTestCase):
                 side_effect=[request, SimpleNamespace(name="OMC-SERVICE-1")],
             ),
             patch.object(
-                erp_sync_recovery.erp_service_task_adapter,
-                "sync_request",
+                erp_sync_recovery.erp_activation,
+                "activate_request",
                 return_value={
-                    "status": "Synced",
+                    "status": "Pending",
                     "created": False,
+                    "eligible": True,
                     "erp_customer": "CUST-1",
                     "erp_service": "SERVICE-1",
                     "erp_task": "TASK-1",
                 },
-            ) as sync_request,
+            ) as activate_request,
             patch.object(erp_sync_recovery.frappe.db, "commit") as commit,
             patch.object(
                 erp_sync_recovery.frappe,
@@ -310,7 +312,7 @@ class TestErpSyncRecovery(FrappeTestCase):
         ):
             result = erp_sync_recovery.retry_erp_sync("OMC-SR-1")
 
-        self.assertEqual(result["status"], "Synced")
+        self.assertEqual(result["status"], "Pending")
         self.assertFalse(result["created"])
-        self.assertTrue(sync_request.call_args.kwargs["repair"])
+        self.assertTrue(activate_request.call_args.kwargs["repair"])
         commit.assert_called_once_with()

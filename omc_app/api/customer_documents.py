@@ -216,6 +216,7 @@ def _document_dict(doc, service_case=None, customer_profile=None, capabilities=N
         "source": getattr(doc, "source", None) or "Service Upload",
         "file_url": doc.attachment or "" if can_view_attachment else "",
         "attachment": doc.attachment or "" if can_view_attachment else "",
+        "quarantine_status": getattr(doc, "quarantine_status", None) or "Not Required",
         "created_at": _format_datetime(doc.uploaded_on),
         "uploaded_on": _format_datetime(doc.uploaded_on),
         "uploaded_by": doc.uploaded_by or "",

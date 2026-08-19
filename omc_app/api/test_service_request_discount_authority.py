@@ -37,7 +37,27 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
         }
 
     def _service(self, *, price=1000, currency="PKR"):
-        return SimpleNamespace(base_price=price, currency=currency)
+        from omc_app.omc_app.doctype.omc_service.omc_service import pricing_version_for
+
+        service = SimpleNamespace(
+            name="SERVICE-1",
+            service_id="SERVICE-1",
+            base_price=price,
+            currency=currency,
+            service_version=1,
+            tax_policy="No Tax",
+            tax_rate=0,
+            activation_policy="Full Settlement",
+        )
+        service.pricing_version = pricing_version_for(service)
+        return service
+
+    def _quote_kwargs(self, service, **values):
+        return {
+            "service_version": service.service_version,
+            "pricing_version": service.pricing_version,
+            **values,
+        }
 
     def test_request_contains_locked_pricing_snapshot(self):
         expected = {
@@ -112,15 +132,17 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
         self.assertNotIn("discount_reason", service_fields)
 
     def test_internal_percentage_discount_calculates_final_price(self):
+        service = self._service(price=2000)
         result = assisted_service._request_pricing_snapshot(
-            self._service(price=2000),
+            service,
             is_internal=True,
             user="staff@example.com",
-            kwargs={
-                "discount_type": "Percentage",
-                "discount_value": 15,
-                "discount_reason": "Approved campaign",
-            },
+            kwargs=self._quote_kwargs(
+                service,
+                discount_type="Percentage",
+                discount_value=15,
+                discount_reason="Approved campaign",
+            ),
         )
 
         self.assertEqual(result["original_price"], 2000)
@@ -136,15 +158,17 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
         )
 
     def test_internal_fixed_discount_calculates_final_price(self):
+        service = self._service(price=2000)
         result = assisted_service._request_pricing_snapshot(
-            self._service(price=2000),
+            service,
             is_internal=True,
             user="manager@example.com",
-            kwargs={
-                "discount_type": "Fixed Amount",
-                "discount_value": 250,
-                "discount_reason": "Service recovery",
-            },
+            kwargs=self._quote_kwargs(
+                service,
+                discount_type="Fixed Amount",
+                discount_value=250,
+                discount_reason="Service recovery",
+            ),
         )
 
         self.assertEqual(result["original_price"], 2000)
@@ -184,11 +208,12 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
             )
 
     def test_zero_discount_uses_catalogue_snapshot(self):
+        service = self._service(price=1250, currency="USD")
         result = assisted_service._request_pricing_snapshot(
-            self._service(price=1250, currency="USD"),
+            service,
             is_internal=True,
             user="staff@example.com",
-            kwargs={},
+            kwargs=self._quote_kwargs(service),
         )
 
         self.assertEqual(result["original_price"], 1250)
@@ -207,7 +232,10 @@ class TestServiceRequestDiscountAuthority(FrappeTestCase):
             service_title="Tax Filing",
             title="Tax Filing",
             final_price=1700,
+            payable_amount=1700,
             pricing_currency="PKR",
+            payment_policy_snapshot="Full Settlement",
+            request_state="Pending Payment",
             status="Open",
             customer_profile="",
         )

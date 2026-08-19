@@ -1,0 +1,21 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "field:operation_key", "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["operation_key", "operation_type", "service_request", "source_version", "state", "attempt_count", "next_attempt_at", "last_attempt_at", "last_error_category", "last_safe_error", "erp_service", "erp_task", "completed_at"],
+ "fields": [
+  {"fieldname": "operation_key", "fieldtype": "Data", "label": "Operation Key", "reqd": 1, "unique": 1},
+  {"default": "Activate Request", "fieldname": "operation_type", "fieldtype": "Select", "label": "Operation Type", "options": "Activate Request", "reqd": 1},
+  {"fieldname": "service_request", "fieldtype": "Link", "in_list_view": 1, "label": "Service Request", "options": "OMC Service Request", "reqd": 1, "unique": 1},
+  {"fieldname": "source_version", "fieldtype": "Data", "label": "Source Version", "read_only": 1},
+  {"default": "Pending", "fieldname": "state", "fieldtype": "Select", "in_list_view": 1, "label": "State", "options": "Pending\nProcessing\nRetry\nCompleted\nFailed\nCancelled", "read_only": 1, "reqd": 1},
+  {"default": "0", "fieldname": "attempt_count", "fieldtype": "Int", "label": "Attempt Count", "read_only": 1},
+  {"fieldname": "next_attempt_at", "fieldtype": "Datetime", "label": "Next Attempt At", "read_only": 1},
+  {"fieldname": "last_attempt_at", "fieldtype": "Datetime", "label": "Last Attempt At", "read_only": 1},
+  {"fieldname": "last_error_category", "fieldtype": "Data", "label": "Last Error Category", "read_only": 1},
+  {"fieldname": "last_safe_error", "fieldtype": "Small Text", "label": "Last Safe Error", "read_only": 1},
+  {"fieldname": "erp_service", "fieldtype": "Link", "label": "ERP Service", "options": "Service", "read_only": 1},
+  {"fieldname": "erp_task", "fieldtype": "Link", "label": "ERP Task", "options": "Task", "read_only": 1},
+  {"fieldname": "completed_at", "fieldtype": "Datetime", "label": "Completed At", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Bridge Operation", "owner": "Administrator",
+ "permissions": [{"export": 1, "read": 1, "report": 1, "role": "OMC Admin"}], "sort_field": "modified", "sort_order": "ASC", "states": [], "track_changes": 1
+}

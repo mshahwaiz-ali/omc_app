@@ -31,3 +31,4 @@ omc_app.patches.add_customer_username
 omc_app.patches.remove_legacy_omc_task
 
 omc_app.patches.seed_erp_task_types_and_service_mappings
+omc_app.patches.add_backend_redesign_indexes_20260819

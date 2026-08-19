@@ -6,7 +6,7 @@ from omc_app.api import payments
 
 
 class TestWorkflowAutomation(TestCase):
-    def _case(self, status="Open"):
+    def _case(self, status="Waiting for Payment"):
         case = MagicMock()
         case.name = "OMC-SR-TEST"
         case.service = "TEST-SERVICE"
@@ -15,7 +15,10 @@ class TestWorkflowAutomation(TestCase):
         case.customer_profile = "OMC-CUST-TEST"
         case.status = status
         case.final_price = None
+        case.payable_amount = 25000
         case.pricing_currency = None
+        case.payment_policy_snapshot = "Full Settlement"
+        case.request_state = "Pending Payment"
         return case
 
     @patch.object(payments.mobile, "_has_doctype", return_value=True)
@@ -39,8 +42,7 @@ class TestWorkflowAutomation(TestCase):
     @patch.object(payments, "_approved_required_documents", return_value=True)
     @patch.object(payments.mobile, "_create_customer_notification")
     @patch.object(payments.mobile, "_create_service_timeline_entry")
-    @patch.object(payments.frappe.db, "commit")
-    @patch.object(payments, "_activate_case_erp")
+    @patch("omc_app.api.bridge_outbox.enqueue_if_eligible")
     @patch.object(payments.frappe, "new_doc")
     @patch.object(payments.frappe, "get_doc")
     @patch.object(payments.frappe, "get_all", return_value=[])
@@ -53,8 +55,7 @@ class TestWorkflowAutomation(TestCase):
         _get_all,
         get_doc,
         new_doc,
-        activate_erp,
-        commit,
+        enqueue,
         timeline,
         _notification,
         _approved,
@@ -69,23 +70,23 @@ class TestWorkflowAutomation(TestCase):
 
         case = self._case()
         case.assigned_staff = ""
+        case.payable_amount = 0
+        case.final_price = 0
+        case.payment_policy_snapshot = "No Charge"
+        case.request_state = "Payment Not Required"
 
         self.assertIsNone(
             payments._ensure_payment_for_case(case)
         )
 
-        self.assertEqual(case.status, "In Progress")
-        case.save.assert_called_once_with(ignore_permissions=True)
+        self.assertEqual(case.status, "Waiting for Payment")
+        case.save.assert_not_called()
 
         new_doc.assert_not_called()
         log_error.assert_not_called()
 
-        activate_erp.assert_called_once_with(
-            case,
-            service=service,
-        )
-        timeline.assert_called_once()
-        commit.assert_called_once()
+        enqueue.assert_called_once_with(case.name)
+        timeline.assert_not_called()
 
     @patch.object(payments.mobile, "_has_doctype", return_value=True)
     @patch.object(payments, "_approved_required_documents", return_value=True)
@@ -110,7 +111,7 @@ class TestWorkflowAutomation(TestCase):
         result = payments._ensure_payment_for_case(case)
         self.assertEqual(result, "OMC-PAY-NEW")
         self.assertEqual(case.status, "Waiting for Payment")
-        case.save.assert_called_once_with(ignore_permissions=True)
+        case.save.assert_not_called()
         payment.insert.assert_called_once_with(ignore_permissions=True)
         timeline.assert_called_once()
         notification.assert_called_once()

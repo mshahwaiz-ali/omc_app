@@ -2,7 +2,7 @@ import re
 
 import frappe
 
-from omc_app.api import access, idempotency, upload_validation
+from omc_app.api import access, identity, idempotency, upload_validation
 from omc_app.api.mobile import (
     _assert_approved_customer,
     _can_access_internal_workspace,
@@ -15,6 +15,7 @@ from omc_app.api.mobile import (
 SUPPORT_MESSAGE_DOCTYPE = "OMC Support Ticket Message"
 ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "doc", "docx"}
 MAX_SUPPORT_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024
+MAX_SUPPORT_ATTACHMENTS_PER_TICKET = 20
 
 
 def _capabilities():
@@ -146,7 +147,16 @@ def _attachment_meta(file_reference):
 def _assert_support_attachment_allowed(ticket, file_reference):
     clean_reference = _clean_file_reference(file_reference)
     if not clean_reference:
-        return ""
+        return "", "Not Required"
+
+    if _has_message_doctype() and frappe.db.count(
+        SUPPORT_MESSAGE_DOCTYPE,
+        {"support_ticket": ticket.name, "attachment": ["!=", ""]},
+    ) >= MAX_SUPPORT_ATTACHMENTS_PER_TICKET:
+        frappe.throw(
+            "Maximum attachment limit reached for this support ticket.",
+            frappe.ValidationError,
+        )
 
     extension = _file_extension(clean_reference)
     if extension not in ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS:
@@ -174,6 +184,18 @@ def _assert_support_attachment_allowed(ticket, file_reference):
         allowed_extensions=ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS,
         max_size_bytes=MAX_SUPPORT_ATTACHMENT_SIZE_BYTES,
     )
+    content = uploaded_file.get_content()
+    if isinstance(content, str):
+        content = content.encode("utf-8")
+    quarantine_status = upload_validation.scan_upload(
+        filename=uploaded_file.file_name or clean_reference,
+        content=content or b"",
+    )
+    if quarantine_status == "Rejected":
+        frappe.throw(
+            "The uploaded attachment was rejected by security scanning.",
+            frappe.ValidationError,
+        )
 
     current_user = _current_user()
     if uploaded_file.owner and uploaded_file.owner != current_user and not _can_access_internal_workspace(current_user):
@@ -193,7 +215,7 @@ def _assert_support_attachment_allowed(ticket, file_reference):
         uploaded_file.attached_to_name = ticket.name
 
     uploaded_file.save(ignore_permissions=True)
-    return uploaded_file.file_url or clean_reference
+    return uploaded_file.file_url or clean_reference, quarantine_status
 
 
 def _has_message_doctype():
@@ -275,6 +297,7 @@ def _message_row_to_dict(row):
         "created_at": str(row.creation) if getattr(row, "creation", None) else "",
         "type": sender_type,
         "is_internal": int(getattr(row, "is_internal", None) or 0),
+        "quarantine_status": getattr(row, "quarantine_status", None) or "Not Required",
         **attachment,
     }
 
@@ -292,6 +315,7 @@ def _support_ticket_messages(ticket):
             "sender_type",
             "message",
             "attachment",
+            "quarantine_status",
             "is_internal",
             "creation",
             "owner",
@@ -329,7 +353,7 @@ def _ensure_initial_message_record(ticket):
 
 def _create_support_message(ticket, message="", attachment="", sender_type=None, is_internal=0):
     message = (message or "").strip()
-    attachment = _assert_support_attachment_allowed(ticket, attachment)
+    attachment, quarantine_status = _assert_support_attachment_allowed(ticket, attachment)
 
     if not message and not attachment:
         frappe.throw("message or attachment is required")
@@ -353,6 +377,7 @@ def _create_support_message(ticket, message="", attachment="", sender_type=None,
     chat_message.attachment_name = attachment_data["attachment_name"] or ""
     chat_message.attachment_type = attachment_data["attachment_type"] or ""
     chat_message.attachment_size = attachment_data["attachment_size"] or 0
+    chat_message.quarantine_status = quarantine_status
     chat_message.is_internal = 1 if is_internal else 0
     chat_message.read_by_customer = 1 if sender_type == "Customer" else 0
     chat_message.read_by_staff = 1 if sender_type in {"Support", "Admin", "System"} else 0
@@ -465,8 +490,10 @@ def _support_message_read_filters(user, profile, mark_read=False):
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_support_ticket(**kwargs):
+    if not idempotency.request_key(kwargs):
+        frappe.throw("An idempotency key is required.", frappe.ValidationError)
     claim = idempotency.begin(
         operation="support_ticket.create",
         actor=_current_user(),
@@ -517,11 +544,7 @@ def _create_support_ticket(**kwargs):
     reference_service_request = kwargs.get("reference_service_request") or kwargs.get("service_request") or kwargs.get("case_id")
 
     if reference_service_request:
-        if not frappe.db.exists("OMC Service Request", reference_service_request):
-            frappe.throw("Reference service request not found", frappe.DoesNotExistError)
-        request_customer = frappe.db.get_value("OMC Service Request", reference_service_request, "customer_profile")
-        if profile and request_customer and request_customer != profile.name:
-            frappe.throw("You do not have permission to reference this service request", frappe.PermissionError)
+        identity.require_owned_request(reference_service_request)
 
     ticket = frappe.new_doc("OMC Support Ticket")
     ticket.subject = subject
@@ -536,8 +559,6 @@ def _create_support_ticket(**kwargs):
     ticket.insert(ignore_permissions=True)
 
     _create_support_message(ticket, message=message, attachment=attachment, sender_type="Customer")
-    frappe.db.commit()
-
     return {"message": "Support ticket created.", "created": True, "ticket": _support_ticket_to_dict(ticket)}
 
 
@@ -611,7 +632,7 @@ def get_support_unread_count():
     return {"count": frappe.db.count(SUPPORT_MESSAGE_DOCTYPE, message_filters)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def mark_support_ticket_read(ticket_id=None, name=None):
     ticket_id = ticket_id or name
     if not ticket_id:
@@ -638,7 +659,7 @@ def mark_support_ticket_read(ticket_id=None, name=None):
     return {"updated": len(message_names)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
     payload = {
         "idempotency_key": kwargs.get("idempotency_key"),
@@ -647,6 +668,8 @@ def add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
         "attachment_name": kwargs.get("attachment_name"),
         "attachment_type": kwargs.get("attachment_type"),
     }
+    if not idempotency.request_key(payload):
+        frappe.throw("An idempotency key is required.", frappe.ValidationError)
     claim = idempotency.begin(
         operation="support_ticket.reply",
         actor=_current_user(),
@@ -725,11 +748,10 @@ def _add_support_ticket_reply(ticket_id=None, message=None, **kwargs):
             reference_name=ticket.name,
         )
 
-    frappe.db.commit()
     return {"updated": True, "ticket": _support_ticket_to_dict(ticket), "message": "Support reply added."}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_support_ticket_status(ticket_id=None, status=None, remarks=None, **kwargs):
     ticket_id = ticket_id or kwargs.get("name")
     allowed_statuses = {"Open", "In Progress", "Waiting for Customer", "Resolved", "Closed", "Cancelled"}
@@ -779,7 +801,7 @@ def update_support_ticket_status(ticket_id=None, status=None, remarks=None, **kw
     return {"updated": True, "old_status": old_status, "ticket": _support_ticket_to_dict(ticket), "message": "Support ticket status updated."}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def assign_support_ticket(ticket_id=None, assigned_to=None, **kwargs):
     ticket_id = ticket_id or kwargs.get("name")
     assigned_to = (assigned_to or kwargs.get("user") or "").strip()

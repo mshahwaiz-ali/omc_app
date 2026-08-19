@@ -14,6 +14,8 @@
   "title",
   "description",
   "status",
+  "request_state",
+  "final_confirmation",
   "priority",
   "pricing_section",
   "original_price",
@@ -23,6 +25,14 @@
   "discount_amount",
   "proposed_final_price",
   "final_price",
+  "service_version_snapshot",
+  "pricing_version_snapshot",
+  "payment_policy_snapshot",
+  "tax_policy_snapshot",
+  "tax_rate_snapshot",
+  "tax_amount",
+  "payable_amount",
+  "pricing_snapshot_json",
   "discount_reason",
   "discount_status",
   "discount_requested_by",
@@ -30,6 +40,7 @@
   "discount_applied_by",
   "customer_section",
   "customer_profile",
+  "customer_account",
   "customer_name",
   "requested_by",
   "contact_email",
@@ -43,6 +54,7 @@
   "submitted_by_internal_user",
   "referral_owner",
   "referral_record",
+  "referral_attribution",
   "created_on_behalf",
   "customer_consent_reference",
   "assigned_staff",
@@ -57,6 +69,14 @@
   "potential_duplicate_of",
   "timeline_section",
   "expected_completion_date",
+  "submitted_at",
+  "expires_at",
+  "ready_for_activation_at",
+  "activated_at",
+  "financial_hold_reason",
+  "post_paid_approved_by",
+  "post_paid_approved_at",
+  "activation_version",
   "closed_on",
   "completed_by",
   "completion_source",
@@ -545,6 +565,146 @@
    "fieldtype": "Datetime",
    "label": "ERP Last Success At",
    "read_only": 1
+  },
+  {
+   "bold": 1,
+   "default": "Draft",
+   "fieldname": "request_state",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Request State",
+   "options": "Draft\nPending Payment\nPayment Not Required\nReady for Activation\nActivating\nActivated\nExpired\nCancelled\nActivation Failed\nFinancial Hold",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "final_confirmation",
+   "fieldtype": "Check",
+   "label": "Final Confirmation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "service_version_snapshot",
+   "fieldtype": "Int",
+   "label": "Service Version Snapshot",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_version_snapshot",
+   "fieldtype": "Data",
+   "label": "Pricing Version Snapshot",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "payment_policy_snapshot",
+   "fieldtype": "Select",
+   "label": "Payment Policy Snapshot",
+   "options": "Full Settlement\nNo Charge\nPost-paid Approval",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_policy_snapshot",
+   "fieldtype": "Select",
+   "label": "Tax Policy Snapshot",
+   "options": "No Tax\nTax Included\nTax Exclusive",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_rate_snapshot",
+   "fieldtype": "Percent",
+   "label": "Tax Rate Snapshot",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payable_amount",
+   "fieldtype": "Currency",
+   "label": "Payable Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_snapshot_json",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Pricing Snapshot JSON",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_account",
+   "fieldtype": "Link",
+   "label": "Customer Account",
+   "options": "OMC Customer Account",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "referral_attribution",
+   "fieldtype": "Link",
+   "label": "Referral Attribution",
+   "options": "OMC Referral Attribution",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "submitted_at",
+   "fieldtype": "Datetime",
+   "label": "Submitted At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expires_at",
+   "fieldtype": "Datetime",
+   "label": "Expires At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ready_for_activation_at",
+   "fieldtype": "Datetime",
+   "label": "Ready for Activation At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "activated_at",
+   "fieldtype": "Datetime",
+   "label": "Activated At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "financial_hold_reason",
+   "fieldtype": "Small Text",
+   "label": "Financial Hold Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "post_paid_approved_by",
+   "fieldtype": "Link",
+   "label": "Post-paid Approved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "post_paid_approved_at",
+   "fieldtype": "Datetime",
+   "label": "Post-paid Approved At",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "activation_version",
+   "fieldtype": "Int",
+   "label": "Activation Version",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -564,7 +724,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager",
+   "role": "OMC Admin",
    "share": 1,
    "write": 1
   }

@@ -22,7 +22,7 @@ def _submitted_referral_code(data: dict) -> str:
     return _text(data.get("referral_code") or data.get("submitted_referral_code"))
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def sign_up(**kwargs):
     data = dict(kwargs or {})
     email = _text(data.get("email") or data.get("user")).lower()

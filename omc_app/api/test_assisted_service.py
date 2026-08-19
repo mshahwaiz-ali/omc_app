@@ -63,8 +63,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         with (
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Consultant"},
+                "_capabilities",
+                return_value={"can_view_all_customers": False},
             ),
             self.assertRaises(frappe.PermissionError),
         ):
@@ -78,8 +78,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         with (
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Admin"},
+                "_capabilities",
+                return_value={"can_view_all_customers": True},
             ),
             self.assertRaises(frappe.ValidationError),
         ):
@@ -95,8 +95,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         with (
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Support Agent"},
+                "_capabilities",
+                return_value={"can_manage_customers": True},
             ),
             patch.object(
                 assisted_service,
@@ -128,8 +128,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         with (
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Support Agent"},
+                "_capabilities",
+                return_value={"can_manage_customers": True},
             ),
             patch.object(
                 assisted_service,
@@ -216,20 +216,19 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             ),
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Consultant"},
-            ),
-            patch.object(
-                assisted_service,
                 "_require_internal_assist",
-                return_value={"can_create_service_for_customer": True},
+                return_value={
+                    "can_create_service_for_customer": True,
+                    "can_view_referral_commissions": True,
+                    "can_view_all_customers": False,
+                },
             ),
         ):
             result = assisted_service.get_customer_selection_options()
 
         self.assertEqual(
             result["modes"],
-            ["My Referral", "Walk-in Customer"],
+            ["My Referral"],
         )
         self.assertTrue(result["capabilities"]["can_use_my_referrals"])
         self.assertFalse(result["capabilities"]["can_search_all_customers"])
@@ -243,13 +242,11 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             ),
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Consultant"},
-            ),
-            patch.object(
-                assisted_service,
                 "_require_internal_assist",
-                return_value={"can_create_service_for_customer": True},
+                return_value={
+                    "can_create_service_for_customer": True,
+                    "can_view_referral_commissions": True,
+                },
             ),
             patch.object(
                 assisted_service.frappe,
@@ -290,7 +287,7 @@ class TestAssistedServiceAuthority(FrappeTestCase):
                 customer_mode="Existing Customer"
             )
 
-    def test_specialist_walk_in_list_is_creator_scoped(self):
+    def test_walk_in_list_is_disabled_until_reconciliation(self):
         with (
             patch.object(
                 assisted_service,
@@ -299,28 +296,14 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             ),
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Support Agent"},
-            ),
-            patch.object(
-                assisted_service,
                 "_require_internal_assist",
                 return_value={"can_create_service_for_customer": True},
             ),
-            patch.object(
-                assisted_service.frappe,
-                "get_all",
-                return_value=[],
-            ) as get_all,
+            self.assertRaises(frappe.PermissionError),
         ):
             assisted_service.get_customer_selection_options(
                 customer_mode="Walk-in Customer"
             )
-
-        self.assertEqual(
-            get_all.call_args.kwargs["filters"],
-            {"created_by_user": "support@example.com"},
-        )
 
     def test_manual_customer_conversion_requires_admin_role(self):
         with (
@@ -331,8 +314,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             ),
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Support Agent"},
+                "_capabilities",
+                return_value={"can_manage_customers": False},
             ),
             self.assertRaises(frappe.PermissionError),
         ):
@@ -369,8 +352,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             ),
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Manager"},
+                "_capabilities",
+                return_value={"can_manage_customers": True},
             ),
             patch.object(
                 assisted_service.frappe.db,
@@ -431,8 +414,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             ),
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Manager"},
+                "_capabilities",
+                return_value={"can_manage_customers": True},
             ),
             patch.object(
                 assisted_service.frappe.db,
@@ -465,17 +448,18 @@ class TestAssistedServiceAuthority(FrappeTestCase):
                 },
             ),
             patch.object(
-                assisted_service.erp_service_task_adapter,
-                "sync_request",
+                assisted_service.erp_activation,
+                "activate_request",
                 return_value={
-                    "status": "Synced",
+                    "status": "Not Started",
                     "erp_customer": "ERP-CUST-1",
-                    "erp_service": "ERP-SERVICE-1",
-                    "erp_task": "TASK-1",
-                    "task_assignment": "TODO-1",
-                    "created": True,
+                    "erp_service": "",
+                    "erp_task": "",
+                    "task_assignment": None,
+                    "created": False,
+                    "eligible": False,
                 },
-            ) as sync_request,
+            ) as activate_request,
         ):
             result = assisted_service.convert_manual_customer(
                 manual_customer="MC-1",
@@ -484,9 +468,9 @@ class TestAssistedServiceAuthority(FrappeTestCase):
 
         self.assertEqual(result["customer_profile"], "OMC-CUST-1")
         self.assertEqual(result["erp_customer"], "ERP-CUST-1")
-        self.assertEqual(result["erp_service"], "ERP-SERVICE-1")
-        self.assertEqual(result["erp_task"], "TASK-1")
-        self.assertEqual(result["erp_sync_status"], "Synced")
+        self.assertEqual(result["erp_service"], "")
+        self.assertEqual(result["erp_task"], "")
+        self.assertEqual(result["erp_sync_status"], "Not Started")
 
         self.assertEqual(manual.verification_status, "Verified")
         self.assertEqual(manual.conversion_status, "Linked")
@@ -498,7 +482,7 @@ class TestAssistedServiceAuthority(FrappeTestCase):
 
         profile.insert.assert_called_once_with(ignore_permissions=True)
         manual.save.assert_called_once_with(ignore_permissions=True)
-        sync_request.assert_called_once_with(
+        activate_request.assert_called_once_with(
             request,
             service=service,
             profile=profile,
@@ -535,8 +519,8 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             ),
             patch.object(
                 assisted_service,
-                "_roles",
-                return_value={"OMC Manager"},
+                "_capabilities",
+                return_value={"can_manage_customers": True},
             ),
             patch.object(
                 assisted_service.frappe.db,

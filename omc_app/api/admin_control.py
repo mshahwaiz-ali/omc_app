@@ -7,7 +7,7 @@ import json
 import frappe
 from frappe.utils import cint, flt, validate_email_address
 
-from omc_app.api import access, erp_sync_recovery, service_assignment
+from omc_app.api import access, capabilities, erp_customer_resolver, erp_sync_recovery, identity, security, service_assignment
 from omc_app.setup.roles import (
     ADMIN_ROLE,
     BUSINESS_PARTNER_ROLE,
@@ -51,10 +51,7 @@ def _current_user():
 
 
 def _require(capability):
-    capabilities = access.get_mobile_capabilities()
-    if not capabilities.get(capability):
-        frappe.throw("You do not have permission to perform this administrative action.", frappe.PermissionError)
-    return capabilities
+    return capabilities.require(capability)
 
 
 def _pagination(limit_start=0, limit_page_length=20):
@@ -88,24 +85,122 @@ def _requested_staff_role(profile):
     return APPLICATION_ROLE_MAP.get(requested)
 
 
-def _set_user_roles(user_doc, roles):
+def _set_user_roles(user, roles):
+    """Retained callable seam that permanently rejects legacy role mutation."""
+    frappe.throw(
+        "Direct Has Role mutation is retired; update OMC Staff Access instead.",
+        frappe.ValidationError,
+    )
+
+
+def _capability_codes(roles):
     requested = {_text(role) for role in (roles or []) if _text(role)}
     if not requested or not requested.issubset(STAFF_ROLES):
         frappe.throw("Select one or more supported OMC staff roles.", frappe.ValidationError)
-    preserved = [row for row in (user_doc.roles or []) if row.role not in STAFF_ROLES | {access.CUSTOMER_ROLE}]
-    user_doc.roles = preserved
-    for role in sorted(requested):
-        user_doc.append("roles", {"role": role})
-    user_doc.user_type = "System User"
-    return sorted(requested)
+    codes = set()
+    for role in requested:
+        codes.update(access.ROLE_CAPABILITIES.get(role, set()))
+    if not codes:
+        frappe.throw("The selected staff access profile has no capabilities.", frappe.ValidationError)
+    return sorted(requested), sorted(codes)
 
 
 def _staff_item(row):
-    roles = sorted(set(frappe.get_roles(row.name) or []).intersection(STAFF_ROLES))
+    user = frappe.get_doc("User", row.user)
     return {
-        "user_id": row.name, "full_name": row.full_name or row.name,
-        "enabled": bool(row.enabled), "user_type": row.user_type or "", "roles": roles,
+        "user_id": row.user,
+        "full_name": user.full_name or row.user,
+        "enabled": row.access_status == "Approved",
+        "user_type": user.user_type or "",
+        "roles": [row.persona_snapshot] if row.persona_snapshot else [],
+        "capabilities": sorted({item.capability for item in row.capabilities or []}),
+        "access_status": row.access_status,
+        "reconciliation_status": row.reconciliation_status,
     }
+
+
+def _upsert_staff_access(user_id, roles, *, access_status="Approved"):
+    if identity.user_type(user_id) != "System User":
+        frappe.throw("Staff Access can only be assigned to an existing System User.", frappe.ValidationError)
+    selected_roles, capability_codes = _capability_codes(roles)
+    persona = selected_roles[0] if len(selected_roles) == 1 else "Reviewed"
+    name = frappe.db.get_value("OMC Staff Access", {"user": user_id}, "name")
+    doc = frappe.get_doc("OMC Staff Access", name) if name else frappe.new_doc("OMC Staff Access")
+    before = _text(doc.get("access_status"))
+    doc.user = user_id
+    doc.access_status = access_status
+    doc.persona_snapshot = persona
+    doc.persona_source = "Reviewed"
+    doc.source_version = identity.source_version(user_id, persona, ",".join(capability_codes))
+    doc.reconciliation_status = "Current"
+    doc.set("capabilities", [{"capability": code} for code in capability_codes])
+    if access_status == "Approved":
+        doc.approved_by = _current_user()
+        doc.approved_at = frappe.utils.now_datetime()
+        doc.suspended_by = None
+        doc.suspended_at = None
+        doc.suspension_reason = ""
+    if doc.is_new():
+        doc.insert(ignore_permissions=True)
+    else:
+        doc.save(ignore_permissions=True)
+    security.audit_event(
+        event_type="staff_access.updated",
+        capability="can_manage_staff",
+        target_doctype="OMC Staff Access",
+        target_name=doc.name,
+        old_state=before,
+        new_state=access_status,
+        source_version=doc.source_version,
+    )
+    return doc, selected_roles
+
+
+@frappe.whitelist(methods=["POST"])
+def grant_break_glass(user=None, capability=None, expires_at=None, reason=None, scope_doctype=None, scope_name=None):
+    _require("can_manage_staff")
+    user = _text(user)
+    capability = _text(capability)
+    reason = _text(reason)
+    if not identity.user_is_enabled(user) or identity.user_type(user) != "System User":
+        frappe.throw("Break-glass access requires an enabled System User.", frappe.ValidationError)
+    if capability not in capabilities.INTERNAL_CAPABILITY_KEYS:
+        frappe.throw("Unsupported capability.", frappe.ValidationError)
+    if not reason:
+        frappe.throw("A break-glass reason is required.", frappe.ValidationError)
+    doc = frappe.get_doc({
+        "doctype": "OMC Break Glass Grant", "user": user, "capability": capability,
+        "scope_doctype": _text(scope_doctype), "scope_name": _text(scope_name),
+        "reason": reason[:1000], "expires_at": expires_at,
+    })
+    doc.insert(ignore_permissions=True)
+    security.audit_event(
+        event_type="staff_access.break_glass_granted", capability=capability,
+        target_doctype="User", target_name=user, new_state="granted",
+        override_expires_at=doc.expires_at,
+    )
+    return {"grant": doc.name, "expires_at": str(doc.expires_at)}
+
+
+@frappe.whitelist(methods=["POST"])
+def revoke_break_glass(grant=None, reason=None):
+    _require("can_manage_staff")
+    name = _text(grant)
+    if not name or not frappe.db.exists("OMC Break Glass Grant", name):
+        frappe.throw("Break-glass grant was not found.", frappe.DoesNotExistError)
+    doc = frappe.get_doc("OMC Break Glass Grant", name)
+    if doc.revoked:
+        return {"grant": doc.name, "revoked": True}
+    doc.revoked = 1
+    doc.revoked_by = _current_user()
+    doc.revoked_at = frappe.utils.now_datetime()
+    doc.revocation_reason = _text(reason)[:1000]
+    doc.save(ignore_permissions=True)
+    security.audit_event(
+        event_type="staff_access.break_glass_revoked", capability=doc.capability,
+        target_doctype="User", target_name=doc.user, old_state="granted", new_state="revoked",
+    )
+    return {"grant": doc.name, "revoked": True}
 
 
 @frappe.whitelist()
@@ -118,13 +213,11 @@ def get_admin_overview(limit_start=0, limit_page_length=20):
         fields=["name", "full_name", "email", "phone", "register_as", "customer_type", "customer_status", "approval_status", "creation"],
         order_by="creation asc", limit_start=start, limit_page_length=length,
     )
-    staff_users = frappe.get_all(
-        "Has Role", filters={"role": ["in", sorted(STAFF_ROLES)], "parenttype": "User"},
-        pluck="parent", distinct=True,
-    )
     staff_rows = frappe.get_all(
-        "User", filters={"name": ["in", sorted(set(staff_users))]} if staff_users else {"name": ""},
-        fields=["name", "full_name", "enabled", "user_type"], order_by="full_name asc",
+        "OMC Staff Access",
+        fields=["name"],
+        order_by="user asc",
+        limit_page_length=100,
     )
     return {
         "applications": [
@@ -135,13 +228,13 @@ def get_admin_overview(limit_start=0, limit_page_length=20):
             }
             for row in pending
         ],
-        "staff": [_staff_item(row) for row in staff_rows if row.name != "Administrator"],
+        "staff": [_staff_item(frappe.get_doc("OMC Staff Access", row.name)) for row in staff_rows],
         "available_roles": sorted(STAFF_ROLES),
         "limit_start": start, "limit_page_length": length,
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def review_registration(profile_id=None, decision=None, roles=None, reason=None):
     _require("can_review_registrations")
     profile_id = _text(profile_id)
@@ -164,7 +257,6 @@ def review_registration(profile_id=None, decision=None, roles=None, reason=None)
         frappe.db.commit()
         return {"profile_id": profile.name, "decision": "rejected", "roles": []}
 
-    user_doc = frappe.get_doc("User", email)
     requested_role = _requested_staff_role(profile)
     selected_roles = roles
     if isinstance(selected_roles, str):
@@ -173,48 +265,67 @@ def review_registration(profile_id=None, decision=None, roles=None, reason=None)
         except ValueError:
             selected_roles = [selected_roles]
     if requested_role:
-        granted = _set_user_roles(user_doc, selected_roles or [requested_role])
+        _, granted = _upsert_staff_access(email, selected_roles or [requested_role])
     else:
         granted = []
-        existing = {row.role for row in (user_doc.roles or [])}
-        if access.CUSTOMER_ROLE not in existing:
-            user_doc.append("roles", {"role": access.CUSTOMER_ROLE})
-        user_doc.user_type = "Website User"
-    user_doc.enabled = 1
-    user_doc.save(ignore_permissions=True)
+        if identity.user_type(email) == "System User":
+            frappe.throw("System Users cannot be approved as customer accounts.", frappe.ValidationError)
     profile.approval_status = "Approved"
     profile.customer_status = "Active"
     profile.is_active = 1
     profile.save(ignore_permissions=True)
+    if not requested_role:
+        resolved = erp_customer_resolver.resolve_profile_customer(profile)
+        if _text(resolved.get("status")) not in {"Resolved", "Created"}:
+            frappe.throw(
+                resolved.get("reason") or "ERP Customer linkage requires reconciliation.",
+                frappe.ValidationError,
+            )
+        account = identity.ensure_customer_account_from_legacy(email)
+        if not account:
+            account = identity.get_customer_account(email, for_update=True)
+        if not account:
+            frappe.throw("The customer identity requires reviewed ERP Customer linkage.", frappe.ValidationError)
+        account.erp_customer = resolved.get("customer")
+        account.identity_proof_status = "Verified"
+        account.account_link_status = "Linked"
+        account.service_access_status = "Approved"
+        account.mapping_provenance = "Reviewed Reconciliation"
+        account.mapping_confidence = "Reviewed"
+        account.source_version = identity.source_version(profile.modified, resolved.get("customer"), email)
+        account.approved_by = _current_user()
+        account.approved_at = frappe.utils.now_datetime()
+        account.save(ignore_permissions=True)
+        security.audit_event(
+            event_type="customer_access.approved",
+            capability="can_review_registrations",
+            target_doctype="OMC Customer Account",
+            target_name=account.name,
+            old_state="Pending Review",
+            new_state="Approved",
+        )
     frappe.clear_cache(user=email)
     frappe.db.commit()
     return {"profile_id": profile.name, "user_id": email, "decision": "approved", "roles": granted or [access.CUSTOMER_ROLE]}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def invite_staff(full_name=None, email=None, roles=None):
     _require("can_manage_staff")
     email = _text(email).lower()
     full_name = _text(full_name)
     if not validate_email_address(email, throw=False) or not full_name:
         frappe.throw("A valid email and full name are required.", frappe.ValidationError)
-    if frappe.db.exists("User", email):
-        frappe.throw("A user with this email already exists.", frappe.DuplicateEntryError)
+    if not frappe.db.exists("User", email):
+        frappe.throw("Create the authoritative System User in Frappe Desk before granting OMC Staff Access.", frappe.ValidationError)
     parsed_roles = json.loads(roles) if isinstance(roles, str) else roles
-    user_doc = frappe.new_doc("User")
-    user_doc.email = email
-    user_doc.first_name = full_name
-    user_doc.full_name = full_name
-    user_doc.enabled = 1
-    user_doc.send_welcome_email = 1
-    _set_user_roles(user_doc, parsed_roles)
-    user_doc.insert(ignore_permissions=True)
+    access_doc, granted = _upsert_staff_access(email, parsed_roles)
     frappe.clear_cache(user=email)
     frappe.db.commit()
-    return {"created": True, "user": _staff_item(user_doc)}
+    return {"created": True, "user": _staff_item(access_doc), "roles": granted}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_staff_account(user_id=None, roles=None, enabled=None):
     _require("can_manage_staff")
     user_id = _text(user_id)
@@ -222,14 +333,18 @@ def update_staff_account(user_id=None, roles=None, enabled=None):
         frappe.throw("Use Frappe Desk for the built-in Administrator or your own admin account.", frappe.PermissionError)
     if not user_id or not frappe.db.exists("User", user_id):
         frappe.throw("Staff user was not found.", frappe.DoesNotExistError)
-    user_doc = frappe.get_doc("User", user_id)
     parsed_roles = json.loads(roles) if isinstance(roles, str) else roles
-    granted = _set_user_roles(user_doc, parsed_roles)
-    user_doc.enabled = cint(enabled) if enabled is not None else user_doc.enabled
-    user_doc.save(ignore_permissions=True)
+    status = "Approved" if enabled is None or cint(enabled) else "Suspended"
+    access_doc, granted = _upsert_staff_access(user_id, parsed_roles, access_status=status)
+    if status == "Suspended":
+        access_doc.suspended_by = _current_user()
+        access_doc.suspended_at = frappe.utils.now_datetime()
+        access_doc.suspension_reason = "administrative_access_change"
+        access_doc.save(ignore_permissions=True)
+        security.revoke_user_sessions(user_id)
     frappe.clear_cache(user=user_id)
     frappe.db.commit()
-    return {"updated": True, "user": _staff_item(user_doc), "roles": granted}
+    return {"updated": True, "user": _staff_item(access_doc), "roles": granted}
 
 
 @frappe.whitelist()
@@ -276,15 +391,14 @@ def get_admin_operations(
         limit_page_length=length,
     )
     if or_filters:
-        total = len(
-            frappe.get_all(
-                "OMC Service Request",
-                filters=filters,
-                or_filters=or_filters,
-                pluck="name",
-                limit_page_length=0,
-            )
+        count_rows = frappe.get_all(
+            "OMC Service Request",
+            filters=filters,
+            or_filters=or_filters,
+            fields=["count(name) as total"],
+            limit_page_length=1,
         )
+        total = int(count_rows[0].total or 0) if count_rows else 0
     else:
         total = frappe.db.count("OMC Service Request", filters=filters)
     return {
@@ -297,7 +411,7 @@ def get_admin_operations(
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def reassign_service_request(service_request=None, assigned_staff=None, reason=None):
     _require("can_reassign_service_cases")
     if not service_request or not frappe.db.exists("OMC Service Request", service_request):
@@ -385,13 +499,13 @@ def get_case_admin_options(service_request=None):
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def retry_service_sync(service_request=None):
     _require("can_retry_sync")
     return erp_sync_recovery.retry_erp_sync(service_request, reset_exhaustion=1)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def review_discount(service_request=None, decision=None, reason=None):
     _require("can_manage_business_settings")
     decision = _text(decision).lower()
@@ -431,7 +545,7 @@ def get_business_settings():
     return {field: settings.get(field) for field in sorted(BUSINESS_SETTING_FIELDS) if settings.meta.has_field(field)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_business_settings(settings=None, **kwargs):
     _require("can_manage_business_settings")
     values = json.loads(settings) if isinstance(settings, str) else dict(settings or kwargs or {})

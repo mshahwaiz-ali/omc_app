@@ -55,7 +55,7 @@ def get_document(document_id=None):
     return customer_documents.get_document(document_id=document_id)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_service_document_status(document_id=None, status=None, remarks=None):
     customer_documents._require_document_review_access()
     document, service_request, request_status = _load_document_with_parent(document_id)

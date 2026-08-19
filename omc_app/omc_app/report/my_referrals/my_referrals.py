@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import frappe
 
-from omc_app.referral_capabilities import REFERRAL_ADMIN_ROLES, REFERRAL_OWNER_ROLES
+from omc_app.api import capabilities, referrals
 
 
 COMPLETED_STATUSES = {"completed", "closed", "done", "delivered", "approved"}
@@ -129,10 +129,11 @@ def _columns():
     ]
 
 
-def _profile_filters(user: str, roles: set[str]):
-    if roles.intersection(REFERRAL_ADMIN_ROLES):
+def _profile_filters(user: str):
+    effective = capabilities.effective(user)
+    if effective.get("can_view_all_customers"):
         return {"referral_record": ["is", "set"]}
-    if roles.intersection(REFERRAL_OWNER_ROLES):
+    if referrals.is_referral_owner(user):
         return {
             "referred_by": user,
             "referral_record": ["is", "set"],
@@ -240,8 +241,7 @@ def _service_stats(profile_names: list[str]):
 def execute(filters=None):
     filters = frappe._dict(filters or {})
     user = _current_user()
-    roles = _roles(user)
-    profile_filters = _profile_filters(user, roles)
+    profile_filters = _profile_filters(user)
 
     profiles = frappe.get_all(
         "OMC Customer Profile",

@@ -50,7 +50,7 @@ def _assert_write_access(
         )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_task_operation_status(
     task_id=None,
     operation_status=None,
@@ -306,7 +306,7 @@ def get_task_assignment_options(task_id=None):
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def assign_task(task_id=None, assigned_to=None, **kwargs):
     mobile._assert_internal_workspace_access()
     capabilities = mobile._require_canonical_capability(
@@ -369,7 +369,7 @@ def _normalise_due_date(value):
         )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_task_details(
     task_id=None,
     priority=None,

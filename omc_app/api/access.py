@@ -3,7 +3,8 @@ import re
 import frappe
 from frappe.utils import validate_email_address
 
-from omc_app.api import mobile, staff_profile
+from omc_app.api import capabilities as capability_policy
+from omc_app.api import identity, mobile, security, staff_profile
 from omc_app.setup.roles import (
     ACTIVE_PORTAL_ROLES,
     ACTIVE_STAFF_ROLES,
@@ -22,40 +23,7 @@ from omc_app.setup.roles import (
 INTERNAL_ROLES = {SYSTEM_ROLE} | ACTIVE_STAFF_ROLES
 ADMIN_ROLES = {SYSTEM_ROLE, ADMIN_ROLE}
 
-INTERNAL_CAPABILITY_KEYS = (
-    "can_access_internal_workspace",
-    "can_manage_customers",
-    "can_view_all_customers",
-    "can_view_relevant_customers",
-    "can_manage_leads",
-    "can_manage_tasks",
-    "can_manage_assigned_tasks",
-    "can_view_all_service_cases",
-    "can_view_relevant_service_cases",
-    "can_view_assigned_service_cases",
-    "can_create_service_for_customer",
-    "can_update_service_status",
-    "can_update_assigned_service_status",
-    "can_view_document_queue",
-    "can_view_document_summaries",
-    "can_view_document_attachments",
-    "can_review_documents",
-    "can_view_payment_queue",
-    "can_view_payment_summaries",
-    "can_view_payment_receipts",
-    "can_review_payments",
-    "can_view_support_tickets",
-    "can_reply_support_tickets",
-    "can_update_support_ticket_status",
-    "can_assign_support_tickets",
-    "can_view_internal_notes",
-    "can_manage_settings",
-    "can_manage_staff",
-    "can_review_registrations",
-    "can_manage_business_settings",
-    "can_reassign_service_cases",
-    "can_retry_sync",
-)
+INTERNAL_CAPABILITY_KEYS = capability_policy.INTERNAL_CAPABILITY_KEYS
 
 ROLE_CAPABILITIES = {
     ADMIN_ROLE: set(INTERNAL_CAPABILITY_KEYS),
@@ -96,6 +64,8 @@ ROLE_CAPABILITIES = {
         "can_view_payment_summaries",
         "can_view_payment_receipts",
         "can_review_payments",
+        "can_reconcile_settlement",
+        "can_approve_post_paid",
         "can_view_relevant_customers",
         "can_view_relevant_service_cases",
         "can_view_internal_notes",
@@ -111,6 +81,7 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
+        "can_view_referral_commissions",
     },
     TAX_ASSOCIATE_ROLE: {
         "can_access_internal_workspace",
@@ -122,6 +93,7 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
+        "can_view_referral_commissions",
     },
     BUSINESS_PARTNER_ROLE: {
         "can_access_internal_workspace",
@@ -133,6 +105,7 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
+        "can_view_referral_commissions",
     },
 }
 
@@ -192,6 +165,7 @@ def username_exists(username):
 
 @frappe.whitelist(allow_guest=True)
 def suggest_username(full_name=None, email=None):
+    security.enforce_rate_limit("identity", actor=str(email or "guest"))
     source = str(full_name or "").strip() or str(email or "").split("@", 1)[0]
     base = normalize_username(source) or "omc.user"
     if len(base) < 4:
@@ -207,6 +181,7 @@ def suggest_username(full_name=None, email=None):
 
 @frappe.whitelist(allow_guest=True)
 def check_username_availability(username=None):
+    security.enforce_rate_limit("identity", actor=str(username or "guest"))
     normalized = validate_username(username)
     return {"username": normalized, "available": not username_exists(normalized)}
 
@@ -229,10 +204,11 @@ def is_internal_user(user=None):
     if not user or user == "Guest":
         return False
 
-    if _roles(user).intersection(INTERNAL_ROLES):
-        return True
-
-    return staff_profile.is_staff_identity(user)
+    return bool(
+        user == "Administrator"
+        or identity.user_type(user) == "System User"
+        or identity.get_staff_access(user)
+    )
 
 
 def get_effective_omc_staff_roles(user=None):
@@ -246,16 +222,15 @@ def is_approved_staff(user=None):
     if not user or user == "Guest":
         return False
 
-    roles = _roles(user)
-
-    # Administrator/System Manager remain emergency overrides.
-    if user == "Administrator" or SYSTEM_ROLE in roles:
+    if user == "Administrator":
         return True
-
-    if not get_effective_omc_staff_roles(user):
-        return False
-
-    return staff_profile.is_staff_profile_approved(user)
+    staff = identity.get_staff_access(user)
+    return bool(
+        staff
+        and identity.user_is_enabled(user)
+        and staff.access_status == "Approved"
+        and staff.reconciliation_status == "Current"
+    )
 
 
 def can_access_internal_workspace(user=None):
@@ -289,50 +264,10 @@ def _pending_internal_capabilities():
 
 def _canonical_capabilities(user=None):
     user = user or _current_user()
-    roles = _roles(user)
-    staff_roles = get_effective_omc_staff_roles(user)
 
     if not is_internal_user(user):
         return None
-
-    if not can_access_internal_workspace(user):
-        return _pending_internal_capabilities()
-
-    enabled = {"can_access_internal_workspace"}
-
-    if SYSTEM_ROLE in roles or user == "Administrator":
-        enabled.update(INTERNAL_CAPABILITY_KEYS)
-
-    for role in staff_roles:
-        enabled.update(ROLE_CAPABILITIES.get(role, set()))
-
-    capabilities = {
-        "access_state": "internal",
-        "is_guest": False,
-        "is_pending": False,
-        "is_approved_customer": False,
-        "can_view_public_catalogue": True,
-        "can_view_public_content": True,
-        "can_use_tax_calculator": True,
-        "can_create_service_request": False,
-        "can_upload_documents": False,
-        "can_track_requests": False,
-        "can_view_documents": False,
-        "can_view_payments": False,
-        "can_upload_payment_receipt": False,
-        "can_upload_payment_receipts": False,
-        "can_create_support_ticket": False,
-        "can_view_customer_dashboard": False,
-        "can_access_customer_dashboard": False,
-        "can_view_customer_notifications": False,
-    }
-
-    capabilities.update({
-        key: key in enabled
-        for key in INTERNAL_CAPABILITY_KEYS
-    })
-
-    return capabilities
+    return capability_policy.effective(user)
 
 
 def _bounded_signup_text(value, fieldname, max_length):
@@ -380,18 +315,15 @@ def _validated_signup_kwargs(kwargs):
 @frappe.whitelist(allow_guest=True)
 def sign_up(**kwargs):
     """Validate public input before delegating to the mobile signup workflow."""
-    return mobile.sign_up(**_validated_signup_kwargs(kwargs))
+    data = _validated_signup_kwargs(kwargs)
+    security.enforce_rate_limit("signup", actor=data.get("email"))
+    return mobile.sign_up(**data)
 
 
 @frappe.whitelist()
 def get_mobile_capabilities(user=None):
     user = user or _current_user()
-
-    canonical = _canonical_capabilities(user)
-    if canonical is not None:
-        return canonical
-
-    return mobile._get_mobile_capabilities(user=user)
+    return capability_policy.effective(user)
 
 
 @frappe.whitelist()

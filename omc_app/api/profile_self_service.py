@@ -8,7 +8,7 @@ from frappe import _
 from frappe.exceptions import PermissionError, ValidationError
 from frappe.utils import now_datetime
 
-from omc_app.api import access, mobile, staff_profile
+from omc_app.api import access, identity, mobile, security, staff_profile
 
 
 ALLOWED_FIELDS = {
@@ -91,6 +91,13 @@ def _clean_payload(kwargs) -> dict[str, str]:
             _("These account fields cannot be changed: {0}").format(
                 ", ".join(blocked)
             ),
+            ValidationError,
+        )
+    supported = set(ALLOWED_FIELDS) | set(SET_ONCE_FIELDS)
+    unsupported = sorted(set(data) - supported - LOCKED_FIELDS)
+    if unsupported:
+        frappe.throw(
+            _("Unsupported profile fields: {0}").format(", ".join(unsupported)),
             ValidationError,
         )
 
@@ -378,7 +385,7 @@ def _update_internal_profile(*, user: str, payload: dict[str, str]):
 
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_profile(**kwargs):
     user = _current_user()
 
@@ -442,3 +449,172 @@ def update_profile(**kwargs):
         "message": "Profile updated successfully.",
         "profile": mobile.get_profile(),
     }
+
+
+WORK_ADDRESS_LIMITS = {
+    "work_address": 500,
+    "work_address_details": 500,
+    "google_place_id": 180,
+    "work_city": 140,
+    "work_district": 140,
+    "work_province": 140,
+    "work_postal_code": 20,
+    "work_country": 140,
+    "work_location_source": 80,
+}
+
+
+def _address_value(data, fieldname):
+    value = data.get(fieldname)
+    if value is not None and not isinstance(value, (str, int, float)):
+        frappe.throw(f"{fieldname} must be text.", ValidationError)
+    value = str(value or "").strip()
+    if len(value) > WORK_ADDRESS_LIMITS[fieldname]:
+        frappe.throw(f"{fieldname} is too long.", ValidationError)
+    return value
+
+
+def _coordinate(value, *, minimum, maximum, fieldname):
+    if value in (None, ""):
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        frappe.throw(f"{fieldname} must be numeric.", ValidationError)
+    if parsed < minimum or parsed > maximum:
+        frappe.throw(f"{fieldname} is outside the valid range.", ValidationError)
+    return parsed
+
+
+def _address_is_owned(address_name: str, customer: str) -> bool:
+    return bool(
+        address_name
+        and frappe.db.exists("Address", address_name)
+        and frappe.db.exists(
+            "Dynamic Link",
+            {"parenttype": "Address", "parent": address_name, "link_doctype": "Customer", "link_name": customer},
+        )
+    )
+
+
+def work_address_projection(user=None) -> dict:
+    account = identity.get_customer_account(user)
+    if not account:
+        return {"has_work_address": False, "needs_work_address_prompt": False}
+    address_name = str(account.work_address or "").strip()
+    address = frappe.get_doc("Address", address_name) if _address_is_owned(address_name, account.erp_customer) else None
+    preference = None
+    if account.legacy_customer_profile:
+        preference = frappe.db.get_value(
+            "OMC Customer Preference", account.legacy_customer_profile,
+            ["work_address_prompt_dismissed"], as_dict=True,
+        )
+    has_address = bool(address)
+    formatted = address.get_display() if address else ""
+    return {
+        "has_work_address": has_address,
+        "needs_work_address_prompt": not has_address and not bool(preference and preference.work_address_prompt_dismissed),
+        "work_address": formatted,
+        "work_address_details": account.work_address_details or "",
+        "work_latitude": account.work_latitude if has_address else None,
+        "work_longitude": account.work_longitude if has_address else None,
+        "google_place_id": account.google_place_id or "",
+        "work_city": account.work_city or (address.city if address else ""),
+        "work_district": account.work_district or "",
+        "work_province": account.work_province or (address.state if address else ""),
+        "work_postal_code": account.work_postal_code or (address.pincode if address else ""),
+        "work_country": account.work_country or (address.country if address else ""),
+        "work_location_source": account.work_location_source or "",
+        "work_location_updated_on": str(account.work_location_updated_on or ""),
+        "work_geolocation": (
+            f"{account.work_latitude},{account.work_longitude}"
+            if has_address and account.work_latitude is not None and account.work_longitude is not None else ""
+        ),
+        "work_google_maps_url": (
+            f"https://www.google.com/maps?q={account.work_latitude},{account.work_longitude}"
+            if has_address and account.work_latitude is not None and account.work_longitude is not None else ""
+        ),
+    }
+
+
+@frappe.whitelist(methods=["POST"])
+def update_work_address(**kwargs):
+    context = identity.require_customer_context()
+    security.enforce_rate_limit("staff_mutation", actor=context.user)
+    account = identity.get_customer_account(context.user, for_update=True)
+    if frappe.utils.cint(kwargs.get("clear")):
+        values = {field: None for field in (
+            "work_address", "work_address_details", "work_latitude", "work_longitude",
+            "google_place_id", "work_city", "work_district", "work_province",
+            "work_postal_code", "work_country", "work_location_source", "work_location_updated_on",
+        )}
+        frappe.db.set_value(account.doctype, account.name, values, update_modified=False)
+        security.audit_event(
+            event_type="profile.work_address_cleared", target_doctype=account.doctype,
+            target_name=account.name, old_state="designated", new_state="cleared",
+        )
+        return {"success": True, "cleared": True, **work_address_projection(context.user)}
+
+    data = {field: _address_value(kwargs, field) for field in WORK_ADDRESS_LIMITS}
+    latitude = _coordinate(kwargs.get("work_latitude"), minimum=-90, maximum=90, fieldname="work_latitude")
+    longitude = _coordinate(kwargs.get("work_longitude"), minimum=-180, maximum=180, fieldname="work_longitude")
+    if (latitude is None) != (longitude is None):
+        frappe.throw("Both work coordinates are required together.", ValidationError)
+    if not data["work_address"]:
+        frappe.throw("work_address is required.", ValidationError)
+    address = None
+    if _address_is_owned(account.work_address, account.erp_customer):
+        address = frappe.get_doc("Address", account.work_address)
+    if not address:
+        customer_title = frappe.db.get_value("Customer", account.erp_customer, "customer_name") or account.erp_customer
+        address = frappe.new_doc("Address")
+        address.address_title = f"{customer_title} Work"[:140]
+        address.address_type = "Billing"
+        address.append("links", {"link_doctype": "Customer", "link_name": account.erp_customer})
+    address.address_line1 = data["work_address"][:140]
+    address.address_line2 = data["work_address_details"][:140]
+    address.city = data["work_city"] or "Not Provided"
+    address.state = data["work_province"]
+    address.pincode = data["work_postal_code"]
+    address.country = data["work_country"] or "Pakistan"
+    address.save(ignore_permissions=True)
+    values = {
+        "work_address": address.name,
+        "work_address_details": data["work_address_details"],
+        "work_latitude": latitude,
+        "work_longitude": longitude,
+        "google_place_id": data["google_place_id"],
+        "work_city": data["work_city"],
+        "work_district": data["work_district"],
+        "work_province": data["work_province"],
+        "work_postal_code": data["work_postal_code"],
+        "work_country": data["work_country"] or "Pakistan",
+        "work_location_source": data["work_location_source"],
+        "work_location_updated_on": now_datetime(),
+    }
+    frappe.db.set_value(account.doctype, account.name, values, update_modified=False)
+    security.audit_event(
+        event_type="profile.work_address_updated", target_doctype=account.doctype,
+        target_name=account.name, new_state="designated",
+    )
+    return {"success": True, "address": address.name, **work_address_projection(context.user)}
+
+
+@frappe.whitelist(methods=["POST"])
+def dismiss_work_address_prompt():
+    context = identity.require_customer_context()
+    if not context.legacy_profile:
+        frappe.throw("Customer preference is not available.", ValidationError)
+    name = frappe.db.get_value(
+        "OMC Customer Preference", {"customer_profile": context.legacy_profile}, "name"
+    )
+    preference = frappe.get_doc("OMC Customer Preference", name) if name else frappe.get_doc({
+        "doctype": "OMC Customer Preference", "customer_profile": context.legacy_profile,
+    })
+    preference.work_address_prompt_dismissed = 1
+    preference.work_address_prompt_dismissed_at = now_datetime()
+    if preference.is_new():
+        preference.insert(ignore_permissions=True)
+    else:
+        preference.save(ignore_permissions=True)
+    return {"success": True, "needs_work_address_prompt": False}

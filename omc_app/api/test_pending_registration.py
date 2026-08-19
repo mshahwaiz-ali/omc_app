@@ -1,5 +1,6 @@
 import json
 import uuid
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import frappe
@@ -11,11 +12,16 @@ from omc_app.api import pending_registration, signup_policy
 class TestPendingRegistration(FrappeTestCase):
     def setUp(self):
         super().setUp()
+        self.rate_limit = patch(
+            "omc_app.api.security.enforce_rate_limit", return_value=None
+        )
+        self.rate_limit.start()
         self.created = []
         self.previous_mute_emails = frappe.conf.get("mute_emails")
         frappe.conf.mute_emails = 0
 
     def tearDown(self):
+        self.rate_limit.stop()
         for name in reversed(self.created):
             if frappe.db.exists("OMC Pending Registration", name):
                 frappe.delete_doc(
@@ -276,9 +282,18 @@ class TestPendingRegistration(FrappeTestCase):
         secret = pending_registration.create_pending_registration(payload)
         self.created.append(secret.registration_name)
 
-        result = pending_registration.verify_registration(
-            secret.verification_token
+        account = SimpleNamespace(
+            name="OMC-ACCOUNT-TEST", mapping_provenance="",
+            save=lambda **_kwargs: None,
         )
+        with patch.object(
+            pending_registration.identity,
+            "ensure_customer_account_from_legacy",
+            return_value=account,
+        ):
+            result = pending_registration.verify_registration(
+                secret.verification_token
+            )
 
         doc = frappe.get_doc(
             "OMC Pending Registration",
@@ -309,12 +324,21 @@ class TestPendingRegistration(FrappeTestCase):
         secret = pending_registration.create_pending_registration(payload)
         self.created.append(secret.registration_name)
 
-        first = pending_registration.verify_registration(
-            secret.verification_token
+        account = SimpleNamespace(
+            name="OMC-ACCOUNT-TEST", mapping_provenance="",
+            save=lambda **_kwargs: None,
         )
-        second = pending_registration.verify_registration(
-            secret.verification_token
-        )
+        with patch.object(
+            pending_registration.identity,
+            "ensure_customer_account_from_legacy",
+            return_value=account,
+        ):
+            first = pending_registration.verify_registration(
+                secret.verification_token
+            )
+            second = pending_registration.verify_registration(
+                secret.verification_token
+            )
 
         self.assertTrue(first["ok"])
         self.assertFalse(second["ok"])

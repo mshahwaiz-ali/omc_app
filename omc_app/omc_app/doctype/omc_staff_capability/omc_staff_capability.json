@@ -1,0 +1,6 @@
+{
+ "actions": [], "allow_rename": 0, "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "editable_grid": 1, "engine": "InnoDB", "istable": 1,
+ "field_order": ["capability"],
+ "fields": [{"fieldname": "capability", "fieldtype": "Data", "in_list_view": 1, "label": "Capability", "reqd": 1}],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Staff Capability", "owner": "Administrator", "permissions": [], "sort_field": "idx", "sort_order": "ASC", "states": []
+}

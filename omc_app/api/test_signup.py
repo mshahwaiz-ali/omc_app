@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -12,9 +13,28 @@ class TestSignupRoleNormalization(FrappeTestCase):
         super().setUp()
         self.created_users = []
         self.created_referrals = []
+        self.rate_limit = patch(
+            "omc_app.api.security.enforce_rate_limit", return_value=None
+        )
+        self.rate_limit.start()
 
     def tearDown(self):
+        self.rate_limit.stop()
         for email in reversed(self.created_users):
+            for account_name in frappe.get_all(
+                "OMC Customer Account", filters={"user": email}, pluck="name"
+            ):
+                frappe.delete_doc(
+                    "OMC Customer Account", account_name,
+                    force=True, ignore_permissions=True,
+                )
+            for access_name in frappe.get_all(
+                "OMC Staff Access", filters={"user": email}, pluck="name"
+            ):
+                frappe.delete_doc(
+                    "OMC Staff Access", access_name,
+                    force=True, ignore_permissions=True,
+                )
             for profile_name in frappe.get_all(
                 "OMC Customer Profile",
                 filters={"email": email},
@@ -104,11 +124,26 @@ class TestSignupRoleNormalization(FrappeTestCase):
         profile.user = staff_email
         profile.full_name = "Referral Owner"
         profile.email = staff_email
-        profile.staff_role = "OMC Consultant"
+        profile.staff_role = "Consultant"
         profile.staff_status = "Active"
         profile.approval_status = "Approved"
         profile.is_active = 1
         profile.insert(ignore_permissions=True)
+
+        staff_access = frappe.get_doc({
+            "doctype": "OMC Staff Access",
+            "user": staff_email,
+            "legacy_staff_profile": profile.name,
+            "access_status": "Approved",
+            "persona_snapshot": "Consultant",
+            "persona_source": "Reviewed",
+            "reconciliation_status": "Current",
+            "capabilities": [
+                {"capability": code}
+                for code in sorted(access.ROLE_CAPABILITIES["Consultant"])
+            ],
+        })
+        staff_access.insert(ignore_permissions=True)
 
         # Staff Profile on_update normally creates this automatically.
         # Calling the canonical helper also verifies idempotent ownership.
@@ -119,7 +154,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
 
         return doc
 
-    def test_canonical_signup_creates_pending_website_customer(self):
+    def test_canonical_signup_creates_pending_website_customer_without_role_mutation(self):
         email = self._email("canonical-signup")
 
         result = access.sign_up(**self._signup_payload(email))
@@ -129,7 +164,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         profile = frappe.get_doc("OMC Customer Profile", result["profile"]["customer_id"])
 
         self.assertEqual(user.user_type, "Website User")
-        self.assertIn(CUSTOMER_ROLE, roles)
+        self.assertNotIn(CUSTOMER_ROLE, roles)
         self.assertNotIn("OMC Customer Applicant", roles)
         self.assertEqual(profile.customer_status, "Pending")
         self.assertEqual(profile.approval_status, "Pending Review")
@@ -143,7 +178,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
         self.assertEqual(profile.get("remarks"), "Available for review")
         self.assertEqual(result["access_state"], "pending")
 
-    def test_direct_mobile_signup_uses_same_canonical_customer_role(self):
+    def test_direct_mobile_signup_uses_customer_account_without_role_mutation(self):
         email = self._email("direct-signup")
 
         result = mobile.sign_up(**self._signup_payload(email, register_as="Customer", customer_type="Customer"))
@@ -156,11 +191,11 @@ class TestSignupRoleNormalization(FrappeTestCase):
         )
 
         self.assertEqual(user.user_type, "Website User")
-        self.assertIn(CUSTOMER_ROLE, roles)
+        self.assertNotIn(CUSTOMER_ROLE, roles)
         self.assertNotIn("OMC Customer Applicant", roles)
-        self.assertEqual(profile.customer_status, "Active")
-        self.assertEqual(profile.approval_status, "Approved")
-        self.assertEqual(result["access_state"], "approved")
+        self.assertEqual(profile.customer_status, "Pending")
+        self.assertEqual(profile.approval_status, "Pending Review")
+        self.assertEqual(result["access_state"], "pending")
 
     def test_existing_internal_user_cannot_be_targeted_by_guest_signup(self):
         email = self._email("internal-signup")

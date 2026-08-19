@@ -137,6 +137,28 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
 
     request = frappe.get_doc("OMC Service Request", request_name)
     current_status = _text(getattr(request, "status", None))
+    request_state = _text(getattr(request, "request_state", None))
+    if request_state == "Financial Hold":
+        return {
+            "updated": False,
+            "reason": "financial hold prevents ERP Task projection",
+            "request": request_name,
+            "customer_status": current_status,
+        }
+    # Blank is a supported compatibility projection for pre-redesign records.
+    # Only canonical non-activated states block the one-way ERP projection.
+    canonical_states = {
+        "Draft", "Pending Payment", "Payment Not Required",
+        "Ready for Activation", "Activating", "Activated", "Expired",
+        "Cancelled", "Activation Failed", "Financial Hold",
+    }
+    if request_state in canonical_states and request_state != "Activated":
+        return {
+            "updated": False,
+            "reason": "request is not activated",
+            "request": request_name,
+            "customer_status": current_status,
+        }
     raw_status = _text(getattr(doc, "status", None))
     operation_status = _text(getattr(doc, "custom_operation_status", None))
     mapped_status = customer_status(raw_status, operation_status)
@@ -166,6 +188,8 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
             }
 
     request_values = {"status": mapped_status}
+    if mapped_status == "Cancelled":
+        request_values["request_state"] = "Cancelled"
     if mapped_status == "Completed" and current_status != "Completed":
         from omc_app.api import workflow_automation
 

@@ -41,7 +41,7 @@ def _resolve_active_service(value):
     return service_name
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_service(**kwargs):
     data = dict(kwargs or {})
     service_name = _resolve_active_service(data.get("service_id") or data.get("service"))

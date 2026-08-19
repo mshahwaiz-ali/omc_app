@@ -1,0 +1,22 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "field:attribution_key", "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["attribution_key", "attribution_type", "referral_registry", "referral_code_snapshot", "owner_user", "owner_persona_snapshot", "customer_account", "erp_customer", "service_request", "consent_status", "consent_version", "attributed_at", "consent_revoked_at", "source_version"],
+ "fields": [
+  {"fieldname": "attribution_key", "fieldtype": "Data", "label": "Attribution Key", "reqd": 1, "unique": 1},
+  {"fieldname": "attribution_type", "fieldtype": "Select", "in_list_view": 1, "label": "Attribution Type", "options": "Acquisition\nService Request", "reqd": 1},
+  {"fieldname": "referral_registry", "fieldtype": "Link", "in_list_view": 1, "label": "Referral Registry", "options": "OMC Referral", "reqd": 1},
+  {"fieldname": "referral_code_snapshot", "fieldtype": "Data", "label": "Referral Code Snapshot", "read_only": 1, "reqd": 1},
+  {"fieldname": "owner_user", "fieldtype": "Link", "in_list_view": 1, "label": "Owner User", "options": "User", "read_only": 1, "reqd": 1},
+  {"fieldname": "owner_persona_snapshot", "fieldtype": "Data", "label": "Owner Persona Snapshot", "read_only": 1},
+  {"fieldname": "customer_account", "fieldtype": "Link", "label": "Customer Account", "options": "OMC Customer Account"},
+  {"fieldname": "erp_customer", "fieldtype": "Link", "label": "ERP Customer", "options": "Customer"},
+  {"fieldname": "service_request", "fieldtype": "Link", "label": "Service Request", "options": "OMC Service Request"},
+  {"default": "Granted", "fieldname": "consent_status", "fieldtype": "Select", "label": "Consent Status", "options": "Granted\nRevoked", "reqd": 1},
+  {"fieldname": "consent_version", "fieldtype": "Data", "label": "Consent Version", "read_only": 1},
+  {"fieldname": "attributed_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Attributed At", "read_only": 1, "reqd": 1},
+  {"fieldname": "consent_revoked_at", "fieldtype": "Datetime", "label": "Consent Revoked At", "read_only": 1},
+  {"fieldname": "source_version", "fieldtype": "Data", "label": "Source Version", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Referral Attribution", "owner": "Administrator",
+ "permissions": [{"export": 1, "read": 1, "report": 1, "role": "OMC Admin"}], "sort_field": "attributed_at", "sort_order": "DESC", "states": [], "track_changes": 0
+}

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import frappe
 
 from omc_app.api import erp_activation
@@ -9,15 +11,12 @@ from omc_app.api import (
     erp_customer_resolver,
     erp_service_task_adapter,
     idempotency,
+    identity,
     mobile,
+    referral_attribution,
+    security,
     service_assignment,
     submission_integrity,
-)
-from omc_app.referral_capabilities import (
-    ALL_CUSTOMER_ASSIST_ROLES,
-    REFERRAL_ADMIN_ROLES,
-    REFERRAL_OWNER_ROLES,
-    WALK_IN_CUSTOMER_ROLES,
 )
 
 CUSTOMER_MODES = {
@@ -58,6 +57,7 @@ def _current_user() -> str:
 
 
 def _roles(user: str) -> set[str]:
+    """Compatibility-only role reader; authorization uses capabilities."""
     return set(frappe.get_roles(user) or [])
 
 
@@ -81,6 +81,8 @@ def _require_internal_assist(user: str) -> dict:
 
 
 def _request_pricing_snapshot(service, *, is_internal: bool, user: str, kwargs: dict) -> dict:
+    from omc_app.omc_app.doctype.omc_service.omc_service import pricing_version_for
+
     original_price = frappe.utils.flt(getattr(service, "base_price", None) or 0)
     currency = _text(getattr(service, "currency", None)) or "PKR"
     discount_type = _text(kwargs.get("discount_type"))
@@ -148,6 +150,43 @@ def _request_pricing_snapshot(service, *, is_internal: bool, user: str, kwargs: 
     discount_status = "Pending Approval" if needs_approval else ("Approved" if discount_amount > 0 else "None")
     final_price = original_price if needs_approval else proposed_final_price
 
+    supplied_service_version = frappe.utils.cint(kwargs.get("service_version") or 0)
+    supplied_pricing_version = _text(kwargs.get("pricing_version"))
+    current_service_version = frappe.utils.cint(getattr(service, "service_version", 1) or 1)
+    current_pricing_version = _text(getattr(service, "pricing_version", None)) or pricing_version_for(service)
+    if supplied_service_version != current_service_version or supplied_pricing_version != current_pricing_version:
+        frappe.throw(
+            "Service pricing changed. Refresh the catalogue and confirm again.",
+            frappe.ValidationError,
+        )
+
+    tax_policy = _text(getattr(service, "tax_policy", None)) or "No Tax"
+    tax_rate = frappe.utils.flt(getattr(service, "tax_rate", None) or 0, 6)
+    tax_amount = 0.0
+    payable_amount = final_price
+    if tax_policy == "Tax Exclusive":
+        tax_amount = frappe.utils.flt(final_price * tax_rate / 100, 6)
+        payable_amount = frappe.utils.flt(final_price + tax_amount, 6)
+    elif tax_policy == "Tax Included" and tax_rate:
+        tax_amount = frappe.utils.flt(final_price * tax_rate / (100 + tax_rate), 6)
+    activation_policy = _text(getattr(service, "activation_policy", None)) or "Full Settlement"
+    if activation_policy == "No Charge" and payable_amount:
+        frappe.throw("No Charge services must have a zero payable amount.", frappe.ValidationError)
+
+    snapshot = {
+        "activation_policy": activation_policy,
+        "base_price": original_price,
+        "currency": currency,
+        "discount_amount": discount_amount,
+        "discount_status": discount_status,
+        "payable_amount": payable_amount,
+        "pricing_version": current_pricing_version,
+        "service_version": current_service_version,
+        "tax_amount": tax_amount,
+        "tax_policy": tax_policy,
+        "tax_rate": tax_rate,
+    }
+
     return {
         "original_price": original_price,
         "pricing_currency": currency,
@@ -161,13 +200,31 @@ def _request_pricing_snapshot(service, *, is_internal: bool, user: str, kwargs: 
         "discount_requested_by": user if is_internal and discount_amount > 0 else "",
         "discount_approved_by": user if discount_status == "Approved" else "",
         "discount_applied_by": user if discount_status == "Approved" else "",
+        "service_version_snapshot": current_service_version,
+        "pricing_version_snapshot": current_pricing_version,
+        "payment_policy_snapshot": activation_policy,
+        "tax_policy_snapshot": tax_policy,
+        "tax_rate_snapshot": tax_rate,
+        "tax_amount": tax_amount,
+        "payable_amount": payable_amount,
+        "pricing_snapshot_json": json.dumps(snapshot, sort_keys=True, separators=(",", ":")),
     }
 
 
 def _active_request(service, *, profile=None, manual_customer=None):
+    duplicate_window = max(
+        frappe.utils.cint(getattr(service, "duplicate_window_hours", 24) or 24),
+        1,
+    )
     filters = {
         "service": service.name,
         "status": ["in", ["Open", "In Progress", "Waiting for Customer", "Waiting for Payment"]],
+        "creation": [
+            ">=",
+            frappe.utils.add_to_date(
+                frappe.utils.now_datetime(), hours=-duplicate_window
+            ),
+        ],
     }
     if profile:
         filters["customer_profile"] = profile.name
@@ -253,7 +310,7 @@ def _resolve_existing_customer(
     customer_profile: str,
     consent_reference: str,
 ):
-    if not _roles(user).intersection(ALL_CUSTOMER_ASSIST_ROLES):
+    if not _capabilities(user).get("can_view_all_customers"):
         frappe.throw(
             "You do not have permission to create requests for arbitrary customers.",
             frappe.PermissionError,
@@ -333,7 +390,7 @@ def _manual_customer_profile_matches(manual_customer) -> list[str]:
 
 
 def _create_manual_customer(user: str, kwargs: dict):
-    if not _roles(user).intersection(WALK_IN_CUSTOMER_ROLES):
+    if not _capabilities(user).get("can_manage_customers"):
         frappe.throw(
             "You do not have permission to create walk-in customers.",
             frappe.PermissionError,
@@ -394,13 +451,40 @@ def _request_response(doc) -> dict:
         "service_request": doc.name,
         "case_id": doc.name,
         "status": doc.status,
+        "request_state": doc.request_state or "Draft",
         "created": True,
         "message": "Service request created.",
         "customer_mode": doc.customer_mode or "",
         "submission_mode": doc.submission_mode or "",
         "customer_profile": doc.customer_profile or "",
         "manual_customer": doc.manual_customer or "",
+        "account": doc.customer_account or "",
+        "pricing_snapshot": json.loads(doc.pricing_snapshot_json or "{}"),
+        "receipt_status": "Not Submitted",
+        "accounting_status": "Unmatched",
+        "settlement": {"status": "Unmatched", "allocated_amount": 0},
+        "activation": {
+            "state": doc.request_state or "Draft",
+            "erp_service": doc.erp_service or "",
+            "erp_task": doc.erp_task or "",
+        },
     }
+
+
+def _approved_account_for_profile(profile):
+    name = frappe.db.get_value(
+        "OMC Customer Account", {"legacy_customer_profile": profile.name}, "name"
+    )
+    if not name:
+        frappe.throw("Customer account is not available.", frappe.PermissionError)
+    account = frappe.get_doc("OMC Customer Account", name)
+    if (
+        account.identity_proof_status != "Verified"
+        or account.account_link_status != "Linked"
+        or account.service_access_status != "Approved"
+    ):
+        frappe.throw("Customer account is not available.", frappe.PermissionError)
+    return account
 
 
 
@@ -461,17 +545,14 @@ def get_customer_selection_options(
     limit_page_length=20,
 ):
     user = _current_user()
-    roles = _roles(user)
     capabilities = _require_internal_assist(user)
     start, length = _pagination(limit_start, limit_page_length)
 
     modes = []
-    if roles.intersection(REFERRAL_OWNER_ROLES | REFERRAL_ADMIN_ROLES):
+    if capabilities.get("can_view_referral_commissions"):
         modes.append("My Referral")
-    if roles.intersection(ALL_CUSTOMER_ASSIST_ROLES):
+    if capabilities.get("can_view_all_customers"):
         modes.append("Existing Customer")
-    if roles.intersection(WALK_IN_CUSTOMER_ROLES):
-        modes.append("Walk-in Customer")
 
     selected_mode = _text(customer_mode)
     if not selected_mode:
@@ -553,7 +634,7 @@ def get_customer_selection_options(
         items = [_customer_item(row, mode=selected_mode) for row in rows]
     else:
         filters = {}
-        if not roles.intersection(ALL_CUSTOMER_ASSIST_ROLES):
+        if not capabilities.get("can_view_all_customers"):
             filters["created_by_user"] = user
         rows = frappe.get_all(
             "OMC Manual Customer",
@@ -593,11 +674,8 @@ def get_customer_selection_options(
 def convert_manual_customer(manual_customer=None, request_name=None):
     user = _current_user()
 
-    if not _roles(user).intersection(REFERRAL_ADMIN_ROLES):
-        frappe.throw(
-            "You do not have permission to convert walk-in customers.",
-            frappe.PermissionError,
-        )
+    if not _capabilities(user).get("can_manage_customers"):
+        frappe.throw("You do not have permission to convert walk-in customers.", frappe.PermissionError)
 
     manual_customer = _text(manual_customer)
     request_name = _text(request_name)
@@ -765,8 +843,12 @@ def convert_manual_customer(manual_customer=None, request_name=None):
 
 
 
+@frappe.whitelist(methods=["POST"])
 def create_request(**kwargs):
     actor = _current_user()
+    security.enforce_rate_limit("service_request", actor=actor)
+    if not idempotency.request_key(kwargs):
+        frappe.throw("An idempotency key is required.", frappe.ValidationError)
     claim = idempotency.begin(
         operation="service_request.create",
         actor=actor,
@@ -804,8 +886,13 @@ def _create_request(**kwargs):
         kwargs=kwargs,
     )
 
+    if not frappe.utils.cint(kwargs.get("final_confirmation")):
+        frappe.throw("Final confirmation is required.", frappe.ValidationError)
+
     if not is_internal:
-        profile = mobile._assert_approved_customer()
+        customer_context = identity.require_customer_context()
+        profile = frappe.get_doc("OMC Customer Profile", customer_context.legacy_profile)
+        account = frappe.get_doc("OMC Customer Account", customer_context.account_name)
         customer_mode = "Self"
         submission_mode = "Customer Self-Service"
         manual_customer = None
@@ -841,10 +928,11 @@ def _create_request(**kwargs):
             )
             submission_mode = "Admin on Behalf"
         else:
-            profile = None
-            manual_customer = _create_manual_customer(user, kwargs)
-            submission_mode = "Walk-in Assisted"
-            consent_reference = consent_reference or manual_customer.name
+            frappe.throw(
+                "Walk-in customers must be reconciled to an approved Customer Account before request creation.",
+                frappe.ValidationError,
+            )
+        account = _approved_account_for_profile(profile)
 
     full_name = _text(kwargs.get("full_name") or kwargs.get("customer_name"))
     contact_email = _text(kwargs.get("contact_email") or kwargs.get("email"))
@@ -871,7 +959,20 @@ def _create_request(**kwargs):
     doc.description = submission_integrity.sanitize_description(kwargs.get("description") or "")
     doc.priority = kwargs.get("priority") or "Medium"
     doc.status = "Open"
+    doc.request_state = (
+        "Payment Not Required"
+        if pricing["payment_policy_snapshot"] == "No Charge" and not pricing["payable_amount"]
+        else "Pending Payment"
+    )
+    doc.final_confirmation = 1
+    doc.submitted_at = frappe.utils.now_datetime()
+    doc.expires_at = frappe.utils.add_to_date(
+        doc.submitted_at,
+        hours=max(frappe.utils.cint(getattr(service, "pending_payment_expiry_hours", 72) or 72), 1),
+    )
     doc.customer_profile = profile.name if profile else ""
+    doc.customer_account = account.name
+    doc.erp_customer = account.erp_customer
     doc.requested_for_customer = (
         _text(profile.linked_app_user)
         or _text(profile.user)
@@ -904,35 +1005,23 @@ def _create_request(**kwargs):
         doc.referral_owner = profile.referred_by
         doc.referral_record = profile.referral_record
 
-    explicit_assignee = _text(kwargs.get("assigned_staff"))
-    referral_assignee = (
-        doc.referral_owner
-        if profile and customer_mode == "My Referral"
-        else ""
-    )
-    assignment_decision = service_assignment.assign_new_request(
-        doc,
-        service,
-        explicit_user=explicit_assignee,
-        referral_owner=referral_assignee,
-    )
     doc.insert(ignore_permissions=True)
 
-    erp_bridge = erp_activation.activate_request(
-        doc,
-        service=service,
-        profile=profile,
-        manual_customer=manual_customer,
-    )
+    if doc.referral_record:
+        attribution = referral_attribution.request_snapshot(
+            request=doc,
+            account=account,
+            referral_registry=doc.referral_record,
+        )
+        frappe.db.set_value(
+            doc.doctype, doc.name, "referral_attribution", attribution.name, update_modified=False
+        )
+        doc.referral_attribution = attribution.name
+
+    erp_bridge = erp_activation.activate_request(doc, service=service, profile=profile)
 
     if doc.meta.get_field("submission_integrity_status"):
         submission_integrity.evaluate_request(doc)
-    assignment_result = service_assignment.apply_assignment(
-        doc,
-        assignment_decision,
-        set_assignee=False,
-    )
-    assignment_todo = assignment_result.get("todo")
 
     mobile._create_service_timeline_entry(
         service_request=doc.name,
@@ -949,10 +1038,9 @@ def _create_request(**kwargs):
         visible_to_customer=1,
     )
 
-    frappe.db.commit()
     response = _request_response(doc)
     response["assigned_staff"] = doc.assigned_staff or ""
-    response["assignment_todo"] = assignment_todo
+    response["assignment_todo"] = None
     response["erp_sync_status"] = erp_bridge.get("status") or ""
     response["erp_customer"] = erp_bridge.get("erp_customer") or ""
     response["erp_service"] = erp_bridge.get("erp_service") or ""

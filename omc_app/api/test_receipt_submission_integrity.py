@@ -112,13 +112,25 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
             "can_upload_payment_receipt": True,
         }
 
-        result = payments.upload_payment_receipt_file(
-            payment_id=payment.name,
-            file_name="new.pdf",
-            content_base64="JVBERi0xLjc=",
-            payment_reference="REF-2",
-            remarks="New receipt",
-        )
+        with (
+            patch.object(payments.security, "enforce_rate_limit"),
+            patch.object(payments.idempotency, "begin", return_value=None),
+            patch.object(payments.upload_validation, "validate_upload_bytes", return_value="new.pdf"),
+            patch.object(payments.upload_validation, "scan_upload", return_value="Manual Review"),
+            patch.object(
+                payments,
+                "save_file",
+                return_value=SimpleNamespace(file_url="/private/files/new.pdf"),
+            ),
+        ):
+            result = payments.upload_payment_receipt_file(
+                payment_id=payment.name,
+                file_name="new.pdf",
+                content_base64="JVBERi0xLjc=",
+                payment_reference="REF-2",
+                remarks="New receipt",
+                idempotency_key="receipt-test-1",
+            )
 
         self.assertTrue(result["updated"])
         payment.save.assert_called_once_with(
@@ -127,4 +139,4 @@ class TestReceiptSubmissionIntegrity(FrappeTestCase):
         timeline.assert_called_once()
         set_status.assert_called_once()
         notify.assert_called_once()
-        commit.assert_called_once()
+        commit.assert_not_called()

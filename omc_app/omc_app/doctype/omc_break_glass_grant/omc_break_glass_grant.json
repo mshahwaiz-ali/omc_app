@@ -1,0 +1,20 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "hash", "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["user", "capability", "scope_doctype", "scope_name", "reason", "granted_by", "granted_at", "expires_at", "revoked", "revoked_by", "revoked_at", "revocation_reason"],
+ "fields": [
+  {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "User", "options": "User", "reqd": 1},
+  {"fieldname": "capability", "fieldtype": "Data", "in_list_view": 1, "label": "Capability", "reqd": 1},
+  {"fieldname": "scope_doctype", "fieldtype": "Data", "label": "Scope DocType"},
+  {"fieldname": "scope_name", "fieldtype": "Data", "label": "Scope Name"},
+  {"fieldname": "reason", "fieldtype": "Small Text", "label": "Reason", "reqd": 1},
+  {"fieldname": "granted_by", "fieldtype": "Link", "label": "Granted By", "options": "User", "read_only": 1, "reqd": 1},
+  {"fieldname": "granted_at", "fieldtype": "Datetime", "label": "Granted At", "read_only": 1, "reqd": 1},
+  {"fieldname": "expires_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Expires At", "reqd": 1},
+  {"default": "0", "fieldname": "revoked", "fieldtype": "Check", "label": "Revoked", "read_only": 1},
+  {"fieldname": "revoked_by", "fieldtype": "Link", "label": "Revoked By", "options": "User", "read_only": 1},
+  {"fieldname": "revoked_at", "fieldtype": "Datetime", "label": "Revoked At", "read_only": 1},
+  {"fieldname": "revocation_reason", "fieldtype": "Small Text", "label": "Revocation Reason", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Break Glass Grant", "owner": "Administrator",
+ "permissions": [{"create": 1, "export": 1, "read": 1, "report": 1, "role": "OMC Admin", "write": 1}], "sort_field": "expires_at", "sort_order": "DESC", "states": [], "track_changes": 1
+}

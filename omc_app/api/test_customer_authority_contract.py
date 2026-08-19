@@ -46,7 +46,8 @@ class TestCustomerAuthorityContract(FrappeTestCase):
         )
 
         self.assertIn('frappe.new_doc("Customer")', resolver)
-        self.assertIn("resolve_profile_customer", adapter)
+        self.assertIn('"OMC Customer Account"', adapter)
+        self.assertNotIn('frappe.new_doc("Customer")', adapter)
         self.assertNotIn(
             'frappe.new_doc("OMC Customer Profile")',
             resolver,

@@ -168,7 +168,7 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
         "_set_case_status",
         return_value=True,
     )
-    def test_paid_transition_runs_side_effects_once(
+    def test_receipt_acceptance_does_not_activate_or_mark_paid(
         self,
         _set_status,
         activate_erp,
@@ -188,9 +188,12 @@ class TestPaymentReviewIntegrity(FrappeTestCase):
             )
 
         self.assertTrue(result["updated"])
+        self.assertEqual(result["status"], "Under Review")
+        self.assertEqual(result["receipt_status"], "Accepted")
         payment.save.assert_called_once_with(
             ignore_permissions=True,
         )
-        self.assertEqual(timeline.call_count, 2)
+        self.assertEqual(timeline.call_count, 1)
         notification.assert_called_once()
-        activate_erp.assert_called_once_with(service_case)
+        activate_erp.assert_not_called()
+        _set_status.assert_not_called()

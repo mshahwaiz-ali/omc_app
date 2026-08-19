@@ -5,7 +5,7 @@ import frappe
 from omc_app.api import assisted_service
 
 
-ALLOWED_ASSISTED_MODES = {"My Referral", "Walk-in Customer"}
+ALLOWED_ASSISTED_MODES = {"My Referral", "Existing Customer"}
 
 
 def _mode(value) -> str:
@@ -16,7 +16,7 @@ def _assert_allowed_assisted_mode(value) -> str:
     mode = _mode(value)
     if mode not in ALLOWED_ASSISTED_MODES:
         frappe.throw(
-            "Internal staff can create service requests only for their own referrals or walk-in customers.",
+            "Internal staff can create service requests only for their own referrals or approved existing customers.",
             frappe.PermissionError,
         )
     return mode
@@ -58,13 +58,13 @@ def get_customer_selection_options(
     return response
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_request(**kwargs):
     data = dict(kwargs or {})
     data["customer_mode"] = _assert_allowed_assisted_mode(data.get("customer_mode"))
     return assisted_service.create_request(**data)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_service_request_for_customer(**kwargs):
     return create_request(**kwargs)

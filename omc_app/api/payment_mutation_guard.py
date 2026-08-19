@@ -57,6 +57,10 @@ def _same_text(current, requested):
 
 
 def _review_is_noop(payment, *, status, remarks=None, payment_reference=None):
+    if status == "Paid" and payment.receipt_status == "Accepted":
+        return _same_text(payment.remarks, remarks) and _same_text(
+            payment.payment_reference, payment_reference
+        )
     return (
         (payment.status or "") == (status or "")
         and _same_text(payment.remarks, remarks)
@@ -82,7 +86,7 @@ def _noop_review_response(payment):
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def upload_payment_receipt_file(
     payment_id=None,
     name=None,
@@ -104,7 +108,7 @@ def upload_payment_receipt_file(
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def review_payment_receipt(
     payment_id=None,
     name=None,

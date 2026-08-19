@@ -33,35 +33,30 @@ class TestAuthorizationContracts(FrappeTestCase):
         )
         self.assertEqual(query, "1=0")
 
-    def test_customer_service_request_scope_contains_direct_ownership(self):
+    def test_customer_service_request_scope_uses_canonical_account_ownership(self):
         user = "customer@example.com"
         query = self._query_for(
             permissions.service_request_query,
             user=user,
             roles=(),
         )
-        self.assertIn(f"requested_for_customer = '{user}'", query)
-        self.assertIn(f"submitted_by_user = '{user}'", query)
-        self.assertIn(f"customer.linked_app_user = '{user}'", query)
+        self.assertIn("tabOMC Customer Account", query)
+        self.assertIn(f"account.user = '{user}'", query)
+        self.assertIn("customer_account = account.name", query)
+        self.assertNotIn("requested_for_customer", query)
+        self.assertNotIn("submitted_by_user", query)
 
-    def test_customer_profile_scope_contains_self_ownership(self):
+    def test_customer_profile_scope_uses_canonical_account_ownership(self):
         user = "customer@example.com"
         query = self._query_for(
             permissions.customer_profile_query,
             user=user,
             roles=(),
         )
-        self.assertTrue(
-            any(
-                marker in query
-                for marker in (
-                    f"linked_app_user = '{user}'",
-                    f"user = '{user}'",
-                    f"email = '{user}'",
-                )
-            ),
-            "Customer profile query does not include a direct self-ownership condition.",
-        )
+        self.assertIn("tabOMC Customer Account", query)
+        self.assertIn(f"account.user = '{user}'", query)
+        self.assertIn("account.legacy_customer_profile", query)
+        self.assertNotIn(f"email = '{user}'", query)
 
     def test_consultant_service_request_scope_requires_assignment_or_consent(self):
         user = "consultant@example.com"
@@ -88,8 +83,8 @@ class TestAuthorizationContracts(FrappeTestCase):
             roles=(DOCUMENT_REVIEWER_ROLE,),
         )
         self.assertEqual(document_query, "")
-        self.assertEqual(payment_query, "1=0")
-        self.assertEqual(support_query, "1=0")
+        self.assertIn("tabOMC Customer Account", payment_query)
+        self.assertIn("tabOMC Customer Account", support_query)
 
         finance_payment_query = self._query_for(
             permissions.service_payment_query,
@@ -100,7 +95,7 @@ class TestAuthorizationContracts(FrappeTestCase):
             roles=(FINANCE_REVIEWER_ROLE,),
         )
         self.assertEqual(finance_payment_query, "")
-        self.assertEqual(finance_document_query, "1=0")
+        self.assertIn("tabOMC Customer Account", finance_document_query)
 
         support_ticket_query = self._query_for(
             permissions.support_ticket_query,
@@ -111,7 +106,7 @@ class TestAuthorizationContracts(FrappeTestCase):
             roles=(SUPPORT_AGENT_ROLE,),
         )
         self.assertEqual(support_ticket_query, "")
-        self.assertEqual(support_payment_query, "1=0")
+        self.assertIn("tabOMC Customer Account", support_payment_query)
 
     def test_privileged_roles_have_unrestricted_query_scope(self):
         for role in (ADMIN_ROLE, MANAGER_ROLE):

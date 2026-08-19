@@ -16,6 +16,8 @@
   "referred_customer_profile",
   "referred_app_user",
   "source",
+  "owner_persona_snapshot",
+  "owner_source_version",
   "consent_section",
   "consent_granted",
   "consent_timestamp",
@@ -171,6 +173,18 @@
    "fieldtype": "Small Text",
    "label": "Notes",
    "read_only": 1
+  },
+  {
+   "fieldname": "owner_persona_snapshot",
+   "fieldtype": "Data",
+   "label": "Owner Persona Snapshot",
+   "read_only": 1
+  },
+  {
+   "fieldname": "owner_source_version",
+   "fieldtype": "Data",
+   "label": "Owner Source Version",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
@@ -184,7 +198,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager"
+   "role": "OMC Admin"
   }
  ],
  "search_fields": "referral_code,referrer_user,referred_customer_profile,referred_app_user,status",

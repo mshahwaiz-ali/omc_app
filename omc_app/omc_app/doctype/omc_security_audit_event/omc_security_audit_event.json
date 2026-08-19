@@ -1,0 +1,22 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "field:event_id", "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["event_id", "event_type", "occurred_at", "correlation_id", "actor", "effective_capability", "target_doctype", "target_name", "old_state", "new_state", "source_version", "idempotency_key", "safe_reason", "override_expires_at"],
+ "fields": [
+  {"fieldname": "event_id", "fieldtype": "Data", "label": "Event ID", "reqd": 1, "unique": 1},
+  {"fieldname": "event_type", "fieldtype": "Data", "in_list_view": 1, "label": "Event Type", "reqd": 1},
+  {"fieldname": "occurred_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Occurred At", "reqd": 1},
+  {"fieldname": "correlation_id", "fieldtype": "Data", "label": "Correlation ID", "reqd": 1},
+  {"fieldname": "actor", "fieldtype": "Link", "label": "Actor", "options": "User"},
+  {"fieldname": "effective_capability", "fieldtype": "Data", "label": "Effective Capability"},
+  {"fieldname": "target_doctype", "fieldtype": "Data", "label": "Target DocType"},
+  {"fieldname": "target_name", "fieldtype": "Data", "label": "Target Name"},
+  {"fieldname": "old_state", "fieldtype": "Data", "label": "Old State"},
+  {"fieldname": "new_state", "fieldtype": "Data", "label": "New State"},
+  {"fieldname": "source_version", "fieldtype": "Data", "label": "Source Version"},
+  {"fieldname": "idempotency_key", "fieldtype": "Data", "label": "Idempotency Key"},
+  {"fieldname": "safe_reason", "fieldtype": "Small Text", "label": "Safe Reason"},
+  {"fieldname": "override_expires_at", "fieldtype": "Datetime", "label": "Override Expires At"}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Security Audit Event", "owner": "Administrator",
+ "permissions": [{"export": 1, "read": 1, "report": 1, "role": "OMC Admin"}], "sort_field": "occurred_at", "sort_order": "DESC", "states": [], "track_changes": 0
+}

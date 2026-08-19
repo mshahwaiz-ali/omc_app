@@ -37,17 +37,7 @@ def _get_customer_profile_for_user(user=None):
     if profile_name:
         return frappe.get_doc("OMC Customer Profile", profile_name)
 
-    full_name = frappe.db.get_value("User", user, "full_name") or user
-    profile = frappe.new_doc("OMC Customer Profile")
-    profile.user = user
-    profile.email = user
-    profile.full_name = full_name
-    profile.customer_status = "Pending"
-    profile.approval_status = "Pending Review"
-    profile.is_active = 1
-    profile.insert(ignore_permissions=True)
-    frappe.db.commit()
-    return profile
+    return None
 
 
 def _get_user_image_url(user=None):
@@ -65,7 +55,7 @@ def _internal_role_label(user):
 
     roles = set(frappe.get_roles(user) or [])
 
-    if user == "Administrator" or "System Manager" in roles:
+    if user == "Administrator":
         return "OMC Admin"
 
     priority = (

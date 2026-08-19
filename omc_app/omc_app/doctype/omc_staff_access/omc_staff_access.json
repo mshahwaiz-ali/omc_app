@@ -1,0 +1,23 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "field:user", "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["user", "employee", "legacy_staff_profile", "access_status", "persona_snapshot", "persona_source", "source_version", "reconciliation_status", "capabilities", "approved_by", "approved_at", "suspended_by", "suspended_at", "suspension_reason", "last_reconciled_at"],
+ "fields": [
+  {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "User", "options": "User", "reqd": 1, "unique": 1},
+  {"fieldname": "employee", "fieldtype": "Link", "in_list_view": 1, "label": "Employee", "options": "Employee", "unique": 1},
+  {"fieldname": "legacy_staff_profile", "fieldtype": "Link", "label": "Legacy Staff Profile", "options": "OMC Staff Profile", "unique": 1},
+  {"default": "Pending Review", "fieldname": "access_status", "fieldtype": "Select", "in_list_view": 1, "label": "Access Status", "options": "Pending Review\nApproved\nSuspended\nRejected", "reqd": 1},
+  {"fieldname": "persona_snapshot", "fieldtype": "Data", "in_list_view": 1, "label": "Persona Snapshot", "read_only": 1},
+  {"fieldname": "persona_source", "fieldtype": "Select", "label": "Persona Source", "options": "\nUser.omc_user_type\nEmployee Fallback\nReviewed", "read_only": 1},
+  {"fieldname": "source_version", "fieldtype": "Data", "label": "Source Version", "read_only": 1},
+  {"default": "Pending", "fieldname": "reconciliation_status", "fieldtype": "Select", "label": "Reconciliation Status", "options": "Pending\nCurrent\nConflict\nSource Missing", "read_only": 1},
+  {"fieldname": "capabilities", "fieldtype": "Table", "label": "Capabilities", "options": "OMC Staff Capability"},
+  {"fieldname": "approved_by", "fieldtype": "Link", "label": "Approved By", "options": "User", "read_only": 1},
+  {"fieldname": "approved_at", "fieldtype": "Datetime", "label": "Approved At", "read_only": 1},
+  {"fieldname": "suspended_by", "fieldtype": "Link", "label": "Suspended By", "options": "User", "read_only": 1},
+  {"fieldname": "suspended_at", "fieldtype": "Datetime", "label": "Suspended At", "read_only": 1},
+  {"fieldname": "suspension_reason", "fieldtype": "Small Text", "label": "Suspension Reason", "read_only": 1},
+  {"fieldname": "last_reconciled_at", "fieldtype": "Datetime", "label": "Last Reconciled At", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Staff Access", "owner": "Administrator",
+ "permissions": [{"create": 1, "export": 1, "read": 1, "report": 1, "role": "OMC Admin", "write": 1}], "sort_field": "modified", "sort_order": "DESC", "states": [], "track_changes": 1
+}

@@ -121,6 +121,21 @@ def setup_reserved_http_admin(password="OmcQaAdmin2026!", commit=False):
     profile.is_active = 1
     profile.insert(ignore_permissions=True)
 
+    staff_access = frappe.get_doc({
+        "doctype": "OMC Staff Access",
+        "user": QA_HTTP_ADMIN,
+        "legacy_staff_profile": profile.name,
+        "access_status": "Approved",
+        "persona_snapshot": ADMIN_ROLE,
+        "persona_source": "Reviewed",
+        "reconciliation_status": "Current",
+        "capabilities": [
+            {"capability": code}
+            for code in sorted(access.ROLE_CAPABILITIES[ADMIN_ROLE])
+        ],
+    })
+    staff_access.insert(ignore_permissions=True)
+
     frappe.clear_cache(user=QA_HTTP_ADMIN)
     if commit:
         frappe.db.commit()
@@ -129,6 +144,15 @@ def setup_reserved_http_admin(password="OmcQaAdmin2026!", commit=False):
 
 def cleanup_reserved_http_admin(commit=False):
     removed = False
+
+    staff_access = frappe.db.get_value(
+        "OMC Staff Access", {"user": QA_HTTP_ADMIN}, "name"
+    )
+    if staff_access:
+        frappe.delete_doc(
+            "OMC Staff Access", staff_access, force=True, ignore_permissions=True
+        )
+        removed = True
 
     staff_profile = frappe.db.get_value(
         "OMC Staff Profile",
@@ -167,6 +191,24 @@ def cleanup_reserved_personas(commit=False):
     for _full_name, email, _roles, _user_type in reversed(
         list(PERSONAS.values())
     ):
+        staff_access = frappe.db.get_value(
+            "OMC Staff Access", {"user": email}, "name"
+        )
+        if staff_access:
+            frappe.delete_doc(
+                "OMC Staff Access", staff_access,
+                force=True, ignore_permissions=True,
+            )
+
+        customer_account = frappe.db.get_value(
+            "OMC Customer Account", {"user": email}, "name"
+        )
+        if customer_account:
+            frappe.delete_doc(
+                "OMC Customer Account", customer_account,
+                force=True, ignore_permissions=True,
+            )
+
         staff_profile = frappe.db.get_value(
             "OMC Staff Profile",
             {"user": email},
@@ -405,7 +447,13 @@ class TestEndToEndRolePersonas(FrappeTestCase):
                     "enabled": 0 if key == "disabled_consultant" else 1,
                     "user_type": user_type,
                     "send_welcome_email": 0,
-                    "roles": [{"role": role} for role in roles],
+                    # System Manager keeps these fixtures as desk users while
+                    # deliberately conferring no OMC capability.
+                    "roles": (
+                        [{"role": "System Manager"}]
+                        if user_type == "System User"
+                        else []
+                    ),
                 }
             )
             user.insert(ignore_permissions=True)
@@ -424,6 +472,24 @@ class TestEndToEndRolePersonas(FrappeTestCase):
                 profile.approval_status = "Approved"
                 profile.is_active = 1
                 profile.insert(ignore_permissions=True)
+
+                capability_codes = set()
+                for role in roles:
+                    capability_codes.update(access.ROLE_CAPABILITIES[role])
+                staff_access = frappe.get_doc({
+                    "doctype": "OMC Staff Access",
+                    "user": email,
+                    "legacy_staff_profile": profile.name,
+                    "access_status": "Approved",
+                    "persona_snapshot": " + ".join(roles),
+                    "persona_source": "Reviewed",
+                    "reconciliation_status": "Current",
+                    "capabilities": [
+                        {"capability": code}
+                        for code in sorted(capability_codes)
+                    ],
+                })
+                staff_access.insert(ignore_permissions=True)
 
         frappe.clear_cache()
 
@@ -467,10 +533,16 @@ class TestEndToEndRolePersonas(FrappeTestCase):
         self.assertFalse(capabilities["can_manage_staff"])
         self.assertFalse(capabilities["can_manage_business_settings"])
 
-    def test_role_removal_revokes_capability_after_refresh(self):
+    def test_staff_access_capability_removal_revokes_after_refresh(self):
         email = PERSONAS["combined"][1]
         self.assertTrue(self._caps("combined")["can_review_payments"])
-        frappe.db.delete("Has Role", {"parent": email, "role": FINANCE_REVIEWER_ROLE})
+        access_name = frappe.db.get_value(
+            "OMC Staff Access", {"user": email}, "name"
+        )
+        frappe.db.delete(
+            "OMC Staff Capability",
+            {"parent": access_name, "capability": "can_review_payments"},
+        )
         frappe.clear_cache(user=email)
         self.assertFalse(self._caps("combined")["can_review_payments"])
         self.assertTrue(self._caps("combined")["can_review_documents"])

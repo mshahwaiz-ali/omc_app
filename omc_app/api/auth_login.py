@@ -7,6 +7,8 @@ from frappe import _
 from frappe.auth import LoginManager
 from frappe.exceptions import AuthenticationError
 
+from omc_app.api import security
+
 
 PROFILE_DOCTYPE = "OMC Customer Profile"
 GENERIC_LOGIN_ERROR = "Invalid login credentials."
@@ -120,19 +122,22 @@ def resolve_login_email(identifier: str) -> str | None:
     return None
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def login(identifier: str | None = None, password: str | None = None):
-    user = resolve_login_email(str(identifier or ""))
-    secret = str(password or "")
-
-    if not user or not secret:
-        frappe.throw(_(GENERIC_LOGIN_ERROR), AuthenticationError)
-
+    security.enforce_rate_limit("login", actor=str(identifier or ""))
     try:
+        user = resolve_login_email(str(identifier or ""))
+        secret = str(password or "")
+        if not user or not secret:
+            frappe.throw(_(GENERIC_LOGIN_ERROR), AuthenticationError)
+
         manager = LoginManager()
         manager.authenticate(user=user, pwd=secret)
         manager.post_login()
     except AuthenticationError:
+        frappe.throw(_(GENERIC_LOGIN_ERROR), AuthenticationError)
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "OMC login failure")
         frappe.throw(_(GENERIC_LOGIN_ERROR), AuthenticationError)
 
     email = frappe.db.get_value("User", user, "email") or user
