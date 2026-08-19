@@ -9,11 +9,13 @@ class SupportTicket {
     this.referenceServiceRequest,
     this.contactEmail,
     this.contactPhone,
+    this.assignedTo,
     this.raisedOnLabel,
     this.closedOnLabel,
     this.createdAtLabel,
     this.updatedAtLabel,
     this.canUpdateStatus = false,
+    this.canAssign = false,
     this.canReply = false,
     this.messages = const [],
   });
@@ -27,11 +29,13 @@ class SupportTicket {
   final String? referenceServiceRequest;
   final String? contactEmail;
   final String? contactPhone;
+  final String? assignedTo;
   final String? raisedOnLabel;
   final String? closedOnLabel;
   final String? createdAtLabel;
   final String? updatedAtLabel;
   final bool canUpdateStatus;
+  final bool canAssign;
   final bool canReply;
   final List<SupportTicketMessage> messages;
 
@@ -42,6 +46,18 @@ class SupportTicket {
         normalized.contains('cancel') ||
         normalized.contains('done') ||
         normalized.contains('complete');
+  }
+
+  bool get isAssigned => assignedTo?.trim().isNotEmpty == true;
+
+  bool isAssignedTo(String? userId) {
+    final assigned = assignedTo?.trim().toLowerCase();
+    final user = userId?.trim().toLowerCase();
+    return assigned != null &&
+        assigned.isNotEmpty &&
+        user != null &&
+        user.isNotEmpty &&
+        assigned == user;
   }
 }
 
