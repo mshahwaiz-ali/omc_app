@@ -80,8 +80,9 @@ class InternalWorkspaceFocus {
           capabilities.canRetrySync ||
           capabilities.canManageBusinessSettings,
       showServicePerformance:
-          capabilities.canViewAssignedServiceCases ||
-          capabilities.canUpdateAssignedServiceStatus,
+          kind == InternalWorkspaceFocusKind.clientWork &&
+          (capabilities.canViewAssignedServiceCases ||
+              capabilities.canUpdateAssignedServiceStatus),
     );
   }
 }
