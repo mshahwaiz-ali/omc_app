@@ -9,6 +9,8 @@ class ServiceCase {
     required this.createdAtLabel,
     required this.updatedAtLabel,
     required this._progress,
+    this.requestState,
+    this.operationalStatus,
     this.reference,
     this.serviceId,
     this.nextStep,
@@ -19,6 +21,10 @@ class ServiceCase {
     this.documentDetails = const [],
     this.paymentDetails = const [],
     this.timeline = const [],
+    this.receipt = const ServiceCaseReceipt(),
+    this.settlement = const ServiceCaseSettlement(),
+    this.activation = const ServiceCaseActivation(),
+    this.hold = const ServiceCaseHold(),
     this._progressPercent,
     this.currentStage,
     this.customerProfile,
@@ -59,7 +65,14 @@ class ServiceCase {
   final String id;
   final String title;
   final String category;
+
+  /// Legacy/operational status only (Open, In Progress, Completed, etc.).
   final String status;
+
+  /// Canonical request lifecycle owned by the backend state machine.
+  final String? requestState;
+  final String? operationalStatus;
+
   final String createdAtLabel;
   final String updatedAtLabel;
   final double _progress;
@@ -73,6 +86,10 @@ class ServiceCase {
   final List<ServiceCaseDocument> documentDetails;
   final List<ServiceCasePayment> paymentDetails;
   final List<ServiceCaseTimelineStep> timeline;
+  final ServiceCaseReceipt receipt;
+  final ServiceCaseSettlement settlement;
+  final ServiceCaseActivation activation;
+  final ServiceCaseHold hold;
   final int? _progressPercent;
   final String? currentStage;
   final String? customerProfile;
@@ -109,8 +126,29 @@ class ServiceCase {
   final List<String> completionBlockers;
   final bool completionEligible;
 
+  String get lifecycleState {
+    final value = requestState?.trim();
+    return value == null || value.isEmpty ? status.trim() : value;
+  }
+
+  String get effectiveOperationalStatus {
+    final value = operationalStatus?.trim();
+    return value == null || value.isEmpty ? status.trim() : value;
+  }
+
+  String get statusLabel {
+    final value = displayStatus?.trim();
+    if (value != null && value.isNotEmpty) return value;
+    if (lifecycleState == 'Activated') return effectiveOperationalStatus;
+    return lifecycleState.isEmpty ? effectiveOperationalStatus : lifecycleState;
+  }
+
+  bool get isFinancialHold => hold.active || lifecycleState == 'Financial Hold';
+
   bool get hasPayment {
-    final value = paymentId?.trim();
+    final value = paymentId?.trim().isNotEmpty == true
+        ? paymentId?.trim()
+        : receipt.paymentId.trim();
     return value != null && value.isNotEmpty;
   }
 
@@ -118,7 +156,10 @@ class ServiceCase {
   /// legacy responses that do not include ``progress_percent``.
   double get progress {
     if (isClosed && _normalizedStatus.contains('complete')) return 1;
-    if (_normalizedStatus.contains('cancel')) return 0;
+    if (lifecycleState.toLowerCase() == 'cancelled' ||
+        lifecycleState.toLowerCase() == 'expired') {
+      return 0;
+    }
     final backendPercent = _progressPercent;
     if (backendPercent != null) {
       return (backendPercent.clamp(0, 100) / 100).toDouble();
@@ -129,7 +170,10 @@ class ServiceCase {
 
   int? get progressPercent {
     if (isClosed && _normalizedStatus.contains('complete')) return 100;
-    if (_normalizedStatus.contains('cancel')) return 0;
+    if (lifecycleState.toLowerCase() == 'cancelled' ||
+        lifecycleState.toLowerCase() == 'expired') {
+      return 0;
+    }
     return _progressPercent?.clamp(0, 100) ?? _calculatedProgressPercent;
   }
 
@@ -168,12 +212,18 @@ class ServiceCase {
   }
 
   String get paymentSummaryLabel {
+    if (receipt.status == 'Not Required' || settlement.status == 'Not Required') {
+      return 'No payment required';
+    }
     final total = activePaymentTotal;
     if (total <= 0) return 'No payment opened';
     return '$approvedPaymentTotal/$total paid';
   }
 
   String get actionRequiredLabel {
+    if (isFinancialHold || settlement.requiresReview) {
+      return 'OMC review in progress';
+    }
     if (rejectedDocumentTotal > 0) {
       return '$rejectedDocumentTotal rejected document(s)';
     }
@@ -181,11 +231,11 @@ class ServiceCase {
     final missing = missingDocumentsCount ?? missingDocuments.length;
     if (missing > 0) return '$missing document(s) required';
 
-    if (rejectedPaymentTotal > 0) {
-      return '$rejectedPaymentTotal rejected receipt(s)';
+    if (rejectedPaymentTotal > 0 || receipt.isRejected) {
+      return 'Payment receipt needs correction';
     }
 
-    if (_normalizedStatus.contains('payment') ||
+    if (lifecycleState == 'Pending Payment' ||
         paymentDetails.any((payment) => payment.needsCustomerAction)) {
       return 'Payment action required';
     }
@@ -215,6 +265,7 @@ class ServiceCase {
   }
 
   double get _paymentRatio {
+    if (settlement.status == 'Not Required') return 1;
     final total = activePaymentTotal;
     if (total > 0) {
       return (approvedPaymentTotal / total).clamp(0, 1).toDouble();
@@ -222,11 +273,12 @@ class ServiceCase {
 
     if (_normalizedStatus.contains('payment under review') ||
         _normalizedStatus.contains('waiting for payment') ||
-        _normalizedStatus.contains('receipt submitted')) {
+        receipt.isSubmitted) {
       return 0;
     }
 
-    if (_normalizedStatus.contains('paid') ||
+    if (settlement.isSettled ||
+        _normalizedStatus.contains('paid') ||
         _normalizedStatus.contains('payment approved') ||
         _normalizedStatus.contains('in progress') ||
         _normalizedStatus.contains('complete') ||
@@ -243,20 +295,24 @@ class ServiceCase {
       return 1;
     }
     if (_normalizedStatus.contains('in progress')) return 0.75;
-    if (_normalizedStatus.contains('payment under review')) return 0.35;
+    if (receipt.isSubmitted) return 0.35;
     if (_normalizedStatus.contains('documents under review')) return 0.20;
     return 0;
   }
 
   bool get _statusAfterDocuments {
-    return _normalizedStatus.contains('waiting for payment') ||
-        _normalizedStatus.contains('payment') ||
+    return lifecycleState == 'Pending Payment' ||
+        lifecycleState == 'Ready for Activation' ||
+        lifecycleState == 'Activating' ||
+        lifecycleState == 'Activated' ||
+        settlement.isSettled ||
+        _normalizedStatus.contains('waiting for payment') ||
         _normalizedStatus.contains('in progress') ||
         _normalizedStatus.contains('complete') ||
         _normalizedStatus.contains('closed');
   }
 
-  String get _normalizedStatus => status.trim().toLowerCase();
+  String get _normalizedStatus => effectiveOperationalStatus.toLowerCase();
 
   String get displayReference {
     final cleanReference = reference?.trim();
@@ -312,12 +368,81 @@ class ServiceCase {
   }
 
   bool get isClosed {
-    final normalized = status.trim().toLowerCase();
-    return normalized.contains('complete') ||
-        normalized.contains('cancel') ||
-        normalized.contains('closed') ||
-        normalized.contains('reject');
+    final lifecycle = lifecycleState.toLowerCase();
+    if (lifecycle == 'cancelled' || lifecycle == 'expired') return true;
+    return _normalizedStatus.contains('complete') ||
+        _normalizedStatus.contains('closed');
   }
+}
+
+class ServiceCaseReceipt {
+  const ServiceCaseReceipt({
+    this.status = 'Not Submitted',
+    this.paymentStatus = '',
+    this.paymentId = '',
+  });
+
+  final String status;
+  final String paymentStatus;
+  final String paymentId;
+
+  bool get isSubmitted {
+    final value = status.trim().toLowerCase();
+    return value == 'submitted' || value == 'under review' || value == 'accepted';
+  }
+
+  bool get isRejected => status.trim().toLowerCase() == 'rejected';
+}
+
+class ServiceCaseSettlement {
+  const ServiceCaseSettlement({
+    this.status = 'Unmatched',
+    this.allocatedAmount = 0,
+    this.payableAmount = 0,
+    this.currency = 'PKR',
+    this.outstandingAmount = 0,
+    this.reviewKind = '',
+  });
+
+  final String status;
+  final double allocatedAmount;
+  final double payableAmount;
+  final String currency;
+  final double outstandingAmount;
+  final String reviewKind;
+
+  bool get isSettled => status.trim().toLowerCase() == 'settled';
+  bool get requiresReview {
+    final value = status.trim().toLowerCase();
+    return value == 'review required' || value == 'quarantined';
+  }
+}
+
+class ServiceCaseActivation {
+  const ServiceCaseActivation({
+    this.state = '',
+    this.bridgeState = 'Not Started',
+    this.attemptCount = 0,
+    this.activated = false,
+    this.evidenceComplete = false,
+    this.readyAt = '',
+    this.activatedAt = '',
+  });
+
+  final String state;
+  final String bridgeState;
+  final int attemptCount;
+  final bool activated;
+  final bool evidenceComplete;
+  final String readyAt;
+  final String activatedAt;
+}
+
+class ServiceCaseHold {
+  const ServiceCaseHold({this.active = false, this.reason = ''});
+
+  final bool active;
+  final String reason;
 }
 
 class ServiceCaseDocument {
