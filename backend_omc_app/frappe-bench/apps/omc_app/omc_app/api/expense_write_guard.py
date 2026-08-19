@@ -93,6 +93,14 @@ def update_expense_entry(entry_id=None, name=None, **kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
+def delete_expense_entry(entry_id=None, name=None):
+    resolved = _bounded_text(entry_id or name, "entry_id", 140)
+    if not resolved:
+        frappe.throw("entry_id is required", frappe.ValidationError)
+    return expense.delete_expense_entry(entry_id=resolved)
+
+
+@frappe.whitelist(methods=["POST"])
 def bulk_sync_expense_entries(entries=None, **kwargs):
     validated = _validated_entries(entries if entries is not None else kwargs.get("entries"))
     return expense.bulk_sync_expense_entries(entries=validated)
