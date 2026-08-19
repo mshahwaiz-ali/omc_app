@@ -2,19 +2,8 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
+from omc_app.api.request_lifecycle import REQUEST_STATE_TRANSITIONS, compatibility_status
 
-REQUEST_STATE_TRANSITIONS = {
-	"Draft": {"Pending Payment", "Payment Not Required", "Cancelled"},
-	"Pending Payment": {"Ready for Activation", "Expired", "Cancelled", "Financial Hold"},
-	"Payment Not Required": {"Ready for Activation", "Expired", "Cancelled", "Financial Hold"},
-	"Ready for Activation": {"Activating", "Financial Hold", "Cancelled"},
-	"Activating": {"Activated", "Activation Failed", "Financial Hold"},
-	"Activation Failed": {"Ready for Activation", "Activating", "Financial Hold", "Cancelled"},
-	"Activated": {"Financial Hold", "Cancelled"},
-	"Financial Hold": {"Ready for Activation", "Activated", "Cancelled"},
-	"Expired": set(),
-	"Cancelled": set(),
-}
 
 SNAPSHOT_FIELDS = (
 	"customer_account", "service_version_snapshot", "pricing_version_snapshot",
@@ -84,15 +73,11 @@ class OMCServiceRequest(Document):
 				frappe.throw(f"{self.meta.get_label(fieldname)} is immutable after request creation.")
 
 	def _project_compatibility_status(self):
-		state = self.request_state or "Draft"
-		if state in {"Draft", "Pending Payment", "Payment Not Required", "Ready for Activation"}:
-			self.status = "Waiting for Payment" if state == "Pending Payment" else "Open"
-		elif state in {"Activating", "Activated", "Activation Failed", "Financial Hold"}:
-			if state == "Activated" and self.status == "Completed":
-				return
-			self.status = "In Progress" if state == "Activated" else "Open"
-		elif state in {"Expired", "Cancelled"}:
-			self.status = "Cancelled"
+		self.status = compatibility_status(
+			self.request_state or "Draft",
+			self.status or "",
+			activated_at=self.activated_at,
+		)
 
 	def _entered_terminal_status(self):
 		if self.status not in {"Completed", "Cancelled"}:
