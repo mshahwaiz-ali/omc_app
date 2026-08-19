@@ -20,6 +20,7 @@ RATE_LIMITS = {
     "service_request": (5, 3600),
     "upload": (30, 3600),
     "authenticated_list": (120, 300),
+    "customer_mutation": (120, 3600),
     "staff_mutation": (60, 3600),
 }
 
@@ -157,4 +158,3 @@ def revoke_user_sessions(user: str) -> None:
     except TypeError:
         clear_sessions(user=user)
     frappe.cache().delete_key(f"user_permissions::{user}")
-
