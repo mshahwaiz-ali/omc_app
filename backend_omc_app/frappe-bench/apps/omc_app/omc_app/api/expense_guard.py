@@ -3,7 +3,7 @@ import frappe
 from omc_app.api import expense
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def upload_expense_receipt(entry_id=None, file_url=None):
     """Require receipt bytes to pass the canonical upload validation path."""
     if file_url:
