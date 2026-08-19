@@ -57,8 +57,6 @@ def compatibility_status(request_state: str, current_status: str = "", *, activa
     if state == "Activated":
         return current if current in ACTIVATED_OPERATIONAL_STATUSES else "In Progress"
     if state == "Financial Hold":
-        # A reversal after activation is an accounting hold, not a rollback of
-        # the operational work state. A pre-activation hold waits for payment.
         if activated_at:
             return current if current in {"In Progress", "Waiting for Customer"} else "In Progress"
         return "Waiting for Payment"
@@ -139,7 +137,7 @@ def _archive_documents(request_name: str, terminal_status: str) -> None:
         frappe.log_error(frappe.get_traceback(), "OMC lifecycle document archival failed")
 
 
-def _terminal_cleanup(request, *, target_state: str, reason: str, actor: str, customer_cancelled: bool) -> None:
+def _terminal_cleanup(request, *, target_state: str, reason: str, customer_cancelled: bool) -> None:
     document_names = frappe.get_all(
         "OMC Service Document",
         filters={"service_request": request.name},
@@ -168,8 +166,6 @@ def _terminal_cleanup(request, *, target_state: str, reason: str, actor: str, cu
     _archive_documents(request.name, "Cancelled" if target_state == "Cancelled" else "Expired")
 
     if target_state == "Cancelled":
-        # ERP cancellation is deliberately kept behind the pre-existing
-        # approved workflow adapter; expiry must never touch ERP records.
         from omc_app.api import workflow_automation
 
         workflow_automation.finalize_cancelled_case(
@@ -243,7 +239,7 @@ def transition_request_state(
         values["activated_at"] = now_datetime()
     if target in {"Cancelled", "Expired"}:
         values["closed_on"] = request.closed_on or now_datetime()
-    elif target not in {"Cancelled", "Expired"}:
+    else:
         values["closed_on"] = None
 
     projected = _text(operational_status) or compatibility_status(
@@ -263,7 +259,6 @@ def transition_request_state(
             request,
             target_state=target,
             reason=_text(reason),
-            actor=actor,
             customer_cancelled=customer_cancelled,
         )
 
@@ -274,8 +269,9 @@ def transition_request_state(
         target_name=request.name,
         old_state=current,
         new_state=target,
-        idempotency_key=_text(idempotency_key) or None,
-        metadata={"reason": _text(reason)[:500], "actor": actor},
+        idempotency_key=_text(idempotency_key),
+        safe_reason="workflow_transition",
+        actor=actor,
     )
     return TransitionResult(request, current, target, old_status, projected, True)
 
@@ -335,17 +331,24 @@ def update_operational_status(
         values["closed_on"] = request.closed_on or now_datetime()
     else:
         values["closed_on"] = None
-    frappe.db.set_value(request.doctype, request.name, values, update_modified=False)
-    request.update(values)
 
     from omc_app.api import mobile, workflow_automation
 
     if target == "Completed":
-        workflow_automation.record_completion_attribution(
+        attribution = workflow_automation.record_completion_attribution(
             request,
             source="Canonical Lifecycle",
             actor=actor or frappe.session.user,
         )
+        if attribution.get("completed_by"):
+            values["completed_by"] = attribution["completed_by"]
+        if attribution.get("completion_source"):
+            values["completion_source"] = attribution["completion_source"]
+
+    frappe.db.set_value(request.doctype, request.name, values, update_modified=False)
+    request.update(values)
+
+    if target == "Completed":
         workflow_automation.finalize_completed_case(request)
     mobile._create_service_timeline_entry(
         service_request=request.name,
@@ -361,7 +364,8 @@ def update_operational_status(
         target_name=request.name,
         old_state=old_status,
         new_state=target,
-        metadata={"reason": _text(reason)[:500]},
+        safe_reason="workflow_transition",
+        actor=actor or frappe.session.user,
     )
     return TransitionResult(request, current_state, current_state, old_status, target, True)
 
