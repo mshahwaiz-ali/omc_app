@@ -14,7 +14,7 @@ void main() {
     canTrackRequests: true,
     canViewDocuments: true,
     canViewPayments: true,
-    canViewSupportTickets: true,
+    canCreateSupportTicket: true,
     canViewCustomerDashboard: true,
     canViewCustomerNotifications: true,
     canUseTaxCalculator: true,
@@ -193,8 +193,6 @@ void main() {
       '/documents/DOC-0001',
       '/payments',
       '/payments/PAY-0001',
-      '/notifications',
-      '/notifications/NOTIF-0001',
       '/support',
       '/support-tickets/SUP-0001',
       '/dashboard',
@@ -224,6 +222,8 @@ void main() {
     ];
 
     const denied = <String>[
+      '/notifications',
+      '/notifications/NOTIF-0001',
       '/my-services',
       '/my-services/CASE-0001',
       '/my-referrals',
@@ -272,12 +272,20 @@ void main() {
         canAccessRoute('/documents/DOC-0001', documentSummaryStaff),
         isTrue,
       );
+      expect(
+        canAccessRoute('/internal-workspace/documents', documentSummaryStaff),
+        isTrue,
+      );
       expect(canAccessRoute('/payments', documentSummaryStaff), isFalse);
     });
 
     test('payment summary capability unlocks payment routes only', () {
       expect(canAccessRoute('/payments', paymentSummaryStaff), isTrue);
       expect(canAccessRoute('/payments/PAY-0001', paymentSummaryStaff), isTrue);
+      expect(
+        canAccessRoute('/internal-workspace/payments', paymentSummaryStaff),
+        isTrue,
+      );
       expect(canAccessRoute('/documents', paymentSummaryStaff), isFalse);
     });
 
