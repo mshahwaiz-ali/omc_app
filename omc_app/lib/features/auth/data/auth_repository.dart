@@ -37,6 +37,11 @@ class AuthRepository {
 
   const AuthRepository._(this._frappeClient, this._secureStorageService);
 
+  static const _registrationVerificationStatusMethod =
+      'omc_app.api.pending_registration.get_registration_verification_status';
+  static const _completeRegistrationMethod =
+      'omc_app.api.pending_registration.complete_registration';
+
   final FrappeClient _frappeClient;
   final SecureStorageService _secureStorageService;
 
@@ -177,9 +182,13 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>> signUp({required Map<String, dynamic> data}) {
+    final publicData = Map<String, dynamic>.from(data)
+      ..remove('password')
+      ..remove('new_password')
+      ..remove('confirm_password');
     return _frappeClient.postMethod(
       ApiConfig.startRegistrationMethod,
-      data: data,
+      data: publicData,
     );
   }
 
@@ -190,11 +199,31 @@ class AuthRepository {
     );
   }
 
-  Future<Map<String, dynamic>> verifyRegistration({required String token}) {
+  Future<Map<String, dynamic>> getRegistrationVerificationStatus({
+    required String token,
+  }) {
     return _frappeClient.getMethod(
-      ApiConfig.verifyRegistrationMethod,
-      queryParameters: {'token': token},
+      _registrationVerificationStatusMethod,
+      queryParameters: {'token': token.trim()},
     );
+  }
+
+  Future<Map<String, dynamic>> completeRegistration({
+    required String token,
+    required String password,
+  }) {
+    return _frappeClient.postMethod(
+      _completeRegistrationMethod,
+      data: {
+        'token': token.trim(),
+        'password': password,
+      },
+    );
+  }
+
+  @Deprecated('Use getRegistrationVerificationStatus instead.')
+  Future<Map<String, dynamic>> verifyRegistration({required String token}) {
+    return getRegistrationVerificationStatus(token: token);
   }
 
   Future<Map<String, dynamic>> suggestUsername({
