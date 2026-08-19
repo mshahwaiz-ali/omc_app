@@ -87,7 +87,7 @@ def _validated_payload(kwargs):
     return payload
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def calculate_tax(**kwargs):
     """Validate the public request before using the canonical calculator."""
     payload = _validated_payload(kwargs)
