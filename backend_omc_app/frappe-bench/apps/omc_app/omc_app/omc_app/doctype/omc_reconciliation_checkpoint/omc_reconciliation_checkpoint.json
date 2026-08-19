@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:checkpoint_key",
+ "creation": "2026-08-19 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "checkpoint_key",
+  "job_key",
+  "domain",
+  "cursor_value",
+  "last_run_id",
+  "last_completed_at",
+  "cycle_count",
+  "source_version"
+ ],
+ "fields": [
+  {"fieldname": "checkpoint_key", "fieldtype": "Data", "label": "Checkpoint Key", "read_only": 1, "reqd": 1, "unique": 1},
+  {"fieldname": "job_key", "fieldtype": "Data", "in_list_view": 1, "label": "Job Key", "read_only": 1, "reqd": 1},
+  {"fieldname": "domain", "fieldtype": "Select", "in_list_view": 1, "label": "Domain", "options": "Identity\nStaff\nAccounting\nCommission\nBridge", "read_only": 1, "reqd": 1},
+  {"fieldname": "cursor_value", "fieldtype": "Data", "label": "Cursor", "read_only": 1},
+  {"fieldname": "last_run_id", "fieldtype": "Data", "label": "Last Run ID", "read_only": 1},
+  {"fieldname": "last_completed_at", "fieldtype": "Datetime", "label": "Last Completed At", "read_only": 1},
+  {"default": "0", "fieldname": "cycle_count", "fieldtype": "Int", "label": "Cycle Count", "read_only": 1},
+  {"fieldname": "source_version", "fieldtype": "Data", "label": "Source Version", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-19 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OMC App",
+ "name": "OMC Reconciliation Checkpoint",
+ "owner": "Administrator",
+ "permissions": [
+  {"read": 1, "report": 1, "role": "OMC Admin"},
+  {"read": 1, "report": 1, "role": "OMC Manager"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
