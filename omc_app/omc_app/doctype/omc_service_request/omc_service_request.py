@@ -6,7 +6,7 @@ from omc_app.api.request_lifecycle import REQUEST_STATE_TRANSITIONS, compatibili
 
 
 SNAPSHOT_FIELDS = (
-	"customer_account", "service_version_snapshot", "pricing_version_snapshot",
+	"customer_account", "company_snapshot", "service_version_snapshot", "pricing_version_snapshot",
 	"payment_policy_snapshot", "tax_policy_snapshot", "tax_rate_snapshot",
 	"tax_amount", "payable_amount", "pricing_snapshot_json", "referral_attribution",
 	"submission_data_json", "customer_consent_reference", "customer_mode",
@@ -24,6 +24,17 @@ class OMCServiceRequest(Document):
 		if not self.request_state:
 			self.request_state = "Draft"
 		self.activation_version = self.activation_version or 1
+
+		if self.meta.get_field("company_snapshot"):
+			company = ""
+			if self.service:
+				company = frappe.db.get_value("OMC Service", self.service, "company") or ""
+			if not company:
+				frappe.throw(
+					"This service has no authoritative Company configured. Configure the OMC Service before creating requests.",
+					frappe.ValidationError,
+				)
+			self.company_snapshot = company
 
 	def before_save(self):
 		previous = self.get_doc_before_save()
