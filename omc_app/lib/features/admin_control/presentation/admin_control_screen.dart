@@ -74,7 +74,7 @@ class AdminControlScreen extends ConsumerWidget {
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                   subtitle: const Text(
-                    'Reassignment, sync recovery and reviewed pricing operations.',
+                    'Reassignment, processing recovery and reviewed pricing operations.',
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => context.push('/admin-control/operations'),
@@ -170,7 +170,7 @@ class AdminControlScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Text(
-                      'This does not create a login. Create or convert the person to an enabled System User in Frappe Desk first, then grant OMC access to that same identity.',
+                      'This does not create a login. The person must already have an enabled staff login in the core OMC system; then grant OMC app access to that same identity.',
                       style: TextStyle(fontSize: 12.5, height: 1.4),
                     ),
                   ),
@@ -178,7 +178,7 @@ class AdminControlScreen extends ConsumerWidget {
                   TextField(
                     controller: name,
                     decoration: const InputDecoration(
-                      labelText: 'System User full name',
+                      labelText: 'Existing staff full name',
                     ),
                     onChanged: (_) => setDialogState(() {}),
                   ),
@@ -187,7 +187,7 @@ class AdminControlScreen extends ConsumerWidget {
                     controller: email,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
-                      labelText: 'System User email',
+                      labelText: 'Existing staff login email',
                     ),
                     onChanged: (_) => setDialogState(() {}),
                   ),
@@ -299,7 +299,7 @@ class _ApplicationsCard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Customer registrations and staff access applications awaiting an OMC decision. Staff applications require the matching enabled System User in Frappe Desk first.',
+            'Customer registrations and staff access applications awaiting an OMC decision. Staff applications require a matching enabled staff login first.',
             style: TextStyle(fontSize: 12.5, height: 1.4),
           ),
           const SizedBox(height: 10),
@@ -397,7 +397,7 @@ class _StaffCard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Enable, suspend or change OMC capability profiles. This does not modify ERPNext roles.',
+            'Enable, suspend or change OMC capability profiles. This does not change the person’s core system login or roles.',
             style: TextStyle(fontSize: 12.5, height: 1.4),
           ),
           const SizedBox(height: 10),
@@ -541,7 +541,7 @@ class _BusinessSettingsCard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Mobile availability and reviewed business rules. Changes apply through the backend configuration contract.',
+            'Mobile availability and reviewed business rules. Changes apply to the live OMC app configuration.',
             style: TextStyle(fontSize: 12.5, height: 1.4),
           ),
           const SizedBox(height: 10),
