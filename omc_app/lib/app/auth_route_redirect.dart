@@ -58,11 +58,40 @@ String? resolveAuthRouteRedirect({
       return capabilities.isPending ? null : '/home';
     }
 
+    final personaRedirect = _resolvePersonaRouteRedirect(
+      location: location,
+      capabilities: capabilities,
+    );
+    if (personaRedirect != null) return personaRedirect;
+
     if (canAccessRoute(location, capabilities)) return null;
     return authenticatedHome == '/home' ? _accessDeniedHome : authenticatedHome;
   }
 
   // AuthStatus.authenticating retains the current route while the explicit
   // login/guest action owns its loading and completion navigation.
+  return null;
+}
+
+String? _resolvePersonaRouteRedirect({
+  required String location,
+  required AuthCapabilities capabilities,
+}) {
+  if (!capabilities.isInternal || !capabilities.canViewAnyServiceCase) {
+    return null;
+  }
+
+  if (location == '/my-services') {
+    return '/internal-workspace/service-cases';
+  }
+
+  const customerCasePrefix = '/my-services/';
+  if (location.startsWith(customerCasePrefix)) {
+    final encodedCaseId = location.substring(customerCasePrefix.length).trim();
+    if (encodedCaseId.isNotEmpty) {
+      return '/internal-workspace/service-cases/$encodedCaseId';
+    }
+  }
+
   return null;
 }
