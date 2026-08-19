@@ -1,10 +1,11 @@
 {
  "actions": [], "allow_rename": 0, "autoname": "field:source_key", "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
- "field_order": ["source_key", "service_request", "sales_invoice", "payment_entry", "payment_reference_row", "erp_customer", "company", "invoice_currency", "payment_currency", "allocated_amount", "base_allocated_amount", "exchange_rate", "invoice_docstatus", "payment_docstatus", "invoice_outstanding_amount", "accounting_status", "source_version", "reconciled_at", "reconciliation_error"],
+ "field_order": ["source_key", "service_request", "sales_invoice", "base_invoice_key", "payment_entry", "payment_reference_row", "erp_customer", "company", "invoice_currency", "payment_currency", "allocated_amount", "base_allocated_amount", "exchange_rate", "invoice_docstatus", "payment_docstatus", "invoice_outstanding_amount", "accounting_status", "source_version", "reconciled_at", "reconciliation_error"],
  "fields": [
   {"fieldname": "source_key", "fieldtype": "Data", "label": "Source Key", "reqd": 1, "unique": 1},
   {"fieldname": "service_request", "fieldtype": "Link", "in_list_view": 1, "label": "Service Request", "options": "OMC Service Request", "reqd": 1},
   {"fieldname": "sales_invoice", "fieldtype": "Link", "in_list_view": 1, "label": "Sales Invoice", "options": "Sales Invoice", "reqd": 1},
+  {"fieldname": "base_invoice_key", "fieldtype": "Data", "label": "Base Invoice Key", "read_only": 1, "unique": 1},
   {"fieldname": "payment_entry", "fieldtype": "Link", "in_list_view": 1, "label": "Payment Entry", "options": "Payment Entry"},
   {"fieldname": "payment_reference_row", "fieldtype": "Data", "label": "Payment Reference Row"},
   {"fieldname": "erp_customer", "fieldtype": "Link", "label": "ERP Customer", "options": "Customer", "read_only": 1, "reqd": 1},
