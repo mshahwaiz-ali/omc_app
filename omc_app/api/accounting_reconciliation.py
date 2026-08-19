@@ -5,7 +5,18 @@ import hashlib
 import frappe
 from frappe.utils import flt, now_datetime
 
-from omc_app.api import capabilities, security
+from omc_app.api import capabilities, request_lifecycle, security
+
+
+LINKABLE_REQUEST_STATES = {
+    "Pending Payment",
+    "Payment Not Required",
+    "Ready for Activation",
+    "Activating",
+    "Activated",
+    "Activation Failed",
+    "Financial Hold",
+}
 
 
 def _text(value) -> str:
@@ -45,15 +56,55 @@ def settlement_state(*, required, invoice_basis, allocated, invalid_reason="", r
     return state, capped
 
 
-def _assert_invoice_matches(request, invoice) -> None:
-    if invoice.docstatus != 1 or int(getattr(invoice, "is_return", 0) or 0):
-        frappe.throw("Only a submitted non-return Sales Invoice can be linked.", frappe.ValidationError)
-    if _text(invoice.customer) != _text(request.erp_customer):
-        frappe.throw("Sales Invoice customer does not match the request account.", frappe.ValidationError)
-    if _text(invoice.currency) != _text(request.pricing_currency):
-        frappe.throw("Sales Invoice currency does not match the request quote.", frappe.ValidationError)
+def assert_invoice_matches_request(request, invoice) -> None:
+    if int(getattr(invoice, "docstatus", 0) or 0) != 1:
+        frappe.throw("Only a submitted Sales Invoice can be linked.", frappe.ValidationError)
+    if int(getattr(invoice, "is_return", 0) or 0):
+        frappe.throw("A return Sales Invoice cannot be used as base settlement evidence.", frappe.ValidationError)
+    if _text(request.request_state) not in LINKABLE_REQUEST_STATES or _text(request.status) == "Completed":
+        frappe.throw("The service request is not in a linkable accounting state.", frappe.ValidationError)
+
+    expected_customer = _text(request.erp_customer)
+    expected_company = _text(request.get("company_snapshot"))
+    expected_currency = _text(request.pricing_currency)
+    if not expected_customer:
+        frappe.throw("The service request has no authoritative ERP Customer snapshot.", frappe.ValidationError)
+    if not expected_company:
+        frappe.throw(
+            "The service request has no authoritative Company snapshot and requires explicit finance reconciliation.",
+            frappe.ValidationError,
+        )
+    if not expected_currency:
+        frappe.throw("The service request has no authoritative pricing currency.", frappe.ValidationError)
+    if _text(invoice.customer) != expected_customer:
+        frappe.throw("Sales Invoice customer does not match the service request.", frappe.ValidationError)
+    if _text(invoice.company) != expected_company:
+        frappe.throw("Sales Invoice company does not match the service request snapshot.", frappe.ValidationError)
+    if _text(invoice.currency) != expected_currency:
+        frappe.throw("Sales Invoice currency does not match the service request quote.", frappe.ValidationError)
     if _invoice_basis(invoice) <= 0:
         frappe.throw("Sales Invoice must have a positive total.", frappe.ValidationError)
+
+
+def _invoice_reconciliation_error(request, invoice) -> str:
+    if int(getattr(invoice, "docstatus", 0) or 0) != 1 or int(getattr(invoice, "is_return", 0) or 0):
+        return "Linked Sales Invoice is cancelled or reversed."
+    if not _text(request.get("company_snapshot")):
+        return "Service request has no authoritative Company snapshot."
+    if _text(invoice.customer) != _text(request.erp_customer):
+        return "Linked Sales Invoice customer no longer matches the request."
+    if _text(invoice.company) != _text(request.get("company_snapshot")):
+        return "Linked Sales Invoice company no longer matches the request snapshot."
+    if _text(invoice.currency) != _text(request.pricing_currency):
+        return "Linked Sales Invoice currency no longer matches the request quote."
+    if _invoice_basis(invoice) <= 0:
+        return "Linked Sales Invoice no longer has a positive total."
+    if frappe.db.exists(
+        "Sales Invoice",
+        {"return_against": invoice.name, "docstatus": 1, "is_return": 1},
+    ):
+        return "A submitted Sales Invoice return requires finance review."
+    return ""
 
 
 def _payment_allocation_error(request, invoice, payment, reference) -> str:
@@ -65,6 +116,8 @@ def _payment_allocation_error(request, invoice, payment, reference) -> str:
         return "Payment Entry party type does not match the request customer."
     if _text(getattr(payment, "party", None)) != _text(request.erp_customer):
         return "Payment Entry party does not match the request customer."
+    if _text(getattr(payment, "company", None)) != _text(request.get("company_snapshot")):
+        return "Payment Entry company does not match the request company snapshot."
     if _text(getattr(payment, "company", None)) != _text(invoice.company):
         return "Payment Entry company does not match the linked invoice."
     payment_currency = _text(getattr(payment, "paid_from_account_currency", None))
@@ -99,6 +152,9 @@ def _upsert_link(request, invoice, *, payment_entry=None, reference=None, state=
         or _text(getattr(payment_entry, "paid_from_account_currency", None))
         if payment_entry else ""
     )
+    if doc.is_new():
+        doc.linked_by = frappe.session.user
+        doc.linked_at = now_datetime()
     allocated = max(flt(getattr(reference, "allocated_amount", 0) or 0, 6), 0)
     conversion_rate = flt(getattr(invoice, "conversion_rate", 1) or 1, 9)
     doc.allocated_amount = min(allocated, _invoice_basis(invoice))
@@ -134,22 +190,19 @@ def link_sales_invoice(service_request=None, sales_invoice=None):
         frappe.throw("Accounting source is not available.", frappe.DoesNotExistError)
     request = frappe.get_doc("OMC Service Request", locked)
     invoice = frappe.get_doc("Sales Invoice", invoice_name)
-    _assert_invoice_matches(request, invoice)
-    existing_request = frappe.db.get_value(
-        "OMC Accounting Link", {"sales_invoice": invoice.name}, "service_request"
+    assert_invoice_matches_request(request, invoice)
+
+    existing_invoice_request = frappe.db.get_value(
+        "OMC Accounting Link", {"base_invoice_key": invoice.name}, "service_request"
     )
-    if existing_request and existing_request != request.name:
+    if existing_invoice_request and existing_invoice_request != request.name:
         frappe.throw("Sales Invoice is already linked to another request.", frappe.ValidationError)
-    linked_companies = set(
-        frappe.get_all(
-            "OMC Accounting Link",
-            filters={"service_request": request.name, "payment_entry": ["is", "not set"]},
-            pluck="company", limit_page_length=100,
-        )
+    existing_request_invoice = frappe.db.get_value(
+        "OMC Accounting Link", {"base_request_key": request.name}, "sales_invoice"
     )
-    linked_companies.discard("")
-    if linked_companies and invoice.company not in linked_companies:
-        frappe.throw("All linked invoices must use the same company.", frappe.ValidationError)
+    if existing_request_invoice and existing_request_invoice != invoice.name:
+        frappe.throw("Service request already has a base Sales Invoice.", frappe.ValidationError)
+
     link = _upsert_link(request, invoice)
     security.audit_event(
         event_type="accounting.invoice_linked",
@@ -157,6 +210,7 @@ def link_sales_invoice(service_request=None, sales_invoice=None):
         target_doctype=request.doctype,
         target_name=request.name,
         source_version=link.source_version,
+        actor=frappe.session.user,
     )
     result = reconcile_request(request.name)
     return {"success": True, "accounting_link": link.name, **result}
@@ -199,34 +253,61 @@ def _project_receipt_compatibility(request_name: str, state: str, payment_entry:
         frappe.db.set_value("OMC Service Payment", name, values, update_modified=False)
 
 
-def _project_request_state(request, accounting_status: str, reason: str = "") -> None:
+def _set_hold_reason(request, reason: str) -> None:
+    value = _text(reason) or "Accounting settlement requires finance review."
+    frappe.db.set_value(request.doctype, request.name, "financial_hold_reason", value, update_modified=False)
+    request.financial_hold_reason = value
+
+
+def _clear_hold_reason(request) -> None:
+    frappe.db.set_value(request.doctype, request.name, "financial_hold_reason", None, update_modified=False)
+    request.financial_hold_reason = None
+
+
+def _apply_accounting_lifecycle(request, accounting_status: str, reason: str = "") -> None:
     current = _text(request.request_state) or "Draft"
-    values = {}
-    if accounting_status == "Settled" and current in {
-        "Pending Payment", "Payment Not Required", "Activation Failed", "Financial Hold"
+    if current in {"Cancelled", "Expired"} or _text(request.status) == "Completed":
+        return
+
+    if accounting_status == "Settled":
+        target = ""
+        if current == "Financial Hold":
+            target = "Activated" if (request.activated_at or request.erp_service or request.erp_task) else "Ready for Activation"
+        elif current in {"Pending Payment", "Payment Not Required", "Activation Failed"}:
+            target = "Ready for Activation"
+        if target:
+            request_lifecycle.transition_request_state(
+                request.name,
+                target,
+                reason="ERP accounting settlement verified.",
+                actor=frappe.session.user,
+                capability="can_reconcile_settlement",
+                idempotency_key=f"accounting:settled:{request.name}",
+            )
+            request.request_state = target
+            _clear_hold_reason(request)
+        return
+
+    if accounting_status not in {"Reversed", "Review Required"}:
+        return
+
+    hold_reason = _text(reason) or "Accounting settlement was reversed or requires finance review."
+    if current == "Financial Hold":
+        _set_hold_reason(request, hold_reason)
+        return
+    if current in {
+        "Pending Payment", "Payment Not Required", "Ready for Activation", "Activating", "Activated", "Activation Failed"
     }:
-        values = {
-            "request_state": "Ready for Activation",
-            "ready_for_activation_at": now_datetime(),
-            "financial_hold_reason": None,
-            "status": "Open",
-        }
-    elif accounting_status in {"Reversed", "Review Required"}:
-        if current in {"Activated", "Activating"}:
-            values = {
-                "request_state": "Financial Hold",
-                "financial_hold_reason": reason or "Accounting settlement was reversed.",
-                "status": "In Progress",
-            }
-        elif current not in {"Cancelled", "Expired"}:
-            values = {
-                "request_state": "Pending Payment",
-                "financial_hold_reason": reason or None,
-                "status": "Waiting for Payment",
-            }
-    if values:
-        frappe.db.set_value(request.doctype, request.name, values, update_modified=False)
-        request.update(values)
+        request_lifecycle.transition_request_state(
+            request.name,
+            "Financial Hold",
+            reason=hold_reason,
+            actor=frappe.session.user,
+            capability="can_reconcile_settlement",
+            idempotency_key=f"accounting:hold:{request.name}",
+        )
+        request.request_state = "Financial Hold"
+        _set_hold_reason(request, hold_reason)
 
 
 def reconcile_request(request_name: str) -> dict:
@@ -248,20 +329,17 @@ def reconcile_request(request_name: str) -> dict:
             invalid_reason = "Linked Sales Invoice is missing."
             continue
         invoice = frappe.get_doc("Sales Invoice", link.sales_invoice)
-        if invoice.docstatus != 1 or int(getattr(invoice, "is_return", 0) or 0):
-            invalid_reason = "Linked Sales Invoice is cancelled or reversed."
-        elif invoice.customer != request.erp_customer or invoice.currency != request.pricing_currency:
-            invalid_reason = "Linked Sales Invoice no longer matches the request."
-        elif frappe.db.exists(
-            "Sales Invoice",
-            {"return_against": invoice.name, "docstatus": 1, "is_return": 1},
-        ):
-            invalid_reason = "A submitted Sales Invoice return requires finance review."
+        invoice_error = _invoice_reconciliation_error(request, invoice)
+        if invoice_error:
+            invalid_reason = invoice_error
         invoices.append(invoice)
 
     allocated = 0.0
     latest_payment = ""
-    invoice_names = {invoice.name for invoice in invoices if invoice.docstatus == 1 and not int(getattr(invoice, "is_return", 0) or 0)}
+    invoice_names = {
+        invoice.name for invoice in invoices
+        if invoice.docstatus == 1 and not int(getattr(invoice, "is_return", 0) or 0)
+    }
     for payment, reference in _submitted_allocations(invoice_names):
         invoice = next(item for item in invoices if item.name == reference.reference_name)
         allocation_error = _payment_allocation_error(request, invoice, payment, reference)
@@ -294,19 +372,21 @@ def reconcile_request(request_name: str) -> dict:
             update_modified=False,
         )
     _project_receipt_compatibility(request.name, state, latest_payment)
-    _project_request_state(request, state, invalid_reason)
+    _apply_accounting_lifecycle(request, state, invalid_reason)
     if state == "Settled":
         from omc_app.api.bridge_outbox import enqueue_if_eligible
 
         enqueue_if_eligible(request.name)
     return {
         "request": request.name,
+        "request_state": request.request_state,
         "accounting_status": state,
         "allocated_amount": capped,
         "required_amount": required,
         "remaining_amount": max(flt(required - capped, 6), 0),
         "linked_invoices": sorted(invoice_names),
         "payment_entry": latest_payment,
+        "reconciliation_error": invalid_reason,
     }
 
 
@@ -370,8 +450,7 @@ def sales_invoice_submitted(doc, method=None):
         )
     )
     for request_name in sorted(requests):
-        request = frappe.get_doc("OMC Service Request", request_name)
-        _project_request_state(request, "Review Required", "A Sales Invoice return was submitted.")
+        reconcile_request(request_name)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -387,23 +466,31 @@ def approve_post_paid(service_request=None):
         frappe.throw("Request is not eligible for post-paid approval.", frappe.ValidationError)
     if request.request_state != "Pending Payment":
         frappe.throw("Request is not awaiting finance approval.", frappe.ValidationError)
-    values = {
-        "post_paid_approved_by": frappe.session.user,
-        "post_paid_approved_at": now_datetime(),
-        "request_state": "Ready for Activation",
-        "ready_for_activation_at": now_datetime(),
-        "status": "Open",
-    }
-    frappe.db.set_value(request.doctype, request.name, values, update_modified=False)
+
+    frappe.db.set_value(
+        request.doctype,
+        request.name,
+        {"post_paid_approved_by": frappe.session.user, "post_paid_approved_at": now_datetime()},
+        update_modified=False,
+    )
+    result = request_lifecycle.transition_request_state(
+        request.name,
+        "Ready for Activation",
+        reason="Post-paid service approved by finance.",
+        actor=frappe.session.user,
+        capability="can_approve_post_paid",
+        idempotency_key=f"postpaid:{request.name}",
+    )
     security.audit_event(
         event_type="accounting.post_paid_approved",
         capability="can_approve_post_paid",
         target_doctype=request.doctype,
         target_name=request.name,
-        old_state="pending_payment",
-        new_state="ready_for_activation",
+        old_state=result.old_state,
+        new_state=result.new_state,
+        actor=frappe.session.user,
     )
     from omc_app.api.bridge_outbox import enqueue_if_eligible
 
     operation = enqueue_if_eligible(request.name)
-    return {"success": True, "request_state": "Ready for Activation", "operation": operation}
+    return {"success": True, "request_state": result.new_state, "operation": operation}
