@@ -167,20 +167,38 @@ def resolve_source_queues(
     source_doctype: str,
     source_name: str,
     resolution_note: str = "Reconciliation recovered automatically.",
+    review_reason_codes: set[str] | tuple[str, ...] | list[str] | None = None,
+    quarantine_failure_codes: set[str] | tuple[str, ...] | list[str] | None = None,
 ) -> dict[str, int]:
+    """Resolve only the queue classes proven clean by the current check.
+
+    Passing no code filters preserves the whole-source resolution behavior used
+    when a reconciler has revalidated the complete domain source. Callers that
+    validate only one concern must pass the relevant reason/failure codes.
+    """
     now = now_datetime()
     actor = getattr(getattr(frappe, "session", None), "user", None)
     resolved = {"reviews": 0, "quarantines": 0}
+    review_codes = {_code(value) for value in (review_reason_codes or [])}
+    quarantine_codes = {_code(value) for value in (quarantine_failure_codes or [])}
 
-    for doctype, key in ((REVIEW_DOCTYPE, "reviews"), (QUARANTINE_DOCTYPE, "quarantines")):
+    for doctype, key, code_field, codes in (
+        (REVIEW_DOCTYPE, "reviews", "reason_code", review_codes),
+        (QUARANTINE_DOCTYPE, "quarantines", "failure_code", quarantine_codes),
+    ):
+        filters = {
+            "domain": _text(domain),
+            "source_doctype": _text(source_doctype),
+            "source_name": _text(source_name),
+            "status": ["in", ["Open", "Retrying"]]
+            if doctype == QUARANTINE_DOCTYPE
+            else "Open",
+        }
+        if codes:
+            filters[code_field] = ["in", sorted(codes)]
         names = frappe.get_all(
             doctype,
-            filters={
-                "domain": _text(domain),
-                "source_doctype": _text(source_doctype),
-                "source_name": _text(source_name),
-                "status": ["in", ["Open", "Retrying"]] if doctype == QUARANTINE_DOCTYPE else "Open",
-            },
+            filters=filters,
             pluck="name",
             limit_page_length=100,
         )
