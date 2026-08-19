@@ -122,6 +122,7 @@ def _cancel_bridge_operations(request_name: str) -> None:
             name,
             {
                 "state": "Cancelled",
+                "next_attempt_at": None,
                 "last_safe_error": "Service request is no longer activation-eligible.",
             },
             update_modified=False,
@@ -129,15 +130,21 @@ def _cancel_bridge_operations(request_name: str) -> None:
 
 
 def _archive_documents(request_name: str, terminal_status: str) -> None:
-    try:
-        from omc_app.api.customer_documents import archive_service_documents_for_status
+    from omc_app.api.customer_documents import archive_service_documents_for_status
 
-        archive_service_documents_for_status(request_name, terminal_status)
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), "OMC lifecycle document archival failed")
+    # This is intentionally not best-effort. Terminal lifecycle transitions
+    # must rollback if document archival fails so a request cannot become
+    # terminal while its customer-visible document state remains active.
+    archive_service_documents_for_status(request_name, terminal_status)
 
 
 def _terminal_cleanup(request, *, target_state: str, reason: str, customer_cancelled: bool) -> None:
+    """Apply all terminal side effects in the caller's database transaction.
+
+    No cleanup error is swallowed here. Frappe's request/job transaction must
+    commit the request state, ToDos, payments, bridge state, document archival,
+    timeline and notifications together, or roll all of them back together.
+    """
     document_names = frappe.get_all(
         "OMC Service Document",
         filters={"service_request": request.name},
@@ -154,13 +161,9 @@ def _terminal_cleanup(request, *, target_state: str, reason: str, customer_cance
     _close_todos("OMC Service Document", document_names, "Cancelled")
     _close_todos("OMC Service Payment", payment_names, "Cancelled")
 
-    try:
-        from omc_app.api import review_routing
+    from omc_app.api import review_routing
 
-        review_routing.close_parent_review_todos(request.name, cancelled=True)
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), "OMC lifecycle review ToDo cleanup failed")
-
+    review_routing.close_parent_review_todos(request.name, cancelled=True)
     _cancel_open_payments(request.name)
     _cancel_bridge_operations(request.name)
     _archive_documents(request.name, "Cancelled" if target_state == "Cancelled" else "Expired")
