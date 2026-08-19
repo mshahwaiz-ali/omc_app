@@ -4,12 +4,9 @@ import json
 
 import frappe
 
-from omc_app.api import erp_activation
-
 from omc_app.api import (
     access,
     erp_customer_resolver,
-    erp_service_task_adapter,
     idempotency,
     identity,
     mobile,
@@ -1018,8 +1015,9 @@ def _create_request(**kwargs):
         )
         doc.referral_attribution = attribution.name
 
-    erp_bridge = erp_activation.activate_request(doc, service=service, profile=profile)
-
+    # Request creation is payment-first. ERP Service/Task activation is owned by
+    # bridge_outbox after payment/No-Charge eligibility has been satisfied; the
+    # create transaction must never call the legacy activation adapter directly.
     if doc.meta.get_field("submission_integrity_status"):
         submission_integrity.evaluate_request(doc)
 
@@ -1041,10 +1039,10 @@ def _create_request(**kwargs):
     response = _request_response(doc)
     response["assigned_staff"] = doc.assigned_staff or ""
     response["assignment_todo"] = None
-    response["erp_sync_status"] = erp_bridge.get("status") or ""
-    response["erp_customer"] = erp_bridge.get("erp_customer") or ""
-    response["erp_service"] = erp_bridge.get("erp_service") or ""
-    response["erp_task"] = erp_bridge.get("erp_task") or ""
-    response["erp_task_assignment"] = erp_bridge.get("task_assignment")
+    response["erp_sync_status"] = "Not Started"
+    response["erp_customer"] = doc.erp_customer or ""
+    response["erp_service"] = doc.erp_service or ""
+    response["erp_task"] = doc.erp_task or ""
+    response["erp_task_assignment"] = None
     response.update(pricing)
     return response
