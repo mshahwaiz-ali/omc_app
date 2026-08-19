@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import assisted_service
+from omc_app.api import assisted_service, manual_customer_conversion
 
 
 class TestAssistedServiceAuthority(FrappeTestCase):
@@ -372,7 +372,7 @@ class TestAssistedServiceAuthority(FrappeTestCase):
                 request_name="REQ-1",
             )
 
-    def test_manual_customer_conversion_links_existing_task_workflow(self):
+    def test_manual_customer_conversion_uses_payment_first_durable_bridge(self):
         manual = MagicMock()
         manual.name = "MC-1"
         manual.full_name = "Walk In Customer"
@@ -385,110 +385,96 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         request = MagicMock()
         request.name = "REQ-1"
         request.manual_customer = "MC-1"
-        request.service = "SERVICE-1"
 
         profile = MagicMock()
         profile.name = "OMC-CUST-1"
-        profile.full_name = ""
-        profile.phone = ""
-        profile.cnic = ""
-        profile.address = ""
 
-        service = SimpleNamespace(
-            name="SERVICE-1",
-            erp_task_type="NTN Registration",
-        )
+        def get_value(doctype, name, fieldname, **kwargs):
+            if doctype == "OMC Service Request" and name == "REQ-1" and fieldname == "name":
+                self.assertTrue(kwargs.get("for_update"))
+                return "REQ-1"
+            if doctype == "OMC Service Request" and name == "REQ-1" and fieldname in {"erp_service", "erp_task"}:
+                return ""
+            return None
 
         def get_doc(doctype, _name):
             return {
                 "OMC Manual Customer": manual,
                 "OMC Service Request": request,
-                "OMC Service": service,
             }[doctype]
 
         with (
             patch.object(
-                assisted_service,
-                "_current_user",
-                return_value="manager@example.com",
-            ),
-            patch.object(
-                assisted_service,
-                "_capabilities",
+                manual_customer_conversion.access,
+                "get_mobile_capabilities",
                 return_value={"can_manage_customers": True},
             ),
+            patch.object(manual_customer_conversion.security, "enforce_rate_limit"),
             patch.object(
-                assisted_service.frappe.db,
+                manual_customer_conversion.frappe.db,
                 "exists",
                 return_value=True,
             ),
             patch.object(
-                assisted_service.frappe,
+                manual_customer_conversion.frappe.db,
+                "get_value",
+                side_effect=get_value,
+            ),
+            patch.object(
+                manual_customer_conversion.frappe,
                 "get_doc",
                 side_effect=get_doc,
             ),
             patch.object(
-                assisted_service.frappe,
-                "new_doc",
-                return_value=profile,
+                manual_customer_conversion,
+                "_resolve_profile",
+                return_value=(profile, True),
             ),
+            patch.object(manual_customer_conversion, "_sync_profile"),
             patch.object(
-                assisted_service,
-                "_manual_customer_profile_matches",
-                return_value=[],
-            ),
-            patch.object(
-                assisted_service.erp_customer_resolver,
+                manual_customer_conversion.erp_customer_resolver,
                 "resolve_profile_customer",
                 return_value={
                     "status": "Created",
                     "customer": "ERP-CUST-1",
                     "created": True,
-                    "reason": "",
                 },
             ),
             patch.object(
-                assisted_service.erp_activation,
-                "activate_request",
-                return_value={
-                    "status": "Not Started",
-                    "erp_customer": "ERP-CUST-1",
-                    "erp_service": "",
-                    "erp_task": "",
-                    "task_assignment": None,
-                    "created": False,
-                    "eligible": False,
-                },
-            ) as activate_request,
+                manual_customer_conversion,
+                "_optional_customer_account",
+                return_value="",
+            ),
+            patch.object(
+                manual_customer_conversion.payment_opening,
+                "ensure_service_payment",
+                return_value="PAY-1",
+            ) as ensure_payment,
+            patch.object(
+                manual_customer_conversion.bridge_outbox,
+                "enqueue_if_eligible",
+                return_value="BRIDGE-1",
+            ) as enqueue,
+            patch.object(manual_customer_conversion.security, "audit_event"),
         ):
-            result = assisted_service.convert_manual_customer(
+            result = manual_customer_conversion.convert_manual_customer(
                 manual_customer="MC-1",
                 request_name="REQ-1",
             )
 
         self.assertEqual(result["customer_profile"], "OMC-CUST-1")
         self.assertEqual(result["erp_customer"], "ERP-CUST-1")
+        self.assertEqual(result["payment"], "PAY-1")
+        self.assertEqual(result["bridge_operation"], "BRIDGE-1")
+        self.assertEqual(result["erp_sync_status"], "Queued")
         self.assertEqual(result["erp_service"], "")
         self.assertEqual(result["erp_task"], "")
-        self.assertEqual(result["erp_sync_status"], "Not Started")
 
         self.assertEqual(manual.verification_status, "Verified")
         self.assertEqual(manual.conversion_status, "Linked")
-        self.assertEqual(
-            manual.linked_customer_profile,
-            "OMC-CUST-1",
-        )
-        self.assertEqual(request.customer_profile, "OMC-CUST-1")
-
-        profile.insert.assert_called_once_with(ignore_permissions=True)
-        manual.save.assert_called_once_with(ignore_permissions=True)
-        activate_request.assert_called_once_with(
-            request,
-            service=service,
-            profile=profile,
-            manual_customer=manual,
-            repair=True,
-        )
+        self.assertEqual(manual.linked_customer_profile, "OMC-CUST-1")
+        ensure_payment.assert_called_once_with("REQ-1")
+        enqueue.assert_called_once_with("REQ-1")
 
     def test_manual_customer_conversion_requires_cnic_or_ntn(self):
         manual = SimpleNamespace(
