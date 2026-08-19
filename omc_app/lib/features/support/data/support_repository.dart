@@ -11,6 +11,29 @@ import '../../../core/uploads/upload_coordinator.dart';
 import 'support_config_data.dart';
 import 'support_ticket.dart';
 
+class SupportTicketPage {
+  const SupportTicketPage({
+    required this.items,
+    required this.start,
+    required this.pageLength,
+    required this.hasMore,
+    required this.nextStart,
+  });
+
+  const SupportTicketPage.empty()
+    : items = const [],
+      start = 0,
+      pageLength = 20,
+      hasMore = false,
+      nextStart = null;
+
+  final List<SupportTicket> items;
+  final int start;
+  final int pageLength;
+  final bool hasMore;
+  final int? nextStart;
+}
+
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {
   final frappeClient = ref.watch(frappeClientProvider);
 
@@ -22,9 +45,13 @@ final supportConfigProvider = FutureProvider<SupportConfigData>((ref) async {
   return repository.fetchSupportConfig();
 });
 
-final supportTicketsProvider = FutureProvider<List<SupportTicket>>((ref) async {
+final supportTicketPageProvider = FutureProvider<SupportTicketPage>((ref) async {
   final repository = ref.watch(supportRepositoryProvider);
-  return repository.fetchSupportTickets();
+  return repository.fetchSupportTicketPage();
+});
+
+final supportTicketsProvider = FutureProvider<List<SupportTicket>>((ref) async {
+  return (await ref.watch(supportTicketPageProvider.future)).items;
 });
 
 final supportTicketDetailProvider =
@@ -64,12 +91,25 @@ class SupportRepository {
     }
   }
 
-  Future<List<SupportTicket>> fetchSupportTickets() async {
+  Future<SupportTicketPage> fetchSupportTicketPage({
+    int start = 0,
+    int limit = 20,
+  }) async {
+    final safeStart = start < 0 ? 0 : start;
+    final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final response = await frappeClient.getMethod(
         ApiConfig.supportTicketsMethod,
+        queryParameters: {
+          'limit_start': safeStart,
+          'limit_page_length': safeLimit,
+        },
       );
-      return _mapTicketsResponse(response);
+      return _mapTicketPageResponse(
+        response,
+        requestedStart: safeStart,
+        requestedLimit: safeLimit,
+      );
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -80,6 +120,13 @@ class SupportRepository {
         details: error,
       );
     }
+  }
+
+  Future<List<SupportTicket>> fetchSupportTickets({
+    int start = 0,
+    int limit = 20,
+  }) async {
+    return (await fetchSupportTicketPage(start: start, limit: limit)).items;
   }
 
   Future<SupportTicket?> fetchSupportTicket(String ticketId) async {
@@ -325,6 +372,39 @@ class SupportRepository {
     );
     _createIntent.complete();
     return response;
+  }
+
+  SupportTicketPage _mapTicketPageResponse(
+    Map<String, dynamic>? data, {
+    required int requestedStart,
+    required int requestedLimit,
+  }) {
+    if (data == null) {
+      return SupportTicketPage(
+        items: const [],
+        start: requestedStart,
+        pageLength: requestedLimit,
+        hasMore: false,
+        nextStart: null,
+      );
+    }
+
+    final items = _mapTicketsResponse(data);
+    final message = data['message'];
+    final payload = message is Map<String, dynamic> ? message : data;
+    final hasMore = _boolValue(payload['has_more']);
+    final start = _intValue(payload['limit_start']) ?? requestedStart;
+    final pageLength =
+        _intValue(payload['limit_page_length']) ?? requestedLimit;
+    final parsedNextStart = _intValue(payload['next_start']);
+
+    return SupportTicketPage(
+      items: items,
+      start: start,
+      pageLength: pageLength,
+      hasMore: hasMore,
+      nextStart: hasMore ? (parsedNextStart ?? start + items.length) : null,
+    );
   }
 
   List<SupportTicket> _mapTicketsResponse(Map<String, dynamic>? data) {
