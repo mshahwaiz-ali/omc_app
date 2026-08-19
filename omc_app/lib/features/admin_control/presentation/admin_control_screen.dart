@@ -24,9 +24,9 @@ class AdminControlScreen extends ConsumerWidget {
         actions: [
           if (capabilities.canManageStaff)
             IconButton(
-              tooltip: 'Invite staff',
+              tooltip: 'Grant OMC staff access',
               icon: const Icon(Icons.person_add_alt_1_rounded),
-              onPressed: () => _inviteStaff(context, ref, overview.value),
+              onPressed: () => _grantStaffAccess(context, ref, overview.value),
             ),
         ],
       ),
@@ -45,7 +45,7 @@ class AdminControlScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Review registrations, manage operational roles and control OMC business settings.',
+              'Review registrations, manage OMC staff access and control business settings.',
             ),
             const SizedBox(height: 20),
             if (capabilities.canReassignServiceCases ||
@@ -98,7 +98,7 @@ class AdminControlScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _inviteStaff(
+  Future<void> _grantStaffAccess(
     BuildContext context,
     WidgetRef ref,
     AdminOverview? overview,
@@ -121,26 +121,48 @@ class AdminControlScreen extends ConsumerWidget {
         builder: (context, setDialogState) => UnsavedChangesGuard(
           controller: dirtyFormController,
           child: AlertDialog(
-            title: const Text('Invite staff member'),
+            title: const Text('Grant OMC staff access'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE5EAF2)),
+                    ),
+                    child: const Text(
+                      'This does not create a login. Create or convert the staff member to an enabled System User in Frappe Desk first, then use the same identity here.',
+                      style: TextStyle(fontSize: 12.5, height: 1.4),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   TextField(
                     controller: name,
-                    decoration: const InputDecoration(labelText: 'Full name'),
-                    onChanged: (_) => setDialogState(() {}),
-                  ),
-                  TextField(
-                    controller: email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Email'),
+                    decoration: const InputDecoration(
+                      labelText: 'System User full name',
+                    ),
                     onChanged: (_) => setDialogState(() {}),
                   ),
                   const SizedBox(height: 12),
+                  TextField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'System User email',
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 16),
                   const Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Operational roles'),
+                    child: Text(
+                      'OMC access profile',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
                   for (final item in overview.availableRoles)
                     CheckboxListTile(
@@ -177,7 +199,7 @@ class AdminControlScreen extends ConsumerWidget {
                         dirtyFormController.submissionSucceeded();
                         Navigator.pop(dialogContext, true);
                       },
-                child: const Text('Send invite'),
+                child: const Text('Grant access'),
               ),
             ],
           ),
@@ -201,7 +223,7 @@ class AdminControlScreen extends ConsumerWidget {
         ref.invalidate(adminOverviewProvider);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Staff invitation created.')),
+            const SnackBar(content: Text('OMC staff access granted.')),
           );
         }
       } catch (error) {
@@ -211,8 +233,8 @@ class AdminControlScreen extends ConsumerWidget {
               content: Text(
                 AppFailureClassifier.classify(
                   error,
-                  fallbackTitle: 'Invite failed',
-                  fallbackMessage: 'Could not invite staff.',
+                  fallbackTitle: 'Access not granted',
+                  fallbackMessage: 'Could not grant OMC staff access.',
                 ).message,
               ),
             ),
@@ -239,6 +261,11 @@ class _ApplicationsCard extends ConsumerWidget {
           'Pending registrations (${data.applications.length})',
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
+        const SizedBox(height: 6),
+        const Text(
+          'Staff applications require an enabled System User in Frappe Desk before OMC staff access can be approved.',
+          style: TextStyle(fontSize: 12.5, height: 1.4),
+        ),
         const SizedBox(height: 10),
         if (data.applications.isEmpty)
           const Text('No registrations are awaiting review.'),
@@ -252,8 +279,8 @@ class _ApplicationsCard extends ConsumerWidget {
             ),
             subtitle: Text(
               application.requestedRole.isEmpty
-                  ? 'Customer application'
-                  : application.requestedRole,
+                  ? 'Customer registration'
+                  : 'Staff access application • ${application.requestedRole}',
             ),
             trailing: Wrap(
               children: [
@@ -263,7 +290,9 @@ class _ApplicationsCard extends ConsumerWidget {
                   onPressed: () => _review(context, ref, application, false),
                 ),
                 IconButton(
-                  tooltip: 'Approve',
+                  tooltip: application.requestedRole.isEmpty
+                      ? 'Approve customer'
+                      : 'Approve staff access',
                   icon: const Icon(Icons.check_rounded, color: Colors.green),
                   onPressed: () => _review(context, ref, application, true),
                 ),
@@ -292,10 +321,17 @@ class _ApplicationsCard extends ConsumerWidget {
           );
       ref.invalidate(adminOverviewProvider);
       if (context.mounted) {
+        final isStaffApplication = application.requestedRole.isNotEmpty;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              approve ? 'Registration approved.' : 'Registration rejected.',
+              approve
+                  ? isStaffApplication
+                        ? 'OMC staff access approved.'
+                        : 'Customer registration approved.'
+                  : isStaffApplication
+                  ? 'Staff access application rejected.'
+                  : 'Customer registration rejected.',
             ),
           ),
         );
@@ -308,7 +344,7 @@ class _ApplicationsCard extends ConsumerWidget {
               AppFailureClassifier.classify(
                 error,
                 fallbackTitle: 'Review failed',
-                fallbackMessage: 'Could not review registration.',
+                fallbackMessage: 'Could not review this application.',
               ).message,
             ),
           ),
