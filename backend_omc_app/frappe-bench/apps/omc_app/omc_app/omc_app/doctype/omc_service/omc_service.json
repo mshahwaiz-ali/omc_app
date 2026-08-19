@@ -20,6 +20,7 @@
   "pricing_duration_section",
   "base_price",
   "currency",
+  "company",
   "service_version",
   "pricing_version",
   "tax_policy",
@@ -115,6 +116,15 @@
    "fieldname": "currency",
    "fieldtype": "Data",
    "label": "Currency"
+  },
+  {
+   "description": "Authoritative ERPNext legal company for this service. New requests freeze this value and accounting must match it exactly.",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "search_index": 1
   },
   {
    "default": "1",
