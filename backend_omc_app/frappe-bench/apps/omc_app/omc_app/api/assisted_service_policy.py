@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import assisted_service
+from omc_app.api import assisted_service, payment_opening
 
 
 ALLOWED_ASSISTED_MODES = {"My Referral", "Existing Customer"}
@@ -58,11 +58,25 @@ def get_customer_selection_options(
     return response
 
 
+def _ensure_payment_from_response(response):
+    if not isinstance(response, dict) or response.get("duplicate"):
+        return response
+    request_name = (
+        response.get("service_request")
+        or response.get("request_id")
+        or response.get("name")
+    )
+    if request_name and frappe.db.exists("OMC Service Request", request_name):
+        payment_name = payment_opening.ensure_service_payment(request_name)
+        response["payment_id"] = payment_name
+    return response
+
+
 @frappe.whitelist(methods=["POST"])
 def create_request(**kwargs):
     data = dict(kwargs or {})
     data["customer_mode"] = _assert_allowed_assisted_mode(data.get("customer_mode"))
-    return assisted_service.create_request(**data)
+    return _ensure_payment_from_response(assisted_service.create_request(**data))
 
 
 @frappe.whitelist(methods=["POST"])
