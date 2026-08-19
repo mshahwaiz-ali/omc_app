@@ -314,8 +314,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
     if (!_acceptedTerms) {
       setState(() {
-        _submitError =
-            'Please accept the terms and review process before creating an account.';
+        _submitError = 'Please accept the terms and review process before continuing.';
       });
       return;
     }
@@ -508,6 +507,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return PendingRegistrationSuccessScreen(
         email: _submittedEmail,
         initialCooldownSeconds: _submittedCooldownSeconds,
+        isCustomer: _isCustomer,
       );
     }
 
@@ -517,8 +517,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         if (mounted) context.go('/login');
       },
       child: AuthEntryScaffold(
-        title: 'Create your account',
-        subtitle: 'A focused four-step setup for your OMC access.',
+        title: _isCustomer ? 'Create your account' : 'Apply for OMC staff access',
+        subtitle: _isCustomer
+            ? 'A focused four-step setup for your OMC customer account.'
+            : 'Verify your email and submit your $_selectedRole access application for OMC review.',
         leading: IconButton(
           tooltip: _step == 0 ? 'Back to login' : 'Previous step',
           onPressed: _isSubmitting
@@ -714,11 +716,13 @@ class PendingRegistrationSuccessScreen extends ConsumerStatefulWidget {
   const PendingRegistrationSuccessScreen({
     required this.email,
     required this.initialCooldownSeconds,
+    required this.isCustomer,
     super.key,
   });
 
   final String email;
   final int initialCooldownSeconds;
+  final bool isCustomer;
 
   @override
   ConsumerState<PendingRegistrationSuccessScreen> createState() =>
@@ -821,8 +825,9 @@ class _PendingRegistrationSuccessScreenState
   Widget build(BuildContext context) {
     return AuthEntryScaffold(
       title: 'Check your email',
-      subtitle:
-          'Your account will be created after you verify your email address.',
+      subtitle: widget.isCustomer
+          ? 'Your customer account is created only after you verify your email and set a password.'
+          : 'Verify your email and set a password to submit your staff access application for OMC review.',
       child: PremiumCard(
         padding: const EdgeInsets.all(22),
         child: Column(
@@ -831,7 +836,9 @@ class _PendingRegistrationSuccessScreenState
             const Icon(Icons.outgoing_mail, color: Color(0xFF2563EB), size: 44),
             const SizedBox(height: 18),
             Text(
-              'Open the verification link sent to ${widget.email}. The link expires in 30 minutes.',
+              widget.isCustomer
+                  ? 'Open the verification link sent to ${widget.email}. The link expires in 30 minutes.'
+                  : 'Open the verification link sent to ${widget.email}. After verification, OMC reviews the staff application separately; staff permissions are not enabled automatically. The link expires in 30 minutes.',
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 14,
