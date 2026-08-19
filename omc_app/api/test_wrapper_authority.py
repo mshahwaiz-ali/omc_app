@@ -45,7 +45,7 @@ class TestLegacyMutationHookAuthority(FrappeTestCase):
             hooks.override_whitelisted_methods[
                 "omc_app.api.mobile.update_service_case_status"
             ],
-            "omc_app.api.secured_mobile.update_service_case_status",
+            "omc_app.api.service_request_mutations.update_service_case_status",
         )
 
     def test_document_status_legacy_path_is_overridden(self):
