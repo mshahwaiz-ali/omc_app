@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/omc_logo.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -45,9 +47,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             .checkSession()
             .then((_) => true),
         ref.read(preferencesServiceProvider.future),
-        Future<void>.delayed(
-          const Duration(milliseconds: 700),
-        ).then((_) => true),
       ]);
 
       if (!mounted) return;
@@ -133,10 +132,11 @@ class _SplashFailure extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 22),
-            FilledButton.icon(
+            AppButton(
+              label: 'Try again',
+              icon: Icons.refresh_rounded,
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try again'),
+              isExpanded: false,
             ),
           ],
         ),
@@ -150,39 +150,58 @@ class _SplashContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 126,
-          height: 126,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(34),
-            border: Border.all(color: const Color(0xFFE8EDF5)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x120F172A),
-                blurRadius: 32,
-                offset: Offset(0, 16),
+    final reducedMotion = AppMotion.reducedMotion(context);
+
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: 'Starting OMC',
+      child: ExcludeSemantics(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 126,
+              height: 126,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(34),
+                border: Border.all(color: const Color(0xFFE8EDF5)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x120F172A),
+                    blurRadius: 32,
+                    offset: Offset(0, 16),
+                  ),
+                ],
               ),
-            ],
-          ),
-          padding: const EdgeInsets.all(17),
-          child: const OmcLogo.symbol(size: 92, borderRadius: 0),
+              padding: const EdgeInsets.all(17),
+              child: const OmcLogo.symbol(size: 92, borderRadius: 0),
+            ),
+            const SizedBox(height: 20),
+            if (reducedMotion)
+              const Text(
+                'Starting OMC',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              )
+            else
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.6,
+                  color: AppTheme.primary,
+                  backgroundColor: Color(0x12111827),
+                  strokeCap: StrokeCap.round,
+                ),
+              ),
+          ],
         ),
-        const SizedBox(height: 20),
-        const SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.6,
-            color: AppTheme.primary,
-            backgroundColor: Color(0x12A40D22),
-            strokeCap: StrokeCap.round,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
