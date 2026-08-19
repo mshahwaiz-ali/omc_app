@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'design_tokens.dart';
+
 class AppTheme {
   const AppTheme._();
 
@@ -53,11 +55,11 @@ class AppTheme {
         );
 
     final rounded18 = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(AppRadius.control),
     );
 
     final rounded22 = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(AppRadius.large),
     );
 
     return ThemeData(
@@ -66,8 +68,11 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
       canvasColor: background,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
       splashColor: primary.withValues(alpha: 0.08),
       highlightColor: primary.withValues(alpha: 0.05),
+      focusColor: primary.withValues(alpha: 0.10),
 
       appBarTheme: const AppBarTheme(
         centerTitle: false,
@@ -90,7 +95,9 @@ class AppTheme {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card + 2),
+        ),
       ),
 
       bottomSheetTheme: const BottomSheetThemeData(
@@ -100,12 +107,35 @@ class AppTheme {
         showDragHandle: true,
       ),
 
+      tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(milliseconds: 450),
+        showDuration: const Duration(seconds: 3),
+        textStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+        decoration: BoxDecoration(
+          color: textPrimary,
+          borderRadius: BorderRadius.circular(AppRadius.small),
+        ),
+      ),
+
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(AppTouchTarget.minimum),
+          padding: const EdgeInsets.all(AppSpacing.sm),
+        ),
+      ),
+
       datePickerTheme: DatePickerThemeData(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         headerBackgroundColor: primarySoft,
         headerForegroundColor: textPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card + 2),
+        ),
         dayForegroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
             return textSecondary.withValues(alpha: 0.45);
@@ -151,7 +181,9 @@ class AppTheme {
         hourMinuteTextColor: textPrimary,
         dayPeriodColor: primarySoft,
         dayPeriodTextColor: textPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card + 2),
+        ),
       ),
 
       progressIndicatorTheme: const ProgressIndicatorThemeData(
@@ -202,7 +234,9 @@ class AppTheme {
         disabledColor: const Color(0xFFF1F5F9),
         checkmarkColor: primary,
         side: const BorderSide(color: border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.small + 2),
+        ),
         labelStyle: const TextStyle(
           color: textSecondary,
           fontWeight: FontWeight.w700,
@@ -211,14 +245,17 @@ class AppTheme {
           color: primaryDark,
           fontWeight: FontWeight.w800,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xs,
+        ),
       ),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
+          horizontal: AppSpacing.md,
           vertical: 15,
         ),
         hintStyle: const TextStyle(
@@ -232,30 +269,30 @@ class AppTheme {
         prefixIconColor: textSecondary,
         suffixIconColor: textSecondary,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: const BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: const BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: const BorderSide(color: primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: const BorderSide(color: danger),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: const BorderSide(color: danger, width: 1.5),
         ),
       ),
 
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
           backgroundColor: primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -268,7 +305,7 @@ class AppTheme {
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
           backgroundColor: primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -282,7 +319,7 @@ class AppTheme {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(50),
+          minimumSize: const Size.fromHeight(AppTouchTarget.minimum),
           foregroundColor: primary,
           side: const BorderSide(color: border),
           shape: rounded18,
@@ -292,7 +329,12 @@ class AppTheme {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
+          minimumSize: const Size(
+            AppTouchTarget.minimum,
+            AppTouchTarget.minimum,
+          ),
           foregroundColor: primary,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
@@ -311,7 +353,9 @@ class AppTheme {
         backgroundColor: textPrimary,
         contentTextStyle: const TextStyle(color: Colors.white),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+        ),
       ),
     );
   }
