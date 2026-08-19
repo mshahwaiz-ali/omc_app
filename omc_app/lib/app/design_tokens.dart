@@ -44,4 +44,13 @@ class AppMotion {
 
   static const Duration quick = Duration(milliseconds: 180);
   static const Duration standard = Duration(milliseconds: 240);
+  static const Duration loadingPulse = Duration(milliseconds: 900);
+
+  static bool reducedMotion(BuildContext context) {
+    return MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+  }
+
+  static Duration durationFor(BuildContext context, Duration duration) {
+    return reducedMotion(context) ? Duration.zero : duration;
+  }
 }
