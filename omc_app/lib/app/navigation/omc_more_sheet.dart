@@ -5,7 +5,7 @@ import '../../core/widgets/omc_premium.dart';
 import '../../features/app_config/data/mobile_app_config.dart';
 import '../../features/auth/application/auth_state.dart';
 import '../theme.dart';
-import 'omc_nav_models.dart';
+import 'omc_navigation_ia.dart';
 
 Future<bool> showOmcMoreSheet({
   required BuildContext context,
@@ -36,280 +36,111 @@ Future<bool> showOmcMoreSheet({
   required VoidCallback onOpenTasks,
   required VoidCallback onLogout,
 }) async {
-  final bottomSafeInset = MediaQuery.viewPaddingOf(context).bottom;
+  final groups = buildOmcMoreNavigation(
+    capabilities: capabilities,
+    features: OmcNavigationFeatureFlags(
+      paymentsEnabled: features.paymentsEnabled,
+      expenseTrackerEnabled: features.expenseTrackerEnabled,
+      knowledgeEnabled: features.knowledgeEnabled,
+      supportEnabled: features.supportEnabled,
+    ),
+    isGuest: isGuest,
+  );
+
+  VoidCallback callbackFor(OmcNavigationActionId id) {
+    return switch (id) {
+      OmcNavigationActionId.workspace => onOpenInternalWorkspace,
+      OmcNavigationActionId.customers => onOpenCustomers,
+      OmcNavigationActionId.referrals => onOpenMyReferrals,
+      OmcNavigationActionId.commissions => onOpenMyCommissions,
+      OmcNavigationActionId.documents => onOpenDocuments,
+      OmcNavigationActionId.payments => onOpenPayments,
+      OmcNavigationActionId.leads => onOpenLeads,
+      OmcNavigationActionId.tasks => onOpenTasks,
+      OmcNavigationActionId.support => onOpenSupport,
+      OmcNavigationActionId.alerts => onOpenNotifications,
+      OmcNavigationActionId.tax => onOpenTaxCalculator,
+      OmcNavigationActionId.expense => onOpenExpenseTracker,
+      OmcNavigationActionId.budget => onOpenBudget,
+      OmcNavigationActionId.knowledge => onOpenKnowledge,
+      OmcNavigationActionId.profile => onOpenProfile,
+      OmcNavigationActionId.settings => onOpenSettings,
+      OmcNavigationActionId.login || OmcNavigationActionId.logout => onLogout,
+      // Quick-action-only ids never appear in More.
+      OmcNavigationActionId.apply ||
+      OmcNavigationActionId.createLead ||
+      OmcNavigationActionId.startRequest ||
+      OmcNavigationActionId.reviewPayments ||
+      OmcNavigationActionId.reviewDocuments ||
+      OmcNavigationActionId.supportQueue => onOpenInternalWorkspace,
+    };
+  }
 
   final selectedAction = await showModalBottomSheet<VoidCallback>(
     context: context,
     useSafeArea: true,
+    isScrollControlled: true,
     showDragHandle: true,
     backgroundColor: Colors.white,
     barrierColor: Colors.black.withValues(alpha: 0.28),
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (sheetContext) {
-      final actions = _moreActions(
-        sheetContext: sheetContext,
-        features: features,
-        capabilities: capabilities,
-        unreadNotifications: unreadNotifications,
-        isGuest: isGuest,
-        onOpenDashboard: onOpenDashboard,
-        onOpenDocuments: onOpenDocuments,
-        onOpenPayments: onOpenPayments,
-        onOpenNotifications: onOpenNotifications,
-        onOpenTaxCalculator: onOpenTaxCalculator,
-        onOpenExpenseTracker: onOpenExpenseTracker,
-        onOpenBudget: onOpenBudget,
-        onOpenKnowledge: onOpenKnowledge,
-        onOpenSupport: onOpenSupport,
-        onOpenProfile: onOpenProfile,
-        onOpenSettings: onOpenSettings,
-        onOpenInternalWorkspace: onOpenInternalWorkspace,
-        onOpenCustomers: onOpenCustomers,
-        onOpenMyReferrals: onOpenMyReferrals,
-        onOpenMyCommissions: onOpenMyCommissions,
-        onOpenLeads: onOpenLeads,
-        onOpenTasks: onOpenTasks,
-        onLogout: onLogout,
-      );
-      return _MoreSheetContent(
-        actions: actions,
-        capabilities: capabilities,
-        bottomSafeInset: bottomSafeInset,
-        displayName: displayName,
-        companyName: companyName,
-        customerStatus: customerStatus,
-        avatarUrl: avatarUrl,
-        onOpenProfile: isGuest
-            ? null
-            : () => _closeThen(sheetContext, onOpenProfile),
-      );
-    },
+    builder: (sheetContext) => _MoreSheetContent(
+      groups: groups,
+      capabilities: capabilities,
+      unreadNotifications: unreadNotifications,
+      displayName: displayName,
+      companyName: companyName,
+      customerStatus: customerStatus,
+      avatarUrl: avatarUrl,
+      onOpenProfile: isGuest
+          ? null
+          : () => Navigator.of(sheetContext).pop(onOpenProfile),
+      callbackFor: callbackFor,
+    ),
   );
 
   if (selectedAction == null) return false;
   if (!context.mounted) return true;
-
   selectedAction();
   return true;
 }
 
-List<OmcSheetAction> _moreActions({
-  required BuildContext sheetContext,
-  required MobileFeatureConfig features,
-  required AuthCapabilities capabilities,
-  required int unreadNotifications,
-  required bool isGuest,
-  required VoidCallback onOpenDashboard,
-  required VoidCallback onOpenDocuments,
-  required VoidCallback onOpenPayments,
-  required VoidCallback onOpenNotifications,
-  required VoidCallback onOpenTaxCalculator,
-  required VoidCallback onOpenExpenseTracker,
-  required VoidCallback onOpenBudget,
-  required VoidCallback onOpenKnowledge,
-  required VoidCallback onOpenSupport,
-  required VoidCallback onOpenProfile,
-  required VoidCallback onOpenSettings,
-  required VoidCallback onOpenInternalWorkspace,
-  required VoidCallback onOpenCustomers,
-  required VoidCallback onOpenMyReferrals,
-  required VoidCallback onOpenMyCommissions,
-  required VoidCallback onOpenLeads,
-  required VoidCallback onOpenTasks,
-  required VoidCallback onLogout,
-}) {
-  OmcSheetAction action(
-    String label,
-    IconData icon,
-    VoidCallback onTap, {
-    int badgeCount = 0,
-    bool isDestructive = false,
-  }) {
-    return OmcSheetAction(
-      label: label,
-      icon: icon,
-      badgeCount: badgeCount,
-      isDestructive: isDestructive,
-      onTap: () => _closeThen(sheetContext, onTap),
-    );
-  }
-
-  if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
-    final items = <OmcSheetAction>[
-      action(
-        'Workspace',
-        Icons.admin_panel_settings_outlined,
-        onOpenInternalWorkspace,
-      ),
-    ];
-
-    if (capabilities.canManageCustomers ||
-        capabilities.canViewAllCustomers ||
-        capabilities.canViewRelevantCustomers) {
-      items.add(action('Customers', Icons.groups_outlined, onOpenCustomers));
-    }
-    if (capabilities.canViewRelevantCustomers &&
-        !capabilities.canViewAllCustomers) {
-      items.add(action('My Referrals', Icons.hub_outlined, onOpenMyReferrals));
-    }
-    if (capabilities.canViewReferralCommissions) {
-      items.add(
-        action('Commissions', Icons.payments_outlined, onOpenMyCommissions),
-      );
-    }
-    if (capabilities.canViewDocumentQueue ||
-        capabilities.canViewDocumentSummaries ||
-        capabilities.canViewDocumentAttachments ||
-        capabilities.canReviewDocuments) {
-      items.add(
-        action('Documents', Icons.folder_copy_outlined, onOpenDocuments),
-      );
-    }
-    if (capabilities.canViewPaymentQueue ||
-        capabilities.canViewPaymentSummaries ||
-        capabilities.canViewPaymentReceipts ||
-        capabilities.canReviewPayments) {
-      items.add(
-        action('Payments', Icons.receipt_long_outlined, onOpenPayments),
-      );
-    }
-    if (capabilities.canManageLeads) {
-      items.add(action('Leads', Icons.person_search_outlined, onOpenLeads));
-    }
-    if (capabilities.canManageTasks || capabilities.canManageAssignedTasks) {
-      items.add(action('Tasks', Icons.task_alt_outlined, onOpenTasks));
-    }
-    if (capabilities.canViewSupportTickets ||
-        capabilities.canReplySupportTickets ||
-        capabilities.canUpdateSupportTicketStatus ||
-        capabilities.canAssignSupportTickets) {
-      items.add(action('Support', Icons.support_agent_outlined, onOpenSupport));
-    }
-    if (capabilities.canViewCustomerNotifications) {
-      items.add(
-        action(
-          'Alerts',
-          Icons.notifications_none_rounded,
-          onOpenNotifications,
-          badgeCount: unreadNotifications,
-        ),
-      );
-    }
-
-    // Internal staff keep access to customer-facing utility tools so they can
-    // use, demonstrate, and explain them during assisted service workflows.
-    items.add(action('Tax', Icons.calculate_outlined, onOpenTaxCalculator));
-    if (features.expenseTrackerEnabled) {
-      items.add(
-        action(
-          'Expense',
-          Icons.account_balance_wallet_outlined,
-          onOpenExpenseTracker,
-        ),
-      );
-      if (capabilities.isApproved || capabilities.isInternal) {
-        items.add(action('Budget', Icons.savings_outlined, onOpenBudget));
-      }
-    }
-
-    items.add(action('Settings', Icons.settings_outlined, onOpenSettings));
-
-    items.add(
-      action('Logout', Icons.logout_rounded, onLogout, isDestructive: true),
-    );
-    return items;
-  }
-
-  final items = <OmcSheetAction>[];
-  if (!capabilities.isGuest) {
-    items.add(action('Dashboard', Icons.analytics_outlined, onOpenDashboard));
-    items.add(action('Documents', Icons.folder_copy_outlined, onOpenDocuments));
-    if (features.paymentsEnabled) {
-      items.add(
-        action('Payments', Icons.receipt_long_outlined, onOpenPayments),
-      );
-    }
-    items.add(
-      action(
-        'Alerts',
-        Icons.notifications_none_rounded,
-        onOpenNotifications,
-        badgeCount: unreadNotifications,
-      ),
-    );
-  }
-  items.add(action('Tax', Icons.calculate_outlined, onOpenTaxCalculator));
-  if (features.expenseTrackerEnabled && !capabilities.isInternal) {
-    items.add(
-      action(
-        'Expense',
-        Icons.account_balance_wallet_outlined,
-        onOpenExpenseTracker,
-      ),
-    );
-    if (capabilities.isApproved) {
-      items.add(action('Budget', Icons.savings_outlined, onOpenBudget));
-    }
-  }
-  if (features.knowledgeEnabled) {
-    items.add(action('Knowledge', Icons.menu_book_outlined, onOpenKnowledge));
-  }
-  if (features.supportEnabled) {
-    items.add(action('Support', Icons.support_agent_outlined, onOpenSupport));
-  }
-  if (!capabilities.isGuest) {
-    items.add(action('Profile', Icons.person_outline_rounded, onOpenProfile));
-    items.add(action('Settings', Icons.settings_outlined, onOpenSettings));
-  }
-  items.add(
-    action(
-      isGuest ? 'Login' : 'Logout',
-      isGuest ? Icons.login_rounded : Icons.logout_rounded,
-      onLogout,
-      isDestructive: !isGuest,
-    ),
-  );
-  return items;
-}
-
-void _closeThen(BuildContext context, VoidCallback onTap) {
-  Navigator.of(context).pop(onTap);
-}
-
 class _MoreSheetContent extends StatelessWidget {
   const _MoreSheetContent({
-    required this.actions,
+    required this.groups,
     required this.capabilities,
-    required this.bottomSafeInset,
+    required this.unreadNotifications,
     required this.displayName,
     required this.companyName,
     required this.customerStatus,
     required this.avatarUrl,
     required this.onOpenProfile,
+    required this.callbackFor,
   });
 
-  final List<OmcSheetAction> actions;
+  final List<OmcNavigationGroup> groups;
   final AuthCapabilities capabilities;
-  final double bottomSafeInset;
+  final int unreadNotifications;
   final String? displayName;
   final String? companyName;
   final String? customerStatus;
   final String? avatarUrl;
   final VoidCallback? onOpenProfile;
+  final VoidCallback Function(OmcNavigationActionId id) callbackFor;
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.82,
       ),
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(18, 4, 18, bottomSafeInset + 28),
+        padding: EdgeInsets.fromLTRB(18, 2, 18, bottomInset + 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
             _MoreHeader(
               displayName: displayName,
@@ -321,36 +152,174 @@ class _MoreSheetContent extends StatelessWidget {
             if (capabilities.isGuest ||
                 capabilities.isPending ||
                 capabilities.isRejected) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _AccessStatusNote(capabilities: capabilities),
             ],
-            const SizedBox(height: 14),
-            _MoreGroupLabel(
-              label:
-                  capabilities.canAccessInternalWorkspace ||
-                      capabilities.isInternal
-                  ? 'Operations'
-                  : 'Account & services',
-            ),
-            const SizedBox(height: 10),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: actions.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 8,
-                childAspectRatio: 0.86,
+            const SizedBox(height: 18),
+            for (var index = 0; index < groups.length; index++) ...[
+              _NavigationGroup(
+                group: groups[index],
+                unreadNotifications: unreadNotifications,
+                callbackFor: callbackFor,
               ),
-              itemBuilder: (context, index) =>
-                  _SheetActionButton(action: actions[index]),
-            ),
+              if (index != groups.length - 1) const SizedBox(height: 18),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+class _NavigationGroup extends StatelessWidget {
+  const _NavigationGroup({
+    required this.group,
+    required this.unreadNotifications,
+    required this.callbackFor,
+  });
+
+  final OmcNavigationGroup group;
+  final int unreadNotifications;
+  final VoidCallback Function(OmcNavigationActionId id) callbackFor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Text(
+            group.title,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: Column(
+            children: [
+              for (var index = 0; index < group.items.length; index++) ...[
+                _NavigationRow(
+                  item: group.items[index],
+                  unreadNotifications: unreadNotifications,
+                  onTap: () => Navigator.of(context).pop(
+                    callbackFor(group.items[index].id),
+                  ),
+                ),
+                if (index != group.items.length - 1)
+                  const Divider(height: 1, indent: 58),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NavigationRow extends StatelessWidget {
+  const _NavigationRow({
+    required this.item,
+    required this.unreadNotifications,
+    required this.onTap,
+  });
+
+  final OmcNavigationItem item;
+  final int unreadNotifications;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final destructive = item.id == OmcNavigationActionId.logout;
+    final color = destructive
+        ? OmcPremium.danger
+        : OmcPremium.moduleColor(item.label);
+    final badge = item.id == OmcNavigationActionId.alerts
+        ? unreadNotifications
+        : 0;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(_iconFor(item.id), color: color, size: 19),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: TextStyle(
+                    color: destructive ? OmcPremium.danger : AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (badge > 0)
+                _Badge(count: badge)
+              else
+                Icon(
+                  destructive ? Icons.logout_rounded : Icons.chevron_right_rounded,
+                  color: destructive ? OmcPremium.danger : AppTheme.textMuted,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+IconData _iconFor(OmcNavigationActionId id) {
+  return switch (id) {
+    OmcNavigationActionId.workspace => Icons.dashboard_customize_outlined,
+    OmcNavigationActionId.customers => Icons.groups_outlined,
+    OmcNavigationActionId.referrals => Icons.hub_outlined,
+    OmcNavigationActionId.commissions => Icons.payments_outlined,
+    OmcNavigationActionId.documents => Icons.folder_copy_outlined,
+    OmcNavigationActionId.payments => Icons.receipt_long_outlined,
+    OmcNavigationActionId.leads => Icons.person_search_outlined,
+    OmcNavigationActionId.tasks => Icons.task_alt_outlined,
+    OmcNavigationActionId.support || OmcNavigationActionId.supportQueue =>
+      Icons.support_agent_outlined,
+    OmcNavigationActionId.alerts => Icons.notifications_none_rounded,
+    OmcNavigationActionId.tax => Icons.calculate_outlined,
+    OmcNavigationActionId.expense => Icons.account_balance_wallet_outlined,
+    OmcNavigationActionId.budget => Icons.savings_outlined,
+    OmcNavigationActionId.knowledge => Icons.menu_book_outlined,
+    OmcNavigationActionId.profile => Icons.person_outline_rounded,
+    OmcNavigationActionId.settings => Icons.settings_outlined,
+    OmcNavigationActionId.login => Icons.login_rounded,
+    OmcNavigationActionId.logout => Icons.logout_rounded,
+    OmcNavigationActionId.apply || OmcNavigationActionId.startRequest =>
+      Icons.add_business_outlined,
+    OmcNavigationActionId.createLead => Icons.person_add_alt_1_rounded,
+    OmcNavigationActionId.reviewPayments => Icons.receipt_long_outlined,
+    OmcNavigationActionId.reviewDocuments => Icons.fact_check_outlined,
+  };
 }
 
 class _MoreHeader extends StatelessWidget {
@@ -368,49 +337,48 @@ class _MoreHeader extends StatelessWidget {
   final String? avatarUrl;
   final VoidCallback? onTap;
 
-  String get _headerSubtitle {
-    final company = _cleanLabel(companyName);
-    final status = _cleanLabel(customerStatus);
-    if (company != null && status != null) return '$company • $status';
-    if (company != null) return company;
-    if (status != null) return status;
-    return 'Profile, services and shortcuts.';
-  }
-
-  String? _cleanLabel(String? value) {
-    final text = value?.trim();
-    if (text == null || text.isEmpty) return null;
-    return text;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final cleanAvatarUrl = avatarUrl?.trim();
-    final resolvedAvatarUrl = cleanAvatarUrl == null || cleanAvatarUrl.isEmpty
+    final cleanName = _clean(displayName) ?? 'OMC';
+    final company = _clean(companyName);
+    final status = _clean(customerStatus);
+    final subtitle = [company, status].whereType<String>().join(' • ');
+    final cleanAvatarUrl = _clean(avatarUrl);
+    final resolvedAvatarUrl = cleanAvatarUrl == null
         ? null
         : cleanAvatarUrl.startsWith('http')
         ? cleanAvatarUrl
         : '${ApiConfig.baseUrl}${cleanAvatarUrl.startsWith('/') ? '' : '/'}$cleanAvatarUrl';
-    final radius = BorderRadius.circular(22);
 
     return Material(
       color: OmcPremium.canvas,
-      borderRadius: radius,
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
-        borderRadius: radius,
+        borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: radius,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppTheme.border),
             boxShadow: OmcPremium.softShadow,
           ),
           child: Row(
             children: [
-              _MoreHeaderAvatar(
-                avatarUrl: resolvedAvatarUrl,
-                initials: _initials(displayName),
+              CircleAvatar(
+                radius: 23,
+                backgroundColor: AppTheme.primarySoft,
+                backgroundImage:
+                    resolvedAvatarUrl == null ? null : NetworkImage(resolvedAvatarUrl),
+                child: resolvedAvatarUrl == null
+                    ? Text(
+                        _initials(cleanName),
+                        style: const TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -418,19 +386,18 @@ class _MoreHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _cleanLabel(displayName) ?? 'OMC Workspace',
+                      cleanName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -0.25,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _headerSubtitle,
+                      subtitle.isEmpty ? 'Profile and app shortcuts' : subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -442,14 +409,11 @@ class _MoreHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onTap != null) ...[
-                const SizedBox(width: 8),
+              if (onTap != null)
                 const Icon(
                   Icons.chevron_right_rounded,
                   color: AppTheme.textSecondary,
-                  size: 22,
                 ),
-              ],
             ],
           ),
         ),
@@ -469,24 +433,25 @@ class _AccessStatusNote extends StatelessWidget {
       AccountAccessState.guest => (
         Icons.explore_outlined,
         'Guest mode',
-        'Public tools are available. Protected workspace opens after login.',
+        'Public tools are available. Sign in for protected OMC services.',
       ),
       AccountAccessState.pending => (
         Icons.hourglass_top_rounded,
         'Account under review',
-        'Local tools stay available. Sync activates after approval.',
+        'Public tools remain available while OMC reviews your access.',
       ),
       AccountAccessState.rejected => (
         Icons.block_rounded,
         'Approval required',
-        'Protected services are unavailable. Contact support.',
+        'Protected services are unavailable. Contact OMC support if needed.',
       ),
       _ => (
         Icons.verified_user_outlined,
         'Approved access',
-        'Protected services are enabled.',
+        'Protected OMC services are enabled.',
       ),
     };
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -495,8 +460,9 @@ class _AccessStatusNote extends StatelessWidget {
         border: Border.all(color: AppTheme.border),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _IconBadge(icon: icon),
+          Icon(icon, color: AppTheme.primary, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -506,7 +472,7 @@ class _AccessStatusNote extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -516,7 +482,7 @@ class _AccessStatusNote extends StatelessWidget {
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 11.5,
-                    height: 1.3,
+                    height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -529,194 +495,45 @@ class _AccessStatusNote extends StatelessWidget {
   }
 }
 
-class _MoreHeaderAvatar extends StatelessWidget {
-  const _MoreHeaderAvatar({required this.avatarUrl, required this.initials});
-
-  final String? avatarUrl;
-  final String initials;
-
-  @override
-  Widget build(BuildContext context) {
-    final cleanAvatarUrl = avatarUrl?.trim();
-    final hasAvatar = cleanAvatarUrl != null && cleanAvatarUrl.isNotEmpty;
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: OmcPremium.services.withValues(alpha: 0.10),
-        shape: BoxShape.circle,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: hasAvatar
-          ? Image.network(
-              cleanAvatarUrl,
-              width: 48,
-              height: 48,
-              fit: BoxFit.cover,
-              webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-              errorBuilder: (_, _, _) => _AvatarFallback(initials: initials),
-            )
-          : _AvatarFallback(initials: initials),
-    );
-  }
-}
-
-class _AvatarFallback extends StatelessWidget {
-  const _AvatarFallback({required this.initials});
-
-  final String initials;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        initials,
-        style: const TextStyle(
-          color: OmcPremium.services,
-          fontSize: 15,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-String _initials(String? name) {
-  final parts = (name ?? '')
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((part) => part.isNotEmpty)
-      .toList();
-  if (parts.isEmpty) return 'OMC';
-  if (parts.length == 1) {
-    return parts.first.characters.take(2).toString().toUpperCase();
-  }
-  return '${parts.first.characters.first}${parts.last.characters.first}'
-      .toUpperCase();
-}
-
-class _SheetActionButton extends StatelessWidget {
-  const _SheetActionButton({required this.action});
-
-  final OmcSheetAction action;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = action.isDestructive
-        ? OmcPremium.danger
-        : OmcPremium.moduleColor(action.label);
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: action.onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  _IconBadge(icon: action.icon, color: color),
-                  if (action.badgeCount > 0)
-                    Positioned(
-                      top: -6,
-                      right: -8,
-                      child: _CompactBadge(count: action.badgeCount),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                action.label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: action.isDestructive
-                      ? OmcPremium.danger
-                      : AppTheme.textPrimary,
-                  fontSize: 10.5,
-                  height: 1.08,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _IconBadge extends StatelessWidget {
-  const _IconBadge({required this.icon, this.color = OmcPremium.services});
-
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(icon, color: color, size: 20),
-    );
-  }
-}
-
-class _MoreGroupLabel extends StatelessWidget {
-  const _MoreGroupLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: AppTheme.textPrimary,
-        fontSize: 13,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-  }
-}
-
-class _CompactBadge extends StatelessWidget {
-  const _CompactBadge({required this.count});
+class _Badge extends StatelessWidget {
+  const _Badge({required this.count});
 
   final int count;
-  String get _label => count > 99 ? '99+' : count.toString();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 18),
-      height: 18,
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      alignment: Alignment.center,
+      constraints: const BoxConstraints(minWidth: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.primary,
+        color: AppTheme.primarySoft,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white, width: 2),
       ),
       child: Text(
-        _label,
+        count > 99 ? '99+' : '$count',
+        textAlign: TextAlign.center,
         style: const TextStyle(
-          color: Colors.white,
-          fontSize: 9,
+          color: AppTheme.primary,
+          fontSize: 10,
           fontWeight: FontWeight.w900,
-          height: 1,
         ),
       ),
     );
   }
+}
+
+String? _clean(String? value) {
+  final text = value?.trim();
+  return text == null || text.isEmpty ? null : text;
+}
+
+String _initials(String value) {
+  final parts = value
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((item) => item.isNotEmpty)
+      .take(2)
+      .toList(growable: false);
+  if (parts.isEmpty) return 'OM';
+  return parts.map((item) => item.substring(0, 1).toUpperCase()).join();
 }
