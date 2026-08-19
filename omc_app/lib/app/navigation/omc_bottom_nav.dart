@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/interaction/app_feedback.dart';
 import '../../core/widgets/omc_premium.dart';
 import '../design_tokens.dart';
 import '../theme.dart';
@@ -190,7 +191,10 @@ class _CenterActionButton extends StatelessWidget {
             color: accentColor,
             borderRadius: BorderRadius.circular(AppRadius.control),
             child: InkWell(
-              onTap: onTap,
+              onTap: () {
+                AppFeedback.action();
+                onTap();
+              },
               borderRadius: BorderRadius.circular(AppRadius.control),
               child: Container(
                 constraints: AppTouchTarget.constraints,
@@ -237,6 +241,7 @@ class _NavTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected ? accentColor : AppTheme.textMuted;
+    final motionDuration = AppMotion.durationFor(context, AppMotion.quick);
     return Semantics(
       button: true,
       selected: selected,
@@ -246,10 +251,13 @@ class _NavTab extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            if (!selected) AppFeedback.selection();
+            onTap();
+          },
           borderRadius: BorderRadius.circular(AppRadius.medium),
           child: AnimatedContainer(
-            duration: AppMotion.quick,
+            duration: motionDuration,
             curve: Curves.easeOutCubic,
             height: height,
             constraints: const BoxConstraints(
@@ -266,7 +274,7 @@ class _NavTab extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 AnimatedScale(
-                  duration: AppMotion.quick,
+                  duration: motionDuration,
                   scale: selected ? 1.05 : 1,
                   child: Icon(
                     selected ? item.activeIcon : item.icon,
@@ -330,10 +338,13 @@ class _MoreTab extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            AppFeedback.selection();
+            onTap();
+          },
           borderRadius: BorderRadius.circular(AppRadius.medium),
           child: AnimatedContainer(
-            duration: AppMotion.quick,
+            duration: AppMotion.durationFor(context, AppMotion.quick),
             height: height,
             constraints: const BoxConstraints(
               minHeight: AppTouchTarget.minimum,
