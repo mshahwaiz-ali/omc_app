@@ -9,6 +9,7 @@ from omc_app.api import bridge_outbox, erp_sync_recovery
 class TestBridgeRecovery(FrappeTestCase):
     def test_terminal_failed_operation_requires_explicit_recovery(self):
         operation = SimpleNamespace(
+            doctype="OMC Bridge Operation",
             name="bridge-failed-1",
             state="Failed",
             service_request="OMC-SR-1",
