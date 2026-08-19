@@ -71,7 +71,7 @@ Color? _tryParseHexColor(String? value) {
 }
 
 Color _readableForeground(Color background) {
-  const darkForeground = Color(0xFF111827);
+  const darkForeground = Colors.black;
   const lightForeground = Colors.white;
   final darkContrast = _contrastRatio(background, darkForeground);
   final lightContrast = _contrastRatio(background, lightForeground);
