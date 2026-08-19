@@ -8,7 +8,7 @@ class TaskItem {
     required this.allowedTransitions,
     required this.priority,
     required this.dueDateLabel,
-    this.assignedTo,
+    required this.assignedTo,
     this.description,
     this.customerProfile,
     this.customerName,
@@ -29,7 +29,7 @@ class TaskItem {
   final List<StaffTaskTransition> allowedTransitions;
   final String priority;
   final String dueDateLabel;
-  final String? assignedTo;
+  final String assignedTo;
   final String? description;
   final String? customerProfile;
   final String? customerName;
@@ -39,8 +39,8 @@ class TaskItem {
   final String? createdAtLabel;
   final String? updatedAtLabel;
 
-  /// These are optional per-task hints only. The canonical user capability
-  /// response and backend mutation guards remain authoritative.
+  /// Optional per-task hints only. Canonical account capabilities and backend
+  /// mutation guards remain authoritative.
   final bool serverCanManageTasks;
   final bool serverCanManageAssignedTasks;
 
@@ -85,7 +85,7 @@ class TaskItem {
             json['date'] ??
             json['deadline'],
       ),
-      assignedTo: _nullableString(json['assigned_to'] ?? json['owner']),
+      assignedTo: _stringValue(json['assigned_to'] ?? json['owner']),
       description: _nullableString(json['description'] ?? json['details']),
       customerProfile: customerProfile,
       customerName: _nullableString(json['customer_name']) ?? customerProfile,
