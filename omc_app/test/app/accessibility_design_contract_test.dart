@@ -5,6 +5,7 @@ import 'package:omc_app/app/navigation/omc_bottom_nav.dart';
 import 'package:omc_app/app/theme.dart';
 import 'package:omc_app/core/widgets/app_button.dart';
 import 'package:omc_app/core/widgets/premium_list_header.dart';
+import 'package:omc_app/features/app_config/presentation/app_brand_registry.dart';
 
 void main() {
   test('global interaction targets stay accessibility sized', () {
@@ -23,6 +24,23 @@ void main() {
       <WidgetState>{},
     );
     expect(textMinimum?.height, greaterThanOrEqualTo(48));
+  });
+
+  test('runtime accent buttons choose a WCAG contrast foreground', () {
+    for (final accent in const [
+      '#777777',
+      '#F2C94C',
+      '#2563EB',
+      '#E83F5B',
+      '#11A97D',
+    ]) {
+      final colors = OmcAppColors.resolve(accentColor: accent);
+      expect(
+        _contrastRatio(colors.accent, colors.onAccent),
+        greaterThanOrEqualTo(4.5),
+        reason: 'Accent $accent must keep readable button text.',
+      );
+    }
   });
 
   testWidgets('bottom navigation scales and exposes meaningful semantics', (
@@ -113,4 +131,16 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.bySemanticsLabel('Customer support queue'), findsOneWidget);
   });
+}
+
+double _contrastRatio(Color first, Color second) {
+  final firstLuminance = first.computeLuminance();
+  final secondLuminance = second.computeLuminance();
+  final lighter = firstLuminance >= secondLuminance
+      ? firstLuminance
+      : secondLuminance;
+  final darker = firstLuminance >= secondLuminance
+      ? secondLuminance
+      : firstLuminance;
+  return (lighter + 0.05) / (darker + 0.05);
 }
