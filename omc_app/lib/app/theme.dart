@@ -17,12 +17,6 @@ class AppTheme {
   static const Color warning = Color(0xFFD97706);
   static const Color info = Color(0xFF2563EB);
 
-  // Compatibility alias for older widgets.
-  //
-  // New interactive widgets must use `primary`. Existing usages can be
-  // migrated gradually after confirming whether each red is semantic.
-  static const Color primaryRed = danger;
-
   static const Color darkRed = Color(0xFF1E293B);
   static const Color background = Color(0xFFF7F8FB);
   static const Color card = Colors.white;
