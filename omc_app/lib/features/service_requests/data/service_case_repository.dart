@@ -47,6 +47,22 @@ final serviceCasesProvider = FutureProvider<List<ServiceCase>>((ref) async {
   return repository.fetchServiceCases();
 });
 
+final serviceCasePageProvider =
+    FutureProvider.family<ServiceCasePage, ServiceCasePageQuery>((ref, query) async {
+      final repository = ref.watch(serviceCaseRepositoryProvider);
+      if (Env.useServicePreview) {
+        final items = repository.sampleCasesForUiPreview();
+        return ServiceCasePage(
+          items: items,
+          start: 0,
+          pageLength: items.length,
+          nextStart: null,
+          hasMore: false,
+        );
+      }
+      return repository.fetchServiceCasePage(query);
+    });
+
 final serviceCaseDetailProvider = FutureProvider.family<ServiceCase?, String>((
   ref,
   caseId,
@@ -81,7 +97,7 @@ class ServiceCaseRepository {
     this._cacheNamespace,
   );
 
-  static const String _serviceCasesCachePrefix = 'service_cases_cache_v2';
+  static const String _serviceCasesCachePrefix = 'service_cases_cache_v3';
 
   final FrappeClient _frappeClient;
   final JsonCacheService? _cacheService;
@@ -91,29 +107,62 @@ class ServiceCaseRepository {
       '$_serviceCasesCachePrefix::$_cacheNamespace';
 
   Future<List<ServiceCase>> fetchServiceCases() async {
+    return (await fetchServiceCasePage(
+      const ServiceCasePageQuery(pageLength: 100),
+    )).items;
+  }
+
+  Future<ServiceCasePage> fetchServiceCasePage(ServiceCasePageQuery query) async {
     try {
       final response = await _frappeClient.getMethod(
         ApiConfig.serviceCasesMethod,
+        queryParameters: {
+          'limit_start': query.start,
+          'limit_page_length': query.pageLength,
+        },
       );
 
-      await _cacheService?.saveMap(_serviceCasesCacheKey, response);
-
-      return _mapServiceCasesResponse(response);
-    } on ApiError catch (error) {
-      final cachedResponse = _cacheService?.readMap(_serviceCasesCacheKey);
-      if (cachedResponse != null) {
-        return _mapServiceCasesResponse(cachedResponse);
+      if (query.start == 0) {
+        await _cacheService?.saveMap(_serviceCasesCacheKey, response);
       }
-
+      return _mapServiceCasePage(response, query);
+    } on ApiError catch (error) {
+      if (query.start == 0) {
+        final cachedResponse = _cacheService?.readMap(_serviceCasesCacheKey);
+        if (cachedResponse != null) {
+          return _mapServiceCasePage(cachedResponse, query);
+        }
+      }
       throw _trackingApiUnavailable(error);
     } catch (error) {
-      final cachedResponse = _cacheService?.readMap(_serviceCasesCacheKey);
-      if (cachedResponse != null) {
-        return _mapServiceCasesResponse(cachedResponse);
+      if (query.start == 0) {
+        final cachedResponse = _cacheService?.readMap(_serviceCasesCacheKey);
+        if (cachedResponse != null) {
+          return _mapServiceCasePage(cachedResponse, query);
+        }
       }
-
       throw _trackingApiUnavailable(error);
     }
+  }
+
+  ServiceCasePage _mapServiceCasePage(
+    Map<String, dynamic> response,
+    ServiceCasePageQuery query,
+  ) {
+    final payload = _payloadMap(response);
+    final items = _mapServiceCasesResponse(response);
+    final start = _nullableIntValue(payload['limit_start']) ?? query.start;
+    final pageLength =
+        _nullableIntValue(payload['limit_page_length']) ?? query.pageLength;
+    final nextStart = _nullableIntValue(payload['next_start']);
+    final hasMore = _boolValue(payload['has_more']) || nextStart != null;
+    return ServiceCasePage(
+      items: items,
+      start: start,
+      pageLength: pageLength,
+      nextStart: hasMore ? nextStart ?? start + items.length : null,
+      hasMore: hasMore,
+    );
   }
 
   Future<ServiceCase?> fetchServiceCaseDetail(String caseId) async {
@@ -240,6 +289,11 @@ class ServiceCaseRepository {
     );
   }
 
+  Map<String, dynamic> _payloadMap(Map<String, dynamic> data) {
+    final message = data['message'];
+    return message is Map<String, dynamic> ? message : data;
+  }
+
   List<ServiceCase> _mapServiceCasesResponse(Map<String, dynamic>? data) {
     if (data == null) return const [];
 
@@ -312,6 +366,10 @@ class ServiceCaseRepository {
     final paymentDetails = _paymentDetails(
       json['payment_details'] ?? json['payments'] ?? json['service_payments'],
     );
+    final receipt = _mapValue(json['receipt']);
+    final settlement = _mapValue(json['settlement']);
+    final activation = _mapValue(json['activation']);
+    final hold = _mapValue(json['hold'] ?? json['financial_hold']);
 
     return ServiceCase(
       id: _stringValue(json['id'] ?? json['name'] ?? json['case_id']),
@@ -333,7 +391,46 @@ class ServiceCaseRepository {
       category: _stringValue(
         json['category'] ?? json['service_category'] ?? json['service_group'],
       ),
-      status: _stringValue(json['status'] ?? json['current_stage']),
+      status: _stringValue(json['status'] ?? json['operational_status']),
+      requestState: _nullableString(json['request_state']),
+      operationalStatus: _nullableString(
+        json['operational_status'] ?? json['status'],
+      ),
+      receipt: ServiceCaseReceipt(
+        status:
+            _nullableString(receipt['status'] ?? json['receipt_status']) ??
+            'Not Submitted',
+        paymentStatus:
+            _nullableString(receipt['payment_status'] ?? json['payment_status']) ??
+            '',
+        paymentId:
+            _nullableString(receipt['payment_id'] ?? json['payment_id']) ?? '',
+      ),
+      settlement: ServiceCaseSettlement(
+        status:
+            _nullableString(settlement['status'] ?? json['accounting_status']) ??
+            'Unmatched',
+        allocatedAmount: _moneyValue(settlement['allocated_amount']),
+        payableAmount: _moneyValue(settlement['payable_amount']),
+        currency: _nullableString(settlement['currency']) ?? 'PKR',
+        outstandingAmount: _moneyValue(settlement['outstanding_amount']),
+        reviewKind: _nullableString(settlement['review_kind']) ?? '',
+      ),
+      activation: ServiceCaseActivation(
+        state:
+            _nullableString(activation['state'] ?? json['request_state']) ?? '',
+        bridgeState: _nullableString(activation['bridge_state']) ?? 'Not Started',
+        attemptCount: _nullableIntValue(activation['attempt_count']) ?? 0,
+        activated: _boolValue(activation['activated']),
+        evidenceComplete: _boolValue(activation['evidence_complete']),
+        readyAt: _nullableString(activation['ready_at']) ?? '',
+        activatedAt: _nullableString(activation['activated_at']) ?? '',
+      ),
+      hold: ServiceCaseHold(
+        active: _boolValue(hold['active']),
+        reason:
+            _nullableString(hold['reason'] ?? json['financial_hold_reason']) ?? '',
+      ),
       createdAtLabel: _displayDate(
         json['created_at_label'] ??
             json['created'] ??
@@ -398,8 +495,12 @@ class ServiceCaseRepository {
       canCancel: _boolValue(json['can_cancel']),
       documentsComplete: _boolValue(json['documents_complete']),
       paymentEligible: _boolValue(json['payment_eligible']),
-      paymentId: _nullableString(json['payment_id']),
-      paymentStatus: _nullableString(json['payment_status']),
+      paymentId: _nullableString(
+        json['payment_id'] ?? receipt['payment_id'],
+      ),
+      paymentStatus: _nullableString(
+        json['payment_status'] ?? receipt['payment_status'],
+      ),
       paymentBlockReason: _nullableString(json['payment_block_reason']),
       nextAction: _nextActionLabel(json['next_action']),
       displayStatus: _nullableString(json['display_status']),
@@ -407,6 +508,14 @@ class ServiceCaseRepository {
       completionBlockers: _plainStringList(json['completion_blockers']),
       completionEligible: _boolValue(json['completion_eligible']),
     );
+  }
+
+  Map<String, dynamic> _mapValue(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return const <String, dynamic>{};
   }
 
   String? _nextActionLabel(dynamic value) {
@@ -667,6 +776,15 @@ class ServiceCaseRepository {
         title: 'Annual Income Tax Filing - Salaried',
         category: 'Income Tax Return',
         status: 'Waiting for Payment',
+        requestState: 'Pending Payment',
+        operationalStatus: 'Waiting for Payment',
+        receipt: ServiceCaseReceipt(status: 'Not Submitted'),
+        settlement: ServiceCaseSettlement(
+          status: 'Unmatched',
+          payableAmount: 5000,
+          currency: 'PKR',
+        ),
+        activation: ServiceCaseActivation(state: 'Pending Payment'),
         createdAtLabel: 'Today',
         updatedAtLabel: 'Just now',
         progress: 0.35,
@@ -709,7 +827,7 @@ class ServiceCaseRepository {
           ServiceCasePayment(
             id: 'pay-001',
             title: 'Service fee',
-            status: 'Open',
+            status: 'Pending',
             amount: 5000,
             currency: 'PKR',
             dueDateLabel: 'Today',
@@ -735,4 +853,36 @@ class ServiceCaseRepository {
       ),
     ];
   }
+}
+
+class ServiceCasePageQuery {
+  const ServiceCasePageQuery({this.start = 0, this.pageLength = 20});
+
+  final int start;
+  final int pageLength;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ServiceCasePageQuery &&
+      other.start == start &&
+      other.pageLength == pageLength;
+
+  @override
+  int get hashCode => Object.hash(start, pageLength);
+}
+
+class ServiceCasePage {
+  const ServiceCasePage({
+    required this.items,
+    required this.start,
+    required this.pageLength,
+    required this.nextStart,
+    required this.hasMore,
+  });
+
+  final List<ServiceCase> items;
+  final int start;
+  final int pageLength;
+  final int? nextStart;
+  final bool hasMore;
 }
