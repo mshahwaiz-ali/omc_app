@@ -49,6 +49,78 @@ MANAGED_OMC_STAFF_ROLES = {
 ACTIVE_STAFF_ROLES = MANAGED_OMC_STAFF_ROLES | ERP_STAFF_PERSONAS
 ACTIVE_OMC_ROLES = ACTIVE_PORTAL_ROLES | MANAGED_OMC_STAFF_ROLES
 
+# Explicit allowlists. New OMC DocTypes receive no role permissions until they
+# are deliberately classified here. This prevents an unrelated future model
+# from becoming writable merely because its name starts with "OMC ".
+ADMIN_MUTABLE_DOCTYPES = {
+    "OMC Announcement",
+    "OMC App Banner",
+    "OMC Branding Settings",
+    "OMC Customer Preference",
+    "OMC Customer Profile",
+    "OMC Expense Budget",
+    "OMC Expense Category",
+    "OMC Expense Entry",
+    "OMC FAQ",
+    "OMC Knowledge Article",
+    "OMC Manual Customer",
+    "OMC Mobile Quick Action",
+    "OMC Mobile Settings",
+    "OMC Onboarding Slide",
+    "OMC Payment Account",
+    "OMC Reconciliation Review",
+    "OMC Referral",
+    "OMC Service",
+    "OMC Service Category",
+    "OMC Service Document",
+    "OMC Service Form Field",
+    "OMC Service Payment",
+    "OMC Service Request",
+    "OMC Service Required Document",
+    "OMC Service Stage Template",
+    "OMC Staff Profile",
+    "OMC Support Ticket",
+    "OMC Support Ticket Message",
+    "OMC Tax Adjustment Rule",
+    "OMC Tax Alert",
+    "OMC Tax Calculator Settings",
+    "OMC Tax Input Field",
+    "OMC Tax Result Insight",
+    "OMC Tax Slab",
+    "OMC Tax Year",
+}
+
+# These records are authoritative evidence/security/history. Staff may inspect
+# them in Desk, but normal DocPerm must not permit rewriting or deleting them.
+# Mutations that are legitimately required are performed by capability-guarded
+# OMC APIs with explicit audit trails.
+ADMIN_READ_ONLY_DOCTYPES = {
+    "OMC Accounting Link",
+    "OMC Break Glass Grant",
+    "OMC Bridge Operation",
+    "OMC Commission Allocation",
+    "OMC Customer Account",
+    "OMC Notification",
+    "OMC Profile Change Log",
+    "OMC Referral Attribution",
+    "OMC Security Audit Event",
+    "OMC Service Timeline",
+    "OMC Staff Access",
+    "OMC Tax Calculation Log",
+}
+
+# Session/token/idempotency internals intentionally have no staff DocPerm.
+# They are accessed only by guarded application code (Administrator remains a
+# framework-level superuser and is handled separately by Frappe itself).
+INTERNAL_ONLY_DOCTYPES = {
+    "OMC Customer Activation",
+    "OMC Guest Session",
+    "OMC Idempotency Record",
+    "OMC Password Reset",
+    "OMC Pending Registration",
+    "OMC Push Token",
+}
+
 MANAGER_BLOCKED_DOCTYPES = {
     "OMC Branding Settings",
     "OMC Mobile Settings",
@@ -70,6 +142,18 @@ MANAGER_BLOCKED_DOCTYPES = {
     "OMC Tax Input Field",
     "OMC Tax Result Insight",
     "OMC Tax Year",
+}
+MANAGER_MUTABLE_DOCTYPES = ADMIN_MUTABLE_DOCTYPES - MANAGER_BLOCKED_DOCTYPES
+MANAGER_READ_ONLY_DOCTYPES = {
+    "OMC Accounting Link",
+    "OMC Bridge Operation",
+    "OMC Commission Allocation",
+    "OMC Customer Account",
+    "OMC Notification",
+    "OMC Profile Change Log",
+    "OMC Referral Attribution",
+    "OMC Service Timeline",
+    "OMC Tax Calculation Log",
 }
 
 # Only genuinely OMC-owned operational roles receive OMC DocPerm rows here.
@@ -101,6 +185,7 @@ SPECIALIST_DOCTYPE_ACCESS = {
         "OMC Referral": {"read": 1},
         "OMC Manual Customer": {"read": 1, "write": 1, "create": 1},
         "OMC Service Timeline": {"read": 1, "create": 1},
+        "OMC Accounting Link": {"read": 1},
     },
 }
 
@@ -223,30 +308,16 @@ def _manager_permission(is_submittable):
     return values
 
 
+def _read_only_evidence_permission():
+    values = _base_permission()
+    values.update({"export": 0, "email": 0, "share": 0, "import": 0})
+    return values
+
+
 def _mobile_quick_action_admin_permission():
     values = _admin_permission(is_submittable=False)
     values.update({"report": 0, "import": 0, "select": 0})
     return values
-
-
-def _mobile_quick_action_manager_permission():
-    return {
-        "read": 0,
-        "write": 0,
-        "create": 0,
-        "delete": 0,
-        "submit": 0,
-        "cancel": 0,
-        "amend": 0,
-        "report": 0,
-        "export": 0,
-        "import": 0,
-        "print": 0,
-        "email": 0,
-        "share": 0,
-        "if_owner": 0,
-        "select": 0,
-    }
 
 
 def _specialist_permission(values):
@@ -273,16 +344,6 @@ def _specialist_permission(values):
     return permission
 
 
-def _omc_doctypes():
-    rows = frappe.get_all(
-        "DocType",
-        filters={"name": ["like", "OMC %"]},
-        fields=["name", "istable", "is_submittable"],
-        order_by="name asc",
-    )
-    return [row for row in rows if not int(row.istable or 0)]
-
-
 def _remove_role_docperms(role_names):
     if not role_names:
         return
@@ -297,22 +358,51 @@ def _migrate_legacy_user_roles():
     return {"disabled": True, "reason": "staff_access_is_authoritative"}
 
 
+def _is_submittable(doctype):
+    return bool(int(frappe.db.get_value("DocType", doctype, "is_submittable") or 0))
+
+
 def _apply_permissions():
+    # Remove all managed OMC, legacy and System Manager rows first. Any model
+    # omitted from the explicit allowlists below intentionally remains denied.
     _remove_role_docperms(ACTIVE_OMC_ROLES | LEGACY_ROLES | {SYSTEM_ROLE})
-    for row in _omc_doctypes():
-        doctype = row.name
-        is_submittable = bool(int(row.is_submittable or 0))
-        admin_values = (
+
+    for doctype in sorted(ADMIN_MUTABLE_DOCTYPES):
+        if not frappe.db.exists("DocType", doctype):
+            continue
+        values = (
             _mobile_quick_action_admin_permission()
             if doctype == "OMC Mobile Quick Action"
-            else _admin_permission(is_submittable)
+            else _admin_permission(_is_submittable(doctype))
         )
-        _upsert_docperm(doctype, ADMIN_ROLE, admin_values)
-        if doctype not in MANAGER_BLOCKED_DOCTYPES:
-            _upsert_docperm(doctype, MANAGER_ROLE, _manager_permission(is_submittable))
+        _upsert_docperm(doctype, ADMIN_ROLE, values)
+
+    for doctype in sorted(ADMIN_READ_ONLY_DOCTYPES):
+        _upsert_docperm(doctype, ADMIN_ROLE, _read_only_evidence_permission())
+
+    for doctype in sorted(MANAGER_MUTABLE_DOCTYPES):
+        if frappe.db.exists("DocType", doctype):
+            _upsert_docperm(doctype, MANAGER_ROLE, _manager_permission(_is_submittable(doctype)))
+
+    for doctype in sorted(MANAGER_READ_ONLY_DOCTYPES):
+        _upsert_docperm(doctype, MANAGER_ROLE, _read_only_evidence_permission())
+
     for role, doctype_map in SPECIALIST_DOCTYPE_ACCESS.items():
         for doctype, values in doctype_map.items():
             _upsert_docperm(doctype, role, _specialist_permission(values))
+
+    # INTERNAL_ONLY_DOCTYPES is intentionally referenced as an invariant: none
+    # of the managed staff roles may retain a DocPerm row for these models.
+    for doctype in sorted(INTERNAL_ONLY_DOCTYPES):
+        for name in frappe.get_all(
+            "DocPerm",
+            filters={
+                "parent": doctype,
+                "role": ["in", sorted(ACTIVE_OMC_ROLES | LEGACY_ROLES | {SYSTEM_ROLE})],
+            },
+            pluck="name",
+        ):
+            frappe.delete_doc("DocPerm", name, ignore_permissions=True, force=True)
 
 
 def sync_canonical_roles():
