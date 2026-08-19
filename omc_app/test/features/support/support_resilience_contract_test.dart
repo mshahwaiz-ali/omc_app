@@ -33,7 +33,7 @@ void main() {
       expect(SupportRefreshPolicy.canReuseStale(throttled), isTrue);
     });
 
-    test('never hides authorization or authentication failures with stale data', () {
+    test('never hides access or validation failures with stale data', () {
       const unauthorized = ApiError(
         message: 'login required',
         statusCode: 401,
@@ -43,11 +43,13 @@ void main() {
         message: 'forbidden',
         statusCode: 403,
         category: ApiFailureCategory.authorization,
+        retryable: true,
       );
       const validation = ApiError(
         message: 'invalid request',
         statusCode: 422,
         category: ApiFailureCategory.validation,
+        retryable: true,
       );
 
       expect(SupportRefreshPolicy.canReuseStale(unauthorized), isFalse);
