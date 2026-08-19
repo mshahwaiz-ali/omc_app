@@ -88,6 +88,7 @@ class AppErrorState extends StatelessWidget {
       accentColor: AppTheme.danger,
       surfaceColor: AppTheme.dangerSoft,
       actionLabel: onRetry == null ? null : retryLabel,
+      actionIcon: Icons.refresh_rounded,
       onAction: onRetry,
       compact: compact,
     );
@@ -165,6 +166,7 @@ class AppStateView extends StatelessWidget {
     required this.accentColor,
     required this.surfaceColor,
     this.actionLabel,
+    this.actionIcon,
     this.onAction,
     this.compact = false,
   });
@@ -175,6 +177,7 @@ class AppStateView extends StatelessWidget {
   final Color accentColor;
   final Color surfaceColor;
   final String? actionLabel;
+  final IconData? actionIcon;
   final VoidCallback? onAction;
   final bool compact;
 
@@ -240,7 +243,7 @@ class AppStateView extends StatelessWidget {
               SizedBox(height: compact ? 14 : 18),
               AppButton(
                 label: actionLabel!,
-                icon: Icons.refresh_rounded,
+                icon: actionIcon,
                 onPressed: onAction,
                 isExpanded: false,
               ),
