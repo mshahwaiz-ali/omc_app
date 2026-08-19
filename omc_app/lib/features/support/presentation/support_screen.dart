@@ -516,6 +516,7 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
   bool _hasMore = false;
   bool _loadingMore = false;
   bool _didSeedPage = false;
+  String? _assigningTicketId;
 
   bool get _canReadTickets =>
       widget.capabilities.canCreateSupportTicket ||
@@ -538,12 +539,16 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
     return result;
   }
 
-  void _refreshTickets() {
-    setState(_resetPagingState);
+  void _invalidateSupportSurfaces() {
     ref.invalidate(supportTicketPageProvider);
     ref.invalidate(supportTicketsProvider);
     ref.invalidate(activeSupportTicketProvider);
     ref.invalidate(supportUnreadCountProvider);
+  }
+
+  void _refreshTickets() {
+    setState(_resetPagingState);
+    _invalidateSupportSurfaces();
   }
 
   Future<void> _loadMore() async {
@@ -584,6 +589,42 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
     }
   }
 
+  Future<void> _assignToMe(SupportTicket ticket) async {
+    final authState = ref.read(authControllerProvider);
+    final currentUser = authState.userId?.trim() ?? '';
+    final canAssign =
+        authState.capabilities.canAssignSupportTickets && ticket.canAssign;
+    if (!canAssign || ticket.isClosed || currentUser.isEmpty) return;
+    if (ticket.isAssignedTo(currentUser)) return;
+    if (_assigningTicketId != null) return;
+
+    setState(() => _assigningTicketId = ticket.id);
+    try {
+      await ref
+          .read(supportRepositoryProvider)
+          .assignSupportTicket(ticketId: ticket.id, assignedTo: currentUser);
+      if (!mounted) return;
+      ref.invalidate(supportTicketDetailProvider(ticket.id));
+      setState(_resetPagingState);
+      _invalidateSupportSurfaces();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Support ticket assigned to you.')),
+      );
+    } on ApiError catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ticket assignment could not be updated.')),
+      );
+    } finally {
+      if (mounted) setState(() => _assigningTicketId = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final capabilities = widget.capabilities;
@@ -596,6 +637,8 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
 
     final pageAsync = ref.watch(supportTicketPageProvider);
     final unreadCount = ref.watch(supportUnreadCountProvider).value ?? 0;
+    final authState = ref.watch(authControllerProvider);
+    final currentUser = authState.userId;
     final isInternalQueue = capabilities.canUseSupportWorkspace;
     return PremiumCard(
       padding: const EdgeInsets.all(18),
@@ -690,7 +733,19 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                   else
                     Column(
                       children: selectedTickets
-                          .map((ticket) => _TicketTile(ticket: ticket))
+                          .map(
+                            (ticket) => _TicketTile(
+                              ticket: ticket,
+                              showAssignment: isInternalQueue,
+                              currentUserId: currentUser,
+                              canAssignToMe:
+                                  capabilities.canAssignSupportTickets &&
+                                  ticket.canAssign &&
+                                  !ticket.isClosed,
+                              isAssigning: _assigningTicketId == ticket.id,
+                              onAssignToMe: () => _assignToMe(ticket),
+                            ),
+                          )
                           .toList(growable: false),
                     ),
                   if (_hasMore) ...[
@@ -1006,9 +1061,21 @@ class _TopicRow extends StatelessWidget {
 }
 
 class _TicketTile extends StatelessWidget {
-  const _TicketTile({required this.ticket});
+  const _TicketTile({
+    required this.ticket,
+    required this.showAssignment,
+    required this.currentUserId,
+    required this.canAssignToMe,
+    required this.isAssigning,
+    required this.onAssignToMe,
+  });
 
   final SupportTicket ticket;
+  final bool showAssignment;
+  final String? currentUserId;
+  final bool canAssignToMe;
+  final bool isAssigning;
+  final VoidCallback onAssignToMe;
 
   @override
   Widget build(BuildContext context) {
@@ -1017,6 +1084,12 @@ class _TicketTile extends StatelessWidget {
     final color = ticket.isClosed
         ? OmcPremium.success
         : _ticketStatusColor(status);
+    final assignedToMe = ticket.isAssignedTo(currentUserId);
+    final assignmentLabel = assignedToMe
+        ? 'Assigned to you'
+        : ticket.isAssigned
+        ? 'Assigned to ${ticket.assignedTo}'
+        : 'Unassigned';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
@@ -1034,98 +1107,152 @@ class _TicketTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE7EAF0)),
             ),
-            child: Row(
+            child: Column(
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.09),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Icon(
-                    ticket.isClosed
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.confirmation_number_outlined,
-                    color: color,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ticket.subject.isEmpty ? ticket.id : ticket.subject,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                        ),
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.09),
+                        borderRadius: BorderRadius.circular(13),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
+                      child: Icon(
+                        ticket.isClosed
+                            ? Icons.check_circle_outline_rounded
+                            : Icons.confirmation_number_outlined,
+                        color: color,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              status,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: color,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 7),
-                          const Text(
-                            '•',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(width: 7),
                           Text(
-                            priority,
+                            ticket.subject.isEmpty ? ticket.id : ticket.subject,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
                             ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  status,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 7),
+                              const Text(
+                                '•',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(width: 7),
+                              Text(
+                                priority,
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFE2E6ED)),
+                      ),
+                      child: const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                if (showAssignment) ...[
+                  const SizedBox(height: 10),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        assignedToMe
+                            ? Icons.person_pin_circle_rounded
+                            : Icons.person_outline_rounded,
+                        size: 17,
+                        color: assignedToMe
+                            ? OmcPremium.success
+                            : AppTheme.textSecondary,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          assignmentLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: assignedToMe
+                                ? OmcPremium.success
+                                : AppTheme.textSecondary,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (canAssignToMe && !assignedToMe)
+                        TextButton.icon(
+                          onPressed: isAssigning ? null : onAssignToMe,
+                          icon: isAssigning
+                              ? const SizedBox.square(
+                                  dimension: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                          label: Text(ticket.isAssigned ? 'Reassign to me' : 'Assign to me'),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                        ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFE2E6ED)),
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
+                ],
               ],
             ),
           ),
