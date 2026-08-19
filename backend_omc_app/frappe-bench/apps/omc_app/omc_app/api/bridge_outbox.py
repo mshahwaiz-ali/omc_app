@@ -5,7 +5,13 @@ import hashlib
 import frappe
 from frappe.utils import add_to_date, cint, now_datetime
 
-from omc_app.api import erp_service_task_adapter, request_lifecycle, security, service_assignment
+from omc_app.api import (
+    capabilities,
+    erp_service_task_adapter,
+    request_lifecycle,
+    security,
+    service_assignment,
+)
 
 PROCESSING_LEASE_MINUTES = 15
 MAX_ATTEMPTS = 5
@@ -130,7 +136,11 @@ def _mark_operation_retry(operation_name: str, attempts: int) -> str:
     values = {
         "state": next_state,
         "attempt_count": attempts,
-        "next_attempt_at": add_to_date(now_datetime(), minutes=min(2 ** attempts, 60)),
+        "next_attempt_at": (
+            None
+            if next_state == "Failed"
+            else add_to_date(now_datetime(), minutes=min(2 ** attempts, 60))
+        ),
         "last_error_category": "bridge_failure",
         "last_safe_error": "ERP activation could not be completed.",
     }
@@ -147,6 +157,8 @@ def process_operation(operation_name: str) -> dict:
         return {"status": "completed", "erp_service": operation.erp_service, "erp_task": operation.erp_task}
     if operation.state in {"Failed", "Cancelled"}:
         return {"status": operation.state.lower(), "reason": operation.last_safe_error or ""}
+
+    recovered_stale_lease = False
     if operation.state == "Processing":
         lease_cutoff = add_to_date(now_datetime(), minutes=-PROCESSING_LEASE_MINUTES)
         if operation.last_attempt_at and operation.last_attempt_at > lease_cutoff:
@@ -154,10 +166,15 @@ def process_operation(operation_name: str) -> dict:
         frappe.db.set_value(
             operation.doctype,
             operation.name,
-            {"state": "Retry", "next_attempt_at": now_datetime(), "last_safe_error": "A stale processing lease was recovered."},
+            {
+                "state": "Retry",
+                "next_attempt_at": now_datetime(),
+                "last_safe_error": "A stale processing lease was recovered.",
+            },
             update_modified=False,
         )
         operation.state = "Retry"
+        recovered_stale_lease = True
 
     request_name = frappe.db.get_value(
         "OMC Service Request", operation.service_request, "name", for_update=True
@@ -166,18 +183,28 @@ def process_operation(operation_name: str) -> dict:
         frappe.db.set_value(
             operation.doctype,
             operation.name,
-            {"state": "Failed", "last_safe_error": "Service request is missing."},
+            {"state": "Failed", "next_attempt_at": None, "last_safe_error": "Service request is missing."},
             update_modified=False,
         )
         return {"status": "failed"}
 
     request = frappe.get_doc("OMC Service Request", request_name)
+    if recovered_stale_lease and request.request_state == "Activating":
+        recovered = request_lifecycle.transition_request_state(
+            request.name,
+            "Activation Failed",
+            reason="A stale bridge processing lease was recovered for a safe retry.",
+            actor="bridge",
+            idempotency_key=f"stale-lease-recovered:{operation.operation_key}",
+        )
+        request = recovered.request
+
     allowed = eligibility(request)
     if not allowed["eligible"] and request.request_state != "Ready for Activation":
         frappe.db.set_value(
             operation.doctype,
             operation.name,
-            {"state": "Cancelled", "last_safe_error": allowed["reason"]},
+            {"state": "Cancelled", "next_attempt_at": None, "last_safe_error": allowed["reason"]},
             update_modified=False,
         )
         return {"status": "ineligible", "reason": allowed["reason"]}
@@ -197,7 +224,7 @@ def process_operation(operation_name: str) -> dict:
         frappe.db.set_value(
             operation.doctype,
             operation.name,
-            {"state": "Cancelled", "last_safe_error": "Settlement is no longer complete."},
+            {"state": "Cancelled", "next_attempt_at": None, "last_safe_error": "Settlement is no longer complete."},
             update_modified=False,
         )
         return {"status": "ineligible", "reason": "Settlement is no longer complete."}
@@ -262,6 +289,7 @@ def process_operation(operation_name: str) -> dict:
                 "erp_service": request.erp_service,
                 "erp_task": request.erp_task,
                 "completed_at": now_datetime(),
+                "next_attempt_at": None,
                 "last_safe_error": None,
                 "last_error_category": None,
             },
@@ -299,26 +327,27 @@ def process_operation(operation_name: str) -> dict:
         return {"status": next_state.lower(), "reason": "ERP activation could not be completed."}
 
 
-def recover_failed_operation(operation_name: str, *, actor: str | None = None, reason: str = "") -> dict:
+def _recover_failed_operation(operation_name: str, *, actor: str, reason: str = "") -> dict:
     locked = frappe.db.get_value("OMC Bridge Operation", operation_name, "name", for_update=True)
     if not locked:
         frappe.throw("Bridge operation was not found.", frappe.DoesNotExistError)
     operation = frappe.get_doc("OMC Bridge Operation", locked)
     if operation.state == "Completed":
         return {"operation": operation.name, "state": "Completed", "recovered": False}
-    if operation.state not in {"Failed", "Retry"}:
-        frappe.throw("Only failed or retryable bridge operations can be recovered.", frappe.ValidationError)
+    if operation.state != "Failed":
+        frappe.throw("Only a terminal failed bridge operation requires manual recovery.", frappe.ValidationError)
 
     request = request_lifecycle._lock_request(operation.service_request)
     if request.request_state == "Activation Failed":
-        request_lifecycle.transition_request_state(
+        recovered = request_lifecycle.transition_request_state(
             request.name,
             "Ready for Activation",
             reason=reason or "Authorized bridge recovery requested.",
-            actor=actor or frappe.session.user,
+            actor=actor,
             capability="can_retry_sync",
             idempotency_key=f"bridge-recovery-ready:{operation.operation_key}",
         )
+        request = recovered.request
     elif request.request_state != "Ready for Activation":
         frappe.throw("Service request is not ready for bridge recovery.", frappe.ValidationError)
 
@@ -343,13 +372,30 @@ def recover_failed_operation(operation_name: str, *, actor: str | None = None, r
         capability="can_retry_sync",
         target_doctype="OMC Bridge Operation",
         target_name=operation.name,
-        old_state=operation.state,
-        new_state="retry",
+        old_state="Failed",
+        new_state="Retry",
         safe_reason="authorized_recovery",
-        actor=actor or frappe.session.user,
+        actor=actor,
     )
     _enqueue_operation(operation.name)
     return {"operation": operation.name, "state": "Retry", "recovered": True}
+
+
+@frappe.whitelist(methods=["POST"])
+def recover_failed_operation(operation_name=None, reason=None) -> dict:
+    actor = _text(getattr(getattr(frappe, "session", None), "user", None))
+    if not actor or actor == "Guest":
+        frappe.throw("Login is required.", frappe.PermissionError)
+    capabilities.require("can_retry_sync", user=actor)
+    security.enforce_rate_limit("staff_mutation", actor=actor)
+    operation_name = _text(operation_name)
+    if not operation_name:
+        frappe.throw("operation_name is required.", frappe.ValidationError)
+    return _recover_failed_operation(
+        operation_name,
+        actor=actor,
+        reason=_text(reason),
+    )
 
 
 def process_pending(limit: int = 25):
