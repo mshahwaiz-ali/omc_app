@@ -68,7 +68,6 @@ ADMIN_MUTABLE_DOCTYPES = {
     "OMC Mobile Settings",
     "OMC Onboarding Slide",
     "OMC Payment Account",
-    "OMC Reconciliation Review",
     "OMC Referral",
     "OMC Service",
     "OMC Service Category",
@@ -102,11 +101,13 @@ ADMIN_READ_ONLY_DOCTYPES = {
     "OMC Customer Account",
     "OMC Notification",
     "OMC Profile Change Log",
+    "OMC Reconciliation Review",
     "OMC Referral Attribution",
     "OMC Security Audit Event",
     "OMC Service Timeline",
     "OMC Staff Access",
     "OMC Tax Calculation Log",
+    "OMC Technical Quarantine",
 }
 
 # Session/token/idempotency internals intentionally have no staff DocPerm.
@@ -151,9 +152,11 @@ MANAGER_READ_ONLY_DOCTYPES = {
     "OMC Customer Account",
     "OMC Notification",
     "OMC Profile Change Log",
+    "OMC Reconciliation Review",
     "OMC Referral Attribution",
     "OMC Service Timeline",
     "OMC Tax Calculation Log",
+    "OMC Technical Quarantine",
 }
 
 # Only genuinely OMC-owned operational roles receive OMC DocPerm rows here.
@@ -186,6 +189,8 @@ SPECIALIST_DOCTYPE_ACCESS = {
         "OMC Manual Customer": {"read": 1, "write": 1, "create": 1},
         "OMC Service Timeline": {"read": 1, "create": 1},
         "OMC Accounting Link": {"read": 1},
+        "OMC Reconciliation Review": {"read": 1},
+        "OMC Technical Quarantine": {"read": 1},
     },
 }
 
@@ -422,4 +427,5 @@ def after_install():
 
 
 def after_migrate():
-    sync_canonical_roles()
+    """Retained compatibility seam; normal migrate must not rewrite permissions."""
+    return {"mutated": False, "reason": "explicit_setup_required"}
