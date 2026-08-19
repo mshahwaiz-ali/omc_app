@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/widgets/omc_premium.dart';
 import '../../features/auth/application/auth_state.dart';
 import '../theme.dart';
-import 'omc_nav_models.dart';
+import 'omc_navigation_ia.dart';
 
 Future<void> showOmcQuickActionsSheet({
   required BuildContext context,
@@ -22,6 +22,37 @@ Future<void> showOmcQuickActionsSheet({
   required VoidCallback onOpenTasks,
   required VoidCallback onCreateLead,
 }) async {
+  final actions = buildOmcQuickActions(capabilities);
+
+  VoidCallback callbackFor(OmcNavigationActionId id) {
+    return switch (id) {
+      OmcNavigationActionId.createLead => onCreateLead,
+      OmcNavigationActionId.startRequest || OmcNavigationActionId.apply =>
+        onOpenServices,
+      OmcNavigationActionId.reviewPayments || OmcNavigationActionId.payments =>
+        onOpenPayments,
+      OmcNavigationActionId.reviewDocuments ||
+      OmcNavigationActionId.documents => onOpenDocuments,
+      OmcNavigationActionId.supportQueue || OmcNavigationActionId.support =>
+        onOpenSupport,
+      OmcNavigationActionId.tasks => onOpenTasks,
+      OmcNavigationActionId.tax => onOpenTaxCalculator,
+      OmcNavigationActionId.knowledge => onOpenKnowledge,
+      OmcNavigationActionId.profile => onOpenProfile,
+      OmcNavigationActionId.workspace => onOpenInternalWorkspace,
+      OmcNavigationActionId.customers => onOpenCustomers,
+      OmcNavigationActionId.expense => onOpenExpenseTracker,
+      OmcNavigationActionId.referrals ||
+      OmcNavigationActionId.commissions ||
+      OmcNavigationActionId.alerts ||
+      OmcNavigationActionId.budget ||
+      OmcNavigationActionId.settings ||
+      OmcNavigationActionId.login ||
+      OmcNavigationActionId.logout ||
+      OmcNavigationActionId.leads => onOpenTrack,
+    };
+  }
+
   final selectedAction = await showModalBottomSheet<VoidCallback>(
     context: context,
     useSafeArea: true,
@@ -29,153 +60,35 @@ Future<void> showOmcQuickActionsSheet({
     backgroundColor: Colors.white,
     barrierColor: Colors.black.withValues(alpha: 0.28),
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
     ),
-    builder: (sheetContext) {
-      final actions = _quickActions(
-        sheetContext: sheetContext,
-        capabilities: capabilities,
-        onOpenServices: onOpenServices,
-        onOpenDocuments: onOpenDocuments,
-        onOpenPayments: onOpenPayments,
-        onOpenTrack: onOpenTrack,
-        onOpenSupport: onOpenSupport,
-        onOpenTaxCalculator: onOpenTaxCalculator,
-        onOpenExpenseTracker: onOpenExpenseTracker,
-        onOpenProfile: onOpenProfile,
-        onOpenKnowledge: onOpenKnowledge,
-        onOpenInternalWorkspace: onOpenInternalWorkspace,
-        onOpenCustomers: onOpenCustomers,
-        onOpenTasks: onOpenTasks,
-        onCreateLead: onCreateLead,
-      );
-      return _QuickActionsContent(actions: actions);
-    },
+    builder: (sheetContext) => _QuickActionsContent(
+      actions: actions,
+      callbackFor: callbackFor,
+    ),
   );
 
   if (selectedAction == null || !context.mounted) return;
   selectedAction();
 }
 
-List<OmcSheetAction> _quickActions({
-  required BuildContext sheetContext,
-  required AuthCapabilities capabilities,
-  required VoidCallback onOpenServices,
-  required VoidCallback onOpenDocuments,
-  required VoidCallback onOpenPayments,
-  required VoidCallback onOpenTrack,
-  required VoidCallback onOpenSupport,
-  required VoidCallback onOpenTaxCalculator,
-  required VoidCallback onOpenExpenseTracker,
-  required VoidCallback onOpenProfile,
-  required VoidCallback onOpenKnowledge,
-  required VoidCallback onOpenInternalWorkspace,
-  required VoidCallback onOpenCustomers,
-  required VoidCallback onOpenTasks,
-  required VoidCallback onCreateLead,
-}) {
-  OmcSheetAction action(String label, IconData icon, VoidCallback onTap) {
-    return OmcSheetAction(
-      label: label,
-      icon: icon,
-      onTap: () => _closeThen(sheetContext, onTap),
-    );
-  }
-
-  if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
-    final items = <OmcSheetAction>[];
-
-    if (capabilities.canManageLeads) {
-      items.add(
-        action('New Lead', Icons.person_add_alt_1_rounded, onCreateLead),
-      );
-    }
-    if (capabilities.canManageTasks) {
-      items.add(action('Tasks', Icons.playlist_add_check_rounded, onOpenTasks));
-    }
-    if (capabilities.canCreateServiceForCustomer) {
-      items.add(
-        action('Start Request', Icons.add_business_rounded, onOpenServices),
-      );
-    }
-    if (capabilities.canReviewPayments) {
-      items.add(
-        action('Review Payments', Icons.receipt_long_outlined, onOpenPayments),
-      );
-    }
-    if (capabilities.canReviewDocuments) {
-      items.add(
-        action('Review Documents', Icons.fact_check_outlined, onOpenDocuments),
-      );
-    }
-    if (capabilities.canManageCustomers ||
-        capabilities.canViewAllCustomers ||
-        capabilities.canViewRelevantCustomers) {
-      items.add(
-        action('Customers', Icons.person_search_rounded, onOpenCustomers),
-      );
-    }
-    if (capabilities.canViewAllServiceCases ||
-        capabilities.canViewRelevantServiceCases ||
-        capabilities.canViewAssignedServiceCases) {
-      items.add(
-        action('Cases', Icons.fact_check_outlined, onOpenInternalWorkspace),
-      );
-    }
-    if (capabilities.canManageAssignedTasks && !capabilities.canManageTasks) {
-      items.add(action('My Tasks', Icons.task_alt_outlined, onOpenTasks));
-    }
-
-    return items;
-  }
-
-  if (capabilities.isApproved) {
-    return [
-      action('Apply', Icons.add_business_outlined, onOpenServices),
-      action('Documents', Icons.folder_copy_outlined, onOpenDocuments),
-      action('Payments', Icons.account_balance_wallet_outlined, onOpenPayments),
-      action('Track', Icons.timeline_rounded, onOpenTrack),
-      action('Tax Calc', Icons.calculate_outlined, onOpenTaxCalculator),
-      action('Support', Icons.support_agent_outlined, onOpenSupport),
-    ];
-  }
-
-  if (capabilities.isPending) {
-    return [
-      action('Services', Icons.grid_view_rounded, onOpenServices),
-      action('Tax', Icons.calculate_outlined, onOpenTaxCalculator),
-      action('Knowledge', Icons.menu_book_outlined, onOpenKnowledge),
-      action('Support', Icons.support_agent_outlined, onOpenSupport),
-      action('Status', Icons.verified_user_outlined, onOpenProfile),
-    ];
-  }
-
-  return [
-    action('Services', Icons.grid_view_rounded, onOpenServices),
-    action('Tax', Icons.calculate_outlined, onOpenTaxCalculator),
-    action('Knowledge', Icons.menu_book_outlined, onOpenKnowledge),
-    action('Support', Icons.support_agent_outlined, onOpenSupport),
-    action('Sign Up', Icons.person_add_alt_1_outlined, onOpenProfile),
-  ];
-}
-
-void _closeThen(BuildContext context, VoidCallback onTap) {
-  Navigator.of(context).pop(onTap);
-}
-
 class _QuickActionsContent extends StatelessWidget {
-  const _QuickActionsContent({required this.actions});
+  const _QuickActionsContent({
+    required this.actions,
+    required this.callbackFor,
+  });
 
-  final List<OmcSheetAction> actions;
+  final List<OmcNavigationItem> actions;
+  final VoidCallback Function(OmcNavigationActionId id) callbackFor;
 
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.58,
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+        padding: const EdgeInsets.fromLTRB(18, 2, 18, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -184,14 +97,14 @@ class _QuickActionsContent extends StatelessWidget {
               'Quick actions',
               style: TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 18,
+                fontSize: 19,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.2,
               ),
             ),
             const SizedBox(height: 4),
             const Text(
-              'Start common work without searching through the app.',
+              'Actions for the work you can perform right now.',
               style: TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 12.5,
@@ -205,12 +118,17 @@ class _QuickActionsContent extends StatelessWidget {
               itemCount: actions.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                mainAxisSpacing: 12,
+                mainAxisSpacing: 10,
                 crossAxisSpacing: 10,
-                childAspectRatio: 1.10,
+                childAspectRatio: 1.05,
               ),
-              itemBuilder: (context, index) =>
-                  _SheetActionButton(action: actions[index]),
+              itemBuilder: (context, index) {
+                final item = actions[index];
+                return _QuickActionButton(
+                  item: item,
+                  onTap: () => Navigator.of(context).pop(callbackFor(item.id)),
+                );
+              },
             ),
           ],
         ),
@@ -219,50 +137,51 @@ class _QuickActionsContent extends StatelessWidget {
   }
 }
 
-class _SheetActionButton extends StatelessWidget {
-  const _SheetActionButton({required this.action});
+class _QuickActionButton extends StatelessWidget {
+  const _QuickActionButton({required this.item, required this.onTap});
 
-  final OmcSheetAction action;
+  final OmcNavigationItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = action.isDestructive
-        ? OmcPremium.danger
-        : OmcPremium.moduleColor(action.label);
+    final color = OmcPremium.moduleColor(item.label);
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(15),
       child: InkWell(
-        onTap: action.onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: AppTheme.border),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(action.icon, color: color, size: 20),
+                child: Icon(_iconFor(item.id), color: color, size: 20),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
-                action.label,
+                item.label,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: action.isDestructive
-                      ? OmcPremium.danger
-                      : AppTheme.textPrimary,
-                  fontSize: 10.5,
-                  height: 1.08,
-                  fontWeight: FontWeight.w700,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 10.8,
+                  height: 1.12,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -271,4 +190,33 @@ class _SheetActionButton extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _iconFor(OmcNavigationActionId id) {
+  return switch (id) {
+    OmcNavigationActionId.createLead => Icons.person_add_alt_1_rounded,
+    OmcNavigationActionId.startRequest || OmcNavigationActionId.apply =>
+      Icons.add_business_rounded,
+    OmcNavigationActionId.reviewPayments || OmcNavigationActionId.payments =>
+      Icons.receipt_long_outlined,
+    OmcNavigationActionId.reviewDocuments ||
+    OmcNavigationActionId.documents => Icons.fact_check_outlined,
+    OmcNavigationActionId.supportQueue || OmcNavigationActionId.support =>
+      Icons.support_agent_outlined,
+    OmcNavigationActionId.tasks => Icons.task_alt_outlined,
+    OmcNavigationActionId.tax => Icons.calculate_outlined,
+    OmcNavigationActionId.knowledge => Icons.menu_book_outlined,
+    OmcNavigationActionId.profile => Icons.person_outline_rounded,
+    OmcNavigationActionId.workspace => Icons.dashboard_customize_outlined,
+    OmcNavigationActionId.customers => Icons.groups_outlined,
+    OmcNavigationActionId.expense => Icons.account_balance_wallet_outlined,
+    OmcNavigationActionId.referrals => Icons.hub_outlined,
+    OmcNavigationActionId.commissions => Icons.payments_outlined,
+    OmcNavigationActionId.alerts => Icons.notifications_none_rounded,
+    OmcNavigationActionId.budget => Icons.savings_outlined,
+    OmcNavigationActionId.settings => Icons.settings_outlined,
+    OmcNavigationActionId.login => Icons.login_rounded,
+    OmcNavigationActionId.logout => Icons.logout_rounded,
+    OmcNavigationActionId.leads => Icons.person_search_outlined,
+  };
 }
