@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import dashboard
+from omc_app.api import dashboard, dashboard_scope
 
 
 def _service_for_request(service_request):
@@ -28,19 +28,32 @@ def _correct_activity_color_family(item):
     return corrected
 
 
+def _correct_activity(payload):
+    if not isinstance(payload, dict):
+        return payload
+    corrected = dict(payload)
+    corrected["recent_activity"] = [
+        _correct_activity_color_family(item)
+        for item in (payload.get("recent_activity") or [])
+    ]
+    return corrected
+
+
 @frappe.whitelist()
 def get_dashboard_data():
-    response = dashboard.get_dashboard_data()
+    user = dashboard._current_user()
+    if dashboard._can_access_internal_workspace(user):
+        response = dashboard_scope.get_internal_dashboard_data(user)
+    else:
+        response = dashboard.get_dashboard_data()
+
     if not isinstance(response, dict):
         return response
 
+    # Direct calls return the payload itself. Some legacy tests/integration wrappers
+    # pass an already wrapped {"message": payload}; support both without changing
+    # the public response contract.
     message = response.get("message")
-    if not isinstance(message, dict):
-        return response
-
-    corrected_message = dict(message)
-    corrected_message["recent_activity"] = [
-        _correct_activity_color_family(item)
-        for item in (message.get("recent_activity") or [])
-    ]
-    return {**response, "message": corrected_message}
+    if isinstance(message, dict):
+        return {**response, "message": _correct_activity(message)}
+    return _correct_activity(response)
