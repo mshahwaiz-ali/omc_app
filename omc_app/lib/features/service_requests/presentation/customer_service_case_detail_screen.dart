@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../home/data/home_dashboard_repository.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/customer_service_case_repository.dart';
@@ -34,7 +34,7 @@ class _CustomerServiceCaseDetailScreenState
   @override
   Widget build(BuildContext context) {
     final detailAsync = ref.watch(customerServiceCaseDetailProvider(widget.caseId));
-    final capabilities = ref.watch(authControllerProvider).capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     Future<void> refresh() async {
       ref.invalidate(customerServiceCaseDetailProvider(widget.caseId));
