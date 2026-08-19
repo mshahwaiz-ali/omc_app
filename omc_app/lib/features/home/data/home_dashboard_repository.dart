@@ -172,6 +172,7 @@ class HomeDashboardNextAction {
     required this.subtitle,
     required this.route,
     required this.buttonLabel,
+    this.required = false,
   });
 
   final String type;
@@ -179,6 +180,28 @@ class HomeDashboardNextAction {
   final String subtitle;
   final String route;
   final String buttonLabel;
+  final bool required;
+}
+
+class HomeDashboardLifecycleMilestone {
+  const HomeDashboardLifecycleMilestone({
+    required this.key,
+    required this.label,
+    required this.state,
+    required this.detail,
+  });
+
+  final String key;
+  final String label;
+  final String state;
+  final String detail;
+
+  String get normalizedState => state.trim().toLowerCase();
+  bool get isComplete => normalizedState == 'complete';
+  bool get isCurrent => normalizedState == 'current';
+  bool get isAttention => normalizedState == 'attention';
+  bool get isSkipped => normalizedState == 'skipped';
+  bool get isPending => normalizedState == 'pending';
 }
 
 class HomeDashboardServiceSnapshot {
@@ -190,6 +213,11 @@ class HomeDashboardServiceSnapshot {
     this.requestState,
     this.operationalStatus,
     this.displayStatus,
+    this.currentStage,
+    this.nextStep,
+    this.milestones = const [],
+    this.nextAction,
+    this.actionRequired = false,
     required this.documentSummary,
     required this.paymentSummary,
     required this.progress,
@@ -203,6 +231,11 @@ class HomeDashboardServiceSnapshot {
   final String? requestState;
   final String? operationalStatus;
   final String? displayStatus;
+  final String? currentStage;
+  final String? nextStep;
+  final List<HomeDashboardLifecycleMilestone> milestones;
+  final HomeDashboardNextAction? nextAction;
+  final bool actionRequired;
   final HomeDashboardDocumentSummary documentSummary;
   final HomeDashboardPaymentSummary paymentSummary;
   final double progress;
@@ -229,6 +262,11 @@ class HomeDashboardServiceSnapshot {
     return lifecycleState.isEmpty
         ? (effectiveOperationalStatus.isEmpty ? 'Open' : effectiveOperationalStatus)
         : lifecycleState;
+  }
+
+  String get stageLabel {
+    final value = currentStage?.trim();
+    return value == null || value.isEmpty ? statusLabel : value;
   }
 
   bool get isTerminal {
@@ -415,7 +453,24 @@ class HomeDashboardRepository {
       subtitle: _readString(value, const ['subtitle']),
       route: _readString(value, const ['route']),
       buttonLabel: _readString(value, const ['button_label', 'buttonLabel']),
+      required: _readBool(value, const ['required', 'action_required']),
     );
+  }
+
+  List<HomeDashboardLifecycleMilestone> _milestones(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (item) => HomeDashboardLifecycleMilestone(
+            key: _readString(item, const ['key']),
+            label: _readString(item, const ['label', 'title']),
+            state: _readString(item, const ['state', 'status']),
+            detail: _readString(item, const ['detail', 'subtitle', 'message']),
+          ),
+        )
+        .where((item) => item.label.isNotEmpty)
+        .toList(growable: false);
   }
 
   List<HomeDashboardServiceSnapshot> _serviceSnapshots(dynamic value) {
@@ -424,8 +479,11 @@ class HomeDashboardRepository {
     return value
         .whereType<Map<String, dynamic>>()
         .map((item) {
+          final progressPercent = item['progress_percent'];
           final progressValue = item['progress'];
-          final progress = progressValue is num
+          final progress = progressPercent is num
+              ? (progressPercent.toDouble() / 100).clamp(0, 1).toDouble()
+              : progressValue is num
               ? progressValue.toDouble().clamp(0, 1).toDouble()
               : 0.0;
 
@@ -444,6 +502,11 @@ class HomeDashboardRepository {
               'status',
             ]),
             displayStatus: _readNullableString(item, const ['display_status']),
+            currentStage: _readNullableString(item, const ['current_stage']),
+            nextStep: _readNullableString(item, const ['next_step']),
+            milestones: _milestones(item['milestones']),
+            nextAction: _nextAction(item['next_action']),
+            actionRequired: _readBool(item, const ['action_required']),
             documentSummary: _documentSummary(
               item['document_summary'] ?? item['documents'],
             ),
@@ -526,5 +589,18 @@ class HomeDashboardRepository {
       if (parsed != null) return parsed;
     }
     return 0;
+  }
+
+  bool _readBool(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = data[key];
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      final normalized = value?.toString().trim().toLowerCase();
+      if (normalized == null || normalized.isEmpty) continue;
+      if ({'1', 'true', 'yes', 'on'}.contains(normalized)) return true;
+      if ({'0', 'false', 'no', 'off'}.contains(normalized)) return false;
+    }
+    return false;
   }
 }
