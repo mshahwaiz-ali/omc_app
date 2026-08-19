@@ -7,6 +7,7 @@ import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../payments/presentation/settlement_exceptions_screen.dart';
 import '../domain/internal_service_case.dart';
 import '../domain/internal_workspace_summary.dart';
 import 'internal_workspace_providers.dart';
@@ -833,7 +834,7 @@ class _QuickActions extends ConsumerWidget {
         ),
     ];
 
-    return GridView.builder(
+    final grid = GridView.builder(
       itemCount: actions.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -888,6 +889,55 @@ class _QuickActions extends ConsumerWidget {
           ),
         );
       },
+    );
+
+    if (!capabilities.canReconcileSettlement) return grid;
+
+    return Column(
+      children: [
+        PremiumCard(
+          padding: const EdgeInsets.all(14),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const SettlementExceptionsScreen(),
+            ),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.account_balance_wallet_outlined, color: _orange),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Settlement exceptions',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Review accounting mismatches that need a human finance decision.',
+                      style: TextStyle(
+                        color: _slate,
+                        fontSize: 11.5,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: _slate),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        grid,
+      ],
     );
   }
 }
