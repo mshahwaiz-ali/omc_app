@@ -15,94 +15,22 @@
   "review_reason"
  ],
  "fields": [
-  {
-   "fieldname": "customer_profile",
-   "fieldtype": "Link",
-   "label": "Customer Profile",
-   "options": "OMC Customer Profile",
-   "reqd": 1,
-   "in_list_view": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "email",
-   "fieldtype": "Data",
-   "label": "Email",
-   "reqd": 1,
-   "in_list_view": 1,
-   "read_only": 1
-  },
-  {
-   "default": "Pending",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "label": "Status",
-   "options": "Pending\nUsed\nExpired\nSuperseded\nCancelled\nReview Required",
-   "reqd": 1,
-   "in_list_view": 1
-  },
-  {
-   "fieldname": "expires_at",
-   "fieldtype": "Datetime",
-   "label": "Expires At",
-   "reqd": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "token_digest",
-   "fieldtype": "Data",
-   "label": "Token Digest",
-   "reqd": 1,
-   "unique": 1,
-   "read_only": 1,
-   "hidden": 1
-  },
-  {
-   "fieldname": "requested_at",
-   "fieldtype": "Datetime",
-   "label": "Requested At",
-   "reqd": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "used_at",
-   "fieldtype": "Datetime",
-   "label": "Used At",
-   "read_only": 1
-  },
-  {
-   "fieldname": "activated_user",
-   "fieldtype": "Link",
-   "label": "Activated User",
-   "options": "User",
-   "read_only": 1
-  },
-  {
-   "fieldname": "review_reason",
-   "fieldtype": "Data",
-   "label": "Review Reason",
-   "read_only": 1
-  }
+  {"fieldname": "customer_profile", "fieldtype": "Link", "label": "Customer Profile", "options": "OMC Customer Profile", "reqd": 1, "in_list_view": 1, "read_only": 1},
+  {"fieldname": "email", "fieldtype": "Data", "label": "Email", "reqd": 1, "in_list_view": 1, "read_only": 1},
+  {"default": "Pending", "fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Pending\nUsed\nExpired\nSuperseded\nCancelled\nReview Required", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "expires_at", "fieldtype": "Datetime", "label": "Expires At", "reqd": 1, "read_only": 1},
+  {"fieldname": "token_digest", "fieldtype": "Data", "label": "Token Digest", "reqd": 1, "unique": 1, "read_only": 1, "hidden": 1},
+  {"fieldname": "requested_at", "fieldtype": "Datetime", "label": "Requested At", "reqd": 1, "read_only": 1},
+  {"fieldname": "used_at", "fieldtype": "Datetime", "label": "Used At", "read_only": 1},
+  {"fieldname": "activated_user", "fieldtype": "Link", "label": "Activated User", "options": "User", "read_only": 1},
+  {"fieldname": "review_reason", "fieldtype": "Data", "label": "Review Reason", "read_only": 1}
  ],
  "index_web_pages_for_search": 0,
  "links": [],
  "module": "OMC App",
  "name": "OMC Customer Activation",
  "naming_rule": "Random",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "OMC Admin",
-   "share": 1,
-   "write": 1
-  }
- ],
+ "permissions": [],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
