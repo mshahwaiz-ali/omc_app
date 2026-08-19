@@ -19,6 +19,24 @@ export 'support_repository_legacy.dart'
         activeSupportTicketProvider,
         supportUnreadCountProvider;
 
+class SupportRefreshPolicy {
+  const SupportRefreshPolicy._();
+
+  static const detailFreshnessWindow = Duration(seconds: 15);
+  static const unreadFreshnessWindow = Duration(seconds: 15);
+  static const feedRefreshInterval = Duration(seconds: 30);
+
+  static bool canReuseStale(Object error) {
+    if (error is! ApiError) return false;
+    if (error.retryable) return true;
+    if (error.statusCode == 408 || error.statusCode == 429) return true;
+    if ((error.statusCode ?? 0) >= 500) return true;
+    return error.category == ApiFailureCategory.timeout ||
+        error.category == ApiFailureCategory.offline ||
+        error.category == ApiFailureCategory.server;
+  }
+}
+
 enum SupportSyncTarget { config, feed, unread, ticket }
 
 enum SupportFreshnessStatus { idle, refreshing, fresh, stale }
@@ -171,9 +189,6 @@ class SupportRepository extends legacy.SupportRepository {
   }) : _reportSync = reportSync,
        super(frappeClient: frappeClient);
 
-  static const detailFreshnessWindow = Duration(seconds: 15);
-  static const unreadFreshnessWindow = Duration(seconds: 15);
-
   final SupportSyncReporter _reportSync;
 
   SupportConfigData? _configCache;
@@ -186,14 +201,8 @@ class SupportRepository extends legacy.SupportRepository {
 
   @override
   Future<SupportConfigData> fetchSupportConfig() async {
-    final previous = _freshnessFor(
-      cachedAt: _configCachedAt,
-      target: SupportSyncTarget.config,
-    );
-    _reportSync(
-      SupportSyncTarget.config,
-      _refreshing(previous),
-    );
+    final previous = _freshnessFor(_configCachedAt);
+    _reportSync(SupportSyncTarget.config, _refreshing(previous));
 
     try {
       final response = await frappeClient.getMethod(ApiConfig.supportConfigMethod);
@@ -204,7 +213,7 @@ class SupportRepository extends legacy.SupportRepository {
       _reportSync(SupportSyncTarget.config, _fresh(now));
       return config;
     } catch (error) {
-      if (_configCache != null && _canUseStale(error)) {
+      if (_configCache != null && SupportRefreshPolicy.canReuseStale(error)) {
         _reportSync(
           SupportSyncTarget.config,
           _stale(_configCachedAt, error),
@@ -225,11 +234,10 @@ class SupportRepository extends legacy.SupportRepository {
   }) async {
     final isFirstPage = start <= 0;
     if (isFirstPage) {
-      final previous = _freshnessFor(
-        cachedAt: _feedCachedAt,
-        target: SupportSyncTarget.feed,
+      _reportSync(
+        SupportSyncTarget.feed,
+        _refreshing(_freshnessFor(_feedCachedAt)),
       );
-      _reportSync(SupportSyncTarget.feed, _refreshing(previous));
     }
 
     try {
@@ -242,12 +250,14 @@ class SupportRepository extends legacy.SupportRepository {
       }
       return page;
     } catch (error) {
-      if (isFirstPage && _feedCache != null && _canUseStale(error)) {
+      if (isFirstPage &&
+          _feedCache != null &&
+          SupportRefreshPolicy.canReuseStale(error)) {
         _reportSync(SupportSyncTarget.feed, _stale(_feedCachedAt, error));
         return _feedCache!;
       }
       if (isFirstPage) {
-        if (!_canUseStale(error)) {
+        if (!SupportRefreshPolicy.canReuseStale(error)) {
           _feedCache = null;
           _feedCachedAt = null;
         }
@@ -264,7 +274,9 @@ class SupportRepository extends legacy.SupportRepository {
 
     final cached = _ticketCache[cleanId];
     final now = DateTime.now();
-    if (cached != null && now.difference(cached.cachedAt) < detailFreshnessWindow) {
+    if (cached != null &&
+        now.difference(cached.cachedAt) <
+            SupportRefreshPolicy.detailFreshnessWindow) {
       return cached.ticket;
     }
 
@@ -301,7 +313,7 @@ class SupportRepository extends legacy.SupportRepository {
       );
       return ticket;
     } catch (error) {
-      if (cached != null && _canUseStale(error)) {
+      if (cached != null && SupportRefreshPolicy.canReuseStale(error)) {
         _reportSync(
           SupportSyncTarget.ticket,
           _stale(cached.cachedAt, error),
@@ -309,7 +321,9 @@ class SupportRepository extends legacy.SupportRepository {
         );
         return cached.ticket;
       }
-      if (!_canUseStale(error)) _ticketCache.remove(cleanId);
+      if (!SupportRefreshPolicy.canReuseStale(error)) {
+        _ticketCache.remove(cleanId);
+      }
       _reportSync(
         SupportSyncTarget.ticket,
         _stale(cached?.cachedAt, error),
@@ -324,15 +338,15 @@ class SupportRepository extends legacy.SupportRepository {
     final now = DateTime.now();
     if (_unreadCache != null &&
         _unreadCachedAt != null &&
-        now.difference(_unreadCachedAt!) < unreadFreshnessWindow) {
+        now.difference(_unreadCachedAt!) <
+            SupportRefreshPolicy.unreadFreshnessWindow) {
       return _unreadCache!;
     }
 
-    final previous = _freshnessFor(
-      cachedAt: _unreadCachedAt,
-      target: SupportSyncTarget.unread,
+    _reportSync(
+      SupportSyncTarget.unread,
+      _refreshing(_freshnessFor(_unreadCachedAt)),
     );
-    _reportSync(SupportSyncTarget.unread, _refreshing(previous));
     try {
       final count = await super.fetchSupportUnreadCount();
       final fetchedAt = DateTime.now();
@@ -341,14 +355,14 @@ class SupportRepository extends legacy.SupportRepository {
       _reportSync(SupportSyncTarget.unread, _fresh(fetchedAt));
       return count;
     } catch (error) {
-      if (_unreadCache != null && _canUseStale(error)) {
+      if (_unreadCache != null && SupportRefreshPolicy.canReuseStale(error)) {
         _reportSync(
           SupportSyncTarget.unread,
           _stale(_unreadCachedAt, error),
         );
         return _unreadCache!;
       }
-      if (!_canUseStale(error)) {
+      if (!SupportRefreshPolicy.canReuseStale(error)) {
         _unreadCache = null;
         _unreadCachedAt = null;
       }
@@ -452,10 +466,7 @@ class SupportRepository extends legacy.SupportRepository {
     _ticketCache.clear();
   }
 
-  SupportResourceFreshness _freshnessFor({
-    required DateTime? cachedAt,
-    required SupportSyncTarget target,
-  }) {
+  SupportResourceFreshness _freshnessFor(DateTime? cachedAt) {
     if (cachedAt == null) return const SupportResourceFreshness();
     return SupportResourceFreshness(
       status: SupportFreshnessStatus.fresh,
@@ -486,16 +497,6 @@ class SupportRepository extends legacy.SupportRepository {
       lastAttemptAt: DateTime.now(),
       message: _errorMessage(error),
     );
-  }
-
-  bool _canUseStale(Object error) {
-    if (error is! ApiError) return false;
-    if (error.retryable) return true;
-    if (error.statusCode == 408 || error.statusCode == 429) return true;
-    if ((error.statusCode ?? 0) >= 500) return true;
-    return error.category == ApiFailureCategory.timeout ||
-        error.category == ApiFailureCategory.offline ||
-        error.category == ApiFailureCategory.server;
   }
 
   String _errorMessage(Object error) {
