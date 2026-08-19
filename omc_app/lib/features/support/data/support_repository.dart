@@ -4,6 +4,7 @@ import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/network/frappe_client.dart';
+import '../../../core/resilience/transient_read_policy.dart';
 import 'support_config_data.dart';
 import 'support_repository_legacy.dart' as legacy;
 import 'support_ticket.dart';
@@ -27,13 +28,7 @@ class SupportRefreshPolicy {
   static const feedRefreshInterval = Duration(seconds: 30);
 
   static bool canReuseStale(Object error) {
-    if (error is! ApiError) return false;
-    if (error.retryable) return true;
-    if (error.statusCode == 408 || error.statusCode == 429) return true;
-    if ((error.statusCode ?? 0) >= 500) return true;
-    return error.category == ApiFailureCategory.timeout ||
-        error.category == ApiFailureCategory.offline ||
-        error.category == ApiFailureCategory.server;
+    return TransientReadPolicy.canReuseLastSuccessful(error);
   }
 }
 
