@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
-import '../../../core/config/api_config.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
-import '../../profile/data/profile_repository.dart';
 import '../data/service_case.dart';
 import '../data/service_case_repository.dart';
 
@@ -36,11 +34,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
   @override
   Widget build(BuildContext context) {
     final casesAsync = ref.watch(serviceCasesProvider);
-    final authState = ref.watch(authControllerProvider);
-    final profile = ref
-        .watch(profileSummaryProvider)
-        .maybeWhen(data: (profile) => profile, orElse: () => null);
-    final capabilities = profile?.capabilities ?? authState.capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -64,8 +58,7 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
             return RefreshIndicator(
               onRefresh: () async {
                 ref.invalidate(serviceCasesProvider);
-                ref.invalidate(profileSummaryProvider);
-                await ref.read(profileSummaryProvider.future);
+                await ref.read(serviceCasesProvider.future);
               },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(
@@ -366,119 +359,6 @@ class _MyServicesScreenState extends ConsumerState<MyServicesScreen> {
   }
 }
 
-// Retained while older customer layouts are migrated to OmcIdentityHeader.
-// ignore: unused_element
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.displayName,
-    required this.avatarUrl,
-    required this.actionNeededCount,
-    required this.onNewService,
-  });
-
-  final String displayName;
-  final String? avatarUrl;
-  final int actionNeededCount;
-  final VoidCallback onNewService;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _greeting(),
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 28,
-                      height: 1.05,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.45,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            _TopActionBadge(count: actionNeededCount),
-            const SizedBox(width: 12),
-            _Avatar(name: displayName, avatarUrl: avatarUrl),
-          ],
-        ),
-        const SizedBox(height: 22),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Services',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 34,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.65,
-                    ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Manage and track all your services & requests',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 15,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton.icon(
-              onPressed: onNewService,
-              icon: const Icon(Icons.add_rounded, size: 20),
-              label: const Text('New Service'),
-              style: FilledButton.styleFrom(
-                backgroundColor: OmcPremium.services,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 16,
-                ),
-                textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 class _TrackHeader extends StatelessWidget {
   const _TrackHeader({required this.onBack});
 
@@ -561,7 +441,7 @@ class _SearchAndFilterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 48,
-      padding: const EdgeInsets.only(left: 13, right: 5),
+      padding: const EdgeInsets.only(left: 13),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -615,8 +495,8 @@ class _SearchAndFilterRow extends StatelessWidget {
               onTap: onFilterTap,
               borderRadius: BorderRadius.circular(13),
               child: const SizedBox(
-                width: 38,
-                height: 38,
+                width: 48,
+                height: 48,
                 child: Icon(
                   Icons.tune_rounded,
                   size: 21,
@@ -652,7 +532,7 @@ class _FilterRow extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: 36,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -937,11 +817,8 @@ class _ServiceCard extends StatelessWidget {
                     onPressed: () => context.push(route),
                     style: TextButton.styleFrom(
                       foregroundColor: AppTheme.textPrimary,
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
+                      minimumSize: const Size(0, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     child: Text(
                       needsUpload ? 'Upload documents' : 'View details',
@@ -1213,124 +1090,6 @@ class _FilterEmptyState extends StatelessWidget {
       ),
     );
   }
-}
-
-class _TopActionBadge extends StatelessWidget {
-  const _TopActionBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final badgeCount = count.clamp(0, 99);
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-          ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        if (badgeCount > 0)
-          Positioned(
-            right: -2,
-            top: -2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: OmcPremium.services,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white, width: 1.6),
-              ),
-              child: Text(
-                badgeCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name, required this.avatarUrl});
-
-  final String name;
-  final String? avatarUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final initials = _initials(name);
-    final cleanAvatarUrl = avatarUrl?.trim();
-    final imageUrl = cleanAvatarUrl == null || cleanAvatarUrl.isEmpty
-        ? null
-        : ApiConfig.resolveFileUrl(cleanAvatarUrl);
-    final color = _serviceAvatarColor(name);
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: imageUrl == null ? color.withValues(alpha: 0.10) : Colors.white,
-        shape: BoxShape.circle,
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: imageUrl == null
-          ? Center(
-              child: Text(
-                initials,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            )
-          : Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Center(
-                child: Text(
-                  initials,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-    );
-  }
-}
-
-Color _serviceAvatarColor(String name) {
-  const colors = [
-    OmcPremium.services,
-    OmcPremium.documents,
-    OmcPremium.payments,
-    OmcPremium.track,
-    OmcPremium.leads,
-    OmcPremium.tasks,
-  ];
-  final source = name.trim().isEmpty ? 'OMC' : name.trim();
-  final index =
-      source.codeUnits.fold<int>(0, (sum, unit) => sum + unit) % colors.length;
-  return colors[index];
 }
 
 class _Counts {
@@ -1606,27 +1365,4 @@ enum _SortOption {
         return 'Oldest';
     }
   }
-}
-
-String _greeting() {
-  final hour = DateTime.now().hour;
-  if (hour < 12) return 'Good morning,';
-  if (hour < 17) return 'Good afternoon,';
-  return 'Good evening,';
-}
-
-String _initials(String name) {
-  final parts = name
-      .trim()
-      .split(RegExp(r'\s+'))
-      .where((part) => part.isNotEmpty)
-      .toList(growable: false);
-  if (parts.isEmpty) return 'OM';
-  if (parts.length == 1) {
-    final value = parts.first;
-    return value.length >= 2
-        ? value.substring(0, 2).toUpperCase()
-        : value.substring(0, 1).toUpperCase();
-  }
-  return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
 }
