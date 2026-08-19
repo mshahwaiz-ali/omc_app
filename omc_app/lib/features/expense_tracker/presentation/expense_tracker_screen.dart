@@ -5,15 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../app/theme.dart';
 import '../../../core/forms/dirty_form_controller.dart';
 import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
-import '../../profile/data/profile_repository.dart';
 import '../data/expense_tracker_repository.dart';
 import '../domain/expense_transaction.dart';
 import '../../../core/resilience/app_failure.dart';
@@ -170,11 +169,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref
-        .watch(profileSummaryProvider)
-        .maybeWhen(data: (profile) => profile, orElse: () => null);
-    final authState = ref.watch(authControllerProvider);
-    final capabilities = profile?.capabilities ?? authState.capabilities;
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final accessMode = _resolveAccessMode(capabilities);
     final config =
         ref.watch(expenseTrackerConfigProvider).value ??
@@ -201,7 +196,7 @@ class ExpenseTrackerScreen extends ConsumerWidget {
             icon: Icons.admin_panel_settings_outlined,
             title: 'Customer tracker hidden',
             message:
-                'Internal users use Desk for customer review. Personal customer tracker is hidden by default.',
+                'Internal users use the internal workspace for customer review. Personal customer tracking is hidden by default.',
           ),
         ),
       );
