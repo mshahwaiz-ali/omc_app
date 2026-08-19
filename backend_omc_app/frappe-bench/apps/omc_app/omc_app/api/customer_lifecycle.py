@@ -63,9 +63,19 @@ def lifecycle_presentation(snapshot: dict) -> dict:
     documents = item.get("document_summary") or item.get("documents") or {}
     payments = item.get("payment_summary") or item.get("payments") or {}
 
-    pending_docs = _count(documents, "pending") + _count(documents, "missing")
+    # Dashboard compatibility payloads expose pending/missing and
+    # uploaded/under_review as aliases for the same underlying status. Use the
+    # larger alias value rather than summing them so lifecycle copy never
+    # doubles a customer's required-document count.
+    pending_docs = max(
+        _count(documents, "pending"),
+        _count(documents, "missing"),
+    )
     rejected_docs = _count(documents, "rejected")
-    uploaded_docs = _count(documents, "uploaded") + _count(documents, "under_review")
+    uploaded_docs = max(
+        _count(documents, "uploaded"),
+        _count(documents, "under_review"),
+    )
     approved_docs = _count(documents, "approved")
     total_docs = _count(documents, "total")
     if not total_docs:
