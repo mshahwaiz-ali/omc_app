@@ -19,5 +19,6 @@ omc_app.patches.enforce_referral_owner_model
 omc_app.patches.add_customer_username
 omc_app.patches.remove_legacy_omc_task
 omc_app.patches.add_backend_redesign_indexes_20260819
+omc_app.patches.add_reconciliation_indexes_20260819
 omc_app.patches.add_request_company_snapshot_20260819
 omc_app.patches.retire_pending_registration_password_secret_20260819
