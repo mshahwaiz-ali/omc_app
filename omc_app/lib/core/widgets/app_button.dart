@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/design_tokens.dart';
+import '../interaction/app_feedback.dart';
 
 class AppButton extends StatelessWidget {
   const AppButton({
@@ -11,6 +12,7 @@ class AppButton extends StatelessWidget {
     this.isLoading = false,
     this.isExpanded = true,
     this.semanticHint,
+    this.hapticFeedback = true,
   });
 
   final String label;
@@ -19,12 +21,20 @@ class AppButton extends StatelessWidget {
   final bool isLoading;
   final bool isExpanded;
   final String? semanticHint;
+  final bool hapticFeedback;
 
   @override
   Widget build(BuildContext context) {
     final enabled = !isLoading && onPressed != null;
+    final effectiveOnPressed = !enabled
+        ? null
+        : () {
+            if (hapticFeedback) AppFeedback.action();
+            onPressed!();
+          };
+
     final button = FilledButton(
-      onPressed: isLoading ? null : onPressed,
+      onPressed: effectiveOnPressed,
       style: FilledButton.styleFrom(
         minimumSize: const Size(0, AppTouchTarget.prominentButtonHeight),
         shape: RoundedRectangleBorder(
@@ -32,7 +42,7 @@ class AppButton extends StatelessWidget {
         ),
       ),
       child: AnimatedSwitcher(
-        duration: AppMotion.quick,
+        duration: AppMotion.durationFor(context, AppMotion.quick),
         child: isLoading
             ? const SizedBox(
                 key: ValueKey('loading'),
