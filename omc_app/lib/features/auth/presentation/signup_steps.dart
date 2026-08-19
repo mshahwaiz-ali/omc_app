@@ -433,7 +433,7 @@ class SignupPreferencesStep extends StatelessWidget {
               children: [
                 TextFormField(
                   controller: referralCodeController,
-                  textCapitalization: TextTextCapitalization.characters,
+                  textCapitalization: TextCapitalization.characters,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 -]')),
                     LengthLimitingTextInputFormatter(12),
