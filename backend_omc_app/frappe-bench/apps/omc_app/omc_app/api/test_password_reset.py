@@ -9,6 +9,10 @@ from omc_app.api import password_reset
 class TestPasswordReset(FrappeTestCase):
     def setUp(self):
         super().setUp()
+        self.rate_limit = patch(
+            "omc_app.api.security.enforce_rate_limit", return_value=None
+        )
+        self.rate_limit.start()
         self.created = []
         self.test_user = "password-reset-test@example.com"
 
@@ -39,6 +43,7 @@ class TestPasswordReset(FrappeTestCase):
             user.insert(ignore_permissions=True)
 
     def tearDown(self):
+        self.rate_limit.stop()
         for name in self.created:
             if frappe.db.exists("OMC Password Reset", name):
                 frappe.delete_doc(

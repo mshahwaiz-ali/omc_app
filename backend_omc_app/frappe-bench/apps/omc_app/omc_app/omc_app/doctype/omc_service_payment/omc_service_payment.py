@@ -5,8 +5,8 @@ TERMINAL_PAYMENT_STATUSES = {"Paid", "Cancelled"}
 TERMINAL_SERVICE_REQUEST_STATUSES = {"Completed", "Cancelled"}
 ALLOWED_PAYMENT_STATUS_TRANSITIONS = {
     "Pending": {"Receipt Submitted", "Under Review", "Cancelled"},
-    "Receipt Submitted": {"Under Review", "Paid", "Rejected", "Cancelled"},
-    "Under Review": {"Paid", "Rejected", "Cancelled"},
+    "Receipt Submitted": {"Under Review", "Rejected", "Cancelled"},
+    "Under Review": {"Rejected", "Cancelled"},
     "Rejected": {"Receipt Submitted", "Under Review", "Cancelled"},
     "Paid": set(),
     "Cancelled": set(),
@@ -37,11 +37,17 @@ class OMCServicePayment(Document):
         self._assert_parent_is_mutable()
         self._assert_financial_integrity()
         self._assert_single_active_payment()
+        self.receipt_status = self.receipt_status or "Not Submitted"
+        self.accounting_status = self.accounting_status or "Unmatched"
+        self.quarantine_status = self.quarantine_status or "Not Required"
 
     def before_save(self):
         previous = self.get_doc_before_save()
         previous_status = getattr(previous, "status", None) if previous else None
         _assert_payment_status_transition(previous_status, self.status)
+
+        if self.status == "Paid" and self.accounting_status != "Settled":
+            frappe.throw("Paid is reserved for reconciled ERP settlement.")
 
         if previous_status != self.status:
             self._assert_parent_is_mutable()
@@ -69,7 +75,7 @@ class OMCServicePayment(Document):
                     "Payment amount cannot be changed after creation."
                 )
 
-        if self.status in {"Paid", "Rejected"} and not self.receipt_attachment:
+        if self.status in {"Paid", "Rejected"} and not self.receipt_attachment and self.receipt_status != "Not Submitted":
             frappe.throw(
                 "A receipt must be attached before marking this payment "
                 f"as {self.status}."

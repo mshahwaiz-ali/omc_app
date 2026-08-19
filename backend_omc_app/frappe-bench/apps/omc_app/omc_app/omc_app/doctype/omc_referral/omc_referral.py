@@ -12,12 +12,27 @@ class OMCReferral(Document):
         self.referral_code = normalize_referral_code(self.referral_code)
         self._validate_owner()
         self._validate_unique_owner()
+        self._snapshot_owner()
 
     def validate(self):
         self.referral_code = normalize_referral_code(self.referral_code)
         self._validate_owner()
         self._validate_unique_owner()
         self._prevent_identity_changes()
+
+    def _snapshot_owner(self):
+        from omc_app.api.identity import get_staff_access, source_version
+
+        access = get_staff_access(self.referrer_user)
+        if not access:
+            frappe.throw(
+                "Referral ownership requires approved Staff Access.",
+                frappe.ValidationError,
+            )
+        self.owner_persona_snapshot = access.persona_snapshot
+        self.owner_source_version = access.source_version or source_version(
+            access.user, access.persona_snapshot, access.modified
+        )
 
     def _validate_owner(self):
         if not is_eligible_referral_owner(self.referrer_user):
@@ -50,6 +65,8 @@ class OMCReferral(Document):
             "referred_customer_profile",
             "referred_app_user",
             "signup_date",
+            "owner_persona_snapshot",
+            "owner_source_version",
         )
         for fieldname in protected:
             if self.get(fieldname) != previous.get(fieldname):

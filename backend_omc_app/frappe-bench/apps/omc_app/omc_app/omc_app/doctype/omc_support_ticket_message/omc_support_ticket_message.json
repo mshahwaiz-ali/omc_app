@@ -17,6 +17,7 @@
   "attachment_name",
   "attachment_type",
   "attachment_size",
+  "quarantine_status",
   "flags_section",
   "is_internal",
   "read_by_customer",
@@ -34,6 +35,7 @@
   {"fieldname": "attachment_name", "fieldtype": "Data", "label": "Attachment Name"},
   {"fieldname": "attachment_type", "fieldtype": "Data", "label": "Attachment Type"},
   {"fieldname": "attachment_size", "fieldtype": "Int", "label": "Attachment Size"},
+  {"default": "Not Required", "fieldname": "quarantine_status", "fieldtype": "Select", "label": "Quarantine Status", "options": "Not Required\nManual Review\nClean\nRejected", "read_only": 1},
   {"fieldname": "flags_section", "fieldtype": "Section Break", "label": "Flags"},
   {"default": "0", "fieldname": "is_internal", "fieldtype": "Check", "label": "Internal Only"},
   {"default": "0", "fieldname": "read_by_customer", "fieldtype": "Check", "label": "Read By Customer"},
@@ -48,7 +50,7 @@
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "OMC Admin", "share": 1, "write": 1}
  ],
  "sort_field": "creation",
  "sort_order": "ASC",

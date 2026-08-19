@@ -23,9 +23,10 @@ class TestPermissionQueryConditions(FrappeTestCase):
     def test_customer_service_request_query_includes_own_identity(self):
         with patch.object(permissions, '_roles', return_value=set()):
             query = permissions.service_request_query(user='customer@example.com')
-        self.assertIn('requested_for_customer', query)
-        self.assertIn('submitted_by_user', query)
-        self.assertIn('linked_app_user', query)
+        self.assertIn('tabOMC Customer Account', query)
+        self.assertIn('customer_account = account.name', query)
+        self.assertNotIn('requested_for_customer', query)
+        self.assertNotIn('linked_app_user', query)
         self.assertIn('customer@example.com', query)
 
     def test_field_role_query_includes_live_referral_scope(self):
@@ -40,13 +41,13 @@ class TestPermissionQueryConditions(FrappeTestCase):
         document_query = self._query_for(permissions.service_document_query, DOCUMENT_REVIEWER_ROLE)
         payment_query = self._query_for(permissions.service_payment_query, DOCUMENT_REVIEWER_ROLE)
         self.assertEqual(document_query, '')
-        self.assertEqual(payment_query, '1=0')
+        self.assertIn('tabOMC Customer Account', payment_query)
 
     def test_finance_reviewer_has_payment_domain_only(self):
         payment_query = self._query_for(permissions.service_payment_query, FINANCE_REVIEWER_ROLE)
         document_query = self._query_for(permissions.service_document_query, FINANCE_REVIEWER_ROLE)
         self.assertEqual(payment_query, '')
-        self.assertEqual(document_query, '1=0')
+        self.assertIn('tabOMC Customer Account', document_query)
 
     def test_support_agent_has_support_domain_without_native_lead_override(self):
         support_query = self._query_for(

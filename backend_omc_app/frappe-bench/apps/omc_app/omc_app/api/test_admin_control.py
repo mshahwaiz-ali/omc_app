@@ -47,9 +47,9 @@ class TestAdminControl(TestCase):
 
     def test_staff_application_maps_only_supported_public_choices(self):
         for label, role in {
-            "Consultant": "OMC Consultant",
-            "Tax Associate": "OMC Tax Associate",
-            "Business Partner": "OMC Business Partner",
+            "Consultant": "Consultant",
+            "Tax Associate": "Tax Associates",
+            "Business Partner": "Business Partner",
         }.items():
             profile = {"register_as": label}
             self.assertEqual(admin_control._requested_staff_role(profile), role)
@@ -62,11 +62,16 @@ class TestAdminControl(TestCase):
         with self.assertRaises(frappe.ValidationError):
             admin_control._set_user_roles(user, ["System Manager"])
 
-    def test_assignment_uses_effective_explicit_roles_not_role_profile(self):
+    def test_assignment_uses_approved_staff_access_persona(self):
         row = SimpleNamespace(enabled=1, user_type="System User", full_name="Sana Iqbal")
+        staff_access = SimpleNamespace(
+            access_status="Approved",
+            reconciliation_status="Current",
+            persona_snapshot="Tax Associates",
+        )
         with (
             patch.object(service_assignment.frappe.db, "get_value", return_value=row),
-            patch.object(service_assignment, "user_roles", return_value={"OMC Finance Reviewer", "OMC Tax Associate"}),
+            patch.object(service_assignment.identity, "get_staff_access", return_value=staff_access),
         ):
             self.assertEqual(
                 service_assignment.active_assignable_user("sana.iqbal@qa.omc.test", required_role="OMC Tax Associate"),
@@ -76,14 +81,14 @@ class TestAdminControl(TestCase):
     def test_administrator_is_never_automatically_assignable(self):
         self.assertIsNone(service_assignment.active_assignable_user("Administrator"))
 
-    def test_role_candidates_come_from_has_role_rows(self):
+    def test_role_candidates_come_from_staff_access(self):
         with (
             patch.object(service_assignment.frappe, "get_all", return_value=["bilal.ahmed@qa.omc.test"]) as get_all,
             patch.object(service_assignment, "active_assignable_user", side_effect=lambda user, required_role=None: user),
         ):
             self.assertEqual(service_assignment.users_for_role("OMC Consultant"), ["bilal.ahmed@qa.omc.test"])
-        self.assertEqual(get_all.call_args.args[0], "Has Role")
-        self.assertEqual(get_all.call_args.kwargs["filters"]["role"], "OMC Consultant")
+        self.assertEqual(get_all.call_args.args[0], "OMC Staff Access")
+        self.assertEqual(get_all.call_args.kwargs["filters"]["persona_snapshot"][0], "in")
 
     def test_duplicate_response_exposes_only_backend_allowed_actions(self):
         from omc_app.api import assisted_service

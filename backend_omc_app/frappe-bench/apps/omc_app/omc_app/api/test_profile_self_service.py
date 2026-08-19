@@ -174,6 +174,10 @@ class TestProfileSelfService(FrappeTestCase):
         with self.assertRaises(frappe.ValidationError):
             profile_self_service.update_profile(email="new@example.com")
 
+    def test_rejects_unknown_mass_assignment_field(self):
+        with self.assertRaises(frappe.ValidationError):
+            profile_self_service.update_profile(is_active=0)
+
     def test_legacy_mobile_update_profile_cannot_change_cnic(self):
         with self.assertRaises(frappe.ValidationError):
             mobile.update_profile(cnic="1111111111111")

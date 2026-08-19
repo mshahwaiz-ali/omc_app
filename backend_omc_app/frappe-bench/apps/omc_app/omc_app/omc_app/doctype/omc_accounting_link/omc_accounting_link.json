@@ -1,0 +1,27 @@
+{
+ "actions": [], "allow_rename": 0, "autoname": "field:source_key", "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
+ "field_order": ["source_key", "service_request", "sales_invoice", "payment_entry", "payment_reference_row", "erp_customer", "company", "invoice_currency", "payment_currency", "allocated_amount", "base_allocated_amount", "exchange_rate", "invoice_docstatus", "payment_docstatus", "invoice_outstanding_amount", "accounting_status", "source_version", "reconciled_at", "reconciliation_error"],
+ "fields": [
+  {"fieldname": "source_key", "fieldtype": "Data", "label": "Source Key", "reqd": 1, "unique": 1},
+  {"fieldname": "service_request", "fieldtype": "Link", "in_list_view": 1, "label": "Service Request", "options": "OMC Service Request", "reqd": 1},
+  {"fieldname": "sales_invoice", "fieldtype": "Link", "in_list_view": 1, "label": "Sales Invoice", "options": "Sales Invoice", "reqd": 1},
+  {"fieldname": "payment_entry", "fieldtype": "Link", "in_list_view": 1, "label": "Payment Entry", "options": "Payment Entry"},
+  {"fieldname": "payment_reference_row", "fieldtype": "Data", "label": "Payment Reference Row"},
+  {"fieldname": "erp_customer", "fieldtype": "Link", "label": "ERP Customer", "options": "Customer", "read_only": 1, "reqd": 1},
+  {"fieldname": "company", "fieldtype": "Link", "label": "Company", "options": "Company", "read_only": 1, "reqd": 1},
+  {"fieldname": "invoice_currency", "fieldtype": "Data", "label": "Invoice Currency", "read_only": 1},
+  {"fieldname": "payment_currency", "fieldtype": "Data", "label": "Payment Currency", "read_only": 1},
+  {"default": "0", "fieldname": "allocated_amount", "fieldtype": "Currency", "label": "Allocated Amount", "read_only": 1},
+  {"default": "0", "fieldname": "base_allocated_amount", "fieldtype": "Currency", "label": "Base Allocated Amount", "read_only": 1},
+  {"default": "1", "fieldname": "exchange_rate", "fieldtype": "Float", "label": "Exchange Rate", "read_only": 1},
+  {"default": "0", "fieldname": "invoice_docstatus", "fieldtype": "Int", "label": "Invoice DocStatus", "read_only": 1},
+  {"default": "0", "fieldname": "payment_docstatus", "fieldtype": "Int", "label": "Payment DocStatus", "read_only": 1},
+  {"default": "0", "fieldname": "invoice_outstanding_amount", "fieldtype": "Currency", "label": "Invoice Outstanding Amount", "read_only": 1},
+  {"default": "Unmatched", "fieldname": "accounting_status", "fieldtype": "Select", "in_list_view": 1, "label": "Accounting Status", "options": "Unmatched\nPartially Settled\nSettled\nReversed\nCancelled\nReview Required", "read_only": 1, "reqd": 1},
+  {"fieldname": "source_version", "fieldtype": "Data", "label": "Source Version", "read_only": 1},
+  {"fieldname": "reconciled_at", "fieldtype": "Datetime", "label": "Reconciled At", "read_only": 1},
+  {"fieldname": "reconciliation_error", "fieldtype": "Small Text", "label": "Reconciliation Error", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Accounting Link", "owner": "Administrator",
+ "permissions": [{"export": 1, "read": 1, "report": 1, "role": "OMC Admin"}, {"export": 1, "read": 1, "report": 1, "role": "OMC Finance Reviewer"}], "sort_field": "modified", "sort_order": "DESC", "states": [], "track_changes": 1
+}

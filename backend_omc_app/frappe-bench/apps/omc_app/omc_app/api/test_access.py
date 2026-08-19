@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from frappe.tests.utils import FrappeTestCase
@@ -20,24 +21,22 @@ from omc_app.setup.roles import (
 class TestCanonicalAccessCapabilities(FrappeTestCase):
     def _capabilities_for_roles(self, roles):
         roles = set(roles)
-
-        # These tests verify the role->capability matrix itself.
-        # Staff lifecycle approval is covered by database-backed tests.
-        effective_staff_roles = roles - {SYSTEM_ROLE}
-
+        codes = sorted(
+            {
+                code
+                for role in roles
+                for code in access.ROLE_CAPABILITIES.get(role, set())
+            }
+        )
+        staff = SimpleNamespace(
+            access_status="Approved",
+            reconciliation_status="Current",
+            capabilities=[SimpleNamespace(capability=code) for code in codes],
+        )
         with (
-            patch.object(access, "_roles", return_value=roles),
-            patch.object(access, "is_internal_user", return_value=True),
-            patch.object(
-                access,
-                "can_access_internal_workspace",
-                return_value=True,
-            ),
-            patch.object(
-                access,
-                "get_effective_omc_staff_roles",
-                return_value=effective_staff_roles,
-            ),
+            patch.object(access.capability_policy.identity, "user_is_enabled", return_value=True),
+            patch.object(access.capability_policy.identity, "get_staff_access", return_value=staff),
+            patch.object(access.capability_policy, "_active_break_glass", return_value=set()),
         ):
             return access.get_mobile_capabilities(
                 user="capability-persona@example.com"
@@ -120,31 +119,29 @@ class TestCanonicalAccessCapabilities(FrappeTestCase):
                 self.assertFalse(capabilities["can_view_all_service_cases"])
                 self.assertFalse(capabilities["can_manage_settings"])
 
-    def test_system_manager_is_internal_admin(self):
+    def test_system_manager_has_no_automatic_omc_capabilities(self):
         capabilities = self._capabilities_for(SYSTEM_ROLE)
-        self.assertTrue(capabilities["can_access_internal_workspace"])
-        self.assertTrue(capabilities["can_manage_settings"])
-        self.assertTrue(capabilities["can_review_documents"])
-        self.assertTrue(capabilities["can_review_payments"])
+        self.assertFalse(capabilities["can_access_internal_workspace"])
+        self.assertFalse(capabilities["can_manage_settings"])
+        self.assertFalse(capabilities["can_review_documents"])
+        self.assertFalse(capabilities["can_review_payments"])
 
     def test_customer_uses_mobile_profile_capabilities(self):
-        expected = {
-            "access_state": "approved",
-            "can_create_service_request": True,
-            "can_access_internal_workspace": False,
-        }
+        account = SimpleNamespace(
+            identity_proof_status="Verified",
+            account_link_status="Linked",
+            service_access_status="Approved",
+        )
         with (
-            patch.object(access, "_roles", return_value={CUSTOMER_ROLE}),
-            patch.object(
-                access.mobile,
-                "_get_mobile_capabilities",
-                return_value=expected,
-            ) as mobile_capabilities,
+            patch.object(access.capability_policy.identity, "user_is_enabled", return_value=True),
+            patch.object(access.capability_policy.identity, "get_staff_access", return_value=None),
+            patch.object(access.capability_policy.identity, "get_customer_account", return_value=account),
         ):
             capabilities = access.get_mobile_capabilities(user="customer@example.com")
 
-        self.assertEqual(capabilities, expected)
-        mobile_capabilities.assert_called_once_with(user="customer@example.com")
+        self.assertEqual(capabilities["access_state"], "approved")
+        self.assertTrue(capabilities["can_create_service_request"])
+        self.assertFalse(capabilities["can_access_internal_workspace"])
 
 
 class TestAccessV2Compatibility(FrappeTestCase):

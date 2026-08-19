@@ -68,10 +68,11 @@ class TestDocumentUploadBoundaries(FrappeTestCase):
         )
         find_uploaded_file.return_value = uploaded_file
 
-        attachment, resolved_file = document_upload._validate_uploaded_document(
+        attachment, resolved_file, quarantine_status = document_upload._validate_uploaded_document(
             self._service_case(),
             "/private/files/receipt.pdf",
         )
 
         self.assertEqual(attachment, "/private/files/receipt.pdf")
         self.assertIs(resolved_file, uploaded_file)
+        self.assertEqual(quarantine_status, "Manual Review")

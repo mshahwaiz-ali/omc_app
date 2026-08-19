@@ -5,7 +5,7 @@ import secrets
 import frappe
 from frappe.utils import now_datetime
 
-from omc_app.api import staff_profile
+from omc_app.api import identity
 
 from omc_app.referral_capabilities import REFERRAL_OWNER_ROLES
 
@@ -40,14 +40,15 @@ def is_referral_owner(user: str | None = None) -> bool:
     if not int(enabled or 0) or user_type != "System User":
         return False
 
-    if not staff_profile.is_staff_profile_approved(user):
+    access = identity.get_staff_access(user)
+    if not access or access.access_status != "Approved" or access.reconciliation_status != "Current":
         return False
-
-    effective_roles = staff_profile.get_effective_staff_roles(user)
-
-    return bool(
-        effective_roles.intersection(REFERRAL_OWNER_ROLES)
-    )
+    persona = str(access.persona_snapshot or "").strip()
+    eligible = {
+        "Consultant", "Tax Associate", "Tax Associates", "Business Partner",
+        "OMC Consultant", "OMC Tax Associate", "OMC Business Partner",
+    }
+    return persona in eligible
 
 
 def _require_login() -> str:

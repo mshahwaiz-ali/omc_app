@@ -1,9 +1,9 @@
 import frappe
 
-from omc_app.api import staff_profile
+from omc_app.api import capabilities
 from omc_app.setup.roles import ADMIN_ROLE, BUSINESS_PARTNER_ROLE, CONSULTANT_ROLE, DOCUMENT_REVIEWER_ROLE, FINANCE_REVIEWER_ROLE, MANAGER_ROLE, SUPPORT_AGENT_ROLE, SYSTEM_ROLE, TAX_ASSOCIATE_ROLE
 
-PRIVILEGED_ROLES = {SYSTEM_ROLE, ADMIN_ROLE, MANAGER_ROLE}
+PRIVILEGED_ROLES = {ADMIN_ROLE, MANAGER_ROLE}
 FIELD_ROLES = {CONSULTANT_ROLE, TAX_ASSOCIATE_ROLE, BUSINESS_PARTNER_ROLE}
 
 
@@ -15,9 +15,18 @@ def _roles(user=None):
     user = _user(user)
     if user == 'Guest':
         return set()
-    roles = set(frappe.get_roles(user) or [])
-    if staff_profile.is_staff_profile_approved(user):
-        roles.update(staff_profile.get_effective_staff_roles(user))
+    values = capabilities.effective(user)
+    roles = set()
+    if user == 'Administrator' or values.get('can_view_all_service_cases') or values.get('can_view_all_customers'):
+        roles.add(ADMIN_ROLE)
+    if values.get('can_view_support_tickets'):
+        roles.add(SUPPORT_AGENT_ROLE)
+    if values.get('can_view_document_queue') or values.get('can_review_documents'):
+        roles.add(DOCUMENT_REVIEWER_ROLE)
+    if values.get('can_view_payment_queue') or values.get('can_review_payments'):
+        roles.add(FINANCE_REVIEWER_ROLE)
+    if values.get('can_view_assigned_service_cases') or values.get('can_manage_assigned_tasks'):
+        roles.add(CONSULTANT_ROLE)
     return roles
 
 
@@ -33,11 +42,25 @@ def _todo_condition(reference_type, reference_expression, user=None):
     return f"exists (select 1 from `tabToDo` todo where todo.reference_type = {frappe.db.escape(reference_type)} and todo.reference_name = {reference_expression} and todo.allocated_to = {_escaped_user(user)} and ifnull(todo.status, '') not in ('Cancelled', 'Closed'))"
 
 
+def _owned_request_condition(request_table, user=None):
+    escaped_user = _escaped_user(user)
+    return (
+        "exists (select 1 from `tabOMC Customer Account` account "
+        f"where account.user = {escaped_user} "
+        "and account.identity_proof_status = 'Verified' "
+        "and account.account_link_status = 'Linked' "
+        "and account.service_access_status = 'Approved' "
+        f"and ({request_table}.customer_account = account.name "
+        f"or (ifnull({request_table}.customer_account, '') = '' "
+        f"and {request_table}.customer_profile = account.legacy_customer_profile)))"
+    )
+
+
 def _service_request_scope_conditions(table, user=None, roles=None):
     user = _user(user)
     roles = roles if roles is not None else _roles(user)
     escaped_user = frappe.db.escape(user)
-    conditions = [f'{table}.requested_for_customer = {escaped_user}', f'{table}.submitted_by_user = {escaped_user}', f'exists (select 1 from `tabOMC Customer Profile` customer where customer.name = {table}.customer_profile and (customer.linked_app_user = {escaped_user} or customer.user = {escaped_user} or customer.email = {escaped_user}))']
+    conditions = [_owned_request_condition(table, user)]
     if SUPPORT_AGENT_ROLE in roles:
         conditions.append(f'exists (select 1 from `tabOMC Support Ticket` st where st.reference_service_request = {table}.name)')
     if DOCUMENT_REVIEWER_ROLE in roles:
@@ -69,11 +92,15 @@ def customer_profile_query(user=None):
     if roles.intersection(PRIVILEGED_ROLES):
         return ''
     table = '`tabOMC Customer Profile`'
-    escaped_user = frappe.db.escape(user)
     conditions = [
-        f'{table}.linked_app_user = {escaped_user}',
-        f'{table}.user = {escaped_user}',
-        f'{table}.email = {escaped_user}',
+        (
+            "exists (select 1 from `tabOMC Customer Account` account "
+            f"where account.user = {_escaped_user(user)} "
+            "and account.identity_proof_status = 'Verified' "
+            "and account.account_link_status = 'Linked' "
+            "and account.service_access_status = 'Approved' "
+            f"and account.legacy_customer_profile = {table}.name)"
+        ),
     ]
     if SUPPORT_AGENT_ROLE in roles:
         conditions.append(f'exists (select 1 from `tabOMC Support Ticket` st where st.customer_profile = {table}.name)')
@@ -109,21 +136,38 @@ def service_document_query(user=None):
         return ''
     if roles.intersection(FIELD_ROLES):
         return _todo_condition('OMC Service Request', '`tabOMC Service Document`.service_request', user)
-    return '1=0'
+    return (
+        "exists (select 1 from `tabOMC Service Request` sr "
+        "where sr.name = `tabOMC Service Document`.service_request and "
+        f"{_owned_request_condition('sr', user)})"
+    )
 
 
 def service_payment_query(user=None):
     roles = _roles(user)
     if roles.intersection(PRIVILEGED_ROLES | {FINANCE_REVIEWER_ROLE}):
         return ''
-    return '1=0'
+    return (
+        "exists (select 1 from `tabOMC Service Request` sr "
+        "where sr.name = `tabOMC Service Payment`.service_request and "
+        f"{_owned_request_condition('sr', user)})"
+    )
 
 
 def support_ticket_query(user=None):
+    user = _user(user)
     roles = _roles(user)
     if roles.intersection(PRIVILEGED_ROLES | {SUPPORT_AGENT_ROLE}):
         return ''
-    return '1=0'
+    escaped_user = _escaped_user(user)
+    return (
+        "exists (select 1 from `tabOMC Customer Account` account "
+        f"where account.user = {escaped_user} "
+        "and account.identity_proof_status = 'Verified' "
+        "and account.account_link_status = 'Linked' "
+        "and account.service_access_status = 'Approved' "
+        "and account.legacy_customer_profile = `tabOMC Support Ticket`.customer_profile)"
+    )
 
 
 def _record_matches_query(doctype, name, condition):

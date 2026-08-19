@@ -159,7 +159,7 @@
  "naming_rule": "By \"Naming Series\" field",
  "permissions": [
   {
-   "role": "System Manager",
+   "role": "OMC Admin",
    "read": 1,
    "write": 1,
    "create": 1,

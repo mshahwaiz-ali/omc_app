@@ -78,12 +78,12 @@ def _validated_entries(entries):
     return [_validated_entry(item) for item in parsed]
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_expense_entry(**kwargs):
     return expense.create_expense_entry(**_validated_entry(kwargs))
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_expense_entry(entry_id=None, name=None, **kwargs):
     return expense.update_expense_entry(
         entry_id=entry_id,
@@ -92,13 +92,13 @@ def update_expense_entry(entry_id=None, name=None, **kwargs):
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def bulk_sync_expense_entries(entries=None, **kwargs):
     validated = _validated_entries(entries if entries is not None else kwargs.get("entries"))
     return expense.bulk_sync_expense_entries(entries=validated)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_expense_budget(**kwargs):
     data = dict(kwargs or {})
     if "limit_amount" in data:

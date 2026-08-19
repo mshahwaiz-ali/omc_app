@@ -8,7 +8,7 @@ import frappe
 from omc_app.api import erp_activation
 from frappe.utils import add_to_date, cint, get_datetime, now_datetime
 
-from omc_app.api import erp_service_task_adapter
+from omc_app.api import capabilities, erp_service_task_adapter
 from omc_app.setup.roles import ADMIN_ROLE, MANAGER_ROLE, SYSTEM_ROLE
 
 RECOVERY_ROLES = {ADMIN_ROLE, MANAGER_ROLE, SYSTEM_ROLE}
@@ -36,11 +36,7 @@ def _assert_recovery_manager() -> str:
     user = _text(getattr(getattr(frappe, "session", None), "user", None))
     if not user or user == "Guest":
         frappe.throw("Login is required.", frappe.PermissionError)
-    if not set(frappe.get_roles(user) or []).intersection(RECOVERY_ROLES):
-        frappe.throw(
-            "Only OMC managers may repair ERP synchronization.",
-            frappe.PermissionError,
-        )
+    capabilities.require("can_retry_sync", user=user)
     return user
 
 
@@ -242,18 +238,23 @@ def retry_erp_sync(request_name=None, reset_exhaustion=0):
             "next_attempt_at": None,
         }
 
-    attempt = int(getattr(request, "erp_retry_count", 0) or 0) + 1
-    retry_state = _record_attempt_result(
-        request,
-        status=result.get("status") or "Failed",
-        attempt=attempt,
-    )
-    frappe.logger("omc_app").info(
-        "ERP sync retry for %s by %s finished with %s",
-        request.name,
-        actor,
-        result.get("status"),
-    )
+    # Activation is now a durable outbox operation. A successfully enqueued
+    # operation is neither a legacy sync failure nor an exhausted retry.
+    if result.get("status") == "Pending":
+        retry_state = {"exhausted": False, "next_attempt_at": None}
+    else:
+        attempt = int(getattr(request, "erp_retry_count", 0) or 0) + 1
+        retry_state = _record_attempt_result(
+            request,
+            status=result.get("status") or "Failed",
+            attempt=attempt,
+        )
+        frappe.logger("omc_app").info(
+            "ERP sync retry for %s by %s finished with %s",
+            request.name,
+            actor,
+            result.get("status"),
+        )
     frappe.db.commit()
     return {"request_name": request.name, **result, **retry_state}
 

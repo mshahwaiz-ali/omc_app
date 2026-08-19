@@ -73,7 +73,7 @@ MANAGER_BLOCKED_DOCTYPES = {
 }
 
 # Only genuinely OMC-owned operational roles receive OMC DocPerm rows here.
-# ERP personas are authorized through the approved OMC Staff Profile bridge.
+# ERP personas are authorized through approved OMC Staff Access capabilities.
 SPECIALIST_DOCTYPE_ACCESS = {
     SUPPORT_AGENT_ROLE: {
         "OMC Support Ticket": {"read": 1, "write": 1, "create": 1},
@@ -293,52 +293,12 @@ def _remove_role_docperms(role_names):
 
 
 def _migrate_legacy_user_roles():
-    """Migrate old OMC-owned roles only; ERP roles/profiles stay untouched."""
-    assignments = frappe.get_all(
-        "Has Role",
-        filters={"role": ["in", sorted(LEGACY_ROLES)]},
-        fields=["parent", "role"],
-        order_by="parent asc",
-    )
-    roles_by_user = {}
-    for assignment in assignments:
-        roles_by_user.setdefault(assignment.parent, set()).add(assignment.role)
-    for user_id, legacy_roles in roles_by_user.items():
-        if not user_id or user_id in {"Guest", "Administrator"}:
-            continue
-        if not frappe.db.exists("User", user_id):
-            continue
-        user_doc = frappe.get_doc("User", user_id)
-        existing_roles = {row.role for row in user_doc.roles or []}
-        changed = False
-        if (
-            legacy_roles.intersection(LEGACY_CLIENT_ROLES)
-            and CUSTOMER_ROLE not in existing_roles
-        ):
-            user_doc.append("roles", {"role": CUSTOMER_ROLE})
-            changed = True
-        filtered_roles = [
-            row for row in user_doc.roles or [] if row.role not in LEGACY_ROLES
-        ]
-        if len(filtered_roles) != len(user_doc.roles or []):
-            user_doc.roles = filtered_roles
-            changed = True
-        final_roles = {row.role for row in user_doc.roles or []}
-        expected_user_type = None
-        if final_roles.intersection(MANAGED_OMC_STAFF_ROLES | {SYSTEM_ROLE}):
-            expected_user_type = "System User"
-        elif final_roles.intersection(ACTIVE_PORTAL_ROLES):
-            expected_user_type = "Website User"
-        if expected_user_type and user_doc.user_type != expected_user_type:
-            user_doc.user_type = expected_user_type
-            changed = True
-        if changed:
-            user_doc.save(ignore_permissions=True)
-            frappe.clear_cache(user=user_id)
+    """Retired compatibility seam; Has Role migration requires separate approval."""
+    return {"disabled": True, "reason": "staff_access_is_authoritative"}
 
 
 def _apply_permissions():
-    _remove_role_docperms(ACTIVE_OMC_ROLES | LEGACY_ROLES)
+    _remove_role_docperms(ACTIVE_OMC_ROLES | LEGACY_ROLES | {SYSTEM_ROLE})
     for row in _omc_doctypes():
         doctype = row.name
         is_submittable = bool(int(row.is_submittable or 0))
@@ -363,7 +323,6 @@ def sync_canonical_roles():
         _ensure_role(role_name, desk_access=True, disabled=False)
     for role_name in sorted(LEGACY_ROLES):
         _ensure_role(role_name, desk_access=False, disabled=True)
-    _migrate_legacy_user_roles()
     _apply_permissions()
     frappe.clear_cache()
 

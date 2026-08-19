@@ -100,3 +100,16 @@ class TestMultiIdentifierLogin(FrappeTestCase):
 
         with self.assertRaises(frappe.AuthenticationError):
             auth_login.login(identifier="unknown-user", password="secret")
+
+    @patch("omc_app.api.auth_login.frappe.log_error")
+    @patch("omc_app.api.auth_login.resolve_login_email")
+    def test_unexpected_login_failure_uses_generic_error(self, resolve, log_error):
+        resolve.side_effect = RuntimeError("internal lookup detail")
+
+        with self.assertRaisesRegex(
+            frappe.AuthenticationError,
+            auth_login.GENERIC_LOGIN_ERROR,
+        ):
+            auth_login.login(identifier="person@example.com", password="secret")
+
+        log_error.assert_called_once()

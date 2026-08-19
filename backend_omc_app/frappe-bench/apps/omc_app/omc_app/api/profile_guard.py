@@ -38,11 +38,11 @@ def _bounded_kwargs(kwargs):
     return data
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_profile(**kwargs):
     return mobile.update_profile(**_bounded_kwargs(kwargs))
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_contact_info(**kwargs):
     return mobile.update_contact_info(**_bounded_kwargs(kwargs))

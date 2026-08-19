@@ -19,5 +19,6 @@ class TestLegacyTaskRoleRetirement(FrappeTestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("can_manage_tasks", access_source)
+        self.assertIn("INTERNAL_CAPABILITY_KEYS", access_source)
+        self.assertNotIn("System Manager\": set(INTERNAL_CAPABILITY_KEYS)", access_source)
         self.assertIn("can_manage_assigned_tasks", access_source)

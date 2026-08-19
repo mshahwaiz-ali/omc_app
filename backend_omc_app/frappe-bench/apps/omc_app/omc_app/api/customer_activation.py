@@ -9,7 +9,7 @@ from frappe import _
 from frappe.exceptions import ValidationError
 from frappe.utils import add_to_date, escape_html, get_datetime, now_datetime
 
-from omc_app.api import access
+from omc_app.api import access, identity, security
 from omc_app.api.auth_links import customer_activation_links
 
 
@@ -162,6 +162,12 @@ def _eligible_profile(email: str):
     if manual_status not in ELIGIBLE_MANUAL_STATUSES:
         return None
 
+    customer = str(profile.get("linked_erpnext_customer") or "").strip()
+    if not customer or not frappe.db.exists("Customer", customer):
+        return None
+    if frappe.db.count("OMC Customer Profile", {"linked_erpnext_customer": customer}) != 1:
+        return None
+
     return profile
 
 
@@ -234,9 +240,10 @@ def _create_activation(profile) -> tuple[str, object]:
     return token, doc
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def request_activation(email: str | None = None):
     normalized_email = str(email or "").strip().lower()
+    security.enforce_rate_limit("identity", actor=normalized_email)
 
     if (
         not normalized_email
@@ -360,12 +367,13 @@ def _invalid_result() -> dict:
     }
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def complete_activation(
     token: str | None = None,
     password: str | None = None,
     confirm_password: str | None = None,
 ):
+    security.enforce_rate_limit("identity", actor=_digest(str(token or "")))
     secret = str(password or "")
     confirmation = str(confirm_password or "")
 
@@ -413,11 +421,11 @@ def complete_activation(
                 "existing_user_identity",
             )
 
-        if not frappe.db.exists("Role", access.CUSTOMER_ROLE):
-            frappe.throw(
-                "OMC Customer role is not configured.",
-                ValidationError,
-            )
+        erp_customer = str(profile.get("linked_erpnext_customer") or "").strip()
+        if frappe.db.exists("OMC Customer Account", {"user": email}) or frappe.db.exists(
+            "OMC Customer Account", {"erp_customer": erp_customer}
+        ):
+            return _mark_review_required(doc, "customer_account_already_linked")
 
         from omc_app.api import mobile
 
@@ -438,7 +446,7 @@ def complete_activation(
         user.new_password = secret
         user.save(ignore_permissions=True)
 
-        # Reuse the canonical signup role/type normalization.
+        # Verify the new Website User without mutating Has Role.
         mobile._normalize_signup_user(user)
 
         if profile.meta.has_field("username"):
@@ -464,6 +472,12 @@ def complete_activation(
         # Business approval is not recreated by activation.
         # Existing imported customer lifecycle remains authoritative.
         profile.save(ignore_permissions=True)
+
+        account = identity.ensure_customer_account_from_legacy(email)
+        if not account:
+            return _mark_review_required(doc, "customer_account_link_ambiguous")
+        account.mapping_provenance = "Activation"
+        account.save(ignore_permissions=True)
 
         doc.status = "Used"
         doc.used_at = now_datetime()

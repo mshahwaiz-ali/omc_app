@@ -83,6 +83,9 @@ class ServiceRequestPayload {
       'email': normalizedEmail,
       'contact_email': normalizedEmail,
       'description': _buildRequestDescription(normalizedDetails),
+      'service_version': service.serviceVersion,
+      'pricing_version': service.pricingVersion,
+      'final_confirmation': 1,
     };
 
     final normalizedTaxId = taxId.trim();

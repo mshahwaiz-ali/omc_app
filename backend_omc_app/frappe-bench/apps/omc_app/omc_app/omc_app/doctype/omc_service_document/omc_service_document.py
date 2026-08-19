@@ -40,6 +40,11 @@ class OMCServiceDocument(Document):
         if not self.source:
             self.source = "Service Upload"
 
+        if not self.quarantine_status:
+            self.quarantine_status = (
+                "Manual Review" if self.attachment else "Not Required"
+            )
+
         if not self.archive_reason and not self.is_archived:
             self.archive_reason = ""
 

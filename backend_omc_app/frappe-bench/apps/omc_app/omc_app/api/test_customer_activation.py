@@ -13,11 +13,24 @@ class TestCustomerActivation(FrappeTestCase):
     def setUp(self):
         super().setUp()
         self.created_emails = []
+        self.created_customers = []
+        self.rate_limit = patch(
+            "omc_app.api.security.enforce_rate_limit", return_value=None
+        )
+        self.rate_limit.start()
 
     def tearDown(self):
+        self.rate_limit.stop()
         frappe.set_user("Administrator")
 
         for email in reversed(self.created_emails):
+            for name in frappe.get_all(
+                "OMC Customer Account", filters={"user": email}, pluck="name"
+            ):
+                frappe.delete_doc(
+                    "OMC Customer Account", name,
+                    force=True, ignore_permissions=True,
+                )
             for name in frappe.get_all(
                 customer_activation.DOCTYPE,
                 filters={"email": email},
@@ -52,6 +65,13 @@ class TestCustomerActivation(FrappeTestCase):
                     ignore_permissions=True,
                 )
 
+        for customer in reversed(self.created_customers):
+            if frappe.db.exists("Customer", customer):
+                frappe.delete_doc(
+                    "Customer", customer,
+                    force=True, ignore_permissions=True,
+                )
+
         frappe.db.commit()
         super().tearDown()
 
@@ -62,6 +82,20 @@ class TestCustomerActivation(FrappeTestCase):
 
     def _profile(self, email=None):
         email = email or self._email("activation")
+
+        customer_group = frappe.db.get_single_value(
+            "Selling Settings", "customer_group"
+        )
+        territory = frappe.db.get_single_value("Selling Settings", "territory")
+        customer = frappe.get_doc({
+            "doctype": "Customer",
+            "customer_name": f"Imported {uuid.uuid4().hex[:10]}",
+            "customer_type": "Individual",
+            "customer_group": customer_group,
+            "territory": territory,
+            "tax_id": str(uuid.uuid4().int)[:13],
+        }).insert(ignore_permissions=True)
+        self.created_customers.append(customer.name)
 
         profile = frappe.get_doc(
             {
@@ -75,6 +109,7 @@ class TestCustomerActivation(FrappeTestCase):
                 "manual_customer_status": "Unregistered",
                 "register_as": "Customer",
                 "customer_type": "Customer",
+                "linked_erpnext_customer": customer.name,
             }
         ).insert(ignore_permissions=True)
 
@@ -372,7 +407,7 @@ class TestCustomerActivation(FrappeTestCase):
 
         self.assertEqual(user.user_type, "Website User")
         self.assertEqual(user.enabled, 1)
-        self.assertIn(access.CUSTOMER_ROLE, roles)
+        self.assertNotIn(access.CUSTOMER_ROLE, roles)
         self.assertTrue(
             check_password(
                 profile.email,

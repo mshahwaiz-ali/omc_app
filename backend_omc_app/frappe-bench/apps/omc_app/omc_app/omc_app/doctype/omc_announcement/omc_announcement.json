@@ -26,7 +26,7 @@
  "name": "OMC Announcement",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
- "permissions": [{"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}],
+ "permissions": [{"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "OMC Admin", "share": 1, "write": 1}],
  "sort_field": "sort_order",
  "sort_order": "ASC",
  "states": [],

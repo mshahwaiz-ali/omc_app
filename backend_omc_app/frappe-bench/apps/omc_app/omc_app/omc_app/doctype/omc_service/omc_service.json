@@ -20,6 +20,13 @@
   "pricing_duration_section",
   "base_price",
   "currency",
+  "service_version",
+  "pricing_version",
+  "tax_policy",
+  "tax_rate",
+  "activation_policy",
+  "pending_payment_expiry_hours",
+  "duplicate_window_hours",
   "fee_label",
   "government_fee_label",
   "estimated_duration",
@@ -108,6 +115,56 @@
    "fieldname": "currency",
    "fieldtype": "Data",
    "label": "Currency"
+  },
+  {
+   "default": "1",
+   "fieldname": "service_version",
+   "fieldtype": "Int",
+   "label": "Service Version",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pricing_version",
+   "fieldtype": "Data",
+   "label": "Pricing Version",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "No Tax",
+   "fieldname": "tax_policy",
+   "fieldtype": "Select",
+   "label": "Tax Policy",
+   "options": "No Tax\nTax Included\nTax Exclusive",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "tax_rate",
+   "fieldtype": "Percent",
+   "label": "Tax Rate"
+  },
+  {
+   "default": "Full Settlement",
+   "fieldname": "activation_policy",
+   "fieldtype": "Select",
+   "label": "Activation Policy",
+   "options": "Full Settlement\nNo Charge\nPost-paid Approval",
+   "reqd": 1
+  },
+  {
+   "default": "72",
+   "fieldname": "pending_payment_expiry_hours",
+   "fieldtype": "Int",
+   "label": "Pending Payment Expiry Hours",
+   "reqd": 1
+  },
+  {
+   "default": "24",
+   "fieldname": "duplicate_window_hours",
+   "fieldtype": "Int",
+   "label": "Duplicate Window Hours",
+   "reqd": 1
   },
   {
    "default": "0",
@@ -216,7 +273,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager",
+   "role": "OMC Admin",
    "share": 1,
    "write": 1
   }

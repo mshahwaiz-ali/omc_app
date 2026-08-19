@@ -12,6 +12,11 @@ class ServiceItem {
     required this.completionTime,
     this.basePrice,
     this.currency,
+    this.serviceVersion = 1,
+    this.pricingVersion = '',
+    this.taxPolicy = 'No Tax',
+    this.taxRate = 0,
+    this.activationPolicy = 'Full Settlement',
     this.iconKey,
     this.colorFamily,
     required this.requirements,
@@ -35,6 +40,11 @@ class ServiceItem {
   final String completionTime;
   final double? basePrice;
   final String? currency;
+  final int serviceVersion;
+  final String pricingVersion;
+  final String taxPolicy;
+  final double taxRate;
+  final String activationPolicy;
   final String? iconKey;
   final String? colorFamily;
   final List<String> requirements;
@@ -111,6 +121,16 @@ class ServiceItem {
         'currency_code',
         'currencyCode',
       ]),
+      serviceVersion: _readInt(json, ['service_version', 'serviceVersion'], 1),
+      pricingVersion: _readString(json, ['pricing_version', 'pricingVersion']),
+      taxPolicy: _readString(json, ['tax_policy', 'taxPolicy']).isEmpty
+          ? 'No Tax'
+          : _readString(json, ['tax_policy', 'taxPolicy']),
+      taxRate: _readNullableDouble(json, ['tax_rate', 'taxRate']) ?? 0,
+      activationPolicy:
+          _readString(json, ['activation_policy', 'activationPolicy']).isEmpty
+          ? 'Full Settlement'
+          : _readString(json, ['activation_policy', 'activationPolicy']),
       iconKey: _readNullableString(json, ['icon', 'icon_key', 'iconKey']),
       colorFamily: _readNullableString(json, [
         'color_family',
@@ -318,6 +338,20 @@ class ServiceItem {
     }
 
     return null;
+  }
+
+  static int _readInt(
+    Map<String, dynamic> json,
+    List<String> keys,
+    int fallback,
+  ) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value is num) return value.toInt();
+      final parsed = int.tryParse(value?.toString().trim() ?? '');
+      if (parsed != null) return parsed;
+    }
+    return fallback;
   }
 
   static String? _readNullableString(

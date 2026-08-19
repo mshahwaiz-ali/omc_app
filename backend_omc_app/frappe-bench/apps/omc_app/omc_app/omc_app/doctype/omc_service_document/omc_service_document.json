@@ -12,6 +12,7 @@
   "document_title",
   "document_type",
   "attachment",
+  "quarantine_status",
   "status",
   "source",
   "uploaded_by",
@@ -76,6 +77,15 @@
    "fieldname": "attachment",
    "fieldtype": "Attach",
    "label": "Attachment"
+  },
+  {
+   "default": "Not Required",
+   "fieldname": "quarantine_status",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "label": "Quarantine Status",
+   "options": "Not Required\nManual Review\nClean\nRejected",
+   "read_only": 1
   },
   {
    "bold": 1,
@@ -194,7 +204,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager",
+   "role": "OMC Admin",
    "share": 1,
    "write": 1
   }

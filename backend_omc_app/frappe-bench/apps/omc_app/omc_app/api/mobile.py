@@ -4,9 +4,6 @@ import frappe
 from frappe.utils.file_manager import save_file
 
 from omc_app.api import access, idempotency, referrals
-from omc_app.setup.roles import LEGACY_ROLES
-
-
 def _items_response(key, items=None):
     return {key: items or []}
 
@@ -162,6 +159,8 @@ def _service_category_identity(service):
 
 
 def _service_to_catalogue_dict(service, include_required_documents=False):
+    from omc_app.omc_app.doctype.omc_service.omc_service import pricing_version_for
+
     category_id, category_title = _service_category_identity(service)
     required_documents = (
         _service_required_documents(service.name)
@@ -186,6 +185,11 @@ def _service_to_catalogue_dict(service, include_required_documents=False):
         "completionTime": _service_completion_time(service),
         "base_price": service.base_price or 0,
         "currency": service.currency or "PKR",
+        "service_version": getattr(service, "service_version", 1) or 1,
+        "pricing_version": getattr(service, "pricing_version", None) or pricing_version_for(service),
+        "tax_policy": getattr(service, "tax_policy", None) or "No Tax",
+        "tax_rate": getattr(service, "tax_rate", None) or 0,
+        "activation_policy": getattr(service, "activation_policy", None) or "Full Settlement",
         "fee_label": _service_fee_label(service),
         "feeLabel": _service_fee_label(service),
         "government_fee_label": getattr(service, "government_fee_label", None) or "",
@@ -200,7 +204,7 @@ def _service_to_catalogue_dict(service, include_required_documents=False):
     }
 
 
-SYSTEM_OVERRIDE_ROLES = {"System Manager"}
+SYSTEM_OVERRIDE_ROLES = set()
 OMC_ADMIN_ROLES = {"OMC Admin", "OMC Manager"}
 OMC_SUPPORT_ROLES = {"OMC Support Agent"}
 OMC_DOCUMENT_ROLES = {"OMC Document Reviewer"}
@@ -288,6 +292,8 @@ def _customer_access_state(user=None, profile=None):
 
 def _get_mobile_capabilities(user=None, profile=None):
     user = user or _current_user()
+    return access.get_mobile_capabilities(user=user)
+
     roles = _current_user_roles(user)
     is_guest = not user or user == "Guest"
 
@@ -366,16 +372,12 @@ def _approved_customer_required_message(profile=None):
 
 
 def _assert_approved_customer():
-    user = _current_user()
+    from omc_app.api.identity import require_customer_context
 
-    if user == "Guest":
-        frappe.throw("Please create an account or subscribe to access this feature.", frappe.PermissionError)
-
-    profile = _get_customer_profile_for_user(user)
-    if not _is_approved_customer(profile):
-        frappe.throw(_approved_customer_required_message(profile), frappe.PermissionError)
-
-    return profile
+    context = require_customer_context()
+    if not context.legacy_profile:
+        frappe.throw("Customer profile is not available.", frappe.PermissionError)
+    return frappe.get_doc("OMC Customer Profile", context.legacy_profile)
 
 
 def get_current_customer_profile():
@@ -400,45 +402,15 @@ def _set_if_has_field(doc, fieldname, value):
         doc.set(fieldname, value)
 
 
-def _assign_role_if_exists(user_doc, role_name):
-    if not user_doc or not role_name:
-        return
-
-    if not frappe.db.exists("Role", role_name):
-        return
-
-    existing_roles = {row.role for row in (user_doc.roles or [])}
-    if role_name in existing_roles:
-        return
-
-    user_doc.append("roles", {"role": role_name})
-    user_doc.save(ignore_permissions=True)
-
-
 def _normalize_signup_user(user_doc):
+    """Validate the already-created Website User without mutating Has Role."""
     if not user_doc:
         return
-
-    existing_roles = {row.role for row in (user_doc.roles or [])}
-    is_internal_account = bool(existing_roles.intersection(access.INTERNAL_ROLES))
-
-    if (
-        not is_internal_account
-        and frappe.db.exists("Role", access.CUSTOMER_ROLE)
-        and access.CUSTOMER_ROLE not in existing_roles
-    ):
-        user_doc.append("roles", {"role": access.CUSTOMER_ROLE})
-
-    user_doc.roles = [
-        row for row in (user_doc.roles or []) if row.role not in LEGACY_ROLES
-    ]
-    final_roles = {row.role for row in (user_doc.roles or [])}
-    user_doc.user_type = (
-        "System User"
-        if final_roles.intersection(access.INTERNAL_ROLES)
-        else "Website User"
-    )
-    user_doc.save(ignore_permissions=True)
+    if user_doc.user_type != "Website User":
+        frappe.throw(
+            "Customer signup requires a Website User identity.",
+            frappe.ValidationError,
+        )
     frappe.clear_cache(user=user_doc.name)
 
 
@@ -618,12 +590,8 @@ def sign_up(**kwargs):
         profile.user = email
         profile.email = email
         profile.full_name = full_name
-        if register_as.strip().lower() == "customer":
-            profile.customer_status = "Active"
-            profile.approval_status = "Approved"
-        else:
-            profile.customer_status = "Pending"
-            profile.approval_status = "Pending Review"
+        profile.customer_status = "Pending"
+        profile.approval_status = "Pending Review"
         profile.is_active = 1
         profile_created = True
 
@@ -669,7 +637,8 @@ def sign_up(**kwargs):
 
     preferences = _get_customer_preferences(profile)
 
-    frappe.db.commit()
+    if not getattr(frappe.flags, "omc_defer_signup_commit", False):
+        frappe.db.commit()
 
     return {
         "message": "Signup completed.",
@@ -764,18 +733,7 @@ def _get_customer_profile_for_user(user=None):
     if profile_name:
         return frappe.get_doc("OMC Customer Profile", profile_name)
 
-    full_name = frappe.db.get_value("User", user, "full_name") or user
-    profile = frappe.new_doc("OMC Customer Profile")
-    profile.user = user
-    profile.email = user
-    profile.full_name = full_name
-    profile.customer_status = "Pending"
-    profile.approval_status = "Pending Review"
-    profile.is_active = 1
-    profile.insert(ignore_permissions=True)
-    frappe.db.commit()
-
-    return profile
+    return None
 
 
 def _get_profile_image_url(profile=None, user=None):
@@ -817,6 +775,7 @@ def get_profile():
 
     profile = _get_customer_profile_for_user(user)
     capabilities = _get_mobile_capabilities(user=user, profile=profile)
+    from omc_app.api.profile_self_service import work_address_projection
 
     return {
         "full_name": profile.full_name or "",
@@ -840,6 +799,7 @@ def get_profile():
         "remarks": profile.get("remarks") or "",
         "access_state": capabilities["access_state"],
         "capabilities": capabilities,
+        **work_address_projection(user),
         **capabilities,
     }
 

@@ -25,7 +25,7 @@ def _same_text(current, requested):
     return requested is None or (current or "") == (requested or "")
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_support_ticket_status(ticket_id=None, status=None, remarks=None, **kwargs):
     resolved_id = ticket_id or kwargs.get("name")
     ticket = _load_authorized_ticket(resolved_id)
@@ -49,7 +49,7 @@ def update_support_ticket_status(ticket_id=None, status=None, remarks=None, **kw
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def assign_support_ticket(ticket_id=None, assigned_to=None, **kwargs):
     resolved_id = ticket_id or kwargs.get("name")
     resolved_user = (assigned_to or kwargs.get("user") or "").strip()

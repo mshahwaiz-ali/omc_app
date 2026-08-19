@@ -6,7 +6,7 @@ from typing import Any
 import frappe
 from frappe.utils import add_to_date, now_datetime
 
-from omc_app.api import erp_service_task_adapter, mobile
+from omc_app.api import capabilities, erp_service_task_adapter, identity, mobile
 
 ASSIGNABLE_SERVICE_ROLES = {
     "OMC Consultant",
@@ -48,7 +48,18 @@ def active_assignable_user(user: Any, *, required_role: str | None = None):
     if full_name == "administrator":
         return None
 
-    effective_roles = user_roles(user).intersection(ASSIGNABLE_SERVICE_ROLES)
+    access = identity.get_staff_access(user)
+    if not access or access.access_status != "Approved" or access.reconciliation_status != "Current":
+        return None
+    persona = _text(access.persona_snapshot)
+    persona_roles = {
+        "Consultant": "OMC Consultant",
+        "Tax Associate": "OMC Tax Associate",
+        "Tax Associates": "OMC Tax Associate",
+        "Business Partner": "OMC Business Partner",
+        "Manager": "OMC Manager",
+    }
+    effective_roles = {persona_roles.get(persona, persona)}.intersection(ASSIGNABLE_SERVICE_ROLES)
     if required_role:
         return user if required_role in effective_roles else None
 
@@ -59,10 +70,21 @@ def users_for_role(role: str) -> list[str]:
     if role not in ASSIGNABLE_SERVICE_ROLES:
         return []
 
+    persona_map = {
+        "OMC Consultant": ["Consultant", "OMC Consultant"],
+        "OMC Tax Associate": ["Tax Associate", "Tax Associates", "OMC Tax Associate"],
+        "OMC Business Partner": ["Business Partner", "OMC Business Partner"],
+        "OMC Manager": ["Manager", "OMC Manager"],
+    }
     users = frappe.get_all(
-        "Has Role",
-        filters={"role": role, "parenttype": "User"},
-        pluck="parent",
+        "OMC Staff Access",
+        filters={
+            "persona_snapshot": ["in", persona_map.get(role, [role])],
+            "access_status": "Approved",
+            "reconciliation_status": "Current",
+        },
+        pluck="user",
+        limit_page_length=500,
     )
 
     return sorted(
@@ -249,22 +271,15 @@ def _job_lock(name: str):
 
 
 def _escalate_assignment_issue(service_request, reason: str) -> bool:
-    role_users = frappe.get_all(
-        "Has Role",
-        filters={"role": "OMC Admin", "parenttype": "User"},
-        pluck="parent",
+    staff_users = frappe.get_all(
+        "OMC Staff Access",
+        filters={"access_status": "Approved", "reconciliation_status": "Current"},
+        pluck="user", limit_page_length=500,
     )
-    if not role_users:
-        return False
-    active = frappe.get_all(
-        "User",
-        filters={
-            "name": ["in", sorted(set(role_users))],
-            "enabled": 1,
-            "user_type": "System User",
-        },
-        pluck="name",
-    )
+    active = [
+        user for user in staff_users
+        if identity.user_is_enabled(user) and capabilities.effective(user).get("can_reassign_service_cases")
+    ]
     if not active:
         return False
     recipient = sorted(set(active))[0]
@@ -311,7 +326,11 @@ def run_unassigned_recovery() -> dict[str, Any]:
     try:
         names = frappe.get_all(
             "OMC Service Request",
-            filters={"status": ["in", OPEN_CASE_STATUSES], "assigned_staff": ["is", "not set"]},
+            filters={
+                "request_state": "Activated",
+                "status": ["in", OPEN_CASE_STATUSES],
+                "assigned_staff": ["is", "not set"],
+            },
             pluck="name",
             order_by="creation asc, name asc",
             limit_page_length=RECOVERY_BATCH_SIZE,
@@ -321,6 +340,7 @@ def run_unassigned_recovery() -> dict[str, Any]:
             existing_names = frappe.get_all(
                 "OMC Service Request",
                 filters={
+                    "request_state": "Activated",
                     "status": ["in", OPEN_CASE_STATUSES],
                     "assigned_staff": ["is", "set"],
                 },

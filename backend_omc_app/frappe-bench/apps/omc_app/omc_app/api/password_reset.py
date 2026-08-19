@@ -11,6 +11,7 @@ from frappe.utils.password import update_password
 
 from omc_app.api.auth_links import password_reset_links
 from omc_app.api.auth_login import resolve_login_email
+from omc_app.api import security
 
 
 DOCTYPE = "OMC Password Reset"
@@ -100,9 +101,10 @@ def _is_reset_request_cooling_down(user: str) -> bool:
     return elapsed_seconds < RESET_REQUEST_COOLDOWN_SECONDS
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def request_reset(identifier: str | None = None):
     normalized_identifier = str(identifier or "").strip()
+    security.enforce_rate_limit("reset", actor=normalized_identifier)
     if (
         not normalized_identifier
         or len(normalized_identifier) > RESET_IDENTIFIER_MAX_LENGTH
@@ -131,6 +133,10 @@ def _load_valid_reset(token: str):
     if not name:
         return None
 
+    locked = frappe.db.get_value(DOCTYPE, name, "name", for_update=True)
+    if not locked:
+        return None
+
     doc = frappe.get_doc(DOCTYPE, name)
     if doc.status != "Pending":
         return None
@@ -144,12 +150,13 @@ def _load_valid_reset(token: str):
     return doc
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def reset_password(
     token: str | None = None,
     new_password: str | None = None,
     confirm_password: str | None = None,
 ):
+    security.enforce_rate_limit("identity", actor=_digest(str(token or "")))
     secret = str(new_password or "")
     confirmation = str(confirm_password or "")
 
@@ -166,11 +173,12 @@ def reset_password(
             "message": "This password reset link is invalid or has expired.",
         }
 
-    update_password(doc.user, secret)
     doc.status = "Used"
     doc.used_at = now_datetime()
     doc.token_digest = secrets.token_hex(32)
     doc.save(ignore_permissions=True)
+    update_password(doc.user, secret)
+    security.revoke_user_sessions(doc.user)
     frappe.db.commit()
 
     return {

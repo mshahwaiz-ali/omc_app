@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
-from omc_app.api import erp_activation
+from omc_app.api import bridge_outbox, erp_activation
 
 
 class TestErpActivation(TestCase):
@@ -14,6 +14,9 @@ class TestErpActivation(TestCase):
         erp_customer="",
         erp_service="",
         erp_task="",
+        request_state="Pending Payment",
+        payment_policy_snapshot="Full Settlement",
+        payable_amount=None,
     ):
         return SimpleNamespace(
             name="OMC-SR-TEST",
@@ -22,6 +25,12 @@ class TestErpActivation(TestCase):
             erp_customer=erp_customer,
             erp_service=erp_service,
             erp_task=erp_task,
+            request_state=request_state,
+            payment_policy_snapshot=payment_policy_snapshot,
+            payable_amount=final_price if payable_amount is None else payable_amount,
+            post_paid_approved_by="",
+            post_paid_approved_at=None,
+            activation_version=1,
         )
 
     def _service(self, base_price=25000):
@@ -36,15 +45,8 @@ class TestErpActivation(TestCase):
         service = self._service()
 
         with (
-            patch.object(
-                erp_activation,
-                "_paid_payment_exists",
-                return_value=False,
-            ),
-            patch.object(
-                erp_activation.erp_service_task_adapter,
-                "sync_request",
-            ) as sync_request,
+            patch.object(bridge_outbox.frappe.db, "exists", return_value=False),
+            patch.object(bridge_outbox, "enqueue_if_eligible") as enqueue,
         ):
             result = erp_activation.activate_request(
                 request,
@@ -54,33 +56,19 @@ class TestErpActivation(TestCase):
         self.assertEqual(result["status"], "Not Started")
         self.assertFalse(result["eligible"])
         self.assertFalse(result["created"])
-        self.assertIn("Payment must be confirmed", result["reason"])
-        sync_request.assert_not_called()
+        self.assertIn("settlement", result["reason"].lower())
+        enqueue.assert_not_called()
 
     def test_paid_service_activates_after_payment_confirmation(self):
         request = self._request()
         service = self._service()
         profile = SimpleNamespace(name="PROFILE-1")
 
-        sync_result = {
-            "status": "Synced",
-            "created": True,
-            "erp_customer": "CUST-1",
-            "erp_service": "SERVICE-1",
-            "erp_task": "TASK-1",
-        }
-
         with (
+            patch.object(bridge_outbox.frappe.db, "exists", return_value=True),
             patch.object(
-                erp_activation,
-                "_paid_payment_exists",
-                return_value=True,
-            ),
-            patch.object(
-                erp_activation.erp_service_task_adapter,
-                "sync_request",
-                return_value=sync_result,
-            ) as sync_request,
+                bridge_outbox, "enqueue_if_eligible", return_value="BRIDGE-OP-1"
+            ) as enqueue,
         ):
             result = erp_activation.activate_request(
                 request,
@@ -89,65 +77,45 @@ class TestErpActivation(TestCase):
                 repair=True,
             )
 
-        self.assertEqual(result["status"], "Synced")
+        self.assertEqual(result["status"], "Pending")
         self.assertTrue(result["eligible"])
-        self.assertTrue(result["created"])
-
-        sync_request.assert_called_once_with(
-            request,
-            service=service,
-            profile=profile,
-            manual_customer=None,
-            repair=True,
-        )
+        self.assertFalse(result["created"])
+        self.assertEqual(result["operation"], "BRIDGE-OP-1")
+        enqueue.assert_called_once_with(request.name)
 
     def test_zero_price_activates_once_in_progress(self):
         request = self._request(
             final_price=0,
-            status="In Progress",
+            status="Open",
+            request_state="Payment Not Required",
+            payment_policy_snapshot="No Charge",
+            payable_amount=0,
         )
         service = self._service(base_price=0)
 
-        sync_result = {
-            "status": "Synced",
-            "created": True,
-            "erp_customer": "CUST-1",
-            "erp_service": "SERVICE-1",
-            "erp_task": "TASK-1",
-        }
-
-        with (
-            patch.object(
-                erp_activation,
-                "_paid_payment_exists",
-            ) as paid_payment_exists,
-            patch.object(
-                erp_activation.erp_service_task_adapter,
-                "sync_request",
-                return_value=sync_result,
-            ) as sync_request,
-        ):
+        with patch.object(
+            bridge_outbox, "enqueue_if_eligible", return_value="BRIDGE-OP-1"
+        ) as enqueue:
             result = erp_activation.activate_request(
                 request,
                 service=service,
             )
 
         self.assertTrue(result["eligible"])
-        self.assertEqual(result["status"], "Synced")
-        paid_payment_exists.assert_not_called()
-        sync_request.assert_called_once()
+        self.assertEqual(result["status"], "Pending")
+        enqueue.assert_called_once_with(request.name)
 
     def test_zero_price_before_in_progress_is_not_eligible(self):
         request = self._request(
             final_price=0,
             status="Open",
+            request_state="Draft",
+            payment_policy_snapshot="No Charge",
+            payable_amount=0,
         )
         service = self._service(base_price=0)
 
-        with patch.object(
-            erp_activation.erp_service_task_adapter,
-            "sync_request",
-        ) as sync_request:
+        with patch.object(bridge_outbox, "enqueue_if_eligible") as enqueue:
             result = erp_activation.activate_request(
                 request,
                 service=service,
@@ -155,45 +123,19 @@ class TestErpActivation(TestCase):
 
         self.assertEqual(result["status"], "Not Started")
         self.assertFalse(result["eligible"])
-        self.assertIn("Zero-price request", result["reason"])
-        sync_request.assert_not_called()
+        self.assertIn("not ready", result["reason"])
+        enqueue.assert_not_called()
 
-    def test_existing_complete_erp_links_are_reconciled_without_payment_gate(self):
+    def test_existing_erp_links_do_not_bypass_settlement_gate(self):
         request = self._request(
             erp_service="SERVICE-EXISTING",
             erp_task="TASK-EXISTING",
         )
         service = self._service()
 
-        sync_result = {
-            "status": "Synced",
-            "created": False,
-            "erp_customer": "CUST-1",
-            "erp_service": "SERVICE-EXISTING",
-            "erp_task": "TASK-EXISTING",
-        }
-
-        def exists(doctype, name):
-            return (doctype, name) in {
-                ("Service", "SERVICE-EXISTING"),
-                ("Task", "TASK-EXISTING"),
-            }
-
         with (
-            patch.object(
-                erp_activation.frappe.db,
-                "exists",
-                side_effect=exists,
-            ),
-            patch.object(
-                erp_activation,
-                "_paid_payment_exists",
-            ) as paid_payment_exists,
-            patch.object(
-                erp_activation.erp_service_task_adapter,
-                "sync_request",
-                return_value=sync_result,
-            ) as sync_request,
+            patch.object(bridge_outbox.frappe.db, "exists", return_value=False),
+            patch.object(bridge_outbox, "enqueue_if_eligible") as enqueue,
         ):
             result = erp_activation.activate_request(
                 request,
@@ -201,14 +143,6 @@ class TestErpActivation(TestCase):
                 repair=True,
             )
 
-        self.assertTrue(result["eligible"])
+        self.assertFalse(result["eligible"])
         self.assertFalse(result["created"])
-        paid_payment_exists.assert_not_called()
-
-        sync_request.assert_called_once_with(
-            request,
-            service=service,
-            profile=None,
-            manual_customer=None,
-            repair=True,
-        )
+        enqueue.assert_not_called()

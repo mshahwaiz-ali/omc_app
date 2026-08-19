@@ -12,11 +12,19 @@
   "amount",
   "currency",
   "status",
+  "receipt_status",
+  "accounting_status",
+  "quarantine_status",
   "due_date",
   "paid_on",
   "payment_reference",
+  "linked_invoice",
+  "linked_payment_entry",
   "receipt_attachment",
   "visible_to_customer",
+  "reviewed_by",
+  "reviewed_at",
+  "settled_at",
   "remarks"
  ],
  "fields": [
@@ -111,6 +119,71 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "default": "Not Submitted",
+   "fieldname": "receipt_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Receipt Status",
+   "options": "Not Submitted\nSubmitted\nUnder Review\nAccepted\nRejected",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Unmatched",
+   "fieldname": "accounting_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Accounting Status",
+   "options": "Unmatched\nPartially Settled\nSettled\nReversed",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Not Required",
+   "fieldname": "quarantine_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Quarantine Status",
+   "options": "Not Required\nPending Validation\nManual Review\nClean\nRejected",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "linked_invoice",
+   "fieldtype": "Link",
+   "label": "Linked Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "linked_payment_entry",
+   "fieldtype": "Link",
+   "label": "Linked Payment Entry",
+   "options": "Payment Entry",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "reviewed_by",
+   "fieldtype": "Link",
+   "label": "Reviewed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reviewed_at",
+   "fieldtype": "Datetime",
+   "label": "Reviewed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "settled_at",
+   "fieldtype": "Datetime",
+   "label": "Settled At",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -130,7 +203,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager",
+   "role": "OMC Admin",
    "share": 1,
    "write": 1
   }

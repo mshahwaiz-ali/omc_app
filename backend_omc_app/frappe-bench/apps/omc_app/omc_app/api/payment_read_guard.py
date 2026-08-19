@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.api import access, mobile, payments
+from omc_app.api import access, capabilities, identity, mobile, payments, security
 
 
 def _payment_not_found():
@@ -92,7 +92,7 @@ def get_payments(
             "service_request",
         ],
         order_by="due_date desc, creation desc",
-        limit_page_length=0,
+        limit_page_length=1000,
     )
 
     status_values = {
@@ -121,7 +121,7 @@ def get_payments(
                 "service_title",
                 "service",
             ],
-            limit_page_length=0,
+            limit_page_length=1000,
         )
     }
     filtered_rows = []
@@ -197,3 +197,50 @@ def get_payment(payment_id=None, name=None):
         capabilities=capabilities,
         customer_view=profile is not None,
     )
+
+
+@frappe.whitelist()
+def download_invoice_pdf(payment_id=None, invoice_id=None):
+    payment_id = str(payment_id or "").strip()
+    invoice_id = str(invoice_id or "").strip()
+    payment = _load_readable_payment(payment_id)
+    user = identity.current_user()
+    if access.is_internal_user(user):
+        values = capabilities.effective(user)
+        if not (
+            values.get("can_view_payment_summaries")
+            or values.get("can_view_payment_receipts")
+            or values.get("can_reconcile_settlement")
+        ):
+            _payment_not_found()
+    else:
+        identity.require_owned_request(payment.service_request)
+    security.enforce_rate_limit("authenticated_list", actor=user)
+    links = frappe.get_all(
+        "OMC Accounting Link",
+        filters={
+            "service_request": payment.service_request,
+            "payment_entry": ["is", "not set"],
+            "invoice_docstatus": 1,
+        },
+        pluck="sales_invoice",
+        order_by="creation asc, name asc",
+        limit_page_length=100,
+    )
+    eligible = sorted({name for name in links if name and frappe.db.get_value("Sales Invoice", name, "docstatus") == 1})
+    if invoice_id:
+        if invoice_id not in eligible:
+            _payment_not_found()
+        resolved = invoice_id
+    else:
+        if len(eligible) != 1:
+            frappe.throw(
+                "Select an invoice when the request has multiple eligible invoices."
+                if eligible else "Invoice is not available.",
+                frappe.ValidationError if eligible else frappe.DoesNotExistError,
+            )
+        resolved = eligible[0]
+    content = frappe.get_print("Sales Invoice", resolved, as_pdf=True)
+    frappe.local.response.filename = f"{resolved}.pdf"
+    frappe.local.response.filecontent = content
+    frappe.local.response.type = "download"

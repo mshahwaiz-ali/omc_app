@@ -1,8 +1,7 @@
 import frappe
 
-from omc_app.api import idempotency, review_routing, upload_validation
+from omc_app.api import identity, idempotency, review_routing, upload_validation
 from omc_app.api.mobile import (
-    _assert_approved_customer,
     _clean_file_reference,
     _create_service_timeline_entry,
     _current_user,
@@ -171,12 +170,26 @@ def _validate_uploaded_document(service_case, attachment):
         allowed_extensions=ALLOWED_DOCUMENT_EXTENSIONS,
         max_size_bytes=MAX_DOCUMENT_SIZE_BYTES,
     )
+    content = uploaded_file.get_content()
+    if isinstance(content, str):
+        content = content.encode("utf-8")
+    quarantine_status = upload_validation.scan_upload(
+        filename=uploaded_file.file_name or clean_attachment,
+        content=content or b"",
+    )
+    if quarantine_status == "Rejected":
+        frappe.throw(
+            "The uploaded file was rejected by security scanning.",
+            frappe.ValidationError,
+        )
 
-    return uploaded_file.file_url or clean_attachment, uploaded_file
+    return uploaded_file.file_url or clean_attachment, uploaded_file, quarantine_status
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def upload_service_document(**kwargs):
+    if not idempotency.request_key(kwargs):
+        frappe.throw("An idempotency key is required.", frappe.ValidationError)
     attachment = kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file")
     uploaded_file = _find_uploaded_file(attachment)
     claim = idempotency.begin(
@@ -234,21 +247,19 @@ def _upload_service_document(**kwargs):
     if not frappe.db.exists("OMC Service Request", case_id):
         frappe.throw("Service request not found", frappe.DoesNotExistError)
 
-    service_case = frappe.get_doc("OMC Service Request", case_id)
+    context, service_case = identity.require_owned_request(case_id)
     _assert_service_request_accepts_documents(service_case)
-    profile = _assert_approved_customer()
-    if profile and service_case.customer_profile and service_case.customer_profile != profile.name:
-        frappe.throw(
-            "You do not have permission to upload documents for this service request",
-            frappe.PermissionError,
-        )
+    profile = frappe.get_doc("OMC Customer Profile", context.legacy_profile)
 
     _assert_document_submission_available(
         service_case,
         document_title,
         document_type,
     )
-    attachment, uploaded_file = _validate_uploaded_document(service_case, attachment)
+    attachment, uploaded_file, quarantine_status = _validate_uploaded_document(
+        service_case,
+        attachment,
+    )
 
     doc = frappe.new_doc("OMC Service Document")
     doc.service_request = service_case.name
@@ -260,6 +271,7 @@ def _upload_service_document(**kwargs):
     if _has_field("OMC Service Document", "source"):
         doc.source = kwargs.get("source") or "Service Upload"
     doc.visible_to_customer = 1
+    doc.quarantine_status = quarantine_status
     if _has_field("OMC Service Document", "is_archived"):
         doc.is_archived = 0
     doc.uploaded_by = _current_user()
@@ -305,8 +317,6 @@ def _upload_service_document(**kwargs):
     )
     review_routing.ensure_review_assignment(doc, service_case)
 
-    frappe.db.commit()
-
     return {
         "uploaded": True,
         "document": {
@@ -320,6 +330,7 @@ def _upload_service_document(**kwargs):
             "source": getattr(doc, "source", None) or "Service Upload",
             "file_url": attachment or "",
             "attachment": attachment or "",
+            "quarantine_status": doc.quarantine_status or "Manual Review",
             "uploaded_on": str(doc.uploaded_on) if doc.uploaded_on else "",
             "uploaded_by": doc.uploaded_by or "",
             "remarks": doc.remarks or "",

@@ -10,9 +10,6 @@ from typing import Any
 
 import frappe
 
-from omc_app.api import erp_customer_resolver
-
-
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -42,9 +39,17 @@ def _set_request_state(request, *, status: str, customer="", service="", task=""
             )
 
 
-def _linked_customer(profile) -> str:
-    result = erp_customer_resolver.resolve_profile_customer(profile)
-    return _text(result.get("customer"))
+def _linked_customer(request, profile) -> str:
+    existing = _text(getattr(request, "erp_customer", None))
+    if existing and frappe.db.exists("Customer", existing):
+        return existing
+    account_name = _text(getattr(request, "customer_account", None))
+    if account_name and frappe.db.exists("OMC Customer Account", account_name):
+        customer = _text(frappe.db.get_value("OMC Customer Account", account_name, "erp_customer"))
+        if customer and frappe.db.exists("Customer", customer):
+            return customer
+    customer = _text(getattr(profile, "linked_erpnext_customer", None)) if profile else ""
+    return customer if customer and frappe.db.exists("Customer", customer) else ""
 
 
 def _customer_user(customer: str) -> str:
@@ -112,7 +117,12 @@ def _create_service(request, service, profile, customer: str, task_type: str):
         or _text(frappe.db.get_value("Customer", customer, "customer_name"))
         or customer
     )
-    amount = getattr(service, "base_price", None) or 0
+    amount = (
+        getattr(request, "payable_amount", None)
+        if getattr(request, "payable_amount", None) is not None
+        else getattr(request, "final_price", None)
+    )
+    amount = amount if amount is not None else getattr(service, "base_price", None) or 0
     _set_if_field(doc, "full_name", customer_name)
     _set_if_field(doc, "mobile_no", getattr(request, "contact_phone", None))
     _set_if_field(doc, "cnic", getattr(profile, "cnic", None) if profile else None)
@@ -249,7 +259,7 @@ def sync_request(
     existing_customer = _text(getattr(request, "erp_customer", None))
     existing_service = _text(getattr(request, "erp_service", None))
     existing_task = _text(getattr(request, "erp_task", None))
-    customer = _linked_customer(profile)
+    customer = _linked_customer(request, profile)
     if (
         repair
         and not customer

@@ -10,6 +10,7 @@ from datetime import timedelta
 import frappe
 from frappe.utils import add_to_date, get_datetime, now_datetime
 
+from omc_app.api import identity, security
 from omc_app.api.auth_links import verification_links
 
 
@@ -17,7 +18,6 @@ PENDING_REGISTRATION_DOCTYPE = "OMC Pending Registration"
 TOKEN_TTL_MINUTES = 30
 RESEND_COOLDOWN_SECONDS = 60
 ACTIVE_PENDING_STATUSES = ("Pending",)
-TERMINAL_STATUSES = ("Activated", "Expired", "Superseded", "Cancelled")
 TERMINAL_STATUSES = ("Activated", "Expired", "Superseded", "Cancelled")
 GENERIC_PUBLIC_MESSAGE = (
     "If the details are eligible, a verification email will be sent shortly."
@@ -152,31 +152,6 @@ def sanitize_registration(doc, *, status: str | None = None) -> None:
     doc.token_digest = secrets.token_hex(32)
 
 
-def _sanitized_payload(doc) -> str:
-    return json.dumps(
-        {
-            "email": str(doc.email or "").strip().lower(),
-            "username": str(doc.username or "").strip().lower(),
-        },
-        ensure_ascii=False,
-        sort_keys=True,
-    )
-
-
-def sanitize_registration(doc, *, status: str | None = None) -> None:
-    """Remove recoverable secrets once a registration reaches a terminal state."""
-    if status is not None:
-        doc.status = status
-    if doc.status not in TERMINAL_STATUSES:
-        frappe.throw(
-            "Pending registration secrets can only be cleared for terminal states.",
-            frappe.ValidationError,
-        )
-    doc.password_secret = ""
-    doc.payload_json = _sanitized_payload(doc)
-    doc.token_digest = secrets.token_hex(32)
-
-
 def _existing_pending(filters: dict):
     names = frappe.get_all(
         PENDING_REGISTRATION_DOCTYPE,
@@ -281,9 +256,14 @@ def create_pending_registration(data: dict) -> PendingRegistrationSecret:
     )
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def start_registration(**kwargs):
-    secret = create_pending_registration(dict(kwargs or {}))
+    actor = str(kwargs.get("email") or kwargs.get("user") or "").strip().lower()
+    security.enforce_rate_limit("signup", actor=actor)
+    try:
+        secret = create_pending_registration(dict(kwargs or {}))
+    except frappe.DuplicateEntryError:
+        return {**_resend_payload(), "verification_required": True}
     doc = frappe.get_doc(PENDING_REGISTRATION_DOCTYPE, secret.registration_name)
     _send_verification_email(
         doc.email,
@@ -298,9 +278,10 @@ def start_registration(**kwargs):
     }
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def resend_verification(email: str | None = None):
     normalized_email = str(email or "").strip().lower()
+    security.enforce_rate_limit("token_resend", actor=normalized_email)
     if not normalized_email:
         return _resend_payload()
 
@@ -322,6 +303,7 @@ def resend_verification(email: str | None = None):
 @frappe.whitelist(allow_guest=True)
 def verify_registration(token: str | None = None):
     token = str(token or "").strip()
+    security.enforce_rate_limit("identity", actor=_token_digest(token))
     if not token:
         return {
             "ok": False,
@@ -335,6 +317,14 @@ def verify_registration(token: str | None = None):
         "name",
     )
     if not name:
+        return {
+            "ok": False,
+            "status": "invalid_or_expired",
+            "message": "This verification link is invalid or has expired.",
+        }
+
+    locked = frappe.db.get_value(PENDING_REGISTRATION_DOCTYPE, name, "name", for_update=True)
+    if not locked:
         return {
             "ok": False,
             "status": "invalid_or_expired",
@@ -389,7 +379,44 @@ def verify_registration(token: str | None = None):
     )
 
     if not user_exists or not profile_exists:
-        mobile.sign_up(**payload)
+        previous_defer = getattr(frappe.flags, "omc_defer_signup_commit", False)
+        frappe.flags.omc_defer_signup_commit = True
+        try:
+            mobile.sign_up(**payload)
+        finally:
+            frappe.flags.omc_defer_signup_commit = previous_defer
+
+    account = identity.ensure_customer_account_from_legacy(doc.email)
+    if not account:
+        account = frappe.get_doc({
+            "doctype": "OMC Customer Account",
+            "user": doc.email,
+            "legacy_customer_profile": frappe.db.get_value(
+                "OMC Customer Profile", {"email": doc.email}, "name"
+            ),
+            "identity_proof_status": "Verified",
+            "account_link_status": "Unlinked",
+            "service_access_status": "Pending Review",
+            "mapping_provenance": "Activation",
+            "mapping_confidence": "",
+            "source_version": identity.source_version(doc.name, doc.verified_at, doc.email),
+            "last_reconciled_at": now_datetime(),
+        })
+        account.insert(ignore_permissions=True)
+    else:
+        account.mapping_provenance = "Activation"
+        account.save(ignore_permissions=True)
+
+    profile_name = frappe.db.get_value("OMC Customer Profile", {"email": doc.email}, "name")
+    referral_record = frappe.db.get_value("OMC Customer Profile", profile_name, "referral_record") if profile_name else None
+    if referral_record:
+        from omc_app.api.referral_attribution import create_snapshot
+
+        create_snapshot(
+            referral_registry=referral_record,
+            customer_account=account.name,
+            attribution_type="Acquisition",
+        )
 
     doc.reload()
     doc.activated_user = (
