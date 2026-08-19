@@ -3,8 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/providers/effective_capabilities_provider.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_state.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../data/tax_calculation_repository.dart';
@@ -48,6 +51,14 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     });
   }
 
+  Future<void> _refreshConfig() async {
+    final future = ref
+        .read(taxCalculationRepositoryProvider)
+        .getConfig(taxYear: _selectedTaxYear);
+    setState(() => _configFuture = future);
+    await future;
+  }
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -61,6 +72,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
   Widget build(BuildContext context) {
     final repository = ref.watch(taxCalculationRepositoryProvider);
     final authState = ref.watch(authControllerProvider);
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7F9),
@@ -73,7 +85,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         actions: [
-          if (_canOpenHistory(authState))
+          if (_canOpenHistory(authState, capabilities))
             IconButton(
               tooltip: 'Calculation history',
               icon: const Icon(Icons.history_rounded),
@@ -85,7 +97,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
         future: _configFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingView(message: 'Loading tax calculator');
           }
 
           if (snapshot.hasError) {
@@ -106,9 +118,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
             return Padding(
               padding: const EdgeInsets.all(16),
               child: AppErrorState(
-                title: 'Unable to read calculator settings',
+                title: 'Calculator settings unavailable',
                 message:
-                    'The server returned incomplete calculator configuration.',
+                    'The calculator settings are incomplete. Try again, or contact OMC support if this continues.',
                 onRetry: _retryConfig,
               ),
             );
@@ -141,7 +153,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
               .toList(growable: false);
 
           return RefreshIndicator(
-            onRefresh: () async => setState(() {}),
+            onRefresh: _refreshConfig,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
@@ -223,20 +235,13 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                   ),
                 ],
                 const SizedBox(height: 16),
-                FilledButton.icon(
+                AppButton(
+                  label: 'Calculate tax',
+                  icon: Icons.calculate_rounded,
+                  isLoading: _isCalculating,
                   onPressed: _isCalculating
                       ? null
                       : () => _calculate(repository, config),
-                  icon: _isCalculating
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.calculate_rounded),
-                  label: Text(
-                    _isCalculating ? 'Calculating...' : 'Calculate Tax',
-                  ),
                 ),
                 if (_calculationFailure != null) ...[
                   const SizedBox(height: 12),
@@ -255,9 +260,14 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
                     result: _result!,
                     config: config,
                     authState: authState,
+                    capabilities: capabilities,
                     isStartingService: _isStartingService,
-                    onCtaPressed: () =>
-                        _handleCta(repository, config, authState),
+                    onCtaPressed: () => _handleCta(
+                      repository,
+                      config,
+                      authState,
+                      capabilities,
+                    ),
                   ),
                 ],
               ],
@@ -337,6 +347,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     TaxCalculationRepository repository,
     TaxCalculatorConfig config,
     AuthState authState,
+    AuthCapabilities capabilities,
   ) async {
     final result = _result;
     if (result == null) return;
@@ -347,13 +358,12 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
       return;
     }
 
-    if (authState.capabilities.isPending || authState.capabilities.isRejected) {
+    if (capabilities.isPending || capabilities.isRejected) {
       context.push('/under-review');
       return;
     }
 
-    if (!authState.capabilities.canCreateServiceRequest &&
-        !authState.capabilities.isInternal) {
+    if (!capabilities.canCreateServiceRequest && !capabilities.isInternal) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Your account cannot start a service request yet.'),
@@ -367,7 +377,7 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Calculation was not saved by backend, so service cannot be started from this estimate.',
+            'This estimate could not be saved, so a service request cannot be started from it. Please calculate again.',
           ),
         ),
       );
@@ -380,7 +390,9 @@ class _TaxCalculatorScreenState extends ConsumerState<TaxCalculatorScreen> {
     if (service.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No tax filing service is linked in backend settings.'),
+          content: Text(
+            'No tax filing service is linked to this calculator yet. Please contact OMC support.',
+          ),
         ),
       );
       return;
@@ -470,7 +482,7 @@ class _HeaderCard extends StatelessWidget {
                     ),
                     SizedBox(height: 5),
                     Text(
-                      'Choose a tax year and calculate using OMC configured slabs.',
+                      'Choose a tax year and calculate using OMC tax rules.',
                       style: TextStyle(
                         color: Color(0xFF667085),
                         height: 1.35,
@@ -523,7 +535,7 @@ class _HeaderCard extends StatelessWidget {
                     ? Icons.verified_rounded
                     : Icons.rule_rounded,
                 label: year == null
-                    ? 'Backend configured rules'
+                    ? 'Configured tax rules'
                     : '${year.currency} · ${year.verified ? 'Verified slabs' : 'Configured slabs'}',
               ),
               if (config.filingDeadlineAlert.trim().isNotEmpty)
@@ -749,6 +761,7 @@ class _ResultSection extends StatelessWidget {
     required this.result,
     required this.config,
     required this.authState,
+    required this.capabilities,
     required this.isStartingService,
     required this.onCtaPressed,
   });
@@ -756,14 +769,15 @@ class _ResultSection extends StatelessWidget {
   final TaxCalculationResult result;
   final TaxCalculatorConfig config;
   final AuthState authState;
+  final AuthCapabilities capabilities;
   final bool isStartingService;
   final VoidCallback onCtaPressed;
 
   @override
   Widget build(BuildContext context) {
     final cta = result.cta.button.trim().isNotEmpty ? result.cta : config.cta;
-    final ctaTitle = _ctaTitleFor(authState, cta.title);
-    final ctaButton = _ctaButtonFor(authState, cta.button);
+    final ctaTitle = _ctaTitleFor(authState, capabilities, cta.title);
+    final ctaButton = _ctaButtonFor(authState, capabilities, cta.button);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -865,16 +879,11 @@ class _ResultSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              FilledButton.icon(
+              AppButton(
+                label: ctaButton,
+                icon: Icons.arrow_forward_rounded,
+                isLoading: isStartingService,
                 onPressed: isStartingService ? null : onCtaPressed,
-                icon: isStartingService
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.arrow_forward_rounded),
-                label: Text(isStartingService ? 'Starting...' : ctaButton),
               ),
             ],
           ),
@@ -899,7 +908,7 @@ class _BreakdownCard extends StatelessWidget {
         children: [
           const _SectionTitle(
             title: 'Tax Breakdown',
-            subtitle: 'Backend slab calculation details.',
+            subtitle: 'Tax slab calculation details.',
           ),
           const SizedBox(height: 12),
           _KeyValue(
@@ -987,7 +996,7 @@ class _StepsCard extends StatelessWidget {
         children: [
           const _SectionTitle(
             title: 'Recommended next steps',
-            subtitle: 'Guidance from OMC backend.',
+            subtitle: 'Guidance from OMC.',
           ),
           const SizedBox(height: 8),
           for (var index = 0; index < steps.length; index++)
@@ -1239,37 +1248,46 @@ class _KeyValue extends StatelessWidget {
   }
 }
 
-bool _canOpenHistory(AuthState authState) {
-  return authState.status == AuthStatus.authenticated &&
-      !authState.capabilities.isGuest;
+bool _canOpenHistory(AuthState authState, AuthCapabilities capabilities) {
+  return authState.status == AuthStatus.authenticated && !capabilities.isGuest;
 }
 
-String _ctaTitleFor(AuthState authState, String backendTitle) {
+String _ctaTitleFor(
+  AuthState authState,
+  AuthCapabilities capabilities,
+  String configuredTitle,
+) {
   if (authState.status == AuthStatus.guest ||
       authState.status == AuthStatus.unauthenticated) {
-    return backendTitle.trim().isNotEmpty
-        ? backendTitle
+    return configuredTitle.trim().isNotEmpty
+        ? configuredTitle
         : 'Want to save this estimate?';
   }
-  if (authState.capabilities.isPending) return 'Account approval is pending';
-  if (authState.capabilities.isRejected) {
+  if (capabilities.isPending) return 'Account approval is pending';
+  if (capabilities.isRejected) {
     return 'Contact OMC to review your account';
   }
-  return backendTitle.trim().isNotEmpty
-      ? backendTitle
+  return configuredTitle.trim().isNotEmpty
+      ? configuredTitle
       : 'Need OMC to verify and file this?';
 }
 
-String _ctaButtonFor(AuthState authState, String backendButton) {
+String _ctaButtonFor(
+  AuthState authState,
+  AuthCapabilities capabilities,
+  String configuredButton,
+) {
   if (authState.status == AuthStatus.guest ||
       authState.status == AuthStatus.unauthenticated) {
-    return backendButton.trim().isNotEmpty ? backendButton : 'Create Account';
+    return configuredButton.trim().isNotEmpty
+        ? configuredButton
+        : 'Create Account';
   }
-  if (authState.capabilities.isPending || authState.capabilities.isRejected) {
+  if (capabilities.isPending || capabilities.isRejected) {
     return 'View Account Status';
   }
-  return backendButton.trim().isNotEmpty
-      ? backendButton
+  return configuredButton.trim().isNotEmpty
+      ? configuredButton
       : 'Start Tax Filing Service';
 }
 
