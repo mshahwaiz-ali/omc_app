@@ -21,22 +21,49 @@ class EmailVerificationScreen extends ConsumerStatefulWidget {
 
 class _EmailVerificationScreenState
     extends ConsumerState<EmailVerificationScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
   bool _loading = true;
+  bool _completing = false;
+  bool _tokenValid = false;
   bool _activated = false;
   bool _canRetry = false;
-  String _message = 'Verifying your email...';
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  String _message = 'Checking your verification link...';
 
   @override
   void initState() {
     super.initState();
-    Future<void>.microtask(_verify);
+    Future<void>.microtask(_inspectToken);
   }
 
-  Future<void> _verify() async {
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Map<String, dynamic> _responseData(Map<String, dynamic> response) {
+    final raw = response['message'];
+    return raw is Map<String, dynamic> ? raw : response;
+  }
+
+  bool _isTrue(Object? value) {
+    return value == true ||
+        value == 1 ||
+        value?.toString().toLowerCase() == 'true';
+  }
+
+  Future<void> _inspectToken() async {
     final token = widget.token.trim();
     if (token.isEmpty) {
       setState(() {
         _loading = false;
+        _tokenValid = false;
         _canRetry = false;
         _message = 'This verification link is invalid or has expired.';
       });
@@ -45,59 +72,127 @@ class _EmailVerificationScreenState
 
     setState(() {
       _loading = true;
+      _tokenValid = false;
       _canRetry = false;
-      _message = 'Verifying your email...';
+      _message = 'Checking your verification link...';
     });
 
     try {
       final response = await ref
           .read(authRepositoryProvider)
-          .verifyRegistration(token: token);
-      final raw = response['message'];
-      final data = raw is Map<String, dynamic> ? raw : response;
+          .getRegistrationVerificationStatus(token: token);
+      final data = _responseData(response);
       final status = data['status']?.toString().trim().toLowerCase() ?? '';
-      final ok =
-          data['ok'] == true ||
-          data['ok'] == 1 ||
-          data['ok']?.toString().toLowerCase() == 'true';
+      final valid = _isTrue(data['ok']) && status == 'awaiting_password';
 
       if (!mounted) return;
-
       setState(() {
         _loading = false;
-        _activated = ok && status == 'activated';
+        _tokenValid = valid;
+        _activated = false;
         _canRetry = false;
-        _message = data['message']?.toString().trim().isNotEmpty == true
-            ? data['message'].toString().trim()
-            : _activated
-            ? 'Your email is verified. You can sign in now.'
-            : 'This verification link is invalid or has expired.';
+        _message = valid
+            ? 'Email verified. Set a password to finish creating your account.'
+            : (data['message']?.toString().trim().isNotEmpty == true
+                  ? data['message'].toString().trim()
+                  : 'This verification link is invalid or has expired.');
       });
     } catch (error) {
       if (!mounted) return;
-
       final failure = AppFailureClassifier.classify(
         error,
         fallbackTitle: 'Verification failed',
         fallbackMessage:
-            'The verification link could not be processed. It may be invalid or expired.',
+            'The verification link could not be checked. Please try again.',
       );
-
       setState(() {
         _loading = false;
+        _tokenValid = false;
         _canRetry = true;
         _message = failure.message;
       });
     }
   }
 
+  Future<void> _completeRegistration() async {
+    if (_completing || !_tokenValid) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _completing = true;
+      _canRetry = false;
+    });
+
+    try {
+      final response = await ref.read(authRepositoryProvider).completeRegistration(
+            token: widget.token.trim(),
+            password: _passwordController.text,
+          );
+      final data = _responseData(response);
+      final status = data['status']?.toString().trim().toLowerCase() ?? '';
+      final activated = _isTrue(data['ok']) && status == 'activated';
+
+      if (!mounted) return;
+      setState(() {
+        _completing = false;
+        _activated = activated;
+        _tokenValid = !activated && status == 'awaiting_password';
+        _canRetry = !activated && !_tokenValid;
+        _message = data['message']?.toString().trim().isNotEmpty == true
+            ? data['message'].toString().trim()
+            : activated
+            ? 'Your account is ready. You can sign in now.'
+            : 'This verification link is invalid or has expired.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Account setup failed',
+        fallbackMessage:
+            'Your account could not be completed. Check the password and try again.',
+      );
+      setState(() {
+        _completing = false;
+        _message = failure.message;
+      });
+    }
+  }
+
+  String? _validatePassword(String? value) {
+    final password = value ?? '';
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters.';
+    }
+    if (password.length > 128) {
+      return 'Password must be 128 characters or fewer.';
+    }
+    return null;
+  }
+
+  String? _validateConfirmation(String? value) {
+    if ((value ?? '') != _passwordController.text) {
+      return 'Passwords do not match.';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final title = _activated
+        ? 'Account ready'
+        : _tokenValid
+        ? 'Set your password'
+        : 'Verify your email';
+    final subtitle = _activated
+        ? 'Your OMC account is ready for sign in.'
+        : _tokenValid
+        ? 'Your email is verified. Complete account setup securely.'
+        : 'We are checking the security link from your email.';
+
     return AuthEntryScaffold(
-      title: _activated ? 'Email verified' : 'Verify your email',
-      subtitle: _activated
-          ? 'Your OMC account is ready for sign in.'
-          : 'We are checking the security link from your email.',
+      title: title,
+      subtitle: subtitle,
       child: PremiumCard(
         padding: const EdgeInsets.all(22),
         child: Column(
@@ -108,10 +203,12 @@ class _EmailVerificationScreenState
             else ...[
               Icon(
                 _activated
+                    ? Icons.verified_user_outlined
+                    : _tokenValid
                     ? Icons.mark_email_read_outlined
                     : Icons.link_off_rounded,
                 size: 44,
-                color: _activated
+                color: _activated || _tokenValid
                     ? const Color(0xFF15803D)
                     : AppTheme.textSecondary,
               ),
@@ -125,12 +222,73 @@ class _EmailVerificationScreenState
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (_tokenValid && !_activated) ...[
+                const SizedBox(height: 22),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        autofillHints: const [AutofillHints.newPassword],
+                        textInputAction: TextInputAction.next,
+                        validator: _validatePassword,
+                        decoration: InputDecoration(
+                          labelText: 'New password',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        autofillHints: const [AutofillHints.newPassword],
+                        textInputAction: TextInputAction.done,
+                        validator: _validateConfirmation,
+                        onFieldSubmitted: (_) => _completeRegistration(),
+                        decoration: InputDecoration(
+                          labelText: 'Confirm password',
+                          prefixIcon: const Icon(Icons.lock_reset_rounded),
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            ),
+                            icon: Icon(
+                              _obscureConfirmPassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                AppButton(
+                  label: _completing ? 'Creating account...' : 'Create Account',
+                  icon: Icons.person_add_alt_1_rounded,
+                  onPressed: _completing ? null : _completeRegistration,
+                ),
+              ],
               const SizedBox(height: 22),
               if (_canRetry) ...[
                 AppButton(
                   label: 'Try Again',
                   icon: Icons.refresh_rounded,
-                  onPressed: _verify,
+                  onPressed: _inspectToken,
                 ),
                 const SizedBox(height: 10),
               ],
