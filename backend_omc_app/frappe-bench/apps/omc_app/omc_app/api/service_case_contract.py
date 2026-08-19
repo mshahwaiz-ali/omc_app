@@ -40,7 +40,6 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
             "payment_policy_snapshot",
             "payable_amount",
             "pricing_currency",
-            "financial_hold_reason",
             "ready_for_activation_at",
             "activated_at",
             "erp_service",
@@ -164,15 +163,18 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
 
         bridge = bridge_map.get(name)
         bridge_state = _text(getattr(bridge, "state", None)) or "Not Started"
-        raw_hold_reason = _text(request.financial_hold_reason)
-        customer_hold_reason = (
-            "Settlement requires OMC review." if request_state == "Financial Hold" else ""
-        )
-        hold_reason = raw_hold_reason if internal else customer_hold_reason
-        hold = {
-            "active": request_state == "Financial Hold",
-            "reason": hold_reason,
-        }
+        hold_active = request_state == "Financial Hold"
+        if not hold_active:
+            hold_reason = ""
+        elif not internal:
+            hold_reason = "Settlement requires OMC review."
+        elif review_kind == "technical_quarantine":
+            hold_reason = "Settlement is in technical quarantine."
+        elif review_kind == "human_review":
+            hold_reason = "Settlement requires finance review."
+        else:
+            hold_reason = "Settlement requires OMC review."
+        hold = {"active": hold_active, "reason": hold_reason}
         evidence_complete = bool(
             request.activated_at and request.erp_service and request.erp_task
         )
@@ -225,8 +227,6 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
 
 def _apply_contract(payload: dict, contract: dict) -> dict:
     payload.update(contract)
-    # `status` is operational progress only. `request_state` owns request
-    # lifecycle, while receipt/settlement/activation/hold remain independent.
     return payload
 
 
