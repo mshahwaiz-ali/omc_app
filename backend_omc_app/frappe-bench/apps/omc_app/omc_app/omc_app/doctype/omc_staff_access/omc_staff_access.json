@@ -19,5 +19,5 @@
   {"fieldname": "last_reconciled_at", "fieldtype": "Datetime", "label": "Last Reconciled At", "read_only": 1}
  ],
  "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Staff Access", "owner": "Administrator",
- "permissions": [{"create": 1, "export": 1, "read": 1, "report": 1, "role": "OMC Admin", "write": 1}], "sort_field": "modified", "sort_order": "DESC", "states": [], "track_changes": 1
+ "permissions": [{"read": 1, "report": 1, "role": "OMC Admin"}], "sort_field": "modified", "sort_order": "DESC", "states": [], "track_changes": 1
 }
