@@ -175,11 +175,10 @@ def _accounting_gate(payment, reference, request_name: str) -> str:
         return "reversed"
     if base_status not in {"Partially Settled", "Settled"}:
         return "not_ready"
-    reconciliation_queues.resolve_source_queues(
-        domain="Commission",
-        source_doctype="Payment Entry",
-        source_name=payment.name,
-    )
+    # Do not broadly resolve Commission queues here. The same Payment Entry can
+    # still have an unrelated beneficiary-resolution review even after its
+    # accounting evidence becomes clean; that review must remain open until the
+    # beneficiary issue itself is resolved.
     return "ready"
 
 
