@@ -201,6 +201,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
       if (!mounted) return;
       _dirtyFormController.submissionSucceeded();
       setState(_messageController.clear);
+      ref.invalidate(supportTicketPageProvider);
       ref.invalidate(supportTicketsProvider);
       ref.invalidate(activeSupportTicketProvider);
       ref.invalidate(supportUnreadCountProvider);
@@ -509,21 +510,93 @@ class _SupportTicketsCard extends ConsumerStatefulWidget {
 }
 
 class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
+  final List<SupportTicket> _additionalTickets = [];
   int _selectedTab = 0;
+  int? _nextStart;
+  bool _hasMore = false;
+  bool _loadingMore = false;
+  bool _didSeedPage = false;
+
+  bool get _canReadTickets =>
+      widget.capabilities.canCreateSupportTicket ||
+      widget.capabilities.canUseSupportWorkspace;
+
+  void _resetPagingState() {
+    _additionalTickets.clear();
+    _nextStart = null;
+    _hasMore = false;
+    _loadingMore = false;
+    _didSeedPage = false;
+  }
+
+  List<SupportTicket> _mergeTickets(List<SupportTicket> firstPage) {
+    final seen = <String>{};
+    final result = <SupportTicket>[];
+    for (final ticket in [...firstPage, ..._additionalTickets]) {
+      if (seen.add(ticket.id)) result.add(ticket);
+    }
+    return result;
+  }
+
+  void _refreshTickets() {
+    setState(_resetPagingState);
+    ref.invalidate(supportTicketPageProvider);
+    ref.invalidate(supportTicketsProvider);
+    ref.invalidate(activeSupportTicketProvider);
+    ref.invalidate(supportUnreadCountProvider);
+  }
+
+  Future<void> _loadMore() async {
+    final start = _nextStart;
+    if (_loadingMore || !_hasMore || start == null) return;
+
+    setState(() => _loadingMore = true);
+    try {
+      final page = await ref
+          .read(supportRepositoryProvider)
+          .fetchSupportTicketPage(start: start);
+      if (!mounted) return;
+
+      final firstPage = ref.read(supportTicketPageProvider).value;
+      setState(() {
+        final knownIds = <String>{
+          ...firstPage?.items.map((ticket) => ticket.id) ?? const <String>[],
+          ..._additionalTickets.map((ticket) => ticket.id),
+        };
+        _additionalTickets.addAll(
+          page.items.where((ticket) => knownIds.add(ticket.id)),
+        );
+        _nextStart = page.nextStart;
+        _hasMore = page.hasMore;
+      });
+    } on ApiError catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('More support tickets could not be loaded.')),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final capabilities = widget.capabilities;
-    if (!capabilities.canViewSupportTickets &&
-        !capabilities.canAccessInternalWorkspace) {
+    if (!_canReadTickets) {
       return PremiumCard(
         padding: const EdgeInsets.all(18),
         child: _LockedNote(message: _lockedTicketsMessage(capabilities)),
       );
     }
 
-    final ticketsAsync = ref.watch(supportTicketsProvider);
+    final pageAsync = ref.watch(supportTicketPageProvider);
     final unreadCount = ref.watch(supportUnreadCountProvider).value ?? 0;
+    final isInternalQueue = capabilities.canUseSupportWorkspace;
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -531,11 +604,12 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: _SectionHeader(
-                  title: 'Your support tickets',
-                  subtitle:
-                      'Track active support and review closed ticket history.',
+                  title: isInternalQueue ? 'Support queue' : 'Your support tickets',
+                  subtitle: isInternalQueue
+                      ? 'Review active customer conversations and closed ticket history.'
+                      : 'Track active support and review closed ticket history.',
                 ),
               ),
               if (unreadCount > 0) ...[
@@ -563,11 +637,7 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                 color: const Color(0xFFF1F4F8),
                 borderRadius: BorderRadius.circular(13),
                 child: InkWell(
-                  onTap: () {
-                    ref.invalidate(supportTicketsProvider);
-                    ref.invalidate(activeSupportTicketProvider);
-                    ref.invalidate(supportUnreadCountProvider);
-                  },
+                  onTap: _refreshTickets,
                   borderRadius: BorderRadius.circular(13),
                   child: const SizedBox(
                     width: 40,
@@ -583,8 +653,14 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
             ],
           ),
           const SizedBox(height: 14),
-          ticketsAsync.when(
-            data: (tickets) {
+          pageAsync.when(
+            data: (page) {
+              if (!_didSeedPage) {
+                _didSeedPage = true;
+                _nextStart = page.nextStart;
+                _hasMore = page.hasMore;
+              }
+              final tickets = _mergeTickets(page.items);
               final activeTickets = tickets
                   .where((ticket) => !ticket.isClosed)
                   .toList(growable: false);
@@ -609,17 +685,32 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
                     _EmptyTickets(
                       message: _selectedTab == 0
                           ? 'No active support tickets right now.'
-                          : 'No closed support tickets yet.',
+                          : 'No closed support tickets in the loaded history.',
                     )
                   else
                     Column(
                       children: selectedTickets
-                          .take(6)
-                          .map((ticket) {
-                            return _TicketTile(ticket: ticket);
-                          })
+                          .map((ticket) => _TicketTile(ticket: ticket))
                           .toList(growable: false),
                     ),
+                  if (_hasMore) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _loadingMore ? null : _loadMore,
+                        icon: _loadingMore
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.expand_more_rounded),
+                        label: Text(
+                          _loadingMore ? 'Loading tickets' : 'Load more tickets',
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               );
             },
@@ -631,7 +722,7 @@ class _SupportTicketsCardState extends ConsumerState<_SupportTicketsCard> {
               message: error is ApiError
                   ? error.message
                   : 'Support tickets could not be loaded right now.',
-              onRetry: () => ref.invalidate(supportTicketsProvider),
+              onRetry: _refreshTickets,
             ),
           ),
         ],
