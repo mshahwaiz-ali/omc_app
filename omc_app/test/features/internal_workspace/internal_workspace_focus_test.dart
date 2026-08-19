@@ -11,12 +11,14 @@ void main() {
       canViewAllServiceCases: true,
       canReconcileSettlement: true,
       canReviewPayments: true,
+      canViewAssignedServiceCases: true,
     );
 
     final focus = InternalWorkspaceFocus.fromCapabilities(capabilities);
 
     expect(focus.kind, InternalWorkspaceFocusKind.leadership);
     expect(focus.title, 'Operations Command');
+    expect(focus.showServicePerformance, isFalse);
   });
 
   test('finance focus uses finance capabilities without broad authority', () {
