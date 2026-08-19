@@ -11,6 +11,9 @@ import '../../../core/uploads/upload_coordinator.dart';
 import 'support_config_data.dart';
 import 'support_ticket.dart';
 
+const _assignSupportTicketMethod =
+    'omc_app.api.support_chat.assign_support_ticket';
+
 class SupportTicketPage {
   const SupportTicketPage({
     required this.items,
@@ -339,6 +342,32 @@ class SupportRepository {
     return _mapTicketDetailResponse(response);
   }
 
+  Future<SupportTicket?> assignSupportTicket({
+    required String ticketId,
+    required String assignedTo,
+  }) async {
+    final cleanTicketId = ticketId.trim();
+    final cleanAssignedTo = assignedTo.trim();
+
+    if (!_isUsableTicketId(cleanTicketId)) {
+      throw const ApiError(message: 'Missing support ticket reference.');
+    }
+    if (cleanAssignedTo.isEmpty) {
+      throw const ApiError(message: 'Missing support assignee.');
+    }
+
+    final response = await frappeClient.postMethod(
+      _assignSupportTicketMethod,
+      data: {
+        'ticket_id': cleanTicketId,
+        'name': cleanTicketId,
+        'assigned_to': cleanAssignedTo,
+        'user': cleanAssignedTo,
+      },
+    );
+    return _mapTicketDetailResponse(response);
+  }
+
   Future<Map<String, dynamic>> createSupportTicket({
     required String topic,
     required String message,
@@ -475,11 +504,13 @@ class SupportRepository {
       ),
       contactEmail: _nullableString(json['contact_email'] ?? json['email']),
       contactPhone: _nullableString(json['contact_phone'] ?? json['phone']),
+      assignedTo: _nullableString(json['assigned_to'] ?? json['assignedTo']),
       raisedOnLabel: _dateTimeLabel(json['raised_on']),
       closedOnLabel: _dateTimeLabel(json['closed_on']),
       createdAtLabel: _dateTimeLabel(json['created_at'] ?? json['creation']),
       updatedAtLabel: _dateTimeLabel(json['updated_at'] ?? json['modified']),
       canUpdateStatus: _boolValue(json['can_update_status']),
+      canAssign: _boolValue(json['can_assign']),
       canReply: _boolValue(json['can_reply']),
       messages: _mapTicketMessages(
         json['messages'] ??
