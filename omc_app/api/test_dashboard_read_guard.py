@@ -51,6 +51,56 @@ class TestDashboardReadGuard(FrappeTestCase):
         self.assertEqual(result["color_family"], "Payments")
         get_value.assert_not_called()
 
+    @patch("omc_app.api.dashboard_read_guard.dashboard._can_access_internal_workspace")
+    @patch("omc_app.api.dashboard_read_guard.dashboard._current_user")
+    @patch("omc_app.api.dashboard_read_guard.dashboard_scope.get_internal_dashboard_data")
+    @patch("omc_app.api.dashboard_read_guard.dashboard.get_dashboard_data")
+    def test_internal_user_uses_scoped_dashboard_reader(
+        self,
+        get_dashboard_data,
+        get_internal_dashboard_data,
+        current_user,
+        can_access_internal_workspace,
+    ):
+        current_user.return_value = "reviewer@example.com"
+        can_access_internal_workspace.return_value = True
+        get_internal_dashboard_data.return_value = {
+            "access_state": "internal",
+            "recent_activity": [],
+        }
+
+        result = dashboard_read_guard.get_dashboard_data()
+
+        self.assertEqual(result["access_state"], "internal")
+        get_internal_dashboard_data.assert_called_once_with("reviewer@example.com")
+        get_dashboard_data.assert_not_called()
+
+    @patch("omc_app.api.dashboard_read_guard.dashboard._can_access_internal_workspace")
+    @patch("omc_app.api.dashboard_read_guard.dashboard._current_user")
+    @patch("omc_app.api.dashboard_read_guard.dashboard_scope.get_internal_dashboard_data")
+    @patch("omc_app.api.dashboard_read_guard.dashboard.get_dashboard_data")
+    def test_customer_keeps_existing_dashboard_reader(
+        self,
+        get_dashboard_data,
+        get_internal_dashboard_data,
+        current_user,
+        can_access_internal_workspace,
+    ):
+        current_user.return_value = "customer@example.com"
+        can_access_internal_workspace.return_value = False
+        get_dashboard_data.return_value = {
+            "access_state": "approved",
+            "recent_activity": [],
+        }
+
+        result = dashboard_read_guard.get_dashboard_data()
+
+        self.assertEqual(result["access_state"], "approved")
+        get_dashboard_data.assert_called_once_with()
+        get_internal_dashboard_data.assert_not_called()
+
+    @patch("omc_app.api.dashboard_read_guard.dashboard._can_access_internal_workspace")
+    @patch("omc_app.api.dashboard_read_guard.dashboard._current_user")
     @patch("omc_app.api.dashboard_read_guard.dashboard.get_dashboard_data")
     @patch("omc_app.api.dashboard_read_guard.dashboard._service_color_family")
     @patch("omc_app.api.dashboard_read_guard.frappe.db.get_value")
@@ -59,6 +109,8 @@ class TestDashboardReadGuard(FrappeTestCase):
         get_value,
         service_color_family,
         get_dashboard_data,
+        current_user,
+        can_access_internal_workspace,
     ):
         original = {
             "message": {
@@ -74,6 +126,8 @@ class TestDashboardReadGuard(FrappeTestCase):
                 "service_snapshots": [{"id": "SR-0001"}],
             }
         }
+        current_user.return_value = "customer@example.com"
+        can_access_internal_workspace.return_value = False
         get_dashboard_data.return_value = original
         get_value.return_value = "Income Tax Filing"
         service_color_family.return_value = "Tax"
@@ -92,8 +146,17 @@ class TestDashboardReadGuard(FrappeTestCase):
         )
         get_dashboard_data.assert_called_once_with()
 
+    @patch("omc_app.api.dashboard_read_guard.dashboard._can_access_internal_workspace")
+    @patch("omc_app.api.dashboard_read_guard.dashboard._current_user")
     @patch("omc_app.api.dashboard_read_guard.dashboard.get_dashboard_data")
-    def test_non_mapping_response_is_returned_unchanged(self, get_dashboard_data):
+    def test_non_mapping_response_is_returned_unchanged(
+        self,
+        get_dashboard_data,
+        current_user,
+        can_access_internal_workspace,
+    ):
+        current_user.return_value = "customer@example.com"
+        can_access_internal_workspace.return_value = False
         get_dashboard_data.return_value = ["unexpected"]
 
         result = dashboard_read_guard.get_dashboard_data()
