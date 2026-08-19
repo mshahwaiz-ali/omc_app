@@ -8,6 +8,7 @@ import frappe
 
 from omc_app.api import (
     auth_cleanup,
+    customer_reconciliation,
     erp_sync_recovery,
     mobile,
     review_routing,
@@ -118,6 +119,7 @@ def run_hourly_jobs() -> dict[str, Any]:
         (
             service_assignment.run_unassigned_recovery,
             erp_sync_recovery.run_automatic_erp_sync_recovery,
+            customer_reconciliation.run_customer_account_reconciliation,
             review_routing.run_review_assignment_checks,
             submission_integrity.run_integrity_rescore,
             auth_cleanup.cleanup_pending_registrations,
