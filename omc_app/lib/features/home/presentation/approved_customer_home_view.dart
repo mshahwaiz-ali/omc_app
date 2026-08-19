@@ -29,7 +29,7 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final profileAsync = ref.watch(profileSummaryProvider);
     final profileName = profileAsync.maybeWhen(
-      data: (profile) => profile.displayName.trim(),
+      data: (profile) => profile?.displayName.trim() ?? '',
       orElse: () => '',
     );
 
@@ -355,7 +355,8 @@ class _CurrentServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final action = service.nextAction;
-    final progressPercent = (service.progress * 100).round().clamp(0, 100);
+    final progressPercent =
+        (service.progress * 100).round().clamp(0, 100).toInt();
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
@@ -418,7 +419,7 @@ class _CurrentServiceCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
               minHeight: 7,
-              value: service.progress.clamp(0, 1),
+              value: service.progress.clamp(0, 1).toDouble(),
               backgroundColor: AppTheme.primarySoft,
               color: service.actionRequired ? AppTheme.warning : AppTheme.primary,
             ),
