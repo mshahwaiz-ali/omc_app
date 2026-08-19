@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/design_tokens.dart';
 import '../../app/theme.dart';
 import '../resilience/app_failure.dart';
 import 'app_button.dart';
@@ -179,57 +180,73 @@ class AppStateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(compact ? 18 : 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: compact ? 48 : 60,
-            height: compact ? 48 : 60,
-            decoration: BoxDecoration(
-              color: surfaceColor,
-              borderRadius: BorderRadius.circular(compact ? 16 : 20),
+    final theme = Theme.of(context);
+    final content = Semantics(
+      container: true,
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(compact ? 18 : AppSpacing.xl),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ExcludeSemantics(
+              child: Container(
+                width: compact ? AppTouchTarget.minimum : 60,
+                height: compact ? AppTouchTarget.minimum : 60,
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(
+                    compact ? AppRadius.medium : AppRadius.lg,
+                  ),
+                ),
+                child: Icon(icon, color: accentColor, size: compact ? 24 : 30),
+              ),
             ),
-            child: Icon(icon, color: accentColor, size: compact ? 24 : 30),
-          ),
-          SizedBox(height: compact ? 12 : 16),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: compact ? 16 : 18,
-              fontWeight: FontWeight.w900,
+            SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
+            Semantics(
+              header: true,
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: (compact
+                        ? theme.textTheme.titleMedium
+                        : theme.textTheme.titleLarge)
+                    ?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: compact ? 13 : 14,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
+            const SizedBox(height: 6),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: (compact
+                      ? theme.textTheme.bodySmall
+                      : theme.textTheme.bodyMedium)
+                  ?.copyWith(
+                    color: AppTheme.textSecondary,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
-          ),
-          if (actionLabel != null && onAction != null) ...[
-            SizedBox(height: compact ? 14 : 18),
-            AppButton(
-              label: actionLabel!,
-              icon: Icons.refresh_rounded,
-              onPressed: onAction,
-              isExpanded: false,
-            ),
+            if (actionLabel != null && onAction != null) ...[
+              SizedBox(height: compact ? 14 : 18),
+              AppButton(
+                label: actionLabel!,
+                icon: Icons.refresh_rounded,
+                onPressed: onAction,
+                isExpanded: false,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
 
