@@ -193,7 +193,7 @@ def convert_manual_customer(manual_customer=None, request_name=None):
     # Conversion only repairs identity/customer linkage. It never creates ERP
     # Service/Task records directly. Financial opening and the durable bridge
     # own all activation work after the canonical eligibility gates pass.
-    payment = payment_opening.ensure_service_payment(request.name)
+    payment_name = payment_opening.ensure_service_payment(request.name)
     operation = bridge_outbox.enqueue_if_eligible(request.name)
     security.audit_event(
         event_type="customer.manual_conversion_completed",
@@ -210,7 +210,7 @@ def convert_manual_customer(manual_customer=None, request_name=None):
         "profile_created": created_profile,
         "erp_customer": erp_customer,
         "erp_customer_created": bool(customer_result.get("created")),
-        "payment": payment.name if payment else "",
+        "payment": payment_name or "",
         "bridge_operation": operation or "",
         "erp_sync_status": "Queued" if operation else "Not Eligible",
         "erp_service": _text(frappe.db.get_value("OMC Service Request", request.name, "erp_service")),
