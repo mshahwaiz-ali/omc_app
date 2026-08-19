@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../data/document_item.dart';
 import '../data/documents_repository.dart';
 
-class DocumentsScreen extends ConsumerWidget {
+class DocumentsScreen extends ConsumerStatefulWidget {
   const DocumentsScreen({
     super.key,
     this.assisted = false,
@@ -22,44 +23,168 @@ class DocumentsScreen extends ConsumerWidget {
   final String? customerName;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final documentsAsync = assisted && serviceRequest?.trim().isNotEmpty == true
-        ? ref.watch(assistedDocumentsProvider(serviceRequest!.trim()))
-        : ref.watch(documentsProvider);
+  ConsumerState<DocumentsScreen> createState() => _DocumentsScreenState();
+}
+
+class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
+  final List<DocumentItem> _additionalDocuments = [];
+  int? _nextStart;
+  bool _hasMore = false;
+  bool _loadingMore = false;
+  bool _didSeedPage = false;
+
+  bool get _isAssistedRequest =>
+      widget.assisted && widget.serviceRequest?.trim().isNotEmpty == true;
+
+  String get _serviceRequest => widget.serviceRequest?.trim() ?? '';
+
+  @override
+  Widget build(BuildContext context) {
+    final pageAsync = _isAssistedRequest
+        ? ref.watch(assistedDocumentPageProvider(_serviceRequest))
+        : ref.watch(documentPageProvider);
 
     return Scaffold(
       backgroundColor: OmcPremium.canvas,
       body: SafeArea(
         child: RefreshIndicator(
           color: OmcPremium.documents,
-          onRefresh: () async {
-            if (assisted && serviceRequest?.trim().isNotEmpty == true) {
-              final provider = assistedDocumentsProvider(
-                serviceRequest!.trim(),
+          onRefresh: _refresh,
+          child: pageAsync.when(
+            data: (page) {
+              if (!_didSeedPage) {
+                _didSeedPage = true;
+                _nextStart = page.nextStart;
+                _hasMore = page.hasMore;
+              }
+
+              final documents = _mergeDocuments(page.items, _additionalDocuments);
+              return Stack(
+                children: [
+                  _DocumentsWorkspace(
+                    documents: documents,
+                    assisted: widget.assisted,
+                    serviceRequest: widget.serviceRequest,
+                    customerName: widget.customerName,
+                  ),
+                  if (_hasMore)
+                    Positioned(
+                      left: 20,
+                      right: 20,
+                      bottom: 88,
+                      child: SafeArea(
+                        top: false,
+                        child: FilledButton.tonalIcon(
+                          onPressed: _loadingMore ? null : _loadMore,
+                          icon: _loadingMore
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.expand_more_rounded),
+                          label: Text(
+                            _loadingMore ? 'Loading documents' : 'Load more',
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               );
-              ref.invalidate(provider);
-              await ref.read(provider.future);
-            } else {
-              ref.invalidate(documentsProvider);
-              await ref.read(documentsProvider.future);
-            }
-          },
-          child: documentsAsync.when(
-            data: (documents) => _DocumentsWorkspace(
-              documents: documents,
-              assisted: assisted,
-              serviceRequest: serviceRequest,
-              customerName: customerName,
-            ),
+            },
             loading: () => const _DocumentsLoadingView(),
             error: (error, _) => _DocumentsErrorView(
               error: error,
-              onRetry: () => ref.invalidate(documentsProvider),
+              onRetry: _retry,
             ),
           ),
         ),
       ),
     );
+  }
+
+  List<DocumentItem> _mergeDocuments(
+    List<DocumentItem> firstPage,
+    List<DocumentItem> additional,
+  ) {
+    final seen = <String>{};
+    final result = <DocumentItem>[];
+    for (final item in [...firstPage, ...additional]) {
+      if (seen.add(item.id)) result.add(item);
+    }
+    return result;
+  }
+
+  void _resetPagingState() {
+    _additionalDocuments.clear();
+    _nextStart = null;
+    _hasMore = false;
+    _loadingMore = false;
+    _didSeedPage = false;
+  }
+
+  Future<void> _refresh() async {
+    setState(_resetPagingState);
+    if (_isAssistedRequest) {
+      final provider = assistedDocumentPageProvider(_serviceRequest);
+      ref.invalidate(provider);
+      await ref.read(provider.future);
+    } else {
+      ref.invalidate(documentPageProvider);
+      await ref.read(documentPageProvider.future);
+    }
+  }
+
+  void _retry() {
+    setState(_resetPagingState);
+    if (_isAssistedRequest) {
+      ref.invalidate(assistedDocumentPageProvider(_serviceRequest));
+    } else {
+      ref.invalidate(documentPageProvider);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final start = _nextStart;
+    if (_loadingMore || !_hasMore || start == null) return;
+
+    setState(() => _loadingMore = true);
+    try {
+      final page = await ref
+          .read(documentsRepositoryProvider)
+          .fetchDocumentPage(
+            start: start,
+            serviceRequest: _isAssistedRequest ? _serviceRequest : null,
+            assisted: _isAssistedRequest,
+          );
+      if (!mounted) return;
+
+      setState(() {
+        final knownIds = _additionalDocuments.map((item) => item.id).toSet();
+        final firstPage = _isAssistedRequest
+            ? ref.read(assistedDocumentPageProvider(_serviceRequest)).value
+            : ref.read(documentPageProvider).value;
+        knownIds.addAll(firstPage?.items.map((item) => item.id) ?? const []);
+        _additionalDocuments.addAll(
+          page.items.where((item) => knownIds.add(item.id)),
+        );
+        _nextStart = page.nextStart;
+        _hasMore = page.hasMore;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'More documents unavailable',
+        fallbackMessage: 'The next document page could not be loaded.',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 }
 
@@ -275,7 +400,7 @@ class _Header extends StatelessWidget {
                       assisted && customerName?.trim().isNotEmpty == true
                           ? '${customerName!.trim()}\'s Documents'
                           : 'My Documents',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 27,
                         height: 1.05,
