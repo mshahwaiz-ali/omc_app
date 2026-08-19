@@ -19,3 +19,9 @@ class OMCBridgeOperation(Document):
                 "Bridge operation identity is immutable.",
                 frappe.ValidationError,
             )
+
+    def on_trash(self):
+        frappe.throw(
+            "Bridge operation evidence cannot be deleted; complete, cancel, or recover it through the guarded activation workflow.",
+            frappe.PermissionError,
+        )
