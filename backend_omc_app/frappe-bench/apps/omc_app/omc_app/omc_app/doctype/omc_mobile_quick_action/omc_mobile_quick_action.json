@@ -188,21 +188,6 @@
    "role": "OMC Admin",
    "share": 1,
    "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "role": "OMC Admin",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "read": 1,
-   "role": "OMC Manager"
   }
  ],
  "sort_field": "sort_order",
