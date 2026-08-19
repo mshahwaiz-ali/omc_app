@@ -112,7 +112,7 @@ class DocumentsRepository {
     int limit = 20,
   }) async {
     final safeStart = start < 0 ? 0 : start;
-    final safeLimit = limit.clamp(1, 100);
+    final safeLimit = limit.clamp(1, 100).toInt();
     final queryParameters = <String, dynamic>{
       'limit_start': safeStart,
       'limit_page_length': safeLimit,
