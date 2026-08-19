@@ -2,6 +2,8 @@ import json
 
 import frappe
 
+from omc_app.api import security
+
 
 def _clean_text(value, default=""):
     text = str(value or "").strip()
@@ -72,8 +74,7 @@ def _guest_session_to_dict(doc):
     }
 
 
-@frappe.whitelist(allow_guest=True)
-def create_guest_session(**kwargs):
+def _create_or_update_guest_session(kwargs):
     device_id = _bounded_text(
         kwargs.get("device_id"),
         fieldname="device_id",
@@ -110,12 +111,23 @@ def create_guest_session(**kwargs):
         doc.insert(ignore_permissions=True)
     else:
         doc.save(ignore_permissions=True)
+    return doc
 
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def create_guest_session(**kwargs):
+    device_id = _bounded_text(
+        kwargs.get("device_id"),
+        fieldname="device_id",
+        max_length=140,
+    )
+    security.enforce_rate_limit("identity", actor=device_id or "guest")
+    doc = _create_or_update_guest_session(kwargs)
     frappe.db.commit()
     return {"guest_session": _guest_session_to_dict(doc)}
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def update_guest_activity(**kwargs):
     session_id = _bounded_text(
         kwargs.get("session_id") or kwargs.get("name"),
@@ -127,6 +139,7 @@ def update_guest_activity(**kwargs):
         fieldname="device_id",
         max_length=140,
     )
+    security.enforce_rate_limit("identity", actor=device_id or session_id or "guest")
 
     doc = None
     if session_id:
@@ -155,7 +168,9 @@ def update_guest_activity(**kwargs):
             doc = frappe.get_doc("OMC Guest Session", existing_name)
 
     if doc is None:
-        return create_guest_session(**kwargs)
+        doc = _create_or_update_guest_session(kwargs)
+        frappe.db.commit()
+        return {"guest_session": _guest_session_to_dict(doc)}
 
     doc.last_active_on = frappe.utils.now_datetime()
 
