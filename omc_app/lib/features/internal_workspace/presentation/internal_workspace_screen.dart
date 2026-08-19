@@ -3,22 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/effective_capabilities_provider.dart';
-
+import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../payments/presentation/settlement_exceptions_screen.dart';
+import '../application/internal_workspace_focus.dart';
 import '../domain/internal_service_case.dart';
 import '../domain/internal_workspace_summary.dart';
 import 'internal_workspace_providers.dart';
 
-const EdgeInsets _kShellPagePadding = EdgeInsets.fromLTRB(20, 18, 20, 164);
-const Color _ink = Color(0xFF111827);
-const Color _slate = Color(0xFF64748B);
-const Color _rose = Color(0xFFE11D48);
-const Color _orange = Color(0xFFF97316);
-const Color _green = Color(0xFF16A34A);
-const Color _purple = Color(0xFF7C3AED);
+const EdgeInsets _pagePadding = EdgeInsets.fromLTRB(20, 18, 20, 164);
 
 class InternalWorkspaceScreen extends ConsumerWidget {
   const InternalWorkspaceScreen({super.key});
@@ -28,21 +23,21 @@ class InternalWorkspaceScreen extends ConsumerWidget {
     final summaryAsync = ref.watch(internalWorkspaceSummaryProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFD),
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         top: true,
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: () {
+          onRefresh: () async {
             ref.invalidate(internalWorkspaceSummaryProvider);
             ref.invalidate(internalServiceCasesProvider);
-            return ref.read(internalWorkspaceSummaryProvider.future);
+            await ref.read(internalWorkspaceSummaryProvider.future);
           },
           child: summaryAsync.when(
-            data: (summary) => _InternalWorkspaceContent(summary: summary),
-            loading: () => const _InternalWorkspaceLoading(),
-            error: (error, _) => _InternalWorkspaceUnavailable(
-              message: _backendErrorMessage(error),
+            data: (summary) => _WorkspaceContent(summary: summary),
+            loading: () => const _WorkspaceLoading(),
+            error: (error, _) => _WorkspaceUnavailable(
+              message: _failureMessage(error),
               onRetry: () => ref.invalidate(internalWorkspaceSummaryProvider),
             ),
           ),
@@ -52,128 +47,133 @@ class InternalWorkspaceScreen extends ConsumerWidget {
   }
 }
 
-String _backendErrorMessage(Object error) {
+String _failureMessage(Object error) {
   return AppFailureClassifier.classify(
     error,
-    fallbackTitle: 'Data unavailable',
+    fallbackTitle: 'Workspace unavailable',
     fallbackMessage:
-        'Could not load internal workspace summary from the backend right now.',
+        'Your internal workspace could not be loaded from the backend right now.',
   ).message;
 }
 
-class _InternalWorkspaceUnavailable extends StatelessWidget {
-  const _InternalWorkspaceUnavailable({
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: _kShellPagePadding,
-      children: [
-        PremiumEmptyState(
-          icon: Icons.dashboard_customize_rounded,
-          title: 'Workspace unavailable',
-          message: message,
-          actionLabel: 'Retry',
-          onAction: onRetry,
-        ),
-      ],
-    );
-  }
-}
-
-class _InternalWorkspaceContent extends ConsumerWidget {
-  const _InternalWorkspaceContent({required this.summary});
+class _WorkspaceContent extends ConsumerWidget {
+  const _WorkspaceContent({required this.summary});
 
   final InternalWorkspaceSummary summary;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final capabilities = ref.watch(effectiveCapabilitiesProvider);
+    final focus = InternalWorkspaceFocus.fromCapabilities(capabilities);
     final queueAsync = ref.watch(internalServiceCasesProvider);
 
-    return Stack(
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: _pagePadding,
       children: [
-        const Positioned.fill(child: _WorkspaceBackdrop()),
-        ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          padding: _kShellPagePadding,
-          children: [
-            _WorkspacePageHeader(
-              onRefresh: () {
-                ref.invalidate(internalWorkspaceSummaryProvider);
-                ref.invalidate(internalServiceCasesProvider);
-              },
-            ),
-            const SizedBox(height: 16),
-            _CustomerSearchCard(
-              onSearch: (value) {
-                final query = value.trim();
-                if (query.isEmpty) return;
-                ref
-                    .read(internalServiceCaseFiltersProvider.notifier)
-                    .setFilters(InternalServiceCaseFilters(search: query));
-                context.go('/internal-workspace/service-cases');
-              },
-            ),
-            const SizedBox(height: 16),
-            queueAsync.when(
-              loading: () => const _LoadingPanel(height: 188),
-              error: (_, _) => _OperationsSummaryCard(
-                summary: summary,
-                cases: const [],
-                queueUnavailable: true,
-              ),
-              data: (queue) =>
-                  _OperationsSummaryCard(summary: summary, cases: queue.cases),
-            ),
-            const SizedBox(height: 18),
-            _MyServicePerformanceCard(summary: summary),
-            const SizedBox(height: 22),
-            _SectionTitle(
-              title: 'Priority Queue',
-              actionLabel: 'View all',
-              onAction: () => context.go('/internal-workspace/service-cases'),
-            ),
-            const SizedBox(height: 10),
-            queueAsync.when(
-              loading: () => const _PriorityQueueLoading(),
-              error: (error, _) =>
-                  _PriorityQueueFallback(message: _backendErrorMessage(error)),
-              data: (queue) => _PriorityQueuePreview(
-                items: _rankPriorityCases(queue.cases).take(3).toList(),
-              ),
-            ),
-            const SizedBox(height: 22),
-            const _SectionTitle(title: 'Work Queues'),
-            const SizedBox(height: 12),
-            queueAsync.when(
-              loading: () => const _WorkQueuesLoading(),
-              error: (_, _) => _WorkQueues(summary: summary, cases: const []),
-              data: (queue) =>
-                  _WorkQueues(summary: summary, cases: queue.cases),
-            ),
-            const SizedBox(height: 22),
-            const _SectionTitle(title: 'Quick Actions'),
-            const SizedBox(height: 12),
-            const _QuickActions(),
-          ],
+        _WorkspaceHeader(
+          focus: focus,
+          onRefresh: () {
+            ref.invalidate(internalWorkspaceSummaryProvider);
+            ref.invalidate(internalServiceCasesProvider);
+          },
         ),
+        if (focus.canShowCustomers && focus.canShowServiceCases) ...[
+          const SizedBox(height: 16),
+          _CustomerSearchCard(
+            onSearch: (value) {
+              final query = value.trim();
+              if (query.isEmpty) return;
+              ref
+                  .read(internalServiceCaseFiltersProvider.notifier)
+                  .setFilters(InternalServiceCaseFilters(search: query));
+              context.go('/internal-workspace/service-cases');
+            },
+          ),
+        ],
+        const SizedBox(height: 18),
+        queueAsync.when(
+          loading: () => _OverviewCard(
+            focus: focus,
+            summary: summary,
+            cases: const [],
+            queueUnavailable: true,
+          ),
+          error: (_, _) => _OverviewCard(
+            focus: focus,
+            summary: summary,
+            cases: const [],
+            queueUnavailable: true,
+          ),
+          data: (queue) => _OverviewCard(
+            focus: focus,
+            summary: summary,
+            cases: queue.cases,
+          ),
+        ),
+        if (focus.showServicePerformance) ...[
+          const SizedBox(height: 16),
+          _ServicePerformanceCard(summary: summary),
+        ],
+        if (focus.canShowServiceCases) ...[
+          const SizedBox(height: 24),
+          _SectionHeader(
+            title: focus.priorityTitle,
+            actionLabel: 'View all',
+            onAction: () => context.go('/internal-workspace/service-cases'),
+          ),
+          const SizedBox(height: 10),
+          queueAsync.when(
+            loading: () => const _PriorityLoading(),
+            error: (error, _) => _QueueUnavailable(
+              message: _failureMessage(error),
+              onRetry: () => ref.invalidate(internalServiceCasesProvider),
+            ),
+            data: (queue) => _PriorityPreview(
+              focus: focus,
+              items: _rankPriorityCases(queue.cases, focus.kind)
+                  .take(3)
+                  .toList(growable: false),
+            ),
+          ),
+        ],
+        const SizedBox(height: 24),
+        const _SectionHeader(title: 'Work queues'),
+        const SizedBox(height: 12),
+        queueAsync.when(
+          loading: () => _WorkQueues(
+            focus: focus,
+            summary: summary,
+            cases: const [],
+            queueUnavailable: true,
+          ),
+          error: (_, _) => _WorkQueues(
+            focus: focus,
+            summary: summary,
+            cases: const [],
+            queueUnavailable: true,
+          ),
+          data: (queue) => _WorkQueues(
+            focus: focus,
+            summary: summary,
+            cases: queue.cases,
+          ),
+        ),
+        const SizedBox(height: 24),
+        const _SectionHeader(title: 'Quick actions'),
+        const SizedBox(height: 12),
+        _QuickActions(focus: focus),
       ],
     );
   }
 }
 
-class _WorkspacePageHeader extends StatelessWidget {
-  const _WorkspacePageHeader({required this.onRefresh});
+class _WorkspaceHeader extends StatelessWidget {
+  const _WorkspaceHeader({required this.focus, required this.onRefresh});
 
+  final InternalWorkspaceFocus focus;
   final VoidCallback onRefresh;
 
   @override
@@ -181,25 +181,25 @@ class _WorkspacePageHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Workspace',
-                style: TextStyle(
-                  color: _ink,
+                focus.title,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
                   fontSize: 30,
                   height: 1.05,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.7,
                 ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Cases, customers and daily operations',
-                style: TextStyle(
-                  color: _slate,
+                focus.subtitle,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
                   fontSize: 13.5,
                   height: 1.35,
                   fontWeight: FontWeight.w600,
@@ -211,33 +211,27 @@ class _WorkspacePageHeader extends StatelessWidget {
         const SizedBox(width: 12),
         Material(
           color: Colors.white,
-          shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          child: InkWell(
+            onTap: onRefresh,
             borderRadius: BorderRadius.circular(15),
-            side: const BorderSide(color: Color(0xFFE5EAF1)),
-          ),
-          child: IconButton(
-            tooltip: 'Refresh workspace',
-            onPressed: onRefresh,
-            icon: const Icon(Icons.refresh_rounded, color: _ink),
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: const Icon(
+                Icons.refresh_rounded,
+                color: AppTheme.textPrimary,
+              ),
+            ),
           ),
         ),
       ],
     );
   }
-}
-
-class _WorkspaceBackdrop extends StatelessWidget {
-  const _WorkspaceBackdrop();
-  @override
-  Widget build(BuildContext context) => const DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFFDFEFF), Color(0xFFF6F8FC), Color(0xFFFAFBFD)],
-      ),
-    ),
-  );
 }
 
 class _CustomerSearchCard extends StatefulWidget {
@@ -273,12 +267,12 @@ class _CustomerSearchCardState extends State<_CustomerSearchCard> {
         textInputAction: TextInputAction.search,
         onSubmitted: widget.onSearch,
         decoration: InputDecoration(
-          hintText: 'Search customer, phone, CNIC, NTN or service...',
+          hintText: 'Search customer or service case...',
           prefixIcon: const Icon(Icons.search_rounded),
           suffixIcon: IconButton(
-            tooltip: 'Search',
+            tooltip: 'Search cases',
             onPressed: () => widget.onSearch(_controller.text),
-            icon: const Icon(Icons.tune_rounded),
+            icon: const Icon(Icons.arrow_forward_rounded),
           ),
         ),
       ),
@@ -286,109 +280,69 @@ class _CustomerSearchCardState extends State<_CustomerSearchCard> {
   }
 }
 
-class _OperationsSummaryCard extends StatelessWidget {
-  const _OperationsSummaryCard({
+class _OverviewCard extends StatelessWidget {
+  const _OverviewCard({
+    required this.focus,
     required this.summary,
     required this.cases,
     this.queueUnavailable = false,
   });
 
+  final InternalWorkspaceFocus focus;
   final InternalWorkspaceSummary summary;
   final List<InternalServiceCase> cases;
   final bool queueUnavailable;
 
   @override
   Widget build(BuildContext context) {
-    final activeCases = cases.where(_isOpenCase).length;
-    final documentIssues = cases.fold<int>(
-      0,
-      (total, item) => total + item.pendingDocuments + item.rejectedDocuments,
+    final metrics = _overviewMetrics(
+      focus: focus,
+      summary: summary,
+      cases: cases,
+      queueUnavailable: queueUnavailable,
     );
-    final needsAttention =
-        cases.where(_caseNeedsAttention).length +
-        documentIssues +
-        summary.pendingPayments +
-        summary.pendingTasks;
 
     return PremiumCard(
-      padding: const EdgeInsets.fromLTRB(17, 17, 17, 14),
-      onTap: () => context.go('/internal-workspace/service-cases'),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Expanded(
                 child: Text(
-                  'Operations Today',
-                  style: TextStyle(
-                    color: _ink,
+                  focus.overviewTitle,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-              Icon(Icons.arrow_forward_rounded, size: 19, color: _slate),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryMetric(
-                  value: queueUnavailable ? '—' : '$activeCases',
-                  label: 'Active cases',
-                  color: _green,
+              if (queueUnavailable)
+                const Tooltip(
+                  message: 'Case queue is temporarily unavailable',
+                  child: Icon(
+                    Icons.cloud_off_outlined,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _SummaryMetric(
-                  value: queueUnavailable ? '—' : '$needsAttention',
-                  label: 'Need attention',
-                  color: _rose,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFE8ECF2)),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryMetric(
-                  value: '${summary.pendingPayments}',
-                  label: 'Payments pending',
-                  color: _orange,
-                  compact: true,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _SummaryMetric(
-                  value: '${summary.pendingTasks}',
-                  label: 'Tasks due',
-                  color: _purple,
-                  compact: true,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 15),
-          const Row(
-            children: [
-              Icon(Icons.view_list_rounded, size: 17, color: _slate),
-              SizedBox(width: 7),
-              Text(
-                'Open full queue',
-                style: TextStyle(
-                  color: _ink,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: metrics.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 2.35,
+            ),
+            itemBuilder: (context, index) =>
+                _OverviewMetricCard(metric: metrics[index]),
           ),
         ],
       ),
@@ -396,66 +350,60 @@ class _OperationsSummaryCard extends StatelessWidget {
   }
 }
 
-class _SummaryMetric extends StatelessWidget {
-  const _SummaryMetric({
-    required this.value,
-    required this.label,
-    required this.color,
-    this.compact = false,
-  });
+class _OverviewMetricCard extends StatelessWidget {
+  const _OverviewMetricCard({required this.metric});
 
-  final String value;
-  final String label;
-  final Color color;
-  final bool compact;
+  final _OverviewMetric metric;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: compact ? 8 : 10,
-          height: compact ? 32 : 39,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(999),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  color: _ink,
-                  fontSize: compact ? 20 : 25,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.cardSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        children: [
+          Icon(metric.icon, size: 20, color: metric.color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  metric.value,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 20,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: _slate,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(height: 4),
+                Text(
+                  metric.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.actionLabel, this.onAction});
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.actionLabel, this.onAction});
 
   final String title;
   final String? actionLabel;
@@ -463,14 +411,16 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
       children: [
         Expanded(
           child: Text(
             title,
-            style: theme.textTheme.titleLarge?.copyWith(
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 19,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
             ),
           ),
         ),
@@ -481,16 +431,31 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _PriorityQueuePreview extends StatelessWidget {
-  const _PriorityQueuePreview({required this.items});
+class _PriorityPreview extends StatelessWidget {
+  const _PriorityPreview({required this.focus, required this.items});
 
+  final InternalWorkspaceFocus focus;
   final List<InternalServiceCase> items;
 
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const _PriorityQueueFallback(
-        message: 'No service cases need attention in the current queue.',
+      return const PremiumCard(
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_outline_rounded, color: AppTheme.success),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'No service cases need attention in your current scope.',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -499,26 +464,27 @@ class _PriorityQueuePreview extends StatelessWidget {
         for (final item in items)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _PriorityQueueTile(serviceCase: item),
+            child: _PriorityCaseCard(
+              item: item,
+              reason: _priorityReason(item, focus.kind),
+            ),
           ),
       ],
     );
   }
 }
 
-class _PriorityQueueTile extends StatelessWidget {
-  const _PriorityQueueTile({required this.serviceCase});
+class _PriorityCaseCard extends StatelessWidget {
+  const _PriorityCaseCard({required this.item, required this.reason});
 
-  final InternalServiceCase serviceCase;
+  final InternalServiceCase item;
+  final _PriorityReason reason;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final reason = _priorityReason(serviceCase);
-
     return PremiumCard(
       padding: const EdgeInsets.all(14),
-      onTap: () => _openCase(context, serviceCase),
+      onTap: () => _openCase(context, item),
       child: Row(
         children: [
           Container(
@@ -536,47 +502,43 @@ class _PriorityQueueTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${serviceCase.displayCustomer} · ${serviceCase.displayService}',
+                  '${item.displayCustomer} · ${item.displayService}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: _ink,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  serviceCase.id,
+                  item.id,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: _slate,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 7),
                 Text(
-                  '${reason.label}${_waitingLabel(serviceCase)}',
+                  '${reason.label}${_waitingLabel(item)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelMedium?.copyWith(
+                  style: TextStyle(
                     color: reason.color,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          OutlinedButton(
-            onPressed: () => _openCase(context, serviceCase),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _ink,
-              minimumSize: const Size(0, 38),
-              padding: const EdgeInsets.symmetric(horizontal: 13),
-              side: const BorderSide(color: Color(0xFFDCE2EA)),
-            ),
-            child: const Text('Review'),
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
           ),
         ],
       ),
@@ -584,111 +546,133 @@ class _PriorityQueueTile extends StatelessWidget {
   }
 }
 
-void _openCase(BuildContext context, InternalServiceCase item) {
-  context.go(
-    '/internal-workspace/service-cases/${Uri.encodeComponent(item.id)}',
-  );
+class _QueueUnavailable extends StatelessWidget {
+  const _QueueUnavailable({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Case queue unavailable',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _PriorityQueueLoading extends StatelessWidget {
-  const _PriorityQueueLoading();
+class _PriorityLoading extends StatelessWidget {
+  const _PriorityLoading();
 
   @override
   Widget build(BuildContext context) {
     return const Column(
       children: [
-        _LoadingPanel(height: 74),
+        _LoadingPanel(height: 76),
         SizedBox(height: 10),
-        _LoadingPanel(height: 74),
+        _LoadingPanel(height: 76),
       ],
     );
   }
 }
 
-class _PriorityQueueFallback extends StatelessWidget {
-  const _PriorityQueueFallback({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return PremiumCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded, color: theme.colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _WorkQueues extends StatelessWidget {
-  const _WorkQueues({required this.summary, required this.cases});
+  const _WorkQueues({
+    required this.focus,
+    required this.summary,
+    required this.cases,
+    this.queueUnavailable = false,
+  });
 
+  final InternalWorkspaceFocus focus;
   final InternalWorkspaceSummary summary;
   final List<InternalServiceCase> cases;
+  final bool queueUnavailable;
 
   @override
   Widget build(BuildContext context) {
     final items = <_QueueItem>[
-      _QueueItem(
-        label: 'Service Cases',
-        count: cases.where(_isOpenCase).length,
-        icon: Icons.assignment_turned_in_rounded,
-        color: _rose,
-        route: '/internal-workspace/service-cases',
-      ),
-      _QueueItem(
-        label: 'Documents',
-        count: cases.fold<int>(
-          0,
-          (sum, item) => sum + item.pendingDocuments + item.rejectedDocuments,
+      if (focus.canShowServiceCases)
+        _QueueItem(
+          label: 'Service cases',
+          value: queueUnavailable
+              ? '—'
+              : '${cases.where((item) => item.isActive).length}',
+          icon: Icons.assignment_outlined,
+          route: '/internal-workspace/service-cases',
         ),
-        icon: Icons.folder_copy_rounded,
-        color: _green,
-        route: '/internal-workspace/documents',
-      ),
-      _QueueItem(
-        label: 'Payments',
-        count: summary.pendingPayments,
-        icon: Icons.payments_rounded,
-        color: _orange,
-        route: '/internal-workspace/payments',
-      ),
-      _QueueItem(
-        label: 'Customers',
-        count: summary.activeCustomers,
-        icon: Icons.groups_2_rounded,
-        color: _purple,
-        route: '/internal-workspace/customers',
-      ),
-      _QueueItem(
-        label: 'Leads',
-        count: summary.openLeads,
-        icon: Icons.trending_up_rounded,
-        color: const Color(0xFF2563EB),
-        route: '/leads',
-      ),
-      _QueueItem(
-        label: 'Tasks',
-        count: summary.pendingTasks,
-        icon: Icons.task_alt_rounded,
-        color: const Color(0xFF0F9F8F),
-        route: '/tasks',
-      ),
+      if (focus.canShowDocuments)
+        _QueueItem(
+          label: 'Documents',
+          value: queueUnavailable ? '—' : '${_documentIssues(cases)}',
+          icon: Icons.folder_copy_outlined,
+          route: '/internal-workspace/documents',
+        ),
+      if (focus.canShowPayments)
+        _QueueItem(
+          label: 'Payments',
+          value: '${summary.pendingPayments}',
+          icon: Icons.receipt_long_outlined,
+          route: '/internal-workspace/payments',
+        ),
+      if (focus.canShowCustomers)
+        _QueueItem(
+          label: 'Customers',
+          value: '${summary.activeCustomers}',
+          icon: Icons.groups_outlined,
+          route: '/internal-workspace/customers',
+        ),
+      if (focus.canShowLeads)
+        _QueueItem(
+          label: 'Leads',
+          value: '${summary.openLeads}',
+          icon: Icons.person_search_outlined,
+          route: '/leads',
+        ),
+      if (focus.canShowTasks)
+        _QueueItem(
+          label: 'Tasks',
+          value: '${summary.pendingTasks}',
+          icon: Icons.task_alt_outlined,
+          route: '/tasks',
+        ),
     ];
+
+    if (items.isEmpty) {
+      return const PremiumCard(
+        child: Text(
+          'No additional work queues are assigned to this account.',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
 
     return GridView.builder(
       itemCount: items.length,
@@ -705,22 +689,6 @@ class _WorkQueues extends StatelessWidget {
   }
 }
 
-class _QueueItem {
-  const _QueueItem({
-    required this.label,
-    required this.count,
-    required this.icon,
-    required this.color,
-    required this.route,
-  });
-
-  final String label;
-  final int count;
-  final IconData icon;
-  final Color color;
-  final String route;
-}
-
 class _WorkQueueCard extends StatelessWidget {
   const _WorkQueueCard({required this.item});
 
@@ -734,13 +702,13 @@ class _WorkQueueCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.10),
+              color: AppTheme.primarySoft,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(item.icon, color: item.color, size: 18),
+            child: Icon(item.icon, color: AppTheme.primary, size: 19),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -749,10 +717,10 @@ class _WorkQueueCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${item.count}',
+                  item.value,
                   style: const TextStyle(
-                    color: _ink,
-                    fontSize: 21,
+                    color: AppTheme.textPrimary,
+                    fontSize: 20,
                     height: 1,
                     fontWeight: FontWeight.w900,
                   ),
@@ -763,7 +731,7 @@ class _WorkQueueCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: _slate,
+                    color: AppTheme.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -771,70 +739,93 @@ class _WorkQueueCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: _slate, size: 18),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
+            size: 18,
+          ),
         ],
       ),
     );
   }
 }
 
-class _WorkQueuesLoading extends StatelessWidget {
-  const _WorkQueuesLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        Expanded(child: _LoadingPanel(height: 122)),
-        SizedBox(width: 10),
-        Expanded(child: _LoadingPanel(height: 122)),
-      ],
-    );
-  }
-}
-
 class _QuickActions extends ConsumerWidget {
-  const _QuickActions();
+  const _QuickActions({required this.focus});
+
+  final InternalWorkspaceFocus focus;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
-    final actions = <({String label, IconData icon, String route})>[
-      (
-        label: 'New service case',
-        icon: Icons.add_circle_outline_rounded,
-        route: '/services',
-      ),
-      (
-        label: 'Customers',
-        icon: Icons.person_search_rounded,
-        route: '/internal-workspace/customers',
-      ),
-      (label: 'Leads', icon: Icons.add_chart_rounded, route: '/leads'),
-      (
-        label: 'Tasks',
-        icon: Icons.playlist_add_check_circle_rounded,
-        route: '/tasks',
-      ),
-      if (capabilities.canManageStaff ||
-          capabilities.canReviewRegistrations ||
-          capabilities.canManageBusinessSettings)
-        (
-          label: 'Admin controls',
-          icon: Icons.admin_panel_settings_rounded,
-          route: '/admin-control',
+    final actions = <_QuickAction>[
+      if (focus.canCreateServiceForCustomer)
+        _QuickAction(
+          label: 'New service case',
+          icon: Icons.add_circle_outline_rounded,
+          onTap: () => context.go('/services'),
         ),
-      if (capabilities.canReassignServiceCases ||
-          capabilities.canRetrySync ||
-          capabilities.canManageBusinessSettings)
-        (
+      if (focus.canShowCustomers)
+        _QuickAction(
+          label: 'Customers',
+          icon: Icons.groups_outlined,
+          onTap: () => context.go('/internal-workspace/customers'),
+        ),
+      if (focus.canShowLeads)
+        _QuickAction(
+          label: 'Leads',
+          icon: Icons.person_search_outlined,
+          onTap: () => context.go('/leads'),
+        ),
+      if (focus.canShowTasks)
+        _QuickAction(
+          label: 'Tasks',
+          icon: Icons.task_alt_outlined,
+          onTap: () => context.go('/tasks'),
+        ),
+      if (capabilities.canUseSupportWorkspace)
+        _QuickAction(
+          label: 'Support',
+          icon: Icons.support_agent_outlined,
+          onTap: () => context.go('/support'),
+        ),
+      if (focus.canShowSettlementExceptions)
+        _QuickAction(
+          label: 'Settlement exceptions',
+          icon: Icons.fact_check_outlined,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const SettlementExceptionsScreen(),
+            ),
+          ),
+        ),
+      if (focus.canShowAdminControls)
+        _QuickAction(
+          label: 'Admin controls',
+          icon: Icons.admin_panel_settings_outlined,
+          onTap: () => context.go('/admin-control'),
+        ),
+      if (focus.canShowOperationalControls)
+        _QuickAction(
           label: 'Operational controls',
           icon: Icons.tune_rounded,
-          route: '/admin-control/operations',
+          onTap: () => context.go('/admin-control/operations'),
         ),
     ];
 
-    final grid = GridView.builder(
+    if (actions.isEmpty) {
+      return const PremiumCard(
+        child: Text(
+          'No additional actions are available for this workspace.',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
       itemCount: actions.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -844,321 +835,72 @@ class _QuickActions extends ConsumerWidget {
         mainAxisSpacing: 10,
         childAspectRatio: 1.05,
       ),
-      itemBuilder: (context, index) {
-        final action = actions[index];
-        return Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: () => context.go(action.route),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFDDE3EB)),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F5F9),
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Icon(action.icon, size: 21, color: _ink),
-                  ),
-                  const SizedBox(height: 9),
-                  Text(
-                    action.label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: _ink,
-                      fontSize: 11,
-                      height: 1.15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      itemBuilder: (context, index) => _QuickActionCard(action: actions[index]),
     );
+  }
+}
 
-    if (!capabilities.canReconcileSettlement) return grid;
+class _QuickActionCard extends StatelessWidget {
+  const _QuickActionCard({required this.action});
 
-    return Column(
-      children: [
-        PremiumCard(
-          padding: const EdgeInsets.all(14),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const SettlementExceptionsScreen(),
-            ),
+  final _QuickAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: action.onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.border),
           ),
-          child: const Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.account_balance_wallet_outlined, color: _orange),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Settlement exceptions',
-                      style: TextStyle(
-                        color: _ink,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Review accounting mismatches that need a human finance decision.',
-                      style: TextStyle(
-                        color: _slate,
-                        fontSize: 11.5,
-                        height: 1.3,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.primarySoft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(action.icon, size: 21, color: AppTheme.primary),
+              ),
+              const SizedBox(height: 9),
+              Text(
+                action.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 11,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: _slate),
             ],
           ),
         ),
-        const SizedBox(height: 10),
-        grid,
-      ],
-    );
-  }
-}
-
-typedef _PriorityReason = ({String label, IconData icon, Color color});
-
-List<InternalServiceCase> _rankPriorityCases(List<InternalServiceCase> cases) {
-  final ranked = cases.where(_isOpenCase).toList();
-  ranked.sort((a, b) {
-    final score = _priorityScore(b).compareTo(_priorityScore(a));
-    if (score != 0) return score;
-    final aDate = _caseDate(a);
-    final bDate = _caseDate(b);
-    if (aDate == null && bDate == null) return 0;
-    if (aDate == null) return 1;
-    if (bDate == null) return -1;
-    return aDate.compareTo(bDate);
-  });
-  return ranked;
-}
-
-int _priorityScore(InternalServiceCase item) {
-  final priority = item.priority.toLowerCase();
-  final status = item.status.toLowerCase();
-  var score = 0;
-  if (priority.contains('urgent')) {
-    score += 100;
-  } else if (priority.contains('high')) {
-    score += 80;
-  }
-  if (item.rejectedDocuments > 0) score += 70;
-  if (item.pendingDocuments > 0) score += 60;
-  if (status.contains('review')) score += 45;
-  if (status.contains('pending')) score += 30;
-  if (status.contains('open')) score += 20;
-  final date = _caseDate(item);
-  if (date != null) {
-    score += DateTime.now().difference(date).inDays.clamp(0, 30);
-  }
-  return score;
-}
-
-bool _caseNeedsAttention(InternalServiceCase item) {
-  final priority = item.priority.toLowerCase();
-  final status = item.status.toLowerCase();
-  return priority.contains('urgent') ||
-      priority.contains('high') ||
-      item.pendingDocuments > 0 ||
-      item.rejectedDocuments > 0 ||
-      status.contains('review') ||
-      status.contains('pending');
-}
-
-bool _isOpenCase(InternalServiceCase item) {
-  final status = item.status.toLowerCase();
-  return !status.contains('completed') &&
-      !status.contains('closed') &&
-      !status.contains('cancelled') &&
-      !status.contains('canceled');
-}
-
-_PriorityReason _priorityReason(InternalServiceCase item) {
-  final priority = item.priority.toLowerCase();
-  final status = item.status.toLowerCase();
-
-  if (item.rejectedDocuments > 0) {
-    return (
-      label:
-          '${item.rejectedDocuments} rejected document${item.rejectedDocuments == 1 ? '' : 's'}',
-      icon: Icons.error_outline_rounded,
-      color: _rose,
-    );
-  }
-  if (item.pendingDocuments > 0) {
-    return (
-      label: 'Missing documents',
-      icon: Icons.description_outlined,
-      color: _orange,
-    );
-  }
-  if (priority.contains('urgent') || priority.contains('high')) {
-    return (
-      label: priority.contains('urgent') ? 'Urgent priority' : 'High priority',
-      icon: Icons.priority_high_rounded,
-      color: _rose,
-    );
-  }
-  if (status.contains('review')) {
-    return (
-      label: 'Under review',
-      icon: Icons.rate_review_outlined,
-      color: _purple,
-    );
-  }
-  if (status.contains('pending')) {
-    return (
-      label: item.status == '-' ? 'Pending action' : item.status,
-      icon: Icons.schedule_rounded,
-      color: _orange,
-    );
-  }
-  return (
-    label: item.status == '-' ? 'Open' : item.status,
-    icon: Icons.inbox_outlined,
-    color: _green,
-  );
-}
-
-String _waitingLabel(InternalServiceCase item) {
-  final date = _caseDate(item);
-  if (date == null) return '';
-  final days = DateTime.now().difference(date).inDays;
-  if (days <= 0) return ' · updated today';
-  if (days == 1) return ' · 1 day waiting';
-  return ' · $days days waiting';
-}
-
-DateTime? _caseDate(InternalServiceCase item) {
-  return DateTime.tryParse(item.updatedAt)?.toLocal() ??
-      DateTime.tryParse(item.createdAt)?.toLocal();
-}
-
-// Reserved for the live activity feed once backend events are enabled.
-// ignore: unused_element
-class _ActivityPlaceholder extends StatelessWidget {
-  const _ActivityPlaceholder({required this.onOpenCases});
-
-  final VoidCallback onOpenCases;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Recent Activity',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Activity timeline is ready in the UI structure. It will become live when backend activity events are exposed.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onOpenCases,
-            icon: const Icon(Icons.assignment_rounded),
-            label: const Text('Open service cases'),
-          ),
-        ],
       ),
     );
   }
 }
 
-class _InternalWorkspaceLoading extends StatelessWidget {
-  const _InternalWorkspaceLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: _kShellPagePadding,
-      children: const [
-        _LoadingPanel(height: 92),
-        SizedBox(height: 14),
-        _LoadingPanel(height: 78),
-        SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(child: _LoadingPanel(height: 92)),
-            SizedBox(width: 10),
-            Expanded(child: _LoadingPanel(height: 92)),
-            SizedBox(width: 10),
-            Expanded(child: _LoadingPanel(height: 92)),
-          ],
-        ),
-        SizedBox(height: 18),
-        _LoadingPanel(height: 74),
-        SizedBox(height: 10),
-        _LoadingPanel(height: 74),
-      ],
-    );
-  }
-}
-
-class _LoadingPanel extends StatelessWidget {
-  const _LoadingPanel({required this.height});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(24),
-      ),
-    );
-  }
-}
-
-class _MyServicePerformanceCard extends StatelessWidget {
-  const _MyServicePerformanceCard({required this.summary});
+class _ServicePerformanceCard extends StatelessWidget {
+  const _ServicePerformanceCard({required this.summary});
 
   final InternalWorkspaceSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    final completed = summary.myCompletedServices;
     final assigned = summary.myAssignedServices;
+    final completed = summary.myCompletedServices;
     final completionRate = assigned <= 0
         ? 0
         : ((completed / assigned) * 100).round().clamp(0, 100);
@@ -1167,21 +909,13 @@ class _MyServicePerformanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.insights_rounded, color: _purple, size: 20),
-              SizedBox(width: 9),
-              Expanded(
-                child: Text(
-                  'My service performance',
-                  style: TextStyle(
-                    color: _ink,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
+          const Text(
+            'My service performance',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 14),
           Row(
@@ -1209,7 +943,7 @@ class _MyServicePerformanceCard extends StatelessWidget {
           Text(
             '$completionRate% completion rate across $assigned assigned services',
             style: const TextStyle(
-              color: _slate,
+              color: AppTheme.textSecondary,
               fontSize: 12.5,
               height: 1.35,
               fontWeight: FontWeight.w600,
@@ -1232,9 +966,9 @@ class _PerformanceMetric extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppTheme.cardSoft,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: const Color(0xFFE5EAF1)),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1242,7 +976,7 @@ class _PerformanceMetric extends StatelessWidget {
           Text(
             '$value',
             style: const TextStyle(
-              color: _ink,
+              color: AppTheme.textPrimary,
               fontSize: 19,
               fontWeight: FontWeight.w900,
             ),
@@ -1253,7 +987,7 @@ class _PerformanceMetric extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: _slate,
+              color: AppTheme.textSecondary,
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
             ),
@@ -1262,4 +996,358 @@ class _PerformanceMetric extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WorkspaceUnavailable extends StatelessWidget {
+  const _WorkspaceUnavailable({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: _pagePadding,
+      children: [
+        PremiumEmptyState(
+          icon: Icons.dashboard_customize_outlined,
+          title: 'Workspace unavailable',
+          message: message,
+          actionLabel: 'Retry',
+          onAction: onRetry,
+        ),
+      ],
+    );
+  }
+}
+
+class _WorkspaceLoading extends StatelessWidget {
+  const _WorkspaceLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: _pagePadding,
+      children: const [
+        _LoadingPanel(height: 82),
+        SizedBox(height: 16),
+        _LoadingPanel(height: 78),
+        SizedBox(height: 18),
+        _LoadingPanel(height: 178),
+        SizedBox(height: 24),
+        _LoadingPanel(height: 76),
+        SizedBox(height: 10),
+        _LoadingPanel(height: 76),
+      ],
+    );
+  }
+}
+
+class _LoadingPanel extends StatelessWidget {
+  const _LoadingPanel({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: AppTheme.primarySoft,
+        borderRadius: BorderRadius.circular(22),
+      ),
+    );
+  }
+}
+
+typedef _OverviewMetric = ({
+  String value,
+  String label,
+  IconData icon,
+  Color color,
+});
+typedef _PriorityReason = ({String label, IconData icon, Color color});
+
+class _QueueItem {
+  const _QueueItem({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.route,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final String route;
+}
+
+class _QuickAction {
+  const _QuickAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+}
+
+List<_OverviewMetric> _overviewMetrics({
+  required InternalWorkspaceFocus focus,
+  required InternalWorkspaceSummary summary,
+  required List<InternalServiceCase> cases,
+  required bool queueUnavailable,
+}) {
+  final unavailable = queueUnavailable ? '—' : null;
+  final activeCases = cases.where((item) => item.isActive).length;
+  final attentionCases = cases.where(_caseNeedsAttention).length;
+  final financeAttention = cases.where(_needsFinanceAttention).length;
+  final waitingCustomer = cases.where((item) => item.isWaitingCustomer).length;
+  final urgentCases = cases.where(_isHighPriority).length;
+  final documentIssues = _documentIssues(cases);
+  final uploadedDocuments = cases.fold<int>(
+    0,
+    (total, item) => total + item.uploadedDocuments,
+  );
+
+  _OverviewMetric metric(
+    String value,
+    String label,
+    IconData icon,
+    Color color,
+  ) => (value: value, label: label, icon: icon, color: color);
+
+  return switch (focus.kind) {
+    InternalWorkspaceFocusKind.leadership => [
+      metric(unavailable ?? '$activeCases', 'Active cases', Icons.assignment_outlined, AppTheme.info),
+      metric(unavailable ?? '$attentionCases', 'Need attention', Icons.priority_high_rounded, AppTheme.danger),
+      metric('${summary.pendingPayments}', 'Payments pending', Icons.receipt_long_outlined, AppTheme.warning),
+      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+    ],
+    InternalWorkspaceFocusKind.finance => [
+      metric('${summary.pendingPayments}', 'Payments pending', Icons.receipt_long_outlined, AppTheme.warning),
+      metric(unavailable ?? '$financeAttention', 'Finance attention', Icons.fact_check_outlined, AppTheme.danger),
+      metric(unavailable ?? '$activeCases', 'Cases in scope', Icons.assignment_outlined, AppTheme.info),
+      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+    ],
+    InternalWorkspaceFocusKind.documentReview => [
+      metric(unavailable ?? '$documentIssues', 'Document issues', Icons.error_outline_rounded, AppTheme.danger),
+      metric(unavailable ?? '$uploadedDocuments', 'Uploaded docs', Icons.upload_file_outlined, AppTheme.info),
+      metric(unavailable ?? '$activeCases', 'Cases in scope', Icons.assignment_outlined, AppTheme.success),
+      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+    ],
+    InternalWorkspaceFocusKind.support => [
+      metric(unavailable ?? '$activeCases', 'Customer cases', Icons.support_agent_outlined, AppTheme.info),
+      metric(unavailable ?? '$waitingCustomer', 'Waiting customer', Icons.schedule_outlined, AppTheme.warning),
+      metric(unavailable ?? '$urgentCases', 'High priority', Icons.priority_high_rounded, AppTheme.danger),
+      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+    ],
+    InternalWorkspaceFocusKind.clientWork => [
+      metric('${summary.myActiveServices}', 'My active services', Icons.work_outline_rounded, AppTheme.info),
+      metric(unavailable ?? '$attentionCases', 'Need attention', Icons.priority_high_rounded, AppTheme.danger),
+      metric(unavailable ?? '$documentIssues', 'Document issues', Icons.description_outlined, AppTheme.warning),
+      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+    ],
+    InternalWorkspaceFocusKind.operations => [
+      metric(unavailable ?? '$activeCases', 'Active cases', Icons.assignment_outlined, AppTheme.info),
+      metric(unavailable ?? '$attentionCases', 'Need attention', Icons.priority_high_rounded, AppTheme.danger),
+      metric('${summary.pendingPayments}', 'Payments pending', Icons.receipt_long_outlined, AppTheme.warning),
+      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+    ],
+  };
+}
+
+List<InternalServiceCase> _rankPriorityCases(
+  List<InternalServiceCase> cases,
+  InternalWorkspaceFocusKind kind,
+) {
+  final ranked = cases.where((item) => item.isActive).toList();
+  ranked.sort((a, b) {
+    final score = _priorityScore(b, kind).compareTo(_priorityScore(a, kind));
+    if (score != 0) return score;
+    final aDate = _caseDate(a);
+    final bDate = _caseDate(b);
+    if (aDate == null && bDate == null) return 0;
+    if (aDate == null) return 1;
+    if (bDate == null) return -1;
+    return aDate.compareTo(bDate);
+  });
+  return ranked;
+}
+
+int _priorityScore(InternalServiceCase item, InternalWorkspaceFocusKind kind) {
+  var score = 0;
+  if (_isHighPriority(item)) score += 80;
+  if (item.priority.toLowerCase().contains('urgent')) score += 20;
+  if (item.rejectedDocuments > 0) score += 65;
+  if (item.pendingDocuments > 0) score += 45;
+  if (item.isInReview) score += 35;
+  if (item.isWaitingCustomer) score += 25;
+
+  switch (kind) {
+    case InternalWorkspaceFocusKind.finance:
+      if (item.isFinancialHold) score += 100;
+      if (item.isWaitingPayment) score += 80;
+      if (item.normalizedLifecycleState == 'activation failed') score += 70;
+    case InternalWorkspaceFocusKind.documentReview:
+      if (item.rejectedDocuments > 0) score += 100;
+      if (item.uploadedDocuments > 0) score += 70;
+      if (item.pendingDocuments > 0) score += 55;
+    case InternalWorkspaceFocusKind.support:
+      if (item.isWaitingCustomer) score += 90;
+      if (_isHighPriority(item)) score += 55;
+    case InternalWorkspaceFocusKind.clientWork:
+      if (item.pendingDocuments > 0 || item.rejectedDocuments > 0) score += 35;
+    case InternalWorkspaceFocusKind.leadership:
+    case InternalWorkspaceFocusKind.operations:
+      break;
+  }
+
+  final date = _caseDate(item);
+  if (date != null) {
+    score += DateTime.now().difference(date).inDays.clamp(0, 30);
+  }
+  return score;
+}
+
+_PriorityReason _priorityReason(
+  InternalServiceCase item,
+  InternalWorkspaceFocusKind kind,
+) {
+  if (kind == InternalWorkspaceFocusKind.finance) {
+    if (item.isFinancialHold) {
+      return (
+        label: 'Financial hold',
+        icon: Icons.account_balance_wallet_outlined,
+        color: AppTheme.danger,
+      );
+    }
+    if (item.isWaitingPayment) {
+      return (
+        label: 'Waiting for payment',
+        icon: Icons.receipt_long_outlined,
+        color: AppTheme.warning,
+      );
+    }
+    if (item.normalizedLifecycleState == 'activation failed') {
+      return (
+        label: 'Activation failed',
+        icon: Icons.sync_problem_outlined,
+        color: AppTheme.danger,
+      );
+    }
+  }
+
+  if (kind == InternalWorkspaceFocusKind.documentReview) {
+    if (item.rejectedDocuments > 0) {
+      return (
+        label: '${item.rejectedDocuments} rejected document${item.rejectedDocuments == 1 ? '' : 's'}',
+        icon: Icons.error_outline_rounded,
+        color: AppTheme.danger,
+      );
+    }
+    if (item.uploadedDocuments > 0) {
+      return (
+        label: '${item.uploadedDocuments} uploaded for review',
+        icon: Icons.upload_file_outlined,
+        color: AppTheme.info,
+      );
+    }
+  }
+
+  if (kind == InternalWorkspaceFocusKind.support && item.isWaitingCustomer) {
+    return (
+      label: 'Waiting for customer',
+      icon: Icons.schedule_outlined,
+      color: AppTheme.warning,
+    );
+  }
+
+  if (item.rejectedDocuments > 0) {
+    return (
+      label: '${item.rejectedDocuments} rejected document${item.rejectedDocuments == 1 ? '' : 's'}',
+      icon: Icons.error_outline_rounded,
+      color: AppTheme.danger,
+    );
+  }
+  if (item.pendingDocuments > 0) {
+    return (
+      label: 'Missing documents',
+      icon: Icons.description_outlined,
+      color: AppTheme.warning,
+    );
+  }
+  if (_isHighPriority(item)) {
+    return (
+      label: item.priority.toLowerCase().contains('urgent')
+          ? 'Urgent priority'
+          : 'High priority',
+      icon: Icons.priority_high_rounded,
+      color: AppTheme.danger,
+    );
+  }
+  if (item.isInReview) {
+    return (
+      label: item.statusLabel,
+      icon: Icons.rate_review_outlined,
+      color: AppTheme.info,
+    );
+  }
+  return (
+    label: item.statusLabel,
+    icon: Icons.inbox_outlined,
+    color: AppTheme.success,
+  );
+}
+
+bool _caseNeedsAttention(InternalServiceCase item) {
+  return _isHighPriority(item) ||
+      item.pendingDocuments > 0 ||
+      item.rejectedDocuments > 0 ||
+      item.isFinancialHold ||
+      item.isInReview ||
+      item.isWaitingCustomer;
+}
+
+bool _needsFinanceAttention(InternalServiceCase item) {
+  return item.isFinancialHold ||
+      item.isWaitingPayment ||
+      item.normalizedLifecycleState == 'activation failed' ||
+      item.isInReview;
+}
+
+bool _isHighPriority(InternalServiceCase item) {
+  final priority = item.priority.toLowerCase();
+  return priority.contains('urgent') || priority.contains('high');
+}
+
+int _documentIssues(List<InternalServiceCase> cases) {
+  return cases.fold<int>(
+    0,
+    (total, item) => total + item.pendingDocuments + item.rejectedDocuments,
+  );
+}
+
+void _openCase(BuildContext context, InternalServiceCase item) {
+  context.go(
+    '/internal-workspace/service-cases/${Uri.encodeComponent(item.id)}',
+  );
+}
+
+String _waitingLabel(InternalServiceCase item) {
+  final date = _caseDate(item);
+  if (date == null) return '';
+  final days = DateTime.now().difference(date).inDays;
+  if (days <= 0) return ' · updated today';
+  if (days == 1) return ' · 1 day waiting';
+  return ' · $days days waiting';
+}
+
+DateTime? _caseDate(InternalServiceCase item) {
+  return DateTime.tryParse(item.updatedAt)?.toLocal() ??
+      DateTime.tryParse(item.createdAt)?.toLocal();
 }
