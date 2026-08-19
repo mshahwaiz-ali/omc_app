@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/push/push_registration.dart';
 import '../features/app_config/data/mobile_app_config.dart';
 import '../features/app_config/data/mobile_app_config_repository.dart';
 import '../features/app_config/presentation/app_brand_registry.dart';
 import '../features/device_lock/presentation/device_lock_gate.dart';
-import '../core/push/push_registration.dart';
+import 'design_tokens.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -47,13 +48,14 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
   );
 
   final rounded18 = RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(18),
+    borderRadius: BorderRadius.circular(AppRadius.control),
   );
 
   return base.copyWith(
     colorScheme: scheme,
     splashColor: colors.accentSoft,
     highlightColor: colors.accent.withValues(alpha: 0.05),
+    focusColor: colors.accent.withValues(alpha: 0.10),
     progressIndicatorTheme: ProgressIndicatorThemeData(
       color: colors.accent,
       linearTrackColor: colors.accentSoft,
@@ -61,7 +63,7 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     inputDecorationTheme: base.inputDecorationTheme.copyWith(
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         borderSide: BorderSide(color: colors.accent, width: 1.5),
       ),
     ),
@@ -70,9 +72,16 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
       selectionColor: colors.accent.withValues(alpha: 0.22),
       selectionHandleColor: colors.accent,
     ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        minimumSize: const Size.square(AppTouchTarget.minimum),
+        foregroundColor: colors.accent,
+        padding: const EdgeInsets.all(AppSpacing.sm),
+      ),
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
+        minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
         backgroundColor: colors.accent,
         foregroundColor: colors.onAccent,
         disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -84,7 +93,7 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
+        minimumSize: const Size.fromHeight(AppTouchTarget.primaryButtonHeight),
         backgroundColor: colors.accent,
         foregroundColor: colors.onAccent,
         disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -97,7 +106,7 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(50),
+        minimumSize: const Size.fromHeight(AppTouchTarget.minimum),
         foregroundColor: colors.accent,
         side: BorderSide(color: colors.accentBorder),
         shape: rounded18,
@@ -106,7 +115,12 @@ ThemeData _withAccentTheme(ThemeData base, OmcAppColors colors) {
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
+        minimumSize: const Size(
+          AppTouchTarget.minimum,
+          AppTouchTarget.minimum,
+        ),
         foregroundColor: colors.accent,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         textStyle: const TextStyle(fontWeight: FontWeight.w800),
       ),
     ),
