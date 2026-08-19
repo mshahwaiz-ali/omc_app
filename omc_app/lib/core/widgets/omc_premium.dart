@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../app/design_tokens.dart';
 import '../../app/theme.dart';
 
 class OmcPremium {
   const OmcPremium._();
 
-  static const Color ink = Color(0xFF0B1224);
-  static const Color muted = Color(0xFF667085);
-  static const Color surface = Colors.white;
-  static const Color canvas = Color(0xFFF7F9FC);
-  static const Color border = Color(0xFFE4E9F2);
+  static const Color ink = AppTheme.textPrimary;
+  static const Color muted = AppTheme.textSecondary;
+  static const Color surface = AppTheme.card;
+  static const Color canvas = AppTheme.background;
+  static const Color border = AppTheme.border;
 
   static const Color services = Color(0xFFE83F5B);
   static const Color documents = Color(0xFF3B6DF6);
@@ -24,12 +25,12 @@ class OmcPremium {
   static const Color inProgress = Color(0xFF0EA5E9);
   static const Color review = Color(0xFF0F9D8E);
   static const Color action = Color(0xFFF97316);
-  static const Color success = Color(0xFF16A34A);
+  static const Color success = AppTheme.success;
   static const Color danger = Color(0xFFDC2626);
 
   static List<BoxShadow> get softShadow => [
     BoxShadow(
-      color: const Color(0xFF0F172A).withValues(alpha: 0.07),
+      color: AppTheme.textPrimary.withValues(alpha: 0.07),
       blurRadius: 24,
       offset: const Offset(0, 12),
     ),
@@ -99,13 +100,15 @@ class OmcSurface extends StatelessWidget {
   const OmcSurface({
     required this.child,
     super.key,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(AppSpacing.md),
     this.margin,
     this.onTap,
-    this.radius = 22,
+    this.radius = AppRadius.large,
     this.borderColor,
     this.backgroundColor = OmcPremium.surface,
     this.shadow = true,
+    this.semanticLabel,
+    this.semanticHint,
   });
 
   final Widget child;
@@ -116,11 +119,15 @@ class OmcSurface extends StatelessWidget {
   final Color? borderColor;
   final Color backgroundColor;
   final bool shadow;
+  final String? semanticLabel;
+  final String? semanticHint;
 
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(radius);
-    final content = Container(
+    final padded = Padding(padding: padding, child: child);
+
+    Widget content = Container(
       margin: margin,
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -131,13 +138,26 @@ class OmcSurface extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         borderRadius: borderRadius,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: borderRadius,
-          child: Padding(padding: padding, child: child),
-        ),
+        child: onTap == null
+            ? padded
+            : InkWell(
+                onTap: onTap,
+                borderRadius: borderRadius,
+                child: padded,
+              ),
       ),
     );
+
+    if (onTap != null && semanticLabel != null) {
+      content = Semantics(
+        button: true,
+        label: semanticLabel,
+        hint: semanticHint,
+        excludeSemantics: true,
+        child: content,
+      );
+    }
+
     return content;
   }
 }
@@ -149,7 +169,7 @@ class OmcIconBadge extends StatelessWidget {
     this.color = OmcPremium.services,
     this.size = 46,
     this.iconSize = 22,
-    this.radius = 16,
+    this.radius = AppRadius.medium,
   });
 
   final IconData icon;
@@ -160,15 +180,17 @@ class OmcIconBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: OmcPremium.soft(color),
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: OmcPremium.soft(color, 0.12)),
+    return ExcludeSemantics(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: OmcPremium.soft(color),
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: OmcPremium.soft(color, 0.12)),
+        ),
+        child: Icon(icon, color: color, size: iconSize),
       ),
-      child: Icon(icon, color: color, size: iconSize),
     );
   }
 }
@@ -183,39 +205,45 @@ class OmcStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = color ?? OmcPremium.statusColor(label);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: OmcPremium.soft(tone),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: OmcPremium.soft(tone, 0.16)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, color: tone, size: 14),
-            const SizedBox(width: 5),
-          ] else ...[
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+    return Semantics(
+      label: 'Status: $label',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: OmcPremium.soft(tone),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: OmcPremium.soft(tone, 0.16)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: tone, size: 14),
+              const SizedBox(width: 5),
+            ] else ...[
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tone,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                ),
+              ),
             ),
-            const SizedBox(width: 6),
           ],
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: tone,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -237,6 +265,7 @@ class OmcSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -244,27 +273,28 @@ class OmcSectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.25,
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.25,
+                  ),
                 ),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 3),
                 Text(
                   subtitle!,
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: AppTheme.textSecondary,
-                    fontSize: 12.5,
-                    height: 1.35,
+                    height: 1.4,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -273,13 +303,9 @@ class OmcSectionHeader extends StatelessWidget {
           ),
         ),
         if (actionLabel != null) ...[
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.xs),
           TextButton(
             onPressed: onAction,
-            style: TextButton.styleFrom(
-              foregroundColor: OmcPremium.tax,
-              textStyle: const TextStyle(fontWeight: FontWeight.w900),
-            ),
             child: Text(actionLabel!),
           ),
         ],
@@ -306,55 +332,65 @@ class OmcMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OmcSurface(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          OmcIconBadge(
-            icon: icon,
-            color: color,
-            size: 38,
-            iconSize: 19,
-            radius: 14,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.45,
+    final semanticLabel = [
+      '$label: $value',
+      if (subtitle != null && subtitle!.trim().isNotEmpty) subtitle!.trim(),
+    ].join('. ');
+
+    return Semantics(
+      container: true,
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: OmcSurface(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            OmcIconBadge(
+              icon: icon,
+              color: color,
+              size: 38,
+              iconSize: 19,
+              radius: 14,
             ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: AppSpacing.sm),
             Text(
-              subtitle!,
-              maxLines: 1,
+              value,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.45,
               ),
             ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -372,7 +408,7 @@ class OmcLockedOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
+    final content = Opacity(
       opacity: locked ? 0.62 : 1,
       child: Stack(
         clipBehavior: Clip.none,
@@ -387,7 +423,7 @@ class OmcLockedOverlay extends StatelessWidget {
                 height: 20,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   boxShadow: OmcPremium.softShadow,
                 ),
                 child: const Icon(
@@ -399,6 +435,13 @@ class OmcLockedOverlay extends StatelessWidget {
             ),
         ],
       ),
+    );
+
+    if (!locked) return content;
+    return Semantics(
+      container: true,
+      label: 'Locked',
+      child: content,
     );
   }
 }
