@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import frappe
 
-from omc_app.branding import apply_branding
+from omc_app.branding import _apply_branding
 from omc_app.setup.desk_metadata import sync_desk_metadata
 from omc_app.setup.erp_contract import validate_client_erp_contract
 from omc_app.setup.referral_workspace import ensure_referral_workspace_links
@@ -40,9 +40,9 @@ def sync_desk_configuration(*, commit: bool = True) -> dict[str, object]:
 
 def apply_site_branding(*, commit: bool = True) -> dict[str, object]:
     """Deliberately apply OMC branding to Frappe Website Settings."""
-    result = apply_branding(_trusted_internal_call=True)
+    result = _apply_branding()
     _commit_if_requested(commit)
-    return {"ok": bool(result.get("ok")), "operation": "apply_site_branding", **result}
+    return {"operation": "apply_site_branding", **result}
 
 
 def initialize_site(*, commit: bool = True) -> dict[str, object]:
@@ -58,7 +58,7 @@ def initialize_site(*, commit: bool = True) -> dict[str, object]:
     sync_canonical_roles()
     sync_desk_metadata()
     ensure_referral_workspace_links()
-    branding = apply_branding(_trusted_internal_call=True)
+    branding = _apply_branding()
     _commit_if_requested(commit)
     return {
         "ok": True,
