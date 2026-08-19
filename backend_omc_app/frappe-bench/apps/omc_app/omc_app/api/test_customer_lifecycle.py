@@ -39,6 +39,31 @@ class TestCustomerLifecycle(TestCase):
             "current",
         )
 
+    def test_receipt_status_alias_is_used_for_payment_review(self):
+        result = customer_lifecycle.lifecycle_presentation(
+            {
+                "id": "SR-STATUS",
+                "request_state": "Pending Payment",
+                "receipt": {"status": "Submitted", "payment_status": "Receipt Submitted"},
+            }
+        )
+
+        self.assertEqual(result["current_stage"], "Payment review")
+        self.assertEqual(result["next_action"]["type"], "await_payment_review")
+        self.assertFalse(result["action_required"])
+
+    def test_rejected_payment_evidence_requests_correction(self):
+        result = customer_lifecycle.lifecycle_presentation(
+            {
+                "id": "SR-REJECTED-RECEIPT",
+                "request_state": "Pending Payment",
+                "receipt": {"status": "Rejected", "payment_status": "Rejected"},
+            }
+        )
+
+        self.assertEqual(result["next_action"]["type"], "correct_payment_receipt")
+        self.assertTrue(result["action_required"])
+
     def test_payment_not_required_is_explicitly_skipped(self):
         result = customer_lifecycle.lifecycle_presentation(
             {
@@ -54,6 +79,55 @@ class TestCustomerLifecycle(TestCase):
         self.assertEqual(payment["state"], "skipped")
         self.assertIn("No payment is required", payment["detail"])
         self.assertEqual(result["current_stage"], "Ready for processing")
+        self.assertTrue(result["payment_not_required"])
+
+    def test_no_charge_evidence_alias_skips_payment(self):
+        result = customer_lifecycle.lifecycle_presentation(
+            {
+                "id": "SR-NO-CHARGE",
+                "request_state": "Draft",
+                "receipt": {"status": "Not Required"},
+                "settlement": {"status": "Not Required"},
+            }
+        )
+        payment = next(
+            item for item in result["milestones"] if item["key"] == "payment"
+        )
+
+        self.assertEqual(payment["state"], "skipped")
+        self.assertTrue(result["payment_not_required"])
+
+    def test_settlement_status_alias_marks_payment_complete(self):
+        result = customer_lifecycle.lifecycle_presentation(
+            {
+                "id": "SR-SETTLED",
+                "request_state": "Draft",
+                "settlement": {"status": "Settled"},
+            }
+        )
+        payment = next(
+            item for item in result["milestones"] if item["key"] == "payment"
+        )
+
+        self.assertEqual(payment["state"], "complete")
+
+    def test_detail_document_count_fields_are_supported(self):
+        result = customer_lifecycle.lifecycle_presentation(
+            {
+                "id": "SR-DETAIL-DOCS",
+                "request_state": "Draft",
+                "required_documents_count": 2,
+                "submitted_documents_count": 1,
+                "approved_documents_count": 1,
+                "missing_documents_count": 1,
+            }
+        )
+        documents = next(
+            item for item in result["milestones"] if item["key"] == "documents"
+        )
+
+        self.assertEqual(documents["state"], "attention")
+        self.assertIn("1 document still required", documents["detail"])
 
     def test_financial_hold_is_omc_side_attention_not_customer_action(self):
         result = customer_lifecycle.lifecycle_presentation(
