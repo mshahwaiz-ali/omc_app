@@ -1,1 +1,1 @@
-export 'home_screen_role_aware.dart';
+export 'home_screen_dispatcher.dart';
