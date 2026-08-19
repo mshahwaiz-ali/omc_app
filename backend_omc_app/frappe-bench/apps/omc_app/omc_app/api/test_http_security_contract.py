@@ -32,7 +32,7 @@ class TestHttpSecurityContract(FrappeTestCase):
             pending_registration.resend_verification,
             pending_registration.complete_registration,
             pending_registration.verify_registration,
-            password_reset.request_password_reset,
+            password_reset.request_reset,
             password_reset.reset_password,
             account_security.verify_current_password,
             account_security.change_password,
