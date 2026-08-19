@@ -102,6 +102,7 @@ ADMIN_READ_ONLY_DOCTYPES = {
     "OMC Notification",
     "OMC Profile Change Log",
     "OMC Reconciliation Review",
+    "OMC Reconciliation Run",
     "OMC Referral Attribution",
     "OMC Security Audit Event",
     "OMC Service Timeline",
@@ -113,13 +114,17 @@ ADMIN_READ_ONLY_DOCTYPES = {
 # Session/token/idempotency internals intentionally have no staff DocPerm.
 # They are accessed only by guarded application code (Administrator remains a
 # framework-level superuser and is handled separately by Frappe itself).
+# OMC Lead is a retired legacy DocType that can remain in upgraded databases;
+# it must not regain staff permissions simply because the table still exists.
 INTERNAL_ONLY_DOCTYPES = {
     "OMC Customer Activation",
     "OMC Guest Session",
     "OMC Idempotency Record",
+    "OMC Lead",
     "OMC Password Reset",
     "OMC Pending Registration",
     "OMC Push Token",
+    "OMC Reconciliation Checkpoint",
 }
 
 MANAGER_BLOCKED_DOCTYPES = {
@@ -153,6 +158,7 @@ MANAGER_READ_ONLY_DOCTYPES = {
     "OMC Notification",
     "OMC Profile Change Log",
     "OMC Reconciliation Review",
+    "OMC Reconciliation Run",
     "OMC Referral Attribution",
     "OMC Service Timeline",
     "OMC Tax Calculation Log",
