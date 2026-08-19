@@ -202,7 +202,7 @@ class AppStateView extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: surfaceColor,
                   borderRadius: BorderRadius.circular(
-                    compact ? AppRadius.medium : AppRadius.lg,
+                    compact ? AppRadius.medium : AppRadius.control,
                   ),
                 ),
                 child: Icon(icon, color: accentColor, size: compact ? 24 : 30),
