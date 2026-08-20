@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers/core_providers.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/api_error.dart';
-import '../../../core/network/frappe_client.dart';
 import '../../../core/resilience/transient_read_policy.dart';
 import 'support_config_data.dart';
 import 'support_repository_legacy.dart' as legacy;
@@ -135,11 +134,12 @@ final supportSyncStateProvider =
       SupportSyncNotifier.new,
     );
 
-typedef SupportSyncReporter = void Function(
-  SupportSyncTarget target,
-  SupportResourceFreshness freshness, {
-  String? ticketId,
-});
+typedef SupportSyncReporter =
+    void Function(
+      SupportSyncTarget target,
+      SupportResourceFreshness freshness, {
+      String? ticketId,
+    });
 
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {
   return SupportRepository(
@@ -156,7 +156,9 @@ final supportConfigProvider = FutureProvider<SupportConfigData>((ref) {
   return ref.watch(supportRepositoryProvider).fetchSupportConfig();
 });
 
-final supportTicketPageProvider = FutureProvider<legacy.SupportTicketPage>((ref) {
+final supportTicketPageProvider = FutureProvider<legacy.SupportTicketPage>((
+  ref,
+) {
   return ref.watch(supportRepositoryProvider).fetchSupportTicketPage();
 });
 
@@ -178,13 +180,9 @@ final supportUnreadCountProvider = FutureProvider<int>((ref) {
 });
 
 class SupportRepository extends legacy.SupportRepository {
-  SupportRepository({
-    required FrappeClient frappeClient,
-    required SupportSyncReporter reportSync,
-  }) : _reportSync = reportSync,
-       super(frappeClient: frappeClient);
+  SupportRepository({required super.frappeClient, required this.reportSync});
 
-  final SupportSyncReporter _reportSync;
+  final SupportSyncReporter reportSync;
 
   SupportConfigData? _configCache;
   DateTime? _configCachedAt;
@@ -197,27 +195,26 @@ class SupportRepository extends legacy.SupportRepository {
   @override
   Future<SupportConfigData> fetchSupportConfig() async {
     final previous = _freshnessFor(_configCachedAt);
-    _reportSync(SupportSyncTarget.config, _refreshing(previous));
+    reportSync(SupportSyncTarget.config, _refreshing(previous));
 
     try {
-      final response = await frappeClient.getMethod(ApiConfig.supportConfigMethod);
+      final response = await frappeClient.getMethod(
+        ApiConfig.supportConfigMethod,
+      );
       final config = SupportConfigData.fromApiResponse(response);
       final now = DateTime.now();
       _configCache = config;
       _configCachedAt = now;
-      _reportSync(SupportSyncTarget.config, _fresh(now));
+      reportSync(SupportSyncTarget.config, _fresh(now));
       return config;
     } catch (error) {
       if (_configCache != null && SupportRefreshPolicy.canReuseStale(error)) {
-        _reportSync(
-          SupportSyncTarget.config,
-          _stale(_configCachedAt, error),
-        );
+        reportSync(SupportSyncTarget.config, _stale(_configCachedAt, error));
         return _configCache!;
       }
       _configCache = null;
       _configCachedAt = null;
-      _reportSync(SupportSyncTarget.config, _stale(null, error));
+      reportSync(SupportSyncTarget.config, _stale(null, error));
       rethrow;
     }
   }
@@ -229,26 +226,29 @@ class SupportRepository extends legacy.SupportRepository {
   }) async {
     final isFirstPage = start <= 0;
     if (isFirstPage) {
-      _reportSync(
+      reportSync(
         SupportSyncTarget.feed,
         _refreshing(_freshnessFor(_feedCachedAt)),
       );
     }
 
     try {
-      final page = await super.fetchSupportTicketPage(start: start, limit: limit);
+      final page = await super.fetchSupportTicketPage(
+        start: start,
+        limit: limit,
+      );
       if (isFirstPage) {
         final now = DateTime.now();
         _feedCache = page;
         _feedCachedAt = now;
-        _reportSync(SupportSyncTarget.feed, _fresh(now));
+        reportSync(SupportSyncTarget.feed, _fresh(now));
       }
       return page;
     } catch (error) {
       if (isFirstPage &&
           _feedCache != null &&
           SupportRefreshPolicy.canReuseStale(error)) {
-        _reportSync(SupportSyncTarget.feed, _stale(_feedCachedAt, error));
+        reportSync(SupportSyncTarget.feed, _stale(_feedCachedAt, error));
         return _feedCache!;
       }
       if (isFirstPage) {
@@ -256,7 +256,7 @@ class SupportRepository extends legacy.SupportRepository {
           _feedCache = null;
           _feedCachedAt = null;
         }
-        _reportSync(SupportSyncTarget.feed, _stale(_feedCachedAt, error));
+        reportSync(SupportSyncTarget.feed, _stale(_feedCachedAt, error));
       }
       rethrow;
     }
@@ -281,7 +281,7 @@ class SupportRepository extends legacy.SupportRepository {
             status: SupportFreshnessStatus.fresh,
             lastSuccessAt: cached.cachedAt,
           );
-    _reportSync(
+    reportSync(
       SupportSyncTarget.ticket,
       _refreshing(previous),
       ticketId: cleanId,
@@ -291,17 +291,13 @@ class SupportRepository extends legacy.SupportRepository {
       final ticket = await super.fetchSupportTicket(cleanId);
       if (ticket == null) {
         _ticketCache.remove(cleanId);
-        _reportSync(
-          SupportSyncTarget.ticket,
-          _fresh(now),
-          ticketId: cleanId,
-        );
+        reportSync(SupportSyncTarget.ticket, _fresh(now), ticketId: cleanId);
         return null;
       }
       final fetchedAt = DateTime.now();
       _ticketCache[cleanId] = _TicketCacheEntry(ticket, fetchedAt);
       _trimTicketCache();
-      _reportSync(
+      reportSync(
         SupportSyncTarget.ticket,
         _fresh(fetchedAt),
         ticketId: cleanId,
@@ -309,7 +305,7 @@ class SupportRepository extends legacy.SupportRepository {
       return ticket;
     } catch (error) {
       if (cached != null && SupportRefreshPolicy.canReuseStale(error)) {
-        _reportSync(
+        reportSync(
           SupportSyncTarget.ticket,
           _stale(cached.cachedAt, error),
           ticketId: cleanId,
@@ -319,7 +315,7 @@ class SupportRepository extends legacy.SupportRepository {
       if (!SupportRefreshPolicy.canReuseStale(error)) {
         _ticketCache.remove(cleanId);
       }
-      _reportSync(
+      reportSync(
         SupportSyncTarget.ticket,
         _stale(cached?.cachedAt, error),
         ticketId: cleanId,
@@ -338,7 +334,7 @@ class SupportRepository extends legacy.SupportRepository {
       return _unreadCache!;
     }
 
-    _reportSync(
+    reportSync(
       SupportSyncTarget.unread,
       _refreshing(_freshnessFor(_unreadCachedAt)),
     );
@@ -347,21 +343,18 @@ class SupportRepository extends legacy.SupportRepository {
       final fetchedAt = DateTime.now();
       _unreadCache = count;
       _unreadCachedAt = fetchedAt;
-      _reportSync(SupportSyncTarget.unread, _fresh(fetchedAt));
+      reportSync(SupportSyncTarget.unread, _fresh(fetchedAt));
       return count;
     } catch (error) {
       if (_unreadCache != null && SupportRefreshPolicy.canReuseStale(error)) {
-        _reportSync(
-          SupportSyncTarget.unread,
-          _stale(_unreadCachedAt, error),
-        );
+        reportSync(SupportSyncTarget.unread, _stale(_unreadCachedAt, error));
         return _unreadCache!;
       }
       if (!SupportRefreshPolicy.canReuseStale(error)) {
         _unreadCache = null;
         _unreadCachedAt = null;
       }
-      _reportSync(SupportSyncTarget.unread, _stale(_unreadCachedAt, error));
+      reportSync(SupportSyncTarget.unread, _stale(_unreadCachedAt, error));
       rethrow;
     }
   }
@@ -429,7 +422,10 @@ class SupportRepository extends legacy.SupportRepository {
     required String topic,
     required String message,
   }) async {
-    final result = await super.createSupportTicket(topic: topic, message: message);
+    final result = await super.createSupportTicket(
+      topic: topic,
+      message: message,
+    );
     clearFeedCache();
     clearUnreadCache();
     return result;

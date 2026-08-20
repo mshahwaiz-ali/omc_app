@@ -122,7 +122,11 @@ class TestStaffCompletionPerformanceContract(unittest.TestCase):
             self.assertIn(token, model)
 
         self.assertIn(
-            "class _MyServicePerformanceCard",
+            "class _ServicePerformanceCard",
+            screen,
+        )
+        self.assertIn(
+            "_ServicePerformanceCard(summary: summary)",
             screen,
         )
         self.assertIn("My service performance", screen)

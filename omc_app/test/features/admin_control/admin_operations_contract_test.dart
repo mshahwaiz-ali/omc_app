@@ -20,7 +20,11 @@ void main() {
       expect(router, contains("path: '/admin-control/operations'"));
       expect(policy, contains('capabilities.canReassignServiceCases'));
       expect(policy, contains('capabilities.canRetrySync'));
-      expect(workspace, contains("route: '/admin-control/operations'"));
+      expect(
+        workspace,
+        contains("onTap: () => context.go('/admin-control/operations')"),
+      );
+      expect(workspace, contains('if (focus.canShowOperationalControls)'));
       expect(screen, contains('Search eligible staff'));
       expect(screen, contains('Reason (optional)'));
       expect(screen, contains('Retry exhausted sync'));

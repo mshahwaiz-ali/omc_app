@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('critical UI mutations remain duplicate-safe and recoverable', () {
     final support = File(
-      'lib/features/support/presentation/support_screen.dart',
+      'lib/features/support/presentation/support_screen_legacy.dart',
     ).readAsStringSync();
     final expenses = File(
       'lib/features/expense_tracker/presentation/'

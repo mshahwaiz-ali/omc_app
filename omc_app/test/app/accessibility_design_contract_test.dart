@@ -65,9 +65,6 @@ void main() {
       ),
     );
 
-    final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
-
     final navSize = tester.getSize(
       find.byKey(const ValueKey('omc_bottom_nav_surface')),
     );
@@ -93,9 +90,6 @@ void main() {
         ),
       ),
     );
-
-    final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
 
     expect(find.bySemanticsLabel('Save changes, loading'), findsOneWidget);
   });

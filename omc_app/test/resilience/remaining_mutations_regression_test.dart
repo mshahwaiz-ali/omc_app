@@ -8,7 +8,7 @@ void main() {
     final shellNav = File('lib/app/shell_nav_scaffold.dart').readAsStringSync();
     final support = File(
       'lib/features/support/presentation/'
-      'support_ticket_detail_screen.dart',
+      'support_ticket_detail_legacy_screen.dart',
     ).readAsStringSync();
     final documents = File(
       'lib/features/documents/presentation/'

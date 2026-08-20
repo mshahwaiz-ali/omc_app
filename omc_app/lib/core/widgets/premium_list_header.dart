@@ -84,7 +84,7 @@ class PremiumListHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               heading,
-              if (stackMeta && cleanMeta != null && cleanMeta.isNotEmpty) ...[
+              if (stackMeta) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Padding(
                   padding: const EdgeInsets.only(left: 57),
@@ -109,7 +109,9 @@ class _MetaBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Semantics(
+      container: true,
       label: label,
+      excludeSemantics: true,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: accent.withValues(alpha: 0.075),

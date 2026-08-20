@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../../core/interaction/app_feedback.dart';
 import '../../core/widgets/omc_premium.dart';
@@ -368,7 +369,9 @@ class _MoreTab extends StatelessWidget {
                       Positioned(
                         top: -7,
                         right: -12,
-                        child: ExcludeSemantics(child: _Badge(count: badgeCount)),
+                        child: ExcludeSemantics(
+                          child: _Badge(count: badgeCount),
+                        ),
                       ),
                   ],
                 ),

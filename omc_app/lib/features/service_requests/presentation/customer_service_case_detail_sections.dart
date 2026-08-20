@@ -180,7 +180,7 @@ class _LifecycleCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Semantics(
                   header: true,
                   child: Text(

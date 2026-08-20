@@ -33,9 +33,16 @@ void main() {
       'internal_workspace_screen.dart',
     ).readAsStringSync();
 
-    // E1: task-detail failures remain recoverable.
-    expect(taskDetail, contains("actionLabel: 'Try again'"));
-    expect(taskDetail, contains('ref.invalidate(taskDetailProvider(taskId))'));
+    final appState = File('lib/core/widgets/app_state.dart').readAsStringSync();
+
+    // E1: task-detail failures remain recoverable through shared error state.
+    expect(taskDetail, contains('AppErrorState.fromError('));
+    expect(
+      taskDetail,
+      contains('ref.invalidate(taskDetailProvider(widget.taskId))'),
+    );
+    expect(taskDetail, contains("fallbackTitle: 'Task unavailable'"));
+    expect(appState, contains("this.retryLabel = 'Try again'"));
 
     // E2: Home failures stay visible without replacing usable content.
     expect(home, contains('dashboardAsync.hasError'));

@@ -53,10 +53,18 @@ void main() {
       '3063191907',
     );
 
-    await tester.tap(
-      find.widgetWithText(CheckboxListTile, 'Use this number for WhatsApp'),
+    final whatsappToggle = find.widgetWithText(
+      CheckboxListTile,
+      'Use this number for WhatsApp',
     );
+    await tester.ensureVisible(whatsappToggle);
+    await tester.tap(whatsappToggle);
     await tester.pumpAndSettle();
+
+    expect(
+      find.widgetWithText(TextFormField, 'WhatsApp number'),
+      findsOneWidget,
+    );
 
     await tester.enterText(
       find.widgetWithText(TextFormField, 'WhatsApp number'),

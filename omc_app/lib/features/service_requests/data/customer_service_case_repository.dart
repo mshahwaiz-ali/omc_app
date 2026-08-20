@@ -13,18 +13,22 @@ final customerServiceCaseRepositoryProvider =
     });
 
 final customerServiceCaseDetailProvider =
-    FutureProvider.family<CustomerServiceCaseDetail?, String>((ref, caseId) async {
-      return ref.watch(customerServiceCaseRepositoryProvider).fetchDetail(caseId);
+    FutureProvider.family<CustomerServiceCaseDetail?, String>((
+      ref,
+      caseId,
+    ) async {
+      return ref
+          .watch(customerServiceCaseRepositoryProvider)
+          .fetchDetail(caseId);
     });
 
 class CustomerServiceCaseRepository {
-  const CustomerServiceCaseRepository({required FrappeClient frappeClient})
-    : _frappeClient = frappeClient;
+  const CustomerServiceCaseRepository({required this.frappeClient});
 
   static const String _detailMethod =
       'omc_app.api.service_case_contract.get_service_case';
 
-  final FrappeClient _frappeClient;
+  final FrappeClient frappeClient;
 
   Future<CustomerServiceCaseDetail?> fetchDetail(String caseId) async {
     final cleanCaseId = caseId.trim();
@@ -33,7 +37,7 @@ class CustomerServiceCaseRepository {
     }
 
     try {
-      final response = await _frappeClient.getMethod(
+      final response = await frappeClient.getMethod(
         _detailMethod,
         queryParameters: {'case_id': cleanCaseId},
       );
@@ -55,7 +59,7 @@ class CustomerServiceCaseRepository {
       throw const ApiError(message: 'Missing service request reference.');
     }
 
-    await _frappeClient.postMethod(
+    await frappeClient.postMethod(
       ApiConfig.cancelServiceRequestMethod,
       data: {'case_id': cleanCaseId},
     );
@@ -123,9 +127,8 @@ class CustomerServiceCaseDetail {
       .where((document) => document.isRequired)
       .toList(growable: false);
 
-  int get documentsNeedingUpload => requiredDocuments
-      .where((document) => document.needsUpload)
-      .length;
+  int get documentsNeedingUpload =>
+      requiredDocuments.where((document) => document.needsUpload).length;
 
   bool get paymentUnderReview {
     final actionType = nextAction?.type.trim().toLowerCase();
@@ -146,7 +149,9 @@ class CustomerServiceCaseDetail {
         paymentStatus.trim().toLowerCase() == 'rejected';
   }
 
-  factory CustomerServiceCaseDetail.fromResponse(Map<String, dynamic> response) {
+  factory CustomerServiceCaseDetail.fromResponse(
+    Map<String, dynamic> response,
+  ) {
     final payload = _payloadFromResponse(response);
     final lifecycle = _map(payload['customer_lifecycle']);
     final receipt = _map(payload['receipt']);
@@ -195,12 +200,14 @@ class CustomerServiceCaseDetail {
           .map(CustomerServiceCaseMilestone.fromJson)
           .where((item) => item.label.isNotEmpty)
           .toList(growable: false),
-      documents: _mapList(
-        payload['document_details'] ?? payload['required_document_details'],
-      )
-          .map(CustomerServiceCaseDocument.fromJson)
-          .where((item) => item.title.isNotEmpty)
-          .toList(growable: false),
+      documents:
+          _mapList(
+                payload['document_details'] ??
+                    payload['required_document_details'],
+              )
+              .map(CustomerServiceCaseDocument.fromJson)
+              .where((item) => item.title.isNotEmpty)
+              .toList(growable: false),
       activities: _mapList(payload['recent_activity'])
           .map(CustomerServiceCaseActivity.fromJson)
           .where((item) => item.title.isNotEmpty)
@@ -211,9 +218,7 @@ class CustomerServiceCaseDetail {
       paymentStatus: _text(
         receipt['payment_status'] ?? payload['payment_status'],
       ),
-      paymentId: _text(
-        receipt['payment_id'] ?? payload['payment_id'],
-      ),
+      paymentId: _text(receipt['payment_id'] ?? payload['payment_id']),
       settlementStatus: _text(
         settlement['status'] ?? payload['accounting_status'],
       ),
@@ -228,7 +233,9 @@ class CustomerServiceCaseDetail {
             payload['creation'],
       ),
       updatedAtLabel: _text(
-        payload['updated_at_label'] ?? payload['updated_at'] ?? payload['modified'],
+        payload['updated_at_label'] ??
+            payload['updated_at'] ??
+            payload['modified'],
       ),
       canCancel: _boolValue(payload['can_cancel']),
       createdOnBehalf: _boolValue(payload['created_on_behalf']),

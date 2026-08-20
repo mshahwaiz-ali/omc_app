@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/core_providers.dart';
-import '../../../core/network/frappe_client.dart';
 import 'admin_control_repository.dart';
 
 const String scopedAdminOverviewMethod =

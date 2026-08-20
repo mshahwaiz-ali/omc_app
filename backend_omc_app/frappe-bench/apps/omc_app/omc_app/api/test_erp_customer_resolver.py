@@ -170,6 +170,43 @@ class TestErpCustomerResolver(FrappeTestCase):
             ["ERP-CUST-1", "ERP-CUST-2"],
         )
 
+    def test_cnic_matches_customer_tax_id_when_ntn_is_missing(self):
+        profile = SimpleNamespace(
+            email="",
+            phone="",
+            ntn="",
+            cnic="3520212345671",
+        )
+        customer_meta = MagicMock()
+        customer_meta.get_field.side_effect = (
+            lambda fieldname: fieldname == "tax_id"
+        )
+
+        with (
+            patch.object(
+                erp_customer_resolver.frappe,
+                "get_meta",
+                return_value=customer_meta,
+            ),
+            patch.object(
+                erp_customer_resolver.frappe,
+                "get_all",
+                return_value=["ERP-CUST-1"],
+            ) as get_all,
+        ):
+            matches = erp_customer_resolver._customer_matches(
+                profile,
+                "",
+            )
+
+        self.assertEqual(matches, ["ERP-CUST-1"])
+        get_all.assert_called_once_with(
+            "Customer",
+            filters={"tax_id": "3520212345671"},
+            pluck="name",
+            limit=3,
+        )
+
     def test_unapproved_profile_does_not_create_customer(self):
         profile = self._profile()
         profile.approval_status = "Pending Review"

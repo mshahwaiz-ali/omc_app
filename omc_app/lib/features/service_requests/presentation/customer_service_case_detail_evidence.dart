@@ -16,7 +16,7 @@ class _DocumentsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Semantics(
+          Semantics(
             header: true,
             child: Text(
               'Required documents',
@@ -292,7 +292,7 @@ class _RecentActivityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Semantics(
+          Semantics(
             header: true,
             child: Text(
               'Recent activity',

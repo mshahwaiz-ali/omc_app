@@ -237,7 +237,7 @@ class _CurrentServiceCard extends StatelessWidget {
           ),
           if (service.milestones.isNotEmpty) ...[
             const SizedBox(height: 18),
-            const Semantics(
+            Semantics(
               header: true,
               child: Text(
                 'Service journey',

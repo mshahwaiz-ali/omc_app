@@ -411,7 +411,7 @@ class _TaskHero extends StatelessWidget {
             children: [
               _Pill(label: task.status, color: color),
               _Pill(label: task.priority, color: OmcPremium.tasks),
-              if (task.assignedTo?.trim().isNotEmpty == true)
+              if (task.assignedTo.trim().isNotEmpty)
                 _Pill(
                   label: 'Assigned: ${task.assignedTo}',
                   color: OmcPremium.system,
@@ -537,7 +537,7 @@ class _TaskDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <(String, String)>[
       ('Customer', task.customerName ?? '-'),
-      ('Assigned to', task.assignedTo ?? 'Unassigned'),
+      ('Assigned to', task.assignedTo.trim().isEmpty ? 'Unassigned' : task.assignedTo),
       ('Due date', task.expectedCompletionDate ?? 'Not set'),
       ('Completed on', task.completedOn ?? '-'),
       ('Created', task.createdAt ?? '-'),
