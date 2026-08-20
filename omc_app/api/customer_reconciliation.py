@@ -5,13 +5,22 @@ import hashlib
 import frappe
 from frappe.utils import cint
 
-from omc_app.api import identity, reconciliation_queues, reconciliation_runs
+from omc_app.api import (
+    erp_customer_resolver,
+    identity,
+    reconciliation_queues,
+    reconciliation_runs,
+)
 
 
 JOB_KEY = "customer_account.erp_link"
 DOMAIN = "Identity"
 CHUNK_SIZE = 25
-REVIEW_CODES = {"erp_customer_missing", "erp_customer_ambiguous"}
+REVIEW_CODES = {
+    "erp_customer_missing",
+    "erp_customer_ambiguous",
+    "canonical_account_conflict",
+}
 QUARANTINE_CODES = {"legacy_user_missing", "identity_reconciliation_error"}
 
 
@@ -26,11 +35,15 @@ def _source_version(profile) -> str:
                 _text(profile.name),
                 _text(profile.modified),
                 _text(profile.user),
+                _text(getattr(profile, "linked_app_user", None)),
                 _text(profile.email).lower(),
                 _text(profile.phone),
                 _text(profile.cnic),
+                _text(getattr(profile, "ntn", None)),
                 _text(profile.customer_status),
                 _text(profile.approval_status),
+                _text(getattr(profile, "is_active", None)),
+                _text(getattr(profile, "linked_erpnext_customer", None)),
             )
         ).encode("utf-8")
     ).hexdigest()
@@ -52,14 +65,35 @@ def _account_state(user: str):
 
 
 def _profile_user(profile) -> str:
-    user = _text(profile.user or profile.email).lower()
+    user = _text(
+        getattr(profile, "linked_app_user", None)
+        or getattr(profile, "user", None)
+        or getattr(profile, "email", None)
+    ).lower()
     return user if user and frappe.db.exists("User", user) else ""
+
+
+def _account_conflict(account, *, profile_name: str, erp_customer: str) -> str:
+    if not account:
+        return ""
+
+    existing_customer = _text(getattr(account, "erp_customer", None))
+    existing_profile = _text(getattr(account, "legacy_customer_profile", None))
+
+    if existing_customer and existing_customer != erp_customer:
+        return "erp_customer_mismatch"
+    if existing_profile and existing_profile != profile_name:
+        return "legacy_profile_mismatch"
+    if not existing_customer:
+        return "canonical_account_missing_erp_customer"
+    return ""
 
 
 def _reconcile_profile(profile, *, run_id: str) -> dict[str, int]:
     result = {"changed": 0, "review": 0, "quarantine": 0, "failed": 0}
     version = _source_version(profile)
     user = _profile_user(profile)
+
     if not user:
         reconciliation_queues.open_technical_quarantine(
             domain=DOMAIN,
@@ -74,46 +108,100 @@ def _reconcile_profile(profile, *, run_id: str) -> dict[str, int]:
         return result
 
     before = _account_state(user)
-    erp_customer, match_state = identity.find_erp_customer(
-        email=_text(profile.email).lower(),
-        phone=_text(profile.phone),
-        cnic=_text(profile.cnic),
-    )
-    identity._sync_customer_account_from_legacy(profile, identity.get_customer_account(user))
-    after = _account_state(user)
-    result["changed"] = int(before != after)
+    profile_doc = frappe.get_doc("OMC Customer Profile", profile.name)
 
-    if match_state == "Conflict":
+    resolution = erp_customer_resolver.resolve_profile_customer(
+        profile_doc,
+        create_if_missing=False,
+    )
+    status = _text(resolution.get("status"))
+    erp_customer = _text(resolution.get("customer"))
+
+    if status == "Ambiguous":
         reconciliation_queues.open_human_review(
             domain=DOMAIN,
             source_doctype="OMC Customer Profile",
             source_name=profile.name,
             source_version=version,
             reason_code="erp_customer_ambiguous",
-            safe_evidence={"profile": profile.name, "matching_state": "conflict"},
+            safe_evidence={
+                "profile": profile.name,
+                "matching_state": "conflict",
+            },
             run_id=run_id,
         )
         result["review"] = 1
-    elif not erp_customer:
+        return result
+
+    if not erp_customer:
         reconciliation_queues.open_human_review(
             domain=DOMAIN,
             source_doctype="OMC Customer Profile",
             source_name=profile.name,
             source_version=version,
             reason_code="erp_customer_missing",
-            safe_evidence={"profile": profile.name, "matching_state": "no_match"},
+            safe_evidence={
+                "profile": profile.name,
+                "matching_state": "no_match",
+                "resolver_status": status,
+            },
             run_id=run_id,
         )
         result["review"] = 1
-    else:
-        reconciliation_queues.resolve_source_queues(
+        return result
+
+    account = identity.get_customer_account(user)
+    conflict = _account_conflict(
+        account,
+        profile_name=profile.name,
+        erp_customer=erp_customer,
+    )
+    if conflict:
+        reconciliation_queues.open_human_review(
             domain=DOMAIN,
             source_doctype="OMC Customer Profile",
             source_name=profile.name,
-            review_reason_codes=REVIEW_CODES,
-            quarantine_failure_codes=QUARANTINE_CODES,
-            resolution_note="Customer identity and ERP Customer mapping reconciled.",
+            source_version=version,
+            reason_code="canonical_account_conflict",
+            safe_evidence={
+                "profile": profile.name,
+                "conflict_kind": conflict,
+            },
+            run_id=run_id,
         )
+        result["review"] = 1
+        return result
+
+    if not account:
+        account = identity.ensure_customer_account_from_legacy(user)
+
+    if not account:
+        reconciliation_queues.open_human_review(
+            domain=DOMAIN,
+            source_doctype="OMC Customer Profile",
+            source_name=profile.name,
+            source_version=version,
+            reason_code="canonical_account_conflict",
+            safe_evidence={
+                "profile": profile.name,
+                "conflict_kind": "canonical_account_not_created",
+            },
+            run_id=run_id,
+        )
+        result["review"] = 1
+        return result
+
+    after = _account_state(user)
+    result["changed"] = int(before != after)
+
+    reconciliation_queues.resolve_source_queues(
+        domain=DOMAIN,
+        source_doctype="OMC Customer Profile",
+        source_name=profile.name,
+        review_reason_codes=REVIEW_CODES,
+        quarantine_failure_codes=QUARANTINE_CODES,
+        resolution_note="Customer identity and ERP Customer mapping reconciled.",
+    )
     return result
 
 
@@ -127,11 +215,15 @@ def _batch(cursor: str, batch_size: int):
         fields=[
             "name",
             "user",
+            "linked_app_user",
             "email",
             "phone",
             "cnic",
+            "ntn",
             "customer_status",
             "approval_status",
+            "is_active",
+            "linked_erpnext_customer",
             "modified",
         ],
         order_by="name asc",

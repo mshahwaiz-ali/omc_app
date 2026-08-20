@@ -27,11 +27,15 @@ def _valid_link(profile) -> str:
 
 def _customer_matches(profile, user: str) -> list[str]:
     meta = frappe.get_meta("Customer")
+    tax_identity = (
+        getattr(profile, "ntn", None)
+        or getattr(profile, "cnic", None)
+    )
     identity_fields = (
         ("user_link", user),
         ("email_id", getattr(profile, "email", None)),
         ("mobile_no", getattr(profile, "phone", None)),
-        ("tax_id", getattr(profile, "ntn", None)),
+        ("tax_id", tax_identity),
     )
 
     matches: set[str] = set()

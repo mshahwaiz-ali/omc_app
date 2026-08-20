@@ -71,7 +71,10 @@ class TestCustomerAuthorityContract(FrappeTestCase):
             '("user_link", user)',
             '("email_id", getattr(profile, "email", None))',
             '("mobile_no", getattr(profile, "phone", None))',
-            '("tax_id", getattr(profile, "ntn", None))',
+            'tax_identity = (',
+            'getattr(profile, "ntn", None)',
+            'getattr(profile, "cnic", None)',
+            '("tax_id", tax_identity)',
             '"status": "Ambiguous"',
         ):
             self.assertIn(marker, resolver)

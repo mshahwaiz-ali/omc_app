@@ -136,10 +136,15 @@ class TestDashboardReadGuard(FrappeTestCase):
 
         self.assertEqual(result["message"]["access_state"], "approved")
         self.assertEqual(result["message"]["open_services"], 2)
+        snapshots = result["message"]["service_snapshots"]
         self.assertEqual(
-            result["message"]["service_snapshots"],
-            [{"id": "SR-0001"}],
+            [item["id"] for item in snapshots],
+            ["SR-0001"],
         )
+        self.assertEqual(snapshots[0]["current_stage"], "Request received")
+        self.assertEqual(snapshots[0]["progress_percent"], 15)
+        self.assertIn("milestones", snapshots[0])
+        self.assertIn("next_action", snapshots[0])
         self.assertEqual(
             result["message"]["recent_activity"][0]["color_family"],
             "Tax",
