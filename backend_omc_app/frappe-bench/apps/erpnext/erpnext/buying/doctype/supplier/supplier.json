@@ -37,7 +37,6 @@
   "dashboard_tab",
   "tax_tab",
   "tax_id",
-  "custom_gst_category",
   "column_break_27",
   "tax_category",
   "tax_withholding_category",
@@ -446,13 +445,6 @@
   {
    "fieldname": "column_break_59",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "custom_gst_category",
-   "fieldtype": "Link",
-   "label": "GST Category",
-   "options": "GST Category",
-   "reqd": 1
   }
  ],
  "icon": "fa fa-user",

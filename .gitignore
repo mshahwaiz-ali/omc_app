@@ -55,8 +55,6 @@ backend_omc_app/frappe-bench/apps/*
 !backend_omc_app/frappe-bench/apps/omc_app/**
 !backend_omc_app/frappe-bench/apps/erpnext/
 !backend_omc_app/frappe-bench/apps/erpnext/**
-!backend_omc_app/frappe-bench/apps/lead_app/
-!backend_omc_app/frappe-bench/apps/lead_app/**
 backend_omc_app/frappe-bench/apps/frappe/
 backend_omc_app/frappe-bench/env/
 backend_omc_app/frappe-bench/logs/
