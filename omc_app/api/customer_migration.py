@@ -432,6 +432,85 @@ def dry_run():
 
 
 
+def identity_review_details(
+    reason=None,
+    offset=0,
+    limit=100,
+):
+    """Read-only paginated report for customers requiring identity review.
+
+    The report deliberately avoids returning raw email, CNIC, phone, or tax
+    identifiers. Operators can use the Customer/Lead references to inspect
+    the authoritative ERP records when manual review is required.
+    """
+    try:
+        offset = max(0, int(offset or 0))
+        limit = max(1, int(limit or 100))
+    except (TypeError, ValueError):
+        frappe.throw(
+            "offset and limit must be integers.",
+            frappe.ValidationError,
+        )
+
+    # Prevent accidental huge terminal/API responses while still allowing
+    # complete review through pagination.
+    limit = min(limit, 500)
+
+    reason_filter = _text(reason)
+
+    rows, _, _, _ = _classify()
+
+    review_rows = [
+        row
+        for row in rows
+        if row["classification"] == "identity_review"
+    ]
+
+    reason_counts = Counter(
+        row["review_reason"] for row in review_rows
+    )
+
+    filtered_rows = (
+        [
+            row
+            for row in review_rows
+            if row["review_reason"] == reason_filter
+        ]
+        if reason_filter
+        else review_rows
+    )
+
+    page = filtered_rows[offset:offset + limit]
+
+    records = []
+
+    for row in page:
+        records.append({
+            "customer": row["customer"],
+            "lead": row["lead"],
+            "reason": row["review_reason"],
+            "identity_signals": {
+                "email": bool(row["email"]),
+                "cnic": bool(row["cnic"]),
+                "phone": bool(row["resolved_phone"]),
+                "tax_id": bool(row.get("tax_id")),
+                "phone_conflict": bool(row["phone_conflict"]),
+            },
+        })
+
+    return {
+        "read_only": True,
+        "total_identity_review": len(review_rows),
+        "filtered_total": len(filtered_rows),
+        "reason_filter": reason_filter,
+        "reason_counts": dict(sorted(reason_counts.items())),
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + len(records) < len(filtered_rows),
+        "records": records,
+    }
+
+
 def _synthetic_user_email(customer: str) -> str:
     digest = hashlib.sha256(
         f"omc-customer:{_text(customer)}".encode("utf-8")
