@@ -11,6 +11,7 @@ from frappe.utils import validate_email_address
 CUSTOMER_FIELDS = (
     "name",
     "customer_name",
+    "tax_id",
     "custom_email_address",
     "contact_no",
     "custom_reference_lead",
@@ -65,6 +66,16 @@ def _normalise_phone(value) -> str:
 def _normalise_cnic(value) -> str:
     digits = re.sub(r"\D", "", _text(value))
     return digits if len(digits) == 13 else ""
+
+
+def _normalise_tax_id(value) -> str:
+    """Return only supported numeric CNIC/NTN-style ERP tax identities."""
+    value = _text(value)
+    if not value or not re.fullmatch(r"[0-9 -]+", value):
+        return ""
+
+    digits = re.sub(r"[^0-9]", "", value)
+    return digits if len(digits) in {7, 13} else ""
 
 
 def _chunks(values, size=500):
@@ -128,6 +139,10 @@ def _identity_rows():
             lead.get("custom_cnic")
         )
 
+        tax_id = _normalise_tax_id(
+            customer.get("tax_id")
+        )
+
         phone_conflict = bool(
             customer_phone
             and lead_phone
@@ -142,6 +157,7 @@ def _identity_rows():
             "lead": lead_name,
             "email": email,
             "cnic": cnic,
+            "tax_id": tax_id,
             "customer_phone": customer_phone,
             "lead_phone": lead_phone,
             "resolved_phone": resolved_phone,
@@ -172,12 +188,21 @@ def _classify():
         for row in rows
         if row["resolved_phone"]
     )
+    tax_counts = Counter(
+        row.get("tax_id", "")
+        for row in rows
+        if row.get("tax_id")
+    )
 
     for row in rows:
         email = row["email"]
         cnic = row["cnic"]
         phone = row["resolved_phone"]
+        tax_id = row.get("tax_id", "")
 
+        # Preserve existing identity priority. Customer.tax_id is deliberately
+        # the final deterministic fallback, never a replacement for the
+        # established email/CNIC/phone rules.
         if email and email_counts[email] == 1:
             row["classification"] = "unique_email"
             row["review_reason"] = ""
@@ -197,9 +222,14 @@ def _classify():
             row["review_reason"] = ""
             continue
 
+        if tax_id and tax_counts[tax_id] == 1:
+            row["classification"] = "unique_tax_id"
+            row["review_reason"] = ""
+            continue
+
         row["classification"] = "identity_review"
 
-        if not email and not cnic and not phone:
+        if not email and not cnic and not phone and not tax_id:
             row["review_reason"] = "no_identity"
             continue
 
@@ -217,12 +247,17 @@ def _classify():
         if row["phone_conflict"]:
             reasons.append("customer_lead_phone_conflict")
 
+        if tax_id and tax_counts[tax_id] > 1:
+            reasons.append("duplicate_tax_id")
+
         row["review_reason"] = (
             "+".join(reasons)
             if reasons
             else "unresolved_identity_conflict"
         )
 
+    # Keep the historical four-value contract so existing callers do not
+    # require a broad migration API change.
     return rows, email_counts, cnic_counts, phone_counts
 
 
@@ -233,6 +268,12 @@ def dry_run():
     commits, password changes, activation creation, or profile creation.
     """
     rows, email_counts, cnic_counts, phone_counts = _classify()
+
+    tax_counts = Counter(
+        row.get("tax_id", "")
+        for row in rows
+        if row.get("tax_id")
+    )
 
     classifications = Counter(
         row["classification"] for row in rows
@@ -247,15 +288,35 @@ def dry_run():
         row["review_reason"] for row in review_rows
     )
 
+    safely_identifiable = (
+        classifications["unique_email"]
+        + classifications["unique_cnic"]
+        + classifications["unique_safe_phone"]
+        + classifications["unique_tax_id"]
+    )
+    activation_ready_import = classifications["unique_email"]
+    deferred_claim_on_signup = (
+        classifications["unique_cnic"]
+        + classifications["unique_safe_phone"]
+        + classifications["unique_tax_id"]
+    )
+
     return {
         "read_only": True,
         "total_customers": len(rows),
 
-        "auto_migratable": (
-            classifications["unique_email"]
-            + classifications["unique_cnic"]
-            + classifications["unique_safe_phone"]
-        ),
+        # Backward-compatible broad identity-discovery count.
+        # This does NOT mean every row will receive an OMC profile.
+        "auto_migratable": safely_identifiable,
+        "safely_identifiable": safely_identifiable,
+
+        # Only customers with one unique real legacy email are safe for
+        # pre-created Imported Existing profiles + email activation.
+        "activation_ready_import": activation_ready_import,
+
+        # Deterministic CNIC/phone/tax-only identities remain in ERP and
+        # are claimed later through verified signup + reviewed resolution.
+        "deferred_claim_on_signup": deferred_claim_on_signup,
 
         "identity_review": classifications["identity_review"],
 
@@ -263,6 +324,7 @@ def dry_run():
             "unique_email": classifications["unique_email"],
             "unique_cnic_fallback": classifications["unique_cnic"],
             "unique_safe_phone": classifications["unique_safe_phone"],
+            "unique_tax_id_fallback": classifications["unique_tax_id"],
             "identity_review": classifications["identity_review"],
         },
 
@@ -302,6 +364,22 @@ def dry_run():
                 and cnic_counts[row["cnic"]] > 1
             ),
 
+            "valid_tax_id_customers": sum(
+                1 for row in rows if row.get("tax_id")
+            ),
+            "unique_tax_id_identity_customers": sum(
+                1
+                for row in rows
+                if row.get("tax_id")
+                and tax_counts[row["tax_id"]] == 1
+            ),
+            "customers_on_duplicate_tax_id": sum(
+                1
+                for row in rows
+                if row.get("tax_id")
+                and tax_counts[row["tax_id"]] > 1
+            ),
+
             "valid_phone_customers": sum(
                 1 for row in rows if row["resolved_phone"]
             ),
@@ -333,6 +411,7 @@ def dry_run():
                 if not row["email"]
                 and not row["cnic"]
                 and not row["resolved_phone"]
+                and not row.get("tax_id")
             ),
         },
 
@@ -371,6 +450,9 @@ def preflight():
         "mode": "profile_only",
         "total_customers": len(rows),
         "auto_migratable": 0,
+        "safely_identifiable": 0,
+        "activation_ready_import": 0,
+        "deferred_claim_on_signup": 0,
         "identity_review": 0,
         "profile_only_migratable": 0,
         "create_customer_profile": 0,
@@ -387,6 +469,16 @@ def preflight():
             continue
 
         result["auto_migratable"] += 1
+        result["safely_identifiable"] += 1
+
+        # CNIC/phone/tax-only historical identities must not receive an
+        # email-less profile. They are claimed through the explicit
+        # Existing Customer Claim signup path instead.
+        if row["classification"] != "unique_email":
+            result["deferred_claim_on_signup"] += 1
+            continue
+
+        result["activation_ready_import"] += 1
         plan = _plan_apply_row(row, context)
 
         for warning in plan["warnings"]:
@@ -759,7 +851,7 @@ def _plan_apply_row(row, context):
             user_row.user_type == "System User"
             or roles.intersection(context["internal_roles"])
         ):
-            warnings.append(
+            blockers.append(
                 "activation_existing_internal_user_identity"
             )
         else:
@@ -852,8 +944,9 @@ def _plan_apply_row(row, context):
                 "activation_existing_user_mobile_collision"
             )
 
-    # Only a UNIQUE real ERP email is persisted.
-    # CNIC/phone fallback rows remain email-less until activation.
+    # Only a UNIQUE real ERP email is eligible for bulk profile import.
+    # CNIC/phone/tax-only rows are deferred to claim-on-signup and should
+    # never normally reach this planning function.
     profile_email = (
         target_email
         if row["classification"] == "unique_email"
@@ -893,6 +986,7 @@ def _create_or_reuse_profile(row, plan):
             "full_name": row["customer_name"] or row["customer"],
             "phone": row["resolved_phone"],
             "cnic": row["cnic"],
+            "onboarding_mode": "Imported Existing",
         }
 
         for fieldname, value in safe_fill.items():
@@ -944,6 +1038,9 @@ def _create_or_reuse_profile(row, plan):
 
     if profile.meta.has_field("customer_origin"):
         profile.customer_origin = "Imported"
+
+    if profile.meta.has_field("onboarding_mode"):
+        profile.onboarding_mode = "Imported Existing"
 
     if profile.meta.has_field("acquisition_source"):
         profile.acquisition_source = "Existing"
@@ -1012,6 +1109,9 @@ def apply(
         "commit": commit,
         "mode": "profile_only",
         "total_customers": len(rows),
+        "safely_identifiable": 0,
+        "activation_ready_import": 0,
+        "deferred_claim_on_signup_skipped": 0,
         "identity_review_skipped": 0,
         "safe_rows_migrated": 0,
         "user_accounts_created": 0,
@@ -1030,6 +1130,16 @@ def apply(
             result["identity_review_skipped"] += 1
             continue
 
+        result["safely_identifiable"] += 1
+
+        # This is the critical fail-closed boundary:
+        # only unique-email customers may ever enter the bulk profile
+        # creation path. Other deterministic identities are deferred.
+        if row["classification"] != "unique_email":
+            result["deferred_claim_on_signup_skipped"] += 1
+            continue
+
+        result["activation_ready_import"] += 1
         plan = _plan_apply_row(row, context)
 
         if plan["blockers"]:

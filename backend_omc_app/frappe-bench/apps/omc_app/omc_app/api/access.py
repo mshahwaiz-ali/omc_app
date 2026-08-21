@@ -112,6 +112,11 @@ ROLE_CAPABILITIES = {
     },
 }
 
+PUBLIC_CUSTOMER_ONBOARDING_MODES = {
+    "New Customer",
+    "Existing Customer Claim",
+}
+
 SIGNUP_TEXT_LIMITS = {
     "full_name": 140,
     "name": 140,
@@ -135,6 +140,7 @@ SIGNUP_TEXT_LIMITS = {
     "referral_code": 40,
     "submitted_referral_code": 40,
     "referral_consent_version": 40,
+    "onboarding_mode": 40,
     "username": 30,
 }
 
@@ -336,6 +342,19 @@ def _validated_signup_kwargs(kwargs):
                 fieldname,
                 max_length,
             )
+
+    onboarding_mode = (
+        str(data.get("onboarding_mode") or "").strip()
+        or "New Customer"
+    )
+
+    if onboarding_mode not in PUBLIC_CUSTOMER_ONBOARDING_MODES:
+        frappe.throw(
+            "Select a supported customer onboarding mode.",
+            frappe.ValidationError,
+        )
+
+    data["onboarding_mode"] = onboarding_mode
     return data
 
 

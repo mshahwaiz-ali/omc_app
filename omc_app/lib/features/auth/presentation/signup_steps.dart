@@ -14,7 +14,12 @@ class SignupProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Access type', 'Basic details', 'Preferences', 'Verification'];
+    const labels = [
+      'Access type',
+      'Basic details',
+      'Preferences',
+      'Verification',
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -59,12 +64,16 @@ class SignupRoleStep extends StatelessWidget {
     required this.formKey,
     required this.roles,
     required this.selectedRole,
+    required this.selectedOnboardingMode,
+    required this.onOnboardingModeChanged,
     required this.onRoleChanged,
   });
 
   final GlobalKey<FormState> formKey;
   final List<String> roles;
   final String selectedRole;
+  final String selectedOnboardingMode;
+  final ValueChanged<String> onOnboardingModeChanged;
   final ValueChanged<String> onRoleChanged;
 
   @override
@@ -86,6 +95,47 @@ class SignupRoleStep extends StatelessWidget {
               selected: selectedRole == role,
               onTap: () => onRoleChanged(role),
             ),
+            if (role == 'Customer' && selectedRole == 'Customer') ...[
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Are you already an OMC customer?',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('New to OMC'),
+                          selected: selectedOnboardingMode == 'New Customer',
+                          onSelected: (_) =>
+                              onOnboardingModeChanged('New Customer'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Already an OMC customer'),
+                          selected:
+                              selectedOnboardingMode ==
+                              'Existing Customer Claim',
+                          onSelected: (_) => onOnboardingModeChanged(
+                            'Existing Customer Claim',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (role != roles.last) const SizedBox(height: 10),
           ],
         ],
@@ -404,7 +454,9 @@ class SignupPreferencesStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SignupStepTitle(
-            title: isCustomer ? 'Referral and preferences' : 'Staff access review',
+            title: isCustomer
+                ? 'Referral and preferences'
+                : 'Staff access review',
             subtitle: isCustomer
                 ? 'Referral information is optional unless you choose Referral as your source.'
                 : 'This is an application. Email verification does not approve or grant staff access.',

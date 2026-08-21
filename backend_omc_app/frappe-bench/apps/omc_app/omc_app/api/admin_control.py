@@ -85,6 +85,25 @@ def _requested_staff_role(profile):
     return APPLICATION_ROLE_MAP.get(requested)
 
 
+def _resolution_mode_for_profile(profile):
+    """Map reviewed onboarding intent to resolver behavior.
+
+    Imported historical customers and explicit existing-customer claims may
+    only link an existing ERP Customer. New and pre-field legacy signups use
+    new-customer behavior, which still blocks creation on any historical
+    identity collision.
+    """
+    mode = _text(profile.get("onboarding_mode"))
+
+    if mode in {
+        "Existing Customer Claim",
+        "Imported Existing",
+    }:
+        return "claim_existing"
+
+    return "new_customer"
+
+
 def _set_user_roles(user, roles):
     """Retained callable seam that permanently rejects legacy role mutation."""
     frappe.throw(
@@ -210,7 +229,7 @@ def get_admin_overview(limit_start=0, limit_page_length=20):
     pending = frappe.get_all(
         "OMC Customer Profile",
         filters={"approval_status": ["in", ["Pending", "Pending Review"]]},
-        fields=["name", "full_name", "email", "phone", "register_as", "customer_type", "customer_status", "approval_status", "creation"],
+        fields=["name", "full_name", "email", "phone", "register_as", "customer_type", "onboarding_mode", "customer_status", "approval_status", "creation"],
         order_by="creation asc", limit_start=start, limit_page_length=length,
     )
     staff_rows = frappe.get_all(
@@ -275,7 +294,10 @@ def review_registration(profile_id=None, decision=None, roles=None, reason=None)
     profile.is_active = 1
     profile.save(ignore_permissions=True)
     if not requested_role:
-        resolved = erp_customer_resolver.resolve_profile_customer(profile)
+        resolved = erp_customer_resolver.resolve_profile_customer(
+            profile,
+            resolution_mode=_resolution_mode_for_profile(profile),
+        )
         if _text(resolved.get("status")) not in {"Resolved", "Created"}:
             frappe.throw(
                 resolved.get("reason") or "ERP Customer linkage requires reconciliation.",

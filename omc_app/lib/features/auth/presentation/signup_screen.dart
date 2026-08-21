@@ -87,6 +87,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   String? _usernameMessage;
   int _step = 0;
   String _selectedRole = roles.first;
+  String _selectedOnboardingMode = 'New Customer';
   String? _selectedAcquisitionSource;
   String? _referralValidationMessage;
   bool? _referralCodeValid;
@@ -314,7 +315,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
     if (!_acceptedTerms) {
       setState(() {
-        _submitError = 'Please accept the terms and review process before continuing.';
+        _submitError =
+            'Please accept the terms and review process before continuing.';
       });
       return;
     }
@@ -354,6 +356,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         'cnic': _normalizeCnic(_cnicController.text),
         'customer_type': _selectedRole,
         'register_as': _selectedRole,
+        'onboarding_mode': _isCustomer
+            ? _selectedOnboardingMode
+            : 'New Customer',
         'address': _addressController.text.trim(),
         'acquisition_source': _isCustomer
             ? (_selectedAcquisitionSource ?? '')
@@ -517,7 +522,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         if (mounted) context.go('/login');
       },
       child: AuthEntryScaffold(
-        title: _isCustomer ? 'Create your account' : 'Apply for OMC staff access',
+        title: _isCustomer
+            ? 'Create your account'
+            : 'Apply for OMC staff access',
         subtitle: _isCustomer
             ? 'A focused four-step setup for your OMC customer account.'
             : 'Verify your email and submit your $_selectedRole access application for OMC review.',
@@ -551,11 +558,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         formKey: _roleFormKey,
                         roles: roles,
                         selectedRole: _selectedRole,
+                        selectedOnboardingMode: _selectedOnboardingMode,
+                        onOnboardingModeChanged: (mode) {
+                          setState(() {
+                            _selectedOnboardingMode = mode;
+                            _submitError = null;
+                          });
+                        },
                         onRoleChanged: (role) {
                           setState(() {
                             _selectedRole = role;
                             _submitError = null;
                             if (role != 'Customer') {
+                              _selectedOnboardingMode = 'New Customer';
                               _selectedAcquisitionSource = null;
                               _acquisitionSourceDetailController.clear();
                               _referralCodeController.clear();

@@ -466,6 +466,14 @@ def sign_up(**kwargs):
     ntn = (kwargs.get("ntn") or "").strip()
     register_as = (kwargs.get("register_as") or kwargs.get("customer_type") or "Customer").strip()
     customer_type = (kwargs.get("customer_type") or register_as or "Customer").strip()
+    onboarding_mode = str(
+        kwargs.get("onboarding_mode") or "New Customer"
+    ).strip()
+    if onboarding_mode not in access.PUBLIC_CUSTOMER_ONBOARDING_MODES:
+        frappe.throw(
+            "Select a supported customer onboarding mode.",
+            frappe.ValidationError,
+        )
     address = (kwargs.get("address") or "").strip()
     education = (kwargs.get("education") or "").strip()
     experience = (kwargs.get("experience") or "").strip()
@@ -621,6 +629,7 @@ def sign_up(**kwargs):
         acquisition_source_detail,
     )
     _set_if_has_field(profile, "customer_origin", "App Signup")
+    _set_if_has_field(profile, "onboarding_mode", onboarding_mode)
     _set_if_has_field(profile, "linked_app_user", email)
 
     if acquisition_source == "Referral":
@@ -662,6 +671,7 @@ def sign_up(**kwargs):
             "ntn": profile.ntn or "",
             "register_as": profile.get("register_as") or "",
             "customer_type": profile.get("customer_type") or "",
+            "onboarding_mode": profile.get("onboarding_mode") or "",
             "address": profile.get("address") or "",
             "education": profile.get("education") or "",
             "experience": profile.get("experience") or "",
