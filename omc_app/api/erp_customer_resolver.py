@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import frappe
+from frappe.utils import validate_email_address
 
 
 def _text(value: Any) -> str:
@@ -25,36 +27,281 @@ def _valid_link(profile) -> str:
     return ""
 
 
-def _customer_matches(profile, user: str) -> list[str]:
-    meta = frappe.get_meta("Customer")
-    tax_identity = (
-        getattr(profile, "ntn", None)
-        or getattr(profile, "cnic", None)
-    )
-    identity_fields = (
-        ("user_link", user),
-        ("email_id", getattr(profile, "email", None)),
-        ("mobile_no", getattr(profile, "phone", None)),
-        ("tax_id", tax_identity),
+def _normalise_email(value: Any) -> str:
+    email = _text(value).lower()
+    if not email or "," in email or ";" in email:
+        return ""
+
+    try:
+        valid = validate_email_address(email, throw=False)
+    except Exception:
+        return ""
+
+    return email if valid else ""
+
+
+def _normalise_phone(value: Any) -> str:
+    digits = re.sub(r"\D", "", _text(value))
+    if not digits:
+        return ""
+
+    if digits.startswith("92"):
+        local = digits[2:]
+    elif digits.startswith("0"):
+        local = digits[1:]
+    else:
+        local = digits
+
+    if len(local) != 10 or not local.startswith("3"):
+        return ""
+
+    return f"+92{local}"
+
+
+def _normalise_tax_id(value: Any) -> str:
+    """Canonicalise only safe numeric CNIC/NTN-style identities."""
+    value = _text(value)
+
+    if not value or not re.fullmatch(r"[0-9 -]+", value):
+        return ""
+
+    digits = re.sub(r"[^0-9]", "", value)
+
+    if len(digits) not in {7, 13}:
+        return ""
+
+    return digits
+
+
+def _normalise_cnic(value: Any) -> str:
+    value = _normalise_tax_id(value)
+    return value if len(value) == 13 else ""
+
+
+def _normalise_ntn(value: Any) -> str:
+    value = _normalise_tax_id(value)
+    return value if len(value) == 7 else ""
+
+
+def _chunks(values, size=500):
+    for start in range(0, len(values), size):
+        yield values[start:start + size]
+
+
+def _customer_identity_rows() -> list[dict[str, Any]]:
+    """Build deterministic ERP Customer identities without using user_link.
+
+    Historical client data uses Customer custom fields plus referenced Lead
+    identity data. Standard ERP fields are also included for Customers created
+    through the current OMC integration.
+
+    A phone is only considered an identity when all available phone sources
+    for that Customer agree. Conflicting Customer/Lead phones are deliberately
+    excluded from automatic claiming.
+    """
+    customer_meta = frappe.get_meta("Customer")
+
+    desired_customer_fields = (
+        "name",
+        "tax_id",
+        "email_id",
+        "mobile_no",
+        "custom_email_address",
+        "contact_no",
+        "custom_reference_lead",
     )
 
-    matches: set[str] = set()
-    for fieldname, raw_value in identity_fields:
-        value = _text(raw_value)
-        if not value or not meta.get_field(fieldname):
-            continue
+    customer_fields = [
+        fieldname
+        for fieldname in desired_customer_fields
+        if fieldname == "name" or customer_meta.get_field(fieldname)
+    ]
 
-        rows = frappe.get_all(
-            "Customer",
-            filters={fieldname: value},
-            pluck="name",
-            limit=3,
+    customers = frappe.get_all(
+        "Customer",
+        fields=customer_fields,
+        order_by="name asc",
+        limit_page_length=0,
+    )
+
+    lead_names = sorted({
+        _text(customer.get("custom_reference_lead"))
+        for customer in customers
+        if _text(customer.get("custom_reference_lead"))
+    })
+
+    leads = {}
+
+    if lead_names:
+        lead_meta = frappe.get_meta("Lead")
+
+        desired_lead_fields = (
+            "name",
+            "mobile_no",
+            "custom_cnic",
         )
-        matches.update(_text(name) for name in rows if _text(name))
-        if len(matches) > 1:
-            break
 
-    return sorted(matches)
+        lead_fields = [
+            fieldname
+            for fieldname in desired_lead_fields
+            if fieldname == "name" or lead_meta.get_field(fieldname)
+        ]
+
+        for batch in _chunks(lead_names):
+            for lead in frappe.get_all(
+                "Lead",
+                filters={"name": ["in", batch]},
+                fields=lead_fields,
+                limit_page_length=0,
+            ):
+                leads[lead.name] = lead
+
+    result = []
+
+    for customer in customers:
+        lead_name = _text(
+            customer.get("custom_reference_lead")
+        )
+        lead = leads.get(lead_name) or {}
+
+        emails = set()
+
+        for raw_email in (
+            customer.get("custom_email_address"),
+            customer.get("email_id"),
+        ):
+            email = _normalise_email(raw_email)
+            if email:
+                emails.add(email)
+
+        customer_phones = set()
+
+        for raw_phone in (
+            customer.get("contact_no"),
+            customer.get("mobile_no"),
+        ):
+            phone = _normalise_phone(raw_phone)
+            if phone:
+                customer_phones.add(phone)
+
+        lead_phone = _normalise_phone(
+            lead.get("mobile_no")
+        )
+
+        all_phones = set(customer_phones)
+
+        if lead_phone:
+            all_phones.add(lead_phone)
+
+        # A historical phone conflict is not safe ownership evidence.
+        safe_phones = (
+            all_phones
+            if len(all_phones) <= 1
+            else set()
+        )
+
+        tax_ids = set()
+
+        customer_tax = _normalise_tax_id(
+            customer.get("tax_id")
+        )
+        if customer_tax:
+            tax_ids.add(customer_tax)
+
+        lead_cnic = _normalise_cnic(
+            lead.get("custom_cnic")
+        )
+        if lead_cnic:
+            tax_ids.add(lead_cnic)
+
+        result.append({
+            "customer": customer.name,
+            "emails": emails,
+            "phones": safe_phones,
+            "tax_ids": tax_ids,
+        })
+
+    return result
+
+
+def _customer_matches(profile, user: str) -> list[str]:
+    """Return deterministic ERP Customer ownership candidates.
+
+    `user` is intentionally not an ERP Customer identity. The restored client
+    database proves Customer.user_link is predominantly shared staff ownership,
+    so it must never be used to claim a customer account.
+
+    Rules:
+    - one unique identity signal may resolve the Customer;
+    - multiple unique signals agreeing on one Customer resolve it;
+    - unique signals pointing to different Customers are ambiguous;
+    - duplicate/non-unique signals never override a unique signal;
+    - if there is no unique signal, all matching duplicates remain ambiguous.
+    """
+    del user  # Explicitly prevent Customer.user_link identity matching.
+
+    rows = _customer_identity_rows()
+
+    email = _normalise_email(
+        getattr(profile, "email", None)
+    )
+    phone = _normalise_phone(
+        getattr(profile, "phone", None)
+    )
+    cnic = _normalise_cnic(
+        getattr(profile, "cnic", None)
+    )
+    ntn = _normalise_ntn(
+        getattr(profile, "ntn", None)
+    )
+
+    signal_matches = []
+
+    if email:
+        signal_matches.append({
+            row["customer"]
+            for row in rows
+            if email in row["emails"]
+        })
+
+    if cnic:
+        signal_matches.append({
+            row["customer"]
+            for row in rows
+            if cnic in row["tax_ids"]
+        })
+
+    if ntn:
+        signal_matches.append({
+            row["customer"]
+            for row in rows
+            if ntn in row["tax_ids"]
+        })
+
+    if phone:
+        signal_matches.append({
+            row["customer"]
+            for row in rows
+            if phone in row["phones"]
+        })
+
+    unique_targets = {
+        next(iter(matches))
+        for matches in signal_matches
+        if len(matches) == 1
+    }
+
+    if unique_targets:
+        # One deterministic target wins over merely duplicated weak signals.
+        # Different deterministic targets must never be guessed between.
+        return sorted(unique_targets)
+
+    duplicate_candidates = set()
+
+    for matches in signal_matches:
+        duplicate_candidates.update(matches)
+
+    return sorted(duplicate_candidates)
 
 
 def _default_value(fieldname: str) -> str:
@@ -67,9 +314,13 @@ def _set_if_field(doc, fieldname: str, value: Any) -> None:
 
 
 def _set_customer_identity(customer, profile) -> None:
-    """Map OMC CNIC/NTN into supported ERP Customer identity fields."""
-    ntn = _text(getattr(profile, "ntn", None))
-    cnic = _text(getattr(profile, "cnic", None))
+    """Map only safe canonical OMC CNIC/NTN into ERP identity fields."""
+    ntn = _normalise_ntn(
+        getattr(profile, "ntn", None)
+    )
+    cnic = _normalise_cnic(
+        getattr(profile, "cnic", None)
+    )
     identity = ntn or cnic
 
     if not identity:
@@ -143,7 +394,12 @@ def _create_customer(profile, user: str):
     return customer, ""
 
 
-def resolve_profile_customer(profile, *, create_if_missing: bool = True) -> dict[str, Any]:
+def resolve_profile_customer(
+    profile,
+    *,
+    create_if_missing: bool = True,
+    resolution_mode: str | None = None,
+) -> dict[str, Any]:
     if not profile:
         return {
             "status": "Pending Configuration",
@@ -192,7 +448,66 @@ def resolve_profile_customer(profile, *, create_if_missing: bool = True) -> dict
             "reason": "customer profile has no linked app user",
         }
 
+    mode = _text(resolution_mode).lower()
+
+    if mode not in {"", "claim_existing", "new_customer"}:
+        return {
+            "status": "Pending Configuration",
+            "customer": "",
+            "created": False,
+            "reason": "unsupported ERP Customer resolution mode",
+        }
+
     matches = _customer_matches(profile, user)
+
+    # Existing-customer claim:
+    # - exactly one deterministic ERP Customer may be linked;
+    # - ambiguity is never guessed;
+    # - absence of a match must never create a new ERP Customer.
+    if mode == "claim_existing":
+        if len(matches) > 1:
+            return {
+                "status": "Ambiguous",
+                "customer": "",
+                "created": False,
+                "reason": (
+                    "multiple ERP Customers match this customer identity"
+                ),
+            }
+
+        if len(matches) == 1:
+            _link_profile(profile, matches[0])
+            return {
+                "status": "Resolved",
+                "customer": matches[0],
+                "created": False,
+                "reason": "",
+            }
+
+        return {
+            "status": "Pending Configuration",
+            "customer": "",
+            "created": False,
+            "reason": (
+                "no existing ERP Customer matches this customer identity"
+            ),
+        }
+
+    # Genuinely new customer:
+    # any historical ERP identity collision blocks automatic creation.
+    # The record must be reviewed/reclassified instead of silently linking
+    # an old customer or creating a duplicate.
+    if mode == "new_customer" and matches:
+        return {
+            "status": "Existing Customer Detected",
+            "customer": "",
+            "created": False,
+            "reason": (
+                "an existing ERP Customer matches this customer identity"
+            ),
+        }
+
+    # Backward-compatible/default behavior for existing callers.
     if len(matches) > 1:
         return {
             "status": "Ambiguous",
@@ -210,7 +525,7 @@ def resolve_profile_customer(profile, *, create_if_missing: bool = True) -> dict
             "reason": "",
         }
 
-    if not create_if_missing:
+    if mode != "new_customer" and not create_if_missing:
         return {
             "status": "Pending Configuration",
             "customer": "",

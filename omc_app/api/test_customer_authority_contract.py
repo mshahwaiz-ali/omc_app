@@ -66,18 +66,37 @@ class TestCustomerAuthorityContract(FrappeTestCase):
         assisted = (api / "assisted_service.py").read_text(
             encoding="utf-8"
         )
+        admin_control = (api / "admin_control.py").read_text(
+            encoding="utf-8"
+        )
 
+        # ERP Customer identity must come from deterministic customer
+        # evidence, never the legacy shared Customer.user_link field.
         for marker in (
-            '("user_link", user)',
-            '("email_id", getattr(profile, "email", None))',
-            '("mobile_no", getattr(profile, "phone", None))',
-            'tax_identity = (',
-            'getattr(profile, "ntn", None)',
-            'getattr(profile, "cnic", None)',
-            '("tax_id", tax_identity)',
+            "def _customer_identity_rows(",
+            "def _normalise_tax_id(",
+            '"custom_email_address"',
+            '"contact_no"',
+            '"custom_reference_lead"',
+            '"custom_cnic"',
+            "del user",
             '"status": "Ambiguous"',
         ):
             self.assertIn(marker, resolver)
+
+        self.assertNotIn(
+            '("user_link", user)',
+            resolver,
+        )
+
+        # Reviewers must be able to distinguish new-customer signup from
+        # an existing-customer claim in the pending application queue.
+        self.assertIn(
+            'fields=["name", "full_name", "email", "phone", '
+            '"register_as", "customer_type", "onboarding_mode", '
+            '"customer_status", "approval_status", "creation"]',
+            admin_control,
+        )
 
         self.assertIn(
             "def _manual_customer_duplicate_matches(",

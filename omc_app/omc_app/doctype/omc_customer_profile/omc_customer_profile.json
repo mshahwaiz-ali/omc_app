@@ -36,6 +36,7 @@
   "referral_consent_timestamp",
   "referral_consent_version",
   "customer_origin",
+  "onboarding_mode",
   "linked_app_user",
   "manual_customer_status",
   "review_section",
@@ -246,6 +247,15 @@
    "options": "App Signup\nWalk-in\nImported\nStaff Created",
    "default": "App Signup",
    "in_standard_filter": 1
+  },
+  {
+   "default": "New Customer",
+   "fieldname": "onboarding_mode",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Onboarding Mode",
+   "options": "New Customer\nExisting Customer Claim\nImported Existing",
+   "search_index": 1
   },
   {
    "fieldname": "linked_app_user",
