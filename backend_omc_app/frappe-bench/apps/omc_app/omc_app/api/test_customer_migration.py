@@ -528,3 +528,142 @@ class TestCustomerMigrationActivationSafety(FrappeTestCase):
             "activation_existing_internal_user_identity",
             plan["warnings"],
         )
+
+class TestCustomerMigrationIdentityReviewDetails(FrappeTestCase):
+    def _review_row(
+        self,
+        customer,
+        reason,
+        *,
+        lead="",
+        email="",
+        cnic="",
+        phone="",
+        tax_id="",
+        phone_conflict=False,
+    ):
+        return {
+            "customer": customer,
+            "customer_name": customer,
+            "lead": lead,
+            "email": email,
+            "cnic": cnic,
+            "customer_phone": phone,
+            "lead_phone": "",
+            "resolved_phone": phone,
+            "phone_source": "customer" if phone else "",
+            "phone_conflict": phone_conflict,
+            "tax_id": tax_id,
+            "classification": "identity_review",
+            "review_reason": reason,
+        }
+
+    def test_identity_review_details_is_paginated_and_pii_minimal(self):
+        rows = [
+            self._review_row(
+                "ERP-REVIEW-1",
+                "duplicate_email",
+                lead="LEAD-1",
+                email="duplicate@example.com",
+            ),
+            self._review_row(
+                "ERP-REVIEW-2",
+                "no_identity",
+            ),
+            self._review_row(
+                "ERP-REVIEW-3",
+                "duplicate_email",
+                email="duplicate@example.com",
+            ),
+        ]
+
+        with patch.object(
+            customer_migration,
+            "_classify",
+            return_value=(
+                rows,
+                Counter(),
+                Counter(),
+                Counter(),
+            ),
+        ):
+            result = customer_migration.identity_review_details(
+                limit=2,
+            )
+
+        self.assertTrue(result["read_only"])
+        self.assertEqual(result["total_identity_review"], 3)
+        self.assertEqual(result["filtered_total"], 3)
+        self.assertEqual(result["offset"], 0)
+        self.assertEqual(result["limit"], 2)
+        self.assertTrue(result["has_more"])
+        self.assertEqual(len(result["records"]), 2)
+        self.assertEqual(
+            result["reason_counts"],
+            {
+                "duplicate_email": 2,
+                "no_identity": 1,
+            },
+        )
+
+        record = result["records"][0]
+        self.assertEqual(record["customer"], "ERP-REVIEW-1")
+        self.assertEqual(record["lead"], "LEAD-1")
+        self.assertEqual(record["reason"], "duplicate_email")
+        self.assertEqual(
+            record["identity_signals"],
+            {
+                "email": True,
+                "cnic": False,
+                "phone": False,
+                "tax_id": False,
+                "phone_conflict": False,
+            },
+        )
+
+        # The operator report must not expose raw identifiers.
+        for fieldname in ("email", "cnic", "phone", "tax_id"):
+            self.assertNotIn(fieldname, record)
+
+    def test_identity_review_details_filters_exact_reason(self):
+        rows = [
+            self._review_row(
+                "ERP-REVIEW-1",
+                "duplicate_email",
+            ),
+            self._review_row(
+                "ERP-REVIEW-2",
+                "no_identity",
+            ),
+            self._review_row(
+                "ERP-REVIEW-3",
+                "duplicate_email",
+            ),
+        ]
+
+        with patch.object(
+            customer_migration,
+            "_classify",
+            return_value=(
+                rows,
+                Counter(),
+                Counter(),
+                Counter(),
+            ),
+        ):
+            result = customer_migration.identity_review_details(
+                reason="duplicate_email",
+                offset=1,
+                limit=1,
+            )
+
+        self.assertEqual(result["total_identity_review"], 3)
+        self.assertEqual(result["filtered_total"], 2)
+        self.assertEqual(result["reason_filter"], "duplicate_email")
+        self.assertEqual(result["offset"], 1)
+        self.assertEqual(result["limit"], 1)
+        self.assertFalse(result["has_more"])
+        self.assertEqual(
+            result["records"][0]["customer"],
+            "ERP-REVIEW-3",
+        )
