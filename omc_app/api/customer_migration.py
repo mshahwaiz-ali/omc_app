@@ -15,12 +15,15 @@ CUSTOMER_FIELDS = (
     "custom_email_address",
     "contact_no",
     "custom_reference_lead",
+    "source",
+    "sales_person",
 )
 
 LEAD_FIELDS = (
     "name",
     "mobile_no",
     "custom_cnic",
+    "sales_person",
 )
 
 
@@ -169,6 +172,13 @@ def _identity_rows():
                 else ""
             ),
             "phone_conflict": phone_conflict,
+            "source": _text(customer.get("source")),
+            "sales_person": _text(
+                customer.get("sales_person")
+            ),
+            "lead_sales_person": _text(
+                lead.get("sales_person")
+            ),
         })
 
     return rows
@@ -782,6 +792,427 @@ def _target_user_email(row) -> str:
     return _synthetic_user_email(row["customer"])
 
 
+
+REFERRAL_CAPABLE_HISTORICAL_PERSONAS = {
+    "Consultant",
+    "Tax Associate",
+    "Tax Associates",
+    "Business Partner",
+}
+
+
+def _historical_referral_persona(value) -> str:
+    value = _text(value)
+
+    aliases = {
+        "OMC Consultant": "Consultant",
+        "OMC Tax Associate": "Tax Associate",
+        "OMC Tax Associates": "Tax Associates",
+        "OMC Business Partner": "Business Partner",
+    }
+
+    return aliases.get(value, value)
+
+
+def _historical_referral_decision(row, context):
+    """Resolve one historical ERP referral without guessing.
+
+    Customer.source is the historical relationship persona.
+    Customer.sales_person is authoritative when present.
+    Lead.sales_person is only a fallback when Customer.sales_person
+    is blank.
+
+    Current Staff Access persona is an eligibility check only. It must
+    never replace the historical Customer.source snapshot.
+    """
+
+    historical_persona = _historical_referral_persona(
+        row.get("source")
+    )
+
+    if (
+        historical_persona
+        not in REFERRAL_CAPABLE_HISTORICAL_PERSONAS
+    ):
+        return {
+            "action": "review",
+            "reason": "historical_source_not_referral_capable",
+            "historical_persona": historical_persona,
+        }
+
+    direct = _text(row.get("sales_person"))
+    lead_fallback = _text(row.get("lead_sales_person"))
+
+    if direct:
+        raw_identity = direct
+        identity_source = "Customer.sales_person"
+    elif lead_fallback:
+        raw_identity = lead_fallback
+        identity_source = "Lead.sales_person"
+    else:
+        return {
+            "action": "review",
+            "reason": "missing_historical_referrer",
+            "historical_persona": historical_persona,
+        }
+
+    identity_key = raw_identity.lower()
+
+    candidate_users = set(
+        context.get("users_by_identity", {}).get(
+            identity_key,
+            set(),
+        )
+    )
+
+    if not candidate_users:
+        return {
+            "action": "review",
+            "reason": "historical_referrer_user_not_found",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+        }
+
+    if len(candidate_users) != 1:
+        return {
+            "action": "review",
+            "reason": "historical_referrer_user_ambiguous",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+        }
+
+    owner_user = next(iter(candidate_users))
+
+    user = context.get("users_by_name", {}).get(owner_user)
+    if not user:
+        return {
+            "action": "review",
+            "reason": "historical_referrer_user_not_found",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+        }
+
+    if not int(getattr(user, "enabled", 0) or 0):
+        return {
+            "action": "review",
+            "reason": "historical_referrer_user_disabled",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+            "owner_user": owner_user,
+        }
+
+    if _text(getattr(user, "user_type", "")) != "System User":
+        return {
+            "action": "review",
+            "reason": "historical_referrer_not_system_user",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+            "owner_user": owner_user,
+        }
+
+    staff = context.get(
+        "staff_access_by_user",
+        {},
+    ).get(owner_user)
+
+    if not staff:
+        return {
+            "action": "review",
+            "reason": "historical_referrer_staff_access_missing",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+            "owner_user": owner_user,
+        }
+
+    if (
+        _text(getattr(staff, "access_status", ""))
+        != "Approved"
+        or _text(
+            getattr(
+                staff,
+                "reconciliation_status",
+                "",
+            )
+        )
+        != "Current"
+    ):
+        return {
+            "action": "review",
+            "reason": "historical_referrer_staff_access_not_current",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+            "owner_user": owner_user,
+        }
+
+    referral = context.get(
+        "referrals_by_user",
+        {},
+    ).get(owner_user)
+
+    if not referral:
+        return {
+            "action": "review",
+            "reason": "historical_referrer_referral_missing",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+            "owner_user": owner_user,
+        }
+
+    if (
+        _text(getattr(referral, "status", ""))
+        != "Approved"
+        or not int(
+            getattr(referral, "is_active", 0) or 0
+        )
+    ):
+        return {
+            "action": "review",
+            "reason": "historical_referrer_referral_inactive",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+            "owner_user": owner_user,
+        }
+
+    if (
+        _text(getattr(referral, "referrer_user", ""))
+        != owner_user
+    ):
+        return {
+            "action": "review",
+            "reason": "historical_referrer_referral_owner_mismatch",
+            "historical_persona": historical_persona,
+            "identity_source": identity_source,
+            "owner_user": owner_user,
+        }
+
+    return {
+        "action": "link",
+        "reason": "",
+        "historical_persona": historical_persona,
+        "identity_source": identity_source,
+        "owner_user": owner_user,
+        "staff_access": _text(
+            getattr(staff, "name", "")
+        ),
+        "current_persona": _text(
+            getattr(staff, "persona_snapshot", "")
+        ),
+        "referral_record": _text(
+            getattr(referral, "name", "")
+        ),
+        "referral_code": _text(
+            getattr(referral, "referral_code", "")
+        ),
+    }
+
+
+
+def _apply_historical_referral_to_profile(
+    profile,
+    decision,
+):
+    """Attach a proven historical referral without inventing consent.
+
+    Existing application referral/acquisition data always wins.
+    Historical migration may fill an empty/imported relationship only.
+    """
+
+    if decision.get("action") != "link":
+        return {
+            "action": "review",
+            "reason": (
+                decision.get("reason")
+                or "historical_referral_not_linkable"
+            ),
+            "changed": False,
+        }
+
+    target_record = _text(
+        decision.get("referral_record")
+    )
+    target_owner = _text(
+        decision.get("owner_user")
+    )
+    target_code = _text(
+        decision.get("referral_code")
+    )
+
+    if not target_record or not target_owner or not target_code:
+        return {
+            "action": "review",
+            "reason": "historical_referral_incomplete",
+            "changed": False,
+        }
+
+    current_source = _text(
+        getattr(profile, "acquisition_source", "")
+    )
+    current_record = _text(
+        getattr(profile, "referral_record", "")
+    )
+    current_owner = _text(
+        getattr(profile, "referred_by", "")
+    )
+    current_code = _text(
+        getattr(profile, "referral_code_used", "")
+    )
+
+    # Any populated referral identity that points elsewhere is a
+    # conflict. Never rewrite an existing application relationship.
+    if (
+        (current_record and current_record != target_record)
+        or (current_owner and current_owner != target_owner)
+        or (current_code and current_code != target_code)
+    ):
+        return {
+            "action": "review",
+            "reason": "existing_referral_conflict",
+            "changed": False,
+        }
+
+    # Historical migration may convert only legacy/empty acquisition
+    # states. Website, Social Media, Advertisement, Event, etc. are
+    # explicit application/business acquisition evidence.
+    if current_source not in {
+        "",
+        "Unknown",
+        "Existing",
+        "Referral",
+    }:
+        return {
+            "action": "review",
+            "reason": "existing_acquisition_source_conflict",
+            "changed": False,
+        }
+
+    already_linked = (
+        current_source == "Referral"
+        and current_record == target_record
+        and current_owner == target_owner
+        and current_code == target_code
+    )
+
+    if already_linked:
+        return {
+            "action": "already_linked",
+            "reason": "",
+            "changed": False,
+        }
+
+    profile.acquisition_source = "Referral"
+    profile.referral_record = target_record
+    profile.referred_by = target_owner
+    profile.referral_code_used = target_code
+
+    # Deliberately DO NOT modify:
+    # - referral_assistance_consent
+    # - referral_consent_timestamp
+    # - referral_consent_version
+    #
+    # Historical ERP provenance is not customer-granted referral
+    # assistance consent.
+
+    profile.save(ignore_permissions=True)
+
+    return {
+        "action": "linked",
+        "reason": "",
+        "changed": True,
+    }
+
+
+
+def _sync_migration_staff():
+    """Synchronize authoritative ERP staff before customer referral linking.
+
+    Only enabled System Users are candidates. staff_sync remains the
+    authority for deciding whether the ERP persona is supported.
+
+    The parent customer migration owns the transaction boundary, so
+    individual staff synchronizations must never commit independently.
+    """
+
+    from omc_app.setup import staff_sync
+
+    users = frappe.get_all(
+        "User",
+        filters={
+            "enabled": 1,
+            "user_type": "System User",
+        },
+        fields=["name"],
+        order_by="name asc",
+        limit_page_length=0,
+    )
+
+    result = {
+        "candidate_users": len(users),
+        "eligible_users": 0,
+        "synced_users": 0,
+        "skipped_users": 0,
+        "skip_reasons": Counter(),
+        "synced_samples": [],
+        "skipped_samples": [],
+    }
+
+    for row in users:
+        user = _text(row.get("name"))
+        preview = staff_sync.preview_staff_user(user)
+
+        if not preview.get("eligible"):
+            reason = (
+                _text(preview.get("reason"))
+                or "staff_not_eligible"
+            )
+
+            result["skipped_users"] += 1
+            result["skip_reasons"][reason] += 1
+
+            if len(result["skipped_samples"]) < 25:
+                result["skipped_samples"].append({
+                    "user": user,
+                    "reason": reason,
+                })
+
+            continue
+
+        result["eligible_users"] += 1
+
+        synced = staff_sync.sync_staff_user(
+            user,
+            apply=True,
+            commit=False,
+        )
+
+        if not synced.get("applied"):
+            reason = (
+                _text(synced.get("reason"))
+                or "staff_sync_not_applied"
+            )
+
+            result["skipped_users"] += 1
+            result["skip_reasons"][reason] += 1
+
+            if len(result["skipped_samples"]) < 25:
+                result["skipped_samples"].append({
+                    "user": user,
+                    "reason": reason,
+                })
+
+            continue
+
+        result["synced_users"] += 1
+
+        if len(result["synced_samples"]) < 25:
+            result["synced_samples"].append(user)
+
+    result["skip_reasons"] = dict(
+        sorted(result["skip_reasons"].items())
+    )
+
+    return result
+
+
 def _build_apply_context():
     from omc_app.setup.roles import ACTIVE_STAFF_ROLES, SYSTEM_ROLE
 
@@ -858,6 +1289,40 @@ def _build_apply_context():
         if phone:
             profiles_by_phone[phone].add(profile.name)
 
+    staff_access_rows = frappe.get_all(
+        "OMC Staff Access",
+        fields=[
+            "name",
+            "user",
+            "access_status",
+            "reconciliation_status",
+            "persona_snapshot",
+        ],
+        limit_page_length=0,
+    )
+    staff_access_by_user = {
+        row.user: row
+        for row in staff_access_rows
+        if _text(row.get("user"))
+    }
+
+    referral_rows = frappe.get_all(
+        "OMC Referral",
+        fields=[
+            "name",
+            "referrer_user",
+            "referral_code",
+            "status",
+            "is_active",
+        ],
+        limit_page_length=0,
+    )
+    referrals_by_user = {
+        row.referrer_user: row
+        for row in referral_rows
+        if _text(row.get("referrer_user"))
+    }
+
     return {
         "users_by_name": users_by_name,
         "roles_by_user": roles_by_user,
@@ -868,6 +1333,8 @@ def _build_apply_context():
         "profiles_by_identity": profiles_by_identity,
         "profiles_by_cnic": profiles_by_cnic,
         "profiles_by_phone": profiles_by_phone,
+        "staff_access_by_user": staff_access_by_user,
+        "referrals_by_user": referrals_by_user,
         "internal_roles": set(ACTIVE_STAFF_ROLES) | {SYSTEM_ROLE},
     }
 
@@ -1137,6 +1604,40 @@ def _create_or_reuse_profile(row, plan):
 
     return profile, "created"
 
+
+def _ensure_historical_attribution(row, decision):
+    """Ensure attribution without letting expected data conflicts abort a batch."""
+    from omc_app.api import referral_attribution
+
+    try:
+        attribution = (
+            referral_attribution
+            .create_historical_acquisition_snapshot(
+                referral_registry=decision["referral_record"],
+                erp_customer=row["customer"],
+                historical_persona=decision["historical_persona"],
+            )
+        )
+    except frappe.ValidationError:
+        return {
+            "action": "review",
+            "reason": "historical_attribution_validation_error",
+        }
+    except frappe.PermissionError:
+        return {
+            "action": "review",
+            "reason": "historical_attribution_owner_ineligible",
+        }
+
+    return {
+        "action": "ensured",
+        "reason": "",
+        "attribution": _text(
+            getattr(attribution, "name", "")
+        ),
+    }
+
+
 def apply(
     confirm=None,
     limit=0,
@@ -1181,6 +1682,14 @@ def apply(
         commit = bool(commit)
 
     rows, _, _, _ = _classify()
+
+    # Phase 1: reconcile authoritative ERP staff first. This creates
+    # canonical Staff Access and referral registries without committing
+    # independently; apply() owns the transaction boundary.
+    staff_sync_result = _sync_migration_staff()
+
+    # Phase 2: rebuild context only after staff/referral synchronization
+    # so historical referral resolution sees the new canonical records.
     context = _build_apply_context()
 
     result = {
@@ -1196,6 +1705,12 @@ def apply(
         "user_accounts_created": 0,
         "profiles_created": 0,
         "profiles_reused": 0,
+        "staff_sync": staff_sync_result,
+        "historical_referrals_linked": 0,
+        "historical_referrals_already_linked": 0,
+        "historical_referral_review": 0,
+        "historical_referral_review_counts": Counter(),
+        "historical_referral_review_samples": [],
         "blocker_counts": Counter(),
         "warning_counts": Counter(),
         "blocked_samples": [],
@@ -1203,6 +1718,9 @@ def apply(
     }
 
     migrated_since_commit = 0
+    staff_changes_pending_commit = bool(
+        staff_sync_result.get("synced_users")
+    )
 
     for row in rows:
         if row["classification"] == "identity_review":
@@ -1249,6 +1767,109 @@ def apply(
         result["safe_rows_migrated"] += 1
         migrated_since_commit += 1
 
+        # Phase 3/4: resolve historical ERP referral evidence and attach
+        # it to the profile only when every authority check succeeds.
+        referral_decision = _historical_referral_decision(
+            row,
+            context,
+        )
+
+        referral_action = ""
+        referral_reason = ""
+
+        if referral_decision.get("action") == "link":
+            referral_result = (
+                _apply_historical_referral_to_profile(
+                    profile,
+                    referral_decision,
+                )
+            )
+
+            referral_action = _text(
+                referral_result.get("action")
+            )
+            referral_reason = _text(
+                referral_result.get("reason")
+            )
+
+            if referral_action == "linked":
+                result["historical_referrals_linked"] += 1
+
+            elif referral_action == "already_linked":
+                result[
+                    "historical_referrals_already_linked"
+                ] += 1
+
+            else:
+                referral_reason = (
+                    referral_reason
+                    or "historical_referral_link_review"
+                )
+
+                result["historical_referral_review"] += 1
+                result[
+                    "historical_referral_review_counts"
+                ][referral_reason] += 1
+
+            if referral_action in {
+                "linked",
+                "already_linked",
+            }:
+                attribution_result = (
+                    _ensure_historical_attribution(
+                        row,
+                        referral_decision,
+                    )
+                )
+
+                if attribution_result["action"] == "review":
+                    referral_reason = attribution_result["reason"]
+                    result["historical_referral_review"] += 1
+                    result[
+                        "historical_referral_review_counts"
+                    ][referral_reason] += 1
+
+        else:
+            referral_action = "review"
+            referral_reason = (
+                _text(referral_decision.get("reason"))
+                or "historical_referral_not_linkable"
+            )
+
+            result["historical_referral_review"] += 1
+            result[
+                "historical_referral_review_counts"
+            ][referral_reason] += 1
+
+        if (
+            referral_action == "review"
+            or referral_reason
+        ) and len(
+            result["historical_referral_review_samples"]
+        ) < 25:
+            result[
+                "historical_referral_review_samples"
+            ].append({
+                "customer": row["customer"],
+                "profile": profile.name,
+                "source": _text(row.get("source")),
+                "sales_person": _text(
+                    row.get("sales_person")
+                ),
+                "lead_sales_person": _text(
+                    row.get("lead_sales_person")
+                ),
+                "historical_persona": _text(
+                    referral_decision.get(
+                        "historical_persona"
+                    )
+                ),
+                "owner_user": _text(
+                    referral_decision.get("owner_user")
+                ),
+                "reason": referral_reason,
+            })
+
         if len(result["change_samples"]) < 20:
             result["change_samples"].append({
                 "customer": row["customer"],
@@ -1266,8 +1887,12 @@ def apply(
         if commit and migrated_since_commit >= batch_size:
             frappe.db.commit()
             migrated_since_commit = 0
+            staff_changes_pending_commit = False
 
-    if commit and migrated_since_commit:
+    if commit and (
+        migrated_since_commit
+        or staff_changes_pending_commit
+    ):
         frappe.db.commit()
 
     result["blocker_counts"] = dict(
@@ -1275,6 +1900,13 @@ def apply(
     )
     result["warning_counts"] = dict(
         sorted(result["warning_counts"].items())
+    )
+    result["historical_referral_review_counts"] = dict(
+        sorted(
+            result[
+                "historical_referral_review_counts"
+            ].items()
+        )
     )
 
     return result

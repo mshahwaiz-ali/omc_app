@@ -13,7 +13,7 @@ def _text(value) -> str:
     return str(value or "").strip()
 
 
-def _required_documents_complete(request) -> bool:
+def _required_documents_uploaded(request) -> bool:
     templates = mobile._service_required_documents(request.service)
     documents = frappe.get_all(
         "OMC Service Document",
@@ -30,7 +30,7 @@ def _required_documents_complete(request) -> bool:
         }
         for row in documents
     ]
-    return mobile._required_documents_complete(templates, payload)
+    return mobile._required_documents_uploaded(templates, payload)
 
 
 def _financial_processing_started(request_name: str) -> bool:
@@ -94,7 +94,7 @@ def ensure_service_payment(request_name: str):
         return None
     if _text(request.discount_status) == "Pending Approval":
         return None
-    if not _required_documents_complete(request):
+    if not _required_documents_uploaded(request):
         return None
 
     policy = _text(request.payment_policy_snapshot) or "Full Settlement"

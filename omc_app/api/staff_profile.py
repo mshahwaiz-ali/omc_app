@@ -144,7 +144,11 @@ def is_staff_profile_approved(user: str, profile=None) -> bool:
     return True
 
 
-def ensure_staff_profile(user: str):
+def ensure_staff_profile(
+    user: str,
+    *,
+    commit: bool = True,
+):
     user = _text(user)
 
     if not user or user == "Guest":
@@ -209,7 +213,8 @@ def ensure_staff_profile(user: str):
         profile.is_active = 0
 
         profile.insert(ignore_permissions=True)
-        frappe.db.commit()
+        if commit:
+            frappe.db.commit()
         return profile
 
     changed = False
@@ -266,6 +271,7 @@ def ensure_staff_profile(user: str):
 
     if changed:
         profile.save(ignore_permissions=True)
-        frappe.db.commit()
+        if commit:
+            frappe.db.commit()
 
     return profile

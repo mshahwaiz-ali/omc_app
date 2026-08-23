@@ -1,6 +1,6 @@
 import frappe
 
-from omc_app.api import identity, idempotency, review_routing, upload_validation
+from omc_app.api import identity, idempotency, payment_opening, review_routing, upload_validation
 from omc_app.api.mobile import (
     _clean_file_reference,
     _create_service_timeline_entry,
@@ -316,9 +316,13 @@ def _upload_service_document(**kwargs):
         visible_to_customer=1,
     )
     review_routing.ensure_review_assignment(doc, service_case)
+    payment_name = payment_opening.ensure_service_payment(
+        service_case.name
+    )
 
     return {
         "uploaded": True,
+        "payment_id": payment_name,
         "document": {
             "name": doc.name,
             "case_id": doc.service_request,

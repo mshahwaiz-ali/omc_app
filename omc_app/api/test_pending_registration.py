@@ -65,6 +65,29 @@ class TestPendingRegistration(FrappeTestCase):
         self.assertFalse(frappe.db.exists("User", payload["email"]))
         self.assertFalse(frappe.db.exists("OMC Customer Profile", {"email": payload["email"]}))
 
+    def test_staff_application_is_rejected_before_pending_record(self):
+        payload = self._payload(
+            register_as="Business Partner",
+            customer_type="Business Partner",
+        )
+
+        with self.assertRaises(frappe.ValidationError):
+            pending_registration.create_pending_registration(payload)
+
+        self.assertFalse(
+            frappe.db.exists(
+                "OMC Pending Registration",
+                {"email": payload["email"]},
+            )
+        )
+        self.assertFalse(frappe.db.exists("User", payload["email"]))
+        self.assertFalse(
+            frappe.db.exists(
+                "OMC Customer Profile",
+                {"email": payload["email"]},
+            )
+        )
+
     @patch("omc_app.api.pending_registration.frappe.sendmail")
     def test_start_registration_sends_token_but_never_returns_it(self, sendmail):
         payload = self._payload()
@@ -181,6 +204,133 @@ class TestPendingRegistration(FrappeTestCase):
         call = sign_up.call_args.kwargs
         self.assertEqual(call["password"], payload["password"])
         self.assertNotEqual(doc.token_digest, pending_registration._token_digest(secret.verification_token))
+
+    def test_historical_existing_claim_uses_historical_attribution(self):
+        profile = SimpleNamespace(
+            name="OMC-CUST-HIST-1",
+            onboarding_mode="Existing Customer Claim",
+            referral_record="REF-HIST-1",
+            linked_erpnext_customer="ERP-CUST-HIST-1",
+        )
+        account = self._mock_account()
+
+        with (
+            patch(
+                "omc_app.api.erp_customer_resolver."
+                "_reconcile_claim_historical_referral",
+                return_value={
+                    "action": "already_linked",
+                    "reason": "",
+                    "changed": False,
+                    "historical_persona": "Consultant",
+                    "referral_record": "REF-HIST-1",
+                },
+            ) as reconcile,
+            patch(
+                "omc_app.api.referral_attribution."
+                "create_historical_acquisition_snapshot",
+            ) as historical_snapshot,
+            patch(
+                "omc_app.api.referral_attribution.create_snapshot",
+            ) as generic_snapshot,
+        ):
+            pending_registration._create_profile_acquisition_attribution(
+                profile,
+                account,
+            )
+
+        reconcile.assert_called_once_with(
+            profile,
+            "ERP-CUST-HIST-1",
+        )
+        historical_snapshot.assert_called_once_with(
+            referral_registry="REF-HIST-1",
+            erp_customer="ERP-CUST-HIST-1",
+            historical_persona="Consultant",
+        )
+        generic_snapshot.assert_not_called()
+
+    def test_existing_claim_with_explicit_consent_uses_generic_attribution(self):
+        profile = SimpleNamespace(
+            name="OMC-CUST-CONSENT-1",
+            onboarding_mode="Existing Customer Claim",
+            referral_record="REF-APP-1",
+            linked_erpnext_customer="ERP-CUST-APP-1",
+            referral_assistance_consent=1,
+        )
+        account = self._mock_account()
+
+        with (
+            patch(
+                "omc_app.api.erp_customer_resolver."
+                "_reconcile_claim_historical_referral",
+            ) as reconcile,
+            patch(
+                "omc_app.api.referral_attribution."
+                "create_historical_acquisition_snapshot",
+            ) as historical_snapshot,
+            patch(
+                "omc_app.api.referral_attribution.create_snapshot",
+            ) as generic_snapshot,
+        ):
+            pending_registration._create_profile_acquisition_attribution(
+                profile,
+                account,
+            )
+
+        reconcile.assert_not_called()
+        historical_snapshot.assert_not_called()
+        generic_snapshot.assert_called_once_with(
+            referral_registry="REF-APP-1",
+            customer_account=account.name,
+            attribution_type="Acquisition",
+        )
+
+    def test_unproven_historical_claim_never_falls_back_to_granted_attribution(self):
+        profile = SimpleNamespace(
+            name="OMC-CUST-HIST-REVIEW-1",
+            onboarding_mode="Existing Customer Claim",
+            referral_record="REF-HIST-REVIEW-1",
+            linked_erpnext_customer="ERP-CUST-HIST-REVIEW-1",
+            referral_assistance_consent=0,
+        )
+        account = self._mock_account()
+
+        with (
+            patch(
+                "omc_app.api.erp_customer_resolver."
+                "_reconcile_claim_historical_referral",
+                return_value={
+                    "action": "review",
+                    "reason": "historical_referrer_user_disabled",
+                    "changed": False,
+                    "historical_persona": "Consultant",
+                    "referral_record": "REF-HIST-REVIEW-1",
+                },
+            ) as reconcile,
+            patch(
+                "omc_app.api.referral_attribution."
+                "create_historical_acquisition_snapshot",
+            ) as historical_snapshot,
+            patch(
+                "omc_app.api.referral_attribution.create_snapshot",
+            ) as generic_snapshot,
+        ):
+            result = (
+                pending_registration
+                ._create_profile_acquisition_attribution(
+                    profile,
+                    account,
+                )
+            )
+
+        reconcile.assert_called_once_with(
+            profile,
+            "ERP-CUST-HIST-REVIEW-1",
+        )
+        self.assertIsNone(result)
+        historical_snapshot.assert_not_called()
+        generic_snapshot.assert_not_called()
 
     @patch("omc_app.api.mobile.sign_up")
     def test_consumed_token_cannot_activate_again(self, sign_up):

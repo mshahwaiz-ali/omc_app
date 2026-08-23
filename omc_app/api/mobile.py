@@ -466,6 +466,17 @@ def sign_up(**kwargs):
     ntn = (kwargs.get("ntn") or "").strip()
     register_as = (kwargs.get("register_as") or kwargs.get("customer_type") or "Customer").strip()
     customer_type = (kwargs.get("customer_type") or register_as or "Customer").strip()
+    if (
+        register_as.lower() not in access.PUBLIC_SIGNUP_ACCOUNT_TYPES
+        or customer_type.lower() not in access.PUBLIC_SIGNUP_ACCOUNT_TYPES
+    ):
+        frappe.throw(
+            "Public signup is available for customer accounts only. "
+            "OMC staff accounts are provisioned by administration.",
+            frappe.ValidationError,
+        )
+    register_as = "Customer"
+    customer_type = "Customer"
     onboarding_mode = str(
         kwargs.get("onboarding_mode") or "New Customer"
     ).strip()
@@ -1312,13 +1323,64 @@ def _required_documents_complete(
     return True
 
 
+def _required_documents_uploaded(
+    required_document_templates,
+    documents,
+):
+    """Return True once every required template has an attached upload.
+
+    Document review/approval is intentionally separate from payment
+    eligibility. One uploaded document can satisfy only one required
+    template.
+    """
+    required_templates = [
+        template
+        for template in required_document_templates or []
+        if template.get("is_required")
+    ]
+    if not required_templates:
+        return True
+
+    uploaded_documents = [
+        document
+        for document in documents or []
+        if bool(
+            document.get("file_url")
+            or document.get("attachment")
+        )
+    ]
+
+    unused_indexes = set(range(len(uploaded_documents)))
+
+    for template in required_templates:
+        template_identity = _document_match_identity(template)
+        if not all(template_identity):
+            return False
+
+        matched_index = None
+        for index in sorted(unused_indexes):
+            if (
+                _document_match_identity(uploaded_documents[index])
+                == template_identity
+            ):
+                matched_index = index
+                break
+
+        if matched_index is None:
+            return False
+
+        unused_indexes.remove(matched_index)
+
+    return True
+
+
 def _service_case_payment_contract(
     service_case,
     *,
     documents,
     required_document_templates,
 ):
-    documents_complete = _required_documents_complete(
+    documents_complete = _required_documents_uploaded(
         required_document_templates,
         documents,
     )
@@ -1366,17 +1428,8 @@ def _service_case_payment_contract(
         payment_block_reason = "case_closed"
         next_action = "view_case"
     elif not documents_complete:
-        payment_block_reason = "required_documents_not_approved"
-        has_uploaded_unapproved = any(
-            bool(document.get("file_url") or document.get("attachment"))
-            and (document.get("status") or "").strip().lower() != "approved"
-            for document in documents or []
-        )
-        next_action = (
-            "await_document_review"
-            if has_uploaded_unapproved
-            else "upload_documents"
-        )
+        payment_block_reason = "required_documents_not_uploaded"
+        next_action = "upload_documents"
     elif service_amount <= 0:
         payment_block_reason = "service_fee_not_configured"
         next_action = "contact_support"

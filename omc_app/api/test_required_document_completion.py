@@ -1,9 +1,9 @@
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import mobile, payments
+from omc_app.api import document_upload, mobile, payments
 
 
 class TestRequiredDocumentCompletion(FrappeTestCase):
@@ -150,9 +150,160 @@ class TestRequiredDocumentCompletion(FrappeTestCase):
             )
         )
 
+    def test_uploaded_required_file_allows_payment_before_review(self):
+        templates = [
+            {
+                "title": "CNIC Front",
+                "document_type": "CNIC",
+                "is_required": 1,
+            }
+        ]
+        documents = [
+            {
+                "title": "CNIC Front",
+                "document_type": "CNIC",
+                "status": "Uploaded",
+                "attachment": "/private/files/front.pdf",
+            }
+        ]
+
+        self.assertTrue(
+            mobile._required_documents_uploaded(
+                templates,
+                documents,
+            )
+        )
+
+    def test_upload_gate_still_requires_exact_template_match(self):
+        templates = [
+            {
+                "title": "CNIC Front",
+                "document_type": "CNIC",
+                "is_required": 1,
+            }
+        ]
+        documents = [
+            {
+                "title": "CNIC Back",
+                "document_type": "CNIC",
+                "status": "Uploaded",
+                "attachment": "/private/files/back.pdf",
+            }
+        ]
+
+        self.assertFalse(
+            mobile._required_documents_uploaded(
+                templates,
+                documents,
+            )
+        )
+
+    def test_upload_endpoint_attempts_payment_opening_immediately(self):
+        context = SimpleNamespace(
+            legacy_profile="OMC-CUST-TEST",
+        )
+        service_case = SimpleNamespace(
+            name="OMC-SR-TEST",
+            status="Open",
+            customer_profile="OMC-CUST-TEST",
+        )
+        profile = SimpleNamespace(
+            name="OMC-CUST-TEST",
+        )
+        uploaded_file = SimpleNamespace(
+            name="FILE-TEST",
+            file_url="/private/files/cnic.pdf",
+            attached_to_doctype="",
+            attached_to_name="",
+        )
+
+        document = MagicMock()
+        document.name = "OMC-DOC-TEST"
+
+        with (
+            patch.object(
+                document_upload.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                document_upload.identity,
+                "require_owned_request",
+                return_value=(context, service_case),
+            ),
+            patch.object(
+                document_upload.frappe,
+                "get_doc",
+                return_value=profile,
+            ),
+            patch.object(
+                document_upload,
+                "_assert_document_submission_available",
+            ),
+            patch.object(
+                document_upload,
+                "_validate_uploaded_document",
+                return_value=(
+                    "/private/files/cnic.pdf",
+                    uploaded_file,
+                    "Clean",
+                ),
+            ),
+            patch.object(
+                document_upload,
+                "_has_field",
+                return_value=True,
+            ),
+            patch.object(
+                document_upload.frappe,
+                "new_doc",
+                return_value=document,
+            ),
+            patch.object(
+                document_upload.frappe.db,
+                "set_value",
+            ),
+            patch.object(
+                document_upload,
+                "_create_service_timeline_entry",
+            ),
+            patch.object(
+                document_upload.review_routing,
+                "ensure_review_assignment",
+            ),
+            patch.object(
+                document_upload.payment_opening,
+                "ensure_service_payment",
+                return_value="OMC-PAY-TEST",
+            ) as ensure_payment,
+        ):
+            result = document_upload._upload_service_document(
+                case_id=service_case.name,
+                document_title="CNIC",
+                document_type="Identity",
+                attachment="/private/files/cnic.pdf",
+            )
+
+        document.insert.assert_called_once_with(
+            ignore_permissions=True,
+        )
+        ensure_payment.assert_called_once_with(
+            service_case.name,
+        )
+
+        self.assertTrue(result["uploaded"])
+        self.assertEqual(
+            result["payment_id"],
+            "OMC-PAY-TEST",
+        )
+        self.assertEqual(
+            result["document"]["status"],
+            "Uploaded",
+        )
+
     @patch.object(payments.frappe, "get_all")
     @patch.object(payments.mobile, "_service_required_documents")
-    def test_payment_gate_uses_shared_strict_completion(
+    def test_payment_gate_uses_shared_upload_completion(
         self,
         required_documents,
         get_all,
@@ -173,7 +324,7 @@ class TestRequiredDocumentCompletion(FrappeTestCase):
             )
         ]
 
-        result = payments._approved_required_documents(
+        result = payments._uploaded_required_documents(
             SimpleNamespace(
                 name="OMC-SR-1",
                 service="OMC-SERVICE-1",

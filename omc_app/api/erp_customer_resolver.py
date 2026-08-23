@@ -394,6 +394,80 @@ def _create_customer(profile, user: str):
     return customer, ""
 
 
+
+def _reconcile_claim_historical_referral(
+    profile,
+    customer: str,
+) -> dict[str, Any]:
+    """Backfill a proven historical ERP referral after an existing claim.
+
+    Historical referral failure never invalidates an otherwise safe,
+    deterministic ERP Customer claim.
+    """
+
+    customer = _text(customer)
+    if not customer:
+        return {
+            "action": "review",
+            "reason": "erp_customer_missing",
+            "changed": False,
+        }
+
+    row = frappe.db.get_value(
+        "Customer",
+        customer,
+        [
+            "name",
+            "source",
+            "sales_person",
+            "custom_reference_lead",
+        ],
+        as_dict=True,
+    )
+
+    if not row:
+        return {
+            "action": "review",
+            "reason": "erp_customer_not_found",
+            "changed": False,
+        }
+
+    lead_sales_person = ""
+    reference_lead = _text(
+        row.get("custom_reference_lead")
+    )
+
+    if reference_lead:
+        lead_sales_person = _text(
+            frappe.db.get_value(
+                "Lead",
+                reference_lead,
+                "sales_person",
+            )
+        )
+
+    from omc_app.api import customer_migration
+
+    decision = customer_migration._historical_referral_decision(
+        {
+            "customer": customer,
+            "source": row.get("source"),
+            "sales_person": row.get("sales_person"),
+            "lead_sales_person": lead_sales_person,
+        },
+        customer_migration._build_apply_context(),
+    )
+
+    applied = customer_migration._apply_historical_referral_to_profile(
+        profile,
+        decision,
+    )
+
+    result = dict(decision)
+    result.update(applied)
+    return result
+
+
 def resolve_profile_customer(
     profile,
     *,
@@ -477,6 +551,10 @@ def resolve_profile_customer(
 
         if len(matches) == 1:
             _link_profile(profile, matches[0])
+            _reconcile_claim_historical_referral(
+                profile,
+                matches[0],
+            )
             return {
                 "status": "Resolved",
                 "customer": matches[0],
