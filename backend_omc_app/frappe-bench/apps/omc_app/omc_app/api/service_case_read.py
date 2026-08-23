@@ -37,7 +37,7 @@ def _authorize(user: str) -> None:
                 frappe.PermissionError,
             )
         return
-    identity.require_customer_context(user)
+    identity.require_customer_context()
 
 
 def _rows(user: str, *, offset: int, length: int):
