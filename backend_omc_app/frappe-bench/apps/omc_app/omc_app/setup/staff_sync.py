@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import frappe
+from frappe.utils import now_datetime
 
-from omc_app.api import staff_profile
+from omc_app.api import access, identity, staff_profile
 from omc_app.referral_automation import ensure_referral_code_for_user
 from omc_app.setup.roles import ERP_STAFF_PERSONAS
 
@@ -55,6 +56,120 @@ def _erp_omc_user_type(user_doc) -> str:
     return ""
 
 
+def _persona_source(user: str, mapped_persona: str) -> str:
+    if frappe.db.has_column("User", "omc_user_type"):
+        value = _text(
+            frappe.db.get_value(
+                "User",
+                user,
+                "omc_user_type",
+            )
+        )
+        if value:
+            return "User.omc_user_type"
+
+    if mapped_persona == "Employee" and _employee_for_user(user):
+        return "Employee Fallback"
+
+    return "Reviewed"
+
+
+def _ensure_staff_access(user: str, profile, mapped_persona: str):
+    """Create or reconcile canonical OMC Staff Access for a trusted ERP user."""
+
+    employee = _employee_for_user(user)
+    persona_source = _persona_source(user, mapped_persona)
+    capability_codes = sorted(
+        access.ROLE_CAPABILITIES.get(mapped_persona, set())
+    )
+
+    name = frappe.db.get_value(
+        "OMC Staff Access",
+        {"user": user},
+        "name",
+    )
+
+    doc = (
+        frappe.get_doc("OMC Staff Access", name)
+        if name
+        else frappe.new_doc("OMC Staff Access")
+    )
+
+    # A deliberately reviewed persona must never be silently overwritten by
+    # automated ERP reconciliation. Fail closed until an administrator reviews
+    # the conflict.
+    if (
+        name
+        and _text(doc.get("persona_source")) == "Reviewed"
+        and _text(doc.get("persona_snapshot"))
+        and _text(doc.get("persona_snapshot")) != mapped_persona
+    ):
+        doc.reconciliation_status = "Conflict"
+        doc.last_reconciled_at = now_datetime()
+        doc.save(ignore_permissions=True)
+        return doc
+
+    if employee:
+        employee_owner = frappe.db.get_value(
+            "OMC Staff Access",
+            {"employee": employee},
+            "name",
+        )
+        if employee_owner and employee_owner != name:
+            frappe.throw(
+                f"Employee {employee} is already linked to another OMC Staff Access record.",
+                frappe.ValidationError,
+            )
+
+    existing_status = _text(doc.get("access_status"))
+
+    # Explicit suspension/rejection is security authority and must survive
+    # migration reruns. New/Pending records from trusted ERP staff become
+    # Approved.
+    protected_status = existing_status in {
+        "Suspended",
+        "Rejected",
+    }
+
+    doc.user = user
+    doc.employee = employee or None
+    doc.legacy_staff_profile = profile.name
+    doc.persona_snapshot = mapped_persona
+    doc.persona_source = persona_source
+    doc.source_version = identity.source_version(
+        profile.modified,
+        mapped_persona,
+        employee,
+    )
+    doc.reconciliation_status = "Current"
+    doc.last_reconciled_at = now_datetime()
+
+    doc.set(
+        "capabilities",
+        [
+            {"capability": code}
+            for code in capability_codes
+        ],
+    )
+
+    if protected_status:
+        doc.access_status = existing_status
+    else:
+        doc.access_status = "Approved"
+        doc.approved_by = doc.get("approved_by") or "Administrator"
+        doc.approved_at = doc.get("approved_at") or now_datetime()
+        doc.suspended_by = None
+        doc.suspended_at = None
+        doc.suspension_reason = ""
+
+    if doc.is_new():
+        doc.insert(ignore_permissions=True)
+    else:
+        doc.save(ignore_permissions=True)
+
+    return doc
+
+
 def preview_staff_user(user: str | None = None) -> dict:
     user = _text(user)
     if not user or not frappe.db.exists("User", user):
@@ -102,6 +217,7 @@ def sync_staff_user(
     user: str | None = None,
     *,
     apply: bool = False,
+    commit: bool = True,
 ) -> dict:
     """Preview or synchronize exactly one ERP user into OMC staff.
 
@@ -119,7 +235,10 @@ def sync_staff_user(
     user = preview["user"]
     mapped_persona = preview["mapped_staff_persona"]
 
-    profile = staff_profile.ensure_staff_profile(user)
+    profile = staff_profile.ensure_staff_profile(
+        user,
+        commit=commit,
+    )
     if not profile:
         frappe.throw(
             f"Unable to create OMC Staff Profile for {user}.",
@@ -132,8 +251,21 @@ def sync_staff_user(
     profile.is_active = 1
     profile.save(ignore_permissions=True)
 
+    # Canonical authority must exist before referral automation evaluates
+    # whether this user may own an OMC referral code.
+    staff_access = _ensure_staff_access(
+        user,
+        profile,
+        mapped_persona,
+    )
+
     referral = ensure_referral_code_for_user(user)
-    frappe.db.commit()
+
+    # Standalone staff sync keeps its existing commit behavior.
+    # Parent migrations may defer the transaction boundary and
+    # commit the complete multi-phase operation themselves.
+    if commit:
+        frappe.db.commit()
 
     return {
         **preview_staff_user(user),
@@ -143,6 +275,11 @@ def sync_staff_user(
         "staff_status": profile.staff_status,
         "approval_status": profile.approval_status,
         "is_active": int(profile.is_active or 0),
+        "staff_access": staff_access.name,
+        "staff_access_status": staff_access.access_status,
+        "staff_access_reconciliation_status": (
+            staff_access.reconciliation_status
+        ),
         "referral_record": referral.name if referral else "",
         "referral_code": referral.referral_code if referral else "",
     }

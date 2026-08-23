@@ -313,9 +313,9 @@ class ApiConfig {
   static const String customersMethod = 'omc_app.api.mobile.get_customers';
   static const String customerDetailMethod = 'omc_app.api.mobile.get_customer';
   static const String getMyReferralSummaryMethod =
-      'omc_app.api.referrals.get_my_referral_summary';
+      'omc_app.api.referral_analytics.get_my_referral_summary';
   static const String getMyReferralsMethod =
-      'omc_app.api.referrals.get_my_referrals';
+      'omc_app.api.referral_analytics.get_my_referrals';
   static const String getMyReferralDetailMethod =
       'omc_app.api.referral_analytics.get_my_referral_detail';
   static const String getMyCommissionSummaryMethod =

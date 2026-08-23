@@ -316,6 +316,99 @@ def _validated_completion_password(password: str | None) -> str:
     return password
 
 
+
+def _create_profile_acquisition_attribution(
+    profile,
+    account,
+):
+    """Create the correct acquisition attribution for one profile.
+
+    Historical ERP provenance is never converted into customer-granted
+    referral consent. Explicit application referrals retain the existing
+    consent-based attribution path.
+    """
+
+    if not profile or not account:
+        return None
+
+    referral_record = str(
+        getattr(profile, "referral_record", "") or ""
+    ).strip()
+
+    if not referral_record:
+        return None
+
+    onboarding_mode = str(
+        getattr(profile, "onboarding_mode", "") or ""
+    ).strip()
+
+    erp_customer = str(
+        getattr(profile, "linked_erpnext_customer", "") or ""
+    ).strip()
+
+    consent_granted = bool(
+        int(
+            getattr(
+                profile,
+                "referral_assistance_consent",
+                0,
+            )
+            or 0
+        )
+    )
+
+    from omc_app.api import referral_attribution
+
+    if (
+        onboarding_mode == "Existing Customer Claim"
+        and erp_customer
+        and not consent_granted
+    ):
+        from omc_app.api import erp_customer_resolver
+
+        historical = (
+            erp_customer_resolver
+            ._reconcile_claim_historical_referral(
+                profile,
+                erp_customer,
+            )
+        )
+
+        historical_persona = str(
+            historical.get("historical_persona") or ""
+        ).strip()
+
+        historical_referral = str(
+            historical.get("referral_record") or ""
+        ).strip()
+
+        if (
+            historical.get("action")
+            in {"linked", "already_linked"}
+            and historical_referral == referral_record
+            and historical_persona
+        ):
+            return (
+                referral_attribution
+                .create_historical_acquisition_snapshot(
+                    referral_registry=referral_record,
+                    erp_customer=erp_customer,
+                    historical_persona=historical_persona,
+                )
+            )
+
+        # Never fall through to the consent-based path when this is an
+        # unconsented historical ERP relationship that cannot currently
+        # be proven.
+        return None
+
+    return referral_attribution.create_snapshot(
+        referral_registry=referral_record,
+        customer_account=account.name,
+        attribution_type="Acquisition",
+    )
+
+
 def _complete_locked_registration(doc, password: str) -> dict:
     from omc_app.api import mobile
 
@@ -379,19 +472,20 @@ def _complete_locked_registration(doc, password: str) -> dict:
         account.mapping_provenance = "Activation"
         account.save(ignore_permissions=True)
 
-    profile_name = frappe.db.get_value("OMC Customer Profile", {"email": doc.email}, "name")
-    referral_record = (
-        frappe.db.get_value("OMC Customer Profile", profile_name, "referral_record")
-        if profile_name
-        else None
+    profile_name = frappe.db.get_value(
+        "OMC Customer Profile",
+        {"email": doc.email},
+        "name",
     )
-    if referral_record:
-        from omc_app.api.referral_attribution import create_snapshot
 
-        create_snapshot(
-            referral_registry=referral_record,
-            customer_account=account.name,
-            attribution_type="Acquisition",
+    if profile_name:
+        profile = frappe.get_doc(
+            "OMC Customer Profile",
+            profile_name,
+        )
+        _create_profile_acquisition_attribution(
+            profile,
+            account,
         )
 
     doc.reload()

@@ -11,7 +11,7 @@
   {"fieldname": "customer_account", "fieldtype": "Link", "label": "Customer Account", "options": "OMC Customer Account"},
   {"fieldname": "erp_customer", "fieldtype": "Link", "label": "ERP Customer", "options": "Customer"},
   {"fieldname": "service_request", "fieldtype": "Link", "label": "Service Request", "options": "OMC Service Request"},
-  {"default": "Granted", "fieldname": "consent_status", "fieldtype": "Select", "label": "Consent Status", "options": "Granted\nRevoked", "reqd": 1},
+  {"default": "Granted", "fieldname": "consent_status", "fieldtype": "Select", "label": "Consent Status", "options": "Granted\nRevoked\nNot Applicable", "reqd": 1},
   {"fieldname": "consent_version", "fieldtype": "Data", "label": "Consent Version", "read_only": 1},
   {"fieldname": "attributed_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Attributed At", "read_only": 1, "reqd": 1},
   {"fieldname": "consent_revoked_at", "fieldtype": "Datetime", "label": "Consent Revoked At", "read_only": 1},

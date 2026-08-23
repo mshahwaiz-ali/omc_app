@@ -117,6 +117,14 @@ PUBLIC_CUSTOMER_ONBOARDING_MODES = {
     "Existing Customer Claim",
 }
 
+# Public self-registration is customer-only. Internal staff identities are
+# authoritative Frappe System Users provisioned by OMC administration and
+# receive access through OMC Staff Access.
+PUBLIC_SIGNUP_ACCOUNT_TYPES = {
+    "customer",
+    "omc customer",
+}
+
 SIGNUP_TEXT_LIMITS = {
     "full_name": 140,
     "name": 140,
@@ -342,6 +350,31 @@ def _validated_signup_kwargs(kwargs):
                 fieldname,
                 max_length,
             )
+
+    register_as = str(
+        data.get("register_as")
+        or data.get("customer_type")
+        or "Customer"
+    ).strip()
+    customer_type = str(
+        data.get("customer_type")
+        or register_as
+        or "Customer"
+    ).strip()
+
+    if (
+        register_as.lower() not in PUBLIC_SIGNUP_ACCOUNT_TYPES
+        or customer_type.lower() not in PUBLIC_SIGNUP_ACCOUNT_TYPES
+    ):
+        frappe.throw(
+            "Public signup is available for customer accounts only. "
+            "OMC staff accounts are provisioned by administration.",
+            frappe.ValidationError,
+        )
+
+    # Canonicalize older supported customer aliases before persistence.
+    data["register_as"] = "Customer"
+    data["customer_type"] = "Customer"
 
     onboarding_mode = (
         str(data.get("onboarding_mode") or "").strip()

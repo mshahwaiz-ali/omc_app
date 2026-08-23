@@ -1,317 +1,292 @@
-OMC App - Client Installation & Customer Migration Guide
+OMC App — Client Installation & Existing Customer Migration
 
-This guide is for installing the new OMC App on the existing ERPNext/Frappe site and migrating existing ERP customers into OMC Customer Profiles.
+This guide is for installing the supplied OMC App on an existing Frappe / ERPNext v14 site.
 
-Replace <site> with the actual ERP site name before running the commands.
+The ERP site is assumed to already be running correctly. The client only needs to copy the supplied omc_app folder, install it on the site, run the required database migration, and then run the OMC existing-data migration.
+
+Replace your.site.name below with the actual ERP site name.
 
 1. Go to the Frappe Bench
 
 cd /path/to/frappe-bench
 
-Confirm the site and installed apps:
+Check the available sites:
 
 bench list-sites
-bench --site <site> list-apps
 
-The client ERP should remain on Frappe / ERPNext v14.
+Set the site name once:
+
+SITE="your.site.name"
+
+Confirm the current installed apps:
+
+bench --site "$SITE" list-apps
 
 2. Take a Full Backup
 
-Before installing or removing any app, take a backup.
+Before installing or removing any app:
 
-bench --site <site> backup --with-files
+bench --site "$SITE" backup --with-files
 
-Do not continue until the backup is complete.
+Do not continue until the backup completes successfully.
 
-3. Place the OMC App in the Bench
+3. Copy the OMC App Folder
 
-Copy the supplied omc_app folder into:
+Copy the supplied folder into:
 
 frappe-bench/apps/omc_app
 
-Then install the Python package if required:
+Confirm it is present:
+
+ls apps/omc_app
+
+Install/register the Python package in the Bench environment:
 
 ./env/bin/pip install -e apps/omc_app
 
-Confirm that the app imports correctly:
+Confirm the app can be imported:
 
 ./env/bin/python -c "import omc_app; print('OMC App import: OK')"
 
+If omc_app is not already present in sites/apps.txt, add it:
+
+grep -qxF 'omc_app' sites/apps.txt || echo 'omc_app' >> sites/apps.txt
+
 4. Install OMC App on the ERP Site
 
-bench --site <site> install-app omc_app
+bench --site "$SITE" install-app omc_app
+
+Confirm:
+
+bench --site "$SITE" list-apps
+
+omc_app should now appear in the installed apps list.
+
+5. Run Frappe Database Migration
+
+bench --site "$SITE" migrate
+bench --site "$SITE" clear-cache
+
+Why is bench migrate required?
+
+Copying the OMC folder only places the application code on the server.
+
+bench migrate updates the ERP site's database and Frappe metadata so they match the installed OMC App. It applies the OMC DocTypes, fields, schema changes, patches, and other required site-level metadata.
+
+In simple terms:
+
+Copy OMC App
+    ↓
+Install OMC App
+    ↓
+bench migrate
+    ↓
+Database/site structure becomes ready for OMC
+
+bench migrate does not migrate the client's historical customers, staff, or referral relationships. That is handled by the OMC data-migration command below.
+
+6. Remove the Old Lead App (If Applicable)
+
+If the old Lead app is still installed, first confirm its exact app name:
+
+bench --site "$SITE" list-apps
+
+Take another backup before removal:
+
+bench --site "$SITE" backup --with-files
+
+Then uninstall the old app using its actual app name:
+
+bench --site "$SITE" uninstall-app OLD_APP_NAME --yes
+
+After successful uninstall, remove its old folder from apps/ if required.
 
 Then run:
 
-bench --site <site> migrate
-bench --site <site> clear-cache
+bench --site "$SITE" migrate
+bench --site "$SITE" clear-cache
 
-Confirm installation:
+Do not guess the old app name. Use the exact name shown by list-apps.
 
-bench --site <site> list-apps
+7. Run OMC Migration Preflight
 
-omc_app should appear in the installed apps list.
+Before writing historical data, run the read-only preflight:
 
-Important
+bench --site "$SITE" execute   omc_app.api.customer_migration.preflight
 
-bench migrate does not bulk-create historical OMC customer profiles.
+Review the output, especially:
 
-Historical customer migration is a separate controlled operation described below.
+total_customers
 
-5. Validate ERP Compatibility
+safely_identifiable
 
-Run the OMC ERP compatibility check:
+activation_ready_import
 
-bench --site <site> execute omc_app.setup.operations.validate_site
+deferred_claim_on_signup
 
-Expected result should contain:
-
-compatible: true
-
-If validation fails, stop and resolve the reported ERP contract issue before continuing.
-
-6. Remove the Old Lead App
-
-Only remove the old lead_app after OMC App has been installed and compatibility validation has passed.
-
-First take another backup if desired:
-
-bench --site <site> backup --with-files
-
-Uninstall the old app:
-
-bench --site <site> uninstall-app lead_app --yes
-
-Then remove its app folder only after successful uninstall:
-
-rm -rf apps/lead_app
-
-Run migration and clear cache:
-
-bench --site <site> migrate
-bench --site <site> clear-cache
-
-Run the compatibility check again:
-
-bench --site <site> execute omc_app.setup.operations.validate_site
-
-If this validation fails after removing lead_app, stop and restore/review the ERP metadata before going further.
-
-Existing Customer Migration
-
-The migration is designed to be safe and idempotent.
-
-It:
-
-creates OMC Customer Profiles only for safely identifiable existing ERP customers;
-
-does not bulk-create Frappe Users;
-
-does not change passwords;
-
-does not convert internal/System Users into customers;
-
-skips ambiguous customer identities for manual review;
-
-can be safely re-run without duplicating migrated profiles.
-
-7. Run Customer Migration Dry Run
-
-This command is read-only:
-
-bench --site <site> execute omc_app.api.customer_migration.dry_run
-
-Review the returned counts before continuing.
-
-8. Run Migration Preflight
-
-This command is also read-only:
-
-bench --site <site> execute omc_app.api.customer_migration.preflight
-
-Check these fields carefully:
+identity_review
 
 create_customer_profile
+
 reuse_customer_profile
+
 user_accounts_to_create
+
 blocker_counts
+
 warning_counts
-identity_review
 
 user_accounts_to_create should remain:
 
 0
 
-9. Review Blocked Customers
+The migration does not bulk-create customer login Users.
 
-To inspect migration collision/blocker cases:
+8. Take the Final Pre-Migration Backup
 
-bench --site <site> execute omc_app.api.customer_migration.blocker_details
+Immediately before the write migration:
 
-Internal/System User identity collisions must remain manual-review cases.
+bench --site "$SITE" backup --with-files
 
-Do not force-link these customers automatically.
+9. Run the OMC Existing-Data Migration
 
-10. Review Ambiguous Customer Identities
+Run:
 
-To view customers that require identity review:
+bench --site "$SITE" execute   omc_app.api.customer_migration.apply   --kwargs '{"confirm":"APPLY_CUSTOMER_MIGRATION","limit":0,"batch_size":100}'
 
-bench --site <site> execute omc_app.api.customer_migration.identity_review_details \
-  --kwargs '{"offset":0,"limit":100}'
+This is the single migration command required after installation.
 
-For the next page:
+It automatically performs the required phases:
 
-bench --site <site> execute omc_app.api.customer_migration.identity_review_details \
-  --kwargs '{"offset":100,"limit":100}'
+Synchronizes eligible existing internal staff.
 
-The report intentionally does not print raw email, CNIC, phone, or tax identifiers.
+Creates/updates OMC Staff Access.
 
-The referenced ERP Customer/Lead records can be reviewed manually where required.
+Creates referral codes for eligible referral-capable staff.
 
-11. Take the Final Pre-Migration Backup
+Migrates or reuses safely identifiable OMC Customer Profiles.
 
-Immediately before the write operation:
+Links historical customer referral relationships where they can be proven.
 
-bench --site <site> backup --with-files
+Creates historical acquisition attribution records.
 
-12. Apply the Customer Migration
+Leaves ambiguous or unsafe records in review instead of guessing.
 
-Run only after the dry run and preflight have been reviewed.
+The migration is designed to be idempotent, so existing correct records are reused rather than duplicated.
 
-bench --site <site> execute omc_app.api.customer_migration.apply \
-  --kwargs '{"confirm":"APPLY_CUSTOMER_MIGRATION","limit":0,"batch_size":100,"commit":True}'
+It does not:
 
-Important
+bulk-create Frappe Users;
 
-Use Python-style True exactly as shown above.
+change passwords;
 
-Do not replace it with lowercase true on this Frappe v14 setup.
+enable disabled users;
 
-The migration will skip blocked and ambiguous customers instead of guessing their identity.
+promote Website Users into System Users;
 
-13. Verify Migration
+force-link ambiguous customers;
 
-Run preflight again:
+guess missing historical referrers.
 
-bench --site <site> execute omc_app.api.customer_migration.preflight
+10. Verify the Migration Result
 
-After a successful full migration, safely migrated profiles should normally move from:
+Run the read-only preflight again:
 
-create_customer_profile > 0
+bench --site "$SITE" execute   omc_app.api.customer_migration.preflight
 
-to:
+Confirm that:
 
-create_customer_profile: 0
-reuse_customer_profile: <number already migrated>
+safely migrated profiles are now being reused;
 
-And:
+user_accounts_to_create is still 0;
 
-user_accounts_to_create: 0
+any remaining blockers/review cases are expected exceptions rather than forced mappings.
 
-should remain unchanged.
+If required, blocker details can be viewed with:
 
-14. Optional Idempotency Check
+bench --site "$SITE" execute   omc_app.api.customer_migration.blocker_details
 
-The migration is designed to be re-runnable.
+11. Clear Cache and Restart
 
-Running the same apply command again should reuse existing profiles rather than create duplicates:
+After installation and data migration:
 
-bench --site <site> execute omc_app.api.customer_migration.apply \
-  --kwargs '{"confirm":"APPLY_CUSTOMER_MIGRATION","limit":0,"batch_size":100,"commit":True}'
-
-Expected behavior:
-
-profiles_created: 0
-profiles_reused: <already migrated profiles>
-user_accounts_created: 0
-
-15. Restart / Clear Cache
-
-After deployment and migration:
-
-bench --site <site> clear-cache
+bench --site "$SITE" clear-cache
 bench restart
 
-If the production environment uses Supervisor/Nginx, verify the services are healthy after restart.
+Confirm the ERP site opens normally and that omc_app is installed:
 
-Reference from the Tested Client Database Rehearsal
+bench --site "$SITE" list-apps
 
-The local rehearsal performed before handover produced these results:
+Final Deployment Flow
 
-Total ERP Customers:                 4,886
-Safely identifiable:                4,717
-Activation-ready email customers:   3,245
-Profiles safely migrated:           3,236
-Deferred claim-on-signup:           1,472
-Identity review:                      169
-Internal-user hard blockers:            9
-Mobile collision warnings:              8
-Frappe Users bulk-created:               0
+Existing ERPNext v14 Site
+        ↓
+Take Backup
+        ↓
+Copy omc_app to apps/omc_app
+        ↓
+Install OMC App
+        ↓
+bench migrate
+        ↓
+Remove old Lead app if applicable
+        ↓
+Run OMC migration preflight
+        ↓
+Take final backup
+        ↓
+Run ONE OMC migration command
+        ↓
+Clear cache + restart
+        ↓
+OMC backend is ready for use
 
-After migration:
+Important Stop Conditions
 
-create_customer_profile: 0
-reuse_customer_profile: 3236
-user_accounts_to_create: 0
+Stop and investigate before continuing if:
 
-A complete second migration run created:
-
-profiles_created: 0
-profiles_reused: 3236
-user_accounts_created: 0
-
-These figures are a reference from the tested dataset. The production site should always use its own dry_run and preflight output as the authoritative result.
-
-Final Checklist
-
-Before declaring deployment complete, confirm:
-
-Full site backup completed.
-
-OMC App folder is present in apps/omc_app.
-
-omc_app is installed on the site.
-
-bench migrate completed successfully.
-
-OMC ERP compatibility validation passed.
-
-Old lead_app was removed only after compatibility validation.
-
-Compatibility validation still passes after old app removal.
-
-Customer migration dry_run reviewed.
-
-Customer migration preflight reviewed.
-
-Hard blockers and identity-review cases were not force-migrated.
-
-Final backup was taken before migration apply.
-
-Customer migration apply completed successfully.
-
-Post-migration preflight shows no remaining safe profiles to create.
-
-No Frappe Users were bulk-created by migration.
-
-Cache/restart completed and ERP site is working normally.
-
-Stop Conditions
-
-Stop the deployment and investigate before continuing if:
-
-OMC compatibility validation fails;
+install-app fails;
 
 bench migrate fails;
 
-the site cannot load after an app change;
-
-customer migration reports unexpected blockers;
+the ERP site stops loading;
 
 user_accounts_to_create is not 0;
 
-the migration result differs materially from the reviewed preflight;
+the migration exits with an unexpected exception;
 
-required ERP fields disappear after removing the old app.
+removing the old app removes required ERP metadata;
 
-Use the latest backup for recovery if a deployment step causes an unexpected site or database issue.
+migration results differ materially from the reviewed preflight.
+
+Do not manually force-link ambiguous identities. Use the latest backup if recovery is required.
+
+Final Checklist
+
+Full site backup completed
+
+omc_app copied to apps/omc_app
+
+OMC App installed on the correct site
+
+bench migrate completed successfully
+
+Old Lead app removed if applicable
+
+Migration preflight reviewed
+
+user_accounts_to_create = 0
+
+Final backup taken
+
+Unified OMC migration completed
+
+Post-migration preflight reviewed
+
+Cache cleared
+
+Bench/services restarted
+
+ERP site opens normally
+
+omc_app appears in list-apps

@@ -96,8 +96,8 @@ class TestSignupRoleNormalization(FrappeTestCase):
             "company": "Example & Co",
             "cnic": "4210112345678",
             "ntn": "1234567-8",
-            "register_as": "Tax Associate",
-            "customer_type": "Tax Associate",
+            "register_as": "Customer",
+            "customer_type": "Customer",
             "address": "Karachi, Pakistan",
             "education": "B.Com",
             "experience": "Three years",
@@ -168,8 +168,8 @@ class TestSignupRoleNormalization(FrappeTestCase):
         self.assertNotIn("OMC Customer Applicant", roles)
         self.assertEqual(profile.customer_status, "Pending")
         self.assertEqual(profile.approval_status, "Pending Review")
-        self.assertEqual(profile.get("register_as"), "Tax Associate")
-        self.assertEqual(profile.get("customer_type"), "Tax Associate")
+        self.assertEqual(profile.get("register_as"), "Customer")
+        self.assertEqual(profile.get("customer_type"), "Customer")
         self.assertEqual(profile.company_name, "Example & Co")
         self.assertEqual(profile.cnic, "4210112345678")
         self.assertEqual(profile.ntn, "1234567-8")
@@ -177,6 +177,52 @@ class TestSignupRoleNormalization(FrappeTestCase):
         self.assertEqual(profile.get("experience"), "Three years")
         self.assertEqual(profile.get("remarks"), "Available for review")
         self.assertEqual(result["access_state"], "pending")
+
+    def test_public_staff_signup_is_rejected_before_identity_creation(self):
+        email = self._email("staff-public-signup")
+
+        with self.assertRaises(frappe.ValidationError):
+            access.sign_up(
+                **self._signup_payload(
+                    email,
+                    register_as="Tax Associate",
+                    customer_type="Tax Associate",
+                )
+            )
+
+        self.assertFalse(frappe.db.exists("User", email))
+        self.assertFalse(
+            frappe.db.exists(
+                "OMC Customer Profile",
+                {"email": email},
+            )
+        )
+        self.assertFalse(
+            frappe.db.exists(
+                "OMC Staff Access",
+                {"user": email},
+            )
+        )
+
+    def test_direct_mobile_staff_signup_is_rejected(self):
+        email = self._email("staff-direct-signup")
+
+        with self.assertRaises(frappe.ValidationError):
+            mobile.sign_up(
+                **self._signup_payload(
+                    email,
+                    register_as="Consultant",
+                    customer_type="Consultant",
+                )
+            )
+
+        self.assertFalse(frappe.db.exists("User", email))
+        self.assertFalse(
+            frappe.db.exists(
+                "OMC Customer Profile",
+                {"email": email},
+            )
+        )
 
     def test_direct_mobile_signup_uses_customer_account_without_role_mutation(self):
         email = self._email("direct-signup")

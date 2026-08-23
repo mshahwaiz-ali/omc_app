@@ -48,9 +48,13 @@ class ActiveDirtyFormNotifier extends Notifier<DirtyFormController?> {
   @override
   DirtyFormController? build() => null;
 
-  void register(DirtyFormController controller) => state = controller;
+  void register(DirtyFormController controller) {
+    if (!ref.mounted) return;
+    state = controller;
+  }
 
   void unregister(DirtyFormController controller) {
+    if (!ref.mounted) return;
     if (identical(state, controller)) state = null;
   }
 }

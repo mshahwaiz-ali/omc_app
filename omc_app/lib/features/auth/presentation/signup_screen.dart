@@ -41,9 +41,6 @@ class SignupScreen extends ConsumerStatefulWidget {
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   static const roles = <String>[
     'Customer',
-    'Consultant',
-    'Business Partner',
-    'Tax Associate',
   ];
 
   static const acquisitionSources = <String>[

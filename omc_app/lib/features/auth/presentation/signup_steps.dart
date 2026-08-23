@@ -84,9 +84,9 @@ class SignupRoleStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SignupStepTitle(
-            title: 'How will you use OMC?',
+            title: 'Create your OMC account',
             subtitle:
-                'Customer creates a service account. Staff options submit an access application for OMC review.',
+                'Create a customer account to request and track OMC services.',
           ),
           const SizedBox(height: 16),
           for (final role in roles) ...[

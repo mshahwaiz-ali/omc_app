@@ -6,6 +6,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omc_app/features/auth/presentation/signup_screen.dart';
 
 void main() {
+  testWidgets('public signup exposes customer accounts only', (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: SignupScreen(),
+        ),
+      ),
+    );
+
+    expect(find.text('Customer'), findsWidgets);
+    expect(find.text('Consultant'), findsNothing);
+    expect(find.text('Business Partner'), findsNothing);
+    expect(find.text('Tax Associate'), findsNothing);
+    expect(find.textContaining('Staff options'), findsNothing);
+    expect(
+      find.textContaining('Create a customer account'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('final step submits canonical verification payload', (
     tester,
   ) async {

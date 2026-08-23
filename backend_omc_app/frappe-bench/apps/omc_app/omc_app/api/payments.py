@@ -441,7 +441,7 @@ def _activate_case_erp(service_case, service=None):
 
 
 
-def _approved_required_documents(service_case):
+def _uploaded_required_documents(service_case):
     required_templates = mobile._service_required_documents(
         service_case.service
     )
@@ -470,7 +470,7 @@ def _approved_required_documents(service_case):
         for doc in uploaded_docs
     ]
 
-    return mobile._required_documents_complete(
+    return mobile._required_documents_uploaded(
         required_templates,
         documents,
     )
@@ -494,7 +494,7 @@ def _ensure_payment_for_case(service_case):
     if existing:
         return existing[0].name
 
-    if not _approved_required_documents(service_case):
+    if not _uploaded_required_documents(service_case):
         return None
 
     if getattr(service_case, "discount_status", None) == "Pending Approval":

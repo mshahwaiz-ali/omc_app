@@ -10,6 +10,22 @@ void main() {
     );
   });
 
+
+  test('referral analytics use canonical backend endpoints', () {
+    expect(
+      ApiConfig.getMyReferralSummaryMethod,
+      'omc_app.api.referral_analytics.get_my_referral_summary',
+    );
+    expect(
+      ApiConfig.getMyReferralsMethod,
+      'omc_app.api.referral_analytics.get_my_referrals',
+    );
+    expect(
+      ApiConfig.getMyReferralDetailMethod,
+      'omc_app.api.referral_analytics.get_my_referral_detail',
+    );
+  });
+
   test('release profile accepts only the canonical production origin', () {
     expect(
       () => ApiConfig.validateResolvedBuildProfile(

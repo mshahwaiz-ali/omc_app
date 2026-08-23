@@ -234,7 +234,7 @@ class TestServiceCasePaymentContract(TestCase):
         self.assertFalse(result["payment_eligible"])
         self.assertEqual(
             result["payment_block_reason"],
-            "required_documents_not_approved",
+            "required_documents_not_uploaded",
         )
         self.assertEqual(result["next_action"], "upload_documents")
 
@@ -268,6 +268,39 @@ class TestServiceCasePaymentContract(TestCase):
             "payment_not_opened",
         )
         self.assertEqual(result["next_action"], "await_payment_opening")
+
+    @patch.object(mobile.frappe.db, "exists", return_value=True)
+    @patch.object(mobile.frappe.db, "get_value", return_value=25000)
+    @patch.object(mobile.frappe, "get_all", return_value=[])
+    def test_uploaded_documents_are_payment_eligible_before_review(
+        self,
+        _get_all,
+        _get_value,
+        _exists,
+    ):
+        result = mobile._service_case_payment_contract(
+            self._case(),
+            documents=[
+                {
+                    "title": "CNIC",
+                    "type": "Identity",
+                    "status": "Uploaded",
+                    "file_url": "/private/files/cnic.pdf",
+                }
+            ],
+            required_document_templates=[self._required_template()],
+        )
+
+        self.assertTrue(result["documents_complete"])
+        self.assertTrue(result["payment_eligible"])
+        self.assertEqual(
+            result["payment_block_reason"],
+            "payment_not_opened",
+        )
+        self.assertEqual(
+            result["next_action"],
+            "await_payment_opening",
+        )
 
     @patch.object(mobile.frappe.db, "exists", return_value=True)
     @patch.object(mobile.frappe.db, "get_value", return_value=25000)

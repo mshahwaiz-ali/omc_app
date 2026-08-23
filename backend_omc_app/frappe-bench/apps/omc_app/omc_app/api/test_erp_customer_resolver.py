@@ -544,6 +544,158 @@ class TestErpCustomerResolverModes(FrappeTestCase):
         )
         create_customer.assert_not_called()
 
+    def test_existing_claim_reconciles_historical_referral(self):
+        profile = self._profile()
+
+        with (
+            patch.object(
+                erp_customer_resolver,
+                "_valid_link",
+                return_value="",
+            ),
+            patch.object(
+                erp_customer_resolver,
+                "_customer_matches",
+                return_value=["ERP-CUST-1"],
+            ),
+            patch.object(
+                erp_customer_resolver,
+                "_link_profile",
+            ) as link_profile,
+            patch.object(
+                erp_customer_resolver,
+                "_reconcile_claim_historical_referral",
+                create=True,
+            ) as reconcile_referral,
+            patch.object(
+                erp_customer_resolver,
+                "_create_customer",
+            ) as create_customer,
+        ):
+            result = erp_customer_resolver.resolve_profile_customer(
+                profile,
+                resolution_mode="claim_existing",
+            )
+
+        self.assertEqual(result["status"], "Resolved")
+        self.assertEqual(result["customer"], "ERP-CUST-1")
+        link_profile.assert_called_once_with(
+            profile,
+            "ERP-CUST-1",
+        )
+        reconcile_referral.assert_called_once_with(
+            profile,
+            "ERP-CUST-1",
+        )
+        create_customer.assert_not_called()
+
+    def test_claim_historical_referral_updates_profile_without_consent(self):
+        from omc_app.api import customer_migration
+
+        profile = self._profile()
+        profile.acquisition_source = "Existing"
+        profile.referral_record = ""
+        profile.referred_by = ""
+        profile.referral_code_used = ""
+        profile.referral_assistance_consent = 0
+        profile.referral_consent_timestamp = "KEEP-TIMESTAMP"
+        profile.referral_consent_version = "KEEP-VERSION"
+        profile.save = MagicMock()
+
+        owner = "historical-owner@omchouse.com"
+
+        context = {
+            "users_by_identity": {
+                owner: {owner},
+            },
+            "users_by_name": {
+                owner: SimpleNamespace(
+                    name=owner,
+                    enabled=1,
+                    user_type="System User",
+                ),
+            },
+            "staff_access_by_user": {
+                owner: SimpleNamespace(
+                    name="STAFF-1",
+                    access_status="Approved",
+                    reconciliation_status="Current",
+                    persona_snapshot="Business Partner",
+                ),
+            },
+            "referrals_by_user": {
+                owner: SimpleNamespace(
+                    name="REF-1",
+                    referrer_user=owner,
+                    referral_code="HIST-123",
+                    status="Approved",
+                    is_active=1,
+                ),
+            },
+        }
+
+        with (
+            patch.object(
+                erp_customer_resolver.frappe.db,
+                "get_value",
+                return_value={
+                    "name": "ERP-CUST-1",
+                    "source": "Consultant",
+                    "sales_person": owner,
+                    "custom_reference_lead": "",
+                },
+            ),
+            patch.object(
+                customer_migration,
+                "_build_apply_context",
+                return_value=context,
+            ),
+        ):
+            result = (
+                erp_customer_resolver
+                ._reconcile_claim_historical_referral(
+                    profile,
+                    "ERP-CUST-1",
+                )
+            )
+
+        self.assertEqual(result["action"], "linked")
+        self.assertTrue(result["changed"])
+
+        self.assertEqual(
+            profile.acquisition_source,
+            "Referral",
+        )
+        self.assertEqual(
+            profile.referral_record,
+            "REF-1",
+        )
+        self.assertEqual(
+            profile.referred_by,
+            owner,
+        )
+        self.assertEqual(
+            profile.referral_code_used,
+            "HIST-123",
+        )
+
+        self.assertEqual(
+            profile.referral_assistance_consent,
+            0,
+        )
+        self.assertEqual(
+            profile.referral_consent_timestamp,
+            "KEEP-TIMESTAMP",
+        )
+        self.assertEqual(
+            profile.referral_consent_version,
+            "KEEP-VERSION",
+        )
+
+        profile.save.assert_called_once_with(
+            ignore_permissions=True,
+        )
+
     def test_new_customer_does_not_silently_claim_existing_match(self):
         profile = self._profile()
 
