@@ -340,6 +340,18 @@ class TestCustomerMigrationDisposition(FrappeTestCase):
                 "_plan_apply_row",
                 return_value=plan,
             ) as plan_row,
+            patch.object(
+                customer_migration,
+                "_historical_migration_preflight",
+                create=True,
+                return_value={
+                    "read_only": True,
+                    "task_types": {},
+                    "historical_services": {},
+                    "review_reason_counts": {},
+                    "review_samples": [],
+                },
+            ),
         ):
             result = customer_migration.preflight()
 
@@ -417,6 +429,18 @@ class TestCustomerMigrationDisposition(FrappeTestCase):
                 "_create_or_reuse_profile",
                 return_value=(profile, "created"),
             ) as create_profile,
+            patch.object(
+                customer_migration,
+                "_apply_historical_service_projection",
+                create=True,
+                return_value={
+                    "task_types": {},
+                    "historical_services": {},
+                    "review_reason_counts": {},
+                    "review_samples": [],
+                    "changed": False,
+                },
+            ),
         ):
             result = customer_migration.apply(
                 confirm=customer_migration.APPLY_CONFIRMATION,
@@ -1558,6 +1582,18 @@ class TestCustomerMigrationOneCommandOrchestration(FrappeTestCase):
                 customer_migration.frappe.db,
                 "commit",
             ) as commit,
+            patch.object(
+                customer_migration,
+                "_apply_historical_service_projection",
+                create=True,
+                return_value={
+                    "task_types": {},
+                    "historical_services": {},
+                    "review_reason_counts": {},
+                    "review_samples": [],
+                    "changed": False,
+                },
+            ),
         ):
             result = customer_migration.apply(
                 confirm=customer_migration.APPLY_CONFIRMATION,
@@ -1688,6 +1724,18 @@ class TestCustomerMigrationOneCommandOrchestration(FrappeTestCase):
                 customer_migration,
                 "_apply_historical_referral_to_profile",
             ) as link_referral,
+            patch.object(
+                customer_migration,
+                "_apply_historical_service_projection",
+                create=True,
+                return_value={
+                    "task_types": {},
+                    "historical_services": {},
+                    "review_reason_counts": {},
+                    "review_samples": [],
+                    "changed": False,
+                },
+            ),
         ):
             result = customer_migration.apply(
                 confirm=customer_migration.APPLY_CONFIRMATION,
@@ -1820,6 +1868,18 @@ class TestCustomerMigrationHistoricalAttributionOrchestration(FrappeTestCase):
                 referral_attribution,
                 "create_historical_acquisition_snapshot",
             ) as create_attribution,
+            patch.object(
+                customer_migration,
+                "_apply_historical_service_projection",
+                create=True,
+                return_value={
+                    "task_types": {},
+                    "historical_services": {},
+                    "review_reason_counts": {},
+                    "review_samples": [],
+                    "changed": False,
+                },
+            ),
         ):
             customer_migration.apply(
                 confirm=customer_migration.APPLY_CONFIRMATION,
@@ -1860,4 +1920,282 @@ class TestCustomerMigrationHistoricalAttributionOrchestration(FrappeTestCase):
         self.assertEqual(
             result["reason"],
             "historical_attribution_validation_error",
+        )
+
+class TestCustomerMigrationHistoricalServiceUnifiedCommand(
+    FrappeTestCase
+):
+    @staticmethod
+    def _staff_result():
+        return {
+            "candidate_users": 0,
+            "eligible_users": 0,
+            "synced_users": 0,
+            "skipped_users": 0,
+            "skip_reasons": {},
+            "synced_samples": [],
+            "skipped_samples": [],
+        }
+
+    def test_preflight_includes_historical_service_plan(self):
+        historical_plan = {
+            "read_only": True,
+            "task_types": {"total": 31},
+            "historical_services": {"total": 69},
+            "review_reason_counts": {},
+            "review_samples": [],
+        }
+
+        with (
+            patch.object(
+                customer_migration,
+                "_classify",
+                return_value=(
+                    [],
+                    Counter(),
+                    Counter(),
+                    Counter(),
+                ),
+            ),
+            patch.object(
+                customer_migration,
+                "_build_apply_context",
+                return_value={},
+            ),
+            patch.object(
+                customer_migration,
+                "_historical_migration_preflight",
+                create=True,
+                return_value=historical_plan,
+            ) as historical_preflight,
+        ):
+            result = customer_migration.preflight()
+
+        historical_preflight.assert_called_once_with()
+
+        self.assertEqual(
+            result["historical_service_migration"],
+            historical_plan,
+        )
+
+    def test_profile_limit_does_not_skip_historical_projection(self):
+        rows = [
+            {
+                "customer": "ERP-LIMIT-1",
+                "customer_name": "Customer One",
+                "classification": "unique_email",
+                "review_reason": "",
+                "email": "one@example.com",
+                "cnic": "",
+                "resolved_phone": "",
+                "source": "",
+                "sales_person": "",
+                "lead_sales_person": "",
+            },
+            {
+                "customer": "ERP-LIMIT-2",
+                "customer_name": "Customer Two",
+                "classification": "unique_email",
+                "review_reason": "",
+                "email": "two@example.com",
+                "cnic": "",
+                "resolved_phone": "",
+                "source": "",
+                "sales_person": "",
+                "lead_sales_person": "",
+            },
+        ]
+
+        plan = {
+            "target_email": "customer@example.com",
+            "profile_email": "customer@example.com",
+            "existing_user": None,
+            "existing_profile": None,
+            "blockers": [],
+            "warnings": [],
+        }
+
+        profile = SimpleNamespace(
+            name="OMC-CUST-LIMIT-1",
+            email="one@example.com",
+            user=None,
+        )
+        profile.get = MagicMock(return_value="")
+
+        historical_result = {
+            "task_types": {"created": 31},
+            "historical_services": {"created": 68},
+            "review_reason_counts": {},
+            "review_samples": [],
+            "changed": True,
+        }
+
+        with (
+            patch.object(
+                customer_migration,
+                "_classify",
+                return_value=(
+                    rows,
+                    Counter(),
+                    Counter(),
+                    Counter(),
+                ),
+            ),
+            patch.object(
+                customer_migration,
+                "_sync_migration_staff",
+                return_value=self._staff_result(),
+            ),
+            patch.object(
+                customer_migration,
+                "_build_apply_context",
+                return_value={},
+            ),
+            patch.object(
+                customer_migration,
+                "_plan_apply_row",
+                return_value=plan,
+            ),
+            patch.object(
+                customer_migration,
+                "_create_or_reuse_profile",
+                return_value=(profile, "created"),
+            ) as create_profile,
+            patch.object(
+                customer_migration,
+                "_historical_referral_decision",
+                return_value={
+                    "action": "review",
+                    "reason": "no_historical_referral_evidence",
+                },
+            ),
+            patch.object(
+                customer_migration,
+                "_apply_historical_service_projection",
+                create=True,
+                return_value=historical_result,
+            ) as historical_projection,
+        ):
+            result = customer_migration.apply(
+                confirm=customer_migration.APPLY_CONFIRMATION,
+                limit=1,
+                commit=False,
+            )
+
+        self.assertEqual(result["safe_rows_migrated"], 1)
+        self.assertEqual(create_profile.call_count, 1)
+
+        historical_projection.assert_called_once_with()
+
+        self.assertEqual(
+            result["historical_service_migration"],
+            historical_result,
+        )
+
+    def test_commit_false_never_commits_historical_projection(self):
+        historical_result = {
+            "task_types": {"created": 1},
+            "historical_services": {"created": 1},
+            "review_reason_counts": {},
+            "review_samples": [],
+            "changed": True,
+        }
+
+        with (
+            patch.object(
+                customer_migration,
+                "_classify",
+                return_value=(
+                    [],
+                    Counter(),
+                    Counter(),
+                    Counter(),
+                ),
+            ),
+            patch.object(
+                customer_migration,
+                "_sync_migration_staff",
+                return_value=self._staff_result(),
+            ),
+            patch.object(
+                customer_migration,
+                "_build_apply_context",
+                return_value={},
+            ),
+            patch.object(
+                customer_migration,
+                "_apply_historical_service_projection",
+                create=True,
+                return_value=historical_result,
+            ) as historical_projection,
+            patch.object(
+                customer_migration.frappe.db,
+                "commit",
+            ) as commit,
+        ):
+            result = customer_migration.apply(
+                confirm=customer_migration.APPLY_CONFIRMATION,
+                commit=False,
+            )
+
+        historical_projection.assert_called_once_with()
+        commit.assert_not_called()
+
+        self.assertEqual(
+            result["historical_service_migration"],
+            historical_result,
+        )
+
+    def test_commit_true_commits_historical_changes_at_outer_boundary(self):
+        historical_result = {
+            "task_types": {"created": 1},
+            "historical_services": {"created": 1},
+            "review_reason_counts": {},
+            "review_samples": [],
+            "changed": True,
+        }
+
+        with (
+            patch.object(
+                customer_migration,
+                "_classify",
+                return_value=(
+                    [],
+                    Counter(),
+                    Counter(),
+                    Counter(),
+                ),
+            ),
+            patch.object(
+                customer_migration,
+                "_sync_migration_staff",
+                return_value=self._staff_result(),
+            ),
+            patch.object(
+                customer_migration,
+                "_build_apply_context",
+                return_value={},
+            ),
+            patch.object(
+                customer_migration,
+                "_apply_historical_service_projection",
+                create=True,
+                return_value=historical_result,
+            ) as historical_projection,
+            patch.object(
+                customer_migration.frappe.db,
+                "commit",
+            ) as commit,
+        ):
+            result = customer_migration.apply(
+                confirm=customer_migration.APPLY_CONFIRMATION,
+                commit=True,
+            )
+
+        historical_projection.assert_called_once_with()
+        commit.assert_called_once_with()
+
+        self.assertEqual(
+            result["historical_service_migration"],
+            historical_result,
         )

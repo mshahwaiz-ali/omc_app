@@ -320,3 +320,140 @@ class TestErpSyncRecovery(FrappeTestCase):
         self.assertFalse(result["created"])
         self.assertTrue(activate_request.call_args.kwargs["repair"])
         commit.assert_not_called()
+
+    def test_manager_queue_excludes_historical_requests(self):
+        with (
+            patch.object(
+                erp_sync_recovery.frappe.local,
+                "session",
+                SimpleNamespace(user="manager@example.com"),
+            ),
+            patch.object(
+                erp_sync_recovery.capabilities,
+                "require",
+                return_value={"can_retry_sync": True},
+            ),
+            patch.object(
+                erp_sync_recovery.frappe,
+                "get_all",
+                return_value=[],
+            ) as get_all,
+            patch.object(
+                erp_sync_recovery.frappe.db,
+                "count",
+                return_value=0,
+            ) as count,
+        ):
+            result = erp_sync_recovery.get_erp_sync_issues()
+
+        filters = get_all.call_args.kwargs["filters"]
+        self.assertEqual(
+            filters["request_state"],
+            ["!=", "Historical"],
+        )
+        self.assertEqual(
+            count.call_args.kwargs["filters"]["request_state"],
+            ["!=", "Historical"],
+        )
+        self.assertEqual(result["count"], 0)
+
+    def test_automatic_recovery_excludes_historical_requests(self):
+        lock = MagicMock()
+        lock.acquire.return_value = True
+
+        with (
+            patch.object(
+                erp_sync_recovery,
+                "_job_lock",
+                return_value=lock,
+            ),
+            patch.object(
+                erp_sync_recovery.frappe,
+                "get_all",
+                return_value=[],
+            ) as get_all,
+        ):
+            result = (
+                erp_sync_recovery.run_automatic_erp_sync_recovery()
+            )
+
+        filters = get_all.call_args.kwargs["filters"]
+        self.assertEqual(
+            filters["request_state"],
+            ["!=", "Historical"],
+        )
+        self.assertEqual(result["scanned"], 0)
+        lock.release.assert_called_once()
+
+    def test_manual_retry_rejects_historical_request(self):
+        request = SimpleNamespace(
+            name="OMC-SR-HISTORICAL",
+            request_state="Historical",
+            source_channel="Imported",
+            service="OMC-SERVICE-1",
+            erp_sync_status="Repair Required",
+        )
+        request.meta = MagicMock()
+        request.meta.get_field.return_value = False
+
+        service = SimpleNamespace(name="OMC-SERVICE-1")
+
+        def get_doc(doctype, name):
+            return {
+                (
+                    "OMC Service Request",
+                    "OMC-SR-HISTORICAL",
+                ): request,
+                (
+                    "OMC Service",
+                    "OMC-SERVICE-1",
+                ): service,
+            }[(doctype, name)]
+
+        with (
+            patch.object(
+                erp_sync_recovery.frappe.local,
+                "session",
+                SimpleNamespace(user="manager@example.com"),
+            ),
+            patch.object(
+                erp_sync_recovery.capabilities,
+                "require",
+                return_value={"can_retry_sync": True},
+            ),
+            patch.object(
+                erp_sync_recovery.frappe.db,
+                "get_value",
+                return_value="OMC-SR-HISTORICAL",
+            ),
+            patch.object(
+                erp_sync_recovery.frappe,
+                "get_doc",
+                side_effect=get_doc,
+            ),
+            patch.object(
+                erp_sync_recovery,
+                "_bridge_operation",
+                return_value=None,
+            ) as bridge_operation,
+            patch.object(
+                erp_sync_recovery.frappe.db,
+                "exists",
+                return_value=True,
+            ),
+            patch.object(
+                erp_sync_recovery.erp_activation,
+                "activate_request",
+                return_value={
+                    "status": "Not Started",
+                    "eligible": False,
+                },
+            ) as activate_request,
+            self.assertRaises(frappe.ValidationError),
+        ):
+            erp_sync_recovery.retry_erp_sync(
+                "OMC-SR-HISTORICAL"
+            )
+
+        bridge_operation.assert_not_called()
+        activate_request.assert_not_called()

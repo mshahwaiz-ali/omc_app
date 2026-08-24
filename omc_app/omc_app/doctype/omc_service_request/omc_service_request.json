@@ -61,6 +61,7 @@
   "source_channel",
   "submission_integrity_section",
   "submission_data_json",
+  "historical_evidence_json",
   "submission_integrity_status",
   "submission_integrity_score",
   "submission_integrity_reasons_json",
@@ -232,7 +233,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Open\nIn Progress\nWaiting for Customer\nWaiting for Payment\nCompleted\nCancelled",
+   "options": "Open\nIn Progress\nIn Review\nOverdue\nHistorical\nWaiting for Customer\nWaiting for Payment\nCompleted\nCancelled",
    "search_index": 1
   },
   {
@@ -313,7 +314,7 @@
    "fieldname": "submission_mode",
    "fieldtype": "Select",
    "label": "Submission Mode",
-   "options": "Customer Self-Service\nStaff on Behalf\nAdmin on Behalf\nWalk-in Assisted",
+   "options": "Customer Self-Service\nStaff on Behalf\nAdmin on Behalf\nWalk-in Assisted\nHistorical Import",
    "default": "Customer Self-Service",
    "in_standard_filter": 1,
    "search_index": 1
@@ -387,6 +388,15 @@
    "label": "Submission Data JSON",
    "options": "JSON",
    "read_only": 1
+  },
+  {
+   "fieldname": "historical_evidence_json",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Historical Evidence JSON",
+   "options": "JSON",
+   "read_only": 1,
+   "description": "Raw evidence preserved from imported legacy ERP Service and Task records. This is not canonical pricing, payment, settlement, or accounting data."
   },
   {
    "default": "Not Evaluated",
@@ -515,7 +525,7 @@
    "fieldname": "erp_sync_status",
    "fieldtype": "Select",
    "label": "ERP Sync Status",
-   "options": "Not Started\nPending Configuration\nSynced\nFailed\nRepair Required",
+   "options": "Not Started\nPending Configuration\nSynced\nFailed\nRepair Required\nHistorical",
    "read_only": 1,
    "in_standard_filter": 1
   },
@@ -575,7 +585,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Request State",
-   "options": "Draft\nPending Payment\nPayment Not Required\nReady for Activation\nActivating\nActivated\nExpired\nCancelled\nActivation Failed\nFinancial Hold",
+   "options": "Draft\nHistorical\nPending Payment\nPayment Not Required\nReady for Activation\nActivating\nActivated\nExpired\nCancelled\nActivation Failed\nFinancial Hold",
    "read_only": 1,
    "search_index": 1
   },

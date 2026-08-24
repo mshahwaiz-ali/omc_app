@@ -14,7 +14,9 @@ CUSTOMER_STATUS_MAP = {
     "working": "In Progress",
     "in progress": "In Progress",
     "started": "In Progress",
-    "under review": "In Progress",
+    "under review": "In Review",
+    "pending review": "In Review",
+    "overdue": "Overdue",
     "waiting for customer": "Waiting for Customer",
     "customer action required": "Waiting for Customer",
     "awaiting customer": "Waiting for Customer",
@@ -24,6 +26,19 @@ CUSTOMER_STATUS_MAP = {
     "completed": "Completed",
     "complete": "Completed",
     "closed": "Completed",
+    "cancelled": "Cancelled",
+    "canceled": "Cancelled",
+}
+
+
+HISTORICAL_TASK_STATUS_MAP = {
+    "open": "Open",
+    "working": "In Progress",
+    "in progress": "In Progress",
+    "under review": "In Review",
+    "pending review": "In Review",
+    "overdue": "Overdue",
+    "completed": "Completed",
     "cancelled": "Cancelled",
     "canceled": "Cancelled",
 }
@@ -39,6 +54,16 @@ def customer_status(task_status: Any, operation_status: Any = None) -> str:
         if normalized in CUSTOMER_STATUS_MAP:
             return CUSTOMER_STATUS_MAP[normalized]
     return "In Progress"
+
+
+def historical_customer_status(
+    task_status: Any,
+    operation_status: Any = None,
+) -> str:
+    """Project historical work from authoritative ERP Task.status only."""
+
+    normalized = _text(task_status).lower()
+    return HISTORICAL_TASK_STATUS_MAP.get(normalized, "Historical")
 
 
 def _allowed_options(doctype: str, fieldname: str) -> set[str]:
@@ -138,6 +163,11 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
     request = frappe.get_doc("OMC Service Request", request_name)
     current_status = _text(getattr(request, "status", None))
     request_state = _text(getattr(request, "request_state", None))
+    historical_import = (
+        request_state == "Historical"
+        and _text(getattr(request, "source_channel", None)) == "Imported"
+    )
+
     if request_state == "Financial Hold":
         return {
             "updated": False,
@@ -161,7 +191,44 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
         }
     raw_status = _text(getattr(doc, "status", None))
     operation_status = _text(getattr(doc, "custom_operation_status", None))
-    mapped_status = customer_status(raw_status, operation_status)
+    mapped_status = (
+        historical_customer_status(raw_status, operation_status)
+        if historical_import
+        else customer_status(raw_status, operation_status)
+    )
+
+    if historical_import:
+        closed_on = None
+        if mapped_status in {"Completed", "Cancelled"}:
+            closed_on = (
+                getattr(doc, "completed_on", None)
+                or getattr(doc, "modified", None)
+                or frappe.utils.now_datetime()
+            )
+
+        frappe.db.set_value(
+            "OMC Service Request",
+            request_name,
+            {
+                "status": mapped_status,
+                "closed_on": closed_on,
+            },
+            update_modified=True,
+        )
+
+        request.status = mapped_status
+        request.closed_on = closed_on
+
+        return {
+            "updated": True,
+            "historical": True,
+            "request": request_name,
+            "erp_service": _text(getattr(request, "erp_service", None)),
+            "task_status": raw_status,
+            "operation_status": operation_status,
+            "customer_status": mapped_status,
+            "service_status": "",
+        }
 
     if current_status in {"Completed", "Cancelled"} and mapped_status != current_status:
         return {

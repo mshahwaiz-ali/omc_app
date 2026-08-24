@@ -101,6 +101,89 @@ def _action(action_type, title, subtitle, route, button_label, *, required=False
     }
 
 
+def _historical_lifecycle_presentation(
+    case_id: str,
+    operational_status: str,
+) -> dict:
+    status = _lower(operational_status) or "historical"
+
+    completed = status in {"completed", "closed", "done", "resolved"}
+    cancelled = status in {"cancelled", "canceled"}
+
+    if completed:
+        progress = 100
+        current_stage = "Completed"
+        work_state = "complete"
+        detail = "This historical service was completed."
+    elif cancelled:
+        progress = 0
+        current_stage = "Cancelled"
+        work_state = "attention"
+        detail = "This historical service was cancelled."
+    elif status == "overdue":
+        progress = 70
+        current_stage = "Overdue"
+        work_state = "current"
+        detail = "This historical service is still open and is marked overdue."
+    elif status in {"in progress", "working"}:
+        progress = 70
+        current_stage = "In Progress"
+        work_state = "current"
+        detail = "Work on this historical service is still in progress."
+    elif status in {"in review", "pending review", "under review"}:
+        progress = 65
+        current_stage = "In Review"
+        work_state = "current"
+        detail = "This historical service is under review."
+    elif status == "open":
+        progress = 50
+        current_stage = "Open"
+        work_state = "current"
+        detail = "This historical service is still open."
+    else:
+        progress = 40
+        current_stage = "Historical"
+        work_state = "pending"
+        detail = (
+            "This service is part of your historical ERP record. "
+            "No reliable open/closed Task evidence was available."
+        )
+
+    next_action = _action(
+        "view_service",
+        "View historical service",
+        "Review the recorded historical service details.",
+        _case_route(case_id),
+        "View service",
+    )
+
+    return {
+        "current_stage": current_stage,
+        "progress_percent": progress,
+        "milestones": [
+            _milestone(
+                "history",
+                "Historical record",
+                "complete",
+                "Imported from the existing ERP service history.",
+            ),
+            _milestone(
+                "work_status",
+                "Recorded work status",
+                work_state,
+                detail,
+            ),
+        ],
+        "next_step": next_action["title"],
+        "next_action": next_action,
+        "action_required": False,
+        "attention_priority": 0 if completed or cancelled else 20,
+        "terminal": cancelled,
+        "completed": completed,
+        "payment_not_required": False,
+    }
+
+
 def lifecycle_presentation(snapshot: dict) -> dict:
     """Build customer-facing lifecycle metadata from canonical request evidence.
 
@@ -114,6 +197,13 @@ def lifecycle_presentation(snapshot: dict) -> dict:
     operational_status = _lower(
         item.get("operational_status") or item.get("status")
     )
+
+    if request_state == "historical":
+        return _historical_lifecycle_presentation(
+            case_id,
+            operational_status,
+        )
+
     receipt = item.get("receipt") if isinstance(item.get("receipt"), dict) else {}
     settlement = (
         item.get("settlement") if isinstance(item.get("settlement"), dict) else {}

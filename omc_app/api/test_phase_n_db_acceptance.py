@@ -116,15 +116,16 @@ class TestPhaseNDatabaseAcceptance(FrappeTestCase):
             self.assertIn(key_name, {row.Key_name for row in rows}, table)
 
     def test_system_manager_has_no_omc_doctype_permission_rows(self):
-        count = frappe.db.sql(
-            """
-            SELECT COUNT(*)
-            FROM `tabDocPerm`
-            WHERE parent LIKE 'OMC %'
-              AND role = 'System Manager'
-            """
-        )[0][0]
-        self.assertEqual(int(count or 0), 0)
+        for table in ("tabDocPerm", "tabCustom DocPerm"):
+            count = frappe.db.sql(
+                f"""
+                SELECT COUNT(*)
+                FROM `{table}`
+                WHERE parent LIKE 'OMC %'
+                  AND role = 'System Manager'
+                """
+            )[0][0]
+            self.assertEqual(int(count or 0), 0, table)
 
     def test_bridge_service_request_unique_constraint_wins_concurrent_race(self):
         token = frappe.generate_hash(length=12)

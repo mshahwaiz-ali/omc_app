@@ -9,7 +9,7 @@ SNAPSHOT_FIELDS = (
 	"customer_account", "company_snapshot", "service_version_snapshot", "pricing_version_snapshot",
 	"payment_policy_snapshot", "tax_policy_snapshot", "tax_rate_snapshot",
 	"tax_amount", "payable_amount", "pricing_snapshot_json", "referral_attribution",
-	"submission_data_json", "customer_consent_reference", "customer_mode",
+	"submission_data_json", "historical_evidence_json", "customer_consent_reference", "customer_mode",
 	"submission_mode", "referral_record", "referral_owner",
 )
 
@@ -19,13 +19,20 @@ class OMCServiceRequest(Document):
 		if not self.naming_series:
 			self.naming_series = "OMC-SR-.YYYY.-.#####"
 
-		if not self.requested_by:
-			self.requested_by = frappe.session.user
 		if not self.request_state:
 			self.request_state = "Draft"
+
+		historical_import = (
+			self.request_state == "Historical"
+			and self.source_channel == "Imported"
+		)
+
+		if not self.requested_by and not historical_import:
+			self.requested_by = frappe.session.user
+
 		self.activation_version = self.activation_version or 1
 
-		if self.meta.get_field("company_snapshot"):
+		if self.meta.get_field("company_snapshot") and not historical_import:
 			company = ""
 			if self.service:
 				company = frappe.db.get_value("OMC Service", self.service, "company") or ""

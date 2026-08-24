@@ -529,14 +529,33 @@ def _synthetic_user_email(customer: str) -> str:
     return f"omc-import-{digest}@customer.invalid"
 
 
+
+def _historical_migration_preflight():
+    """Return the read-only historical Service/Task migration plan."""
+
+    from omc_app.api import historical_service_migration
+
+    return historical_service_migration.preflight()
+
+
+def _apply_historical_service_projection():
+    """Run historical projection under apply() transaction ownership."""
+
+    from omc_app.api import historical_service_migration
+
+    return historical_service_migration._apply_projection()
+
+
 def preflight():
-    """Read-only profile-only customer migration preflight."""
+    """Read-only unified customer and historical service migration preflight."""
     rows, _, _, _ = _classify()
     context = _build_apply_context()
+    historical_plan = _historical_migration_preflight()
 
     result = {
         "read_only": True,
-        "mode": "profile_only",
+        "mode": "unified",
+        "historical_service_migration": historical_plan,
         "total_customers": len(rows),
         "auto_migratable": 0,
         "safely_identifiable": 0,
@@ -1695,7 +1714,7 @@ def apply(
     result = {
         "confirmation": APPLY_CONFIRMATION,
         "commit": commit,
-        "mode": "profile_only",
+        "mode": "unified",
         "total_customers": len(rows),
         "safely_identifiable": 0,
         "activation_ready_import": 0,
@@ -1889,9 +1908,24 @@ def apply(
             migrated_since_commit = 0
             staff_changes_pending_commit = False
 
+    # Phases 5-8: historical Task Type catalogue, ERP Service history,
+    # safe existing Task linkage/status, and review classification.
+    # This phase never commits independently; apply() owns the boundary.
+    historical_service_result = (
+        _apply_historical_service_projection()
+    )
+    result[
+        "historical_service_migration"
+    ] = historical_service_result
+
+    historical_changes_pending_commit = bool(
+        historical_service_result.get("changed")
+    )
+
     if commit and (
         migrated_since_commit
         or staff_changes_pending_commit
+        or historical_changes_pending_commit
     ):
         frappe.db.commit()
 
