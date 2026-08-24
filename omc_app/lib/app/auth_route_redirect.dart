@@ -6,6 +6,21 @@ const _tokenConsumptionRoutes = <String>{
   '/reset-password',
   '/activate-account',
 };
+bool isPublicAuthTokenRoute(String location) {
+  return _tokenConsumptionRoutes.contains(location);
+}
+
+bool shouldQueueAuthLinkDuringChecking({
+  required AuthStatus status,
+  required String currentPath,
+  required String? normalizedPath,
+}) {
+  return status == AuthStatus.checking &&
+      currentPath != '/' &&
+      normalizedPath != null &&
+      !isPublicAuthTokenRoute(normalizedPath);
+}
+
 const _accessDeniedHome = '/home?notice=access-denied';
 
 const _anonymousEntryRoutes = <String>{
@@ -28,7 +43,7 @@ String? resolveAuthRouteRedirect({
   required String location,
 }) {
   final isSplash = location == '/';
-  final isTokenConsumptionRoute = _tokenConsumptionRoutes.contains(location);
+  final isTokenConsumptionRoute = isPublicAuthTokenRoute(location);
   final isAnonymousEntryRoute = _anonymousEntryRoutes.contains(location);
   final isUnderReviewRoute = location == '/under-review';
 

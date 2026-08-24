@@ -1037,10 +1037,12 @@ class _EmptyState extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              FilledButton.icon(
+              FilledButton(
                 onPressed: onStartRequest,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Start a request'),
+                child: const Text(
+                  'Start a request',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),

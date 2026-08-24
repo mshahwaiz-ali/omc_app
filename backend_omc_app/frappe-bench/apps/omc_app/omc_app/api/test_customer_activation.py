@@ -83,10 +83,26 @@ class TestCustomerActivation(FrappeTestCase):
     def _profile(self, email=None):
         email = email or self._email("activation")
 
-        customer_group = frappe.db.get_single_value(
-            "Selling Settings", "customer_group"
+        customer_group = (
+            frappe.db.get_single_value("Selling Settings", "customer_group")
+            or frappe.db.get_value(
+                "Customer Group",
+                {"is_group": 0},
+                "name",
+            )
         )
-        territory = frappe.db.get_single_value("Selling Settings", "territory")
+        territory = (
+            frappe.db.get_single_value("Selling Settings", "territory")
+            or frappe.db.get_value(
+                "Territory",
+                {"is_group": 0},
+                "name",
+            )
+        )
+
+        self.assertTrue(customer_group, "No usable Customer Group test fixture")
+        self.assertTrue(territory, "No usable Territory test fixture")
+
         customer = frappe.get_doc({
             "doctype": "Customer",
             "customer_name": f"Imported {uuid.uuid4().hex[:10]}",
@@ -127,6 +143,48 @@ class TestCustomerActivation(FrappeTestCase):
         self.assertEqual(sendmail.call_count, 1)
         token = sendmail.call_args.args[2]
         return token, result
+
+    def test_activation_email_uses_universal_link_for_open_in_app(self):
+        links = {
+            "app_url": "omchouse://auth/activate-account?token=test-token",
+            "universal_url": (
+                "https://erp.omchouse.com/app/activate-account"
+                "?token=test-token"
+            ),
+            "web_url": (
+                "https://app.example.test/activate-account"
+                "?token=test-token"
+            ),
+        }
+
+        with (
+            patch.object(
+                customer_activation.frappe,
+                "are_emails_muted",
+                return_value=False,
+            ),
+            patch.object(
+                customer_activation,
+                "customer_activation_links",
+                return_value=links,
+            ),
+            patch.object(
+                customer_activation.frappe,
+                "sendmail",
+            ) as sendmail,
+        ):
+            customer_activation._send_activation_email(
+                "customer@example.com",
+                "Imported Customer",
+                "test-token",
+            )
+
+        sendmail.assert_called_once()
+        message = sendmail.call_args.kwargs["message"]
+
+        self.assertIn(links["web_url"], message)
+        self.assertIn(links["universal_url"], message)
+        self.assertNotIn(links["app_url"], message)
 
     def test_public_response_does_not_enumerate_customer_accounts(self):
         unknown_email = self._email("unknown")

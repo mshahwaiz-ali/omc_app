@@ -28,7 +28,11 @@ void main() {
   }
 
   group('token-consumption routes', () {
-    for (final route in const ['/verify-email', '/reset-password']) {
+    for (final route in const [
+      '/verify-email',
+      '/reset-password',
+      '/activate-account',
+    ]) {
       test('$route survives every auth state', () {
         for (final status in AuthStatus.values) {
           final capabilities = status == AuthStatus.authenticated
@@ -42,6 +46,33 @@ void main() {
         }
       });
     }
+  });
+
+  test('public token links are not queued during cold-start auth checking', () {
+    for (final route in const [
+      '/verify-email',
+      '/reset-password',
+      '/activate-account',
+    ]) {
+      expect(
+        shouldQueueAuthLinkDuringChecking(
+          status: AuthStatus.checking,
+          currentPath: route,
+          normalizedPath: route,
+        ),
+        isFalse,
+        reason: '$route must survive a cold app launch',
+      );
+    }
+
+    expect(
+      shouldQueueAuthLinkDuringChecking(
+        status: AuthStatus.checking,
+        currentPath: '/notifications/OMC-NOT-1',
+        normalizedPath: '/notifications/OMC-NOT-1',
+      ),
+      isTrue,
+    );
   });
 
   group('session checking', () {

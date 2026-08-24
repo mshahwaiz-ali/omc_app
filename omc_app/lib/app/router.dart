@@ -101,14 +101,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final capabilities = ref.read(effectiveCapabilitiesProvider);
 
       final normalizedLink = linkCoordinator.normalize(state.uri);
+
       if (normalizedLink != null &&
           normalizedLink.toString() != state.uri.toString()) {
         return normalizedLink.toString();
       }
-      if (authState.status == AuthStatus.checking &&
-          state.uri.path != '/' &&
-          normalizedLink != null) {
-        linkCoordinator.queue(normalizedLink);
+      if (shouldQueueAuthLinkDuringChecking(
+        status: authState.status,
+        currentPath: state.uri.path,
+        normalizedPath: normalizedLink?.path,
+      )) {
+        linkCoordinator.queue(normalizedLink!);
         return '/';
       }
       if (state.uri.path == '/' ||
