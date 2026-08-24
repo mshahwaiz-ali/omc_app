@@ -2,6 +2,7 @@ enum AppNotificationType {
   serviceUpdate,
   documentRequest,
   paymentAlert,
+  taskUpdate,
   general,
 }
 
@@ -36,6 +37,8 @@ extension AppNotificationTypeLabel on AppNotificationType {
         return 'Document Request';
       case AppNotificationType.paymentAlert:
         return 'Payment Alert';
+      case AppNotificationType.taskUpdate:
+        return 'Task Update';
       case AppNotificationType.general:
         return 'General';
     }

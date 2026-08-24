@@ -8,7 +8,8 @@ from omc_app.api import identity
 
 INTERNAL_CAPABILITY_KEYS = (
     "can_access_internal_workspace", "can_manage_customers", "can_view_all_customers",
-    "can_view_relevant_customers", "can_manage_leads", "can_manage_tasks",
+    "can_view_relevant_customers", "can_manage_leads", "can_view_tasks",
+    "can_manage_tasks",
     "can_manage_assigned_tasks", "can_view_all_service_cases",
     "can_view_relevant_service_cases", "can_view_assigned_service_cases",
     "can_create_service_for_customer", "can_update_service_status",
@@ -22,6 +23,7 @@ INTERNAL_CAPABILITY_KEYS = (
     "can_review_registrations", "can_manage_business_settings",
     "can_reassign_service_cases", "can_retry_sync", "can_view_referral_commissions",
     "can_approve_commissions", "can_mark_commissions_paid",
+    "can_view_internal_notifications",
 )
 
 CUSTOMER_KEYS = (
@@ -103,7 +105,12 @@ def effective(user: str | None = None) -> dict:
         enabled.update(_active_break_glass(user).intersection(INTERNAL_CAPABILITY_KEYS))
         values = _base(access_state="internal")
         values.update({key: key in enabled for key in INTERNAL_CAPABILITY_KEYS})
-        values["can_access_internal_workspace"] = bool(enabled)
+
+        # Approved/current staff always receive the baseline internal tracking
+        # surface. Elevated business capabilities remain explicit grants.
+        values["can_access_internal_workspace"] = True
+        values["can_view_tasks"] = True
+        values["can_view_internal_notifications"] = True
         return values
 
     account = identity.get_customer_account(user)

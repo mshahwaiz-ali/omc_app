@@ -38,18 +38,16 @@ class TestDashboardScope(FrappeTestCase):
             dashboard_scope._empty_support_summary(),
         )
 
-    @patch("omc_app.api.dashboard_scope.dashboard._pending_erp_task_count")
-    def test_global_task_count_requires_manage_tasks(self, pending_erp_task_count):
-        pending_erp_task_count.return_value = 7
-
+    @patch("omc_app.api.dashboard_scope.dashboard._count")
+    def test_manage_tasks_without_view_does_not_unlock_task_tracking(self, count):
         self.assertEqual(
             dashboard_scope._pending_task_count(
                 "manager@example.com",
                 {"can_manage_tasks": True},
             ),
-            7,
+            0,
         )
-        pending_erp_task_count.assert_called_once_with()
+        count.assert_not_called()
 
     def test_next_action_does_not_link_to_hidden_review_queue(self):
         operations = {
@@ -70,3 +68,49 @@ class TestDashboardScope(FrappeTestCase):
 
         self.assertEqual(result["type"], "operations")
         self.assertEqual(result["route"], "/internal-workspace")
+
+
+class TestReadOnlyTaskDashboardScope(FrappeTestCase):
+    @patch("omc_app.api.dashboard_scope.dashboard._count")
+    def test_can_view_tasks_counts_all_non_terminal_erp_tasks(self, count):
+        count.return_value = 1360
+
+        result = dashboard_scope._pending_task_count(
+            "staff@example.com",
+            {"can_view_tasks": True},
+        )
+
+        self.assertEqual(result, 1360)
+        count.assert_called_once_with(
+            "Task",
+            {
+                "status": ["not in", ["Completed", "Cancelled"]],
+            },
+        )
+
+    @patch("omc_app.api.dashboard_scope.dashboard._count")
+    def test_without_can_view_tasks_task_count_fails_closed(self, count):
+        result = dashboard_scope._pending_task_count(
+            "limited@example.com",
+            {},
+        )
+
+        self.assertEqual(result, 0)
+        count.assert_not_called()
+
+
+class TestReadOnlyTaskNextAction(FrappeTestCase):
+    def test_can_view_tasks_exposes_task_next_action(self):
+        result = dashboard_scope._next_action(
+            {"can_view_tasks": True},
+            {
+                "documents_waiting_review": 0,
+                "pending_payments": 0,
+                "pending_tasks": 12,
+            },
+            dashboard_scope._empty_support_summary(),
+        )
+
+        self.assertEqual(result["type"], "tasks")
+        self.assertEqual(result["route"], "/tasks")
+        self.assertEqual(result["button_label"], "Open tasks")

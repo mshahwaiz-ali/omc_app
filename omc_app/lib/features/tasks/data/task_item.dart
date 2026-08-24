@@ -5,6 +5,12 @@ class TaskItem {
     required this.status,
     required this.erpStatus,
     required this.operationStatus,
+    this.workflowState = '',
+    this.taskType,
+    this.source,
+    this.company,
+    this.progress,
+    this.expectedStartDate,
     required this.allowedTransitions,
     required this.priority,
     required this.dueDateLabel,
@@ -17,16 +23,34 @@ class TaskItem {
     this.completedOnLabel,
     this.createdAtLabel,
     this.updatedAtLabel,
-    this.serverCanManageTasks = true,
-    this.serverCanManageAssignedTasks = true,
+    this.serverCanManageTasks = false,
+    this.serverCanManageAssignedTasks = false,
+    this.canViewLinkedServiceCase = false,
   });
 
   final String id;
   final String title;
+
+  /// ERPNext Task.status is the display and filtering authority.
   final String status;
   final String erpStatus;
+
+  /// ERPNext Workflow State. Display-only in OMC.
+  final String workflowState;
+
+  /// ERPNext custom operation status. Supplemental display metadata only.
   final String operationStatus;
+
+  /// Direct ERP Task business context.
+  final String? taskType;
+  final String? source;
+  final String? company;
+  final double? progress;
+  final String? expectedStartDate;
+
+  /// Retained for wire/source compatibility. Mobile tasks are always read-only.
   final List<StaffTaskTransition> allowedTransitions;
+
   final String priority;
   final String dueDateLabel;
   final String assignedTo;
@@ -39,10 +63,12 @@ class TaskItem {
   final String? createdAtLabel;
   final String? updatedAtLabel;
 
-  /// Optional per-task hints only. Canonical account capabilities and backend
-  /// mutation guards remain authoritative.
+  /// Fail closed even if an old/stale backend response advertises write hints.
   final bool serverCanManageTasks;
   final bool serverCanManageAssignedTasks;
+
+  /// Server-authoritative permission for this specific linked service case.
+  final bool canViewLinkedServiceCase;
 
   String? get caseReference => serviceRequest;
   String? get expectedCompletionDate => _nullableString(dueDateLabel);
@@ -52,20 +78,16 @@ class TaskItem {
 
   factory TaskItem.fromJson(Map<String, dynamic> json) {
     final operationStatus = _stringValue(json['operation_status']);
+    final workflowState = _stringValue(json['workflow_state']);
     final erpStatus = _stringValue(
       json['erp_status'] ?? json['status'],
       fallback: 'Open',
     );
-    final displayStatus = _stringValue(
-      json['display_status'] ??
-          (operationStatus.isNotEmpty ? operationStatus : null) ??
-          json['status'] ??
-          erpStatus,
-      fallback: 'Open',
-    );
-    final customerProfile = _nullableString(
-      json['customer_profile'] ?? json['customer'],
-    );
+    final customerProfile = _nullableString(json['customer_profile']);
+    final customerName =
+        _nullableString(json['customer_name']) ??
+        _nullableString(json['customer']) ??
+        customerProfile;
 
     return TaskItem(
       id: _stringValue(json['name'] ?? json['id'] ?? json['task_id']),
@@ -73,10 +95,18 @@ class TaskItem {
         json['subject'] ?? json['title'] ?? json['task_name'],
         fallback: 'Untitled Task',
       ),
-      status: displayStatus,
+      status: erpStatus,
       erpStatus: erpStatus,
       operationStatus: operationStatus,
-      allowedTransitions: _transitionList(json['allowed_transitions']),
+      workflowState: workflowState,
+      taskType: _nullableString(json['task_type'] ?? json['type']),
+      source: _nullableString(json['source']),
+      company: _nullableString(json['company']),
+      progress: _nullableDouble(json['progress']),
+      expectedStartDate: _nullableString(
+        json['expected_start_date'] ?? json['exp_start_date'],
+      ),
+      allowedTransitions: const <StaffTaskTransition>[],
       priority: _stringValue(json['priority'], fallback: 'Normal'),
       dueDateLabel: _stringValue(
         json['due_date'] ??
@@ -88,7 +118,7 @@ class TaskItem {
       assignedTo: _stringValue(json['assigned_to'] ?? json['owner']),
       description: _nullableString(json['description'] ?? json['details']),
       customerProfile: customerProfile,
-      customerName: _nullableString(json['customer_name']) ?? customerProfile,
+      customerName: customerName,
       serviceRequest: _nullableString(
         json['service_request'] ?? json['case_id'],
       ),
@@ -98,29 +128,12 @@ class TaskItem {
       completedOnLabel: _nullableString(json['completed_on']),
       createdAtLabel: _nullableString(json['created_at'] ?? json['creation']),
       updatedAtLabel: _nullableString(json['updated_at'] ?? json['modified']),
-      serverCanManageTasks: _boolValue(
-        json['can_manage_tasks'],
-        fallback: true,
-      ),
-      serverCanManageAssignedTasks: _boolValue(
-        json['can_manage_assigned_tasks'],
-        fallback: true,
+      serverCanManageTasks: false,
+      serverCanManageAssignedTasks: false,
+      canViewLinkedServiceCase: _boolValue(
+        json['can_view_linked_service_case'],
       ),
     );
-  }
-
-  static List<StaffTaskTransition> _transitionList(dynamic value) {
-    if (value is! List) return const [];
-
-    return value
-        .whereType<Map>()
-        .map(
-          (item) => StaffTaskTransition.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
-        )
-        .where((item) => item.status.isNotEmpty)
-        .toList(growable: false);
   }
 
   static String _stringValue(dynamic value, {String fallback = ''}) {
@@ -134,6 +147,15 @@ class TaskItem {
     return text;
   }
 
+  static double? _nullableDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+    return double.tryParse(text);
+  }
+
   static bool _boolValue(dynamic value, {bool fallback = false}) {
     if (value == null) return fallback;
     if (value is bool) return value;
@@ -145,6 +167,8 @@ class TaskItem {
   }
 }
 
+/// Compatibility type retained for older payload/tests.
+/// Mobile task tracking never consumes these as mutation actions.
 class StaffTaskTransition {
   const StaffTaskTransition({
     required this.status,
@@ -174,9 +198,10 @@ class StaffTaskTransition {
   }
 }
 
-/// Backward-compatible name retained for older callers/tests.
 typedef TaskTransition = StaffTaskTransition;
 
+/// Compatibility model retained for callers that may still decode old data.
+/// Task assignment changes are not exposed by TasksRepository.
 class TaskAssigneeOption {
   const TaskAssigneeOption({
     required this.user,

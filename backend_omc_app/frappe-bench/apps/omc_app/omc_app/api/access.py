@@ -110,6 +110,13 @@ ROLE_CAPABILITIES = {
         "can_view_internal_notes",
         "can_view_referral_commissions",
     },
+    "Employee": {
+        "can_access_internal_workspace",
+        "can_view_assigned_service_cases",
+        "can_view_relevant_customers",
+        "can_view_document_summaries",
+        "can_view_document_attachments",
+    },
 }
 
 PUBLIC_CUSTOMER_ONBOARDING_MODES = {

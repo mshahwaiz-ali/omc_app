@@ -65,7 +65,9 @@ class _WorkspaceContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final focus = InternalWorkspaceFocus.fromCapabilities(capabilities);
-    final queueAsync = ref.watch(internalServiceCasesProvider);
+    final queueAsync = focus.canShowServiceCases
+        ? ref.watch(internalServiceCasesProvider)
+        : null;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(
@@ -77,7 +79,9 @@ class _WorkspaceContent extends ConsumerWidget {
           focus: focus,
           onRefresh: () {
             ref.invalidate(internalWorkspaceSummaryProvider);
-            ref.invalidate(internalServiceCasesProvider);
+            if (focus.canShowServiceCases) {
+              ref.invalidate(internalServiceCasesProvider);
+            }
           },
         ),
         if (focus.canShowCustomers && focus.canShowServiceCases) ...[
@@ -94,25 +98,32 @@ class _WorkspaceContent extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: 18),
-        queueAsync.when(
-          loading: () => _OverviewCard(
-            focus: focus,
-            summary: summary,
-            cases: const [],
-            queueUnavailable: true,
-          ),
-          error: (_, _) => _OverviewCard(
-            focus: focus,
-            summary: summary,
-            cases: const [],
-            queueUnavailable: true,
-          ),
-          data: (queue) => _OverviewCard(
-            focus: focus,
-            summary: summary,
-            cases: queue.cases,
-          ),
-        ),
+        queueAsync == null
+            ? _OverviewCard(
+                focus: focus,
+                summary: summary,
+                cases: const [],
+                queueUnavailable: true,
+              )
+            : queueAsync.when(
+                loading: () => _OverviewCard(
+                  focus: focus,
+                  summary: summary,
+                  cases: const [],
+                  queueUnavailable: true,
+                ),
+                error: (_, _) => _OverviewCard(
+                  focus: focus,
+                  summary: summary,
+                  cases: const [],
+                  queueUnavailable: true,
+                ),
+                data: (queue) => _OverviewCard(
+                  focus: focus,
+                  summary: summary,
+                  cases: queue.cases,
+                ),
+              ),
         if (focus.showServicePerformance) ...[
           const SizedBox(height: 16),
           _ServicePerformanceCard(summary: summary),
@@ -125,7 +136,7 @@ class _WorkspaceContent extends ConsumerWidget {
             onAction: () => context.go('/internal-workspace/service-cases'),
           ),
           const SizedBox(height: 10),
-          queueAsync.when(
+          queueAsync!.when(
             loading: () => const _PriorityLoading(),
             error: (error, _) => _QueueUnavailable(
               message: _failureMessage(error),
@@ -133,34 +144,42 @@ class _WorkspaceContent extends ConsumerWidget {
             ),
             data: (queue) => _PriorityPreview(
               focus: focus,
-              items: _rankPriorityCases(queue.cases, focus.kind)
-                  .take(3)
-                  .toList(growable: false),
+              items: _rankPriorityCases(
+                queue.cases,
+                focus.kind,
+              ).take(3).toList(growable: false),
             ),
           ),
         ],
         const SizedBox(height: 24),
         const _SectionHeader(title: 'Work queues'),
         const SizedBox(height: 12),
-        queueAsync.when(
-          loading: () => _WorkQueues(
-            focus: focus,
-            summary: summary,
-            cases: const [],
-            queueUnavailable: true,
-          ),
-          error: (_, _) => _WorkQueues(
-            focus: focus,
-            summary: summary,
-            cases: const [],
-            queueUnavailable: true,
-          ),
-          data: (queue) => _WorkQueues(
-            focus: focus,
-            summary: summary,
-            cases: queue.cases,
-          ),
-        ),
+        queueAsync == null
+            ? _WorkQueues(
+                focus: focus,
+                summary: summary,
+                cases: const [],
+                queueUnavailable: true,
+              )
+            : queueAsync.when(
+                loading: () => _WorkQueues(
+                  focus: focus,
+                  summary: summary,
+                  cases: const [],
+                  queueUnavailable: true,
+                ),
+                error: (_, _) => _WorkQueues(
+                  focus: focus,
+                  summary: summary,
+                  cases: const [],
+                  queueUnavailable: true,
+                ),
+                data: (queue) => _WorkQueues(
+                  focus: focus,
+                  summary: summary,
+                  cases: queue.cases,
+                ),
+              ),
         const SizedBox(height: 24),
         const _SectionHeader(title: 'Quick actions'),
         const SizedBox(height: 12),
@@ -319,7 +338,7 @@ class _OverviewCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (queueUnavailable)
+              if (focus.canShowServiceCases && queueUnavailable)
                 const Tooltip(
                   message: 'Case queue is temporarily unavailable',
                   child: Icon(
@@ -1123,40 +1142,160 @@ List<_OverviewMetric> _overviewMetrics({
 
   return switch (focus.kind) {
     InternalWorkspaceFocusKind.leadership => [
-      metric(unavailable ?? '$activeCases', 'Active cases', Icons.assignment_outlined, AppTheme.info),
-      metric(unavailable ?? '$attentionCases', 'Need attention', Icons.priority_high_rounded, AppTheme.danger),
-      metric('${summary.pendingPayments}', 'Payments pending', Icons.receipt_long_outlined, AppTheme.warning),
-      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+      metric(
+        unavailable ?? '$activeCases',
+        'Active cases',
+        Icons.assignment_outlined,
+        AppTheme.info,
+      ),
+      metric(
+        unavailable ?? '$attentionCases',
+        'Need attention',
+        Icons.priority_high_rounded,
+        AppTheme.danger,
+      ),
+      metric(
+        '${summary.pendingPayments}',
+        'Payments pending',
+        Icons.receipt_long_outlined,
+        AppTheme.warning,
+      ),
+      metric(
+        '${summary.pendingTasks}',
+        'Tasks due',
+        Icons.task_alt_outlined,
+        AppTheme.primary,
+      ),
     ],
     InternalWorkspaceFocusKind.finance => [
-      metric('${summary.pendingPayments}', 'Payments pending', Icons.receipt_long_outlined, AppTheme.warning),
-      metric(unavailable ?? '$financeAttention', 'Finance attention', Icons.fact_check_outlined, AppTheme.danger),
-      metric(unavailable ?? '$activeCases', 'Cases in scope', Icons.assignment_outlined, AppTheme.info),
-      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+      metric(
+        '${summary.pendingPayments}',
+        'Payments pending',
+        Icons.receipt_long_outlined,
+        AppTheme.warning,
+      ),
+      metric(
+        unavailable ?? '$financeAttention',
+        'Finance attention',
+        Icons.fact_check_outlined,
+        AppTheme.danger,
+      ),
+      metric(
+        unavailable ?? '$activeCases',
+        'Cases in scope',
+        Icons.assignment_outlined,
+        AppTheme.info,
+      ),
+      metric(
+        '${summary.pendingTasks}',
+        'Tasks due',
+        Icons.task_alt_outlined,
+        AppTheme.primary,
+      ),
     ],
     InternalWorkspaceFocusKind.documentReview => [
-      metric(unavailable ?? '$documentIssues', 'Document issues', Icons.error_outline_rounded, AppTheme.danger),
-      metric(unavailable ?? '$uploadedDocuments', 'Uploaded docs', Icons.upload_file_outlined, AppTheme.info),
-      metric(unavailable ?? '$activeCases', 'Cases in scope', Icons.assignment_outlined, AppTheme.success),
-      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+      metric(
+        unavailable ?? '$documentIssues',
+        'Document issues',
+        Icons.error_outline_rounded,
+        AppTheme.danger,
+      ),
+      metric(
+        unavailable ?? '$uploadedDocuments',
+        'Uploaded docs',
+        Icons.upload_file_outlined,
+        AppTheme.info,
+      ),
+      metric(
+        unavailable ?? '$activeCases',
+        'Cases in scope',
+        Icons.assignment_outlined,
+        AppTheme.success,
+      ),
+      metric(
+        '${summary.pendingTasks}',
+        'Tasks due',
+        Icons.task_alt_outlined,
+        AppTheme.primary,
+      ),
     ],
     InternalWorkspaceFocusKind.support => [
-      metric(unavailable ?? '$activeCases', 'Customer cases', Icons.support_agent_outlined, AppTheme.info),
-      metric(unavailable ?? '$waitingCustomer', 'Waiting customer', Icons.schedule_outlined, AppTheme.warning),
-      metric(unavailable ?? '$urgentCases', 'High priority', Icons.priority_high_rounded, AppTheme.danger),
-      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+      metric(
+        unavailable ?? '$activeCases',
+        'Customer cases',
+        Icons.support_agent_outlined,
+        AppTheme.info,
+      ),
+      metric(
+        unavailable ?? '$waitingCustomer',
+        'Waiting customer',
+        Icons.schedule_outlined,
+        AppTheme.warning,
+      ),
+      metric(
+        unavailable ?? '$urgentCases',
+        'High priority',
+        Icons.priority_high_rounded,
+        AppTheme.danger,
+      ),
+      metric(
+        '${summary.pendingTasks}',
+        'Tasks due',
+        Icons.task_alt_outlined,
+        AppTheme.primary,
+      ),
     ],
     InternalWorkspaceFocusKind.clientWork => [
-      metric('${summary.myActiveServices}', 'My active services', Icons.work_outline_rounded, AppTheme.info),
-      metric(unavailable ?? '$attentionCases', 'Need attention', Icons.priority_high_rounded, AppTheme.danger),
-      metric(unavailable ?? '$documentIssues', 'Document issues', Icons.description_outlined, AppTheme.warning),
-      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+      metric(
+        '${summary.myActiveServices}',
+        'My active services',
+        Icons.work_outline_rounded,
+        AppTheme.info,
+      ),
+      metric(
+        unavailable ?? '$attentionCases',
+        'Need attention',
+        Icons.priority_high_rounded,
+        AppTheme.danger,
+      ),
+      metric(
+        unavailable ?? '$documentIssues',
+        'Document issues',
+        Icons.description_outlined,
+        AppTheme.warning,
+      ),
+      metric(
+        '${summary.pendingTasks}',
+        'Tasks due',
+        Icons.task_alt_outlined,
+        AppTheme.primary,
+      ),
     ],
     InternalWorkspaceFocusKind.operations => [
-      metric(unavailable ?? '$activeCases', 'Active cases', Icons.assignment_outlined, AppTheme.info),
-      metric(unavailable ?? '$attentionCases', 'Need attention', Icons.priority_high_rounded, AppTheme.danger),
-      metric('${summary.pendingPayments}', 'Payments pending', Icons.receipt_long_outlined, AppTheme.warning),
-      metric('${summary.pendingTasks}', 'Tasks due', Icons.task_alt_outlined, AppTheme.primary),
+      metric(
+        unavailable ?? '$activeCases',
+        'Active cases',
+        Icons.assignment_outlined,
+        AppTheme.info,
+      ),
+      metric(
+        unavailable ?? '$attentionCases',
+        'Need attention',
+        Icons.priority_high_rounded,
+        AppTheme.danger,
+      ),
+      metric(
+        '${summary.pendingPayments}',
+        'Payments pending',
+        Icons.receipt_long_outlined,
+        AppTheme.warning,
+      ),
+      metric(
+        '${summary.pendingTasks}',
+        'Tasks due',
+        Icons.task_alt_outlined,
+        AppTheme.primary,
+      ),
     ],
   };
 }
@@ -1245,7 +1384,8 @@ _PriorityReason _priorityReason(
   if (kind == InternalWorkspaceFocusKind.documentReview) {
     if (item.rejectedDocuments > 0) {
       return (
-        label: '${item.rejectedDocuments} rejected document${item.rejectedDocuments == 1 ? '' : 's'}',
+        label:
+            '${item.rejectedDocuments} rejected document${item.rejectedDocuments == 1 ? '' : 's'}',
         icon: Icons.error_outline_rounded,
         color: AppTheme.danger,
       );
@@ -1269,7 +1409,8 @@ _PriorityReason _priorityReason(
 
   if (item.rejectedDocuments > 0) {
     return (
-      label: '${item.rejectedDocuments} rejected document${item.rejectedDocuments == 1 ? '' : 's'}',
+      label:
+          '${item.rejectedDocuments} rejected document${item.rejectedDocuments == 1 ? '' : 's'}',
       icon: Icons.error_outline_rounded,
       color: AppTheme.danger,
     );

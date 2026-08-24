@@ -11,8 +11,10 @@ final tasksRepositoryProvider = Provider<TasksRepository>((ref) {
   return TasksRepository(frappeClient);
 });
 
-final tasksProvider = FutureProvider<List<TaskItem>>((ref) {
-  return ref.watch(tasksRepositoryProvider).fetchTasks();
+/// Compatibility/refresh provider for the default first page.
+/// The Tasks screen performs filtered pagination through fetchTasksPage.
+final tasksProvider = FutureProvider<TaskPage>((ref) {
+  return ref.watch(tasksRepositoryProvider).fetchTasksPage();
 });
 
 final taskDetailProvider = FutureProvider.family<TaskItem?, String>((
@@ -22,49 +24,77 @@ final taskDetailProvider = FutureProvider.family<TaskItem?, String>((
   return ref.watch(tasksRepositoryProvider).fetchTaskDetail(taskId);
 });
 
+class TaskPage {
+  const TaskPage({
+    required this.tasks,
+    required this.limitStart,
+    required this.pageLength,
+    required this.hasMore,
+    required this.nextStart,
+  });
+
+  final List<TaskItem> tasks;
+  final int limitStart;
+  final int pageLength;
+  final bool hasMore;
+  final int? nextStart;
+}
+
 class TasksRepository {
   const TasksRepository(this._frappeClient);
 
   final FrappeClient _frappeClient;
 
-  static const int _taskPageLength = 100;
+  static const int _taskPageLength = 50;
 
-  static const String _taskAssigneeOptionsMethod =
-      'omc_app.api.task_assignment_read.get_task_assignee_options';
-  static const String _updateTaskStatusMethod =
-      'omc_app.api.task_write_guard.update_task_operation_status';
-  static const String _assignTaskMethod =
-      'omc_app.api.task_write_guard.assign_task';
-  static const String _updateTaskDetailsMethod =
-      'omc_app.api.task_write_guard.update_task_details';
+  Future<TaskPage> fetchTasksPage({
+    int limitStart = 0,
+    int pageLength = _taskPageLength,
+    String? search,
+    String? status,
+    String? priority,
+  }) async {
+    final start = limitStart < 0 ? 0 : limitStart;
+    final limit = pageLength < 1
+        ? 1
+        : pageLength > 100
+        ? 100
+        : pageLength;
 
-  Future<List<TaskItem>> fetchTasks() async {
+    final cleanSearch = search?.trim() ?? '';
+    final cleanStatus = status?.trim() ?? '';
+    final cleanPriority = priority?.trim() ?? '';
+
     try {
-      final tasks = <TaskItem>[];
-      final seenTaskIds = <String>{};
-      var limitStart = 0;
+      final response = await _frappeClient.getMethod(
+        ApiConfig.tasksMethod,
+        queryParameters: {
+          'limit_start': start,
+          'page_length': limit,
+          if (cleanSearch.isNotEmpty) 'search': cleanSearch,
+          if (cleanStatus.isNotEmpty && cleanStatus != 'All')
+            'status': cleanStatus,
+          if (cleanPriority.isNotEmpty && cleanPriority != 'All')
+            'priority': cleanPriority,
+        },
+      );
 
-      while (true) {
-        final response = await _frappeClient.getMethod(
-          ApiConfig.tasksMethod,
-          queryParameters: {
-            'limit_start': limitStart,
-            'page_length': _taskPageLength,
-          },
-        );
-        final page = _mapTasksResponse(response);
-        for (final task in page) {
-          if (seenTaskIds.add(task.id)) tasks.add(task);
-        }
+      final tasks = _mapTasksResponse(response);
+      final pagination = _paginationFromResponse(response);
 
-        final pagination = _paginationFromResponse(response);
-        final hasMore = pagination?['has_more'] == true;
-        final nextStart = pagination?['next_start'];
-        if (!hasMore || nextStart is! int || nextStart <= limitStart) break;
-        limitStart = nextStart;
-      }
+      final hasMore = pagination?.hasMore ?? tasks.length >= limit;
+      final inferredNext = start + tasks.length;
+      final nextStart = hasMore
+          ? (pagination?.nextStart ?? inferredNext)
+          : null;
 
-      return tasks;
+      return TaskPage(
+        tasks: tasks,
+        limitStart: start,
+        pageLength: limit,
+        hasMore: hasMore,
+        nextStart: nextStart,
+      );
     } on ApiError {
       rethrow;
     } catch (error) {
@@ -97,123 +127,38 @@ class TasksRepository {
     }
   }
 
-  Future<List<TaskAssigneeOption>> fetchTaskAssigneeOptions({
-    String? search,
-    int limit = 50,
-  }) async {
-    final response = await _frappeClient.getMethod(
-      _taskAssigneeOptionsMethod,
-      queryParameters: {
-        if (search?.trim().isNotEmpty ?? false) 'search': search!.trim(),
-        'limit': limit.clamp(1, 100),
-      },
-    );
-    final payload = _messageMap(response);
-    final raw = payload['assignees'];
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map(
-          (item) => TaskAssigneeOption.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
-        )
-        .where((item) => item.user.isNotEmpty)
-        .toList(growable: false);
-  }
-
-  Future<void> updateTaskStatus({
-    required String taskId,
-    required String status,
-    String? remarks,
-  }) async {
-    final cleanTaskId = taskId.trim();
-    final cleanStatus = status.trim();
-    if (cleanTaskId.isEmpty || cleanStatus.isEmpty) {
-      throw const ApiError(message: 'Task and work status are required.');
-    }
-
-    await _frappeClient.postMethod(
-      _updateTaskStatusMethod,
-      data: {
-        'task_id': cleanTaskId,
-        'operation_status': cleanStatus,
-        if (remarks?.trim().isNotEmpty ?? false) 'remarks': remarks!.trim(),
-      },
-    );
-  }
-
-  Future<void> reassignTask({
-    required String taskId,
-    required String assignedTo,
-    String? remarks,
-  }) async {
-    final cleanTaskId = taskId.trim();
-    final cleanAssignee = assignedTo.trim();
-    if (cleanTaskId.isEmpty || cleanAssignee.isEmpty) {
-      throw const ApiError(message: 'Task and assignee are required.');
-    }
-
-    await _frappeClient.postMethod(
-      _assignTaskMethod,
-      data: {
-        'task_id': cleanTaskId,
-        'assigned_to': cleanAssignee,
-        if (remarks?.trim().isNotEmpty ?? false) 'remarks': remarks!.trim(),
-      },
-    );
-  }
-
-  Future<void> updateTaskPlan({
-    required String taskId,
-    required String priority,
-    String? expectedCompletionDate,
-    String? remarks,
-  }) async {
-    final cleanTaskId = taskId.trim();
-    final cleanPriority = priority.trim();
-    final cleanDueDate = expectedCompletionDate?.trim() ?? '';
-    if (cleanTaskId.isEmpty) {
-      throw const ApiError(message: 'Task is required.');
-    }
-
-    await _frappeClient.postMethod(
-      _updateTaskDetailsMethod,
-      data: {
-        'task_id': cleanTaskId,
-        if (cleanPriority.isNotEmpty) 'priority': cleanPriority,
-        // Empty means "unchanged" in the mobile UI. Do not accidentally clear
-        // an existing due date when the manager only updates priority.
-        if (cleanDueDate.isNotEmpty) 'due_date': cleanDueDate,
-        if (remarks?.trim().isNotEmpty ?? false) 'remarks': remarks!.trim(),
-      },
-    );
-  }
-
-  Map<String, dynamic>? _paginationFromResponse(Map<String, dynamic> data) {
+  _TaskPagination? _paginationFromResponse(Map<String, dynamic> data) {
     final message = data['message'];
-    final container = message is Map<String, dynamic> ? message : data;
+    final container = message is Map
+        ? Map<String, dynamic>.from(message)
+        : data;
+
     final rawPagination = container['pagination'];
     if (rawPagination is! Map) return null;
 
-    final hasMoreValue = rawPagination['has_more'];
-    final nextStartValue = rawPagination['next_start'];
+    final pagination = Map<String, dynamic>.from(rawPagination);
+    final hasMoreValue = pagination['has_more'];
+    final nextStartValue = pagination['next_start'];
+
+    final hasMore =
+        hasMoreValue == true ||
+        hasMoreValue == 1 ||
+        hasMoreValue?.toString().trim().toLowerCase() == 'true' ||
+        hasMoreValue?.toString().trim() == '1';
+
     final nextStart = nextStartValue is int
         ? nextStartValue
-        : int.tryParse('$nextStartValue');
+        : int.tryParse(nextStartValue?.toString() ?? '');
 
-    return {
-      'has_more':
-          hasMoreValue == true || hasMoreValue == 1 || hasMoreValue == '1',
-      'next_start': nextStart,
-    };
+    return _TaskPagination(hasMore: hasMore, nextStart: nextStart);
   }
 
   List<TaskItem> _mapTasksResponse(Map<String, dynamic> data) {
     final message = data['message'];
+
     final rawTasks = message is List
         ? message
-        : message is Map<String, dynamic>
+        : message is Map
         ? message['tasks'] ??
               message['task_list'] ??
               message['data'] ??
@@ -230,15 +175,18 @@ class TasksRepository {
               data['records'];
 
     if (rawTasks is! List) return const [];
+
     return rawTasks
         .whereType<Map>()
         .map((item) => TaskItem.fromJson(Map<String, dynamic>.from(item)))
+        .where((item) => item.id.isNotEmpty)
         .toList(growable: false);
   }
 
   TaskItem? _mapTaskDetailResponse(Map<String, dynamic> data) {
     final message = data['message'];
-    final rawTask = message is Map<String, dynamic>
+
+    final rawTask = message is Map
         ? message['task'] ??
               message['task_detail'] ??
               message['data'] ??
@@ -252,12 +200,14 @@ class TasksRepository {
               data['record'];
 
     if (rawTask is! Map) return null;
+
     return TaskItem.fromJson(Map<String, dynamic>.from(rawTask));
   }
+}
 
-  Map<String, dynamic> _messageMap(Map<String, dynamic> response) {
-    final message = response['message'];
-    if (message is Map) return Map<String, dynamic>.from(message);
-    return response;
-  }
+class _TaskPagination {
+  const _TaskPagination({required this.hasMore, required this.nextStart});
+
+  final bool hasMore;
+  final int? nextStart;
 }

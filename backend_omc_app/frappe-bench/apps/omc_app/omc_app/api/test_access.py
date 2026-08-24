@@ -120,8 +120,30 @@ class TestCanonicalAccessCapabilities(FrappeTestCase):
                 self.assertFalse(capabilities["can_manage_settings"])
 
     def test_system_manager_has_no_automatic_omc_capabilities(self):
-        capabilities = self._capabilities_for(SYSTEM_ROLE)
+        with (
+            patch.object(
+                access.capability_policy.identity,
+                "user_is_enabled",
+                return_value=True,
+            ),
+            patch.object(
+                access.capability_policy.identity,
+                "get_staff_access",
+                return_value=None,
+            ),
+            patch.object(
+                access.capability_policy.identity,
+                "get_customer_account",
+                return_value=None,
+            ),
+            patch.object(access, "_roles", return_value={SYSTEM_ROLE}),
+        ):
+            capabilities = access.get_mobile_capabilities(
+                user="system-manager-only@example.com"
+            )
+
         self.assertFalse(capabilities["can_access_internal_workspace"])
+        self.assertFalse(capabilities["can_view_tasks"])
         self.assertFalse(capabilities["can_manage_settings"])
         self.assertFalse(capabilities["can_review_documents"])
         self.assertFalse(capabilities["can_review_payments"])

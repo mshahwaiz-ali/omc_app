@@ -209,6 +209,8 @@ class _NotificationDetailBodyState
         return 'Open service case';
       case AppNotificationType.paymentAlert:
         return 'Open payment reference';
+      case AppNotificationType.taskUpdate:
+        return 'Open task';
       case AppNotificationType.general:
         return 'Open related record';
     }
@@ -240,6 +242,9 @@ class _NotificationDetailBodyState
       case AppNotificationType.paymentAlert:
         context.push('/payments/${Uri.encodeComponent(reference)}');
         return;
+      case AppNotificationType.taskUpdate:
+        context.push('/tasks/${Uri.encodeComponent(reference)}');
+        return;
       case AppNotificationType.general:
         _showBackendPendingSnack(
           context,
@@ -266,6 +271,8 @@ class _NotificationDetailBodyState
       case AppNotificationType.documentRequest:
       case AppNotificationType.serviceUpdate:
         ref.invalidate(serviceCaseDetailProvider(reference));
+        break;
+      case AppNotificationType.taskUpdate:
         break;
       case AppNotificationType.general:
         break;
@@ -374,6 +381,8 @@ class _NotificationDetailBodyState
         return Colors.green.shade700;
       case AppNotificationType.serviceUpdate:
         return AppTheme.primary;
+      case AppNotificationType.taskUpdate:
+        return AppTheme.primary;
       case AppNotificationType.general:
         return Colors.blueGrey.shade700;
     }
@@ -387,6 +396,8 @@ class _NotificationDetailBodyState
         return Icons.account_balance_wallet_outlined;
       case AppNotificationType.serviceUpdate:
         return Icons.assignment_outlined;
+      case AppNotificationType.taskUpdate:
+        return Icons.task_alt_outlined;
       case AppNotificationType.general:
         return Icons.notifications_none_rounded;
     }

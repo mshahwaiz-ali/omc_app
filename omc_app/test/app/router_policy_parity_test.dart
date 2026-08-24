@@ -110,6 +110,7 @@ void main() {
     canManageCustomers: true,
     canViewAllCustomers: true,
     canManageLeads: true,
+    canViewTasks: true,
     canManageTasks: true,
     canManageStaff: true,
     canReviewRegistrations: true,

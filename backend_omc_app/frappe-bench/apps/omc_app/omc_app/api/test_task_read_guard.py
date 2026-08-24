@@ -121,7 +121,7 @@ class TestTaskReadPagination(FrappeTestCase):
 
     def test_task_list_is_bounded_and_reports_next_page(self):
         rows = [
-            {"name": f"OMC-SR-{index}", "erp_task": f"TASK-{index}"}
+            SimpleNamespace(name=f"TASK-{index}")
             for index in range(101)
         ]
 
@@ -129,27 +129,35 @@ class TestTaskReadPagination(FrappeTestCase):
             patch.object(
                 mobile,
                 "_assert_internal_workspace_access",
-                return_value="manager@example.com",
+                return_value="employee@example.com",
             ),
             patch.object(
                 mobile,
                 "_require_canonical_capability",
-                return_value={"can_manage_tasks": True},
+                return_value={"can_view_tasks": True},
             ),
             patch.object(
                 task_read_guard,
-                "_request_links",
+                "_erp_task_rows",
                 return_value=rows,
-            ) as request_links,
+            ) as task_rows,
             patch.object(
                 task_read_guard,
-                "_load_task",
-                side_effect=lambda name: SimpleNamespace(name=name),
+                "_request_links",
+                return_value=[],
+            ),
+            patch.object(
+                task_read_guard,
+                "_task_assignment_display_map",
+                return_value={},
             ),
             patch.object(
                 task_read_guard,
                 "_task_to_payload",
-                side_effect=lambda task, _link: {"name": task.name},
+                side_effect=lambda task, _link, assigned_users=None,
+                can_view_linked_service_case=False: {
+                    "name": task.name
+                },
             ),
         ):
             result = task_read_guard.get_tasks(
@@ -157,10 +165,12 @@ class TestTaskReadPagination(FrappeTestCase):
                 page_length="500",
             )
 
-        request_links.assert_called_once_with(
-            task_names=None,
+        task_rows.assert_called_once_with(
             limit_start=100,
             limit_page_length=101,
+            search="",
+            status="",
+            priority="",
         )
         self.assertEqual(len(result["tasks"]), 100)
         self.assertEqual(

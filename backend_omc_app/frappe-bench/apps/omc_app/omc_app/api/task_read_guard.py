@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import frappe
 
 from omc_app.api import mobile
-from omc_app.api import task_workflow_contract
 
 
 DEFAULT_PAGE_LENGTH = 100
@@ -22,6 +20,11 @@ def _task_not_found():
 
 
 def _assigned_users(task_name: str) -> list[str]:
+    """Current open ERP assignments.
+
+    Retained as a compatibility helper for non-mobile internal code/tests.
+    Mobile task visibility no longer depends on assignment ownership.
+    """
     users = frappe.get_all(
         "ToDo",
         filters={
@@ -36,8 +39,10 @@ def _assigned_users(task_name: str) -> list[str]:
 
 
 def _task_assignment_names(user: str) -> set[str]:
+    """Compatibility helper only; not a mobile task visibility boundary."""
     if not user:
         return set()
+
     return set(
         frappe.get_all(
             "ToDo",
@@ -57,6 +62,10 @@ def _request_links(
     limit_start: int = 0,
     limit_page_length: int = DEFAULT_PAGE_LENGTH,
 ) -> list[dict[str, Any]]:
+    """Optional OMC enrichment for ERP Tasks.
+
+    An ERP Task does not need an OMC Service Request link to be visible.
+    """
     if task_names is not None and not task_names:
         return []
 
@@ -83,11 +92,16 @@ def _request_links(
 def _request_link_map(
     rows: list[dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
-    return {
-        _text(row.get("erp_task")): row
-        for row in rows
-        if _text(row.get("erp_task"))
-    }
+    result: dict[str, dict[str, Any]] = {}
+
+    # Rows are newest first. Preserve the first link only if legacy data
+    # contains more than one request pointing at the same ERP Task.
+    for row in rows:
+        task_name = _text(row.get("erp_task"))
+        if task_name and task_name not in result:
+            result[task_name] = row
+
+    return result
 
 
 def _request_link(task_name: str) -> dict[str, Any] | None:
@@ -114,6 +128,151 @@ def _page_length(value: Any) -> int:
     if requested < 1:
         requested = DEFAULT_PAGE_LENGTH
     return min(requested, MAX_PAGE_LENGTH)
+
+
+def _task_fields() -> list[str]:
+    meta = frappe.get_meta("Task")
+    fields = [
+        "name",
+        "subject",
+        "status",
+        "priority",
+        "creation",
+        "modified",
+    ]
+
+    for fieldname in (
+        "description",
+        "task_details",
+        "workflow_state",
+        "custom_operation_status",
+        "type",
+        "customer",
+        "full_name",
+        "source",
+        "company",
+        "progress",
+        "exp_start_date",
+        "exp_end_date",
+        "due_date",
+        "expected_end_date",
+        "actual_end_date",
+        "completed_on",
+    ):
+        if meta.has_field(fieldname):
+            fields.append(fieldname)
+
+    return fields
+
+
+def _erp_task_rows(
+    *,
+    limit_start: int,
+    limit_page_length: int,
+    search: str = "",
+    status: str = "",
+    priority: str = "",
+):
+    """Read directly from ERP Task, which is the tracking source of truth."""
+    clean_search = _text(search)[:140]
+    clean_status = _text(status)
+    clean_priority = _text(priority)
+
+    filters: dict[str, Any] = {}
+    if clean_status:
+        filters["status"] = clean_status
+    if clean_priority:
+        filters["priority"] = clean_priority
+
+    kwargs: dict[str, Any] = {
+        "filters": filters,
+        "fields": _task_fields(),
+        "order_by": "modified desc, name desc",
+        "limit_start": limit_start,
+        "limit_page_length": limit_page_length,
+    }
+
+    if clean_search:
+        like_value = f"%{clean_search}%"
+        meta = frappe.get_meta("Task")
+        searchable = ["name", "subject"]
+        if meta.has_field("description"):
+            searchable.append("description")
+
+        kwargs["or_filters"] = [
+            ["Task", fieldname, "like", like_value]
+            for fieldname in searchable
+        ]
+
+    return frappe.get_all("Task", **kwargs)
+
+
+def _task_assignment_display_map(
+    task_names: set[str],
+) -> dict[str, list[str]]:
+    """Resolve display assignees without N+1 queries.
+
+    Open ToDo assignments are preferred. For terminal tasks whose ToDos were
+    closed/cancelled, the latest historical assignee is retained for tracking.
+    """
+    clean_names = {_text(name) for name in task_names if _text(name)}
+    if not clean_names:
+        return {}
+
+    result: dict[str, list[str]] = {}
+    query_limit = max(200, len(clean_names) * 20)
+
+    open_rows = frappe.get_all(
+        "ToDo",
+        filters={
+            "reference_type": "Task",
+            "reference_name": ["in", sorted(clean_names)],
+            "status": "Open",
+        },
+        fields=["reference_name", "allocated_to"],
+        order_by="creation asc",
+        limit_page_length=query_limit,
+    )
+
+    for row in open_rows:
+        task_name = _text(row.get("reference_name"))
+        user = _text(row.get("allocated_to"))
+        if not task_name or not user:
+            continue
+        users = result.setdefault(task_name, [])
+        if user not in users:
+            users.append(user)
+
+    missing = clean_names.difference(result)
+    if missing:
+        historical_rows = frappe.get_all(
+            "ToDo",
+            filters={
+                "reference_type": "Task",
+                "reference_name": ["in", sorted(missing)],
+            },
+            fields=[
+                "reference_name",
+                "allocated_to",
+                "status",
+                "creation",
+                "modified",
+            ],
+            order_by="modified desc, creation desc",
+            limit_page_length=max(200, len(missing) * 20),
+        )
+
+        for row in historical_rows:
+            task_name = _text(row.get("reference_name"))
+            user = _text(row.get("allocated_to"))
+            if (
+                task_name
+                and user
+                and task_name not in result
+            ):
+                result[task_name] = [user]
+
+    return result
 
 
 def _load_task(task_id: str):
@@ -146,29 +305,41 @@ def _task_completed_on(task) -> str:
     return str(value) if value else ""
 
 
-def _task_to_payload(task, request_link: dict[str, Any]) -> dict[str, Any]:
-    assigned_users = _assigned_users(task.name)
-    service_request_assignee = _text(request_link.get("assigned_staff"))
+def _task_expected_start_date(task) -> str:
+    value = getattr(task, "exp_start_date", None)
+    return str(value) if value else ""
 
-    # Open ToDo assignments are the live ERP Task authority. Terminal tasks have
-    # their ToDos closed, so preserve the linked service request's canonical
-    # assignee as the display fallback instead of incorrectly showing Unassigned.
-    assigned_to = (
-        assigned_users[0]
-        if assigned_users
-        else service_request_assignee
+
+def _task_to_payload(
+    task,
+    request_link: dict[str, Any] | None = None,
+    *,
+    assigned_users: list[str] | None = None,
+    can_view_linked_service_case: bool = False,
+) -> dict[str, Any]:
+    request_link = request_link or {}
+
+    if assigned_users is None:
+        assigned_users = _task_assignment_display_map(
+            {_text(task.name)}
+        ).get(_text(task.name), [])
+
+    service_request_assignee = _text(
+        request_link.get("assigned_staff")
     )
-    payload_assigned_users = (
-        assigned_users
-        if assigned_users
-        else ([service_request_assignee] if service_request_assignee else [])
-    )
+
+    if not assigned_users and service_request_assignee:
+        assigned_users = [service_request_assignee]
+
+    assigned_to = assigned_users[0] if assigned_users else ""
 
     erp_status = _text(getattr(task, "status", None)) or "Open"
     operation_status = _text(
         getattr(task, "custom_operation_status", None)
     )
-    display_status = operation_status or erp_status
+    # ERPNext Task.status is the canonical tracking authority.
+    # custom_operation_status is supplemental metadata only.
+    display_status = erp_status
 
     return {
         "name": task.name,
@@ -178,21 +349,46 @@ def _task_to_payload(task, request_link: dict[str, Any]) -> dict[str, Any]:
             or getattr(task, "task_name", None)
         ),
         "description": _task_description(task),
-        # Preserve the existing Flutter contract while exposing canonical
-        # ERP and OMC workflow states separately.
         "status": display_status,
         "display_status": display_status,
         "erp_status": erp_status,
-        "operation_status": operation_status,
-        "allowed_transitions": task_workflow_contract.allowed_transitions(
-            operation_status or erp_status
+        "workflow_state": _text(
+            getattr(task, "workflow_state", None)
         ),
+        "operation_status": operation_status,
+
+        # Direct ERP Task context. These are display-only tracking fields.
+        "task_type": _text(getattr(task, "type", None)),
+        "customer": _text(getattr(task, "customer", None)),
+        "customer_name": _text(
+            getattr(task, "full_name", None)
+            or getattr(task, "customer", None)
+        ),
+        "source": _text(getattr(task, "source", None)),
+        "company": _text(getattr(task, "company", None)),
+        "progress": getattr(task, "progress", None),
+        "expected_start_date": _task_expected_start_date(task),
+
+        # OMC mobile is a tracking surface only. ERPNext is the sole write
+        # authority for Task status, assignment and planning.
+        "allowed_transitions": [],
+        "can_manage_tasks": False,
+        "can_manage_assigned_tasks": False,
+        "read_only": True,
+        "write_authority": "ERPNext",
+
         "priority": _text(getattr(task, "priority", None)) or "Normal",
         "due_date": _task_due_date(task),
         "assigned_to": assigned_to,
-        "assigned_users": payload_assigned_users,
-        "customer_profile": _text(request_link.get("customer_profile")),
+        "assigned_users": list(assigned_users),
+        "customer_profile": _text(
+            request_link.get("customer_profile")
+        ),
         "service_request": _text(request_link.get("name")),
+        "can_view_linked_service_case": bool(
+            can_view_linked_service_case
+            and _text(request_link.get("name"))
+        ),
         "erp_service": _text(request_link.get("erp_service")),
         "support_ticket": "",
         "completed_on": _task_completed_on(task),
@@ -210,48 +406,87 @@ def _task_to_payload(task, request_link: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _linked_case_is_readable(
+    request_link: dict[str, Any] | None,
+    allowed_case_names: list[str] | set[str] | None,
+) -> bool:
+    case_name = _text((request_link or {}).get("name"))
+    if not case_name:
+        return False
+    if allowed_case_names is None:
+        return True
+    return case_name in allowed_case_names
+
+
 def _can_read_task(
     task_name: str,
     *,
     user: str,
     capabilities: dict[str, Any],
 ) -> bool:
-    if capabilities.get("can_manage_tasks"):
-        return True
-    return task_name in _task_assignment_names(user)
+    # All approved/current internal staff share the same read-only ERP Task
+    # tracking universe. Assignment is display data, not authorization.
+    return bool(capabilities.get("can_view_tasks"))
 
 
 @frappe.whitelist()
-def get_tasks(limit_start=0, page_length=None):
+def get_tasks(
+    limit_start=0,
+    page_length=None,
+    search=None,
+    status=None,
+    priority=None,
+):
     user = mobile._assert_internal_workspace_access()
     capabilities = mobile._require_canonical_capability(
-        "can_manage_tasks",
-        "can_manage_assigned_tasks",
+        "can_view_tasks",
         message="You do not have permission to view tasks.",
     )
+    allowed_case_names = mobile._service_case_scope_names(
+        capabilities,
+        user,
+    )
+    if allowed_case_names is not None:
+        allowed_case_names = set(allowed_case_names)
 
     start = _non_negative_int(limit_start)
     limit = _page_length(page_length)
-    assigned_names = None
-    if not capabilities.get("can_manage_tasks"):
-        assigned_names = _task_assignment_names(user)
 
-    rows = _request_links(
-        task_names=assigned_names,
+    rows = _erp_task_rows(
         limit_start=start,
         limit_page_length=limit + 1,
+        search=_text(search),
+        status=_text(status),
+        priority=_text(priority),
     )
+
     has_more = len(rows) > limit
     page_rows = rows[:limit]
-    link_map = _request_link_map(page_rows)
+    task_names = {
+        _text(row.name)
+        for row in page_rows
+        if _text(row.name)
+    }
 
-    tasks = []
-    for task_name, request_link in link_map.items():
-        try:
-            task = _load_task(task_name)
-        except frappe.DoesNotExistError:
-            continue
-        tasks.append(_task_to_payload(task, request_link))
+    request_links = _request_links(
+        task_names=task_names,
+        limit_page_length=max(100, len(task_names) * 2),
+    )
+    link_map = _request_link_map(request_links)
+    assignment_map = _task_assignment_display_map(task_names)
+
+    tasks = [
+        _task_to_payload(
+            task,
+            link_map.get(_text(task.name)),
+            assigned_users=assignment_map.get(_text(task.name), []),
+            can_view_linked_service_case=_linked_case_is_readable(
+                link_map.get(_text(task.name)),
+                allowed_case_names,
+            ),
+        )
+        for task in page_rows
+    ]
 
     return {
         "tasks": tasks,
@@ -268,26 +503,35 @@ def get_tasks(limit_start=0, page_length=None):
 def get_task(task_id=None):
     user = mobile._assert_internal_workspace_access()
     capabilities = mobile._require_canonical_capability(
-        "can_manage_tasks",
-        "can_manage_assigned_tasks",
+        "can_view_tasks",
         message="You do not have permission to view tasks.",
     )
-    if not task_id:
+    allowed_case_names = mobile._service_case_scope_names(
+        capabilities,
+        user,
+    )
+    if allowed_case_names is not None:
+        allowed_case_names = set(allowed_case_names)
+
+    clean_task_id = _text(task_id)
+    if not clean_task_id:
         frappe.throw("task_id is required")
 
-    request_link = _request_link(_text(task_id))
-    if not request_link:
-        _task_not_found()
+    task = _load_task(clean_task_id)
 
-    if not _can_read_task(
-        _text(task_id),
-        user=user,
-        capabilities=capabilities,
-    ):
-        frappe.throw(
-            "You do not have permission to view this task.",
-            frappe.PermissionError,
+    # OMC linkage is optional enrichment; it is never a prerequisite for
+    # internal staff to inspect an ERP Task.
+    request_link = _request_link(clean_task_id)
+    assignment_map = _task_assignment_display_map({clean_task_id})
+
+    return {
+        "task": _task_to_payload(
+            task,
+            request_link,
+            assigned_users=assignment_map.get(clean_task_id, []),
+            can_view_linked_service_case=_linked_case_is_readable(
+                request_link,
+                allowed_case_names,
+            ),
         )
-
-    task = _load_task(_text(task_id))
-    return {"task": _task_to_payload(task, request_link)}
+    }

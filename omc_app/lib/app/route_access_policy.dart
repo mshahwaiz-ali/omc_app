@@ -35,8 +35,12 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.canTrackRequests || capabilities.canViewAnyServiceCase;
   }
 
-  if (location == '/my-services' || location.startsWith('/my-services/')) {
+  if (location == '/my-services') {
     return capabilities.canTrackRequests;
+  }
+
+  if (location.startsWith('/my-services/')) {
+    return capabilities.canTrackRequests || capabilities.canViewAnyServiceCase;
   }
 
   if (location == '/documents' || location.startsWith('/documents/')) {
@@ -53,9 +57,7 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location == '/notifications' || location.startsWith('/notifications/')) {
-    // The backend currently exposes a customer notification capability only.
-    // Do not infer an internal notification permission from workspace access.
-    return capabilities.canViewCustomerNotifications;
+    return capabilities.canViewNotifications;
   }
 
   if (location.startsWith('/support-tickets/')) {
@@ -118,7 +120,7 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location == '/tasks' || location.startsWith('/tasks/')) {
-    return capabilities.canManageTasks || capabilities.canManageAssignedTasks;
+    return capabilities.canViewTasks;
   }
 
   if (location == '/my-referrals' || location.startsWith('/my-referrals/')) {

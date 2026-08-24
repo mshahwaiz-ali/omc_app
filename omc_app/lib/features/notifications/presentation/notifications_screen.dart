@@ -85,10 +85,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               );
             },
             loading: () => const _LoadingView(),
-            error: (error, _) => _ErrorView(
-              error: error,
-              onRetry: _retryPage,
-            ),
+            error: (error, _) => _ErrorView(error: error, onRetry: _retryPage),
           ),
         ),
       ),
@@ -460,6 +457,7 @@ Color _typeColour(AppNotificationType type) => switch (type) {
   AppNotificationType.documentRequest => const Color(0xFF4F46E5),
   AppNotificationType.paymentAlert => const Color(0xFF047857),
   AppNotificationType.serviceUpdate => const Color(0xFFB42318),
+  AppNotificationType.taskUpdate => const Color(0xFFB42318),
   AppNotificationType.general => const Color(0xFF475569),
 };
 
@@ -467,6 +465,7 @@ IconData _typeIcon(AppNotificationType type) => switch (type) {
   AppNotificationType.documentRequest => Icons.description_outlined,
   AppNotificationType.paymentAlert => Icons.account_balance_wallet_outlined,
   AppNotificationType.serviceUpdate => Icons.assignment_outlined,
+  AppNotificationType.taskUpdate => Icons.task_alt_outlined,
   AppNotificationType.general => Icons.notifications_none_rounded,
 };
 

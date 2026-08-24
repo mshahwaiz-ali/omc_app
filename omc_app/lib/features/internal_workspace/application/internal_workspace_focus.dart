@@ -49,7 +49,9 @@ class InternalWorkspaceFocus {
   final bool canShowOperationalControls;
   final bool showServicePerformance;
 
-  factory InternalWorkspaceFocus.fromCapabilities(AuthCapabilities capabilities) {
+  factory InternalWorkspaceFocus.fromCapabilities(
+    AuthCapabilities capabilities,
+  ) {
     final kind = _focusKind(capabilities);
     final labels = _labels(kind);
 
@@ -68,7 +70,9 @@ class InternalWorkspaceFocus {
           capabilities.canViewRelevantCustomers,
       canShowLeads: capabilities.canManageLeads,
       canShowTasks:
-          capabilities.canManageTasks || capabilities.canManageAssignedTasks,
+          capabilities.canViewTasks ||
+          capabilities.canManageTasks ||
+          capabilities.canManageAssignedTasks,
       canCreateServiceForCustomer: capabilities.canCreateServiceForCustomer,
       canShowSettlementExceptions: capabilities.canReconcileSettlement,
       canShowAdminControls:
@@ -127,12 +131,8 @@ InternalWorkspaceFocusKind _focusKind(AuthCapabilities capabilities) {
   return InternalWorkspaceFocusKind.operations;
 }
 
-({
-  String title,
-  String subtitle,
-  String overviewTitle,
-  String priorityTitle,
-}) _labels(InternalWorkspaceFocusKind kind) {
+({String title, String subtitle, String overviewTitle, String priorityTitle})
+_labels(InternalWorkspaceFocusKind kind) {
   return switch (kind) {
     InternalWorkspaceFocusKind.leadership => (
       title: 'Operations Command',

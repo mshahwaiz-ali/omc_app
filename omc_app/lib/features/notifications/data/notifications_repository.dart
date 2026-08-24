@@ -25,7 +25,7 @@ final notificationPageProvider = FutureProvider.autoDispose<NotificationPage>((
 ) async {
   final canViewNotifications = ref.watch(
     effectiveCapabilitiesProvider.select(
-      (capabilities) => capabilities.canViewCustomerNotifications,
+      (capabilities) => capabilities.canViewNotifications,
     ),
   );
   if (!canViewNotifications) return const NotificationPage.empty();
@@ -38,7 +38,7 @@ final unreadNotificationsProvider = FutureProvider.autoDispose<int>((
 ) async {
   final canViewNotifications = ref.watch(
     effectiveCapabilitiesProvider.select(
-      (capabilities) => capabilities.canViewCustomerNotifications,
+      (capabilities) => capabilities.canViewNotifications,
     ),
   );
   if (!canViewNotifications) return 0;
@@ -51,7 +51,7 @@ final notificationDetailProvider =
     FutureProvider.family<NotificationItem?, String>((ref, notificationId) {
       final canViewNotifications = ref.watch(
         effectiveCapabilitiesProvider.select(
-          (capabilities) => capabilities.canViewCustomerNotifications,
+          (capabilities) => capabilities.canViewNotifications,
         ),
       );
       if (!canViewNotifications) return null;
@@ -271,6 +271,9 @@ class NotificationsRepository {
         type.contains('invoice') ||
         type.contains('receipt')) {
       return AppNotificationType.paymentAlert;
+    }
+    if (type.contains('task')) {
+      return AppNotificationType.taskUpdate;
     }
     if (type.contains('service') ||
         type.contains('case') ||

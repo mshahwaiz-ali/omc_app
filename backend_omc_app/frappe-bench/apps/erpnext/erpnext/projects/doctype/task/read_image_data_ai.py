@@ -1,6 +1,6 @@
-import frappe, json, base64, mimetypes, os
 
-api_key = os.getenv("OPENAI_API_KEY") or frappe.conf.get("openai_api_key")
+
+import frappe, json, base64, mimetypes, os
 from openai import OpenAI
 
 def _read_file_as_base64(file_url: str):
@@ -14,7 +14,7 @@ def _call_openai_for_ack_slip(b64_data: str, mime_type: str):
    
     import json
 
-    client = OpenAI(api_key=api_key)
+    client = OpenAI()
 
     prompt = (
         "You are parsing an FBR Acknowledgement Slip.\n"

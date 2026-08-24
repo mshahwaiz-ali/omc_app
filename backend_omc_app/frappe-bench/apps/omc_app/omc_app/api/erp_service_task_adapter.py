@@ -203,6 +203,21 @@ def ensure_task_assignment(task, assignee: str, priority: str):
     todo.status = "Open"
     todo.priority = priority or "Medium"
     todo.insert(ignore_permissions=True)
+
+    from omc_app.api import mobile
+
+    mobile._create_customer_notification(
+        recipient_user=assignee,
+        title="New task assigned",
+        message=(
+            f"{task.name} — "
+            f"{_text(getattr(task, 'subject', None)) or 'ERP Task'}"
+        ),
+        notification_type="Task",
+        reference_doctype="Task",
+        reference_name=task.name,
+    )
+
     return {"todo": todo.name, "created": True, "conflict": None}
 
 

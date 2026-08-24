@@ -21,6 +21,13 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _deny_mobile_task_write() -> None:
+    frappe.throw(
+        "Tasks are read-only in the OMC app. Manage tasks in ERPNext.",
+        frappe.PermissionError,
+    )
+
+
 def _load_linked_task(task_id: str):
     clean_task_id = _text(task_id)
     if not clean_task_id:
@@ -58,6 +65,7 @@ def update_task_operation_status(
     **kwargs,
 ):
     user = mobile._assert_internal_workspace_access()
+    _deny_mobile_task_write()
     capabilities = mobile._require_canonical_capability(
         "can_manage_tasks",
         "can_manage_assigned_tasks",
@@ -309,6 +317,7 @@ def get_task_assignment_options(task_id=None):
 @frappe.whitelist(methods=["POST"])
 def assign_task(task_id=None, assigned_to=None, **kwargs):
     mobile._assert_internal_workspace_access()
+    _deny_mobile_task_write()
     capabilities = mobile._require_canonical_capability(
         "can_manage_tasks",
         message="Only task managers may assign or reassign tasks.",
@@ -377,6 +386,7 @@ def update_task_details(
     **kwargs,
 ):
     mobile._assert_internal_workspace_access()
+    _deny_mobile_task_write()
     capabilities = mobile._require_canonical_capability(
         "can_manage_tasks",
         message="Only task managers may update task planning details.",

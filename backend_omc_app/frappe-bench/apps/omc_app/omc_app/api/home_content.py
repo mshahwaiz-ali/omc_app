@@ -45,13 +45,39 @@ def _within_window(row, start_field, end_field, current) -> bool:
 def _rows(doctype, desired, *, order_by, limit):
     if not frappe.db.exists("DocType", doctype):
         return []
-    available = {field.fieldname for field in frappe.get_meta(doctype).fields}
-    fields = [field for field in desired if field == "name" or field in available]
+
+    standard_columns = {
+        "name",
+        "creation",
+        "modified",
+        "owner",
+        "modified_by",
+        "docstatus",
+        "idx",
+    }
+    available = {
+        field.fieldname for field in frappe.get_meta(doctype).fields
+    } | standard_columns
+
+    fields = [field for field in desired if field in available]
     if "status" not in fields:
         return []
+
+    safe_order_by = []
+    for clause in str(order_by or "").split(","):
+        clause = clause.strip()
+        if not clause:
+            continue
+        fieldname = clause.split()[0].strip("`")
+        if fieldname in available:
+            safe_order_by.append(clause)
+
     return frappe.get_all(
-        doctype, filters={"status": "Published"}, fields=fields,
-        order_by=order_by, limit_page_length=limit,
+        doctype,
+        filters={"status": "Published"},
+        fields=fields,
+        order_by=", ".join(safe_order_by),
+        limit_page_length=limit,
     )
 
 

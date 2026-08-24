@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
-import '../../../core/network/api_error.dart';
-import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -22,216 +20,9 @@ class TaskDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
-  bool _submitting = false;
-
   void _invalidateTask() {
     ref.invalidate(taskDetailProvider(widget.taskId));
     ref.invalidate(tasksProvider);
-  }
-
-  Future<void> _runMutation(Future<void> Function() action, String success) async {
-    if (_submitting) return;
-    setState(() => _submitting = true);
-    try {
-      await action();
-      if (!mounted) return;
-      _invalidateTask();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(success)),
-      );
-    } on ApiError catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      final failure = AppFailureClassifier.classify(
-        error,
-        fallbackTitle: 'Task update failed',
-        fallbackMessage: 'The task could not be updated. Please try again.',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failure.message)),
-      );
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  Future<void> _applyTransition(
-    TaskItem task,
-    StaffTaskTransition transition,
-  ) async {
-    String? remarks;
-    if (transition.requiresRemarks) {
-      remarks = await _promptRemarks(
-        title: transition.label,
-        message: 'Add a short reason before changing this work status.',
-        required: true,
-      );
-      if (remarks == null) return;
-    } else if (transition.status == 'Completed') {
-      final confirmed = await _confirm(
-        title: 'Complete task?',
-        message:
-            'This marks the operational task as complete. Service lifecycle authority remains on the service request.',
-        actionLabel: 'Complete task',
-      );
-      if (!confirmed) return;
-    }
-
-    await _runMutation(
-      () => ref.read(tasksRepositoryProvider).updateTaskStatus(
-            taskId: task.id,
-            status: transition.status,
-            remarks: remarks,
-          ),
-      'Work status updated to ${transition.label}.',
-    );
-  }
-
-  Future<void> _openReassign(TaskItem task) async {
-    if (_submitting) return;
-    List<TaskAssigneeOption> options;
-    try {
-      options = await ref
-          .read(tasksRepositoryProvider)
-          .fetchTaskAssigneeOptions();
-    } catch (error) {
-      if (!mounted) return;
-      final failure = AppFailureClassifier.classify(
-        error,
-        fallbackTitle: 'Staff list unavailable',
-        fallbackMessage: 'Eligible task assignees could not be loaded.',
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failure.message)),
-      );
-      return;
-    }
-    if (!mounted) return;
-
-    final selected = await showModalBottomSheet<TaskAssigneeOption>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => _AssigneeSheet(
-        options: options,
-        currentUser: task.assignedTo,
-      ),
-    );
-    if (!mounted || selected == null) return;
-
-    final remarks = await _promptRemarks(
-      title: 'Reassign task',
-      message: 'Optional note for ${selected.label}.',
-      required: false,
-    );
-    if (!mounted || remarks == null) return;
-
-    await _runMutation(
-      () => ref.read(tasksRepositoryProvider).reassignTask(
-            taskId: task.id,
-            assignedTo: selected.user,
-            remarks: remarks.isEmpty ? null : remarks,
-          ),
-      'Task assigned to ${selected.label}.',
-    );
-  }
-
-  Future<void> _openPlan(TaskItem task) async {
-    if (_submitting) return;
-    final result = await showModalBottomSheet<_TaskPlanSelection>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => _TaskPlanSheet(task: task),
-    );
-    if (!mounted || result == null) return;
-
-    await _runMutation(
-      () => ref.read(tasksRepositoryProvider).updateTaskPlan(
-            taskId: task.id,
-            priority: result.priority,
-            expectedCompletionDate: result.expectedCompletionDate,
-            remarks: result.remarks,
-          ),
-      'Task plan updated.',
-    );
-  }
-
-  Future<String?> _promptRemarks({
-    required String title,
-    required String message,
-    required bool required,
-  }) async {
-    final controller = TextEditingController();
-    final result = await showDialog<String?>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(message),
-              const SizedBox(height: 14),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                minLines: 2,
-                maxLines: 4,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: required ? 'Reason' : 'Note (optional)',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(null),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: required && controller.text.trim().isEmpty
-                  ? null
-                  : () => Navigator.of(dialogContext).pop(controller.text.trim()),
-              child: const Text('Continue'),
-            ),
-          ],
-        ),
-      ),
-    );
-    controller.dispose();
-    return result;
-  }
-
-  Future<bool> _confirm({
-    required String title,
-    required String message,
-    required String actionLabel,
-  }) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(actionLabel),
-              ),
-            ],
-          ),
-        ) ??
-        false;
   }
 
   @override
@@ -241,7 +32,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
     return Scaffold(
       backgroundColor: OmcPremium.canvas,
-      appBar: AppBar(title: const Text('Task')), 
+      appBar: AppBar(title: const Text('Task')),
       body: SafeArea(
         top: false,
         child: taskAsync.when(
@@ -252,7 +43,9 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             children: [
               AppErrorState.fromError(
                 error: error,
-                onRetry: () => ref.invalidate(taskDetailProvider(widget.taskId)),
+                onRetry: () {
+                  ref.invalidate(taskDetailProvider(widget.taskId));
+                },
                 fallbackTitle: 'Task unavailable',
                 fallbackMessage: 'This task could not be loaded right now.',
               ),
@@ -263,14 +56,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
               return const _MissingTask();
             }
 
-            final canManage =
-                capabilities.canManageTasks && task.serverCanManageTasks;
-            final canUpdateAssigned =
-                capabilities.canManageAssignedTasks &&
-                task.serverCanManageAssignedTasks;
-            final canChangeStatus =
-                task.allowedTransitions.isNotEmpty &&
-                (canManage || canUpdateAssigned);
+            final canOpenLinkedCase =
+                capabilities.canViewAnyServiceCase &&
+                task.canViewLinkedServiceCase &&
+                task.caseReference?.trim().isNotEmpty == true;
 
             return RefreshIndicator.adaptive(
               onRefresh: () async {
@@ -285,23 +74,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                 children: [
                   _TaskHero(task: task),
                   const SizedBox(height: 14),
-                  if (canChangeStatus) ...[
-                    _StatusActions(
-                      transitions: task.allowedTransitions,
-                      busy: _submitting,
-                      onSelected: (transition) =>
-                          _applyTransition(task, transition),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                  if (canManage) ...[
-                    _ManagerActions(
-                      busy: _submitting,
-                      onReassign: () => _openReassign(task),
-                      onPlan: () => _openPlan(task),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
+                  const _ReadOnlyNotice(),
+                  const SizedBox(height: 14),
                   _TaskDetails(task: task),
                   if (task.description?.trim().isNotEmpty == true) ...[
                     const SizedBox(height: 14),
@@ -331,13 +105,15 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                       ),
                     ),
                   ],
-                  if (task.caseReference?.trim().isNotEmpty == true) ...[
+                  if (canOpenLinkedCase) ...[
                     const SizedBox(height: 14),
                     OutlinedButton.icon(
-                      onPressed: () => context.push(
-                        '/internal-workspace/service-cases/'
-                        '${Uri.encodeComponent(task.caseReference!.trim())}',
-                      ),
+                      onPressed: () {
+                        context.push(
+                          '/my-services/'
+                          '${Uri.encodeComponent(task.caseReference!.trim())}',
+                        );
+                      },
                       icon: const Icon(Icons.folder_open_outlined),
                       label: const Text('Open linked service case'),
                     ),
@@ -354,11 +130,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
 class _TaskHero extends StatelessWidget {
   const _TaskHero({required this.task});
+
   final TaskItem task;
 
   @override
   Widget build(BuildContext context) {
     final color = _statusColor(task.status);
+
     return PremiumCard(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -411,10 +189,11 @@ class _TaskHero extends StatelessWidget {
             children: [
               _Pill(label: task.status, color: color),
               _Pill(label: task.priority, color: OmcPremium.tasks),
+              const _Pill(label: 'Read-only', color: OmcPremium.system),
               if (task.assignedTo.trim().isNotEmpty)
                 _Pill(
                   label: 'Assigned: ${task.assignedTo}',
-                  color: OmcPremium.system,
+                  color: OmcPremium.track,
                 ),
             ],
           ),
@@ -424,104 +203,42 @@ class _TaskHero extends StatelessWidget {
   }
 }
 
-class _StatusActions extends StatelessWidget {
-  const _StatusActions({
-    required this.transitions,
-    required this.busy,
-    required this.onSelected,
-  });
-
-  final List<StaffTaskTransition> transitions;
-  final bool busy;
-  final ValueChanged<StaffTaskTransition> onSelected;
+class _ReadOnlyNotice extends StatelessWidget {
+  const _ReadOnlyNotice();
 
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Work status',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 5),
-          const Text(
-            'Only transitions allowed by the backend workflow are shown.',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: transitions
-                .map(
-                  (transition) => FilledButton.tonalIcon(
-                    onPressed: busy ? null : () => onSelected(transition),
-                    icon: Icon(_transitionIcon(transition.status), size: 17),
-                    label: Text(transition.label),
+          const Icon(Icons.visibility_outlined, color: AppTheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Read-only tracking',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
                   ),
-                )
-                .toList(growable: false),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ManagerActions extends StatelessWidget {
-  const _ManagerActions({
-    required this.busy,
-    required this.onReassign,
-    required this.onPlan,
-  });
-
-  final bool busy;
-  final VoidCallback onReassign;
-  final VoidCallback onPlan;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Manage task',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'This screen reflects ERPNext Task data. '
+                  'Task updates are managed in ERPNext.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: busy ? null : onReassign,
-                  icon: const Icon(Icons.person_search_rounded),
-                  label: const Text('Reassign'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: busy ? null : onPlan,
-                  icon: const Icon(Icons.event_note_rounded),
-                  label: const Text('Plan'),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -531,17 +248,43 @@ class _ManagerActions extends StatelessWidget {
 
 class _TaskDetails extends StatelessWidget {
   const _TaskDetails({required this.task});
+
   final TaskItem task;
 
   @override
   Widget build(BuildContext context) {
     final rows = <(String, String)>[
-      ('Customer', task.customerName ?? '-'),
-      ('Assigned to', task.assignedTo.trim().isEmpty ? 'Unassigned' : task.assignedTo),
-      ('Due date', task.expectedCompletionDate ?? 'Not set'),
-      ('Completed on', task.completedOn ?? '-'),
-      ('Created', task.createdAt ?? '-'),
-      ('Updated', task.updatedAt ?? '-'),
+      ('ERP status', task.erpStatus),
+      if (task.workflowState.trim().isNotEmpty)
+        ('Workflow state', task.workflowState),
+      if (task.operationStatus.trim().isNotEmpty)
+        ('Operation status', task.operationStatus),
+      if (task.customerName?.trim().isNotEmpty == true)
+        ('Customer', task.customerName!.trim()),
+      if (task.taskType?.trim().isNotEmpty == true)
+        ('Task type', task.taskType!.trim()),
+      (
+        'Assigned to',
+        task.assignedTo.trim().isEmpty ? 'Unassigned' : task.assignedTo,
+      ),
+      if (task.source?.trim().isNotEmpty == true)
+        ('Source', task.source!.trim()),
+      if (task.company?.trim().isNotEmpty == true)
+        ('Company', task.company!.trim()),
+      ('Priority', task.priority),
+      if (task.progress != null) ('Progress', _progressLabel(task.progress!)),
+      if (task.expectedStartDate?.trim().isNotEmpty == true)
+        ('Expected start', task.expectedStartDate!.trim()),
+      if (task.expectedCompletionDate?.trim().isNotEmpty == true)
+        ('Due date', task.expectedCompletionDate!.trim()),
+      if (task.completedOn?.trim().isNotEmpty == true)
+        ('Completed on', task.completedOn!.trim()),
+      if (task.createdAt?.trim().isNotEmpty == true)
+        ('Created', task.createdAt!.trim()),
+      if (task.updatedAt?.trim().isNotEmpty == true)
+        ('Updated', task.updatedAt!.trim()),
+      if (task.serviceRequest?.trim().isNotEmpty == true)
+        ('Service case', task.serviceRequest!.trim()),
     ];
 
     return PremiumCard(
@@ -567,8 +310,16 @@ class _TaskDetails extends StatelessWidget {
   }
 }
 
+String _progressLabel(double value) {
+  if (value == value.roundToDouble()) {
+    return '${value.toInt()}%';
+  }
+  return '${value.toStringAsFixed(1)}%';
+}
+
 class _DetailRow extends StatelessWidget {
   const _DetailRow({required this.label, required this.value});
+
   final String label;
   final String value;
 
@@ -578,7 +329,7 @@ class _DetailRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 94,
+          width: 102,
           child: Text(
             label,
             style: const TextStyle(
@@ -604,228 +355,9 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-class _AssigneeSheet extends StatefulWidget {
-  const _AssigneeSheet({required this.options, required this.currentUser});
-
-  final List<TaskAssigneeOption> options;
-  final String? currentUser;
-
-  @override
-  State<_AssigneeSheet> createState() => _AssigneeSheetState();
-}
-
-class _AssigneeSheetState extends State<_AssigneeSheet> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final query = _query.trim().toLowerCase();
-    final visible = widget.options.where((item) {
-      if (query.isEmpty) return true;
-      return '${item.label} ${item.user} ${item.primaryRole}'
-          .toLowerCase()
-          .contains(query);
-    }).toList(growable: false);
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Reassign task',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Only approved OMC staff with task authority are listed.',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              onChanged: (value) => setState(() => _query = value),
-              decoration: const InputDecoration(
-                hintText: 'Search staff',
-                prefixIcon: Icon(Icons.search_rounded),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: visible.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final option = visible[index];
-                  final current =
-                      option.user.trim().toLowerCase() ==
-                      widget.currentUser?.trim().toLowerCase();
-                  return ListTile(
-                    enabled: !current,
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person_outline_rounded),
-                    ),
-                    title: Text(option.label),
-                    subtitle: Text(
-                      [
-                        option.user,
-                        if (option.primaryRole.isNotEmpty) option.primaryRole,
-                      ].join(' • '),
-                    ),
-                    trailing: current
-                        ? const Text('Current')
-                        : const Icon(Icons.chevron_right_rounded),
-                    onTap: current
-                        ? null
-                        : () => Navigator.of(context).pop(option),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TaskPlanSelection {
-  const _TaskPlanSelection({
-    required this.priority,
-    required this.expectedCompletionDate,
-    required this.remarks,
-  });
-
-  final String priority;
-  final String expectedCompletionDate;
-  final String? remarks;
-}
-
-class _TaskPlanSheet extends StatefulWidget {
-  const _TaskPlanSheet({required this.task});
-  final TaskItem task;
-
-  @override
-  State<_TaskPlanSheet> createState() => _TaskPlanSheetState();
-}
-
-class _TaskPlanSheetState extends State<_TaskPlanSheet> {
-  late String _priority;
-  DateTime? _date;
-  final _remarksController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    final current = widget.task.priority.trim();
-    _priority = const {'Low', 'Medium', 'High', 'Urgent'}.contains(current)
-        ? current
-        : 'Medium';
-    _date = DateTime.tryParse(widget.task.expectedCompletionDate ?? '');
-  }
-
-  @override
-  void dispose() {
-    _remarksController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Plan task',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _priority,
-              decoration: const InputDecoration(
-                labelText: 'Priority',
-                prefixIcon: Icon(Icons.flag_outlined),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Low', child: Text('Low')),
-                DropdownMenuItem(value: 'Medium', child: Text('Medium')),
-                DropdownMenuItem(value: 'High', child: Text('High')),
-                DropdownMenuItem(value: 'Urgent', child: Text('Urgent')),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => _priority = value);
-              },
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final selected = await showDatePicker(
-                  context: context,
-                  initialDate: _date ?? DateTime.now(),
-                  firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                  lastDate: DateTime.now().add(const Duration(days: 3650)),
-                );
-                if (selected != null) setState(() => _date = selected);
-              },
-              icon: const Icon(Icons.event_outlined),
-              label: Text(
-                _date == null ? 'Set due date' : 'Due ${_dateLabel(_date!)}',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _remarksController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Planning note (optional)',
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(
-                  _TaskPlanSelection(
-                    priority: _priority,
-                    expectedCompletionDate:
-                        _date == null ? '' : _apiDate(_date!),
-                    remarks: _remarksController.text.trim().isEmpty
-                        ? null
-                        : _remarksController.text.trim(),
-                  ),
-                ),
-                child: const Text('Save task plan'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _Pill extends StatelessWidget {
   const _Pill({required this.label, required this.color});
+
   final String label;
   final Color color;
 
@@ -872,39 +404,16 @@ class _MissingTask extends StatelessWidget {
 }
 
 Color _statusColor(String status) {
-  final value = status.trim().toLowerCase();
-  if (value == 'completed') return OmcPremium.success;
-  if (value == 'cancelled') return OmcPremium.system;
-  if (value.contains('working') || value.contains('progress')) {
-    return OmcPremium.track;
-  }
-  if (value.contains('overdue')) return OmcPremium.danger;
-  return OmcPremium.tasks;
-}
-
-IconData _transitionIcon(String status) {
   switch (status.trim().toLowerCase()) {
-    case 'working':
-      return Icons.play_arrow_rounded;
-    case 'pending review':
-      return Icons.fact_check_outlined;
     case 'completed':
-      return Icons.check_rounded;
+      return OmcPremium.success;
     case 'cancelled':
-      return Icons.close_rounded;
+      return OmcPremium.system;
+    case 'working':
+      return OmcPremium.track;
+    case 'overdue':
+      return OmcPremium.danger;
     default:
-      return Icons.arrow_forward_rounded;
+      return OmcPremium.tasks;
   }
-}
-
-String _apiDate(DateTime value) {
-  final month = value.month.toString().padLeft(2, '0');
-  final day = value.day.toString().padLeft(2, '0');
-  return '${value.year}-$month-$day';
-}
-
-String _dateLabel(DateTime value) {
-  final month = value.month.toString().padLeft(2, '0');
-  final day = value.day.toString().padLeft(2, '0');
-  return '$day/$month/${value.year}';
 }

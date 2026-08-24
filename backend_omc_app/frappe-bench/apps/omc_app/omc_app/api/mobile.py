@@ -2687,6 +2687,7 @@ def _notification_mobile_route(notification):
         "OMC Service Document": "/documents/{name}",
         "OMC Service Payment": "/payments/{name}",
         "OMC Support Ticket": "/support-tickets/{name}",
+        "Task": "/tasks/{name}",
     }
 
     if reference_doctype in supported_routes and reference_name:
@@ -3311,6 +3312,9 @@ def _create_customer_notification(
         "payment": "Payment",
         "payment alert": "Payment",
         "support": "Support",
+        "task": "Task",
+        "task update": "Task",
+        "task assignment": "Task",
     }
     normalized_notification_type = notification_type_aliases.get(
         str(notification_type or "").strip().lower(),

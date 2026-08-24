@@ -431,28 +431,18 @@ def _active_customer_count(user, capabilities):
 
 
 def _pending_task_count(user, capabilities):
-    if capabilities.get("can_manage_tasks"):
-        return dashboard._pending_erp_task_count()
-    if not capabilities.get("can_manage_assigned_tasks"):
-        return 0
-    if not dashboard._doctype_exists("Task") or not dashboard._doctype_exists("OMC Service Request"):
+    # Task tracking is read-only for OMC mobile. All approved/current
+    # internal staff with can_view_tasks share the same ERP Task universe.
+    # Assignment and OMC Service Request linkage are display enrichment only.
+    if not capabilities.get("can_view_tasks"):
         return 0
 
-    rows = frappe.db.sql(
-        """
-        SELECT COUNT(DISTINCT service_request.erp_task)
-        FROM `tabOMC Service Request` service_request
-        INNER JOIN `tabTask` task ON task.name = service_request.erp_task
-        INNER JOIN `tabToDo` todo
-            ON todo.reference_type = 'OMC Service Request'
-           AND todo.reference_name = service_request.name
-        WHERE todo.allocated_to = %s
-          AND ifnull(todo.status, '') NOT IN ('Cancelled', 'Closed')
-          AND ifnull(task.status, '') NOT IN ('Completed', 'Cancelled')
-        """,
-        (user,),
+    return dashboard._count(
+        "Task",
+        {
+            "status": ["not in", ["Completed", "Cancelled"]],
+        },
     )
-    return int(rows[0][0] if rows else 0)
 
 
 def _operations_summary(user, capabilities, lifecycle, documents, payments):
@@ -530,9 +520,9 @@ def _next_action(capabilities, operations, support):
             "route": "/support",
             "button_label": "Open support",
         }
-    if operations.get("pending_tasks", 0) > 0 and (
-        capabilities.get("can_manage_tasks")
-        or capabilities.get("can_manage_assigned_tasks")
+    if (
+        operations.get("pending_tasks", 0) > 0
+        and capabilities.get("can_view_tasks")
     ):
         count = operations["pending_tasks"]
         return {

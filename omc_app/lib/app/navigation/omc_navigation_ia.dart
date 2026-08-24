@@ -73,25 +73,20 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
   // More only contains destinations that are not first-level tabs.
   if (!capabilities.isGuest) {
     if (capabilities.canViewDocuments || capabilities.canUploadDocuments) {
-      omc.add(const OmcNavigationItem(
-        OmcNavigationActionId.documents,
-        'Documents',
-      ));
+      omc.add(
+        const OmcNavigationItem(OmcNavigationActionId.documents, 'Documents'),
+      );
     }
     if (features.paymentsEnabled &&
         (capabilities.canViewPayments ||
             capabilities.canUploadPaymentReceipt ||
             capabilities.canUploadPaymentReceipts)) {
-      omc.add(const OmcNavigationItem(
-        OmcNavigationActionId.payments,
-        'Payments',
-      ));
+      omc.add(
+        const OmcNavigationItem(OmcNavigationActionId.payments, 'Payments'),
+      );
     }
-    if (capabilities.canViewCustomerNotifications) {
-      omc.add(const OmcNavigationItem(
-        OmcNavigationActionId.alerts,
-        'Alerts',
-      ));
+    if (capabilities.canViewNotifications) {
+      omc.add(const OmcNavigationItem(OmcNavigationActionId.alerts, 'Alerts'));
     }
   }
 
@@ -99,39 +94,33 @@ List<OmcNavigationGroup> buildOmcMoreNavigation({
     tools.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'));
   }
   if (features.expenseTrackerEnabled) {
-    tools.add(const OmcNavigationItem(
-      OmcNavigationActionId.expense,
-      'Expense',
-    ));
+    tools.add(
+      const OmcNavigationItem(OmcNavigationActionId.expense, 'Expense'),
+    );
     if (capabilities.isApproved) {
-      tools.add(const OmcNavigationItem(
-        OmcNavigationActionId.budget,
-        'Budget',
-      ));
+      tools.add(
+        const OmcNavigationItem(OmcNavigationActionId.budget, 'Budget'),
+      );
     }
   }
   if (features.knowledgeEnabled) {
-    tools.add(const OmcNavigationItem(
-      OmcNavigationActionId.knowledge,
-      'Knowledge',
-    ));
+    tools.add(
+      const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
+    );
   }
   if (features.supportEnabled) {
-    tools.add(const OmcNavigationItem(
-      OmcNavigationActionId.support,
-      'Support',
-    ));
+    tools.add(
+      const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
+    );
   }
 
   if (!isGuest) {
-    account.add(const OmcNavigationItem(
-      OmcNavigationActionId.profile,
-      'Profile',
-    ));
-    account.add(const OmcNavigationItem(
-      OmcNavigationActionId.settings,
-      'Settings',
-    ));
+    account.add(
+      const OmcNavigationItem(OmcNavigationActionId.profile, 'Profile'),
+    );
+    account.add(
+      const OmcNavigationItem(OmcNavigationActionId.settings, 'Settings'),
+    );
   }
   account.add(
     OmcNavigationItem(
@@ -161,85 +150,66 @@ List<OmcNavigationGroup> _internalMoreNavigation(
   if (capabilities.canManageCustomers ||
       capabilities.canViewAllCustomers ||
       capabilities.canViewRelevantCustomers) {
-    work.add(const OmcNavigationItem(
-      OmcNavigationActionId.customers,
-      'Customers',
-    ));
+    work.add(
+      const OmcNavigationItem(OmcNavigationActionId.customers, 'Customers'),
+    );
   }
   if (capabilities.canViewRelevantCustomers &&
       !capabilities.canViewAllCustomers) {
-    work.add(const OmcNavigationItem(
-      OmcNavigationActionId.referrals,
-      'My Referrals',
-    ));
+    work.add(
+      const OmcNavigationItem(OmcNavigationActionId.referrals, 'My Referrals'),
+    );
   }
   if (capabilities.canViewReferralCommissions) {
-    work.add(const OmcNavigationItem(
-      OmcNavigationActionId.commissions,
-      'Commissions',
-    ));
+    work.add(
+      const OmcNavigationItem(OmcNavigationActionId.commissions, 'Commissions'),
+    );
+  }
+  if (capabilities.canViewTasks) {
+    work.add(const OmcNavigationItem(OmcNavigationActionId.tasks, 'Tasks'));
   }
 
   if (capabilities.canViewAnyDocument) {
-    review.add(const OmcNavigationItem(
-      OmcNavigationActionId.documents,
-      'Documents',
-    ));
+    review.add(
+      const OmcNavigationItem(OmcNavigationActionId.documents, 'Documents'),
+    );
   }
   if (capabilities.canViewAnyPayment) {
-    review.add(const OmcNavigationItem(
-      OmcNavigationActionId.payments,
-      'Payments',
-    ));
+    review.add(
+      const OmcNavigationItem(OmcNavigationActionId.payments, 'Payments'),
+    );
   }
   if (capabilities.canUseSupportWorkspace) {
-    review.add(const OmcNavigationItem(
-      OmcNavigationActionId.support,
-      'Support',
-    ));
+    review.add(
+      const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
+    );
   }
-  if (capabilities.canViewCustomerNotifications) {
-    review.add(const OmcNavigationItem(
-      OmcNavigationActionId.alerts,
-      'Alerts',
-    ));
+  if (capabilities.canViewNotifications) {
+    review.add(const OmcNavigationItem(OmcNavigationActionId.alerts, 'Alerts'));
   }
 
   if (capabilities.canManageLeads) {
     manage.add(const OmcNavigationItem(OmcNavigationActionId.leads, 'Leads'));
   }
-  if (capabilities.canManageTasks || capabilities.canManageAssignedTasks) {
-    manage.add(const OmcNavigationItem(OmcNavigationActionId.tasks, 'Tasks'));
-  }
-
   if (capabilities.canUseTaxCalculator) {
     tools.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax'));
   }
   if (features.expenseTrackerEnabled) {
-    tools.add(const OmcNavigationItem(
-      OmcNavigationActionId.expense,
-      'Expense',
-    ));
-    tools.add(const OmcNavigationItem(
-      OmcNavigationActionId.budget,
-      'Budget',
-    ));
+    tools.add(
+      const OmcNavigationItem(OmcNavigationActionId.expense, 'Expense'),
+    );
+    tools.add(const OmcNavigationItem(OmcNavigationActionId.budget, 'Budget'));
   }
   if (features.knowledgeEnabled) {
-    tools.add(const OmcNavigationItem(
-      OmcNavigationActionId.knowledge,
-      'Knowledge',
-    ));
+    tools.add(
+      const OmcNavigationItem(OmcNavigationActionId.knowledge, 'Knowledge'),
+    );
   }
 
-  account.add(const OmcNavigationItem(
-    OmcNavigationActionId.settings,
-    'Settings',
-  ));
-  account.add(const OmcNavigationItem(
-    OmcNavigationActionId.logout,
-    'Logout',
-  ));
+  account.add(
+    const OmcNavigationItem(OmcNavigationActionId.settings, 'Settings'),
+  );
+  account.add(const OmcNavigationItem(OmcNavigationActionId.logout, 'Logout'));
 
   return [
     OmcNavigationGroup('Work', work),
@@ -254,47 +224,50 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
   if (capabilities.canAccessInternalWorkspace || capabilities.isInternal) {
     final items = <OmcNavigationItem>[];
     if (capabilities.canManageLeads) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.createLead,
-        'New Lead',
-      ));
+      items.add(
+        const OmcNavigationItem(OmcNavigationActionId.createLead, 'New Lead'),
+      );
     }
     if (capabilities.canCreateServiceForCustomer) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.startRequest,
-        'Start Request',
-      ));
+      items.add(
+        const OmcNavigationItem(
+          OmcNavigationActionId.startRequest,
+          'Start Request',
+        ),
+      );
     }
     if (capabilities.canReviewPayments) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.reviewPayments,
-        'Review Payments',
-      ));
+      items.add(
+        const OmcNavigationItem(
+          OmcNavigationActionId.reviewPayments,
+          'Review Payments',
+        ),
+      );
     }
     if (capabilities.canReviewDocuments) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.reviewDocuments,
-        'Review Documents',
-      ));
+      items.add(
+        const OmcNavigationItem(
+          OmcNavigationActionId.reviewDocuments,
+          'Review Documents',
+        ),
+      );
     }
     if (capabilities.canUseSupportWorkspace) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.supportQueue,
-        'Support Queue',
-      ));
+      items.add(
+        const OmcNavigationItem(
+          OmcNavigationActionId.supportQueue,
+          'Support Queue',
+        ),
+      );
     }
-    if (capabilities.canManageTasks || capabilities.canManageAssignedTasks) {
-      items.add(OmcNavigationItem(
-        OmcNavigationActionId.tasks,
-        capabilities.canManageTasks ? 'Tasks' : 'My Tasks',
-      ));
+    if (capabilities.canViewTasks) {
+      items.add(const OmcNavigationItem(OmcNavigationActionId.tasks, 'Tasks'));
     }
 
     if (items.isEmpty) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.workspace,
-        'Workspace',
-      ));
+      items.add(
+        const OmcNavigationItem(OmcNavigationActionId.workspace, 'Workspace'),
+      );
     }
     return items;
   }
@@ -305,24 +278,21 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
       items.add(const OmcNavigationItem(OmcNavigationActionId.apply, 'Apply'));
     }
     if (capabilities.canUploadDocuments || capabilities.canViewDocuments) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.documents,
-        'Documents',
-      ));
+      items.add(
+        const OmcNavigationItem(OmcNavigationActionId.documents, 'Documents'),
+      );
     }
     if (capabilities.canViewPayments ||
         capabilities.canUploadPaymentReceipt ||
         capabilities.canUploadPaymentReceipts) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.payments,
-        'Payments',
-      ));
+      items.add(
+        const OmcNavigationItem(OmcNavigationActionId.payments, 'Payments'),
+      );
     }
     if (capabilities.canCreateSupportTicket) {
-      items.add(const OmcNavigationItem(
-        OmcNavigationActionId.support,
-        'Support',
-      ));
+      items.add(
+        const OmcNavigationItem(OmcNavigationActionId.support, 'Support'),
+      );
     }
     if (capabilities.canUseTaxCalculator) {
       items.add(const OmcNavigationItem(OmcNavigationActionId.tax, 'Tax Calc'));

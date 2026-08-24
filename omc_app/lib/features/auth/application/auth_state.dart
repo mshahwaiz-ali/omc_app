@@ -26,10 +26,12 @@ class AuthCapabilities {
     this.canAccessCustomerDashboard = false,
     this.canViewCustomerNotifications = false,
     this.canAccessInternalWorkspace = false,
+    this.canViewInternalNotifications = false,
     this.canManageCustomers = false,
     this.canViewAllCustomers = false,
     this.canViewRelevantCustomers = false,
     this.canManageLeads = false,
+    this.canViewTasks = false,
     this.canManageTasks = false,
     this.canManageAssignedTasks = false,
     this.canViewAllServiceCases = false,
@@ -97,10 +99,12 @@ class AuthCapabilities {
   // Internal capability contract. Keep these names in direct 1:1 sync with
   // omc_app.api.capabilities.INTERNAL_CAPABILITY_KEYS.
   final bool canAccessInternalWorkspace;
+  final bool canViewInternalNotifications;
   final bool canManageCustomers;
   final bool canViewAllCustomers;
   final bool canViewRelevantCustomers;
   final bool canManageLeads;
+  final bool canViewTasks;
   final bool canManageTasks;
   final bool canManageAssignedTasks;
   final bool canViewAllServiceCases;
@@ -141,6 +145,9 @@ class AuthCapabilities {
   bool get isApproved => accessState == AccountAccessState.approved;
   bool get isInternal => accessState == AccountAccessState.internal;
   bool get isRejected => accessState == AccountAccessState.rejected;
+
+  bool get canViewNotifications =>
+      canViewCustomerNotifications || canViewInternalNotifications;
 
   bool get canViewAnyServiceCase =>
       canViewAllServiceCases ||
@@ -209,10 +216,12 @@ class AuthCapabilities {
     canAccessCustomerDashboard,
     canViewCustomerNotifications,
     canAccessInternalWorkspace,
+    canViewInternalNotifications,
     canManageCustomers,
     canViewAllCustomers,
     canViewRelevantCustomers,
     canManageLeads,
+    canViewTasks,
     canManageTasks,
     canManageAssignedTasks,
     canViewAllServiceCases,
@@ -282,16 +291,10 @@ class AuthCapabilities {
       canTrackRequests: _boolValue(json['can_track_requests']),
       canViewDocuments: _boolValue(json['can_view_documents']),
       canViewPayments: _boolValue(json['can_view_payments']),
-      canUploadPaymentReceipt: _boolValue(
-        json['can_upload_payment_receipt'],
-      ),
-      canUploadPaymentReceipts: _boolValue(
-        json['can_upload_payment_receipts'],
-      ),
+      canUploadPaymentReceipt: _boolValue(json['can_upload_payment_receipt']),
+      canUploadPaymentReceipts: _boolValue(json['can_upload_payment_receipts']),
       canCreateSupportTicket: _boolValue(json['can_create_support_ticket']),
-      canViewCustomerDashboard: _boolValue(
-        json['can_view_customer_dashboard'],
-      ),
+      canViewCustomerDashboard: _boolValue(json['can_view_customer_dashboard']),
       canAccessCustomerDashboard: _boolValue(
         json['can_access_customer_dashboard'],
       ),
@@ -301,10 +304,14 @@ class AuthCapabilities {
       canAccessInternalWorkspace: _boolValue(
         json['can_access_internal_workspace'],
       ),
+      canViewInternalNotifications: _boolValue(
+        json['can_view_internal_notifications'],
+      ),
       canManageCustomers: _boolValue(json['can_manage_customers']),
       canViewAllCustomers: _boolValue(json['can_view_all_customers']),
       canViewRelevantCustomers: _boolValue(json['can_view_relevant_customers']),
       canManageLeads: _boolValue(json['can_manage_leads']),
+      canViewTasks: _boolValue(json['can_view_tasks']),
       canManageTasks: _boolValue(json['can_manage_tasks']),
       canManageAssignedTasks: _boolValue(json['can_manage_assigned_tasks']),
       canViewAllServiceCases: _boolValue(json['can_view_all_service_cases']),
@@ -352,9 +359,7 @@ class AuthCapabilities {
         json['can_view_referral_commissions'],
       ),
       canApproveCommissions: _boolValue(json['can_approve_commissions']),
-      canMarkCommissionsPaid: _boolValue(
-        json['can_mark_commissions_paid'],
-      ),
+      canMarkCommissionsPaid: _boolValue(json['can_mark_commissions_paid']),
     );
   }
 

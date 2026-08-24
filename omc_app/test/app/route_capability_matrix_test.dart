@@ -36,6 +36,7 @@ void main() {
     canManageCustomers: true,
     canViewAllCustomers: true,
     canManageLeads: true,
+    canViewTasks: true,
     canManageTasks: true,
   );
 
@@ -44,9 +45,9 @@ void main() {
     canViewAssignedServiceCases: true,
   );
 
-  const assignedTaskStaff = AuthCapabilities(
+  const taskTrackingStaff = AuthCapabilities(
     accessState: AccountAccessState.internal,
-    canManageAssignedTasks: true,
+    canViewTasks: true,
   );
 
   const documentSummaryStaff = AuthCapabilities(
@@ -219,13 +220,13 @@ void main() {
       '/tasks',
       '/tasks/TASK-0001',
       '/track',
+      '/my-services/CASE-0001',
     ];
 
     const denied = <String>[
       '/notifications',
       '/notifications/NOTIF-0001',
       '/my-services',
-      '/my-services/CASE-0001',
       '/my-referrals',
       '/my-referrals/CUST-0001',
     ];
@@ -260,10 +261,10 @@ void main() {
       expect(canAccessRoute('/customers', assignedCaseStaff), isFalse);
     });
 
-    test('assigned task staff may open task list and detail routes', () {
-      expect(canAccessRoute('/tasks', assignedTaskStaff), isTrue);
-      expect(canAccessRoute('/tasks/TASK-0001', assignedTaskStaff), isTrue);
-      expect(canAccessRoute('/leads', assignedTaskStaff), isFalse);
+    test('task tracking staff may open task list and detail routes', () {
+      expect(canAccessRoute('/tasks', taskTrackingStaff), isTrue);
+      expect(canAccessRoute('/tasks/TASK-0001', taskTrackingStaff), isTrue);
+      expect(canAccessRoute('/leads', taskTrackingStaff), isFalse);
     });
 
     test('document summary capability unlocks document routes only', () {
