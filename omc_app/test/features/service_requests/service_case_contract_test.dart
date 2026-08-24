@@ -96,66 +96,154 @@ void main() {
       expect(serviceCase.hasPayment, isFalse);
     });
 
-    test('cancelled and expired lifecycle states are terminal even when status is open', () {
-      const cancelled = ServiceCase(
-        id: 'SR-5',
-        title: 'Cancelled request',
-        category: 'General',
-        status: 'Open',
-        requestState: 'Cancelled',
-        operationalStatus: 'Open',
-        createdAtLabel: 'Today',
-        updatedAtLabel: 'Today',
-        progress: 0.4,
-      );
-      const expired = ServiceCase(
-        id: 'SR-6',
-        title: 'Expired request',
-        category: 'General',
-        status: 'Open',
-        requestState: 'Expired',
-        operationalStatus: 'Open',
-        createdAtLabel: 'Today',
-        updatedAtLabel: 'Today',
-        progress: 0.4,
+    test(
+      'cancelled and expired lifecycle states are terminal even when status is open',
+      () {
+        const cancelled = ServiceCase(
+          id: 'SR-5',
+          title: 'Cancelled request',
+          category: 'General',
+          status: 'Open',
+          requestState: 'Cancelled',
+          operationalStatus: 'Open',
+          createdAtLabel: 'Today',
+          updatedAtLabel: 'Today',
+          progress: 0.4,
+        );
+        const expired = ServiceCase(
+          id: 'SR-6',
+          title: 'Expired request',
+          category: 'General',
+          status: 'Open',
+          requestState: 'Expired',
+          operationalStatus: 'Open',
+          createdAtLabel: 'Today',
+          updatedAtLabel: 'Today',
+          progress: 0.4,
+        );
+
+        expect(cancelled.isTerminalRequest, isTrue);
+        expect(cancelled.isClosed, isTrue);
+        expect(cancelled.isActiveRequest, isFalse);
+        expect(expired.isTerminalRequest, isTrue);
+        expect(expired.isClosed, isTrue);
+        expect(expired.isActiveRequest, isFalse);
+      },
+    );
+
+    test(
+      'operational completion only closes an activated canonical request',
+      () {
+        const preActivation = ServiceCase(
+          id: 'SR-7',
+          title: 'Ready request',
+          category: 'General',
+          status: 'Completed',
+          requestState: 'Ready for Activation',
+          operationalStatus: 'Completed',
+          createdAtLabel: 'Today',
+          updatedAtLabel: 'Today',
+          progress: 0.9,
+        );
+        const activated = ServiceCase(
+          id: 'SR-8',
+          title: 'Completed request',
+          category: 'General',
+          status: 'Completed',
+          requestState: 'Activated',
+          operationalStatus: 'Completed',
+          createdAtLabel: 'Today',
+          updatedAtLabel: 'Today',
+          progress: 1,
+        );
+
+        expect(preActivation.isCompletedRequest, isFalse);
+        expect(preActivation.isClosed, isFalse);
+        expect(activated.isCompletedRequest, isTrue);
+        expect(activated.isClosed, isTrue);
+      },
+    );
+
+    test('historical completed request is closed', () {
+      const serviceCase = ServiceCase(
+        id: 'HIST-1',
+        title: 'Historical filing',
+        category: 'Tax',
+        status: 'Completed',
+        requestState: 'Historical',
+        operationalStatus: 'Completed',
+        displayStatus: 'Completed',
+        createdAtLabel: '2025',
+        updatedAtLabel: '2025',
+        progress: 0,
       );
 
-      expect(cancelled.isTerminalRequest, isTrue);
-      expect(cancelled.isClosed, isTrue);
-      expect(cancelled.isActiveRequest, isFalse);
-      expect(expired.isTerminalRequest, isTrue);
-      expect(expired.isClosed, isTrue);
-      expect(expired.isActiveRequest, isFalse);
+      expect(serviceCase.isHistoricalRequest, isTrue);
+      expect(serviceCase.isCompletedRequest, isTrue);
+      expect(serviceCase.isClosed, isTrue);
+      expect(serviceCase.isActiveRequest, isFalse);
+      expect(serviceCase.statusLabel, 'Completed');
     });
 
-    test('operational completion only closes an activated canonical request', () {
-      const preActivation = ServiceCase(
-        id: 'SR-7',
-        title: 'Ready request',
-        category: 'General',
-        status: 'Completed',
-        requestState: 'Ready for Activation',
-        operationalStatus: 'Completed',
-        createdAtLabel: 'Today',
-        updatedAtLabel: 'Today',
-        progress: 0.9,
-      );
-      const activated = ServiceCase(
-        id: 'SR-8',
-        title: 'Completed request',
-        category: 'General',
-        status: 'Completed',
-        requestState: 'Activated',
-        operationalStatus: 'Completed',
-        createdAtLabel: 'Today',
-        updatedAtLabel: 'Today',
-        progress: 1,
+    test('historical overdue request remains active', () {
+      const serviceCase = ServiceCase(
+        id: 'HIST-2',
+        title: 'Historical filing',
+        category: 'Tax',
+        status: 'Overdue',
+        requestState: 'Historical',
+        operationalStatus: 'Overdue',
+        displayStatus: 'Overdue',
+        createdAtLabel: '2026',
+        updatedAtLabel: '2026',
+        progress: 0,
       );
 
-      expect(preActivation.isCompletedRequest, isFalse);
-      expect(preActivation.isClosed, isFalse);
-      expect(activated.isCompletedRequest, isTrue);
-      expect(activated.isClosed, isTrue);
+      expect(serviceCase.isHistoricalRequest, isTrue);
+      expect(serviceCase.isClosed, isFalse);
+      expect(serviceCase.isActiveRequest, isTrue);
+      expect(serviceCase.statusLabel, 'Overdue');
+    });
+
+    test('historical record without task remains neutral and active', () {
+      const serviceCase = ServiceCase(
+        id: 'HIST-3',
+        title: 'Historical service',
+        category: 'General',
+        status: 'Historical',
+        requestState: 'Historical',
+        operationalStatus: 'Historical',
+        displayStatus: 'Historical',
+        createdAtLabel: '2025',
+        updatedAtLabel: '2025',
+        progress: 0,
+      );
+
+      expect(serviceCase.isHistoricalRequest, isTrue);
+      expect(serviceCase.isClosed, isFalse);
+      expect(serviceCase.isActiveRequest, isTrue);
+      expect(serviceCase.statusLabel, 'Historical');
+    });
+
+    test('historical cancelled request is terminal', () {
+      const serviceCase = ServiceCase(
+        id: 'HIST-4',
+        title: 'Historical service',
+        category: 'General',
+        status: 'Cancelled',
+        requestState: 'Historical',
+        operationalStatus: 'Cancelled',
+        displayStatus: 'Cancelled',
+        createdAtLabel: '2025',
+        updatedAtLabel: '2025',
+        progress: 0,
+      );
+
+      expect(serviceCase.isCancelledRequest, isTrue);
+      expect(serviceCase.isTerminalRequest, isTrue);
+      expect(serviceCase.isClosed, isTrue);
+      expect(serviceCase.isActiveRequest, isFalse);
+      expect(serviceCase.statusLabel, 'Cancelled');
     });
   });
 }

@@ -46,16 +46,17 @@ class TestLifecyclePermissionHardening(FrappeTestCase):
         self.assertEqual(unclassified, [])
 
     def test_system_manager_has_no_omc_docperm(self):
-        rows = frappe.get_all(
-            "DocPerm",
-            filters={
-                "role": roles.SYSTEM_ROLE,
-                "parent": ["like", "OMC %"],
-            },
-            pluck="name",
-            limit_page_length=500,
-        )
-        self.assertEqual(rows, [])
+        for permission_doctype in ("DocPerm", "Custom DocPerm"):
+            rows = frappe.get_all(
+                permission_doctype,
+                filters={
+                    "role": roles.SYSTEM_ROLE,
+                    "parent": ["like", "OMC %"],
+                },
+                pluck="name",
+                limit_page_length=500,
+            )
+            self.assertEqual(rows, [], permission_doctype)
 
     def test_internal_only_models_have_no_staff_docperm(self):
         managed_roles = roles.ACTIVE_OMC_ROLES | {roles.SYSTEM_ROLE}

@@ -1164,6 +1164,8 @@ class _ServiceCaseState {
     required this.isClosed,
     required this.needsAction,
     required this.isInReview,
+    required this.isOverdue,
+    required this.isHistorical,
     required this.isInProgress,
     required this.isOpen,
   });
@@ -1172,6 +1174,8 @@ class _ServiceCaseState {
   final bool isClosed;
   final bool needsAction;
   final bool isInReview;
+  final bool isOverdue;
+  final bool isHistorical;
   final bool isInProgress;
   final bool isOpen;
 }
@@ -1180,8 +1184,10 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
   final lifecycle = serviceCase.normalizedLifecycleState;
   final operational = serviceCase.normalizedOperationalStatus;
   final nextStep = serviceCase.nextStep?.trim().toLowerCase() ?? '';
+  final historicalLifecycle = lifecycle == 'historical';
 
   final isCancelled = serviceCase.isTerminalRequest;
+
   final isClosed =
       !isCancelled &&
       (serviceCase.isCompletedRequest ||
@@ -1191,7 +1197,10 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
                   operational.contains('done') ||
                   operational.contains('resolved'))));
 
+  // Historical imports must never inherit modern document/payment action
+  // requirements. Their state is projected from existing ERP evidence.
   final needsAction =
+      !historicalLifecycle &&
       !isCancelled &&
       !isClosed &&
       (serviceCase.customerActionRequired ||
@@ -1221,28 +1230,45 @@ _ServiceCaseState _stateFor(ServiceCase serviceCase) {
           operational.contains('review') ||
           operational.contains('processing'));
 
+  final isOverdue =
+      !isCancelled &&
+      !isClosed &&
+      !needsAction &&
+      !isInReview &&
+      operational.contains('overdue');
+
+  final isHistorical =
+      !isCancelled &&
+      !isClosed &&
+      !needsAction &&
+      !isInReview &&
+      historicalLifecycle &&
+      operational == 'historical';
+
   final isInProgress =
       !isCancelled &&
       !isClosed &&
       !needsAction &&
       !isInReview &&
+      !isOverdue &&
+      !isHistorical &&
       (lifecycle == 'ready for activation' ||
           lifecycle == 'activated' ||
           operational.contains('progress') ||
           operational.contains('working'));
 
+  // Open is the broad active-filter bucket. Overdue and neutral historical
+  // records remain active while keeping their own visual badges.
   final isOpen =
-      !isCancelled &&
-      !isClosed &&
-      !needsAction &&
-      !isInReview &&
-      !isInProgress;
+      !isCancelled && !isClosed && !needsAction && !isInReview && !isInProgress;
 
   return _ServiceCaseState(
     isCancelled: isCancelled,
     isClosed: isClosed,
     needsAction: needsAction,
     isInReview: isInReview,
+    isOverdue: isOverdue,
+    isHistorical: isHistorical,
     isInProgress: isInProgress,
     isOpen: isOpen,
   );
@@ -1273,6 +1299,20 @@ _Palette _paletteFor(_ServiceCaseState state) {
       label: 'Completed',
       color: Color(0xFF16A34A),
       icon: Icons.check_circle_rounded,
+    );
+  }
+  if (state.isOverdue) {
+    return const _Palette(
+      label: 'Overdue',
+      color: Color(0xFFD97706),
+      icon: Icons.schedule_rounded,
+    );
+  }
+  if (state.isHistorical) {
+    return const _Palette(
+      label: 'Historical',
+      color: Color(0xFF64748B),
+      icon: Icons.history_rounded,
     );
   }
   if (state.needsAction) {

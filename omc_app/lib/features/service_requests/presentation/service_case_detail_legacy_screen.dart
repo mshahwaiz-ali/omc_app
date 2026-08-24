@@ -158,12 +158,16 @@ class _ServiceCaseDetailScreenState
                             ? capabilities.canViewCustomerDocuments
                             : capabilities.canViewDocuments,
                         isUploading: _isUploadingDocument,
-                        onUploadMissingDocument: canUploadDocuments
+                        onUploadMissingDocument:
+                            !serviceCase.isHistoricalRequest &&
+                                canUploadDocuments
                             ? () => _showUploadDocumentSheet(serviceCase)
                             : null,
                         isCancelling: _isCancellingRequest,
                         onCancelRequest:
-                            canCancelOwnRequest && serviceCase.canCancel
+                            !serviceCase.isHistoricalRequest &&
+                                canCancelOwnRequest &&
+                                serviceCase.canCancel
                             ? () => _confirmCancelServiceRequest(serviceCase)
                             : null,
                       ),
@@ -172,7 +176,8 @@ class _ServiceCaseDetailScreenState
                         serviceCase: serviceCase,
                         isUpdatingDocumentStatus: _isUpdatingDocumentStatus,
                         onUpdateDocumentStatus:
-                            canReviewDocuments &&
+                            !serviceCase.isHistoricalRequest &&
+                                canReviewDocuments &&
                                 serviceCase.canReviewDocuments &&
                                 !_isUpdatingDocumentStatus
                             ? (document, status) =>
@@ -321,6 +326,11 @@ class _ServiceCaseDetailScreenState
   Future<void> _cancelServiceRequest(ServiceCase serviceCase) async {
     if (_isCancellingRequest) return;
 
+    if (serviceCase.isHistoricalRequest) {
+      _showSnack('Historical service records are read-only.');
+      return;
+    }
+
     final capabilities = ref.read(authControllerProvider).capabilities;
     if (!capabilities.isApproved || !capabilities.canTrackRequests) {
       _showSnack('Your account cannot cancel this service request.');
@@ -365,6 +375,11 @@ class _ServiceCaseDetailScreenState
   ) async {
     if (_isUpdatingDocumentStatus) return;
 
+    if (serviceCase.isHistoricalRequest) {
+      _showSnack('Historical service records are read-only.');
+      return;
+    }
+
     if (!ref.read(authControllerProvider).capabilities.canReviewDocuments) {
       _showSnack(
         'Your role can view document information but cannot review files.',
@@ -406,6 +421,11 @@ class _ServiceCaseDetailScreenState
   Future<void> _showUploadDocumentSheet(ServiceCase serviceCase) async {
     if (_isUploadingDocument) return;
 
+    if (serviceCase.isHistoricalRequest) {
+      _showSnack('Historical service records are read-only.');
+      return;
+    }
+
     final capabilities = ref.read(authControllerProvider).capabilities;
     final canUploadDocuments =
         capabilities.canUploadDocuments ||
@@ -444,6 +464,11 @@ class _ServiceCaseDetailScreenState
     DocumentAttachment attachment,
   ) async {
     if (_isUploadingDocument) return;
+
+    if (serviceCase.isHistoricalRequest) {
+      _showSnack('Historical service records are read-only.');
+      return;
+    }
 
     final uploadDocname = _uploadDocnameFor(serviceCase);
     if (uploadDocname == null) {
@@ -2251,7 +2276,10 @@ class _CaseInfoCard extends StatelessWidget {
             _InfoRow(label: 'Reference', value: serviceCase.displayReference),
             _InfoRow(label: 'Status', value: serviceCase.statusLabel),
             if (serviceCase.requestState?.trim().isNotEmpty == true)
-              _InfoRow(label: 'Request state', value: serviceCase.lifecycleState),
+              _InfoRow(
+                label: 'Request state',
+                value: serviceCase.lifecycleState,
+              ),
             if (serviceCase.operationalStatus?.trim().isNotEmpty == true)
               _InfoRow(
                 label: 'Operational status',
@@ -2757,6 +2785,18 @@ class _CaseActionsCard extends StatelessWidget {
     required bool hasAvailablePayment,
     required String? paymentBlockReason,
   }) {
+    if (serviceCase.isHistoricalRequest) {
+      return const _ResolvedCaseAction(
+        icon: Icons.history_rounded,
+        color: AppTheme.textSecondary,
+        background: AppTheme.background,
+        title: 'Historical service record',
+        message:
+            'This is a read-only record of a service handled before the current OMC workflow.',
+        primaryType: _CasePrimaryAction.none,
+      );
+    }
+
     if (hasMissingDocuments) {
       return const _ResolvedCaseAction(
         icon: Icons.upload_file_outlined,

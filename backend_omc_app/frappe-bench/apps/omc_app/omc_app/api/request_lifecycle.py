@@ -9,6 +9,7 @@ from omc_app.api import security
 
 REQUEST_STATE_TRANSITIONS = {
     "Draft": {"Pending Payment", "Payment Not Required", "Cancelled"},
+    "Historical": set(),
     "Pending Payment": {"Ready for Activation", "Financial Hold", "Expired", "Cancelled"},
     "Payment Not Required": {"Ready for Activation", "Financial Hold", "Expired", "Cancelled"},
     "Ready for Activation": {"Activating", "Financial Hold", "Cancelled"},
@@ -24,11 +25,20 @@ OPERATIONAL_STATUSES = {
     "Open",
     "Waiting for Payment",
     "In Progress",
+    "In Review",
+    "Overdue",
+    "Historical",
     "Waiting for Customer",
     "Completed",
     "Cancelled",
 }
-ACTIVATED_OPERATIONAL_STATUSES = {"In Progress", "Waiting for Customer", "Completed"}
+ACTIVATED_OPERATIONAL_STATUSES = {
+    "In Progress",
+    "In Review",
+    "Overdue",
+    "Waiting for Customer",
+    "Completed",
+}
 
 
 @dataclass(frozen=True)

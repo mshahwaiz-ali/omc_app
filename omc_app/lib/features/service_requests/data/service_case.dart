@@ -143,7 +143,11 @@ class ServiceCase {
   String get normalizedOperationalStatus =>
       effectiveOperationalStatus.trim().toLowerCase();
 
-  bool get isCancelledRequest => normalizedLifecycleState == 'cancelled';
+  bool get isHistoricalRequest => normalizedLifecycleState == 'historical';
+
+  bool get isCancelledRequest =>
+      normalizedLifecycleState == 'cancelled' ||
+      (isHistoricalRequest && normalizedOperationalStatus == 'cancelled');
 
   bool get isExpiredRequest => normalizedLifecycleState == 'expired';
 
@@ -153,14 +157,17 @@ class ServiceCase {
 
   bool get isOperationalComplete => normalizedOperationalStatus == 'completed';
 
-  bool get isCompletedRequest => isActivatedRequest && isOperationalComplete;
+  bool get isCompletedRequest =>
+      (isActivatedRequest || isHistoricalRequest) && isOperationalComplete;
 
   bool get isActiveRequest => !isTerminalRequest && !isCompletedRequest;
 
   String get statusLabel {
     final value = displayStatus?.trim();
     if (value != null && value.isNotEmpty) return value;
-    if (lifecycleState == 'Activated') return effectiveOperationalStatus;
+    if (isActivatedRequest || isHistoricalRequest) {
+      return effectiveOperationalStatus;
+    }
     return lifecycleState.isEmpty ? effectiveOperationalStatus : lifecycleState;
   }
 
@@ -233,7 +240,8 @@ class ServiceCase {
   }
 
   String get paymentSummaryLabel {
-    if (receipt.status == 'Not Required' || settlement.status == 'Not Required') {
+    if (receipt.status == 'Not Required' ||
+        settlement.status == 'Not Required') {
       return 'No payment required';
     }
     final total = activePaymentTotal;
@@ -409,7 +417,9 @@ class ServiceCaseReceipt {
 
   bool get isSubmitted {
     final value = status.trim().toLowerCase();
-    return value == 'submitted' || value == 'under review' || value == 'accepted';
+    return value == 'submitted' ||
+        value == 'under review' ||
+        value == 'accepted';
   }
 
   bool get isRejected => status.trim().toLowerCase() == 'rejected';

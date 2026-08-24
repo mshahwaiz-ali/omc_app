@@ -41,7 +41,21 @@ class TestAuthLinks(FrappeTestCase):
         )
         get_url.return_value = f"https://example.test{expected_path}"
 
-        links = auth_links.verification_links("abc")
+        original = frappe.conf.get(
+            auth_links.WEB_BASE_URL_CONFIG_KEY
+        )
+        frappe.conf.pop(
+            auth_links.WEB_BASE_URL_CONFIG_KEY,
+            None,
+        )
+
+        try:
+            links = auth_links.verification_links("abc")
+        finally:
+            if original is not None:
+                frappe.conf[
+                    auth_links.WEB_BASE_URL_CONFIG_KEY
+                ] = original
 
         self.assertEqual(
             links["web_url"],

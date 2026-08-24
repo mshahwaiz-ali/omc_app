@@ -28,6 +28,10 @@ def _text(value) -> str:
     return str(value or "").strip()
 
 
+def _is_historical_request(request) -> bool:
+    return _text(getattr(request, "request_state", None)) == "Historical"
+
+
 def _assert_recovery_manager() -> str:
     user = _text(getattr(getattr(frappe, "session", None), "user", None))
     if not user or user == "Guest":
@@ -127,7 +131,10 @@ def get_erp_sync_issues(limit_start=0, limit_page_length=50):
     _assert_recovery_manager()
     start = _bounded_int(limit_start, default=0, minimum=0, maximum=1_000_000)
     page_length = _bounded_int(limit_page_length, default=50, minimum=1, maximum=200)
-    filters = {"erp_sync_status": ["in", sorted(RETRYABLE_STATUSES)]}
+    filters = {
+        "erp_sync_status": ["in", sorted(RETRYABLE_STATUSES)],
+        "request_state": ["!=", "Historical"],
+    }
     rows = frappe.get_all(
         "OMC Service Request",
         filters=filters,
@@ -171,6 +178,12 @@ def retry_erp_sync(request_name=None, reset_exhaustion=0):
     if not locked:
         frappe.throw("Service request not found.", frappe.DoesNotExistError)
     request = frappe.get_doc("OMC Service Request", locked)
+
+    if _is_historical_request(request):
+        frappe.throw(
+            "Historical service requests are not eligible for ERP synchronization recovery.",
+            frappe.ValidationError,
+        )
 
     operation = _bridge_operation(request.name)
     if operation:
@@ -287,6 +300,7 @@ def run_automatic_erp_sync_recovery():
             "OMC Service Request",
             filters={
                 "erp_sync_status": ["in", sorted(RETRYABLE_STATUSES)],
+                "request_state": ["!=", "Historical"],
                 "erp_retry_exhausted_at": ["is", "not set"],
             },
             fields=["name", "erp_next_attempt_at"],

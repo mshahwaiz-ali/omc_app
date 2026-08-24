@@ -32,8 +32,8 @@ def _number(value) -> int:
 
 
 def _display_status(request_state: str, operational_status: str) -> str:
-    if request_state == "Activated":
-        return operational_status or "Activated"
+    if request_state in {"Activated", "Historical"}:
+        return operational_status or request_state
     return {
         "Draft": "Draft",
         "Pending Payment": "Payment Required",
@@ -158,25 +158,37 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
         operational_status = _text(request.status) or "Open"
         policy = _text(request.payment_policy_snapshot) or "Full Settlement"
         payable = frappe.utils.flt(request.payable_amount or 0, 6)
+        historical = request_state == "Historical"
         no_charge = policy == "No Charge" and payable <= 0
 
-        receipt_status = (
-            "Not Required"
-            if no_charge
-            else _text(getattr(payment, "receipt_status", None)) or "Not Submitted"
-        )
-        payment_status = (
-            "Not Required"
-            if no_charge
-            else _text(getattr(payment, "status", None)) or "Pending"
-        )
-        accounting_status = (
-            "Not Required"
-            if no_charge
-            else _text(getattr(payment, "accounting_status", None))
-            or _text(getattr(base_link, "accounting_status", None))
-            or "Unmatched"
-        )
+        if historical:
+            # Historical ERP records pre-date the canonical payment workflow.
+            # Never describe missing canonical accounting evidence as unpaid,
+            # unmatched, rejected, or not-required.
+            receipt_status = "Historical"
+            payment_status = "Historical"
+            accounting_status = "Historical"
+        else:
+            receipt_status = (
+                "Not Required"
+                if no_charge
+                else _text(getattr(payment, "receipt_status", None))
+                or "Not Submitted"
+            )
+            payment_status = (
+                "Not Required"
+                if no_charge
+                else _text(getattr(payment, "status", None))
+                or "Pending"
+            )
+            accounting_status = (
+                "Not Required"
+                if no_charge
+                else _text(getattr(payment, "accounting_status", None))
+                or _text(getattr(base_link, "accounting_status", None))
+                or "Unmatched"
+            )
+
         review_kind = ""
         if accounting_status == "Quarantined":
             review_kind = "technical_quarantine"
@@ -184,7 +196,11 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
             review_kind = "human_review"
 
         bridge = bridge_map.get(name)
-        bridge_state = _text(getattr(bridge, "state", None)) or "Not Started"
+        bridge_state = (
+            "Historical"
+            if historical
+            else _text(getattr(bridge, "state", None)) or "Not Started"
+        )
         hold_active = request_state == "Financial Hold"
         if not hold_active:
             hold_reason = ""
@@ -197,8 +213,14 @@ def _bulk_contract(request_names: list[str]) -> dict[str, dict]:
         else:
             hold_reason = "Settlement requires OMC review."
         hold = {"active": hold_active, "reason": hold_reason}
-        evidence_complete = bool(
-            request.activated_at and request.erp_service and request.erp_task
+        evidence_complete = (
+            False
+            if historical
+            else bool(
+                request.activated_at
+                and request.erp_service
+                and request.erp_task
+            )
         )
 
         result[name] = {
