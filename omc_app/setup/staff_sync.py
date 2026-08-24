@@ -80,7 +80,12 @@ def _ensure_staff_access(user: str, profile, mapped_persona: str):
     employee = _employee_for_user(user)
     persona_source = _persona_source(user, mapped_persona)
     capability_codes = sorted(
-        access.ROLE_CAPABILITIES.get(mapped_persona, set())
+        set(access.ROLE_CAPABILITIES.get(mapped_persona, set()))
+        | {
+            "can_access_internal_workspace",
+            "can_view_tasks",
+            "can_view_internal_notifications",
+        }
     )
 
     name = frappe.db.get_value(

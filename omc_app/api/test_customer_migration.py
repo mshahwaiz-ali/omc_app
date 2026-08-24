@@ -1208,7 +1208,7 @@ class TestCustomerMigrationHistoricalReferralProfileLink(FrappeTestCase):
             save=MagicMock(),
         )
 
-    def test_historical_referral_links_imported_profile_without_fabricating_consent(self):
+    def test_historical_referral_links_imported_profile_with_default_assistance(self):
         profile = self._profile()
 
         result = (
@@ -1238,17 +1238,18 @@ class TestCustomerMigrationHistoricalReferralProfileLink(FrappeTestCase):
             "ADNAN001",
         )
 
-        # Historical ERP relationship is not customer assistance consent.
         self.assertEqual(
             profile.referral_assistance_consent,
-            0,
+            1,
         )
+        # Historical import enables assistance by business rule, but
+        # must not fabricate a customer-granted consent timestamp.
         self.assertIsNone(
             profile.referral_consent_timestamp,
         )
         self.assertEqual(
             profile.referral_consent_version,
-            "",
+            "historical-import-v1",
         )
 
         profile.save.assert_called_once_with(
@@ -1261,6 +1262,8 @@ class TestCustomerMigrationHistoricalReferralProfileLink(FrappeTestCase):
             referral_record="REF-ADNAN",
             referred_by="adnan@omchouse.com",
             referral_code_used="ADNAN001",
+            consent=1,
+            consent_version="historical-import-v1",
         )
 
         result = (
@@ -1275,6 +1278,82 @@ class TestCustomerMigrationHistoricalReferralProfileLink(FrappeTestCase):
             "already_linked",
         )
         self.assertFalse(result["changed"])
+        profile.save.assert_not_called()
+
+    def test_already_linked_legacy_import_gets_one_time_consent_backfill(self):
+        profile = self._profile(
+            acquisition_source="Referral",
+            referral_record="REF-ADNAN",
+            referred_by="adnan@omchouse.com",
+            referral_code_used="ADNAN001",
+            consent=0,
+            consent_timestamp=None,
+            consent_version="",
+        )
+
+        result = (
+            customer_migration._apply_historical_referral_to_profile(
+                profile,
+                self._decision(),
+            )
+        )
+
+        self.assertEqual(result["action"], "linked")
+        self.assertTrue(result["changed"])
+        self.assertEqual(profile.referral_assistance_consent, 1)
+        self.assertIsNone(profile.referral_consent_timestamp)
+        self.assertEqual(
+            profile.referral_consent_version,
+            "historical-import-v1",
+        )
+        profile.save.assert_called_once_with(
+            ignore_permissions=True,
+        )
+
+    def test_customer_revocation_after_historical_import_is_preserved(self):
+        profile = self._profile(
+            acquisition_source="Referral",
+            referral_record="REF-ADNAN",
+            referred_by="adnan@omchouse.com",
+            referral_code_used="ADNAN001",
+            consent=0,
+            consent_timestamp=None,
+            consent_version="historical-import-v1",
+        )
+
+        result = (
+            customer_migration._apply_historical_referral_to_profile(
+                profile,
+                self._decision(),
+            )
+        )
+
+        self.assertEqual(result["action"], "already_linked")
+        self.assertFalse(result["changed"])
+        self.assertEqual(profile.referral_assistance_consent, 0)
+        profile.save.assert_not_called()
+
+    def test_legacy_explicit_revocation_with_timestamp_is_preserved(self):
+        profile = self._profile(
+            acquisition_source="Referral",
+            referral_record="REF-ADNAN",
+            referred_by="adnan@omchouse.com",
+            referral_code_used="ADNAN001",
+            consent=0,
+            consent_timestamp="2026-08-01 10:00:00",
+            consent_version="",
+        )
+
+        result = (
+            customer_migration._apply_historical_referral_to_profile(
+                profile,
+                self._decision(),
+            )
+        )
+
+        self.assertEqual(result["action"], "already_linked")
+        self.assertFalse(result["changed"])
+        self.assertEqual(profile.referral_assistance_consent, 0)
         profile.save.assert_not_called()
 
     def test_conflicting_existing_referral_is_never_overwritten(self):

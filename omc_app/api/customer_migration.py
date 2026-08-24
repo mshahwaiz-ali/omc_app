@@ -1111,7 +1111,39 @@ def _apply_historical_referral_to_profile(
         and current_code == target_code
     )
 
+    historical_consent_version = "historical-import-v1"
+    current_consent = int(
+        getattr(profile, "referral_assistance_consent", 0) or 0
+    )
+    current_consent_timestamp = getattr(
+        profile,
+        "referral_consent_timestamp",
+        None,
+    )
+    current_consent_version = _text(
+        getattr(profile, "referral_consent_version", "")
+    )
+
     if already_linked:
+        # Profiles linked by the older migration contract have no consent
+        # history at all. Apply the imported-customer assistance default
+        # exactly once. Once marked, a later customer revocation must win.
+        if (
+            not current_consent
+            and not current_consent_timestamp
+            and not current_consent_version
+        ):
+            profile.referral_assistance_consent = 1
+            profile.referral_consent_version = (
+                historical_consent_version
+            )
+            profile.save(ignore_permissions=True)
+            return {
+                "action": "linked",
+                "reason": "",
+                "changed": True,
+            }
+
         return {
             "action": "already_linked",
             "reason": "",
@@ -1123,13 +1155,17 @@ def _apply_historical_referral_to_profile(
     profile.referred_by = target_owner
     profile.referral_code_used = target_code
 
-    # Deliberately DO NOT modify:
-    # - referral_assistance_consent
-    # - referral_consent_timestamp
-    # - referral_consent_version
-    #
-    # Historical ERP provenance is not customer-granted referral
-    # assistance consent.
+    # Imported existing customers with proven historical referral
+    # evidence receive referral-assistance access by migration policy.
+    # Do not fabricate a customer-granted consent timestamp.
+    if (
+        not current_consent_timestamp
+        and not current_consent_version
+    ):
+        profile.referral_assistance_consent = 1
+        profile.referral_consent_version = (
+            historical_consent_version
+        )
 
     profile.save(ignore_permissions=True)
 

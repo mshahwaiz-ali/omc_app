@@ -144,6 +144,94 @@ def cancel_linked_erp_records(request) -> dict[str, Any]:
     return result
 
 
+def _task_notification_changed(doc) -> bool:
+    getter = getattr(doc, "get_doc_before_save", None)
+    if not callable(getter):
+        return False
+
+    before = getter()
+    if not before:
+        return False
+
+    for fieldname in ("status", "custom_operation_status", "workflow_state"):
+        if _text(getattr(before, fieldname, None)) != _text(
+            getattr(doc, fieldname, None)
+        ):
+            return True
+
+    return False
+
+
+def _notify_task_recipients(doc, request) -> int:
+    task_name = _text(getattr(doc, "name", None))
+    if not task_name:
+        return 0
+
+    recipients = set()
+
+    assigned_staff = _text(getattr(request, "assigned_staff", None))
+    if assigned_staff:
+        recipients.add(assigned_staff)
+
+    rows = frappe.get_all(
+        "ToDo",
+        filters={
+            "reference_type": "Task",
+            "reference_name": task_name,
+            "status": ["not in", ["Closed", "Cancelled"]],
+        },
+        pluck="allocated_to",
+        limit_page_length=100,
+    )
+    for user in rows:
+        user = _text(user)
+        if user:
+            recipients.add(user)
+
+    if not recipients:
+        return 0
+
+    raw_status = _text(getattr(doc, "status", None))
+    operation_status = _text(
+        getattr(doc, "custom_operation_status", None)
+    )
+    workflow_state = _text(getattr(doc, "workflow_state", None))
+
+    details = []
+    if raw_status:
+        details.append(f"ERP status: {raw_status}")
+    if workflow_state:
+        details.append(f"Workflow: {workflow_state}")
+    if operation_status:
+        details.append(f"Operation: {operation_status}")
+
+    message = f"{task_name} was updated."
+    if details:
+        message = f"{message} {' | '.join(details)}"
+
+    from omc_app.api import mobile
+
+    created = 0
+    for recipient in sorted(recipients):
+        if not frappe.db.exists(
+            "User",
+            {"name": recipient, "enabled": 1},
+        ):
+            continue
+
+        notification = mobile._create_customer_notification(
+            recipient_user=recipient,
+            title="Task updated",
+            message=message,
+            notification_type="Task",
+            reference_doctype="Task",
+            reference_name=task_name,
+        )
+        created += int(bool(notification))
+
+    return created
+
+
 def sync_task_status(doc, method=None) -> dict[str, Any]:
     task_name = _text(getattr(doc, "name", None))
     if not task_name:
@@ -310,6 +398,10 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
             update_modified=True,
         )
 
+    notifications_created = 0
+    if _task_notification_changed(doc):
+        notifications_created = _notify_task_recipients(doc, request)
+
     return {
         "updated": True,
         "request": request_name,
@@ -318,4 +410,5 @@ def sync_task_status(doc, method=None) -> dict[str, Any]:
         "operation_status": operation_status,
         "customer_status": mapped_status,
         "service_status": service_status or "",
+        "notifications_created": notifications_created,
     }
