@@ -119,7 +119,7 @@ def _send_activation_email(
         subject="Activate your OMC account",
         message=_email_html(
             full_name,
-            links["app_url"],
+            links["universal_url"],
             links["web_url"],
         ),
         now=True,

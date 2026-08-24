@@ -17,20 +17,22 @@ def _require_capability(*capability_names, message):
 
 
 @frappe.whitelist()
-def get_service_cases():
-    """Return service case list with the same tracking summary used by detail."""
+def get_service_cases(
+    start=0,
+    limit=20,
+    limit_start=None,
+    limit_page_length=None,
+):
+    """Return the canonical scoped, paginated service-case contract."""
 
-    response = mobile.get_service_cases()
-    cases = _extract_service_case_list(response)
-    if not isinstance(cases, list):
-        return response
+    from omc_app.api import service_case_contract
 
-    can_access_internal_workspace = mobile._can_access_internal_workspace()
-    for service_case in cases:
-        if isinstance(service_case, dict):
-            _normalize_service_case(service_case, can_access_internal_workspace)
-
-    return response
+    return service_case_contract.get_service_cases(
+        start=start,
+        limit=limit,
+        limit_start=limit_start,
+        limit_page_length=limit_page_length,
+    )
 
 
 @frappe.whitelist()

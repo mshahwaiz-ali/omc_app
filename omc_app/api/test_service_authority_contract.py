@@ -1,6 +1,9 @@
 from pathlib import Path
+from unittest.mock import patch
 
 from frappe.tests.utils import FrappeTestCase
+
+from omc_app.api import secured_mobile, service_case_read, service_document_read
 
 
 class TestServiceAuthorityContract(FrappeTestCase):
@@ -105,3 +108,72 @@ class TestServiceAuthorityContract(FrappeTestCase):
             adapter,
         )
         self.assertIn('"created": False', adapter)
+
+    def test_secured_mobile_service_cases_forwards_pagination(self):
+        expected = {
+            "cases": [],
+            "limit_start": 11,
+            "limit_page_length": 13,
+            "next_start": None,
+            "has_more": False,
+        }
+
+        with patch(
+            "omc_app.api.service_case_contract.get_service_cases",
+            return_value=expected,
+        ) as canonical:
+            result = secured_mobile.get_service_cases(
+                start=3,
+                limit=7,
+                limit_start=11,
+                limit_page_length=13,
+            )
+
+        self.assertIs(result, expected)
+        canonical.assert_called_once_with(
+            start=3,
+            limit=7,
+            limit_start=11,
+            limit_page_length=13,
+        )
+
+    def test_customer_service_document_authorization_uses_session_context(self):
+        with (
+            patch.object(
+                service_document_read.access,
+                "is_internal_user",
+                return_value=False,
+            ),
+            patch.object(
+                service_document_read.access,
+                "get_mobile_capabilities",
+                return_value={},
+            ),
+            patch.object(
+                service_document_read.identity,
+                "require_customer_context",
+            ) as require_customer_context,
+        ):
+            internal, capabilities = service_document_read._authorized_context(
+                "customer@example.com"
+            )
+
+        self.assertFalse(internal)
+        self.assertEqual(capabilities, {})
+        require_customer_context.assert_called_once_with()
+
+    def test_customer_service_case_authorization_uses_session_context(self):
+        with (
+            patch.object(
+                service_case_read.access,
+                "is_internal_user",
+                return_value=False,
+            ),
+            patch.object(
+                service_case_read.identity,
+                "require_customer_context",
+            ) as require_customer_context,
+        ):
+            service_case_read._authorize("customer@example.com")
+
+        require_customer_context.assert_called_once_with()

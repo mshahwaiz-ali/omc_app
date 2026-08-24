@@ -55,7 +55,7 @@ def _authorized_context(user: str):
     if internal:
         customer_documents._require_document_read_access(capabilities)
     else:
-        identity.require_customer_context(user)
+        identity.require_customer_context()
     return internal, capabilities
 
 
