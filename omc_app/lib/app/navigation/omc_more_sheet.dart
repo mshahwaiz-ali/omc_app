@@ -32,6 +32,7 @@ Future<bool> showOmcMoreSheet({
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenMyReferrals,
   required VoidCallback onOpenMyCommissions,
+  required VoidCallback onOpenCommissionOperations,
   required VoidCallback onOpenLeads,
   required VoidCallback onOpenTasks,
   required VoidCallback onLogout,
@@ -53,6 +54,7 @@ Future<bool> showOmcMoreSheet({
       OmcNavigationActionId.customers => onOpenCustomers,
       OmcNavigationActionId.referrals => onOpenMyReferrals,
       OmcNavigationActionId.commissions => onOpenMyCommissions,
+      OmcNavigationActionId.commissionOperations => onOpenCommissionOperations,
       OmcNavigationActionId.documents => onOpenDocuments,
       OmcNavigationActionId.payments => onOpenPayments,
       OmcNavigationActionId.leads => onOpenLeads,
@@ -66,7 +68,6 @@ Future<bool> showOmcMoreSheet({
       OmcNavigationActionId.profile => onOpenProfile,
       OmcNavigationActionId.settings => onOpenSettings,
       OmcNavigationActionId.login || OmcNavigationActionId.logout => onLogout,
-      // Quick-action-only ids never appear in More.
       OmcNavigationActionId.apply ||
       OmcNavigationActionId.createLead ||
       OmcNavigationActionId.startRequest ||
@@ -299,6 +300,7 @@ IconData _iconFor(OmcNavigationActionId id) {
     OmcNavigationActionId.customers => Icons.groups_outlined,
     OmcNavigationActionId.referrals => Icons.hub_outlined,
     OmcNavigationActionId.commissions => Icons.payments_outlined,
+    OmcNavigationActionId.commissionOperations => Icons.account_balance_outlined,
     OmcNavigationActionId.documents => Icons.folder_copy_outlined,
     OmcNavigationActionId.payments => Icons.receipt_long_outlined,
     OmcNavigationActionId.leads => Icons.person_search_outlined,
