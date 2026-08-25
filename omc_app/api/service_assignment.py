@@ -9,11 +9,43 @@ from frappe.utils import add_to_date, now_datetime
 from omc_app.api import capabilities, erp_service_task_adapter, identity, mobile
 
 ASSIGNABLE_SERVICE_ROLES = {
+    "Employee",
+    "Consultant",
+    "Tax Associates",
+    "Business Partner",
+    "OMC Manager",
+    # Legacy values remain readable so older rows do not become unassignable
+    # before the source-controlled catalogue reconciles them to Employee.
     "OMC Consultant",
     "OMC Tax Associate",
     "OMC Business Partner",
-    "OMC Manager",
 }
+
+PERSONA_ASSIGNMENT_ROLES = {
+    "Employee": {"Employee"},
+    "OMC Employee": {"Employee"},
+    "Consultant": {"Consultant", "OMC Consultant"},
+    "OMC Consultant": {"Consultant", "OMC Consultant"},
+    "Tax Associate": {"Tax Associates", "OMC Tax Associate"},
+    "Tax Associates": {"Tax Associates", "OMC Tax Associate"},
+    "OMC Tax Associate": {"Tax Associates", "OMC Tax Associate"},
+    "Business Partner": {"Business Partner", "OMC Business Partner"},
+    "OMC Business Partner": {"Business Partner", "OMC Business Partner"},
+    "Manager": {"OMC Manager"},
+    "OMC Manager": {"OMC Manager"},
+}
+
+ROLE_PERSONAS = {
+    "Employee": ["Employee", "OMC Employee"],
+    "Consultant": ["Consultant", "OMC Consultant"],
+    "Tax Associates": ["Tax Associate", "Tax Associates", "OMC Tax Associate"],
+    "Business Partner": ["Business Partner", "OMC Business Partner"],
+    "OMC Manager": ["Manager", "OMC Manager"],
+    "OMC Consultant": ["Consultant", "OMC Consultant"],
+    "OMC Tax Associate": ["Tax Associate", "Tax Associates", "OMC Tax Associate"],
+    "OMC Business Partner": ["Business Partner", "OMC Business Partner"],
+}
+
 OPEN_CASE_STATUSES = ["Open", "In Progress", "Waiting for Customer", "Waiting for Payment"]
 RECOVERY_BATCH_SIZE = 50
 RECOVERY_RUNTIME_SECONDS = 45
@@ -51,15 +83,11 @@ def active_assignable_user(user: Any, *, required_role: str | None = None):
     access = identity.get_staff_access(user)
     if not access or access.access_status != "Approved" or access.reconciliation_status != "Current":
         return None
+
     persona = _text(access.persona_snapshot)
-    persona_roles = {
-        "Consultant": "OMC Consultant",
-        "Tax Associate": "OMC Tax Associate",
-        "Tax Associates": "OMC Tax Associate",
-        "Business Partner": "OMC Business Partner",
-        "Manager": "OMC Manager",
-    }
-    effective_roles = {persona_roles.get(persona, persona)}.intersection(ASSIGNABLE_SERVICE_ROLES)
+    effective_roles = PERSONA_ASSIGNMENT_ROLES.get(persona, {persona}).intersection(
+        ASSIGNABLE_SERVICE_ROLES
+    )
     if required_role:
         return user if required_role in effective_roles else None
 
@@ -70,16 +98,10 @@ def users_for_role(role: str) -> list[str]:
     if role not in ASSIGNABLE_SERVICE_ROLES:
         return []
 
-    persona_map = {
-        "OMC Consultant": ["Consultant", "OMC Consultant"],
-        "OMC Tax Associate": ["Tax Associate", "Tax Associates", "OMC Tax Associate"],
-        "OMC Business Partner": ["Business Partner", "OMC Business Partner"],
-        "OMC Manager": ["Manager", "OMC Manager"],
-    }
     users = frappe.get_all(
         "OMC Staff Access",
         filters={
-            "persona_snapshot": ["in", persona_map.get(role, [role])],
+            "persona_snapshot": ["in", ROLE_PERSONAS.get(role, [role])],
             "access_status": "Approved",
             "reconciliation_status": "Current",
         },
@@ -114,14 +136,11 @@ def assignment_role_for_service(service) -> str:
     configured = _text(getattr(service, "default_assignment_role", None))
     if configured in ASSIGNABLE_SERVICE_ROLES:
         return configured
-    haystack = " ".join(
-        _text(getattr(service, fieldname, None)) for fieldname in ("title", "category", "icon")
-    ).lower()
-    if "tax" in haystack or "filing" in haystack:
-        return "OMC Tax Associate"
-    if any(term in haystack for term in ("company", "business", "registration")):
-        return "OMC Consultant"
-    return "OMC Business Partner"
+
+    # Source-controlled OMC services are reconciled to Employee. Keeping the
+    # same fallback here also makes unmanaged/legacy services fail toward the
+    # intended operational pool instead of guessing from service titles.
+    return "Employee"
 
 
 def resolve_assignee(service, *, explicit_user=None, referral_owner=None) -> dict[str, Any]:
@@ -131,7 +150,7 @@ def resolve_assignee(service, *, explicit_user=None, referral_owner=None) -> dic
         active = active_assignable_user(explicit)
         if not active:
             frappe.throw(
-                "The selected assignee must be an enabled System User with an assignable OMC role.",
+                "The selected assignee must be an enabled System User with an assignable OMC staff persona.",
                 frappe.ValidationError,
             )
         return {"candidate": active, "source": "explicit", "role": "", "rejected": rejected}
@@ -152,9 +171,16 @@ def resolve_assignee(service, *, explicit_user=None, referral_owner=None) -> dic
     candidate = least_loaded_user(users_for_role(role))
     if candidate:
         return {"candidate": candidate, "source": "service_role", "role": role, "rejected": rejected}
+
     candidate = least_loaded_user(users_for_role("OMC Manager"))
     if candidate:
-        return {"candidate": candidate, "source": "manager_fallback", "role": "OMC Manager", "rejected": rejected}
+        return {
+            "candidate": candidate,
+            "source": "manager_fallback",
+            "role": "OMC Manager",
+            "rejected": rejected,
+        }
+
     return {
         "candidate": None,
         "source": "none",
@@ -274,11 +300,14 @@ def _escalate_assignment_issue(service_request, reason: str) -> bool:
     staff_users = frappe.get_all(
         "OMC Staff Access",
         filters={"access_status": "Approved", "reconciliation_status": "Current"},
-        pluck="user", limit_page_length=500,
+        pluck="user",
+        limit_page_length=500,
     )
     active = [
-        user for user in staff_users
-        if identity.user_is_enabled(user) and capabilities.effective(user).get("can_reassign_service_cases")
+        user
+        for user in staff_users
+        if identity.user_is_enabled(user)
+        and capabilities.effective(user).get("can_reassign_service_cases")
     ]
     if not active:
         return False
@@ -372,7 +401,7 @@ def run_unassigned_recovery() -> dict[str, Any]:
                         summary["notifications_created"] += int(
                             _escalate_assignment_issue(
                                 request,
-                                "the existing assignee is disabled or lacks an assignable OMC role",
+                                "the existing assignee is disabled or lacks an assignable OMC staff persona",
                             )
                         )
                     continue
@@ -385,7 +414,9 @@ def run_unassigned_recovery() -> dict[str, Any]:
                 if not decision.get("candidate"):
                     summary["no_candidate"] += 1
                     summary["notifications_created"] += int(
-                        _escalate_assignment_issue(request, decision.get("reason") or "no eligible candidate")
+                        _escalate_assignment_issue(
+                            request, decision.get("reason") or "no eligible candidate"
+                        )
                     )
                     frappe.logger("omc_app.scheduler").warning(
                         "OMC assignment recovery found no candidate for %s: %s",
