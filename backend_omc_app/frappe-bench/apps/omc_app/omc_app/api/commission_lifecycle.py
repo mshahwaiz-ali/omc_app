@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal, ROUND_HALF_UP
+
 import frappe
 from frappe.utils import getdate, now_datetime, today
 
@@ -10,10 +12,19 @@ APPROVABLE = {"Calculated", "Held"}
 REJECTABLE = {"Calculated", "Held", "Approved", "Payable"}
 PAYABLE_FROM = {"Approved"}
 PAID_FROM = {"Payable"}
+LEGACY_COMMISSION_ACCOUNT = "Commission Payable - O"
+HOUSE_SALES_PERSON = "omc@omchouse.com"
 
 
 def _text(value) -> str:
     return str(value or "").strip()
+
+
+def _money(value) -> Decimal:
+    return Decimal(str(value or 0)).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
 
 
 def _locked_allocation(name: str):
@@ -24,8 +35,77 @@ def _locked_allocation(name: str):
     return frappe.get_doc("OMC Commission Allocation", locked)
 
 
-def evidence_state(allocation) -> tuple[str, str]:
-    """Return durable commission evidence state without creating accounting docs."""
+def _is_house_direct(payment, allocation) -> bool:
+    if frappe.db.has_column("Payment Entry", "custom_omc_customer"):
+        if int(
+            frappe.db.get_value(
+                "Payment Entry", payment.name, "custom_omc_customer"
+            )
+            or 0
+        ):
+            return True
+
+    customer = _text(getattr(allocation, "erp_customer", None))
+    if customer and frappe.db.exists("Customer", customer):
+        sales_person = _text(
+            frappe.db.get_value("Customer", customer, "sales_person")
+        ).lower()
+        if sales_person == HOUSE_SALES_PERSON:
+            return True
+    return False
+
+
+def _historical_evidence_state(allocation) -> tuple[str, str]:
+    payment_name = _text(allocation.payment_entry)
+    journal_name = _text(getattr(allocation, "legacy_journal_entry", None))
+
+    if not payment_name or not frappe.db.exists("Payment Entry", payment_name):
+        return "Missing", "historical_payment_entry_missing"
+    payment = frappe.get_doc("Payment Entry", payment_name)
+    if int(payment.docstatus or 0) != 1:
+        return "Reversed", "historical_payment_entry_not_submitted"
+
+    if _is_house_direct(payment, allocation):
+        return "Reversed", "historical_house_direct_suppression"
+
+    if not journal_name or not frappe.db.exists("Journal Entry", journal_name):
+        return "Missing", "historical_journal_entry_missing"
+    journal = frappe.get_doc("Journal Entry", journal_name)
+    if int(journal.docstatus or 0) != 1:
+        return "Reversed", "historical_journal_entry_not_submitted"
+
+    expected_type = _text(allocation.beneficiary_type)
+    expected_party = _text(allocation.beneficiary)
+    expected_amount = _money(allocation.commission_amount)
+
+    matching_rows = []
+    for row in journal.accounts or []:
+        if _text(row.account) != LEGACY_COMMISSION_ACCOUNT:
+            continue
+        if _text(getattr(row, "reference_type", None)) != "Payment Entry":
+            continue
+        if _text(getattr(row, "reference_name", None)) != payment_name:
+            continue
+        if _text(getattr(row, "party_type", None)) != expected_type:
+            continue
+        if _text(getattr(row, "party", None)) != expected_party:
+            continue
+        if _money(getattr(row, "credit_in_account_currency", 0)) != expected_amount:
+            continue
+        matching_rows.append(row)
+
+    if len(matching_rows) != 1:
+        return (
+            "Review Required",
+            "historical_commission_payable_row_ambiguous"
+            if matching_rows
+            else "historical_commission_payable_row_missing",
+        )
+
+    return "Matched", "matched"
+
+
+def _current_evidence_state(allocation) -> tuple[str, str]:
     if not frappe.db.exists("Payment Entry", allocation.payment_entry):
         return "Missing", "payment_entry_missing"
     payment_docstatus = frappe.db.get_value("Payment Entry", allocation.payment_entry, "docstatus")
@@ -76,6 +156,16 @@ def evidence_state(allocation) -> tuple[str, str]:
     return "Matched", "matched"
 
 
+def evidence_state(allocation) -> tuple[str, str]:
+    """Return durable commission evidence state without creating accounting docs."""
+    provenance = _text(getattr(allocation, "provenance", None)) or "Current OMC"
+    if provenance == "Historical Legacy":
+        return _historical_evidence_state(allocation)
+    if provenance != "Current OMC":
+        return "Review Required", "unsupported_commission_provenance"
+    return _current_evidence_state(allocation)
+
+
 def refresh_evidence(allocation) -> tuple[str, str]:
     state, code = evidence_state(allocation)
     frappe.db.set_value(
@@ -87,6 +177,14 @@ def refresh_evidence(allocation) -> tuple[str, str]:
     )
     allocation.accounting_evidence_status = state
 
+    safe_evidence = {
+        "provenance": _text(getattr(allocation, "provenance", None)) or "Current OMC",
+        "payment_entry": _text(getattr(allocation, "payment_entry", None)),
+        "sales_invoice": _text(getattr(allocation, "sales_invoice", None)),
+        "service_request": _text(getattr(allocation, "service_request", None)),
+        "legacy_journal_entry": _text(getattr(allocation, "legacy_journal_entry", None)),
+    }
+
     if state == "Review Required":
         reconciliation_queues.open_human_review(
             domain="Commission",
@@ -94,11 +192,7 @@ def refresh_evidence(allocation) -> tuple[str, str]:
             source_name=allocation.name,
             source_version=allocation.calculation_version,
             reason_code=code,
-            safe_evidence={
-                "payment_entry": allocation.payment_entry,
-                "sales_invoice": allocation.sales_invoice,
-                "service_request": allocation.service_request,
-            },
+            safe_evidence=safe_evidence,
         )
     elif state in {"Missing", "Quarantined"}:
         reconciliation_queues.open_technical_quarantine(
@@ -107,11 +201,7 @@ def refresh_evidence(allocation) -> tuple[str, str]:
             source_name=allocation.name,
             source_version=allocation.calculation_version,
             failure_code=code,
-            safe_evidence={
-                "payment_entry": allocation.payment_entry,
-                "sales_invoice": allocation.sales_invoice,
-                "service_request": allocation.service_request,
-            },
+            safe_evidence=safe_evidence,
         )
     elif state == "Matched":
         reconciliation_queues.resolve_source_queues(
