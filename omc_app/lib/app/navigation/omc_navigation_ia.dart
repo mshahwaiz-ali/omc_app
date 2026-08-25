@@ -5,6 +5,7 @@ enum OmcNavigationActionId {
   customers,
   referrals,
   commissions,
+  commissionOperations,
   documents,
   payments,
   leads,
@@ -154,15 +155,14 @@ List<OmcNavigationGroup> _internalMoreNavigation(
       const OmcNavigationItem(OmcNavigationActionId.customers, 'Customers'),
     );
   }
-  if (capabilities.canViewRelevantCustomers &&
-      !capabilities.canViewAllCustomers) {
+  if (capabilities.canOwnReferrals) {
     work.add(
       const OmcNavigationItem(OmcNavigationActionId.referrals, 'My Referrals'),
     );
   }
-  if (capabilities.canViewReferralCommissions) {
+  if (capabilities.canViewOwnCommissions) {
     work.add(
-      const OmcNavigationItem(OmcNavigationActionId.commissions, 'Commissions'),
+      const OmcNavigationItem(OmcNavigationActionId.commissions, 'My Commissions'),
     );
   }
   if (capabilities.canViewTasks) {
@@ -177,6 +177,15 @@ List<OmcNavigationGroup> _internalMoreNavigation(
   if (capabilities.canViewAnyPayment) {
     review.add(
       const OmcNavigationItem(OmcNavigationActionId.payments, 'Payments'),
+    );
+  }
+  if (capabilities.canApproveCommissions ||
+      capabilities.canMarkCommissionsPaid) {
+    review.add(
+      const OmcNavigationItem(
+        OmcNavigationActionId.commissionOperations,
+        'Commission Operations',
+      ),
     );
   }
   if (capabilities.canUseSupportWorkspace) {
@@ -249,6 +258,15 @@ List<OmcNavigationItem> buildOmcQuickActions(AuthCapabilities capabilities) {
         const OmcNavigationItem(
           OmcNavigationActionId.reviewDocuments,
           'Review Documents',
+        ),
+      );
+    }
+    if (capabilities.canApproveCommissions ||
+        capabilities.canMarkCommissionsPaid) {
+      items.add(
+        const OmcNavigationItem(
+          OmcNavigationActionId.commissionOperations,
+          'Commissions',
         ),
       );
     }
