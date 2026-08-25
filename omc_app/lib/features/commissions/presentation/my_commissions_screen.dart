@@ -2,36 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../auth/application/auth_controller.dart';
 import '../data/commission_repository.dart';
-import 'finance_commissions_screen.dart';
 
-class MyCommissionsScreen extends ConsumerWidget {
+class MyCommissionsScreen extends ConsumerStatefulWidget {
   const MyCommissionsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final capabilities = ref.watch(authControllerProvider).capabilities;
-    final financeMode =
-        capabilities.canApproveCommissions ||
-        capabilities.canMarkCommissionsPaid;
-
-    return financeMode
-        ? const FinanceCommissionsScreen()
-        : const _BeneficiaryCommissionsScreen();
-  }
+  ConsumerState<MyCommissionsScreen> createState() =>
+      _MyCommissionsScreenState();
 }
 
-class _BeneficiaryCommissionsScreen extends ConsumerStatefulWidget {
-  const _BeneficiaryCommissionsScreen();
-
-  @override
-  ConsumerState<_BeneficiaryCommissionsScreen> createState() =>
-      _BeneficiaryCommissionsScreenState();
-}
-
-class _BeneficiaryCommissionsScreenState
-    extends ConsumerState<_BeneficiaryCommissionsScreen> {
+class _MyCommissionsScreenState extends ConsumerState<MyCommissionsScreen> {
   final _items = <CommissionEarning>[];
   final _periodController = TextEditingController();
   final _customerController = TextEditingController();
@@ -152,7 +133,7 @@ class _BeneficiaryCommissionsScreenState
                     '${item.currency} ${item.amount.toStringAsFixed(2)}',
                   ),
                   subtitle: Text(
-                    '${item.service}\n${item.customer}\n${item.status} • ${item.earnedOn}',
+                    '${item.serviceLabel}\n${item.customer}\n${item.status} • ${item.earnedOn}',
                   ),
                   isThreeLine: true,
                   trailing: const Icon(Icons.chevron_right),
