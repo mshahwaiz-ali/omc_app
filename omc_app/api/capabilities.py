@@ -27,13 +27,11 @@ INTERNAL_CAPABILITY_KEYS = (
     "can_view_internal_notifications",
 )
 
-# These are personal/self-scoped entitlements, not broad administrative powers.
-# They are intentionally excluded from the framework Administrator shortcut so
-# Administrator does not receive fake My Referrals/My Commissions surfaces.
 SELF_SCOPED_CAPABILITY_KEYS = frozenset({
     "can_own_referrals",
     "can_view_own_commissions",
 })
+LEGACY_REFERRAL_CAPABILITY = "can_view_referral_commissions"
 
 CUSTOMER_KEYS = (
     "can_view_public_catalogue", "can_view_public_content", "can_use_tax_calculator",
@@ -91,6 +89,15 @@ def _active_break_glass(
     }
 
 
+def _legacy_compatibility_alias(values: dict) -> dict:
+    # Temporary read compatibility for older callers. The legacy flag no
+    # longer represents finance/personal commission authority; it mirrors only
+    # canonical referral ownership and can be deleted once old consumers are
+    # removed.
+    values[LEGACY_REFERRAL_CAPABILITY] = bool(values.get("can_own_referrals"))
+    return values
+
+
 def effective(user: str | None = None) -> dict:
     user = str(user or identity.current_user(required=False) or "Guest").strip()
     if user == "Guest":
@@ -102,6 +109,7 @@ def effective(user: str | None = None) -> dict:
         values.update({key: True for key in INTERNAL_CAPABILITY_KEYS})
         for key in SELF_SCOPED_CAPABILITY_KEYS:
             values[key] = False
+        values[LEGACY_REFERRAL_CAPABILITY] = False
         return values
 
     staff = identity.get_staff_access(user)
@@ -117,12 +125,10 @@ def effective(user: str | None = None) -> dict:
         values = _base(access_state="internal")
         values.update({key: key in enabled for key in INTERNAL_CAPABILITY_KEYS})
 
-        # Approved/current staff always receive the baseline internal tracking
-        # surface. Elevated business capabilities remain explicit grants.
         values["can_access_internal_workspace"] = True
         values["can_view_tasks"] = True
         values["can_view_internal_notifications"] = True
-        return values
+        return _legacy_compatibility_alias(values)
 
     account = identity.get_customer_account(user)
     if not account:
