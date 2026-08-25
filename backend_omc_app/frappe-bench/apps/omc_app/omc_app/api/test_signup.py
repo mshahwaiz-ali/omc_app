@@ -5,6 +5,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from omc_app.api import access, mobile, referrals
+from omc_app.setup import staff_sync
 from omc_app.setup.roles import ADMIN_ROLE, CUSTOMER_ROLE
 
 
@@ -140,7 +141,7 @@ class TestSignupRoleNormalization(FrappeTestCase):
             "reconciliation_status": "Current",
             "capabilities": [
                 {"capability": code}
-                for code in sorted(access.ROLE_CAPABILITIES["Consultant"])
+                for code in sorted(staff_sync._persona_capabilities("Consultant"))
             ],
         })
         staff_access.insert(ignore_permissions=True)
