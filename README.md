@@ -97,10 +97,10 @@ Omc House
 Full Settlement default activation policy
 ```
 
-Operator entrypoints:
+Operator entrypoints, from this app directory:
 
 ```bash
-cd ../../..
+cd ../..
 
 bench --site <site> execute \
   omc_app.setup.operations.preview_service_catalogue
@@ -304,8 +304,8 @@ Latest observed production catalogue state was 195 managed objects unchanged wit
 
 ## Related documentation
 
-- [`../../../../../README.md`](../../../../../README.md) — repository architecture;
-- [`../../../../../docs/ROLE.md`](../../../../../docs/ROLE.md) — access/capabilities;
-- [`../../../../../docs/OMC_APP_FEATURES.md`](../../../../../docs/OMC_APP_FEATURES.md) — features;
-- [`../../../../../docs/omc_detailed_explanation.md`](../../../../../docs/omc_detailed_explanation.md) — business workflow;
+- [`../../../../README.md`](../../../../README.md) — repository architecture;
+- [`../../../../docs/ROLE.md`](../../../../docs/ROLE.md) — access/capabilities;
+- [`../../../../docs/OMC_APP_FEATURES.md`](../../../../docs/OMC_APP_FEATURES.md) — features;
+- [`../../../../docs/omc_detailed_explanation.md`](../../../../docs/omc_detailed_explanation.md) — business workflow;
 - [`../../../deploy/README.md`](../../../deploy/README.md) — deployment toolkit.
