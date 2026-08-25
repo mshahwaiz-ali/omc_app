@@ -6,80 +6,31 @@ import 'package:omc_app/features/auth/application/auth_state.dart';
 
 void main() {
   const registeredRouteTemplates = <String>{
-    '/',
-    '/onboarding',
-    '/login',
-    '/forgot-password',
-    '/activate-existing-account',
-    '/activate-account',
-    '/app/activate-account',
-    '/reset-password',
-    '/app/reset-password',
-    '/signup',
-    '/verify-email',
-    '/app/verify-email',
-    '/under-review',
-    '/home',
-    '/services',
-    '/track',
-    '/more',
-    '/services/:serviceId',
-    '/services/:serviceId/request',
-    '/my-services',
-    '/dashboard',
-    '/documents',
-    '/documents/:documentId',
-    '/payments',
-    '/payments/:paymentId',
-    '/leads',
-    '/customers',
-    '/tasks',
-    '/leads/:leadId',
-    '/customers/:customerId',
-    '/tasks/:taskId',
-    '/my-services/:caseId',
-    '/knowledge',
-    '/knowledge/:articleId',
-    '/notifications',
-    '/notifications/:notificationId',
-    '/support',
-    '/tax-calculator',
-    '/tax-calculator/history',
-    '/profile',
-    '/profile/edit',
-    '/my-referrals',
-    '/my-referrals/:customerId',
-    '/my-commissions',
-    '/my-commissions/:earningId',
-    '/expense-tracker',
-    '/expense-budget',
-    '/support-tickets/:ticketId',
-    '/settings',
-    '/change-password',
-    '/internal-workspace',
-    '/admin-control',
-    '/admin-control/operations',
-    '/internal-workspace/service-cases',
-    '/internal-workspace/customers',
-    '/internal-workspace/documents',
-    '/internal-workspace/payments',
+    '/', '/onboarding', '/login', '/forgot-password',
+    '/activate-existing-account', '/activate-account', '/app/activate-account',
+    '/reset-password', '/app/reset-password', '/signup', '/verify-email',
+    '/app/verify-email', '/under-review', '/home', '/services', '/track', '/more',
+    '/services/:serviceId', '/services/:serviceId/request', '/my-services',
+    '/dashboard', '/documents', '/documents/:documentId', '/payments',
+    '/payments/:paymentId', '/leads', '/customers', '/tasks', '/leads/:leadId',
+    '/customers/:customerId', '/tasks/:taskId', '/my-services/:caseId',
+    '/knowledge', '/knowledge/:articleId', '/notifications',
+    '/notifications/:notificationId', '/support', '/tax-calculator',
+    '/tax-calculator/history', '/profile', '/profile/edit', '/my-referrals',
+    '/my-referrals/:customerId', '/my-commissions', '/my-commissions/:earningId',
+    '/expense-tracker', '/expense-budget', '/support-tickets/:ticketId',
+    '/settings', '/change-password', '/internal-workspace', '/admin-control',
+    '/admin-control/operations', '/internal-workspace/service-cases',
+    '/internal-workspace/customers', '/internal-workspace/documents',
+    '/internal-workspace/payments', '/internal-workspace/commissions',
     '/internal-workspace/service-cases/:caseId',
   };
 
   const routesHandledBeforeCapabilityPolicy = <String>{
-    '/',
-    '/onboarding',
-    '/login',
-    '/forgot-password',
-    '/activate-existing-account',
-    '/activate-account',
-    '/app/activate-account',
-    '/reset-password',
-    '/app/reset-password',
-    '/signup',
-    '/verify-email',
-    '/app/verify-email',
-    '/under-review',
+    '/', '/onboarding', '/login', '/forgot-password',
+    '/activate-existing-account', '/activate-account', '/app/activate-account',
+    '/reset-password', '/app/reset-password', '/signup', '/verify-email',
+    '/app/verify-email', '/under-review',
   };
 
   const approvedCustomer = AuthCapabilities(
@@ -115,12 +66,15 @@ void main() {
     canManageStaff: true,
     canReviewRegistrations: true,
     canManageBusinessSettings: true,
+    canApproveCommissions: true,
+    canMarkCommissionsPaid: true,
   );
 
   const referralStaff = AuthCapabilities(
     accessState: AccountAccessState.internal,
     canViewRelevantCustomers: true,
-    canViewReferralCommissions: true,
+    canOwnReferrals: true,
+    canViewOwnCommissions: true,
   );
 
   const routeAudiences = <AuthCapabilities>[
@@ -144,24 +98,14 @@ void main() {
           .map((path) => relativeRouteTemplates[path] ?? path)
           .toSet();
 
-      expect(
-        declaredRoutes,
-        registeredRouteTemplates,
-        reason:
-            'A route was added, removed, or renamed. Update the access policy, '
-            'navigation entry points, deep-link expectations, and this audited '
-            'registry together.',
-      );
+      expect(declaredRoutes, registeredRouteTemplates,
+          reason: 'A route was added, removed, or renamed. Update the access policy, navigation entry points, deep-link expectations, and this audited registry together.');
     });
 
     test('route names remain unique', () {
       final routerSource = File('lib/app/router.dart').readAsStringSync();
       final namePattern = RegExp(r"name:\s*'([^']+)'");
-      final names = namePattern
-          .allMatches(routerSource)
-          .map((match) => match.group(1)!)
-          .toList();
-
+      final names = namePattern.allMatches(routerSource).map((match) => match.group(1)!).toList();
       expect(names.toSet().length, names.length);
     });
 
@@ -176,64 +120,50 @@ void main() {
   });
 
   group('router and capability policy parity', () {
-    for (final template in registeredRouteTemplates.difference(
-      routesHandledBeforeCapabilityPolicy,
-    )) {
+    for (final template in registeredRouteTemplates.difference(routesHandledBeforeCapabilityPolicy)) {
       final sample = _sampleLocation(template);
-
       test('$template is reachable by at least one intended audience', () {
-        final reachable = routeAudiences.any(
-          (capabilities) => canAccessRoute(sample, capabilities),
-        );
-
-        expect(
-          reachable,
-          isTrue,
-          reason:
-              '$template is registered but no audited audience can access it. '
-              'Either its policy is missing or the route is obsolete.',
-        );
+        expect(routeAudiences.any((capabilities) => canAccessRoute(sample, capabilities)), isTrue);
       });
     }
 
+    test('referral and commission destinations are independently scoped', () {
+      const employee = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canViewOwnCommissions: true,
+      );
+      const finance = AuthCapabilities(
+        accessState: AccountAccessState.internal,
+        canApproveCommissions: true,
+      );
+      expect(canAccessRoute('/my-referrals', referralStaff), isTrue);
+      expect(canAccessRoute('/my-commissions', referralStaff), isTrue);
+      expect(canAccessRoute('/my-referrals', employee), isFalse);
+      expect(canAccessRoute('/my-commissions', employee), isTrue);
+      expect(canAccessRoute('/my-referrals', finance), isFalse);
+      expect(canAccessRoute('/my-commissions', finance), isFalse);
+      expect(canAccessRoute('/internal-workspace/commissions', finance), isTrue);
+    });
+
     test('every audited guest route maps to a registered route template', () {
       const guestSamples = <String>[
-        '/home',
-        '/services',
-        '/services/mainland-company-setup',
-        '/more',
-        '/knowledge',
-        '/knowledge/article-1',
-        '/tax-calculator',
-        '/expense-tracker',
-        '/support',
+        '/home', '/services', '/services/mainland-company-setup', '/more',
+        '/knowledge', '/knowledge/article-1', '/tax-calculator',
+        '/expense-tracker', '/support',
       ];
-
       for (final sample in guestSamples) {
         expect(isGuestAllowedRoute(sample), isTrue);
-        expect(
-          registeredRouteTemplates.any(
-            (template) => _matchesTemplate(template, sample),
-          ),
-          isTrue,
-          reason: '$sample is guest-allowed but is not registered.',
-        );
+        expect(registeredRouteTemplates.any((template) => _matchesTemplate(template, sample)), isTrue);
       }
     });
 
     test('unknown and stale routes remain denied', () {
       for (final route in const [
-        '/profile/referrals',
-        '/future-unclassified-route',
-        '/internal',
-        '/service-cases',
+        '/profile/referrals', '/future-unclassified-route', '/internal',
+        '/service-cases', '/internal-workspace/future',
       ]) {
         for (final capabilities in routeAudiences) {
-          expect(
-            canAccessRoute(route, capabilities),
-            isFalse,
-            reason: '$route unexpectedly became accessible.',
-          );
+          expect(canAccessRoute(route, capabilities), isFalse);
         }
       }
     });
@@ -257,14 +187,11 @@ String _sampleLocation(String template) {
 bool _matchesTemplate(String template, String location) {
   final templateSegments = Uri.parse(template).pathSegments;
   final locationSegments = Uri.parse(location).pathSegments;
-
   if (templateSegments.length != locationSegments.length) return false;
-
   for (var index = 0; index < templateSegments.length; index++) {
     final templateSegment = templateSegments[index];
     if (templateSegment.startsWith(':')) continue;
     if (templateSegment != locationSegments[index]) return false;
   }
-
   return true;
 }
