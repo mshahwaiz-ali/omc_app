@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-SCRIPT_VERSION="1.1.0"
+SCRIPT_VERSION="1.0.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_BENCH_DIR="$(cd "$APP_ROOT/../.." 2>/dev/null && pwd || true)"
@@ -10,8 +10,6 @@ DEFAULT_BENCH_DIR="$(cd "$APP_ROOT/../.." 2>/dev/null && pwd || true)"
 BENCH_DIR="${BENCH_DIR:-}"
 SITE="${SITE_NAME:-}"
 LEGACY_APP=""
-ERP_CUSTOMER_GROUP="${ERP_CUSTOMER_GROUP:-}"
-ERP_TERRITORY="${ERP_TERRITORY:-}"
 ASSUME_YES=0
 SKIP_LEGACY_APP=0
 NO_RESTART=0
@@ -21,7 +19,6 @@ TEMP_DIR=""
 BENCH_CMD=""
 BENCH_PYTHON=""
 INSTALLED_APPS=()
-SELECTED_OPTION=""
 
 usage() {
     cat <<'USAGE'
@@ -31,25 +28,17 @@ Usage:
   ./scripts/configuration.sh [options]
 
 Options:
-  --bench PATH              Frappe Bench directory. Auto-detected when possible.
-  --site SITE               Target site. Auto-selected when only one site exists.
-  --customer-group NAME     Existing ERP Customer Group for new OMC customers.
-  --territory NAME          Existing ERP Territory for new OMC customers.
-  --legacy-app APP          Explicit legacy app to uninstall after OMC migration.
-  --skip-legacy-app         Do not prompt for legacy app removal.
-  --yes                     Skip the initial "CONFIGURE <site>" confirmation.
-  --no-restart              Skip Bench restart after build/configuration.
-  -h, --help                Show this help.
+  --bench PATH          Frappe Bench directory. Auto-detected when possible.
+  --site SITE           Target site. Auto-selected when only one site exists.
+  --legacy-app APP      Explicit legacy app to uninstall after OMC migration.
+  --skip-legacy-app     Do not prompt for legacy app removal.
+  --yes                 Skip the initial "CONFIGURE <site>" confirmation.
+  --no-restart          Skip Bench restart after build/configuration.
+  -h, --help            Show this help.
 
 Environment alternatives:
   BENCH_DIR=/path/to/frappe-bench
   SITE_NAME=your.site.name
-  ERP_CUSTOMER_GROUP="Individual"
-  ERP_TERRITORY="Pakistan"
-
-Existing Selling Settings values are preserved. If either ERP Customer default
-is missing, interactive runs offer only values that already exist in ERPNext.
-Non-interactive runs must provide missing defaults explicitly.
 
 The script is safe to rerun. It uses OMC's idempotent migration/catalogue
 operations and stops on failed compatibility or catalogue validation.
@@ -103,16 +92,6 @@ while (($#)); do
         --site)
             [[ $# -ge 2 ]] || fail "--site requires a site name"
             SITE="$2"
-            shift 2
-            ;;
-        --customer-group)
-            [[ $# -ge 2 ]] || fail "--customer-group requires an existing Customer Group name"
-            ERP_CUSTOMER_GROUP="$2"
-            shift 2
-            ;;
-        --territory)
-            [[ $# -ge 2 ]] || fail "--territory requires an existing Territory name"
-            ERP_TERRITORY="$2"
             shift 2
             ;;
         --legacy-app)
@@ -190,7 +169,7 @@ select_site() {
     if [[ -n "$SITE" ]]; then
         [[ -f "$BENCH_DIR/sites/$SITE/site_config.json" ]] ||
             fail "Site does not exist in this Bench: $SITE"
-        return 0
+        return
     fi
 
     while IFS= read -r config; do
@@ -209,7 +188,7 @@ select_site() {
     if ((${#sites[@]} == 1)); then
         SITE="${sites[0]}"
         printf 'Detected site: %s\n' "$SITE"
-        return 0
+        return
     fi
 
     [[ -t 0 ]] || fail "Multiple sites found. Pass --site <site>."
@@ -226,7 +205,7 @@ select_site() {
         if [[ "$choice" =~ ^[0-9]+$ ]] &&
             ((choice >= 1 && choice <= ${#sites[@]})); then
             SITE="${sites[$((choice - 1))]}"
-            return 0
+            return
         fi
         printf 'Please enter a valid number.\n'
     done
@@ -323,194 +302,10 @@ else:
 PY
 }
 
-json_array_lines() {
-    local file="$1"
-    local path="$2"
-
-    "$BENCH_PYTHON" - "$file" "$path" <<'PY'
-import json
-import sys
-
-filename, path = sys.argv[1], sys.argv[2]
-text = open(filename, "r", encoding="utf-8", errors="replace").read().strip()
-
-value = None
-for line in reversed([line.strip() for line in text.splitlines() if line.strip()]):
-    try:
-        value = json.loads(line)
-        break
-    except Exception:
-        pass
-
-if value is None:
-    start = text.find("{")
-    end = text.rfind("}")
-    if start >= 0 and end > start:
-        value = json.loads(text[start:end + 1])
-
-for part in path.split(".") if path else []:
-    value = value[part]
-
-if not isinstance(value, list):
-    raise SystemExit(f"JSON path is not a list: {path}")
-
-for item in value:
-    print(str(item))
-PY
-}
-
-option_exists() {
-    local wanted="$1"
-    shift
-    local option=""
-    for option in "$@"; do
-        [[ "$option" == "$wanted" ]] && return 0
-    done
-    return 1
-}
-
-choose_existing_option() {
-    local label="$1"
-    local current="$2"
-    local explicit="$3"
-    local json_file="$4"
-    local json_path="$5"
-    local preferred="$6"
-    local options=()
-    local option=""
-    local choice=""
-    local index=1
-
-    SELECTED_OPTION=""
-    mapfile -t options < <(json_array_lines "$json_file" "$json_path")
-    ((${#options[@]} > 0)) || fail "No existing ERP $label records are available."
-
-    if [[ -n "$explicit" ]]; then
-        option_exists "$explicit" "${options[@]}" ||
-            fail "$label does not exist in ERPNext: $explicit"
-        SELECTED_OPTION="$explicit"
-        return 0
-    fi
-
-    if [[ -n "$current" ]]; then
-        option_exists "$current" "${options[@]}" ||
-            fail "Current Selling Settings $label does not exist: $current"
-        SELECTED_OPTION="$current"
-        return 0
-    fi
-
-    [[ -t 0 ]] ||
-        fail "Selling Settings $label is empty. Provide the corresponding command-line option."
-
-    printf '\nSelling Settings %s is empty.\n' "$label"
-
-    if ((${#options[@]} <= 20)); then
-        printf 'Existing ERP %s options:\n' "$label"
-        for option in "${options[@]}"; do
-            printf '  %d) %s\n' "$index" "$option"
-            index=$((index + 1))
-        done
-
-        while true; do
-            printf 'Choose %s [1-%d]: ' "$label" "${#options[@]}"
-            read -r choice
-            if [[ "$choice" =~ ^[0-9]+$ ]] &&
-                ((choice >= 1 && choice <= ${#options[@]})); then
-                SELECTED_OPTION="${options[$((choice - 1))]}"
-                return 0
-            fi
-            printf 'Please enter a valid number.\n'
-        done
-    fi
-
-    printf '%d existing ERP %s records are available.\n' "${#options[@]}" "$label"
-    if [[ -n "$preferred" ]] && option_exists "$preferred" "${options[@]}"; then
-        printf 'Broad existing option available: %s\n' "$preferred"
-    fi
-    printf 'Enter an exact existing name, or type LIST to display all values.\n'
-
-    while true; do
-        printf '%s: ' "$label"
-        read -r choice
-        if [[ "$choice" == "LIST" ]]; then
-            for option in "${options[@]}"; do
-                printf '  - %s\n' "$option"
-            done
-            continue
-        fi
-        if option_exists "$choice" "${options[@]}"; then
-            SELECTED_OPTION="$choice"
-            return 0
-        fi
-        printf 'That value does not exist. Enter an exact existing name or LIST.\n'
-    done
-}
-
 backup_site() {
     local label="$1"
     step "Backup: $label"
     "$BENCH_CMD" --site "$SITE" backup --with-files
-}
-
-configure_customer_defaults_if_needed() {
-    local inspect_file="$TEMP_DIR/erp-customer-defaults-before.json"
-    local after_file="$TEMP_DIR/erp-customer-defaults-after.json"
-    local current_group=""
-    local current_territory=""
-    local target_group=""
-    local target_territory=""
-    local kwargs=""
-
-    capture_json "$inspect_file" \
-        "$BENCH_CMD" --site "$SITE" execute \
-        omc_app.setup.operations.inspect_erp_customer_defaults
-
-    current_group="$(json_value "$inspect_file" "customer_group")"
-    current_territory="$(json_value "$inspect_file" "territory")"
-
-    choose_existing_option \
-        "customer_group" \
-        "$current_group" \
-        "$ERP_CUSTOMER_GROUP" \
-        "$inspect_file" \
-        "customer_group_options" \
-        "Individual"
-    target_group="$SELECTED_OPTION"
-
-    choose_existing_option \
-        "territory" \
-        "$current_territory" \
-        "$ERP_TERRITORY" \
-        "$inspect_file" \
-        "territory_options" \
-        "Pakistan"
-    target_territory="$SELECTED_OPTION"
-
-    if [[ "$target_group" != "$current_group" || "$target_territory" != "$current_territory" ]]; then
-        kwargs="$($BENCH_PYTHON - "$target_group" "$target_territory" <<'PY'
-import json
-import sys
-print(json.dumps({"customer_group": sys.argv[1], "territory": sys.argv[2]}))
-PY
-)"
-        "$BENCH_CMD" --site "$SITE" execute \
-            omc_app.setup.operations.configure_erp_customer_defaults \
-            --kwargs "$kwargs"
-    else
-        printf 'Existing ERP Customer defaults preserved: %s / %s\n' \
-            "$target_group" "$target_territory"
-    fi
-
-    capture_json "$after_file" \
-        "$BENCH_CMD" --site "$SITE" execute \
-        omc_app.setup.operations.inspect_erp_customer_defaults
-
-    [[ "$(json_value "$after_file" "ok")" == "true" ]] ||
-        fail "ERP Customer defaults are still incomplete after configuration."
-
-    printf 'ERP Customer defaults ready:\n'
-    printf '  Customer Group: %s\n' "$(json_value "$after_file" "customer_group")"
-    printf '  Territory:      %s\n' "$(json_value "$after_file" "territory")"
 }
 
 resolve_legacy_app() {
@@ -616,13 +411,6 @@ step "Migrate OMC schema and clear cache"
 "$BENCH_CMD" --site "$SITE" clear-cache
 
 step "Validate client ERP contract"
-"$BENCH_CMD" --site "$SITE" execute \
-    omc_app.setup.erp_contract.validate_client_erp_contract
-
-step "Verify ERP Customer creation defaults"
-configure_customer_defaults_if_needed
-
-step "Revalidate client ERP contract after ERP Customer defaults"
 "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.erp_contract.validate_client_erp_contract
 
@@ -749,13 +537,6 @@ step "Final application and site verification"
 refresh_installed_apps
 "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.erp_contract.validate_client_erp_contract
-
-FINAL_DEFAULTS="$TEMP_DIR/erp-customer-defaults-final.json"
-capture_json "$FINAL_DEFAULTS" \
-    "$BENCH_CMD" --site "$SITE" execute \
-    omc_app.setup.operations.inspect_erp_customer_defaults
-[[ "$(json_value "$FINAL_DEFAULTS" "ok")" == "true" ]] ||
-    fail "Final ERP Customer defaults validation failed."
 
 FINAL_CATALOGUE="$TEMP_DIR/catalogue-final.json"
 capture_json "$FINAL_CATALOGUE" \
