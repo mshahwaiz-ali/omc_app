@@ -3,7 +3,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 umask 077
 
-SCRIPT_VERSION="1.2.0"
+SCRIPT_VERSION="1.2.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_BENCH_DIR="$(cd "$APP_ROOT/../.." 2>/dev/null && pwd || true)"
@@ -45,6 +45,10 @@ Environment alternatives:
 The script is safe to rerun. It uses OMC's idempotent migration/catalogue
 operations and stops on failed compatibility, migration, catalogue or service
 presentation validation.
+
+Service catalogue synchronization atomically applies the managed service rows,
+customer-facing short/long descriptions, support copy and Employee assignment
+role in one database transaction.
 
 Human-readable summaries are written to the main log. Full raw JSON command
 outputs are preserved separately in a timestamped evidence directory.
@@ -470,24 +474,18 @@ READY_TO_SYNC="$(json_value "$CATALOGUE_PREVIEW" "ready_to_sync")"
 [[ "$READY_TO_SYNC" == "true" ]] ||
     fail "Catalogue preview is not safe to sync. Review the preview blockers/conflicts in raw evidence."
 
-step "Synchronize production service catalogue"
+step "Synchronize services, descriptions, support copy and Employee assignment"
+CATALOGUE_SYNC="$EVIDENCE_DIR/07-catalogue-sync.json"
 capture_json "07-catalogue-sync" "catalogue_sync" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.sync_service_catalogue
 
-step "Apply service descriptions, support copy and Employee assignment role"
-PRESENTATION_SYNC="$EVIDENCE_DIR/08-service-presentation-sync.json"
-capture_json "08-service-presentation-sync" "presentation_sync" \
-    "$BENCH_CMD" --site "$SITE" execute \
-    omc_app.setup.service_catalogue.presentation.sync_service_presentation
-
-PRESENTATION_OK="$(json_value "$PRESENTATION_SYNC" "validation.valid")"
-[[ "$PRESENTATION_OK" == "true" ]] ||
-    fail "Service presentation synchronization did not validate."
+[[ "$(json_value "$CATALOGUE_SYNC" "presentation.validation.valid")" == "true" ]] ||
+    fail "Service description/assignment synchronization did not validate."
 
 step "Validate production service catalogue"
-CATALOGUE_VALIDATE="$EVIDENCE_DIR/09-catalogue-validate.json"
-capture_json "09-catalogue-validate" "catalogue_validate" \
+CATALOGUE_VALIDATE="$EVIDENCE_DIR/08-catalogue-validate.json"
+capture_json "08-catalogue-validate" "catalogue_validate" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.validate_service_catalogue
 
@@ -496,8 +494,8 @@ CATALOGUE_VALID="$(json_value "$CATALOGUE_VALIDATE" "valid")"
     fail "Catalogue validation did not converge to a valid state."
 
 step "Validate service descriptions and assignment defaults"
-PRESENTATION_VALIDATE="$EVIDENCE_DIR/10-service-presentation-validate.json"
-capture_json "10-service-presentation-validate" "presentation_validate" \
+PRESENTATION_VALIDATE="$EVIDENCE_DIR/09-service-presentation-validate.json"
+capture_json "09-service-presentation-validate" "presentation_validate" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.service_catalogue.presentation.validate_service_presentation
 
@@ -519,18 +517,18 @@ if [[ -n "$LEGACY_APP" ]]; then
     "$BENCH_CMD" --site "$SITE" clear-cache
 
     step "Revalidate ERP contract after legacy app removal"
-    capture_json "11-post-legacy-erp-contract" "erp_contract" \
+    capture_json "10-post-legacy-erp-contract" "erp_contract" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.erp_contract.validate_client_erp_contract
 
     step "Reconcile OMC-owned configuration after legacy app removal"
-    capture_json "12-post-legacy-initialize" "initialize" \
+    capture_json "11-post-legacy-initialize" "initialize" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.operations.initialize_site
 
     step "Revalidate catalogue after legacy app removal"
-    POST_LEGACY_VALIDATE="$EVIDENCE_DIR/13-catalogue-after-legacy.json"
-    capture_json "13-catalogue-after-legacy" "catalogue_validate" \
+    POST_LEGACY_VALIDATE="$EVIDENCE_DIR/12-catalogue-after-legacy.json"
+    capture_json "12-catalogue-after-legacy" "catalogue_validate" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.operations.validate_service_catalogue
 
@@ -538,8 +536,8 @@ if [[ -n "$LEGACY_APP" ]]; then
         fail "Catalogue became invalid after legacy app removal."
 
     step "Revalidate service presentation after legacy app removal"
-    POST_LEGACY_PRESENTATION="$EVIDENCE_DIR/14-presentation-after-legacy.json"
-    capture_json "14-presentation-after-legacy" "presentation_validate" \
+    POST_LEGACY_PRESENTATION="$EVIDENCE_DIR/13-presentation-after-legacy.json"
+    capture_json "13-presentation-after-legacy" "presentation_validate" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.service_catalogue.presentation.validate_service_presentation
 
@@ -567,20 +565,20 @@ fi
 
 step "Final application and site verification"
 refresh_installed_apps
-capture_json "15-final-erp-contract" "erp_contract" \
+capture_json "14-final-erp-contract" "erp_contract" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.erp_contract.validate_client_erp_contract
 
-FINAL_CATALOGUE="$EVIDENCE_DIR/16-final-catalogue.json"
-capture_json "16-final-catalogue" "catalogue_validate" \
+FINAL_CATALOGUE="$EVIDENCE_DIR/15-final-catalogue.json"
+capture_json "15-final-catalogue" "catalogue_validate" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.validate_service_catalogue
 
 [[ "$(json_value "$FINAL_CATALOGUE" "valid")" == "true" ]] ||
     fail "Final catalogue validation failed."
 
-FINAL_PRESENTATION="$EVIDENCE_DIR/17-final-service-presentation.json"
-capture_json "17-final-service-presentation" "presentation_validate" \
+FINAL_PRESENTATION="$EVIDENCE_DIR/16-final-service-presentation.json"
+capture_json "16-final-service-presentation" "presentation_validate" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.service_catalogue.presentation.validate_service_presentation
 
