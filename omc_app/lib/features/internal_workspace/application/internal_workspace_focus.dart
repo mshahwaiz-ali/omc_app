@@ -124,7 +124,8 @@ InternalWorkspaceFocusKind _focusKind(AuthCapabilities capabilities) {
   if (capabilities.canViewAssignedServiceCases ||
       capabilities.canCreateServiceForCustomer ||
       capabilities.canManageAssignedTasks ||
-      capabilities.canViewReferralCommissions) {
+      capabilities.canOwnReferrals ||
+      capabilities.canViewOwnCommissions) {
     return InternalWorkspaceFocusKind.clientWork;
   }
 
