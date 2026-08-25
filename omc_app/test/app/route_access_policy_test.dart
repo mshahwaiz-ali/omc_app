@@ -195,12 +195,18 @@ void main() {
     test('uses my-referrals as the only referrals route', () {
       const referralUser = AuthCapabilities(
         accessState: AccountAccessState.internal,
+        canOwnReferrals: true,
+        canViewRelevantCustomers: true,
+      );
+      const customerViewerOnly = AuthCapabilities(
+        accessState: AccountAccessState.internal,
         canViewRelevantCustomers: true,
       );
 
       expect(canAccessRoute('/my-referrals', referralUser), isTrue);
       expect(canAccessRoute('/my-referrals/CUST-0001', referralUser), isTrue);
       expect(canAccessRoute('/profile/referrals', referralUser), isFalse);
+      expect(canAccessRoute('/my-referrals', customerViewerOnly), isFalse);
     });
 
     test('allows authenticated account routes explicitly', () {
