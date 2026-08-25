@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from frappe.tests.utils import FrappeTestCase
 
-from omc_app.api import document_upload, mobile, payments
+from omc_app.api import document_upload, mobile, payments, secured_mobile
 
 
 class TestRequiredDocumentCompletion(FrappeTestCase):
@@ -198,6 +198,348 @@ class TestRequiredDocumentCompletion(FrappeTestCase):
             )
         )
 
+    def test_document_key_survives_title_change(self):
+        templates = [
+            {
+                "document_key": "cnic_copy",
+                "title": "CNIC Copy",
+                "document_type": "Identity",
+                "is_required": 1,
+            }
+        ]
+        documents = [
+            {
+                "document_key": "cnic_copy",
+                "title": "National Identity Card",
+                "document_type": "Customer Document",
+                "status": "Uploaded",
+                "attachment": "/private/files/cnic.pdf",
+            }
+        ]
+
+        self.assertTrue(
+            mobile._required_documents_uploaded(
+                templates,
+                documents,
+            )
+        )
+
+    def test_wrong_document_key_never_falls_back_to_matching_title(self):
+        templates = [
+            {
+                "document_key": "cnic_front_image",
+                "title": "CNIC Front",
+                "document_type": "Identity",
+                "is_required": 1,
+            }
+        ]
+        documents = [
+            {
+                "document_key": "cnic_back_image",
+                "title": "CNIC Front",
+                "document_type": "Identity",
+                "status": "Uploaded",
+                "attachment": "/private/files/wrong.pdf",
+            }
+        ]
+
+        self.assertFalse(
+            mobile._required_documents_uploaded(
+                templates,
+                documents,
+            )
+        )
+
+    def test_keyed_template_accepts_legacy_unkeyed_exact_match(self):
+        templates = [
+            {
+                "document_key": "bank_statement",
+                "title": "Bank Statement",
+                "document_type": "Financial",
+                "is_required": 1,
+            }
+        ]
+        documents = [
+            {
+                "title": " bank   statement ",
+                "document_type": "financial",
+                "status": "Uploaded",
+                "attachment": "/private/files/bank.pdf",
+            }
+        ]
+
+        self.assertTrue(
+            mobile._required_documents_uploaded(
+                templates,
+                documents,
+            )
+        )
+
+    def test_upload_key_resolves_to_server_canonical_requirement(self):
+        service_case = SimpleNamespace(
+            name="OMC-SR-TEST",
+            service="gst-registration",
+        )
+
+        requirement = SimpleNamespace(
+            name="OMC-SRD-TEST",
+            document_key="cnic_copy",
+            document_title="CNIC Copy",
+            document_type="Identity",
+        )
+
+        with (
+            patch.object(
+                document_upload,
+                "_has_field",
+                return_value=True,
+            ),
+            patch.object(
+                document_upload.frappe,
+                "get_all",
+                return_value=[requirement],
+            ),
+        ):
+            result = (
+                document_upload._canonical_requirement_identity(
+                    service_case,
+                    document_key=" CNIC_COPY ",
+                    document_title="Anything supplied by client",
+                    document_type="Anything",
+                )
+            )
+
+        self.assertEqual(
+            result,
+            (
+                "cnic_copy",
+                "CNIC Copy",
+                "Identity",
+            ),
+        )
+
+    def test_legacy_upload_can_upgrade_to_unique_document_key(self):
+        service_case = SimpleNamespace(
+            name="OMC-SR-TEST",
+            service="gst-registration",
+        )
+
+        requirement = SimpleNamespace(
+            name="OMC-SRD-TEST",
+            document_key="bank_statement",
+            document_title="Bank Statement",
+            document_type="Financial",
+        )
+
+        with (
+            patch.object(
+                document_upload,
+                "_has_field",
+                return_value=True,
+            ),
+            patch.object(
+                document_upload.frappe,
+                "get_all",
+                return_value=[requirement],
+            ),
+        ):
+            result = (
+                document_upload._canonical_requirement_identity(
+                    service_case,
+                    document_title=" bank   statement ",
+                    document_type="financial",
+                )
+            )
+
+        self.assertEqual(
+            result,
+            (
+                "bank_statement",
+                "Bank Statement",
+                "Financial",
+            ),
+        )
+
+    def test_case_document_merge_uses_stable_key_after_title_change(self):
+        templates = [
+            {
+                "document_key": "cnic_copy",
+                "title": "Updated CNIC Label",
+                "document_type": "Identity",
+                "is_required": 1,
+                "instructions": "Upload a clear CNIC copy.",
+            }
+        ]
+        documents = [
+            {
+                "document_key": "cnic_copy",
+                "name": "OMC-DOC-1",
+                "title": "Old CNIC Label",
+                "document_type": "Legacy Identity",
+                "status": "Uploaded",
+                "attachment": "/private/files/cnic.pdf",
+            }
+        ]
+
+        merged = secured_mobile._merged_document_details(
+            documents,
+            templates,
+        )
+
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(
+            merged[0]["document_key"],
+            "cnic_copy",
+        )
+        self.assertEqual(
+            merged[0]["status"],
+            "Uploaded",
+        )
+        self.assertEqual(
+            merged[0]["file_url"],
+            "/private/files/cnic.pdf",
+        )
+        self.assertEqual(
+            merged[0]["is_required"],
+            1,
+        )
+
+    def test_case_document_merge_rejects_wrong_key_even_when_title_matches(self):
+        templates = [
+            {
+                "document_key": "cnic_front_image",
+                "title": "CNIC Front",
+                "document_type": "Identity",
+                "is_required": 1,
+            }
+        ]
+        documents = [
+            {
+                "document_key": "cnic_back_image",
+                "name": "OMC-DOC-1",
+                "title": "CNIC Front",
+                "document_type": "Identity",
+                "status": "Uploaded",
+                "attachment": "/private/files/wrong.pdf",
+            }
+        ]
+
+        merged = secured_mobile._merged_document_details(
+            documents,
+            templates,
+        )
+
+        self.assertEqual(len(merged), 2)
+        self.assertEqual(
+            merged[0]["document_key"],
+            "cnic_front_image",
+        )
+        self.assertEqual(
+            merged[0]["status"],
+            "Pending",
+        )
+        self.assertEqual(
+            merged[1]["document_key"],
+            "cnic_back_image",
+        )
+        self.assertEqual(
+            merged[1]["status"],
+            "Uploaded",
+        )
+
+    def test_case_document_merge_keeps_legacy_exact_match_compatible(self):
+        templates = [
+            {
+                "document_key": "bank_statement",
+                "title": "Bank Statement",
+                "document_type": "Financial",
+                "is_required": 1,
+            }
+        ]
+        documents = [
+            {
+                "name": "OMC-DOC-1",
+                "title": " bank   statement ",
+                "document_type": "financial",
+                "status": "Uploaded",
+                "attachment": "/private/files/bank.pdf",
+            }
+        ]
+
+        merged = secured_mobile._merged_document_details(
+            documents,
+            templates,
+        )
+
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(
+            merged[0]["document_key"],
+            "bank_statement",
+        )
+        self.assertEqual(
+            merged[0]["status"],
+            "Uploaded",
+        )
+
+    def test_legacy_requirement_without_effective_from_applies(self):
+        self.assertTrue(
+            mobile._required_document_applies_to_request(
+                {"effective_from": ""},
+                "2026-08-01 10:00:00",
+            )
+        )
+
+    def test_new_requirement_does_not_apply_to_older_request(self):
+        self.assertFalse(
+            mobile._required_document_applies_to_request(
+                {
+                    "effective_from":
+                        "2026-08-25 15:00:00"
+                },
+                "2026-08-25 14:59:59",
+            )
+        )
+
+    def test_new_requirement_applies_to_later_request(self):
+        self.assertTrue(
+            mobile._required_document_applies_to_request(
+                {
+                    "effective_from":
+                        "2026-08-25 15:00:00"
+                },
+                "2026-08-25 15:00:01",
+            )
+        )
+
+    def test_upload_key_rejects_requirement_outside_request_contract(self):
+        service_case = SimpleNamespace(
+            name="OMC-SR-TEST",
+            service="gst-registration",
+            creation="2026-08-25 14:00:00",
+        )
+
+        with (
+            patch.object(
+                document_upload,
+                "_has_field",
+                return_value=True,
+            ),
+            patch.object(
+                document_upload,
+                "_service_required_documents",
+                return_value=[],
+            ),
+        ):
+            with self.assertRaises(
+                document_upload.frappe.ValidationError
+            ):
+                document_upload._canonical_requirement_identity(
+                    service_case,
+                    document_key="future_requirement",
+                    document_title="Future Requirement",
+                    document_type="General",
+                )
+
     def test_upload_endpoint_attempts_payment_opening_immediately(self):
         context = SimpleNamespace(
             legacy_profile="OMC-CUST-TEST",
@@ -258,6 +600,11 @@ class TestRequiredDocumentCompletion(FrappeTestCase):
                 document_upload.frappe,
                 "new_doc",
                 return_value=document,
+            ),
+            patch.object(
+                document_upload.frappe.utils,
+                "now_datetime",
+                return_value="2026-08-25 13:47:00",
             ),
             patch.object(
                 document_upload.frappe.db,

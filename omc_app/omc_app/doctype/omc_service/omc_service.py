@@ -21,6 +21,14 @@ from frappe.model.document import Document
 
 class OMCService(Document):
 	def autoname(self):
+		explicit_id = str(self.service_id or "").strip()
+		if explicit_id:
+			# Source-controlled provisioning may supply a stable service ID
+			# that intentionally differs from the customer-facing title.
+			self.service_id = explicit_id
+			self.name = explicit_id
+			return
+
 		base = frappe.scrub(self.title or "").replace("_", "-").strip("-")
 		if not base:
 			frappe.throw("Title is required to generate the service ID.")

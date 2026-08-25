@@ -9,6 +9,7 @@
   "naming_series",
   "service_request",
   "customer_profile",
+  "document_key",
   "document_title",
   "document_type",
   "attachment",
@@ -52,6 +53,16 @@
    "in_standard_filter": 1,
    "label": "Customer Profile",
    "options": "OMC Customer Profile",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "description": "Stable requirement identity copied from the configured service document template.",
+   "fieldname": "document_key",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_standard_filter": 1,
+   "label": "Document Key",
    "read_only": 1,
    "search_index": 1
   },

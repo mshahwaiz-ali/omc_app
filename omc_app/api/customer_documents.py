@@ -69,6 +69,7 @@ def _document_fields():
     ]
 
     optional_fields = [
+        "document_key",
         "customer_profile",
         "source",
         "is_archived",
@@ -208,6 +209,8 @@ def _document_dict(doc, service_case=None, customer_profile=None, capabilities=N
         "cnic": getattr(customer_profile, "cnic", None) or "",
         "company_name": getattr(customer_profile, "company_name", None) or "",
         "customer_type": getattr(customer_profile, "customer_type", None) or "",
+        "document_key": getattr(doc, "document_key", None) or "",
+        "key": getattr(doc, "document_key", None) or "",
         "title": doc.document_title or "",
         "document_title": doc.document_title or "",
         "type": doc.document_type or "",

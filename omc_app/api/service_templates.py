@@ -8,6 +8,16 @@ def _has_doctype(doctype):
         return False
 
 
+def _doctype_has_field(doctype, fieldname):
+    try:
+        return (
+            _has_doctype(doctype)
+            and frappe.get_meta(doctype).has_field(fieldname)
+        )
+    except Exception:
+        return False
+
+
 def _service_name(service_id=None):
     service_id = (service_id or "").strip()
     if not service_id:
@@ -51,8 +61,12 @@ def _stage_to_dict(row):
 
 
 def _required_document_to_dict(row):
+    document_key = getattr(row, "document_key", None) or ""
+
     return {
         "name": row.name,
+        "document_key": document_key,
+        "key": document_key,
         "title": row.document_title or "",
         "document_title": row.document_title or "",
         "type": row.document_type or "",
@@ -115,21 +129,28 @@ def get_template_for_service(service_name, public_only=False):
 
     required_documents = []
     if _has_doctype("OMC Service Required Document"):
+        document_fields = [
+            "name",
+            "document_title",
+            "document_type",
+            "is_required",
+            "instructions",
+            "allowed_extensions",
+            "max_size_mb",
+            "sort_order",
+        ]
+        if _doctype_has_field(
+            "OMC Service Required Document",
+            "document_key",
+        ):
+            document_fields.insert(1, "document_key")
+
         required_documents = [
             _required_document_to_dict(row)
             for row in frappe.get_all(
                 "OMC Service Required Document",
                 filters={"service": service_name, "is_active": 1},
-                fields=[
-                    "name",
-                    "document_title",
-                    "document_type",
-                    "is_required",
-                    "instructions",
-                    "allowed_extensions",
-                    "max_size_mb",
-                    "sort_order",
-                ],
+                fields=document_fields,
                 order_by="sort_order asc, creation asc",
             )
         ]

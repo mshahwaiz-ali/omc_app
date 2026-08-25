@@ -14,15 +14,35 @@ def _text(value) -> str:
 
 
 def _required_documents_uploaded(request) -> bool:
-    templates = mobile._service_required_documents(request.service)
+    templates = mobile._service_required_documents(
+        request.service,
+        service_request=request,
+    )
+
+    fields = [
+        "document_title",
+        "document_type",
+        "status",
+        "attachment",
+    ]
+    if mobile._doctype_has_field(
+        "OMC Service Document",
+        "document_key",
+    ):
+        fields.insert(0, "document_key")
+
     documents = frappe.get_all(
         "OMC Service Document",
-        filters={"service_request": request.name, "visible_to_customer": 1},
-        fields=["document_title", "document_type", "status", "attachment"],
+        filters={
+            "service_request": request.name,
+            "visible_to_customer": 1,
+        },
+        fields=fields,
         limit_page_length=1000,
     )
     payload = [
         {
+            "document_key": getattr(row, "document_key", None) or "",
             "document_title": row.document_title or "",
             "document_type": row.document_type or "",
             "status": row.status or "",

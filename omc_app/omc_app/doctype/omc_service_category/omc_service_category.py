@@ -4,6 +4,14 @@ from frappe.model.document import Document
 
 class OMCServiceCategory(Document):
 	def autoname(self):
+		explicit_name = str(self.category_name or "").strip()
+		if explicit_name:
+			# Source-controlled provisioning may supply a stable category ID
+			# that intentionally differs from the display title.
+			self.category_name = explicit_name
+			self.name = explicit_name
+			return
+
 		base = frappe.scrub(self.title or "").replace("_", "-").strip("-")
 		if not base:
 			frappe.throw("Title is required to generate the category name.")

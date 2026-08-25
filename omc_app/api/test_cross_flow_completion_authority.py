@@ -53,6 +53,11 @@ class TestCrossFlowCompletionAuthority(FrappeTestCase):
             "service_fee_not_configured",
         )
 
+    @patch.object(
+        workflow_automation.mobile,
+        "_doctype_has_field",
+        return_value=True,
+    )
     @patch.object(workflow_automation.frappe, "get_all")
     @patch.object(
         workflow_automation.mobile,
@@ -62,6 +67,7 @@ class TestCrossFlowCompletionAuthority(FrappeTestCase):
         self,
         required_documents,
         get_all,
+        _doctype_has_field,
     ):
         required_documents.return_value = [
             {
@@ -99,6 +105,11 @@ class TestCrossFlowCompletionAuthority(FrappeTestCase):
 
         self.assertEqual(blockers, [])
 
+    @patch.object(
+        workflow_automation.mobile,
+        "_doctype_has_field",
+        return_value=True,
+    )
     @patch.object(workflow_automation.frappe, "get_all")
     @patch.object(
         workflow_automation.mobile,
@@ -108,6 +119,7 @@ class TestCrossFlowCompletionAuthority(FrappeTestCase):
         self,
         required_documents,
         get_all,
+        _doctype_has_field,
     ):
         required_documents.return_value = [
             {
@@ -142,6 +154,63 @@ class TestCrossFlowCompletionAuthority(FrappeTestCase):
             blockers,
         )
 
+    @patch.object(
+        workflow_automation.mobile,
+        "_doctype_has_field",
+        return_value=True,
+    )
+    @patch.object(workflow_automation.frappe, "get_all")
+    @patch.object(
+        workflow_automation.mobile,
+        "_service_required_documents",
+    )
+    def test_wrong_document_key_does_not_clear_completion_blocker(
+        self,
+        required_documents,
+        get_all,
+        _doctype_has_field,
+    ):
+        required_documents.return_value = [
+            {
+                "document_key": "cnic_front_image",
+                "title": "CNIC Front",
+                "document_type": "CNIC",
+                "is_required": 1,
+            }
+        ]
+
+        get_all.side_effect = [
+            [
+                SimpleNamespace(
+                    document_key="different_requirement",
+                    document_title="CNIC Front",
+                    document_type="CNIC",
+                    status="Approved",
+                    attachment="/private/files/wrong.pdf",
+                ),
+            ],
+            [
+                SimpleNamespace(status="Paid"),
+            ],
+        ]
+
+        blockers = workflow_automation.completion_blockers(
+            SimpleNamespace(
+                name="OMC-SR-1",
+                service="OMC-SERVICE-1",
+            )
+        )
+
+        self.assertIn(
+            "Required documents are not fully approved.",
+            blockers,
+        )
+
+    @patch.object(
+        workflow_automation.mobile,
+        "_doctype_has_field",
+        return_value=True,
+    )
     @patch.object(workflow_automation.frappe, "get_all")
     @patch.object(
         workflow_automation.mobile,
@@ -152,6 +221,7 @@ class TestCrossFlowCompletionAuthority(FrappeTestCase):
         self,
         _required_documents,
         get_all,
+        _doctype_has_field,
     ):
         get_all.side_effect = [
             [],

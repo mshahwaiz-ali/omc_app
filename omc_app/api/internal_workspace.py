@@ -143,7 +143,10 @@ def _case_to_queue_item(row, contract=None):
     capabilities = _capabilities()
     case_id = row.name
     docs = _service_documents(case_id)
-    required_templates = mobile._service_required_documents(row.service)
+    required_templates = mobile._service_required_documents(
+        row.service,
+        service_request=row,
+    )
     doc_summary = _document_summary(docs, required_templates)
     payments = _service_payments(case_id)
     contract = dict(contract or {})
