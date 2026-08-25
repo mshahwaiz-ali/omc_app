@@ -8,11 +8,17 @@ import 'package:omc_app/features/commissions/data/commission_repository.dart';
 void main() {
   test('commission route requires its explicit capability', () {
     const denied = AuthCapabilities(accessState: AccountAccessState.internal);
-    const allowed = AuthCapabilities(
+    const legacyOnly = AuthCapabilities(
       accessState: AccountAccessState.internal,
       canViewReferralCommissions: true,
     );
+    const allowed = AuthCapabilities(
+      accessState: AccountAccessState.internal,
+      canViewOwnCommissions: true,
+    );
+
     expect(canAccessRoute('/my-commissions', denied), isFalse);
+    expect(canAccessRoute('/my-commissions', legacyOnly), isFalse);
     expect(canAccessRoute('/my-commissions/OMC-COM-1', allowed), isTrue);
   });
 
