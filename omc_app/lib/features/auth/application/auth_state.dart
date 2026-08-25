@@ -61,6 +61,8 @@ class AuthCapabilities {
     this.canManageBusinessSettings = false,
     this.canReassignServiceCases = false,
     this.canRetrySync = false,
+    this.canOwnReferrals = false,
+    this.canViewOwnCommissions = false,
     this.canViewReferralCommissions = false,
     this.canApproveCommissions = false,
     this.canMarkCommissionsPaid = false,
@@ -134,6 +136,8 @@ class AuthCapabilities {
   final bool canManageBusinessSettings;
   final bool canReassignServiceCases;
   final bool canRetrySync;
+  final bool canOwnReferrals;
+  final bool canViewOwnCommissions;
   final bool canViewReferralCommissions;
   final bool canApproveCommissions;
   final bool canMarkCommissionsPaid;
@@ -251,6 +255,8 @@ class AuthCapabilities {
     canManageBusinessSettings,
     canReassignServiceCases,
     canRetrySync,
+    canOwnReferrals,
+    canViewOwnCommissions,
     canViewReferralCommissions,
     canApproveCommissions,
     canMarkCommissionsPaid,
@@ -355,6 +361,8 @@ class AuthCapabilities {
       ),
       canReassignServiceCases: _boolValue(json['can_reassign_service_cases']),
       canRetrySync: _boolValue(json['can_retry_sync']),
+      canOwnReferrals: _boolValue(json['can_own_referrals']),
+      canViewOwnCommissions: _boolValue(json['can_view_own_commissions']),
       canViewReferralCommissions: _boolValue(
         json['can_view_referral_commissions'],
       ),
