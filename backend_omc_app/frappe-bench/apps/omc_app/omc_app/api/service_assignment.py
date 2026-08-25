@@ -23,7 +23,6 @@ ASSIGNABLE_SERVICE_ROLES = {
 
 PERSONA_ASSIGNMENT_ROLES = {
     "Employee": {"Employee"},
-    "OMC Employee": {"Employee"},
     "Consultant": {"Consultant", "OMC Consultant"},
     "OMC Consultant": {"Consultant", "OMC Consultant"},
     "Tax Associate": {"Tax Associates", "OMC Tax Associate"},
@@ -36,7 +35,7 @@ PERSONA_ASSIGNMENT_ROLES = {
 }
 
 ROLE_PERSONAS = {
-    "Employee": ["Employee", "OMC Employee"],
+    "Employee": ["Employee"],
     "Consultant": ["Consultant", "OMC Consultant"],
     "Tax Associates": ["Tax Associate", "Tax Associates", "OMC Tax Associate"],
     "Business Partner": ["Business Partner", "OMC Business Partner"],
