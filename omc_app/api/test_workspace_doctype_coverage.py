@@ -33,20 +33,38 @@ def _doctype_inventory() -> tuple[set[str], set[str]]:
         if definition.get("doctype") != "DocType":
             continue
 
+        doctype_name = str(definition.get("name") or "").strip()
+        if not doctype_name:
+            continue
+
         target = child_tables if definition.get("istable") else standalone
-        target.add(directory.name)
+        target.add(doctype_name)
 
     return standalone, child_tables
 
 
 def _linked_omc_doctypes(workspace: dict) -> set[str]:
     return {
-        frappe.scrub(str(link.get("link_to") or ""))
+        str(link.get("link_to") or "").strip()
         for link in workspace.get("links") or []
         if link.get("type") == "Link"
         and link.get("link_type") == "DocType"
         and str(link.get("link_to") or "").startswith("OMC ")
     }
+
+
+def _workspace_link_projection(workspace: dict) -> list[tuple]:
+    return [
+        (
+            idx,
+            link.get("label"),
+            link.get("type"),
+            link.get("link_type"),
+            link.get("link_to"),
+            int(link.get("is_query_report") or 0),
+        )
+        for idx, link in enumerate(workspace.get("links") or [], start=1)
+    ]
 
 
 class TestWorkspaceDoctypeCoverage(FrappeTestCase):
@@ -65,6 +83,37 @@ class TestWorkspaceDoctypeCoverage(FrappeTestCase):
             set(),
             "Child-table DocTypes must not be exposed as standalone workspace links.",
         )
+
+    def test_workspace_doctype_links_resolve_exactly(self):
+        workspace = json.loads(WORKSPACE_PATH.read_text(encoding="utf-8"))
+        for doctype_name in sorted(_linked_omc_doctypes(workspace)):
+            self.assertTrue(
+                frappe.db.exists("DocType", doctype_name),
+                f"Workspace link targets missing DocType: {doctype_name}",
+            )
+
+    def test_workspace_database_links_match_source_exactly(self):
+        workspace = json.loads(WORKSPACE_PATH.read_text(encoding="utf-8"))
+        source_projection = _workspace_link_projection(workspace)
+        rows = frappe.get_all(
+            "Workspace Link",
+            filters={"parent": "OMC App", "parenttype": "Workspace"},
+            fields=["idx", "label", "type", "link_type", "link_to", "is_query_report"],
+            order_by="idx asc",
+            limit_page_length=200,
+        )
+        database_projection = [
+            (
+                int(row.get("idx") or 0),
+                row.get("label"),
+                row.get("type"),
+                row.get("link_type"),
+                row.get("link_to"),
+                int(row.get("is_query_report") or 0),
+            )
+            for row in rows
+        ]
+        self.assertEqual(database_projection, source_projection)
 
     def test_workspace_source_and_fixtures_stay_in_sync(self):
         workspace = json.loads(WORKSPACE_PATH.read_text(encoding="utf-8"))
