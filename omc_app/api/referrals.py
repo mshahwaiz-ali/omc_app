@@ -5,8 +5,7 @@ import secrets
 import frappe
 from frappe.utils import now_datetime
 
-from omc_app.api import identity
-
+from omc_app.api import capabilities, identity
 from omc_app.referral_capabilities import REFERRAL_OWNER_ROLES
 
 CODE_PREFIX = "OMC-"
@@ -43,12 +42,9 @@ def is_referral_owner(user: str | None = None) -> bool:
     access = identity.get_staff_access(user)
     if not access or access.access_status != "Approved" or access.reconciliation_status != "Current":
         return False
+
     persona = str(access.persona_snapshot or "").strip()
-    eligible = {
-        "Consultant", "Tax Associate", "Tax Associates", "Business Partner",
-        "OMC Consultant", "OMC Tax Associate", "OMC Business Partner",
-    }
-    return persona in eligible
+    return persona in REFERRAL_OWNER_ROLES
 
 
 def _require_login() -> str:
@@ -60,8 +56,9 @@ def _require_login() -> str:
 
 def _require_referral_owner() -> str:
     user = _require_login()
+    values = capabilities.effective(user)
 
-    if not is_referral_owner(user):
+    if not values.get("can_own_referrals") or not is_referral_owner(user):
         frappe.throw(
             "An active and approved referral-capable OMC staff profile is required.",
             frappe.PermissionError,
@@ -133,7 +130,7 @@ def _owner_record_to_dict(doc) -> dict:
 def get_or_create_owner_record(user: str | None = None):
     user = str(user or _require_referral_owner() or "").strip()
 
-    if not is_referral_owner(user):
+    if not capabilities.effective(user).get("can_own_referrals") or not is_referral_owner(user):
         frappe.throw(
             "An active and approved referral-capable OMC staff profile is required.",
             frappe.PermissionError,
@@ -200,12 +197,22 @@ def get_my_referral_summary():
         "OMC Customer Profile",
         filters={**filters, "is_active": 1},
     )
+    service_count = frappe.db.count(
+        "OMC Service Request",
+        filters={"customer_profile": ["in", frappe.get_all(
+            "OMC Customer Profile",
+            filters=filters,
+            pluck="name",
+            limit_page_length=10000,
+        ) or ["__none__"]]},
+    )
     return {
         "referral": _owner_record_to_dict(record),
         "counts": {
             "total_referrals": total,
             "consented_referrals": consented,
             "active_referrals": active,
+            "services": service_count,
         },
     }
 
@@ -248,12 +255,26 @@ def get_my_referrals(search: str | None = None, limit_start: int = 0, limit_page
             "referral_assistance_consent",
             "customer_origin",
             "linked_app_user",
+            "referral_code_used",
             "modified",
         ],
         order_by="modified desc",
         limit_start=limit_start,
-        limit_page_length=limit_page_length,
+        limit_page_length=limit_page_length + 1,
     )
+    has_more = len(rows) > limit_page_length
+    page_rows = rows[:limit_page_length]
+    customer_names = [row.name for row in page_rows]
+    service_counts = {}
+    if customer_names:
+        for count_row in frappe.get_all(
+            "OMC Service Request",
+            filters={"customer_profile": ["in", customer_names]},
+            fields=["customer_profile", "count(name) as request_count"],
+            group_by="customer_profile",
+            limit_page_length=max(len(customer_names), 1),
+        ):
+            service_counts[count_row.customer_profile] = int(count_row.request_count or 0)
 
     return {
         "items": [
@@ -267,12 +288,16 @@ def get_my_referrals(search: str | None = None, limit_start: int = 0, limit_page
                 "consent_granted": int(row.referral_assistance_consent or 0),
                 "customer_origin": row.customer_origin or "",
                 "linked_app_user": row.linked_app_user or "",
+                "referral_code_used": row.referral_code_used or "",
+                "service_count": service_counts.get(row.name, 0),
                 "modified": str(row.modified or ""),
             }
-            for row in rows
+            for row in page_rows
         ],
         "limit_start": limit_start,
         "limit_page_length": limit_page_length,
+        "has_more": has_more,
+        "next_start": limit_start + limit_page_length if has_more else None,
     }
 
 
