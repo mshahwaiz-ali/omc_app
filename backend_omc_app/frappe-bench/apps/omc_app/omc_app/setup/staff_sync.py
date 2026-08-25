@@ -282,15 +282,17 @@ def sync_staff_user(
     profile.staff_status = "Active"
     profile.approval_status = "Approved"
     profile.is_active = 1
-    profile.save(ignore_permissions=True)
 
-    # Canonical authority must exist before referral automation evaluates
-    # whether this user may own an OMC referral code.
+    # OMC Staff Profile.on_update invokes referral automation. Reconcile the
+    # canonical Staff Access capability rows first so that hook never observes
+    # stale legacy referral authority during migration/reruns.
     staff_access = _ensure_staff_access(
         user,
         profile,
         mapped_persona,
     )
+
+    profile.save(ignore_permissions=True)
 
     referral = ensure_referral_code_for_user(user)
 
