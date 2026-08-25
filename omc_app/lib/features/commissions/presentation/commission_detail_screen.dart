@@ -11,6 +11,7 @@ final commissionDetailProvider =
 class CommissionDetailScreen extends ConsumerWidget {
   const CommissionDetailScreen({super.key, required this.earningId});
   final String earningId;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(commissionDetailProvider(earningId));
@@ -28,6 +29,7 @@ class CommissionDetailScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           children: [
             _row(context, 'Status', item.status),
+            _row(context, 'Origin', item.provenance),
             _row(
               context,
               'Amount',
@@ -35,13 +37,27 @@ class CommissionDetailScreen extends ConsumerWidget {
             ),
             _row(
               context,
-              'Paid invoice basis',
+              'Commission basis',
               '${item.currency} ${item.basis.toStringAsFixed(2)}',
             ),
             _row(context, 'Frozen rate', '${item.percent.toStringAsFixed(2)}%'),
+            if (item.component.isNotEmpty)
+              _row(context, 'Component', item.component),
+            if (item.structureSnapshot.isNotEmpty)
+              _row(context, 'Structure snapshot', item.structureSnapshot),
             _row(context, 'Customer', item.customer),
-            _row(context, 'Service', item.service),
-            _row(context, 'Service request', item.request),
+            if (item.service.isNotEmpty)
+              _row(context, 'Service', item.service),
+            if (item.request.isNotEmpty)
+              _row(context, 'Service request', item.request),
+            if (item.paymentEntry.isNotEmpty)
+              _row(context, 'Payment Entry', item.paymentEntry),
+            if (item.salesInvoice.isNotEmpty)
+              _row(context, 'Sales Invoice', item.salesInvoice),
+            if (item.legacyJournalEntry.isNotEmpty)
+              _row(context, 'Legacy accounting evidence', item.legacyJournalEntry),
+            if (item.evidenceStatus.isNotEmpty)
+              _row(context, 'Evidence status', item.evidenceStatus),
             _row(context, 'Earned on', item.earnedOn),
             if (item.settlement.isNotEmpty)
               _row(context, 'Settlement', item.settlement),
