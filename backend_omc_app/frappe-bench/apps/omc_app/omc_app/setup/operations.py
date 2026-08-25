@@ -87,9 +87,13 @@ def preview_service_catalogue() -> dict[str, object]:
     )
 
     result = preview()
+    presentation = preview_service_presentation()
     return {
         **result,
-        "presentation": preview_service_presentation(),
+        "ready_to_sync": bool(
+            result.get("ready_to_sync") and presentation.get("ok")
+        ),
+        "presentation": presentation,
     }
 
 
