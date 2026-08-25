@@ -170,7 +170,15 @@ def catalogue_sync(data: dict[str, Any]) -> None:
     row("Deleted", totals.get("deleted"))
     row("Conflicts", totals.get("conflicts"))
     validation = data.get("validation") or {}
-    row("Validation valid", validation.get("valid"))
+    row("Catalogue valid", validation.get("valid"))
+
+    presentation = data.get("presentation") or {}
+    heading("Service descriptions & assignment")
+    row("Services updated", presentation.get("updated"))
+    row("Services unchanged", presentation.get("unchanged"))
+    row("Default assignment role", presentation.get("assignment_role"))
+    presentation_validation = presentation.get("validation") or {}
+    row("Presentation valid", presentation_validation.get("valid"))
 
 
 def catalogue_validate(data: dict[str, Any]) -> None:
