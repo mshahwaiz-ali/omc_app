@@ -101,9 +101,9 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
     if (code.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: code));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Referral code copied.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Referral code copied.')));
   }
 
   Future<void> _shareCode() async {
@@ -274,7 +274,10 @@ class _ReferralHero extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: active
                       ? const Color(0xFFEAF8F0)
@@ -349,11 +352,17 @@ class _PrimaryMetrics extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Expanded(child: _Metric(label: 'Total', value: summary.totalReferrals)),
+      Expanded(
+        child: _Metric(label: 'Total', value: summary.totalReferrals),
+      ),
       const SizedBox(width: 10),
-      Expanded(child: _Metric(label: 'Active', value: summary.activeReferrals)),
+      Expanded(
+        child: _Metric(label: 'Active', value: summary.activeReferrals),
+      ),
       const SizedBox(width: 10),
-      Expanded(child: _Metric(label: 'Services', value: summary.totalServices)),
+      Expanded(
+        child: _Metric(label: 'Services', value: summary.totalServices),
+      ),
     ],
   );
 }
@@ -547,7 +556,10 @@ class _ReferralCustomerCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.textSecondary,
+            ),
           ],
         ),
       ),

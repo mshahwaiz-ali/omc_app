@@ -46,8 +46,7 @@ class CommissionDetailScreen extends ConsumerWidget {
             if (item.structureSnapshot.isNotEmpty)
               _row(context, 'Structure snapshot', item.structureSnapshot),
             _row(context, 'Customer', item.customer),
-            if (item.service.isNotEmpty)
-              _row(context, 'Service', item.service),
+            if (item.service.isNotEmpty) _row(context, 'Service', item.service),
             if (item.request.isNotEmpty)
               _row(context, 'Service request', item.request),
             if (item.paymentEntry.isNotEmpty)
@@ -55,7 +54,11 @@ class CommissionDetailScreen extends ConsumerWidget {
             if (item.salesInvoice.isNotEmpty)
               _row(context, 'Sales Invoice', item.salesInvoice),
             if (item.legacyJournalEntry.isNotEmpty)
-              _row(context, 'Legacy accounting evidence', item.legacyJournalEntry),
+              _row(
+                context,
+                'Legacy accounting evidence',
+                item.legacyJournalEntry,
+              ),
             if (item.evidenceStatus.isNotEmpty)
               _row(context, 'Evidence status', item.evidenceStatus),
             _row(context, 'Earned on', item.earnedOn),

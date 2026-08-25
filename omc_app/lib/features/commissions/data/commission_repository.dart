@@ -180,41 +180,43 @@ class CommissionEarning {
   final String structureSnapshot;
 
   bool get isHistorical => provenance == 'Historical Legacy';
-  String get serviceLabel =>
-      service.isNotEmpty ? service : (isHistorical ? 'Historical commission' : 'Service');
+  String get serviceLabel => service.isNotEmpty
+      ? service
+      : (isHistorical ? 'Historical commission' : 'Service');
 
-  factory CommissionEarning.fromJson(Map<String, dynamic> json) =>
-      CommissionEarning(
-        id: _text(json['name'] ?? json['id']),
-        status: _text(json['status'] ?? json['earning_status']),
-        customer: _text(
-          json['customer_name'] ?? json['customer_profile'] ?? json['customer'],
-        ),
-        service: _text(json['service_title'] ?? json['service']),
-        request: _text(json['service_request'] ?? json['request']),
-        currency: _text(json['currency']).isEmpty
-            ? 'PKR'
-            : _text(json['currency']),
-        basis: _double(json['basis_amount']),
-        percent: _double(
-          json['commission_percent_snapshot'] ??
-              json['commission_percent'] ??
-              json['percent'],
-        ),
-        amount: _double(json['commission_amount'] ?? json['amount']),
-        earnedOn: _text(json['earned_on']),
-        settlement: _text(json['settlement_reference']),
-        reversalReason: _text(json['reversal_reason']),
-        provenance: _text(json['provenance'] ?? json['origin']).isEmpty
-            ? 'Current OMC'
-            : _text(json['provenance'] ?? json['origin']),
-        paymentEntry: _text(json['payment_entry'] ?? json['qualifying_payment']),
-        salesInvoice: _text(json['sales_invoice'] ?? json['qualifying_erp_invoice']),
-        legacyJournalEntry: _text(json['legacy_journal_entry']),
-        evidenceStatus: _text(json['accounting_evidence_status']),
-        component: _text(json['component']),
-        structureSnapshot: _text(json['structure_snapshot']),
-      );
+  factory CommissionEarning.fromJson(
+    Map<String, dynamic> json,
+  ) => CommissionEarning(
+    id: _text(json['name'] ?? json['id']),
+    status: _text(json['status'] ?? json['earning_status']),
+    customer: _text(
+      json['customer_name'] ?? json['customer_profile'] ?? json['customer'],
+    ),
+    service: _text(json['service_title'] ?? json['service']),
+    request: _text(json['service_request'] ?? json['request']),
+    currency: _text(json['currency']).isEmpty ? 'PKR' : _text(json['currency']),
+    basis: _double(json['basis_amount']),
+    percent: _double(
+      json['commission_percent_snapshot'] ??
+          json['commission_percent'] ??
+          json['percent'],
+    ),
+    amount: _double(json['commission_amount'] ?? json['amount']),
+    earnedOn: _text(json['earned_on']),
+    settlement: _text(json['settlement_reference']),
+    reversalReason: _text(json['reversal_reason']),
+    provenance: _text(json['provenance'] ?? json['origin']).isEmpty
+        ? 'Current OMC'
+        : _text(json['provenance'] ?? json['origin']),
+    paymentEntry: _text(json['payment_entry'] ?? json['qualifying_payment']),
+    salesInvoice: _text(
+      json['sales_invoice'] ?? json['qualifying_erp_invoice'],
+    ),
+    legacyJournalEntry: _text(json['legacy_journal_entry']),
+    evidenceStatus: _text(json['accounting_evidence_status']),
+    component: _text(json['component']),
+    structureSnapshot: _text(json['structure_snapshot']),
+  );
 }
 
 Map<String, dynamic> _message(Map<String, dynamic>? response) {

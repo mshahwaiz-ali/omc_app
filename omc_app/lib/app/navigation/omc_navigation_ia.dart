@@ -162,7 +162,10 @@ List<OmcNavigationGroup> _internalMoreNavigation(
   }
   if (capabilities.canViewOwnCommissions) {
     work.add(
-      const OmcNavigationItem(OmcNavigationActionId.commissions, 'My Commissions'),
+      const OmcNavigationItem(
+        OmcNavigationActionId.commissions,
+        'My Commissions',
+      ),
     );
   }
   if (capabilities.canViewTasks) {

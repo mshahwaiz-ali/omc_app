@@ -62,9 +62,8 @@ class ReferralRepository {
         ? items
               .whereType<Map>()
               .map(
-                (item) => ReferralCustomer.fromJson(
-                  Map<String, dynamic>.from(item),
-                ),
+                (item) =>
+                    ReferralCustomer.fromJson(Map<String, dynamic>.from(item)),
               )
               .where((item) => item.id.isNotEmpty)
               .toList(growable: false)

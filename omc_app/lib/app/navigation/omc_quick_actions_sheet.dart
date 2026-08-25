@@ -28,14 +28,14 @@ Future<void> showOmcQuickActionsSheet({
   VoidCallback callbackFor(OmcNavigationActionId id) {
     return switch (id) {
       OmcNavigationActionId.createLead => onCreateLead,
-      OmcNavigationActionId.startRequest || OmcNavigationActionId.apply =>
-        onOpenServices,
-      OmcNavigationActionId.reviewPayments || OmcNavigationActionId.payments =>
-        onOpenPayments,
+      OmcNavigationActionId.startRequest ||
+      OmcNavigationActionId.apply => onOpenServices,
+      OmcNavigationActionId.reviewPayments ||
+      OmcNavigationActionId.payments => onOpenPayments,
       OmcNavigationActionId.reviewDocuments ||
       OmcNavigationActionId.documents => onOpenDocuments,
-      OmcNavigationActionId.supportQueue || OmcNavigationActionId.support =>
-        onOpenSupport,
+      OmcNavigationActionId.supportQueue ||
+      OmcNavigationActionId.support => onOpenSupport,
       OmcNavigationActionId.tasks => onOpenTasks,
       OmcNavigationActionId.tax => onOpenTaxCalculator,
       OmcNavigationActionId.knowledge => onOpenKnowledge,
@@ -64,10 +64,8 @@ Future<void> showOmcQuickActionsSheet({
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
     ),
-    builder: (sheetContext) => _QuickActionsContent(
-      actions: actions,
-      callbackFor: callbackFor,
-    ),
+    builder: (sheetContext) =>
+        _QuickActionsContent(actions: actions, callbackFor: callbackFor),
   );
 
   if (selectedAction == null || !context.mounted) return;
@@ -197,20 +195,21 @@ class _QuickActionButton extends StatelessWidget {
 IconData _iconFor(OmcNavigationActionId id) {
   return switch (id) {
     OmcNavigationActionId.createLead => Icons.person_add_alt_1_rounded,
-    OmcNavigationActionId.startRequest || OmcNavigationActionId.apply =>
-      Icons.add_business_rounded,
-    OmcNavigationActionId.reviewPayments || OmcNavigationActionId.payments =>
-      Icons.receipt_long_outlined,
+    OmcNavigationActionId.startRequest ||
+    OmcNavigationActionId.apply => Icons.add_business_rounded,
+    OmcNavigationActionId.reviewPayments ||
+    OmcNavigationActionId.payments => Icons.receipt_long_outlined,
     OmcNavigationActionId.reviewDocuments ||
     OmcNavigationActionId.documents => Icons.fact_check_outlined,
-    OmcNavigationActionId.supportQueue || OmcNavigationActionId.support =>
-      Icons.support_agent_outlined,
+    OmcNavigationActionId.supportQueue ||
+    OmcNavigationActionId.support => Icons.support_agent_outlined,
     OmcNavigationActionId.tasks => Icons.task_alt_outlined,
     OmcNavigationActionId.tax => Icons.calculate_outlined,
     OmcNavigationActionId.knowledge => Icons.menu_book_outlined,
     OmcNavigationActionId.profile => Icons.person_outline_rounded,
     OmcNavigationActionId.workspace => Icons.dashboard_customize_outlined,
-    OmcNavigationActionId.commissionOperations => Icons.account_balance_outlined,
+    OmcNavigationActionId.commissionOperations =>
+      Icons.account_balance_outlined,
     OmcNavigationActionId.customers => Icons.groups_outlined,
     OmcNavigationActionId.expense => Icons.account_balance_wallet_outlined,
     OmcNavigationActionId.referrals => Icons.hub_outlined,

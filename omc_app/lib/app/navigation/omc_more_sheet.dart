@@ -213,9 +213,9 @@ class _NavigationGroup extends StatelessWidget {
                 _NavigationRow(
                   item: group.items[index],
                   unreadNotifications: unreadNotifications,
-                  onTap: () => Navigator.of(context).pop(
-                    callbackFor(group.items[index].id),
-                  ),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(callbackFor(group.items[index].id)),
                 ),
                 if (index != group.items.length - 1)
                   const Divider(height: 1, indent: 58),
@@ -272,7 +272,9 @@ class _NavigationRow extends StatelessWidget {
                 child: Text(
                   item.label,
                   style: TextStyle(
-                    color: destructive ? OmcPremium.danger : AppTheme.textPrimary,
+                    color: destructive
+                        ? OmcPremium.danger
+                        : AppTheme.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -282,7 +284,9 @@ class _NavigationRow extends StatelessWidget {
                 _Badge(count: badge)
               else
                 Icon(
-                  destructive ? Icons.logout_rounded : Icons.chevron_right_rounded,
+                  destructive
+                      ? Icons.logout_rounded
+                      : Icons.chevron_right_rounded,
                   color: destructive ? OmcPremium.danger : AppTheme.textMuted,
                   size: 20,
                 ),
@@ -300,13 +304,14 @@ IconData _iconFor(OmcNavigationActionId id) {
     OmcNavigationActionId.customers => Icons.groups_outlined,
     OmcNavigationActionId.referrals => Icons.hub_outlined,
     OmcNavigationActionId.commissions => Icons.payments_outlined,
-    OmcNavigationActionId.commissionOperations => Icons.account_balance_outlined,
+    OmcNavigationActionId.commissionOperations =>
+      Icons.account_balance_outlined,
     OmcNavigationActionId.documents => Icons.folder_copy_outlined,
     OmcNavigationActionId.payments => Icons.receipt_long_outlined,
     OmcNavigationActionId.leads => Icons.person_search_outlined,
     OmcNavigationActionId.tasks => Icons.task_alt_outlined,
-    OmcNavigationActionId.support || OmcNavigationActionId.supportQueue =>
-      Icons.support_agent_outlined,
+    OmcNavigationActionId.support ||
+    OmcNavigationActionId.supportQueue => Icons.support_agent_outlined,
     OmcNavigationActionId.alerts => Icons.notifications_none_rounded,
     OmcNavigationActionId.tax => Icons.calculate_outlined,
     OmcNavigationActionId.expense => Icons.account_balance_wallet_outlined,
@@ -316,8 +321,8 @@ IconData _iconFor(OmcNavigationActionId id) {
     OmcNavigationActionId.settings => Icons.settings_outlined,
     OmcNavigationActionId.login => Icons.login_rounded,
     OmcNavigationActionId.logout => Icons.logout_rounded,
-    OmcNavigationActionId.apply || OmcNavigationActionId.startRequest =>
-      Icons.add_business_outlined,
+    OmcNavigationActionId.apply ||
+    OmcNavigationActionId.startRequest => Icons.add_business_outlined,
     OmcNavigationActionId.createLead => Icons.person_add_alt_1_rounded,
     OmcNavigationActionId.reviewPayments => Icons.receipt_long_outlined,
     OmcNavigationActionId.reviewDocuments => Icons.fact_check_outlined,
@@ -370,8 +375,9 @@ class _MoreHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 23,
                 backgroundColor: AppTheme.primarySoft,
-                backgroundImage:
-                    resolvedAvatarUrl == null ? null : NetworkImage(resolvedAvatarUrl),
+                backgroundImage: resolvedAvatarUrl == null
+                    ? null
+                    : NetworkImage(resolvedAvatarUrl),
                 child: resolvedAvatarUrl == null
                     ? Text(
                         _initials(cleanName),
