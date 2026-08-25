@@ -175,6 +175,86 @@ class TestStaffSyncCanonicalAccess(FrappeTestCase):
 
 
 
+    def test_sync_repairs_legacy_owner_capability_before_profile_hook(self):
+        with patch.object(
+            staff_sync,
+            "_erp_omc_user_type",
+            return_value="Consultant",
+        ):
+            first = staff_sync.sync_staff_user(
+                TEST_USER,
+                apply=True,
+            )
+
+        self.assertTrue(first["applied"], first)
+
+        access_name = frappe.db.get_value(
+            "OMC Staff Access",
+            {"user": TEST_USER},
+            "name",
+        )
+        self.assertTrue(access_name)
+
+        access = frappe.get_doc(
+            "OMC Staff Access",
+            access_name,
+        )
+
+        # Reproduce the live pre-capability-split state: approved/current
+        # referral owner whose persisted capability row still contains only
+        # the old overloaded referral capability.
+        access.set(
+            "capabilities",
+            [
+                {
+                    "capability":
+                        "can_view_referral_commissions"
+                }
+            ],
+        )
+        access.save(ignore_permissions=True)
+
+        with patch.object(
+            staff_sync,
+            "_erp_omc_user_type",
+            return_value="Consultant",
+        ):
+            second = staff_sync.sync_staff_user(
+                TEST_USER,
+                apply=True,
+                commit=False,
+            )
+
+        self.assertTrue(second["applied"], second)
+
+        access.reload()
+        codes = {
+            row.capability
+            for row in access.capabilities
+        }
+
+        self.assertIn("can_own_referrals", codes)
+        self.assertIn("can_view_own_commissions", codes)
+        self.assertNotIn(
+            "can_view_referral_commissions",
+            codes,
+        )
+
+        referral_name = frappe.db.get_value(
+            "OMC Referral",
+            {"referrer_user": TEST_USER},
+            "name",
+        )
+        self.assertTrue(referral_name)
+
+        referral = frappe.get_doc(
+            "OMC Referral",
+            referral_name,
+        )
+        self.assertEqual(referral.status, "Approved")
+        self.assertEqual(int(referral.is_active or 0), 1)
+
+
     def test_business_partner_gets_staff_access_and_referral(self):
         with patch.object(
             staff_sync,
