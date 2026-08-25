@@ -16,24 +16,11 @@ final referralRepositoryProvider = Provider<ReferralRepository>((ref) {
 final referralSummaryProvider = FutureProvider<ReferralSummary?>((ref) async {
   final auth = ref.watch(authControllerProvider);
   if (auth.status != AuthStatus.authenticated ||
-      !auth.capabilities.isInternal) {
+      !auth.capabilities.canOwnReferrals) {
     return null;
   }
 
-  try {
-    return await ref.watch(referralRepositoryProvider).fetchSummary();
-  } on ApiError catch (error) {
-    final code = (error.code ?? '').toLowerCase();
-    final message = error.message.toLowerCase();
-    final denied =
-        code.contains('permission') ||
-        code.contains('403') ||
-        message.contains('permission') ||
-        message.contains('not permitted');
-
-    if (denied) return null;
-    rethrow;
-  }
+  return ref.watch(referralRepositoryProvider).fetchSummary();
 });
 
 class ReferralRepository {
@@ -48,10 +35,10 @@ class ReferralRepository {
     return ReferralSummary.fromResponse(response);
   }
 
-  Future<List<ReferralCustomer>> fetchReferrals({
+  Future<ReferralPage> fetchReferralPage({
     String? search,
     int limitStart = 0,
-    int limitPageLength = 50,
+    int limitPageLength = 20,
   }) async {
     final queryParameters = <String, dynamic>{
       'limit_start': limitStart,
@@ -71,16 +58,38 @@ class ReferralRepository {
     final message = response['message'];
     final source = message is Map<String, dynamic> ? message : response;
     final items = source['items'];
+    final parsed = items is List
+        ? items
+              .whereType<Map>()
+              .map(
+                (item) => ReferralCustomer.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .where((item) => item.id.isNotEmpty)
+              .toList(growable: false)
+        : const <ReferralCustomer>[];
 
-    if (items is! List) return const [];
+    return ReferralPage(
+      items: parsed,
+      hasMore: ReferralCustomer._bool(source['has_more']),
+      nextStart: source['next_start'] == null
+          ? null
+          : ReferralCustomer._int(source['next_start']),
+    );
+  }
 
-    return items
-        .whereType<Map>()
-        .map(
-          (item) => ReferralCustomer.fromJson(Map<String, dynamic>.from(item)),
-        )
-        .where((item) => item.id.isNotEmpty)
-        .toList(growable: false);
+  Future<List<ReferralCustomer>> fetchReferrals({
+    String? search,
+    int limitStart = 0,
+    int limitPageLength = 50,
+  }) async {
+    final page = await fetchReferralPage(
+      search: search,
+      limitStart: limitStart,
+      limitPageLength: limitPageLength,
+    );
+    return page.items;
   }
 
   Future<ReferralDetail> fetchReferralDetail(String customerProfile) async {
@@ -97,6 +106,18 @@ class ReferralRepository {
   }
 }
 
+class ReferralPage {
+  const ReferralPage({
+    required this.items,
+    required this.hasMore,
+    required this.nextStart,
+  });
+
+  final List<ReferralCustomer> items;
+  final bool hasMore;
+  final int? nextStart;
+}
+
 class ReferralCustomer {
   const ReferralCustomer({
     required this.id,
@@ -111,6 +132,8 @@ class ReferralCustomer {
     required this.selfCreatedServices,
     required this.referrerCreatedServices,
     required this.statusCounts,
+    this.referralCodeUsed = '',
+    this.isActive = false,
   });
 
   final String id;
@@ -125,6 +148,8 @@ class ReferralCustomer {
   final int selfCreatedServices;
   final int referrerCreatedServices;
   final Map<String, int> statusCounts;
+  final String referralCodeUsed;
+  final bool isActive;
 
   factory ReferralCustomer.fromJson(Map<String, dynamic> json) {
     final counts = json['service_counts'];
@@ -145,6 +170,8 @@ class ReferralCustomer {
       selfCreatedServices: _int(countMap['self_created_services']),
       referrerCreatedServices: _int(countMap['referrer_created_services']),
       statusCounts: _intMap(json['service_status_counts']),
+      referralCodeUsed: _string(json['referral_code_used']),
+      isActive: _bool(json['is_active']),
     );
   }
 
