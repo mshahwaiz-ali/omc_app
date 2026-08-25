@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal, ROUND_HALF_UP
 
 import frappe
-from frappe.utils import add_months, get_first_day, get_last_day
+from frappe.utils import get_first_day, get_last_day
 
 from omc_app.api import capabilities, security
 
@@ -26,8 +26,8 @@ def _current_beneficiary() -> str:
     if user == "Guest":
         frappe.throw("Login is required.", frappe.PermissionError)
     values = capabilities.effective(user)
-    if not values.get("can_view_referral_commissions"):
-        frappe.throw("You do not have permission to view referral commissions.", frappe.PermissionError)
+    if not values.get("can_view_own_commissions"):
+        frappe.throw("You do not have permission to view personal commissions.", frappe.PermissionError)
     return user
 
 
@@ -79,12 +79,22 @@ def _filters(user, *, period_month=None, status=None, customer_profile=None, ser
     return filters
 
 
-def _payload(row):
-    request = frappe.db.get_value(
-        "OMC Service Request", row.service_request,
-        ["customer_profile", "customer_name", "service", "service_title"], as_dict=True,
+def _request_context(service_request):
+    request_name = _text(service_request)
+    if not request_name:
+        return frappe._dict()
+    return frappe.db.get_value(
+        "OMC Service Request",
+        request_name,
+        ["customer_profile", "customer_name", "service", "service_title"],
+        as_dict=True,
     ) or frappe._dict()
+
+
+def _payload(row):
+    request = _request_context(getattr(row, "service_request", None))
     legacy_status = {"Calculated": "Earned", "Paid": "Settled"}.get(row.status, row.status)
+    provenance = _text(getattr(row, "provenance", None)) or "Current OMC"
     return {
         "id": row.name,
         "name": row.name,
@@ -92,18 +102,25 @@ def _payload(row):
         "referral_record": "",
         "customer_profile": request.customer_profile or "",
         "customer_name": request.customer_name or row.erp_customer or "",
-        "service_request": row.service_request,
+        "service_request": _text(getattr(row, "service_request", None)),
         "service": request.service or "",
         "service_title": request.service_title or request.service or "",
-        "qualifying_payment": row.payment_entry,
-        "qualifying_erp_invoice": row.sales_invoice,
+        "qualifying_payment": _text(getattr(row, "payment_entry", None)),
+        "qualifying_erp_invoice": _text(getattr(row, "sales_invoice", None)),
+        "payment_entry": _text(getattr(row, "payment_entry", None)),
+        "sales_invoice": _text(getattr(row, "sales_invoice", None)),
+        "legacy_journal_entry": _text(getattr(row, "legacy_journal_entry", None)),
+        "provenance": provenance,
+        "origin": provenance,
         "basis_amount": row.basis_amount,
         "commission_percent": row.commission_percent_snapshot,
         "commission_percent_snapshot": row.commission_percent_snapshot,
         "commission_amount": row.commission_amount,
+        "structure_snapshot": _text(getattr(row, "structure_snapshot", None)),
         "currency": row.currency or "PKR",
         "status": legacy_status,
         "earning_status": legacy_status,
+        "accounting_evidence_status": _text(getattr(row, "accounting_evidence_status", None)),
         "earned_on": str(row.earned_on or ""),
         "period_month": str(row.earned_on or "")[:7],
         "settlement_reference": row.settlement_reference or "",
@@ -111,6 +128,7 @@ def _payload(row):
         "reversed_on": str(row.reversed_on or ""),
         "reversal_reason": row.reversal_reason or "",
         "component": row.component,
+        "beneficiary_type": _text(getattr(row, "beneficiary_type", None)),
     }
 
 
