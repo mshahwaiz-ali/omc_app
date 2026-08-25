@@ -212,6 +212,11 @@ class _MainShellState extends ConsumerState<MainShell> {
         path: '/internal-workspace',
         capabilities: capabilities,
       ),
+      onOpenCommissionOperations: () => _openWhenAllowed(
+        allowed: canAccessRoute('/internal-workspace/commissions', capabilities),
+        path: '/internal-workspace/commissions',
+        capabilities: capabilities,
+      ),
       onOpenCustomers: () => _openWhenAllowed(
         allowed: canAccessRoute('/customers', capabilities),
         path: '/customers',
@@ -313,6 +318,11 @@ class _MainShellState extends ConsumerState<MainShell> {
         onOpenMyCommissions: () => _openWhenAllowed(
           allowed: canAccessRoute('/my-commissions', capabilities),
           path: '/my-commissions',
+          capabilities: capabilities,
+        ),
+        onOpenCommissionOperations: () => _openWhenAllowed(
+          allowed: canAccessRoute('/internal-workspace/commissions', capabilities),
+          path: '/internal-workspace/commissions',
           capabilities: capabilities,
         ),
         onOpenLeads: () => _openWhenAllowed(
