@@ -65,15 +65,18 @@ backend_omc_app/
 The project-owned Frappe app is primarily:
 
 ```text
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/
-├── api/                           # guarded API and workflow modules
-├── omc_app/doctype/               # OMC DocTypes
-├── setup/                         # install/migrate/reconciliation/catalogue setup
-├── patches/                       # controlled migrations/patches
-├── fixtures/                      # project fixtures such as workspace metadata
-├── public/                        # Desk/static assets
-├── hooks.py                       # Frappe integration hooks
-└── README.md                      # app-package engineering guide
+backend_omc_app/frappe-bench/apps/omc_app/
+├── scripts/
+│   └── configuration.sh           # guarded post-install production configurator
+└── omc_app/
+    ├── api/                       # guarded API and workflow modules
+    ├── omc_app/doctype/           # OMC DocTypes
+    ├── setup/                     # install/migrate/reconciliation/catalogue setup
+    ├── patches/                   # controlled migrations/patches
+    ├── fixtures/                  # project fixtures such as workspace metadata
+    ├── public/                    # Desk/static assets
+    ├── hooks.py                   # Frappe integration hooks
+    └── README.md                  # app-package engineering guide
 ```
 
 ---
@@ -119,58 +122,46 @@ Frappe Website User
 OMC Customer Account
         |
         +------> ERP Customer
-        |
         +------> OMC Customer Profile
-                 business/profile + compatibility state
 ```
 
-`OMC Customer Account` is the canonical authenticated application-access link.
+`OMC Customer Account` is the canonical authenticated customer-to-business mapping.
 
-Protected customer access is not granted merely because a Frappe User exists. The backend evaluates the canonical account state, customer linkage, approval/service-access state, and record ownership.
+A customer profile remains relevant for customer business/profile information and compatibility, but protected customer access resolves through the canonical Customer Account layer.
 
-`OMC Customer Profile` remains useful for customer business/profile state, imported-customer compatibility, referral/customer relationships, and legacy data, but it does not independently override canonical account authority.
+Customer access is ownership-scoped and fail-closed.
 
-## 4.2 Public signup
+## 4.2 New customer registration
 
-Public self-registration is **customer-only**.
+Public registration is customer-only.
 
-The current backend includes:
+The backend manages:
 
-- username normalisation and availability checks;
-- pending registration records;
-- email verification token handling;
-- signup policy/role normalisation;
-- rate limiting and input limits;
-- customer-only public account-type policy;
-- referral-code validation where applicable.
+- pending registration;
+- email verification;
+- username validation;
+- customer Website User creation;
+- customer profile/account creation;
+- customer-role normalisation;
+- activation/access state.
 
-Internal staff are not created through public customer signup.
+Public registration is not a staff self-enrolment path.
 
-## 4.3 Existing-customer activation
+## 4.3 Existing ERP customer activation / claim
 
-Imported ERP customers may exist before an application login exists.
+Existing ERP Customers can be represented in OMC without bulk-creating login Users.
 
-Activation therefore separates:
+Historical customer migration separates:
 
 ```text
-business customer exists
+ERP business customer
         !=
-app login exists
+authenticated app login
 ```
 
-The activation flow proves control of a supported customer identity before lazily creating/linking a Website User. It is intentionally separate from bulk customer migration.
+A safe historical customer can receive/reuse OMC profile/account business state while login activation remains a separate secure process.
 
-## 4.4 Password/account security
-
-Backend account-security modules cover protected password verification/change/reset and associated session/security handling. Secrets must never be logged or stored in business DocTypes as plaintext credentials.
-
----
-
-# 5. Existing ERP customer migration
-
-`omc_app.api.customer_migration` provides controlled migration/reconciliation for an existing ERP customer base without creating thousands of login users in advance.
-
-Current deterministic identity priority is:
+The current deterministic customer identity order is:
 
 ```text
 1. unique valid Customer email
@@ -180,27 +171,15 @@ Current deterministic identity priority is:
 5. identity review
 ```
 
-The NTN/tax-ID rule is intentionally a final deterministic fallback, not a replacement for established email/CNIC/phone identity.
+Tax ID/NTN is deliberately the last deterministic fallback.
 
-Migration principles:
-
-- read-only preflight before writes;
-- no shared/default passwords;
-- no bulk creation of Frappe customer Users;
-- safe reuse of existing OMC profiles/accounts;
-- no forced merge of ambiguous identities;
-- identity conflicts go to review;
-- repeat runs are designed to be idempotent;
-- historical referral/acquisition evidence is preserved only when supportable;
-- customer business migration and app-login activation remain separate.
-
-The operator-facing workflow is documented in [`../docs/OMC_Client_Deployment_and_Customer_Migration_Handover.md`](../docs/OMC_Client_Deployment_and_Customer_Migration_Handover.md).
+Runtime ERP customer resolution is more schema-tolerant: it detects which standard/legacy Customer and Lead identity fields still exist before reading them, so removal of old custom fields does not become an automatic ownership guess.
 
 ---
 
-# 6. Internal staff identity and capability authority
+# 5. Internal staff authority
 
-## 6.1 Canonical model
+## 5.1 Canonical model
 
 ```text
 Frappe System User
@@ -211,176 +190,307 @@ OMC Staff Access
         +------> explicit capability rows
         +------> access status
         +------> reconciliation status
-        +------> ERP persona snapshot/source
-        +------> optional ERP Employee
-        +------> legacy Staff Profile compatibility
+        +------> persona snapshot
+        +------> optional break-glass grants
 ```
 
-`OMC Staff Access` is the canonical internal authority record.
+An ERP Employee or Frappe role by itself is not sufficient OMC authority.
 
-Normal `System Manager` membership is **not** implicit OMC business authority.
+Normal access requires a current, approved Staff Access decision.
 
-## 6.2 ERP personas
+## 5.2 Personas vs authority
 
-The backend recognises ERP-owned persona values including:
+ERP/persona labels such as Consultant, Tax Associates, Business Partner and Employee are evidence used by staff reconciliation.
+
+The actual protected permission check uses OMC capabilities.
+
+Important distinction:
 
 ```text
-Consultant
-Tax Associates
-Business Partner
-Employee
+persona / Frappe role
+    -> helps determine intended access
+
+OMC Staff Access + capability
+    -> actual OMC backend authority
 ```
 
-These are persona values, not duplicate OMC Frappe Role records.
+`System Manager` is not a hidden universal OMC business-authority override.
 
-Legacy role names such as `OMC Consultant`, `OMC Tax Associate`, `OMC Business Partner`, and `OMC Employee` are compatibility/retirement concerns and must not become a new authority source.
+## 5.3 Break-glass
 
-## 6.3 Reconciliation
+`OMC Break Glass Grant` supports explicit emergency access that is:
 
-Staff synchronisation can derive trusted persona evidence from ERP user/employee relationships and reconcile an `OMC Staff Access` record.
-
-Security-sensitive behaviour includes:
-
-- disabled or unsupported users fail eligibility;
-- suspended/rejected access survives automated reruns;
-- deliberately reviewed persona conflicts fail closed;
-- explicit capability rows are reconciled deterministically;
-- ERP roles/Role Profiles are not rewritten merely to express OMC capability.
-
-## 6.4 Capability categories
-
-Internal capability domains include areas such as:
-
-- internal workspace;
-- customer/lead operations;
-- relevant/assigned/all service-case access;
-- task visibility/management;
-- assisted service creation;
-- document queue/review;
-- payment queue/review;
-- accounting settlement reconciliation;
-- support ticket operations;
-- internal notes;
-- settings/business settings;
-- staff administration;
-- registration/reconciliation review;
-- service-case reassignment;
-- bridge retry/recovery;
-- referral ownership;
-- personal commission visibility;
-- finance commission approval/payment operations.
-
-Capability checks still combine with record scope. A capability to view relevant customers is not a global all-customer bypass.
-
-## 6.5 Break-glass
-
-Exceptional temporary access uses `OMC Break Glass Grant`.
-
-Break-glass authority is:
-
-- explicit;
+- time-limited;
 - capability-specific;
-- time limited;
 - optionally DocType/record scoped;
-- auditable;
-- not a permanent role escalation.
+- audited;
+- evaluated server-side.
 
 ---
 
-# 7. Frappe roles, DocPerm and API authority
+# 6. Frappe hooks and enforcement
 
-The app still manages selected Frappe Role/DocPerm rows for Desk usability, but protected OMC APIs do not treat DocPerm alone as sufficient business authority.
+`hooks.py` integrates OMC with Frappe through:
 
-The role setup intentionally separates:
+- `required_apps = ['erpnext']`;
+- install/migrate lifecycle hooks;
+- API method overrides that route legacy/public aliases into guarded canonical implementations;
+- permission query conditions;
+- per-record `has_permission` hooks;
+- User referral-code synchronization;
+- ERP Task status synchronization;
+- Sales Invoice / Payment Entry accounting reconciliation hooks;
+- commission-writer suppression where OMC owns the new authority;
+- hourly/daily scheduled jobs;
+- Workspace fixture ownership;
+- OMC Desk CSS.
 
-- OMC-owned operational roles;
-- ERP personas;
-- read-only evidence/security DocTypes;
-- mutable operational/configuration DocTypes;
-- internal-only DocTypes;
-- retired/legacy role assignments.
-
-Permission-query conditions and record-level `has_permission` handlers exist for important customer/operational DocTypes including service requests, customer profiles, referrals, service documents, service payments, and support tickets.
+The override map is intentionally important: old mobile method names can remain compatible while policy is enforced in newer guard/policy modules.
 
 ---
 
-# 8. Service catalogue
+# 7. Permission model
 
-The production service catalogue is source controlled under:
+Frappe DocPerm is not the only security boundary.
+
+OMC combines:
+
+1. Frappe authentication;
+2. OMC canonical customer/staff identity;
+3. capability checks;
+4. scope/ownership checks;
+5. permission query conditions;
+6. per-record permission functions;
+7. guarded mutation APIs;
+8. audit/idempotency where required.
+
+Protected OMC DocTypes with explicit query/record permission hooks include service requests, customer profiles, referrals, service documents, service payments and support tickets.
+
+The Flutter UI can hide or show controls, but the API must still reject unauthorised access independently.
+
+---
+
+# 8. Main backend data domains
+
+The OMC DocType tree includes multiple families.
+
+## Identity / access
+
+Examples:
+
+- `OMC Customer Account`
+- `OMC Customer Profile`
+- `OMC Staff Access`
+- staff capability child rows
+- `OMC Break Glass Grant`
+- registration / activation / identity-review support records
+
+## Catalogue / service definition
+
+Examples:
+
+- `OMC Service Category`
+- `OMC Service`
+- `OMC Service Required Document`
+- `OMC Service Form Field`
+
+## Service execution
+
+Examples:
+
+- `OMC Service Request`
+- timeline/event rows
+- `OMC Service Document`
+- assignment/review state
+- `OMC Bridge Operation`
+
+## Payment / accounting
+
+Examples:
+
+- `OMC Service Payment`
+- `OMC Accounting Link`
+- reconciliation/audit state
+
+## Referral / commission
+
+Examples:
+
+- `OMC Referral`
+- referral attribution records
+- `OMC Commission Allocation`
+- commission lifecycle/history records
+
+## Support / communication
+
+Examples:
+
+- support tickets/messages
+- notifications/read-state support
+- push-token/settings state
+
+## Content / branding / public configuration
+
+Examples:
+
+- `OMC Announcement`
+- `OMC App Banner`
+- branding settings
+- knowledge/FAQ/onboarding configuration
+
+## Tax / expenses
+
+Examples:
+
+- tax calculator settings/years/slabs/input fields/logs
+- expense categories/entries/budgets
+
+This list describes domain families rather than claiming every directory name is a public API contract.
+
+---
+
+# 9. Backend API architecture
+
+The `omc_app/api/` package contains canonical workflow modules plus compatibility wrappers.
+
+Major API/policy areas include:
+
+## Authentication / account security
+
+- login and multi-identifier login;
+- pending registration;
+- email verification;
+- customer activation;
+- password reset/change;
+- session-user/profile projection;
+- guest-session handling.
+
+## Access / policy
+
+- customer/staff authority resolution;
+- capabilities;
+- break-glass evaluation;
+- profile/ownership guards;
+- internal workspace scope.
+
+## Service requests
+
+- service request creation;
+- assisted service creation;
+- customer selection policy;
+- service case read contract;
+- status/cancellation mutations;
+- assignment/reassignment;
+- workflow automation;
+- completion blockers.
+
+## Documents
+
+- required-document template reads;
+- customer document reads;
+- canonical upload handling;
+- document review/status guards;
+- archive/replacement behavior.
+
+## Payments / accounting
+
+- payment read guards;
+- receipt upload/review mutations;
+- payment opening/eligibility;
+- accounting policy;
+- invoice/payment-entry reconciliation;
+- financial hold behavior.
+
+## ERP bridge
+
+- Service/Task adapter;
+- ERP customer resolver;
+- bridge outbox/retry;
+- Task status synchronization;
+- activation/completion authority.
+
+## Referrals / commissions
+
+- referral validation;
+- referral analytics;
+- referral attribution;
+- commission allocation;
+- personal commission reads;
+- finance commission operations;
+- historical referral/commission migration helpers.
+
+## Internal operations
+
+- admin control/read;
+- internal workspace;
+- lead/customer/task guarded reads;
+- registration/staff review;
+- settings/configuration operations.
+
+## Customer utilities
+
+- dashboard;
+- profile self-service;
+- support;
+- notifications;
+- knowledge/content;
+- tax calculator;
+- expenses.
+
+Flutter method constants are documented separately in [`../omc_app/docs/backend_api_contract.md`](../omc_app/docs/backend_api_contract.md).
+
+---
+
+# 10. Production service catalogue
+
+The source-controlled production catalogue lives at:
 
 ```text
 frappe-bench/apps/omc_app/omc_app/setup/service_catalogue/
 ```
 
-Current managed baseline:
+Current manifest baseline:
 
 ```text
+Company:                  Omc House
+Currency:                 PKR
 Categories:               9
-Services:                31
-Active services:         17
-Inactive/review services:14
-Currency:                PKR
-Company:                 Omc House
-Default activation:      Full Settlement
+Services:                 31
+Active services:          17
+Inactive/review services: 14
+Default activation:       Full Settlement
 ```
 
-The current 31 canonical service identities are based on the client's exact ERP Task Types. Display titles may be improved without changing the stable service identity.
+The catalogue is deliberately conservative: uncertain pricing/scope/requirements are not invented merely to activate a service.
 
-Current service set includes:
+## 10.1 Exact ERP Task Type authority
 
-1. 7E Exemption Certificate
-2. Commissioner Hearing & Advocacy
-3. AOP Tax Return Filing
-4. AOP / Partnership Firm Registration
-5. Business Tax Return Filing
-6. Family Contribution Tax Filing
-7. FBR POS Challan
-8. Financial Statements / Financials
-9. GST Registration
-10. Housewife Tax Filing
-11. Monthly GST Filing
-12. Monthly Services
-13. Monthly SRB Filing
-14. Non-Resident Pakistani Tax Return Filing
-15. NTN Modification
-16. NTN Registration
-17. Other Services
-18. Other Sources
-19. Pakistan Single Window (PSW) Registration
-20. FBR / IRIS Password Reset Assistance
-21. Pensioner Filing
-22. POS Integration
-23. Private Limited Company Registration
-24. Quarterly WHT Filing
-25. KCCI Registration
-26. Income Tax Return Filing — Salaried Individuals
-27. SECP Compliance
-28. SRB / PRA / BRA / KEPRA Registration
-29. Stock Audit
-30. TAX Club
-31. UBL Lead
+`OMC Service.erp_task_type` maps to an exact already-existing ERP `Task Type`.
 
-Services remain inactive where pricing/scope/requirements/turnaround are not sufficiently verified. A zero placeholder does **not** automatically mean a service is free.
+The catalogue provisioner does not:
 
-## 8.1 Exact ERP Task Type mapping
+- create Task Types;
+- fuzzy-match Task Types;
+- silently pick between ambiguous Task Types.
 
-The provisioner uses exact identity. It does not fuzzy-match titles and it does not create ERP Task Types.
+Missing/ambiguous mappings are blockers.
 
-Examples where exact ERP spelling matters include values such as:
+## 10.2 Stable IDs
+
+Service/category identity is separate from display labels.
+
+Stable identifiers include:
 
 ```text
-NTN  MODIFICATION
-other sources
-POS intergation
+service_id
+category_name
 ```
 
-Stable OMC service IDs allow cleaner customer-facing titles while retaining exact ERP mapping.
+Changing a customer-facing title therefore does not require changing canonical service identity.
 
-## 8.2 Catalogue operations
+## 10.3 Operator operations
 
 ```bash
-cd frappe-bench
-
 bench --site <site> execute \
   omc_app.setup.operations.preview_service_catalogue
 
@@ -393,73 +503,94 @@ bench --site <site> execute \
 
 `preview` and `validate` are read-only.
 
-`sync` is explicit mutation. Normal `bench migrate` is **not** the service-catalogue publisher.
+`sync` is the explicit mutation operation.
 
-## 8.3 Provisioner safety
+Normal `bench migrate` does not publish the catalogue.
 
-The provisioner is designed to:
+## 10.4 Provisioning transaction
 
-- validate the target company and ERP contract;
-- fail closed on missing/ambiguous Task Type mapping;
-- preview changes before mutation;
-- use one transaction/savepoint boundary;
-- validate after reconciliation;
-- rollback on failure;
-- preserve non-owned service configuration;
-- protect in-flight requests;
-- protect historical pricing;
-- deactivate stale managed definitions rather than hard-delete business history;
-- remain idempotent when the site matches source control.
-
----
-
-# 9. Service requirements and form fields
-
-`OMC Service Required Document` defines service-document requirements.
-
-`OMC Service Form Field` defines additional service-specific customer input requirements.
-
-Catalogue-managed form fields are marked so the provisioner can distinguish managed data from unrelated/manual configuration.
-
-Requirement changes are guarded so an in-flight customer request is not silently given a materially different required-document contract.
-
----
-
-# 10. Stable document identity
-
-`OMC Service Required Document` and `OMC Service Document` support stable `document_key` identity.
-
-The logical identity is service-scoped:
+Catalogue sync follows a guarded sequence:
 
 ```text
-(service, document_key)
+preflight preview
+    -> blocker/conflict checks
+    -> savepoint
+    -> category reconciliation
+    -> service reconciliation
+    -> required-document reconciliation
+    -> form-field reconciliation
+    -> post-sync validation
+    -> commit
 ```
 
-Matching rules:
+Failures roll back the sync transaction boundary.
 
-1. if both requirement and upload have a non-empty key, the key is authoritative;
-2. a wrong key never falls back to matching title/type;
-3. if either side is genuinely legacy/unkeyed, exact normalized title + document type compatibility may be used;
-4. one upload satisfies at most one requirement;
-5. backend canonicalises key/title/type for a keyed template upload.
+## 10.5 Idempotency
 
-This prevents UI labels from becoming an accidental security/workflow identity.
+Once source and site match, repeat sync/validation should converge to no additional managed changes.
 
-## 10.1 Grandfathering
+The latest directly observed production validation before this documentation refresh showed:
 
-Requirements may carry `effective_from`.
-
-A newly introduced managed requirement therefore applies only to requests at/after its effective boundary. Older in-flight requests keep their historical contract.
-
-Repeated no-op catalogue syncs must not shift that boundary.
+```text
+9 categories unchanged
+31 services unchanged
+93 required-document definitions unchanged
+62 form fields unchanged
+195 managed objects unchanged
+0 pending creates
+0 pending updates
+0 pending deactivations
+0 conflicts
+0 blockers
+```
 
 ---
 
-# 11. Service request lifecycle
+# 11. Required-document contract
 
-`OMC Service Request` is the customer-facing workflow authority.
+Required-document templates use stable `document_key` identity.
 
-Representative canonical request states include:
+Relevant records:
+
+```text
+OMC Service Required Document
+OMC Service Document
+```
+
+Rules:
+
+- when both rows carry a key, the key is authoritative;
+- a wrong key never falls back to matching title/type;
+- genuine legacy/unkeyed rows may use exact normalized title + type compatibility;
+- one uploaded document can satisfy at most one requirement;
+- upload identity is canonicalised server-side;
+- Flutter-provided title/type is not trusted as catalogue authority.
+
+## 11.1 `effective_from`
+
+New managed required-document rows may carry `effective_from`.
+
+This protects in-flight requests from retroactive catalogue changes.
+
+Conceptually:
+
+```text
+request created before new requirement effective date
+    -> new requirement not imposed retroactively
+
+request created at/after effective date
+    -> requirement applies normally
+```
+
+Repeat idempotent syncs do not shift the original effective boundary.
+
+---
+
+# 12. Service request lifecycle
+
+The canonical request state machine is separate from simple customer-facing labels.
+
+Representative states include:
 
 ```text
 Draft
@@ -474,490 +605,488 @@ Expired
 Cancelled
 ```
 
-The displayed operational status is a compatibility/customer-facing projection over the canonical request lifecycle.
+Legacy/customer-facing `status` remains a compatibility/operational projection where required.
 
-The lifecycle module owns legal transitions, locking and state-change authority instead of allowing arbitrary clients to mutate state directly.
+The backend is authoritative for allowed transitions.
 
 ---
 
-# 12. Service request creation and assisted service
+# 13. Service request creation
 
-Service creation converges on backend policy whether the request originates from the customer app or an authorised staff flow.
+Service creation routes converge toward shared backend authority rather than duplicating business logic in Flutter.
 
 Supported concepts include:
 
-- self-service creation;
-- customer ownership validation;
-- assisted creation for authorised staff;
-- referral-owner assisted cases where valid;
-- existing-customer selection under capability/scope rules;
-- walk-in/manual customer handling;
+- self-service request;
+- referral-assisted request;
+- authorised existing-customer assistance;
+- authorised walk-in/manual customer flow.
+
+The backend controls:
+
+- acting user;
+- target customer;
+- consent/assistance scope;
+- service availability;
+- pricing snapshot;
+- required fields/documents;
 - duplicate/parallel-request policy;
-- service-specific form validation;
-- server-side pricing snapshot generation;
-- discount workflow where authorised.
+- referral attribution;
+- assignment inputs;
+- request lifecycle.
 
-Clients must never be trusted to submit authoritative internal pricing/discount/assignment state.
-
----
-
-# 13. Pricing and versioning
-
-The service-request record receives an authoritative pricing snapshot from the backend.
-
-Important rules include:
-
-- request pricing is derived from trusted service configuration;
-- historical request pricing is not silently rewritten when a catalogue price changes;
-- catalogue provisioning does not downgrade `service_version`;
-- pricing versioning remains controller-generated/owned;
-- government fee is not invented when unknown;
-- existing tax policy/rate is preserved according to the service/controller rules;
-- inactive/unknown-price services are not presented as falsely free.
-
-Price-change safety checks protect active/historical requests before catalogue reconciliation modifies a service price.
+A client payload cannot simply declare itself authorised for another customer's request.
 
 ---
 
-# 14. Documents workflow
+# 14. Pricing authority
 
-The backend supports:
+`OMC Service Request` stores authoritative pricing snapshot state derived from service configuration and guarded pricing policy.
 
-- customer-owned document listing/detail;
-- service-specific required-document presentation;
-- multipart/service-document upload;
-- canonical requirement identity resolution;
-- duplicate submission checks;
-- attachment/file validation;
-- request ownership validation;
-- review status updates through guarded internal APIs;
-- rejected-document replacement;
-- completion/payment eligibility checks using shared requirement logic.
+The backend protects:
 
-Generic legacy/non-template uploads remain supported only where intentionally compatible; they must not accidentally satisfy a keyed requirement.
+- original/base price;
+- allowed discounts;
+- discount approval state;
+- tax policy/rate snapshot;
+- pricing versioning;
+- activation policy;
+- request company snapshot.
+
+Catalogue sync also checks historical/in-flight request exposure before changing managed service pricing.
+
+Historic customer economics are not silently rewritten because a service master changes later.
 
 ---
 
-# 15. Payment and receipt workflow
+# 15. Document upload and review
 
-`OMC Service Payment` is OMC's customer-facing payment/receipt workflow record.
+Service-document upload is backend-canonical.
 
-It can represent the customer-visible payment state, payment instructions, submitted receipt/proof, reviewer decision, and links needed by the application workflow.
+For a keyed requirement, the server:
 
-It is **not** a replacement for ERP accounting authority.
+1. resolves the service request;
+2. checks customer/internal authority;
+3. loads applicable service requirements;
+4. validates `document_key` if provided;
+5. chooses canonical document title/type from the requirement;
+6. checks duplicate/active upload state;
+7. saves the file/document relationship;
+8. returns canonical identity/status.
 
-Payment-related API layers are split between:
+Arbitrary legacy/non-template uploads remain supported only where the existing contract intentionally allows them.
 
-- read guards;
-- upload/mutation guards;
-- payment-opening policy;
+Payment eligibility and final completion use shared required-document matching semantics.
+
+---
+
+# 16. Payment workflow vs ERP accounting
+
+`OMC Service Payment` is the OMC customer/payment workflow record.
+
+It can represent:
+
+- amount/currency;
+- payment status;
+- receipt/proof upload;
 - receipt review;
-- accounting settlement/reconciliation.
+- customer-facing payment state.
+
+It is **not** the ERP accounting ledger.
+
+ERP accounting authority remains in ERPNext records such as Sales Invoice and Payment Entry, connected to OMC through `OMC Accounting Link` and reconciliation policy.
 
 ---
 
-# 16. ERP accounting and settlement
+# 17. Accounting reconciliation
 
-ERPNext finance remains authoritative for accounting.
+OMC hooks observe relevant ERP accounting events.
 
-`OMC Accounting Link` connects the OMC request/payment lifecycle to ERP accounting evidence such as Sales Invoice/Payment Entry relationships.
+Current hooks include Sales Invoice and Payment Entry submit/cancel integration.
 
-Accounting reconciliation handles events such as:
+Accounting reconciliation can:
 
-- Sales Invoice submit/cancel;
-- Payment Entry submit/cancel;
-- settlement re-evaluation;
-- financial holds where settled state is invalidated;
-- safe restoration/reconciliation when accounting becomes valid again.
+- connect ERP accounting evidence to an OMC request/payment;
+- update settlement state;
+- open/close financial eligibility;
+- create financial holds when required;
+- feed the durable activation decision.
 
-The hooks on ERP finance documents allow OMC lifecycle state to track authoritative ERP settlement without modifying ERPNext source.
-
-For `Full Settlement`, durable ERP service activation requires settled accounting evidence.
+For `Full Settlement`, OMC does not activate ERP operational execution merely because a receipt screenshot exists.
 
 ---
 
-# 17. Durable ERP activation bridge
+# 18. Durable ERP activation bridge
 
-ERP operational activation is managed by `OMC Bridge Operation` and `bridge_outbox` rather than a fragile single HTTP request.
+`OMC Bridge Operation` provides durable, exactly-once-oriented ERP activation state.
 
-The normal paid path is:
+The bridge protects against duplicated/partial ERP writes using concepts such as:
+
+- deterministic operation identity;
+- request locking;
+- final eligibility re-check;
+- accounting settlement re-check immediately before ERP writes;
+- processing lease/state;
+- bounded retries/backoff;
+- stale-processing recovery;
+- transaction/savepoint rollback;
+- explicit failure state;
+- audit evidence.
+
+Successful activation must result in committed links to:
+
+```text
+ERP Service
+ERP Task
+```
+
+before the OMC request is considered fully Activated.
+
+---
+
+# 19. ERP Service / Task integration
+
+OMC does not replace ERP operational execution.
+
+Once activation is valid:
 
 ```text
 OMC Service Request
-        |
-        v
-Required documents complete
-        |
-        v
-Payment/accounting settlement valid
-        |
-        v
-Ready for Activation
-        |
-        v
-OMC Bridge Operation
-        |
-        +------> ERP Service
-        +------> ERP Task
-        |
-        v
-Assignment / operational execution
+        -> exact ERP Customer
+        -> exact ERP Task Type
+        -> ERP Service
+        -> ERP Task
 ```
 
-Bridge safety includes:
+The ERP adapter controls creation/linking and the OMC request stores the resulting ERP references.
 
-- deterministic operation key;
-- request row locking;
-- final eligibility check;
-- settlement re-check immediately before ERP writes;
-- savepoint rollback around operational writes;
-- bounded retries/backoff;
-- stale-processing lease recovery;
-- Pending/Retry/Processing/Completed/Failed-style operation state;
-- capability-gated manual recovery;
-- audit events;
-- committed ERP Service and Task links required before request activation completes.
-
-The bridge is designed for exactly-once business effect even when execution itself may be retried.
+Task update hooks synchronize supported ERP Task status changes back into OMC workflow state without allowing Flutter to become Task authority.
 
 ---
 
-# 18. ERP Task and assignment integration
+# 20. Assignment
 
-OMC maps an `OMC Service` to an exact ERP Task Type and creates/links ERP operational records only through the guarded activation flow.
+Assignment is backend-controlled.
 
-Assignment logic can consider:
+Inputs can include:
 
-- explicit eligible assignee;
-- referral-owner relationship;
-- service configuration;
-- role/persona eligibility;
-- least-loaded eligible staff;
-- manager/operational fallback;
-- unassigned recovery.
+- explicit authorised assignee;
+- referral owner where eligible;
+- service default configuration where retained;
+- capability/persona eligible staff;
+- workload/fallback logic.
 
-The provisioner intentionally does **not** own default assignee/default assignment role configuration, so catalogue publishing does not unexpectedly rewrite operations staffing.
+OMC can create/update Frappe assignment/ToDo state and later synchronize it to the ERP Task when appropriate.
 
-ERP Task status changes can be projected back into the OMC request workflow through the task-status sync hook.
+Catalogue provisioning intentionally does not own every assignment field, so catalogue sync cannot unexpectedly rewrite unrelated operational staff configuration.
 
 ---
 
-# 19. Completion authority
+# 21. Completion authority
 
-A request cannot be considered complete merely because a UI says so.
+Completion checks do more than inspect a visible status field.
 
-Completion blockers can include unresolved document requirements, payment/accounting state, operational prerequisites and other lifecycle constraints.
+Backend blockers can include:
 
-Required-document completion uses the same stable-key matching authority as payment/document flows. A wrong keyed upload with a matching label does not clear a completion blocker.
+- required documents incomplete/not approved where required;
+- payment/accounting conditions unresolved;
+- ERP activation/link state incomplete;
+- other lifecycle restrictions.
+
+Stable document keys are propagated into completion matching, so a wrong keyed upload cannot clear a completion blocker through title/type fallback.
 
 ---
 
-# 20. Referrals
+# 22. Referrals
 
-Referral behaviour is separated into distinct concepts:
+Referral ownership is a separate entitlement domain.
+
+The backend manages concepts including:
+
+- referral registry/code;
+- owner eligibility;
+- customer referral attribution;
+- referral-assisted service consent/scope;
+- referral analytics;
+- historical attribution evidence.
+
+Historical migration fills only relationships that can be proven under the implemented rules.
+
+It does not overwrite conflicting application-origin referral/acquisition state.
+
+---
+
+# 23. Commissions
+
+Commission authority is deliberately separated into layers.
 
 ```text
-Referral owner
-        |
-        v
-Referral relationship / code
-        |
-        v
-Attribution evidence
-        |
-        v
-Customer/service history
+Referral relationship
+        -> attribution/evidence
+        -> commission allocation
+        -> beneficiary/personal view
+        -> finance approval/payment operations
 ```
 
-The backend includes:
+`OMC Commission Allocation` is evidence/entitlement state.
 
-- referral-code creation/synchronisation;
-- referral-code validation;
-- customer/referral analytics;
-- assisted-service referral scope;
-- historical attribution migration where evidence exists;
-- source/provenance preservation.
+Referral ownership does **not** automatically grant:
 
-`can_own_referrals` is the explicit current referral-owner capability.
+- global commission visibility;
+- commission approval;
+- commission payment authority.
+
+Personal commission visibility and finance operations use different capabilities.
+
+Legacy commission writer behavior is suppressed where the newer OMC commission authority owns the lifecycle.
 
 ---
 
-# 21. Commissions
+# 24. Support, notifications and content
 
-Commission authority is deliberately separate from referral ownership.
+The backend contains guarded workflows for:
 
-```text
-Referral / attribution evidence
-        |
-        v
-OMC Commission Allocation
-        |
-        +------> beneficiary personal view
-        |
-        +------> finance approval/payment lifecycle
-```
-
-Important separation:
-
-- owning referrals does not grant finance authority;
-- `can_view_own_commissions` is self-scoped;
-- finance review/approval/payment uses separate capabilities;
-- historical commission migration must preserve evidence/provenance;
-- legacy overloaded referral-commission capability is compatibility-only and must not grant new finance authority.
-
-ERP Payment Entry hooks suppress/avoid legacy commission-writing paths that conflict with the current allocation model.
-
----
-
-# 22. Support, notifications and content
-
-The backend also provides OMC-owned customer communication and content domains including:
-
-- support tickets;
-- support ticket messages/replies;
-- support read/unread state;
-- support assignment/status guards;
-- customer/internal notifications;
-- notification read/unread/dismiss/restore state;
+- support ticket creation/read/replies;
+- internal support status/assignment;
+- customer support read state;
+- notifications;
+- mark read/unread/all-read;
+- dismiss/restore;
 - push-token registration;
-- announcements;
+- customer settings;
 - app banners;
 - onboarding slides;
-- FAQ/knowledge content;
-- support/contact configuration;
-- mobile settings/quick actions;
-- branding configuration.
+- knowledge/FAQ/public content;
+- support configuration.
 
-Read and mutation paths are intentionally separated where stronger guard logic is required.
+Customer reads remain ownership scoped, while internal support mutations require staff capability.
 
 ---
 
-# 23. Customer profile and settings
+# 25. Profile and account self-service
 
-Profile operations include guarded self-service access such as:
+Customer profile operations include guarded support for areas such as:
 
-- read current profile;
-- update allowed customer fields;
+- profile read;
+- profile field updates;
 - contact/work-address updates;
-- profile-image upload;
-- notification/settings preferences;
-- audit logging for protected profile changes.
+- profile image;
+- password/account security;
+- account activation/claim state.
 
-Customer self-service may only update fields explicitly allowed by backend policy.
+The backend decides which profile fields are writable by the authenticated customer.
+
+Direct generic DocType write access is not the self-service contract.
 
 ---
 
-# 24. Tax calculator
+# 26. Tax calculator
 
-The Frappe backend owns the configurable tax-calculator domain, including settings/configuration, inputs, tax-year/slab data, adjustment rules, result insights and calculation history/logging.
+The tax calculator is backend configurable.
 
-Guarded tax-calculator operations include:
+The backend owns:
 
-- configuration retrieval;
-- tax calculation;
+- tax calculator settings;
+- active tax years;
+- slabs/rates;
+- supported income types;
+- filer status rules;
+- optional advanced inputs;
 - calculation history;
-- estimate PDF generation;
-- share-with-consultant workflow;
-- start-service-from-calculation workflow.
+- PDF/share/service-start operations.
 
-Tax configuration is backend data, not a Flutter hardcoded authority.
+If required configuration is missing, the calculator fails safely/returns disabled configuration rather than inventing current tax law.
 
----
-
-# 25. Expense tools
-
-The backend supports OMC expense/budget features including:
-
-- expense categories;
-- expense entries;
-- expense budgets;
-- receipt upload;
-- summary/read APIs;
-- create/update/delete operations;
-- bulk synchronisation.
-
-Customer expense data remains ownership-scoped and write operations use dedicated guards.
+Optional tax seed operations are explicit and are not run automatically by normal `bench migrate` or by the production `configuration.sh`.
 
 ---
 
-# 26. Internal workspace and administrative operations
+# 27. Expense/budget module
 
-Internal workspace APIs provide capability-scoped access to operational summaries and records such as:
+The backend provides guarded expense features including:
 
-- customers;
-- leads;
-- tasks;
-- service cases;
-- documents;
-- payments;
-- support;
-- referrals;
-- commissions;
-- administration/settings where allowed.
+- expense configuration/categories;
+- entries;
+- create/update/delete;
+- bulk sync;
+- receipts;
+- summaries;
+- budgets.
 
-Administrative mutations such as reassignment, discount review, staff operations, business-setting changes and bridge recovery are protected independently rather than inferred from Flutter route access.
+Read and write guards separate customer ownership from internal access.
 
 ---
 
-# 27. Security and audit infrastructure
+# 28. Internal workspace / admin operations
 
-The backend includes security/audit infrastructure around the business APIs.
+Internal APIs support capability-gated operational work such as:
 
-Key concerns include:
+- workspace summary;
+- service-case queues;
+- lead/customer/task visibility;
+- customer-assisted service creation;
+- registration review;
+- staff invitation/access updates;
+- service reassignment;
+- bridge retry;
+- discount review;
+- payment/document/support review;
+- business settings;
+- referral/commission operations.
 
-- explicit authentication requirements;
-- capability enforcement;
-- ownership/scope enforcement;
-- rate limiting;
+The existence of a Frappe route or Desk page does not replace the backend capability check.
+
+---
+
+# 29. Audit, idempotency and security evidence
+
+Sensitive operations use OMC security/audit mechanisms where appropriate.
+
+Backend hardening areas include:
+
+- authentication/session validation;
 - CSRF/CORS policy;
-- safe file validation;
+- rate limiting/throttling;
+- ownership filters;
+- capability checks;
+- POST-only mutation contracts where required;
 - idempotency keys/records;
-- sensitive POST-only mutations;
-- safe error messages;
+- pagination;
+- file restrictions;
 - audit events;
-- reconciliation evidence;
-- technical quarantine/review where data cannot be safely reconciled;
-- fail-closed behaviour when security/reference checks fail.
+- break-glass evidence;
+- reconciliation state;
+- deterministic bridge operations.
 
-Selected audit/evidence models are intentionally read-only through normal staff DocPerm and are mutated only by guarded backend code.
+Unknown or ambiguous authority should fail closed.
 
 ---
 
-# 28. Important OMC DocType families
+# 30. Existing customer/staff migration
 
-The current custom app contains DocTypes across these major families.
+The unified migration entrypoints are:
 
-## Identity and security
+```bash
+bench --site <site> execute \
+  omc_app.api.customer_migration.preflight
+
+bench --site <site> execute \
+  omc_app.api.customer_migration.apply \
+  --kwargs '{"confirm":"APPLY_CUSTOMER_MIGRATION","limit":0,"batch_size":100}'
+```
+
+## 30.1 Preflight
+
+`preflight()` is read-only and reports:
+
+- customer classifications;
+- safe profile imports;
+- deferred claim-on-signup identities;
+- identity-review cases;
+- profile create/reuse projections;
+- blockers/warnings;
+- historical Service/Task migration plan;
+- expected User creation count.
+
+Expected invariant:
+
+```text
+user_accounts_to_create = 0
+```
+
+## 30.2 Apply
+
+`apply()`:
+
+1. reconciles supported staff first;
+2. rebuilds canonical staff/referral context;
+3. migrates only safe unique-email customer profiles in bulk;
+4. leaves CNIC/phone/tax-only identities for verified claim-on-signup;
+5. preserves identity-review customers;
+6. creates/reuses historical referral attribution only when proven;
+7. projects supported historical ERP Service/Task state;
+8. commits in controlled batches when requested.
+
+Expected invariant:
+
+```text
+user_accounts_created = 0
+```
+
+Bulk migration is not a password or login-user factory.
+
+---
+
+# 31. Historical / compatibility migration
+
+The repository retains controlled migration helpers for historical state, including Service/Task and commission/referral evidence.
+
+These helpers must preserve provenance and classify uncertain data for review.
+
+They should not convert incomplete historical evidence into fabricated certainty.
+
+Compatibility aliases may remain at API boundaries so old Flutter/backend call sites continue to work while canonical policy executes behind them.
+
+---
+
+# 32. Legacy service retirement
+
+Known pre-manifest service duplicates have a dedicated retirement module under:
+
+```text
+omc_app/setup/service_catalogue/legacy_retirement.py
+```
+
+It supports:
+
+```text
+preview_legacy_service_retirement()
+retire_legacy_service_duplicates()
+```
+
+Safety properties include:
+
+- read-only preview;
+- exact known legacy/canonical pairs;
+- historical-only request repointing;
+- scan for other Link references;
+- explicit Single DocType handling;
+- reference-scan errors become blockers;
+- no hard-delete of service masters;
+- savepoint/rollback;
+- post-validation;
+- idempotent no-op after retirement.
+
+This is targeted maintenance, not a generic deletion utility.
+
+---
+
+# 33. Scheduled jobs
+
+Frappe scheduler hooks currently include hourly and daily OMC processing.
 
 Examples include:
 
 ```text
-OMC Customer Account
-OMC Customer Profile
-OMC Customer Activation
-OMC Pending Registration
-OMC Staff Access
-OMC Staff Profile                 # compatibility/profile layer
-OMC Break Glass Grant
-OMC Guest Session
-OMC Password Reset
-OMC Idempotency Record
-OMC Push Token
-OMC Profile Change Log
-OMC Security Audit Event
-OMC Reconciliation Run
-OMC Reconciliation Review
-OMC Reconciliation Checkpoint
-OMC Technical Quarantine
+Hourly
+  omc_app.api.scheduler_jobs.run_hourly_jobs
+  omc_app.api.bridge_outbox.process_pending
+  omc_app.api.bridge_outbox.expire_pending_requests
+
+Daily
+  omc_app.api.scheduler_jobs.run_daily_jobs
+  omc_app.api.idempotency.cleanup_expired_records
 ```
 
-## Service catalogue and workflow
+The scheduler therefore matters for bridge retry/recovery, expiry handling and scheduled maintenance.
 
-```text
-OMC Service Category
-OMC Service
-OMC Service Required Document
-OMC Service Form Field
-OMC Service Stage Template
-OMC Service Request
-OMC Service Document
-OMC Service Timeline
-OMC Service Payment
-OMC Payment Account
-OMC Accounting Link
-OMC Bridge Operation
-```
-
-## Referral and commission
-
-```text
-OMC Referral
-OMC Referral Attribution
-OMC Commission Allocation
-```
-
-## Support/content/mobile configuration
-
-```text
-OMC Support Ticket
-OMC Support Ticket Message
-OMC Notification
-OMC Announcement
-OMC App Banner
-OMC Onboarding Slide
-OMC FAQ
-OMC Knowledge Article
-OMC Mobile Settings
-OMC Mobile Quick Action
-OMC Branding Settings
-```
-
-## Customer utilities
-
-```text
-OMC Customer Preference
-OMC Expense Category
-OMC Expense Entry
-OMC Expense Budget
-OMC Tax Calculator Settings
-OMC Tax Input Field
-OMC Tax Result Insight
-OMC Tax Slab
-OMC Tax Year
-OMC Tax Adjustment Rule
-OMC Tax Alert
-OMC Tax Calculation Log
-```
-
-## Compatibility/operational support
-
-`OMC Manual Customer` supports authorised walk-in/manual-customer workflows. `OMC Lead` is retired legacy state; the canonical lead is ERPNext `Lead`.
-
-The actual DocType tree in `apps/omc_app/omc_app/omc_app/doctype/` is always the final source of truth if a future release adds/removes models.
+Production site health should include scheduler/worker checks.
 
 ---
 
-# 29. API architecture
+# 34. Setup lifecycle
 
-The backend deliberately contains compatibility endpoints while routing protected behaviour through newer guard/policy modules.
-
-Major API domains include:
-
-```text
-access / access_v2 / capabilities / identity
-auth_login / pending_registration / signup_policy
-customer_activation / customer_migration
-account_security / password_reset / profile_self_service
-service_requests / service_templates / public_catalogue
-service_case_contract / service_request_lifecycle
-service_request_mutations / assisted_service / assisted_service_policy
-service_assignment / workflow_automation
-document_upload / service_document_read / service_document_guard
-payment_read_guard / payment_mutation_guard / payment_opening
-accounting_policy / accounting_reconciliation
-bridge_outbox
-internal_workspace / internal_workspace_summary
-admin_control / admin_read
-lead_read_guard / task_read_guard
-support_chat / support_ticket_* guards
-referral_analytics / referral_commissions
-commission_lifecycle / commission_operations / commission_projection
-tax_calculator / tax_calculator_guard / tax_calculator_mutations
-expense / expense_read_guard / expense_write_guard / expense_guard
-mobile / secured_mobile / mobile_state_mutations
-dashboard / dashboard_read_guard
-security / idempotency / scheduler_jobs
-```
-
-Legacy method names may remain callable for client compatibility, but `hooks.py` overrides many methods to newer guarded implementations. New development should follow the canonical target module, not assume an old wrapper contains final authority.
-
----
-
-# 30. Frappe hooks and integration points
-
-`hooks.py` currently wires the OMC app into Frappe through several mechanisms.
-
-## Installation/migration
+Frappe hooks point to:
 
 ```text
 before_install -> omc_app.setup.lifecycle.before_install
@@ -965,382 +1094,275 @@ after_install  -> omc_app.setup.lifecycle.after_install
 after_migrate  -> omc_app.setup.lifecycle.after_migrate
 ```
 
-## Request hook
-
-OMC adds controlled CORS headers after requests through its CORS module.
-
-## Whitelisted-method overrides
-
-Many public/legacy endpoints are redirected to policy/guard implementations for:
-
-- signup;
-- Google login;
-- capabilities/session;
-- branding/config;
-- catalogue;
-- profile/contact mutations;
-- service creation/read/status/cancel;
-- document read/review;
-- support read/state/mutations;
-- task/lead reads;
-- dashboard/internal summary;
-- assisted service;
-- tax/expense guards;
-- payments;
-- notification/settings mutations;
-- accounting linking.
-
-## ERP document events
-
-Current ERP hooks include:
-
-```text
-User
-  -> referral-code synchronisation
-
-Task.on_update
-  -> OMC task-status synchronisation
-
-Payment Entry.before_submit
-  -> suppress legacy commission writer
-
-Payment Entry.on_submit/on_cancel
-  -> accounting reconciliation
-
-Sales Invoice.on_submit/on_cancel
-  -> accounting reconciliation
-```
-
-This is how OMC reacts to ERP state without editing ERPNext source.
-
----
-
-# 31. Scheduled/background jobs
-
-Current scheduler hooks include:
-
-## Hourly
-
-```text
-omc_app.api.scheduler_jobs.run_hourly_jobs
-omc_app.api.bridge_outbox.process_pending
-omc_app.api.bridge_outbox.expire_pending_requests
-```
-
-These cover recurring OMC automation plus bridge retry/processing and pending-request expiry.
-
-## Daily
-
-```text
-omc_app.api.scheduler_jobs.run_daily_jobs
-omc_app.api.idempotency.cleanup_expired_records
-```
-
-The scheduler must therefore be enabled and workers/queue processes healthy in production.
-
----
-
-# 32. Setup lifecycle and explicit operations
-
-The normal setup lifecycle is intentionally conservative:
+Current semantics:
 
 ```text
 before_install
-    -> validate ERP/client contract
+    -> validate ERP contract
 
 after_install
-    -> explicit one-time OMC initialization
+    -> initialize_site(commit=False)
 
 after_migrate
-    -> validation only
+    -> validate ERP contract only
 ```
 
-Normal migration must not silently republish catalogue content, mutate client ERP personas, or perform unrelated destructive reconciliation.
+This is intentional.
 
-The setup package includes areas such as:
-
-```text
-erp_contract.py
-lifecycle.py
-operations.py
-roles.py
-staff_sync.py
-desk_metadata.py
-referral_workspace.py
-service_catalogue/
-```
-
-Explicit operations include functions for:
-
-- site initialization;
-- permission repair;
-- Desk/workspace sync;
-- branding;
-- tax defaults/configuration;
-- service/Task-Type mapping support;
-- catalogue preview/validation/sync.
-
-Use explicit mutation operations only when the deployment/reconciliation plan requires them.
+A routine schema migration should not unexpectedly rewrite business configuration.
 
 ---
 
-# 33. Legacy service retirement
+# 35. Explicit setup operations
 
-Historical catalogue work identified duplicate physical OMC Service aliases for canonical services.
+`omc_app.setup.operations` provides deliberate operator entrypoints.
 
-The retirement module safely handles known legacy aliases such as:
+Current operations include:
 
 ```text
-advocacy-service---hearing-with-commissioner
-    -> advocacy-service-hearing-with-commissioner
-
-ntn--modification
-    -> ntn-modification
+validate_site
+initialize_site
+repair_permissions
+sync_desk_configuration
+apply_site_branding
+seed_tax_calculator_defaults
+seed_business_rental_tax_slabs
+sync_service_task_type_mappings
+preview_service_catalogue
+validate_service_catalogue
+sync_service_catalogue
 ```
 
-Retirement logic is designed to:
+`initialize_site` reconciles:
 
-- inspect historical references;
-- repoint only when necessary/safe;
-- clear legacy Task Type mappings only when appropriate;
-- keep legacy aliases inactive;
-- fail closed if reference scanning itself fails;
-- correctly inspect Single DocTypes through single-value reads rather than normal table counts.
+- ERP compatibility;
+- canonical OMC roles/permissions;
+- Desk metadata;
+- referral workspace links;
+- branding.
 
-Use the read-only preview before any retirement mutation.
+Optional business-data seeds remain separate by design.
 
 ---
 
-# 34. Data-protection and compatibility principles
+# 36. Guarded post-install configuration script
 
-The backend preserves several important compatibility guarantees:
+The preferred client production flow after `install-app omc_app` is the script shipped with the custom app:
 
-- old customer/profile data is not discarded merely because canonical Customer Account exists;
-- legacy unkeyed service documents can remain readable/completable through controlled fallback;
-- legacy API method names may route to guarded canonical implementations;
-- ERP role/persona data is not rewritten unnecessarily;
-- historical pricing/document contracts are protected;
-- ambiguous identity/financial/history data is reviewed rather than guessed;
-- evidence/security records are not casually editable through Desk.
+```bash
+cd /path/to/frappe-bench/apps/omc_app
+bash scripts/configuration.sh
+```
 
-Compatibility is not permission broadening. Where old data conflicts with new security identity, new authority fails closed.
+Why the script lives inside the app folder:
+
+- the client may receive only `apps/omc_app`, not the entire development repository;
+- it can infer the containing Bench in the normal `frappe-bench/apps/omc_app` layout;
+- it keeps deployment orchestration versioned with the backend code it configures.
+
+Site selection behavior:
+
+```text
+one site in Bench   -> auto-select
+multiple sites      -> numbered selector
+--site <site>       -> explicit selection
+```
+
+The script then performs, in order:
+
+```text
+verify Bench/site/apps
+    -> explicit target confirmation
+    -> backup
+    -> bench migrate + clear-cache
+    -> ERP contract validation
+    -> initialize_site
+    -> customer/staff migration preflight
+    -> verify no bulk User creation
+    -> pre-data-migration backup
+    -> idempotent migration apply
+    -> post-migration preflight
+    -> catalogue preview
+    -> catalogue sync only when ready_to_sync=true
+    -> catalogue validation
+    -> optional explicitly selected legacy-app uninstall
+    -> post-removal ERP/catalogue revalidation
+    -> enable scheduler
+    -> build assets
+    -> clear cache
+    -> restart when Supervisor production runtime is detected
+    -> final ERP/catalogue/doctor validation
+```
+
+Safety boundaries:
+
+- production regression tests are **not** automatically run against the live client DB;
+- tax/business regulatory seeds are not silently installed;
+- arbitrary fix scripts are not executed;
+- unknown third-party apps are never automatically removed;
+- the legacy app source folder is not deleted because other Bench sites may still use it;
+- all failed ERP/catalogue checks stop the script;
+- timestamped run logs are written under `frappe-bench/logs/`;
+- migration/catalogue operations are designed for safe reruns.
+
+The repository-root convenience wrapper is:
+
+```bash
+bash scripts/configuration.sh
+```
+
+For full client instructions and manual fallback commands, see [`../docs/OMC_Client_Deployment_and_Customer_Migration_Handover.md`](../docs/OMC_Client_Deployment_and_Customer_Migration_Handover.md).
 
 ---
 
-# 35. Production catalogue state and validation evidence
+# 37. Deployment boundary
 
-The production catalogue was explicitly reconciled and then repeatedly validated as idempotent.
+The deployment toolkit under `backend_omc_app/deploy/` is separate from OMC application business logic.
 
-Latest directly observed catalogue validation before this documentation refresh:
+The checked-in installer currently targets:
 
 ```text
-categories:          9 unchanged
-services:           31 unchanged
-required documents: 93 unchanged
-form fields:         62 unchanged
---------------------------------
-total managed:      195 unchanged
-created:              0
-updated:              0
-deactivated:          0
-conflicts:            0
-blockers:             0
-key backfill pending: 0
+Frappe branch: version-14
+Python:        3.10
+Node:          18
+Yarn:          1.22.x
 ```
 
-Latest directly observed full backend regression suite:
+Important safety distinction:
+
+- `deploy/install.sh` prepares OS/runtime/Bench dependencies;
+- `deploy/site_setup.sh` can create/manage sites when deliberately requested;
+- `apps/omc_app/scripts/configuration.sh` configures an already-installed OMC app on an existing target site;
+- OMC app install/update on an existing client site should not recreate the client's Bench/database.
+
+---
+
+# 38. Installation / update basics
+
+If the app source already exists at `apps/omc_app`:
+
+```bash
+cd backend_omc_app/frappe-bench
+
+./env/bin/pip install -e apps/omc_app
+./env/bin/python -c "import omc_app; print('OMC App import: OK')"
+```
+
+First site installation:
+
+```bash
+bench --site <site> install-app omc_app
+```
+
+Then use the guarded post-install configurator:
+
+```bash
+cd apps/omc_app
+bash scripts/configuration.sh --site <site>
+```
+
+For ordinary later code/schema updates without a full historical reconfiguration run:
+
+```bash
+bench --site <site> migrate
+bench build --app omc_app
+bench --site <site> clear-cache
+```
+
+Use explicit setup/catalogue operations only when required by the deployment plan.
+
+---
+
+# 39. Validation
+
+## Backend suite
+
+Run on the intended development/restored/test site:
+
+```bash
+cd backend_omc_app/frappe-bench
+
+bench --site <site> run-tests \
+  --app omc_app \
+  --skip-test-records
+```
+
+Latest directly observed complete OMC suite before this documentation update:
 
 ```text
 Ran 932 tests in 120.732s
 OK
 ```
 
-This is evidence for that exact tested commit/site state, not a permanent guarantee for future changes.
+Do not automatically run the full suite as part of the live production configuration script.
 
----
-
-# 36. Backend validation commands
-
-From the Bench:
+## ERP contract
 
 ```bash
-cd backend_omc_app/frappe-bench
+bench --site <site> execute \
+  omc_app.setup.erp_contract.validate_client_erp_contract
 ```
 
-## Installed apps
-
-```bash
-bench --site <site> list-apps
-```
-
-## Full OMC backend regression suite
-
-```bash
-bench --site <site> run-tests \
-  --app omc_app \
-  --skip-test-records
-```
-
-## Catalogue validation
+## Catalogue
 
 ```bash
 bench --site <site> execute \
   omc_app.setup.operations.validate_service_catalogue
 ```
 
-## Read-only catalogue preview
+Latest observed reconciled production catalogue:
+
+```text
+valid: true
+managed objects unchanged: 195
+pending changes: 0
+conflicts: 0
+blockers: 0
+```
+
+## Production health
 
 ```bash
-bench --site <site> execute \
-  omc_app.setup.operations.preview_service_catalogue
+bench --site <site> doctor
+sudo supervisorctl status
+sudo nginx -t
 ```
 
-## Legacy-service retirement preview
-
-```bash
-bench --site <site> execute \
-  omc_app.setup.service_catalogue.legacy_retirement.preview_legacy_service_retirement
-```
-
-Do not infer success from shell exit status alone when a test runner can print a failure summary. Inspect the actual textual test footer.
+Use the checks appropriate to the client's actual process-manager/proxy deployment.
 
 ---
 
-# 37. Installation/update boundary
+# 40. Backend release checklist
 
-For a client site, application-code deployment and OMC business-data reconciliation are separate operations.
+Before calling a backend release ready:
 
-Basic code/schema update:
-
-```text
-place/update omc_app source
-        |
-        v
-install Python package / ensure apps.txt
-        |
-        v
-install-app (first installation only)
-        |
-        v
-bench migrate
-        |
-        v
-clear cache / build as required
-```
-
-Then explicitly run only the OMC data/catalogue operations required by the approved deployment plan.
-
-`bench migrate` updates Frappe schema/metadata and executes registered patches. It does **not** mean “bulk migrate all historical customers” and it does **not** mean “publish the production service catalogue”.
+- [ ] exact OMC code revision is known;
+- [ ] ERPNext/Frappe client contract is validated;
+- [ ] schema migration completed;
+- [ ] OMC site initialization/reconciliation completed if required;
+- [ ] customer/staff migration preview was reviewed before apply;
+- [ ] no bulk customer Users/passwords were created;
+- [ ] catalogue preview was clean before sync;
+- [ ] catalogue validation is clean;
+- [ ] required-document keyed matching/grandfathering is intact;
+- [ ] accounting settlement gates paid activation;
+- [ ] bridge workers/scheduler are healthy;
+- [ ] staff capabilities resolve from canonical Staff Access;
+- [ ] legacy app retirement, if needed, was backed up and post-validated;
+- [ ] latest applicable backend tests passed on a safe test/restored environment;
+- [ ] production smoke test covers customer and authorised internal paths;
+- [ ] no secrets/backups/runtime logs were committed;
+- [ ] no ERPNext source edits were introduced.
 
 ---
 
-# 38. Deployment toolkit boundary
+# 41. Related documentation
 
-`backend_omc_app/deploy/` is an operational toolkit around the Bench.
-
-The checked-in installer currently targets **Frappe v14 / Python 3.10 / Node 18** and validates that runtime.
-
-Important scripts:
-
-```text
-install.sh       -> machine/runtime/Bench prerequisites
-site_setup.sh    -> explicit site/create/install/migrate/production actions
-production.sh    -> runtime Supervisor/Nginx refresh only
-verify.sh        -> deployment verification
-```
-
-Production configuration and secrets remain local and Git-ignored.
-
-Detailed operations:
-
-- [`deploy/README.md`](deploy/README.md)
-- [`deploy/INSTALL.md`](deploy/INSTALL.md)
-- [`deploy/SITE_SETUP.md`](deploy/SITE_SETUP.md)
-- [`deploy/OPERATIONS.md`](deploy/OPERATIONS.md)
-- [`deploy/TROUBLESHOOTING.md`](deploy/TROUBLESHOOTING.md)
-
----
-
-# 39. Security rules for backend contributors/operators
-
-1. Do not modify ERPNext source to implement OMC business logic.
-2. Do not trust Flutter route visibility as permission.
-3. Do not use System Manager as an implicit OMC-authority shortcut.
-4. Do not bypass `OMC Staff Access` capability/reconciliation rules.
-5. Do not force-link ambiguous customers.
-6. Do not bulk-create customer Users/passwords during profile migration.
-7. Do not create/fuzzy-match ERP Task Types from the catalogue.
-8. Do not bypass stable `document_key` authority for keyed requirements.
-9. Do not treat receipt upload as ERP accounting settlement.
-10. Do not activate ERP Service/Task before request eligibility is proven.
-11. Do not rewrite historical pricing/document contracts unsafely.
-12. Do not silently swallow reference-scan/security failures.
-13. Do not commit runtime secrets, database dumps, private files or production credentials.
-14. Keep mutation endpoints capability/ownership guarded and idempotent where repeated calls could duplicate effects.
-15. Re-run relevant regression tests after backend changes.
-
----
-
-# 40. Documentation map
-
-Use these documents for different audiences:
-
-- [`../README.md`](../README.md) — whole-repository architecture and developer entry point;
-- **`backend_readme.md`** — this master Frappe/backend guide;
-- [`frappe-bench/apps/omc_app/README.md`](frappe-bench/apps/omc_app/README.md) — custom Frappe app engineering guide;
-- [`frappe-bench/apps/omc_app/omc_app/README.md`](frappe-bench/apps/omc_app/omc_app/README.md) — concise package-local pointer/notes;
-- [`../docs/ROLE.md`](../docs/ROLE.md) — access/persona/capability model;
-- [`../docs/OMC_APP_FEATURES.md`](../docs/OMC_APP_FEATURES.md) — current feature inventory;
-- [`../docs/omc_detailed_explanation.md`](../docs/omc_detailed_explanation.md) — business/workflow explanation;
-- [`../docs/OMC_Client_Deployment_and_Customer_Migration_Handover.md`](../docs/OMC_Client_Deployment_and_Customer_Migration_Handover.md) — client operator deployment/migration runbook;
-- [`../omc_app/docs/backend_api_contract.md`](../omc_app/docs/backend_api_contract.md) — Flutter-facing backend API contract.
-
----
-
-# 41. Final backend model
-
-In one diagram:
-
-```text
-                           ERPNext
-            +----------------+----------------+
-            |                |                |
-          Lead            Customer         Finance
-                             |                |
-                             |                v
-                             |        Sales Invoice / Payment Entry
-                             |                |
-                             v                v
-Flutter <-> Guarded OMC APIs <-> OMC Customer Account
-                             |        OMC Staff Access
-                             |        Capability Engine
-                             |
-                             v
-                    Source-Controlled Catalogue
-                             |
-                             v
-                    OMC Service Request
-                      |      |       |
-                      |      |       +--> Documents / document_key
-                      |      +----------> Payment + Accounting Link
-                      |                  
-                      +-----------------> Referral / Commission evidence
-                             |
-                             v
-                    Ready for Activation
-                             |
-                             v
-                    OMC Bridge Operation
-                             |
-                       +-----+-----+
-                       |           |
-                       v           v
-                  ERP Service   ERP Task
-                       |
-                       v
-              assignment / execution
-```
-
-The core architectural intent is consistent throughout the backend:
-
-> **OMC owns the application workflow and security overlay; ERPNext continues to own ERP business and accounting records. Integration happens through explicit, guarded, auditable boundaries.**
+- [`../README.md`](../README.md) — repository architecture and high-level setup;
+- [`../docs/ROLE.md`](../docs/ROLE.md) — full roles/personas/capability model;
+- [`../docs/OMC_APP_FEATURES.md`](../docs/OMC_APP_FEATURES.md) — feature inventory;
+- [`../docs/omc_detailed_explanation.md`](../docs/omc_detailed_explanation.md) — detailed product/workflow architecture;
+- [`../docs/OMC_Client_Deployment_and_Customer_Migration_Handover.md`](../docs/OMC_Client_Deployment_and_Customer_Migration_Handover.md) — client production deployment/migration runbook;
+- [`deploy/README.md`](deploy/README.md) — deployment toolkit;
+- [`frappe-bench/apps/omc_app/README.md`](frappe-bench/apps/omc_app/README.md) — Frappe app engineering notes;
+- [`../omc_app/docs/backend_api_contract.md`](../omc_app/docs/backend_api_contract.md) — Flutter-to-backend API map.
