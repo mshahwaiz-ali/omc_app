@@ -5,24 +5,15 @@ from collections import Counter, defaultdict
 import frappe
 
 from omc_app import referral_automation
+from omc_app.api import capabilities
+from omc_app.api.referrals import is_referral_owner
 
 
 SERVICE_REQUEST_FIELDS = [
-    "name",
-    "service",
-    "service_title",
-    "title",
-    "status",
-    "customer_profile",
-    "customer_mode",
-    "submission_mode",
-    "submitted_by_user",
-    "submitted_by_internal_user",
-    "referral_owner",
-    "created_on_behalf",
-    "creation",
-    "modified",
-    "closed_on",
+    "name", "service", "service_title", "title", "status",
+    "customer_profile", "customer_mode", "submission_mode",
+    "submitted_by_user", "submitted_by_internal_user", "referral_owner",
+    "created_on_behalf", "creation", "modified", "closed_on",
 ]
 
 
@@ -38,10 +29,15 @@ def _current_user() -> str:
 
 
 def _owner_record(user: str):
+    if not capabilities.effective(user).get("can_own_referrals") or not is_referral_owner(user):
+        frappe.throw(
+            "You do not have an eligible referral-owner account.",
+            frappe.PermissionError,
+        )
     record = referral_automation.ensure_referral_code_for_user(user)
     if not record:
         frappe.throw(
-            "You do not have an eligible internal referral account.",
+            "You do not have an eligible referral-owner account.",
             frappe.PermissionError,
         )
     return record
@@ -69,10 +65,7 @@ def _owned_customer_profile(user: str, customer_profile: str):
 def _request_kind(row, owner: str) -> str:
     if not int(row.created_on_behalf or 0):
         return "self"
-    if (
-        _text(row.referral_owner) == owner
-        and _text(row.submitted_by_internal_user) == owner
-    ):
+    if _text(row.referral_owner) == owner and _text(row.submitted_by_internal_user) == owner:
         return "referrer"
     return "legacy"
 
@@ -99,16 +92,11 @@ def _request_item(row, owner: str) -> dict:
 def _aggregate_requests(rows, owner: str) -> dict:
     status_counts = Counter()
     kind_counts = Counter()
-    service_buckets = defaultdict(
-        lambda: {
-            "service": "",
-            "service_title": "",
-            "total": 0,
-            "self_created": 0,
-            "referrer_created": 0,
-            "status_counts": Counter(),
-        }
-    )
+    service_buckets = defaultdict(lambda: {
+        "service": "", "service_title": "", "total": 0,
+        "self_created": 0, "referrer_created": 0,
+        "status_counts": Counter(),
+    })
 
     items = []
     for row in rows:
@@ -162,11 +150,7 @@ def get_my_referral_summary():
     profiles = frappe.get_all(
         "OMC Customer Profile",
         filters={"referred_by": user, "referral_record": record.name},
-        fields=[
-            "name",
-            "referral_assistance_consent",
-            "is_active",
-        ],
+        fields=["name", "referral_assistance_consent", "is_active"],
         order_by="modified desc",
         ignore_permissions=True,
     )
@@ -193,9 +177,7 @@ def get_my_referral_summary():
         "counts": {
             "total_referrals": len(profiles),
             "active_referrals": sum(int(row.is_active or 0) for row in profiles),
-            "consented_referrals": sum(
-                int(row.referral_assistance_consent or 0) for row in profiles
-            ),
+            "consented_referrals": sum(int(row.referral_assistance_consent or 0) for row in profiles),
             **analytics["counts"],
         },
         "status_counts": analytics["status_counts"],
@@ -220,10 +202,8 @@ def get_my_referrals(search=None, limit_start=0, limit_page_length=20):
     if term:
         like = f"%{term}%"
         or_filters = {
-            "name": ["like", like],
-            "full_name": ["like", like],
-            "email": ["like", like],
-            "phone": ["like", like],
+            "name": ["like", like], "full_name": ["like", like],
+            "email": ["like", like], "phone": ["like", like],
             "cnic": ["like", like],
         }
 
@@ -232,24 +212,17 @@ def get_my_referrals(search=None, limit_start=0, limit_page_length=20):
         filters=filters,
         or_filters=or_filters,
         fields=[
-            "name",
-            "full_name",
-            "email",
-            "phone",
-            "customer_status",
-            "approval_status",
-            "referral_assistance_consent",
-            "customer_origin",
-            "linked_app_user",
-            "is_active",
-            "creation",
-            "modified",
+            "name", "full_name", "email", "phone", "customer_status",
+            "approval_status", "referral_assistance_consent", "customer_origin",
+            "linked_app_user", "referral_code_used", "is_active", "creation", "modified",
         ],
         order_by="modified desc",
         limit_start=start,
-        limit_page_length=length,
+        limit_page_length=length + 1,
         ignore_permissions=True,
     )
+    has_more = len(profiles) > length
+    profiles = profiles[:length]
 
     items = []
     for profile in profiles:
@@ -261,29 +234,30 @@ def get_my_referrals(search=None, limit_start=0, limit_page_length=20):
             ignore_permissions=True,
         )
         analytics = _aggregate_requests(rows, user)
-        items.append(
-            {
-                "customer_id": profile.name,
-                "full_name": profile.full_name or "",
-                "email": profile.email or "",
-                "phone": profile.phone or "",
-                "customer_status": profile.customer_status or "",
-                "approval_status": profile.approval_status or "",
-                "consent_granted": int(profile.referral_assistance_consent or 0),
-                "is_active": int(profile.is_active or 0),
-                "customer_origin": profile.customer_origin or "",
-                "linked_app_user": profile.linked_app_user or "",
-                "created_at": str(profile.creation or ""),
-                "modified": str(profile.modified or ""),
-                "service_counts": analytics["counts"],
-                "service_status_counts": analytics["status_counts"],
-            }
-        )
+        items.append({
+            "customer_id": profile.name,
+            "full_name": profile.full_name or "",
+            "email": profile.email or "",
+            "phone": profile.phone or "",
+            "customer_status": profile.customer_status or "",
+            "approval_status": profile.approval_status or "",
+            "consent_granted": int(profile.referral_assistance_consent or 0),
+            "is_active": int(profile.is_active or 0),
+            "customer_origin": profile.customer_origin or "",
+            "linked_app_user": profile.linked_app_user or "",
+            "referral_code_used": profile.referral_code_used or "",
+            "created_at": str(profile.creation or ""),
+            "modified": str(profile.modified or ""),
+            "service_counts": analytics["counts"],
+            "service_status_counts": analytics["status_counts"],
+        })
 
     return {
         "items": items,
         "limit_start": start,
         "limit_page_length": length,
+        "has_more": has_more,
+        "next_start": start + length if has_more else None,
     }
 
 
