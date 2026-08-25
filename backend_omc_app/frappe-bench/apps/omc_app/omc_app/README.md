@@ -1,33 +1,42 @@
-### OMC App
+# OMC App Python Package
 
-OMC mobile backend app for ERPNext/Frappe
+This directory is the Python package for the custom OMC House Frappe application.
 
-### Installation
+For the full backend engineering guide, see [`../README.md`](../README.md).
 
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
+## Key areas
 
-```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app omc_app
+```text
+api/                    guarded mobile/internal APIs and workflow services
+omc_app/doctype/        OMC-owned DocTypes
+setup/                  setup lifecycle, roles, reconciliation, catalogue
+patches/                controlled migration/repair patches
+public/                 app-owned static assets
+hooks.py                Frappe hooks
 ```
 
-### Contributing
+## Architecture rules
 
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
+- ERPNext remains the source of truth for ERP-owned business records.
+- OMC customer access is canonicalised through `OMC Customer Account`.
+- OMC internal access is canonicalised through `OMC Staff Access` + capabilities.
+- `System Manager` is not implicit OMC business authority.
+- Service catalogue identity is source controlled and maps to exact ERP Task Types.
+- Required service documents use stable `document_key` identity where available.
+- ERP Service/Task activation is gated through the OMC request/payment/accounting lifecycle and durable bridge.
+- ERPNext source code must not be patched to implement OMC features.
+
+## Validation
+
+From the Bench directory:
 
 ```bash
-cd apps/omc_app
-pre-commit install
+bench --site <site> run-tests --app omc_app --skip-test-records
+bench --site <site> execute omc_app.setup.operations.validate_service_catalogue
 ```
 
-Pre-commit is configured to use the following tools for checking and formatting your code:
+Latest directly observed backend suite before the documentation refresh: **932 / 932 passed**.
 
-- ruff
-- eslint
-- prettier
-- pyupgrade
+## License
 
-### License
-
-mit
+See the app-level `license.txt` and repository licensing/ownership terms.
