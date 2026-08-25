@@ -62,6 +62,7 @@ void main() {
 
   const referralStaff = AuthCapabilities(
     accessState: AccountAccessState.internal,
+    canOwnReferrals: true,
     canViewRelevantCustomers: true,
   );
 
