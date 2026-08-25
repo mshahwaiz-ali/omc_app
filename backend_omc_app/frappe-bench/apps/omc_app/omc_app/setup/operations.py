@@ -91,12 +91,36 @@ def validate_service_catalogue() -> dict[str, object]:
 
 
 def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
-    """Explicit atomic reconciliation of the source-controlled catalogue."""
+    """Atomically sync catalogue rows and their customer-facing presentation.
+
+    The service catalogue remains authoritative for commercial/service identity
+    while the presentation module owns customer-facing short/long descriptions,
+    service support copy and the default Employee assignment role. Both writes
+    are committed together so a deployment cannot leave newly-created services
+    only partially configured.
+    """
+    from omc_app.setup.service_catalogue.presentation import (
+        sync_service_presentation,
+    )
     from omc_app.setup.service_catalogue.provisioner import (
         sync_service_catalogue as sync,
     )
 
-    return sync(commit=commit)
+    savepoint = "omc_catalogue_and_presentation_sync"
+    frappe.db.savepoint(savepoint)
+    try:
+        result = sync(commit=False)
+        presentation = sync_service_presentation(commit=False)
+        if commit:
+            frappe.db.commit()
+        return {
+            **result,
+            "committed": bool(commit),
+            "presentation": presentation,
+        }
+    except Exception:
+        frappe.db.rollback(save_point=savepoint)
+        raise
 
 
 def initialize_site(*, commit: bool = True) -> dict[str, object]:
