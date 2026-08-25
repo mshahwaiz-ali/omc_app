@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-SCRIPT_VERSION="1.0"
+SCRIPT_VERSION="1.0.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_BENCH_DIR="$(cd "$APP_ROOT/../.." 2>/dev/null && pwd || true)"
@@ -323,10 +323,10 @@ resolve_legacy_app() {
         esac
         app_is_installed "$LEGACY_APP" ||
             fail "Requested legacy app is not installed on $SITE: $LEGACY_APP"
-        return
+        return 0
     fi
 
-    ((SKIP_LEGACY_APP == 0)) || return
+    ((SKIP_LEGACY_APP == 0)) || return 0
 
     for app in "${INSTALLED_APPS[@]}"; do
         case "$app" in
@@ -335,11 +335,11 @@ resolve_legacy_app() {
         esac
     done
 
-    ((${#candidates[@]} > 0)) || return
+    ((${#candidates[@]} > 0)) || return 0
 
     if [[ ! -t 0 ]]; then
         warn "Additional apps exist but no --legacy-app was provided; no app will be removed."
-        return
+        return 0
     fi
 
     printf '\nAdditional installed apps detected:\n'
@@ -352,7 +352,7 @@ resolve_legacy_app() {
     read -r answer
     case "${answer,,}" in
         y|yes) ;;
-        *) return ;;
+        *) return 0 ;;
     esac
 
     while true; do
