@@ -18,6 +18,7 @@ Future<void> showOmcQuickActionsSheet({
   required VoidCallback onOpenProfile,
   required VoidCallback onOpenKnowledge,
   required VoidCallback onOpenInternalWorkspace,
+  required VoidCallback onOpenCommissionOperations,
   required VoidCallback onOpenCustomers,
   required VoidCallback onOpenTasks,
   required VoidCallback onCreateLead,
@@ -40,6 +41,7 @@ Future<void> showOmcQuickActionsSheet({
       OmcNavigationActionId.knowledge => onOpenKnowledge,
       OmcNavigationActionId.profile => onOpenProfile,
       OmcNavigationActionId.workspace => onOpenInternalWorkspace,
+      OmcNavigationActionId.commissionOperations => onOpenCommissionOperations,
       OmcNavigationActionId.customers => onOpenCustomers,
       OmcNavigationActionId.expense => onOpenExpenseTracker,
       OmcNavigationActionId.referrals ||
@@ -208,6 +210,7 @@ IconData _iconFor(OmcNavigationActionId id) {
     OmcNavigationActionId.knowledge => Icons.menu_book_outlined,
     OmcNavigationActionId.profile => Icons.person_outline_rounded,
     OmcNavigationActionId.workspace => Icons.dashboard_customize_outlined,
+    OmcNavigationActionId.commissionOperations => Icons.account_balance_outlined,
     OmcNavigationActionId.customers => Icons.groups_outlined,
     OmcNavigationActionId.expense => Icons.account_balance_wallet_outlined,
     OmcNavigationActionId.referrals => Icons.hub_outlined,
