@@ -11,7 +11,7 @@ class TestWorkflowAssignment(TestCase):
         active_user.side_effect = lambda value: value if value else None
         service = SimpleNamespace(
             default_assignee="default@example.com",
-            default_assignment_role="OMC Consultant",
+            default_assignment_role="Employee",
         )
 
         result = assisted_service._resolve_request_assignee(
@@ -27,7 +27,7 @@ class TestWorkflowAssignment(TestCase):
         active_user.side_effect = lambda value: value if value else None
         service = SimpleNamespace(
             default_assignee="default@example.com",
-            default_assignment_role="OMC Consultant",
+            default_assignment_role="Employee",
         )
 
         result = assisted_service._resolve_request_assignee(
@@ -74,25 +74,41 @@ class TestWorkflowAssignment(TestCase):
         self.assertEqual(result, "TODO-EXISTING")
         new_doc.assert_not_called()
 
-    def test_service_role_inference(self):
-        tax_service = SimpleNamespace(
+    def test_service_role_defaults_to_employee(self):
+        service = SimpleNamespace(
             title="Tax Filing Service",
             category="Tax",
             icon="tax_filing",
             default_assignment_role="",
         )
-        company_service = SimpleNamespace(
+
+        self.assertEqual(
+            assisted_service._assignment_role_for_service(service),
+            "Employee",
+        )
+
+    def test_configured_employee_role_is_authoritative(self):
+        service = SimpleNamespace(
             title="Company Registration",
             category="Business",
             icon="company_registration",
-            default_assignment_role="",
+            default_assignment_role="Employee",
         )
 
         self.assertEqual(
-            assisted_service._assignment_role_for_service(tax_service),
-            "OMC Tax Associate",
+            assisted_service._assignment_role_for_service(service),
+            "Employee",
         )
+
+    def test_legacy_assignment_role_remains_readable(self):
+        service = SimpleNamespace(
+            title="Legacy Service",
+            category="Tax",
+            icon="tax_filing",
+            default_assignment_role="OMC Tax Associate",
+        )
+
         self.assertEqual(
-            assisted_service._assignment_role_for_service(company_service),
-            "OMC Consultant",
+            assisted_service._assignment_role_for_service(service),
+            "OMC Tax Associate",
         )
