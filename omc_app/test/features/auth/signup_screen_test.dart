@@ -8,11 +8,7 @@ import 'package:omc_app/features/auth/presentation/signup_screen.dart';
 void main() {
   testWidgets('public signup exposes customer accounts only', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
-          home: SignupScreen(),
-        ),
-      ),
+      const ProviderScope(child: MaterialApp(home: SignupScreen())),
     );
 
     expect(find.text('Customer'), findsWidgets);
@@ -20,10 +16,7 @@ void main() {
     expect(find.text('Business Partner'), findsNothing);
     expect(find.text('Tax Associate'), findsNothing);
     expect(find.textContaining('Staff options'), findsNothing);
-    expect(
-      find.textContaining('Create a customer account'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Create a customer account'), findsOneWidget);
   });
 
   testWidgets('final step submits canonical verification payload', (
@@ -140,6 +133,7 @@ void main() {
     expect(calls.single, containsPair('mobile', '+923063191907'));
     expect(calls.single, containsPair('whatsapp_no', '+923063191908'));
     expect(calls.single, containsPair('cnic', '4210112345678'));
+    expect(calls.single.containsKey('ntn'), isFalse);
     expect(calls.single, containsPair('customer_type', 'Customer'));
     expect(calls.single, containsPair('register_as', 'Customer'));
     expect(calls.single, containsPair('onboarding_mode', 'New Customer'));
@@ -219,9 +213,11 @@ void main() {
       find.widgetWithText(TextFormField, 'Mobile number'),
       '3001234567',
     );
+    expect(find.widgetWithText(TextFormField, 'NTN'), findsOneWidget);
+
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'CNIC'),
-      '42101-7654321-0',
+      find.widgetWithText(TextFormField, 'NTN'),
+      '4590594',
     );
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Address'),
@@ -258,6 +254,8 @@ void main() {
       calls.single,
       containsPair('onboarding_mode', 'Existing Customer Claim'),
     );
+    expect(calls.single, containsPair('cnic', ''));
+    expect(calls.single, containsPair('ntn', '4590594'));
 
     // Public Flutter must never submit the migration-only mode.
     expect(calls.single['onboarding_mode'], isNot('Imported Existing'));

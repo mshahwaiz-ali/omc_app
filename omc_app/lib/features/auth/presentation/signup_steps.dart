@@ -149,6 +149,7 @@ class SignupDetailsStep extends StatelessWidget {
     super.key,
     required this.formKey,
     required this.selectedRole,
+    required this.selectedOnboardingMode,
     required this.fullNameController,
     required this.emailController,
     required this.usernameController,
@@ -162,6 +163,7 @@ class SignupDetailsStep extends StatelessWidget {
     required this.mobileController,
     required this.whatsappController,
     required this.cnicController,
+    required this.ntnController,
     required this.addressController,
     required this.educationController,
     required this.experienceController,
@@ -173,10 +175,12 @@ class SignupDetailsStep extends StatelessWidget {
     required this.emailValidator,
     required this.phoneValidator,
     required this.cnicValidator,
+    required this.ntnValidator,
   });
 
   final GlobalKey<FormState> formKey;
   final String selectedRole;
+  final String selectedOnboardingMode;
   final TextEditingController fullNameController;
   final TextEditingController emailController;
   final TextEditingController usernameController;
@@ -190,6 +194,7 @@ class SignupDetailsStep extends StatelessWidget {
   final TextEditingController mobileController;
   final TextEditingController whatsappController;
   final TextEditingController cnicController;
+  final TextEditingController ntnController;
   final TextEditingController addressController;
   final TextEditingController educationController;
   final TextEditingController experienceController;
@@ -201,10 +206,13 @@ class SignupDetailsStep extends StatelessWidget {
   final String? Function(String?) emailValidator;
   final String? Function(String?, String) phoneValidator;
   final String? Function(String?) cnicValidator;
+  final String? Function(String?) ntnValidator;
 
   @override
   Widget build(BuildContext context) {
     final isTaxAssociate = selectedRole == 'Tax Associate';
+    final isExistingCustomerClaim =
+        selectedOnboardingMode == 'Existing Customer Claim';
     return Form(
       key: formKey,
       child: Column(
@@ -352,6 +360,28 @@ class SignupDetailsStep extends StatelessWidget {
             ),
             validator: cnicValidator,
           ),
+          if (isExistingCustomerClaim) ...[
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: ntnController,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.next,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(7),
+              ],
+              maxLength: 7,
+              decoration: const InputDecoration(
+                labelText: 'NTN',
+                hintText: '1234567',
+                counterText: '',
+                prefixIcon: Icon(Icons.business_outlined),
+                helperText:
+                    'Existing customers may use either CNIC or 7-digit NTN.',
+              ),
+              validator: ntnValidator,
+            ),
+          ],
           const SizedBox(height: 14),
           TextFormField(
             controller: addressController,

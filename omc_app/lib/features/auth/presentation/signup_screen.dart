@@ -39,9 +39,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  static const roles = <String>[
-    'Customer',
-  ];
+  static const roles = <String>['Customer'];
 
   static const acquisitionSources = <String>[
     'Referral',
@@ -64,6 +62,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _mobileController = TextEditingController();
   final _whatsappController = TextEditingController();
   final _cnicController = TextEditingController();
+  final _ntnController = TextEditingController();
   final _addressController = TextEditingController();
   final _educationController = TextEditingController();
   final _experienceController = TextEditingController();
@@ -105,6 +104,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _mobileController,
       _whatsappController,
       _cnicController,
+      _ntnController,
       _addressController,
       _educationController,
       _experienceController,
@@ -125,6 +125,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _mobileController,
       _whatsappController,
       _cnicController,
+      _ntnController,
       _addressController,
       _educationController,
       _experienceController,
@@ -351,6 +352,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               : _whatsappController.text,
         ),
         'cnic': _normalizeCnic(_cnicController.text),
+        if (_isCustomer && _selectedOnboardingMode == 'Existing Customer Claim')
+          'ntn': _normalizeNtn(_ntnController.text),
         'customer_type': _selectedRole,
         'register_as': _selectedRole,
         'onboarding_mode': _isCustomer
@@ -459,6 +462,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   String _normalizeCnic(String value) => value.replaceAll(RegExp(r'\D'), '');
 
+  String _normalizeNtn(String value) => value.replaceAll(RegExp(r'\D'), '');
+
   String _toPakistanPhoneNumber(String value) {
     var digits = value.replaceAll(RegExp(r'\D'), '');
     if (digits.startsWith('92')) digits = digits.substring(2);
@@ -493,14 +498,40 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         : 'Invalid number.';
   }
 
+  bool get _isExistingCustomerClaim =>
+      _isCustomer && _selectedOnboardingMode == 'Existing Customer Claim';
+
   String? _cnicValidator(String? value) {
-    final required = _required(value, 'CNIC');
-    if (required != null) {
-      return required;
+    final digits = _normalizeCnic(value ?? '');
+
+    if (digits.isEmpty) {
+      if (_isExistingCustomerClaim &&
+          _normalizeNtn(_ntnController.text).length == 7) {
+        return null;
+      }
+
+      return _isExistingCustomerClaim
+          ? 'Enter CNIC or NTN.'
+          : 'CNIC is required.';
     }
-    return value!.replaceAll(RegExp(r'\D'), '').length == 13
-        ? null
-        : 'CNIC must be exactly 13 digits.';
+
+    return digits.length == 13 ? null : 'CNIC must be exactly 13 digits.';
+  }
+
+  String? _ntnValidator(String? value) {
+    if (!_isExistingCustomerClaim) {
+      return null;
+    }
+
+    final digits = _normalizeNtn(value ?? '');
+
+    if (digits.isEmpty) {
+      return _normalizeCnic(_cnicController.text).length == 13
+          ? null
+          : 'Enter CNIC or NTN.';
+    }
+
+    return digits.length == 7 ? null : 'NTN must be exactly 7 digits.';
   }
 
   @override
@@ -582,6 +613,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       1 => SignupDetailsStep(
                         formKey: _detailsFormKey,
                         selectedRole: _selectedRole,
+                        selectedOnboardingMode: _selectedOnboardingMode,
                         fullNameController: _fullNameController,
                         emailController: _emailController,
                         usernameController: _usernameController,
@@ -610,6 +642,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         mobileController: _mobileController,
                         whatsappController: _whatsappController,
                         cnicController: _cnicController,
+                        ntnController: _ntnController,
                         addressController: _addressController,
                         educationController: _educationController,
                         experienceController: _experienceController,
@@ -632,6 +665,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         emailValidator: _emailValidator,
                         phoneValidator: _pakistanPhoneValidator,
                         cnicValidator: _cnicValidator,
+                        ntnValidator: _ntnValidator,
                       ),
                       2 => SignupPreferencesStep(
                         formKey: _preferencesFormKey,
