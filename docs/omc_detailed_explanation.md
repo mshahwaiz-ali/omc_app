@@ -1,1215 +1,523 @@
 # OMC App — Business and Workflow Architecture Guide
 
-## 1. Purpose
+Source cross-check: **25 August 2026**, branch `main`.
 
-This document explains the **current OMC App business workflow** from customer acquisition through service execution and ERP handoff.
+This document explains the implemented OMC business workflow from identity and customer onboarding through service execution, accounting settlement, ERP activation, referrals, commissions, support, and operational control.
 
-It is intended for:
-
-- OMC House management;
-- client stakeholders;
-- operations, support, document, finance, referral, and service teams;
-- developers and testers;
-- deployment/handover engineers.
-
-This is not a future design document. It describes the repository state currently implemented on branch `feature/customer-home-dashboard`, while clearly marking remaining alignment gaps and release gates.
-
-Last source cross-check: **18 August 2026**.
-
-For installation and engineering commands, see [`README.md`](../README.md).
-
-For a feature-by-feature inventory, see [`OMC_APP_FEATURES.md`](OMC_APP_FEATURES.md).
+For engineering/setup commands, see [`../README.md`](../README.md). For the feature inventory, see [`OMC_APP_FEATURES.md`](OMC_APP_FEATURES.md). For access control, see [`ROLE.md`](ROLE.md).
 
 ---
 
-# 2. Current validation snapshot
+## 1. Core operating model
 
-The latest recorded test state after the customer/staff identity split, ERP Lead cleanup, customer migration work, and imported-customer activation implementation is:
+OMC App does not replace ERPNext. It adds the customer/mobile experience and OMC-specific workflow state around ERP-owned business records.
+
+The design rule is:
+
+> **Use ERPNext as source of truth where ERPNext already owns the business record. Use OMC DocTypes for OMC-specific identity links, workflow, access, audit, documents, payments, referrals, commissions, and bridge state.**
+
+| Business area | Canonical authority |
+| --- | --- |
+| Lead | ERPNext `Lead` |
+| Customer master | ERPNext `Customer` |
+| Authenticated customer mapping | `OMC Customer Account` |
+| Customer profile/business compatibility | `OMC Customer Profile` |
+| Internal OMC access | `OMC Staff Access` |
+| Service catalogue | source-controlled manifest + `OMC Service` |
+| Customer service case | `OMC Service Request` |
+| Required documents | `OMC Service Required Document` |
+| Uploaded service documents | `OMC Service Document` |
+| OMC payment/receipt workflow | `OMC Service Payment` |
+| Accounting settlement relationship | `OMC Accounting Link` |
+| ERP activation/retry state | `OMC Bridge Operation` |
+| Referral provenance | referral/attribution records |
+| Commission entitlement/lifecycle | `OMC Commission Allocation` + commission APIs |
+| ERP service execution | ERP `Service` and `Task` |
+| ERP accounting | ERPNext finance records |
+
+ERPNext source files must remain untouched by OMC customisation.
+
+---
+
+## 2. High-level customer service workflow
+
+The main path is:
 
 ```text
-Backend OMC suite:            591 / 591 passed
-Customer activation tests:      8 / 8 passed
-Flutter analyze:              No issues found
-Flutter suite:                326 / 326 passed
-Router policy parity suite:    51 / 51 passed
-```
-
-Two release facts remain important:
-
-1. the permanent bulk migration of existing ERP customers has **not** been run;
-2. the real browser/device imported-customer activation journey still needs its final manual E2E rehearsal before that migration is released.
-
----
-
-# 3. Core operating model
-
-OMC App does not try to replace ERPNext. It adds the mobile/customer experience, OMC-specific approval state, guarded workflows, and operational automation around ERP records.
-
-The key design rule is:
-
-> **Use ERPNext as the source of truth where ERPNext already owns the business record. Use OMC DocTypes only for OMC-specific application/workflow state.**
-
-The current boundaries are:
-
-| Business area | Source of truth | OMC responsibility |
-| --- | --- | --- |
-| Lead | ERPNext `Lead` | mobile/internal guarded create/read and workflow integration |
-| ERP customer master | ERPNext `Customer` | link to OMC customer profile and activation bridge |
-| Customer app profile | `OMC Customer Profile` | app identity, lifecycle, referral attribution, mobile profile state |
-| Customer login | Frappe `User` when activated | Website User + `OMC Customer` role |
-| Internal employee | ERP `Employee` | existing HR/ERP employee record |
-| OMC staff state | `OMC Staff Profile` | OMC approval, persona, active state, referral ownership |
-| Service catalogue | `OMC Service` | customer-facing service configuration and ERP Task Type mapping |
-| Customer service case | `OMC Service Request` | customer-facing lifecycle, documents, payment gate, assignment, timeline |
-| ERP service execution | ERP `Service` + ERP `Task` | created only when OMC request becomes ERP-eligible |
-| Payment review | `OMC Service Payment` | receipt collection/review and service activation gate |
-| Accounting/invoicing | ERPNext finance | not replaced by OMC payment records |
-
-ERPNext source files must remain untouched. OMC integration belongs inside the custom `omc_app` through hooks, APIs, DocTypes, permission guards, and adapters.
-
----
-
-# 4. High-level end-to-end workflow
-
-The intended main business path is:
-
-```text
-Lead / existing customer / new app customer
+New app customer / imported ERP customer
                 |
                 v
-         ERP Customer exists
-                |
-                v
-       OMC Customer Profile
+     Authenticated customer account
                 |
                 v
         OMC Service Request
                 |
-                v
-       Required Documents
+                +--> pricing snapshot
+                +--> required-document contract
                 |
                 v
-      Payment (if required)
+       Document submission
                 |
                 v
-        Payment Confirmed
+      Payment/accounting gate
                 |
                 v
-      ERP Service + ERP Task
+       Ready for Activation
                 |
                 v
-       Operational execution
+      Durable Bridge Operation
+                |
+                +--> ERP Service
+                +--> ERP Task
                 |
                 v
-           Completion
+       Assignment/execution
+                |
+                v
+            Completion
 ```
 
-For a zero-price service, the payment step is skipped once the request reaches the relevant eligibility point; the request moves to `In Progress` and ERP activation is attempted directly.
+This means a customer request is not operationally activated in ERP merely because the customer pressed Submit. The backend enforces the request lifecycle and payment policy first.
 
 ---
 
-# 5. Customer identity model
+## 3. Customer identity model
 
-The customer side deliberately separates **business customer status** from **login account activation**.
+The authenticated customer model is:
 
 ```text
-ERP Customer
-    |
-    +--> OMC Customer Profile
-             |
-             +--> Frappe Website User only when app login exists
+Frappe Website User
+        |
+        v
+OMC Customer Account
+        |
+        +------> ERP Customer
+        +------> OMC Customer Profile
 ```
 
-This is especially important for the client's existing ERP customers. OMC does not need to create thousands of Frappe Users merely to represent existing business customers.
+`OMC Customer Account` is the canonical mapping used by protected customer access. It links the login identity to the ERP Customer and may retain a legacy Customer Profile link.
+
+Protected customer access requires the account to be verified, linked and approved for service access.
+
+`OMC Customer Profile` remains useful for business/profile history, migration compatibility, referral fields, and older relationships, but it does not independently bypass Customer Account authority.
 
 ---
 
-# 6. New app customer signup
+## 4. New customer signup
 
-## 6.1 Flutter registration
+Public self-registration is **customer-only**.
 
-The Flutter signup currently offers:
+Internal staff personas are not granted through public signup.
 
-```text
-Customer
-Consultant
-Business Partner
-Tax Associate
-```
+The registration flow uses backend validation and pending-registration verification before account activation. Sensitive verification tokens are managed as expiring one-time secrets rather than durable plaintext credentials.
 
-The form collects the supported identity/profile data, username, acquisition source, optional referral data, and password.
-
-## 6.2 Pending Registration token
-
-A new signup first creates an `OMC Pending Registration` rather than immediately trusting the submitted email.
-
-The backend:
-
-- validates the public payload;
-- requires a valid email and password;
-- creates a random verification token;
-- stores only the token digest;
-- applies a 30-minute token lifetime;
-- applies a 60-second resend cooldown;
-- supersedes/rotates old verification tokens safely;
-- emails the verification link unless email delivery is explicitly muted in development/test.
-
-## 6.3 Email verification
-
-When the user opens the verification link, the backend consumes the pending registration and calls the canonical signup flow.
-
-For a normal `Customer` registration, the current implementation creates:
-
-```text
-Frappe User
-    user_type = Website User
-    role includes OMC Customer
-
-OMC Customer Profile
-    customer_status = Active
-    approval_status = Approved
-    is_active = 1
-    customer_origin = App Signup
-    linked_app_user = customer email
-```
-
-Therefore, **normal Customer signup is currently activated after successful email verification; it is not waiting for a separate manual OMC customer approval step.**
-
-If OMC later wants every new Customer to require manual approval, that is a business-rule change and should be implemented deliberately rather than assumed from older documentation.
+After the verified signup path establishes a valid customer identity, the canonical account/profile links and customer capability state control access to protected customer functions.
 
 ---
 
-# 7. Staff/customer signup alignment note
+## 5. Existing ERP customer migration
 
-The Flutter signup still exposes `Consultant`, `Business Partner`, and `Tax Associate` application types.
+Existing ERP Customers can be migrated into OMC business/profile state without pre-creating thousands of Frappe Users.
 
-Current legacy-compatible behaviour for these non-customer registration types is:
+The migration resolves identity in this order:
 
 ```text
-email verified
-    -> Frappe Website User initially created
-    -> OMC Customer Profile created as Pending / Pending Review
-    -> Admin Control can later replace OMC Customer role with staff role(s)
+1. unique valid Customer email
+2. unique linked-Lead CNIC
+3. unique safe resolved phone
+4. unique supported Customer tax ID / NTN
+5. identity review
 ```
 
-This path is **not fully aligned with the newer `OMC Staff Profile` authority model** yet.
+The tax-ID/NTN rule is intentionally the final deterministic fallback.
 
-The target/current staff authority is:
+Migration principles:
+
+- preflight before mutation;
+- explicit apply confirmation;
+- no shared/default customer passwords;
+- no bulk login-user creation;
+- reuse existing safe records;
+- preserve ambiguous records for review;
+- do not guess historical relationships;
+- support idempotent reruns;
+- reconcile eligible staff/referral state as defined by the migration workflow.
+
+Business migration and login activation are separate concerns.
+
+---
+
+## 6. Existing-customer claim/activation
+
+An imported customer may exist as a valid ERP/OMC business customer before an app login exists.
+
+The supported activation/claim flow proves control of an accepted identity before establishing or linking login authority. The backend uses collision checks and safe review paths rather than automatically merging ambiguous Frappe identities.
+
+The result is that imported business data does not require a fabricated email or default password.
+
+---
+
+## 7. Internal staff model
+
+Internal authority is:
 
 ```text
 Frappe System User
-    -> OMC Staff Profile
-       -> staff_role
-       -> staff_status
-       -> approval_status
-       -> is_active
-       -> effective OMC capabilities
+        |
+        v
+OMC Staff Access
+        |
+        +--> access_status
+        +--> reconciliation_status
+        +--> persona snapshot/source
+        +--> explicit capability rows
+        +--> optional scoped break-glass grants
 ```
 
-Before production reliance on self-service staff applications or Admin Control staff invitation/editing, those flows should be normalised so staff creation/approval updates the Staff Profile rather than treating direct Frappe role assignment as the complete OMC approval mechanism.
+Normal staff access requires approved and current canonical Staff Access.
+
+ERP-owned staff personas include:
+
+- `Consultant`;
+- `Tax Associates`;
+- `Business Partner`;
+- `Employee`.
+
+OMC-owned operational roles include Admin, Manager, Support Agent, Document Reviewer and Finance Reviewer.
+
+Legacy `OMC Consultant`, `OMC Tax Associate`, `OMC Business Partner` and `OMC Employee` role names are retirement/compatibility seams, not the current provisioning model.
+
+`System Manager` is a Frappe infrastructure role and does not implicitly grant OMC business capabilities.
 
 ---
 
-# 8. Existing ERP customer migration
+## 8. Staff reconciliation
 
-The client already has thousands of ERP Customers. The migration is intentionally **profile-only**.
+OMC can reconcile trusted ERP users into canonical Staff Access without rewriting ERP role profiles.
 
-## 8.1 What migration creates
+Important behavior:
 
-For a safely resolved existing ERP Customer, the migration creates or reuses an `OMC Customer Profile` like:
-
-```text
-linked_erpnext_customer = <existing ERP Customer>
-customer_origin = Imported
-acquisition_source = Existing
-customer_status = Active
-approval_status = Approved
-is_active = 1
-manual_customer_status = Unregistered
-user = blank
-linked_app_user = blank
-```
-
-No Frappe User is created.
-
-No password is created.
-
-No shared/default password is assigned.
-
-Existing profile/app identity is preserved and is never blindly overwritten.
-
-## 8.2 Identity resolution order
-
-The migration classifies customers using this priority:
-
-```text
-1. safe unique Customer email
-2. unique CNIC from the linked ERP Lead
-3. safe unique resolved phone with no Customer/Lead phone conflict
-4. identity review
-```
-
-Only a real **unique Customer email** is persisted as profile email during migration.
-
-CNIC/phone fallback profiles remain email-less until a future secure activation path resolves their login identity.
-
-## 8.3 Restored client-data snapshot
-
-The tested restored client dataset produced:
-
-```text
-Total ERP Customers:                 4,886
-Profile-only auto-migratable:        4,530
-Identity review:                       356
-
-Unique-email activation candidates:  3,245
-Unique-CNIC fallback:                1,004
-Unique-safe-phone fallback:            281
-```
-
-The 356 identity-review customers are intentionally skipped rather than guessed.
-
-## 8.4 Safety behaviour
-
-The migration code is designed to be:
-
-- read-only during `dry_run()` and `preflight()`;
-- explicit-confirmation protected during `apply()`;
-- idempotent;
-- batch-commit capable;
-- profile-only;
-- collision-aware;
-- non-destructive to existing User/profile links.
-
-The permanent 4,530-profile apply is still on hold until the real activation E2E is complete.
+- disabled or non-System Users are not eligible staff;
+- unsupported/missing ERP persona fails closed;
+- explicit reviewed persona conflicts produce reconciliation conflict rather than silent overwrite;
+- suspended/rejected Staff Access remains suspended/rejected on rerun;
+- referral and commission capabilities are derived deliberately from eligible persona;
+- existing ERP Employee linkage is checked for duplicate ownership.
 
 ---
 
-# 9. Existing customer first-time app activation
+## 9. Capability and record scope
 
-An imported ERP customer is already a valid business customer but does not automatically have an app password.
+Protected OMC operations use explicit capabilities plus record scope.
 
-The first-time journey is:
+Examples:
 
-```text
-Customer opens Flutter app
-        |
-        v
-"Activate existing account"
-        |
-        v
-Enter registered email
-        |
-        v
-Backend sends secure activation link
-        |
-        v
-Customer opens link
-        |
-        v
-Create password + confirm password
-        |
-        v
-Website User created now
-        |
-        v
-OMC Customer role applied
-        |
-        v
-Existing Customer Profile linked
-        |
-        v
-Normal login available
-```
+- customers: own records only;
+- consultants/tax associates/business partners: assigned/relevant service cases;
+- support: support-domain and relevant customer/case context;
+- document reviewers: document queue/review context;
+- finance reviewers: payment/settlement/commission-finance context;
+- managers/admin: broader operational/configuration scope according to capability.
 
-## 9.1 Token security
-
-`OMC Customer Activation` stores the activation lifecycle, but not the plaintext token.
-
-Security rules include:
-
-- cryptographically random token;
-- SHA-256 digest stored in the database;
-- 30-minute expiry;
-- 60-second request cooldown;
-- old pending token superseded by a newer request;
-- one-time consumption;
-- public activation request response does not reveal whether the customer exists;
-- eligibility is checked both when requesting and when consuming the token;
-- minimum eight-character chosen password;
-- no automatic merge with an existing Frappe User identity.
-
-On successful activation:
-
-```text
-User.user_type = Website User
-OMC Customer role = applied
-profile.user = email
-profile.linked_app_user = email
-profile.manual_customer_status = Linked
-activation.status = Used
-```
-
-The imported profile's business approval (`Active + Approved`) is preserved; activation only adds login identity.
-
-## 9.2 Collision handling
-
-If an existing Frappe User appears for the same identity, the backend does not guess.
-The activation moves to review, and an existing-user collision can mark the customer profile for duplicate review.
-
-## 9.3 Current activation coverage
-
-Email self-service activation is initially suitable for the **3,245 unique-email** migration candidates.
-
-The CNIC-only and phone-only migration candidates still need a future secure SMS/OTP or controlled staff-assisted activation path. They must not receive fabricated emails or default passwords.
+Flutter navigation is a projection of this authority, not the authority itself.
 
 ---
 
-# 10. Internal staff model
+## 10. Break-glass access
 
-Internal OMC users are separate from customers.
+`OMC Break Glass Grant` supports exceptional temporary access.
 
-```text
-Frappe User
-    |
-    +--> OMC Staff Profile
-             |
-             +--> ERP Employee
-```
+A grant can be:
 
-## 10.1 Default staff lifecycle
+- capability-specific;
+- time-limited;
+- globally or record-scoped;
+- revoked;
+- audited.
 
-A newly ensured Staff Profile starts as:
-
-```text
-staff_status = Pending
-approval_status = Pending Review
-is_active = 0
-```
-
-Normal staff access requires:
-
-```text
-Frappe User exists and is enabled
-+ effective OMC staff persona exists
-+ OMC Staff Profile exists
-+ staff_status = Active
-+ approval_status = Approved
-+ is_active = 1
-+ linked ERP Employee is Active when present
-```
-
-An active ERP Employee by itself does not approve OMC access.
-
-## 10.2 Staff persona
-
-Recognised OMC staff personas are:
-
-```text
-OMC Admin
-OMC Manager
-OMC Support Agent
-OMC Document Reviewer
-OMC Finance Reviewer
-OMC Consultant
-OMC Tax Associate
-OMC Business Partner
-```
-
-The effective OMC role set can combine recognised direct Frappe OMC roles with `OMC Staff Profile.staff_role`.
-
-## 10.3 Role Profile rule
-
-OMC must not modify a client's shared Frappe Role Profile merely to express the OMC persona.
-
-Existing ERP/Frappe Role Profiles remain ERP configuration. OMC persona and approval belong in the Staff Profile.
-
-System Manager and Administrator remain trusted system-level overrides.
+Break-glass does not permanently mutate the user's normal role/persona.
 
 ---
 
-# 11. Lead workflow
+## 11. Service catalogue
 
-`OMC Lead` has been retired. The canonical lead is the native ERPNext `Lead`.
+The production catalogue is source controlled.
+
+Current manifest totals:
 
 ```text
-Lead source / enquiry
-        |
-        v
-ERPNext Lead
-        |
-        v
-ERPNext Customer conversion
-        |
-        v
-OMC Customer Profile
+9 categories
+31 services
+17 active
+14 inactive/review-required
+currency: PKR
+company: Omc House
+activation policy: Full Settlement
 ```
 
-## 11.1 Flutter lead capability
+Service identity uses stable `service_id`; category identity is stable independently from display labels.
 
-The current Flutter/internal APIs can:
+Each service maps only to an **exact existing ERP Task Type**. OMC does not fuzzy-match or create ERP Task Types.
 
-- create an ERP `Lead` through the OMC guarded API;
-- list ERP Leads;
-- open ERP Lead detail;
-- show customer/conversion context returned by the backend.
-
-The backend lead read guard requires `can_manage_leads`.
-
-## 11.2 Lead conversion
-
-The current Flutter Lead detail does **not** implement the full ERP Lead-to-Customer conversion action.
-
-Lead conversion remains an ERP/Frappe Desk business operation unless/until a guarded OMC conversion endpoint is deliberately added.
-
-After an ERP Customer exists, OMC can link/migrate that customer into the Customer Profile model.
-
-The existing customer migration also uses the ERP Customer's linked Lead as a trusted fallback source for CNIC/phone classification where applicable.
+Inactive services remain inactive when commercial facts are uncertain. The system does not invent pricing, recurring-fee modeling, requirements, or completion time merely to publish every service.
 
 ---
 
-# 12. Service catalogue and ERP Task Type mapping
+## 12. Catalogue provisioning
 
-Customer-visible service configuration is owned by `OMC Service`.
-
-An OMC Service can contain:
-
-- title and description;
-- category;
-- public/mobile presentation fields;
-- price and currency;
-- estimated/completion time;
-- required documents;
-- default assignee;
-- default assignment role;
-- parallel-request rule;
-- active/featured state;
-- `erp_task_type` mapping.
-
-The important ERP bridge is:
+Operator-facing catalogue operations are:
 
 ```text
-OMC Service.erp_task_type
-        |
-        v
-existing ERP Task Type
-        |
-        +--> ERP Service.service_type
-        +--> ERP Task.type
+preview_service_catalogue     read-only
+validate_service_catalogue    read-only
+sync_service_catalogue        explicit mutation
 ```
 
-OMC does not own or replace ERP `Task Type` records.
+Sync behavior includes:
+
+- exact preflight;
+- conflict/blocker reporting;
+- one controlled transaction/savepoint boundary;
+- category/service/document/form reconciliation;
+- stale managed-row deactivation;
+- in-flight request safety;
+- price-change safety;
+- post-sync validation;
+- rollback on failure;
+- idempotent no-op when already aligned.
+
+Normal `bench migrate` does not publish the catalogue.
 
 ---
 
-# 13. Service request creation
+## 13. Pricing snapshots
 
-All service-request creation routes converge on the shared assisted-service authority.
+Service requests persist authoritative pricing context rather than reading a mutable service price forever.
 
-Supported customer modes are:
-
-```text
-Self
-My Referral
-Existing Customer
-Walk-in Customer
-```
-
-## 13.1 Self
-
-An approved customer creates a request for their own Customer Profile.
-
-The backend validates the service, customer identity, request payload, and duplicate/parallel-request rules.
-
-## 13.2 My Referral
-
-An eligible referral owner can assist a referred customer only when the referral relationship and required assistance consent are valid.
-
-## 13.3 Existing Customer
-
-Broad assisted access is reserved for the authorised operational roles defined by the backend and requires customer-consent context.
-
-## 13.4 Walk-in Customer
-
-Authorised internal staff can create an `OMC Manual Customer` for a walk-in identity and create an OMC Service Request against it.
-
-A walk-in customer is **not automatically an ERP Customer**.
-The ERP bridge intentionally reports pending configuration until that identity is converted/resolved to a valid ERP Customer.
+The backend protects historical and in-flight customer economics from unsafe catalogue changes. Discount and payment decisions are controlled by backend policy/capability, not arbitrary client values.
 
 ---
 
-# 14. Pricing and discount workflow
+## 14. Required-document contract
 
-The service request stores a pricing snapshot derived from trusted OMC Service configuration.
+Service requirements use stable `document_key` identity.
 
-Customers cannot submit internal discount values.
+When both template and upload are keyed, the key is authoritative. A wrong key cannot become valid because title/type happen to match.
 
-Authorised internal creation can include a discount request using:
+Legacy/unkeyed history remains compatible through controlled exact normalized title+type fallback.
 
-```text
-Percentage
-Fixed Amount
-```
+One upload satisfies at most one requirement.
 
-The backend validates:
+### Requirement grandfathering
 
-- non-negative discount;
-- percentage not greater than 100%;
-- fixed discount not greater than original price;
-- reason required when a discount exists;
-- configured auto-approval threshold;
-- configured minimum service price.
+New managed requirements can have `effective_from`, so a new requirement does not retroactively change an older request's document contract.
 
-A discount can become:
-
-```text
-None
-Approved
-Pending Approval
-```
-
-A request with `discount_status = Pending Approval` does not open its payment until the pricing decision is resolved.
+This is critical for production catalogue evolution.
 
 ---
 
-# 15. Assignment workflow
+## 15. Customer document flow
 
-The service assignment resolver currently uses this precedence:
+The service-case UI shows required documents and can offer inline Upload/Replace actions.
 
-```text
-1. explicit eligible assignee
-2. referral owner
-3. service default assignee
-4. least-loaded user for service assignment role
-5. least-loaded OMC Manager fallback
-6. unassigned if nobody eligible
-```
+The client sends the selected requirement identity, but the backend canonicalises and validates it against the request's service before storing the upload.
 
-When an assignee is selected, OMC can:
-
-- store `assigned_staff` on the service request;
-- create/reuse a Frappe ToDo for the exact OMC Service Request;
-- notify the assignee;
-- add an internal assignment timeline entry;
-- synchronise assignment to the linked ERP Task when that Task already exists.
-
-### Current persona-alignment note
-
-The central capability resolver understands Staff Profile personas, but some operational discovery helpers still search direct Frappe `Has Role` / `frappe.get_roles()` membership when finding assignable staff, referral-assisted modes, or reviewer pools.
-
-Therefore final production hardening should normalise those discovery paths to the same effective Staff Profile persona model before relying exclusively on Staff Profile-only personas for every automatic assignment/reviewer workflow.
+Document completion and payment/completion blockers use the same identity rules so different flows cannot disagree about which requirement has been satisfied.
 
 ---
 
-# 16. Document workflow
+## 16. Request lifecycle
 
-The customer document lifecycle is tied to the exact OMC Service Request.
-
-## 16.1 Customer upload
-
-The backend validates:
-
-- customer ownership;
-- request/document relationship;
-- file data and allowed upload contract;
-- prevention of cross-request file reuse;
-- protected/private file handling where applicable.
-
-## 16.2 Review
-
-Document-review authority requires the correct backend capability.
-
-A reviewer can approve or reject according to the supported workflow.
-
-Rejected documents can move the case to:
+Canonical request states include:
 
 ```text
-Waiting for Customer
-```
-
-and the customer is notified to provide a correction/replacement.
-
-## 16.3 All required documents approved
-
-After required-document completion, the backend evaluates pricing/payment eligibility.
-
-This is the main gate that determines whether the case opens a payment or can proceed directly as a zero-price service.
-
----
-
-# 17. Payment workflow
-
-The current OMC payment flow is a **manual transfer/receipt-review workflow**, not an online card/payment gateway.
-
-## 17.1 Positive-price service
-
-When required documents are approved and pricing is ready:
-
-```text
-OMC Service Payment created
-status = Pending
-        |
-OMC Service Request
-status = Waiting for Payment
-```
-
-The amount is derived from the trusted request final price/service price.
-
-The customer can receive configured bank/payment instructions and a WhatsApp support link.
-
-The backend explicitly reports:
-
-```text
-online_gateway_available = false
-payment_channel = whatsapp_support
-```
-
-## 17.2 Customer receipt submission
-
-The customer uploads a private receipt file.
-
-The payment becomes:
-
-```text
-Receipt Submitted
-```
-
-and a payment-review assignment can be created for Finance Review.
-
-## 17.3 Finance review
-
-Allowed review outcomes are guarded transitions among:
-
-```text
-Under Review
-Paid
-Rejected
+Draft
+Pending Payment
+Payment Not Required
+Ready for Activation
+Activating
+Activated
+Activation Failed
+Financial Hold
+Expired
 Cancelled
 ```
 
-A receipt is required before `Under Review`, `Paid`, or `Rejected`.
+Customer-facing statuses such as Open, Waiting for Payment, In Progress, Waiting for Customer and Completed are compatibility/operational projections.
 
-Rejection requires remarks.
+Invalid state transitions fail closed.
 
-## 17.4 Paid result
-
-When Finance marks the payment `Paid`:
-
-```text
-Payment = Paid
-        |
-Service Request -> In Progress
-        |
-ERP activation attempted
-```
-
-The customer timeline is updated and the assigned staff member can be notified that work is ready to start.
-
-## 17.5 Rejected result
-
-A rejected receipt moves the service request back to:
-
-```text
-Waiting for Customer
-```
-
-so a corrected/replacement receipt can be provided.
+Terminal cleanup is transactional where necessary: request state, ToDos, open payment records, bridge work, document archival, timeline and notification side effects must not leave contradictory states.
 
 ---
 
-# 18. Zero-price service workflow
+## 17. Payment and accounting model
 
-If the final service amount is exactly zero after required-document/pricing eligibility:
+OMC separates three concepts:
 
-```text
-no OMC Service Payment is created
-        |
-Service Request -> In Progress
-        |
-ERP activation attempted
-```
+1. customer-visible payment/receipt workflow;
+2. OMC payment review state;
+3. ERP accounting settlement authority.
 
-The timeline records that no payment is required.
+`OMC Service Payment` does not replace ERP accounting.
 
-A negative price is treated as invalid configuration rather than silently continuing.
+For `Full Settlement`, activation requires an `OMC Accounting Link` showing settled accounting evidence.
+
+The system also supports explicitly authorised no-charge and post-paid policies.
 
 ---
 
-# 19. ERP activation gate
+## 18. Durable ERP activation
 
-The OMC Service Request may exist **before** an ERP `Service` or ERP `Task` exists.
+`OMC Bridge Operation` is the durable activation boundary.
 
-This is intentional.
+It provides:
 
-## 19.1 Paid services
+- deterministic operation keys;
+- row locking;
+- final eligibility re-checks;
+- settlement re-check immediately before ERP writes;
+- bounded retries/backoff;
+- stale Processing lease recovery;
+- savepoint rollback around operational writes;
+- explicit Pending/Retry/Processing/Completed/Failed/Cancelled state;
+- authorised manual recovery;
+- audit events.
 
-For an amount greater than zero:
-
-```text
-ERP Service/Task creation blocked
-until a Paid OMC Service Payment exists
-```
-
-## 19.2 Zero-price services
-
-For amount equal to zero:
-
-```text
-ERP Service/Task creation becomes eligible
-when the request is In Progress
-```
-
-## 19.3 Required ERP configuration
-
-ERP creation also requires:
-
-```text
-valid linked ERP Customer
-+
-OMC Service.erp_task_type
-```
-
-If either is missing, OMC does not invent data. The request moves into an ERP sync/configuration state such as `Pending Configuration` with an explanatory error.
+A request reaches `Activated` only after committed ERP Service and Task links exist.
 
 ---
 
-# 20. ERP Service and Task creation
+## 19. Assignment and execution
 
-When the activation gate passes, `erp_service_task_adapter` creates or repairs the ERP execution records.
+After activation, assignment is resolved through backend policy. Referral-owner/default/eligible staff context can participate where configured.
 
-## 20.1 ERP Service
-
-The adapter creates ERP `Service` with the resolved ERP Customer and mapped Task Type, and fills compatible client fields when they exist.
-
-Conceptually:
-
-```text
-ERP Service.customer = linked ERP Customer
-ERP Service.service_type = OMC Service.erp_task_type
-```
-
-## 20.2 ERP Task
-
-The adapter creates ERP `Task` with:
-
-```text
-Task.customer = linked ERP Customer
-Task.type = OMC Service.erp_task_type
-Task.subject = OMC request title
-Task.priority = OMC request priority
-```
-
-The ERP Service and Task are linked where the client's Service metadata supports it.
-
-An assignment ToDo can be created for the request's assigned OMC staff member.
-
-## 20.3 Idempotency/repair
-
-Existing valid ERP links are preserved.
-
-Partial/broken links can be marked `Repair Required` or repaired through the guarded recovery path rather than blindly creating duplicates.
+The selected assignment is reflected in OMC request/ToDo/ERP task state as applicable. Specialists remain scoped to assigned/relevant work unless broader authority is explicitly granted.
 
 ---
 
-# 21. ERP Task status back to customer workflow
+## 20. Completion authority
 
-ERP Task updates are hooked back into the OMC Service Request.
+Completion checks combine:
 
-The Task status/operation status is mapped to customer-facing states such as:
+- required-document completion;
+- payment state;
+- ERP Task completion where linked;
+- valid service/request state.
 
-```text
-Open
-In Progress
-Waiting for Customer
-Waiting for Payment
-Completed
-Cancelled
-```
-
-Important protections:
-
-- a terminal OMC case cannot be reopened by a later ERP Task update;
-- Task completion cannot complete the OMC case while required OMC completion blockers remain;
-- completion attribution is recorded;
-- linked ERP Service status is updated where the client's ERP Service field supports the mapped value;
-- cancellation can propagate to linked OMC/ERP workflow in a controlled way.
-
-This allows the client to continue operational execution in ERP Desk while the customer sees a controlled OMC status.
+Stable document keys are propagated into completion checks so a wrong keyed upload cannot clear a requirement by falling back to title/type.
 
 ---
 
-# 22. Completion blockers
+## 21. Leads and customer masters
 
-A service case cannot simply be marked completed because one screen says the work is finished.
+ERPNext `Lead` and `Customer` remain canonical business masters.
 
-Completion checks include the relevant OMC/ERP state, including:
+OMC guarded APIs can expose or create relevant ERP records without turning legacy OMC lead tables into a second source of truth.
 
-- required documents fully approved;
-- active payments confirmed as Paid when payment records exist;
-- linked ERP Task completed when an ERP Task exists;
-- terminal-state safeguards.
-
-When completion succeeds, the workflow can close related open work, store completion attribution/time, update timeline state, and notify the customer.
+Historical/legacy OMC lead data remains a compatibility or retirement concern only.
 
 ---
 
-# 23. Referral model
+## 22. Referrals
 
-Referral ownership belongs to eligible approved staff, not to customers.
+Referral ownership is explicit staff entitlement.
 
-Referral-capable OMC staff personas are:
+The system separates:
 
-```text
-OMC Consultant
-OMC Tax Associate
-OMC Business Partner
-```
+- referral owner;
+- referral code;
+- customer attribution;
+- service referral evidence;
+- assistance consent where relevant;
+- commission allocation.
 
-Eligibility also requires:
-
-- enabled Frappe System User;
-- approved/active OMC Staff Profile;
-- effective referral-capable OMC persona.
-
-The staff side owns:
-
-```text
-OMC Referral
-referral code
-```
-
-The referred customer side stores attribution such as:
-
-```text
-referred_by
-referral_record
-referral_code_used
-referral_assistance_consent
-```
-
-A customer does not receive an `own_referral_code` merely by being a customer.
-
-If a staff referrer becomes ineligible, referral automation can deactivate that referral relationship/code.
+This prevents payout state from becoming the only evidence of business provenance.
 
 ---
 
-# 24. Support, notifications, tax, and expenses
+## 23. Commissions
 
-These remain supporting application modules around the core service workflow.
+Commission architecture separates personal entitlement from finance operations.
 
-## Support
+Current concepts include:
 
-Customers can create and follow their own support tickets; authorised Support staff operate guarded support queues and replies.
+- `OMC Commission Allocation`;
+- beneficiary/personal commission visibility;
+- finance approval;
+- mark-paid authority;
+- historical commission evidence/provenance;
+- compatibility aliases that do not widen finance access.
 
-## Notifications
-
-OMC creates ownership-scoped in-app notifications for service, document, payment, assignment, reminder, and escalation events.
-
-Push-token contracts exist, but production Firebase/APNs delivery should not be presented as verified unless the external push stack is actually configured and tested.
-
-## Scheduler
-
-Hourly jobs currently include isolated recovery/maintenance work such as:
-
-- unassigned service recovery;
-- automatic ERP sync recovery;
-- review assignment checks;
-- submission integrity rescore;
-- pending-registration cleanup.
-
-Daily jobs include workflow reminders/escalations and notification cleanup.
-
-Each scheduled job is run with isolated transaction handling so one failure does not automatically poison the entire scheduler batch.
-
-## Tax calculator
-
-The tax calculator uses backend-controlled configuration/calculation and exposes guest/customer-safe tax tooling through guarded APIs.
-
-## Expense tracker
-
-Guest/pending usage can remain local, while approved-customer cloud operations use guarded backend expense APIs, budgets, summaries, and receipt upload contracts.
+A referral owner does not automatically become a finance reviewer.
 
 ---
 
-# 25. Security model
+## 24. Support and notifications
 
-Security is backend-first.
+Customers can create/view their support work where enabled. Support staff use capability-gated queues and actions.
 
-The system uses multiple layers:
-
-```text
-Flutter route visibility
-        |
-        v
-backend authentication
-        |
-        v
-customer/staff lifecycle gate
-        |
-        v
-canonical capability check
-        |
-        v
-ownership / assignment / relationship scope
-        |
-        v
-workflow-state validation
-        |
-        v
-protected mutation
-```
-
-Important rules:
-
-- customer ownership is always checked on protected records;
-- staff workspace access is not universal staff authority;
-- document and payment review require separate capabilities;
-- pending staff cannot fall through into customer authority;
-- sensitive legacy API names are redirected through guarded method overrides in `hooks.py`;
-- Frappe DocPerm provides a baseline, but guarded APIs remain mandatory;
-- uploaded files are tied to their business record and protected against unsafe reuse;
-- identity collisions fail closed rather than auto-merging.
+Notifications cover customer and internal events and can connect service/document/payment/support activity to Flutter navigation.
 
 ---
 
-# 26. Current admin/staff alignment gaps
+## 25. Audit, reconciliation and quarantine
 
-The new Staff Profile authority is implemented in central access control, but several older operational paths still need final convergence.
+The backend contains dedicated security/audit/reconciliation evidence models. These are generally not normal user-editable operational records.
 
-Current examples include:
+Examples include:
 
-1. **Admin Control staff invitation/role editing** still manipulates direct Frappe User roles and does not yet make the Staff Profile lifecycle the complete write authority.
-2. **Registration review for staff-like signup types** still starts from an `OMC Customer Profile` application and direct role conversion.
-3. **Automatic service assignment discovery** currently searches direct Frappe role membership for eligible assignees.
-4. **Review-pool discovery** uses direct `Has Role` membership before capability validation.
-5. **Some assisted-service mode checks** use direct Frappe roles rather than the unified effective Staff Profile role set.
+- security audit events;
+- reconciliation runs/reviews;
+- technical quarantine;
+- accounting links;
+- bridge operations;
+- referral attribution;
+- commission allocations.
 
-The central capability resolver is already Staff Profile-aware; these discovery/write paths are the remaining alignment work needed to make Staff Profile-only personas fully authoritative everywhere.
-
----
-
-# 27. Current features that must not be overclaimed
-
-The following are not production-complete in the current repository state:
-
-- permanent 4,530 existing-customer profile migration;
-- real browser/device E2E for imported-customer activation;
-- self-service SMS/OTP activation for CNIC/phone-only imported customers;
-- fully Staff Profile-native admin invitation/application workflow;
-- fully Staff Profile-native assignment/reviewer discovery across every helper;
-- Flutter commission screens as a working production feature — the current Flutter commission repository still points at retired `referral_commissions` backend endpoints;
-- automatic ERP Sales Invoice creation from the OMC payment workflow;
-- an in-app online payment gateway/card checkout;
-- Flutter Lead-to-ERP-Customer conversion action;
-- confirmed production Firebase/APNs push delivery;
-- Google sign-in.
-
-The current payment workflow ends at OMC receipt review and ERP service/task activation. Accounting/invoice creation remains an ERPNext finance responsibility unless a separate guarded OMC integration is implemented and tested later.
+Sensitive mutations occur through guarded APIs rather than broad DocPerm write access.
 
 ---
 
-# 28. Practical customer journey examples
+## 26. Setup lifecycle
 
-## 28.1 New customer
-
-```text
-Install/open app
-    -> Sign up as Customer
-    -> Receive verification email
-    -> Verify email
-    -> Website User + OMC Customer Profile created
-    -> Customer profile Active/Approved
-    -> Login
-    -> Browse service
-    -> Create request
-    -> Upload required documents
-    -> Finance/payment flow if required
-    -> ERP Service/Task activated when eligible
-    -> Track progress
-    -> Completion
-```
-
-## 28.2 Existing ERP customer with unique email
+Normal lifecycle behavior is intentionally conservative:
 
 ```text
-ERP Customer already exists
-    -> profile-only migration
-    -> Active/Approved imported OMC Customer Profile
-    -> no User/password yet
-    -> customer opens app
-    -> Activate existing account
-    -> email link
-    -> choose password
-    -> Website User created and linked
-    -> login
-    -> normal service workflow
+before_install -> validate ERP contract
+after_install  -> explicit one-time OMC initialization
+after_migrate  -> validation only
 ```
 
-## 28.3 Existing ERP customer without safe email
+Normal migration does not silently rewrite OMC roles, branding, Desk/workspace metadata or the service catalogue.
 
-```text
-ERP Customer
-    -> profile-only migration via unique CNIC/phone
-    -> Active/Approved business profile
-    -> no login identity yet
-    -> wait for secure SMS/OTP or controlled assisted activation
-```
-
-No fake email or default password is used.
+Explicit operator commands exist for deliberate repair/sync operations.
 
 ---
 
-# 29. Practical staff journey example
+## 27. Release validation
 
-Target operational model:
+The latest directly observed implementation validation before this documentation refresh was:
 
 ```text
-Existing Frappe User / ERP Employee
-        |
-        v
-OMC Staff Profile created
-Pending + Pending Review + inactive
-        |
-        v
-OMC administrator approves profile/persona
-        |
-        v
-Active + Approved + is_active
-        |
-        v
-capability-specific internal workspace
-        |
-        v
-assigned/relevant work only
+Backend OMC suite:             932 / 932 passed
+Flutter case-detail contract:    4 / 4 passed
+Flutter analyze:              No issues found
+Catalogue validation:         195 unchanged, 0 conflicts, 0 blockers
 ```
 
-The client's existing ERP Role Profile remains unchanged.
+A real deployment/release still requires environment-specific migration, smoke testing, connectivity, email/deep-link, file-upload and device/browser validation as applicable.
 
 ---
 
-# 30. Practical service-to-ERP example
+## 28. Intentional constraints
 
-For a paid service:
+Current production safety deliberately prefers review over guessing:
 
-```text
-Customer requests OMC Service
-        |
-OMC Service Request created
-        |
-Documents submitted/reviewed
-        |
-all required documents approved
-        |
-OMC Service Payment created
-Waiting for Payment
-        |
-customer transfers payment + uploads receipt
-        |
-Finance Reviewer marks Paid
-        |
-OMC Service Request -> In Progress
-        |
-ERP activation gate passes
-        |
-linked ERP Customer resolved
-OMC Service.erp_task_type resolved
-        |
-ERP Service created
-ERP Task created
-Task assigned
-        |
-ERP staff execute work
-        |
-ERP Task status syncs customer-visible OMC status
-        |
-completion blockers pass
-        |
-OMC Service Request Completed
-```
-
-This is the core backend-driven bridge between the Flutter customer experience and the client's normal ERP execution environment.
-
----
-
-# 31. Source locations
-
-The main implementation areas behind this guide are:
-
-```text
-Customer signup / verification
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/pending_registration.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py
-
-Existing customer migration / activation
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_migration.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_activation.py
-
-Staff identity and capability
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/staff_profile.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/access.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/setup/roles.py
-
-Service request / assignment
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/service_request_guard.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/assisted_service.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/service_assignment.py
-
-Documents / payment / workflow
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/customer_documents.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/payments.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/workflow_automation.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/review_routing.py
-
-ERP bridge
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_activation.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_service_task_adapter.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/erp_task_status_sync.py
-
-Lead authority
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/lead_read_guard.py
-backend_omc_app/frappe-bench/apps/omc_app/omc_app/api/mobile.py
-
-Flutter routing
-omc_app/lib/app/router.dart
-```
-
----
-
-# 32. Final architecture summary
-
-OMC App now follows this principle:
-
-```text
-ERP owns ERP records.
-OMC owns OMC application/workflow state.
-Flutter is the user experience.
-Frappe backend is the authority.
-```
-
-The core customer workflow is:
-
-```text
-Customer identity
-    -> OMC Customer Profile
-    -> OMC Service Request
-    -> documents
-    -> payment gate
-    -> ERP Service / Task
-    -> execution
-    -> completion
-```
-
-The core staff workflow is:
-
-```text
-Frappe User / ERP Employee
-    -> OMC Staff Profile approval
-    -> effective OMC persona
-    -> capabilities
-    -> assignment/relevance scope
-    -> guarded operation
-```
-
-And the core security rule remains:
-
-> **Never create identity from a guess, never grant access from UI visibility, never use one broad staff flag as authority, and never patch ERPNext source to implement OMC business logic.**
+- ambiguous customer identities remain review cases;
+- unresolved catalogue commercial data keeps services inactive;
+- legacy document matching exists only for genuine unkeyed history;
+- Staff Access reconciliation conflicts fail closed;
+- System Manager does not receive implicit OMC business authority;
+- ERP activation fails/retries rather than leaving partial links;
+- ERPNext source remains untouched.
