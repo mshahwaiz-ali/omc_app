@@ -1,13 +1,15 @@
 {
  "actions": [], "allow_rename": 0, "autoname": "field:allocation_key", "creation": "2026-08-19 00:00:00.000000", "doctype": "DocType", "engine": "InnoDB",
- "field_order": ["allocation_key", "payment_entry", "payment_reference_row", "sales_invoice", "service_request", "erp_customer", "referral_attribution", "component", "beneficiary_type", "beneficiary", "beneficiary_user", "source_persona_snapshot", "currency", "exchange_rate", "basis_amount", "commission_percent_snapshot", "commission_amount", "structure_snapshot", "calculation_version", "status", "earned_on", "approval_section", "approved_by", "approved_at", "payable_marked_by", "payable_marked_at", "rejected_by", "rejected_at", "rejection_reason", "settlement_section", "settlement_reference", "settled_by", "settled_on", "reversal_reason", "reversed_on", "accounting_evidence_status"],
+ "field_order": ["allocation_key", "provenance", "payment_entry", "payment_reference_row", "sales_invoice", "service_request", "erp_customer", "legacy_journal_entry", "referral_attribution", "component", "beneficiary_type", "beneficiary", "beneficiary_user", "source_persona_snapshot", "currency", "exchange_rate", "basis_amount", "commission_percent_snapshot", "commission_amount", "structure_snapshot", "calculation_version", "status", "earned_on", "approval_section", "approved_by", "approved_at", "payable_marked_by", "payable_marked_at", "rejected_by", "rejected_at", "rejection_reason", "settlement_section", "settlement_reference", "settled_by", "settled_on", "reversal_reason", "reversed_on", "accounting_evidence_status"],
  "fields": [
   {"fieldname": "allocation_key", "fieldtype": "Data", "label": "Allocation Key", "reqd": 1, "unique": 1},
+  {"default": "Current OMC", "fieldname": "provenance", "fieldtype": "Select", "in_list_view": 1, "label": "Provenance", "options": "Current OMC\nHistorical Legacy", "reqd": 1},
   {"fieldname": "payment_entry", "fieldtype": "Link", "in_list_view": 1, "label": "Payment Entry", "options": "Payment Entry", "reqd": 1},
-  {"fieldname": "payment_reference_row", "fieldtype": "Data", "label": "Payment Reference Row", "reqd": 1},
-  {"fieldname": "sales_invoice", "fieldtype": "Link", "label": "Sales Invoice", "options": "Sales Invoice", "reqd": 1},
-  {"fieldname": "service_request", "fieldtype": "Link", "label": "Service Request", "options": "OMC Service Request", "reqd": 1},
+  {"fieldname": "payment_reference_row", "fieldtype": "Data", "label": "Payment Reference Row"},
+  {"fieldname": "sales_invoice", "fieldtype": "Link", "label": "Sales Invoice", "options": "Sales Invoice"},
+  {"fieldname": "service_request", "fieldtype": "Link", "label": "Service Request", "options": "OMC Service Request"},
   {"fieldname": "erp_customer", "fieldtype": "Link", "label": "ERP Customer", "options": "Customer", "reqd": 1},
+  {"fieldname": "legacy_journal_entry", "fieldtype": "Link", "label": "Legacy Journal Entry", "options": "Journal Entry", "read_only": 1},
   {"fieldname": "referral_attribution", "fieldtype": "Link", "label": "Referral Attribution", "options": "OMC Referral Attribution"},
   {"fieldname": "component", "fieldtype": "Select", "in_list_view": 1, "label": "Component", "options": "Sales Person\nBusiness Partner Consultant\nReference Business Partner", "reqd": 1},
   {"fieldname": "beneficiary_type", "fieldtype": "Data", "label": "Beneficiary Type", "reqd": 1},
@@ -39,6 +41,6 @@
   {"fieldname": "reversed_on", "fieldtype": "Datetime", "label": "Reversed On", "read_only": 1},
   {"fieldname": "accounting_evidence_status", "fieldtype": "Select", "label": "Accounting Evidence Status", "options": "Unverified\nMatched\nMissing\nReview Required\nQuarantined\nReversed", "read_only": 1}
  ],
- "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-19 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Commission Allocation", "owner": "Administrator",
+ "index_web_pages_for_search": 0, "links": [], "modified": "2026-08-25 00:00:00.000000", "modified_by": "Administrator", "module": "OMC App", "name": "OMC Commission Allocation", "owner": "Administrator",
  "permissions": [{"export": 1, "read": 1, "report": 1, "role": "OMC Admin"}, {"export": 1, "read": 1, "report": 1, "role": "OMC Finance Reviewer"}], "sort_field": "earned_on", "sort_order": "DESC", "states": [], "track_changes": 1
 }
