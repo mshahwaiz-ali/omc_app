@@ -69,44 +69,47 @@ void main() {
     expect(detail.activities, isEmpty);
   });
 
-  test('uses backend payment review action and does not infer a second payment', () {
-    final detail = CustomerServiceCaseDetail.fromResponse({
-      'case': {
-        'name': 'SR-002',
-        'request_state': 'Pending Payment',
-        'status': 'Waiting for Payment',
-        'receipt': {
-          'status': 'Submitted',
-          'payment_status': 'Receipt Submitted',
-          'payment_id': 'PAY-002',
-        },
-        'settlement': {'status': 'Unmatched'},
-        'customer_lifecycle': {
-          'current_stage': 'Payment review',
-          'progress_percent': 50,
-          'action_required': false,
-          'terminal': false,
-          'completed': false,
-          'payment_not_required': false,
-          'next_action': {
-            'type': 'await_payment_review',
-            'title': 'Payment under review',
-            'subtitle': 'OMC is reviewing your submitted payment evidence.',
-            'route': '/payments',
-            'button_label': 'View payment',
-            'required': false,
+  test(
+    'uses backend payment review action and does not infer a second payment',
+    () {
+      final detail = CustomerServiceCaseDetail.fromResponse({
+        'case': {
+          'name': 'SR-002',
+          'request_state': 'Pending Payment',
+          'status': 'Waiting for Payment',
+          'receipt': {
+            'status': 'Submitted',
+            'payment_status': 'Receipt Submitted',
+            'payment_id': 'PAY-002',
           },
-          'milestones': <Map<String, dynamic>>[],
+          'settlement': {'status': 'Unmatched'},
+          'customer_lifecycle': {
+            'current_stage': 'Payment review',
+            'progress_percent': 50,
+            'action_required': false,
+            'terminal': false,
+            'completed': false,
+            'payment_not_required': false,
+            'next_action': {
+              'type': 'await_payment_review',
+              'title': 'Payment under review',
+              'subtitle': 'OMC is reviewing your submitted payment evidence.',
+              'route': '/payments',
+              'button_label': 'View payment',
+              'required': false,
+            },
+            'milestones': <Map<String, dynamic>>[],
+          },
         },
-      },
-    });
+      });
 
-    expect(detail.paymentUnderReview, isTrue);
-    expect(detail.paymentNeedsCorrection, isFalse);
-    expect(detail.actionRequired, isFalse);
-    expect(detail.nextAction?.type, 'await_payment_review');
-    expect(detail.paymentId, 'PAY-002');
-  });
+      expect(detail.paymentUnderReview, isTrue);
+      expect(detail.paymentNeedsCorrection, isFalse);
+      expect(detail.actionRequired, isFalse);
+      expect(detail.nextAction?.type, 'await_payment_review');
+      expect(detail.paymentId, 'PAY-002');
+    },
+  );
 
   test('keeps document instructions and backend-required status', () {
     final detail = CustomerServiceCaseDetail.fromResponse({
@@ -117,7 +120,9 @@ void main() {
         'document_details': [
           {
             'id': '-',
+            'document_key': 'bank_statement',
             'title': 'Bank statement',
+            'document_type': 'Financial',
             'status': 'Pending',
             'remarks': 'Upload the latest three months.',
             'file_url': '',
@@ -152,6 +157,12 @@ void main() {
 
     expect(detail.requiredDocuments, hasLength(1));
     expect(detail.requiredDocuments.single.title, 'Bank statement');
+    expect(detail.requiredDocuments.single.documentKey, 'bank_statement');
+    expect(detail.requiredDocuments.single.documentType, 'Financial');
+    expect(
+      detail.requiredDocuments.single.uploadIdentity,
+      'key:bank_statement',
+    );
     expect(
       detail.requiredDocuments.single.remarks,
       'Upload the latest three months.',
@@ -184,7 +195,13 @@ void main() {
     });
 
     expect(detail.activities, hasLength(1));
-    expect(detail.activities.single.title, 'Consultant requested clarification');
-    expect(detail.activities.single.subtitle, 'Please confirm the filing year.');
+    expect(
+      detail.activities.single.title,
+      'Consultant requested clarification',
+    );
+    expect(
+      detail.activities.single.subtitle,
+      'Please confirm the filing year.',
+    );
   });
 }

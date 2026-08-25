@@ -205,7 +205,14 @@ def _normalize_service_case_documents(service_case):
         documents = service_case.get("submitted_documents") or service_case.get("documents") or []
 
     try:
-        required_document_templates = mobile._service_required_documents(service_name) if service_name else []
+        required_document_templates = (
+            mobile._service_required_documents(
+                service_name,
+                service_request=service_request,
+            )
+            if service_name
+            else []
+        )
     except Exception:
         required_document_templates = service_case.get("required_documents") or []
 
@@ -286,50 +293,90 @@ def _apply_service_case_tracking_summary(service_case):
     service_case.update(workflow_contract.project(service_case))
 
 
-def _merged_document_details(documents, required_document_templates=None):
-    merged = []
-    seen_keys = set()
-    uploaded_by_key = {}
+def _merged_document_details(
+    documents,
+    required_document_templates=None,
+):
+    """Merge configured requirements with submitted documents one-to-one.
 
-    for document in documents or []:
-        if isinstance(document, dict):
-            key = _document_key(document)
-            if key:
-                uploaded_by_key[key] = document
+    Uses the same stable-key-first matcher as payment eligibility so customer
+    tracking cannot disagree with the payment gate after a display-title
+    change. Legacy unkeyed rows retain exact title/type compatibility.
+    """
+    uploaded_documents = [
+        document
+        for document in documents or []
+        if isinstance(document, dict)
+    ]
+    unused_indexes = set(range(len(uploaded_documents)))
+    merged = []
 
     for template in required_document_templates or []:
         if not isinstance(template, dict):
             continue
-        key = _document_key(template)
-        if not key:
-            continue
-        uploaded = uploaded_by_key.get(key)
-        merged.append(_document_detail_from_uploaded(uploaded, template) if uploaded else _document_detail_from_template(template))
-        seen_keys.add(key)
 
-    for document in documents or []:
-        if not isinstance(document, dict):
+        matched_index = None
+
+        for index in sorted(unused_indexes):
+            if mobile._documents_match(
+                template,
+                uploaded_documents[index],
+            ):
+                matched_index = index
+                break
+
+        if matched_index is None:
+            merged.append(
+                _document_detail_from_template(template)
+            )
             continue
-        key = _document_key(document)
-        if key and key in seen_keys:
-            continue
-        merged.append(_document_detail_from_uploaded(document, None))
+
+        merged.append(
+            _document_detail_from_uploaded(
+                uploaded_documents[matched_index],
+                template,
+            )
+        )
+        unused_indexes.remove(matched_index)
+
+    for index in sorted(unused_indexes):
+        merged.append(
+            _document_detail_from_uploaded(
+                uploaded_documents[index],
+                None,
+            )
+        )
 
     return merged
 
 
-def _document_key(item):
-    title = (item.get("title") or item.get("document_title") or "").strip().lower()
-    doc_type = (item.get("type") or item.get("document_type") or "").strip().lower()
-    return title or doc_type
+def _stable_document_key(item):
+    item = item or {}
+    return str(
+        item.get("document_key")
+        or item.get("key")
+        or ""
+    ).strip()
 
 
 def _document_detail_from_template(template):
-    title = template.get("title") or template.get("document_title") or ""
-    doc_type = template.get("type") or template.get("document_type") or ""
+    document_key = _stable_document_key(template)
+    title = (
+        template.get("title")
+        or template.get("document_title")
+        or ""
+    )
+    doc_type = (
+        template.get("type")
+        or template.get("document_type")
+        or ""
+    )
+
     return {
         "name": "-",
         "id": "-",
+        "document_key": document_key,
+        "key": document_key,
         "title": title,
         "document_title": title,
         "type": doc_type,
@@ -347,16 +394,40 @@ def _document_detail_from_template(template):
 def _document_detail_from_uploaded(document, template=None):
     document = document or {}
     template = template or {}
-    title = document.get("title") or document.get("document_title") or template.get("title") or template.get("document_title") or ""
-    doc_type = document.get("type") or document.get("document_type") or template.get("type") or template.get("document_type") or ""
+
+    document_key = (
+        _stable_document_key(document)
+        or _stable_document_key(template)
+    )
+    title = (
+        document.get("title")
+        or document.get("document_title")
+        or template.get("title")
+        or template.get("document_title")
+        or ""
+    )
+    doc_type = (
+        document.get("type")
+        or document.get("document_type")
+        or template.get("type")
+        or template.get("document_type")
+        or ""
+    )
     status = document.get("status") or "Uploaded"
-    attachment = document.get("file_url") or document.get("attachment") or ""
+    attachment = (
+        document.get("file_url")
+        or document.get("attachment")
+        or ""
+    )
+
     if status.strip().lower() == "rejected":
         attachment = ""
 
     return {
         "name": document.get("name") or document.get("id") or "",
         "id": document.get("name") or document.get("id") or "",
+        "document_key": document_key,
+        "key": document_key,
         "title": title,
         "document_title": title,
         "type": doc_type,
@@ -364,12 +435,18 @@ def _document_detail_from_uploaded(document, template=None):
         "file_url": attachment,
         "attachment": attachment,
         "status": status,
-        "remarks": document.get("remarks") or "",
-        "uploaded_at": _format_mobile_datetime(document.get("uploaded_at") or document.get("uploaded_on")),
+        "remarks": (
+            document.get("remarks")
+            or template.get("instructions")
+            or ""
+        ),
+        "uploaded_at": _format_mobile_datetime(
+            document.get("uploaded_at")
+            or document.get("uploaded_on")
+        ),
         "uploaded_by": document.get("uploaded_by") or "",
         "is_required": template.get("is_required", 0),
     }
-
 
 def _payment_detail(payment):
     return {

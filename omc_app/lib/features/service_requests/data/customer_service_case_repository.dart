@@ -311,16 +311,27 @@ class CustomerServiceCaseDocument {
     required this.remarks,
     required this.fileUrl,
     required this.isRequired,
+    this.documentKey = '',
+    this.documentType = '',
   });
 
   final String id;
   final String title;
+  final String documentKey;
+  final String documentType;
   final String status;
   final String remarks;
   final String fileUrl;
   final bool isRequired;
 
   String get normalizedStatus => status.trim().toLowerCase();
+
+  String get uploadIdentity {
+    final key = documentKey.trim().toLowerCase();
+    if (key.isNotEmpty) return 'key:$key';
+
+    return 'legacy:${title.trim().toLowerCase()}|${documentType.trim().toLowerCase()}';
+  }
 
   bool get isApproved =>
       normalizedStatus == 'approved' || normalizedStatus == 'verified';
@@ -347,6 +358,8 @@ class CustomerServiceCaseDocument {
     return CustomerServiceCaseDocument(
       id: _text(json['id'] ?? json['name']),
       title: _text(json['title'] ?? json['document_title']),
+      documentKey: _text(json['document_key'] ?? json['key']),
+      documentType: _text(json['document_type'] ?? json['type']),
       status: _text(json['status']),
       remarks: _text(json['remarks'] ?? json['instructions']),
       fileUrl: _text(json['file_url'] ?? json['attachment']),

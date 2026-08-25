@@ -1,15 +1,31 @@
 part of 'customer_service_case_detail_screen.dart';
 
-class _DocumentsCard extends StatelessWidget {
-  const _DocumentsCard({required this.detail, required this.canViewDocuments});
+class _DocumentsCard extends ConsumerStatefulWidget {
+  const _DocumentsCard({
+    required this.detail,
+    required this.canViewDocuments,
+    required this.canUploadDocuments,
+  });
 
   final CustomerServiceCaseDetail detail;
   final bool canViewDocuments;
+  final bool canUploadDocuments;
+
+  @override
+  ConsumerState<_DocumentsCard> createState() => _DocumentsCardState();
+}
+
+class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
+  final Set<String> _uploading = <String>{};
 
   @override
   Widget build(BuildContext context) {
+    final detail = widget.detail;
     final documents = detail.requiredDocuments;
     final needsUpload = detail.documentsNeedingUpload > 0;
+    final hasUploadedDocuments = documents.any(
+      (document) => document.fileUrl.trim().isNotEmpty,
+    );
 
     return PremiumCard(
       padding: const EdgeInsets.all(17),
@@ -18,7 +34,7 @@ class _DocumentsCard extends StatelessWidget {
         children: [
           Semantics(
             header: true,
-            child: Text(
+            child: const Text(
               'Required documents',
               style: TextStyle(
                 color: AppTheme.textPrimary,
@@ -52,15 +68,23 @@ class _DocumentsCard extends StatelessWidget {
             ),
             const SizedBox(height: 13),
             for (final document in documents) ...[
-              _DocumentRow(document: document),
+              _DocumentRow(
+                document: document,
+                canUpload:
+                    widget.canUploadDocuments &&
+                    !detail.isTerminal &&
+                    document.needsUpload,
+                isUploading: _uploading.contains(document.uploadIdentity),
+                onUpload: () => _uploadRequiredDocument(document),
+              ),
               const SizedBox(height: 8),
             ],
-            if (canViewDocuments && needsUpload) ...[
+            if (widget.canViewDocuments && hasUploadedDocuments) ...[
               const SizedBox(height: 5),
               OutlinedButton.icon(
                 onPressed: () => context.go('/documents'),
-                icon: const Icon(Icons.upload_file_outlined),
-                label: const Text('Open documents'),
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const Text('View uploaded documents'),
               ),
             ],
           ],
@@ -68,18 +92,100 @@ class _DocumentsCard extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _uploadRequiredDocument(
+    CustomerServiceCaseDocument document,
+  ) async {
+    final identity = document.uploadIdentity;
+    if (_uploading.contains(identity)) return;
+
+    final picker = ref.read(documentAttachmentControllerProvider);
+    final pickResult = await picker.pickDocuments(maxFiles: 1);
+
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    for (final message in pickResult.rejectedMessages) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    }
+
+    if (!pickResult.hasAcceptedFiles) return;
+
+    final attachment = pickResult.accepted.first;
+
+    setState(() => _uploading.add(identity));
+
+    try {
+      await ref
+          .read(documentsRepositoryProvider)
+          .uploadRequiredDocument(
+            serviceRequestId: widget.detail.id,
+            documentKey: document.documentKey,
+            documentTitle: document.title,
+            documentType: document.documentType,
+            attachment: attachment,
+          );
+
+      if (!mounted) return;
+
+      ref.invalidate(customerServiceCaseDetailProvider(widget.detail.id));
+      ref.invalidate(serviceCasesProvider);
+      ref.invalidate(homeDashboardSummaryProvider);
+      ref.invalidate(documentPageProvider);
+      ref.invalidate(documentsProvider);
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('${document.title} uploaded successfully.')),
+      );
+
+      try {
+        await ref.read(
+          customerServiceCaseDetailProvider(widget.detail.id).future,
+        );
+      } catch (_) {
+        // The case screen already exposes pull-to-refresh/retry.
+      }
+    } catch (error) {
+      if (!mounted) return;
+
+      final failure = AppFailureClassifier.classify(
+        error,
+        fallbackTitle: 'Document upload failed',
+        fallbackMessage:
+            'The document could not be uploaded right now. Please try again.',
+      );
+
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      if (mounted) {
+        setState(() => _uploading.remove(identity));
+      }
+    }
+  }
 }
 
 class _DocumentRow extends StatelessWidget {
-  const _DocumentRow({required this.document});
+  const _DocumentRow({
+    required this.document,
+    required this.canUpload,
+    required this.isUploading,
+    required this.onUpload,
+  });
 
   final CustomerServiceCaseDocument document;
+  final bool canUpload;
+  final bool isUploading;
+  final VoidCallback onUpload;
 
   @override
   Widget build(BuildContext context) {
-    final (label, icon, foreground, background) = switch (
-      document.normalizedStatus
-    ) {
+    final (
+      label,
+      icon,
+      foreground,
+      background,
+    ) = switch (document.normalizedStatus) {
       'approved' || 'verified' => (
         'Approved',
         Icons.check_circle_outline_rounded,
@@ -106,26 +212,26 @@ class _DocumentRow extends StatelessWidget {
       ),
     };
 
-    return Semantics(
-      label: '${document.title}, $label${document.remarks.isEmpty ? '' : ', ${document.remarks}'}',
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: foreground.withValues(alpha: 0.13)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 19, color: foreground),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: foreground.withValues(alpha: 0.13)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ExcludeSemantics(child: Icon(icon, size: 19, color: foreground)),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  label: '${document.title}, $label',
+                  excludeSemantics: true,
+                  child: Text(
                     document.title,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
@@ -133,32 +239,64 @@ class _DocumentRow extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  if (document.remarks.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      document.remarks,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
+                ),
+                if (document.remarks.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    document.remarks,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
+                  ),
                 ],
-              ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              ExcludeSemantics(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+              if (canUpload) ...[
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 34,
+                  child: OutlinedButton(
+                    onPressed: isUploading ? null : onUpload,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    child: isUploading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            document.isRejected ? 'Replace' : 'Upload',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

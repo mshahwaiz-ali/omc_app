@@ -217,23 +217,37 @@ def completion_blockers(service_case):
     blockers = []
 
     required_templates = mobile._service_required_documents(
-        service_case.service
+        service_case.service,
+        service_request=service_case,
     )
+    document_fields = [
+        "document_title",
+        "document_type",
+        "status",
+        "attachment",
+    ]
+    if mobile._doctype_has_field(
+        "OMC Service Document",
+        "document_key",
+    ):
+        document_fields.insert(0, "document_key")
+
     documents = frappe.get_all(
         "OMC Service Document",
         filters={
             "service_request": service_case.name,
             "visible_to_customer": 1,
         },
-        fields=[
-            "document_title",
-            "document_type",
-            "status",
-            "attachment",
-        ],
+        fields=document_fields,
     )
     document_payload = [
         {
+            "document_key": getattr(
+                row,
+                "document_key",
+                "",
+            )
+            or "",
             "document_title": getattr(
                 row,
                 "document_title",

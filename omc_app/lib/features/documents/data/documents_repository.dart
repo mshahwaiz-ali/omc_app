@@ -72,8 +72,9 @@ final assistedDocumentsProvider =
       ref,
       serviceRequest,
     ) async {
-      return (await ref.watch(assistedDocumentPageProvider(serviceRequest).future))
-          .items;
+      return (await ref.watch(
+        assistedDocumentPageProvider(serviceRequest).future,
+      )).items;
     });
 
 final documentDetailProvider = FutureProvider.family<DocumentItem?, String>((
@@ -158,18 +159,16 @@ class DocumentsRepository {
     int start = 0,
     int limit = 20,
   }) async {
-    return (
-      await fetchDocumentPage(
-        showArchived: showArchived,
-        queue: queue,
-        customer: customer,
-        serviceRequest: serviceRequest,
-        status: status,
-        assisted: assisted,
-        start: start,
-        limit: limit,
-      )
-    ).items;
+    return (await fetchDocumentPage(
+      showArchived: showArchived,
+      queue: queue,
+      customer: customer,
+      serviceRequest: serviceRequest,
+      status: status,
+      assisted: assisted,
+      start: start,
+      limit: limit,
+    )).items;
   }
 
   Future<DocumentItem?> fetchDocumentDetail(
@@ -253,7 +252,7 @@ class DocumentsRepository {
     }
 
     final uploadableAttachments = attachments
-        .where((attachment) => attachment.hasUploadPath)
+        .where((attachment) => attachment.hasUploadData)
         .toList(growable: false);
 
     if (uploadableAttachments.isEmpty) {
@@ -265,64 +264,132 @@ class DocumentsRepository {
     final uploadedFiles = <Map<String, dynamic>>[];
 
     for (final attachment in uploadableAttachments) {
-      if (!attachment.hasUploadData) {
-        continue;
-      }
-
-      final uploadResponse = await _uploadCoordinator.upload(
-        filePath: attachment.path,
-        fileBytes: attachment.bytes,
-        fileName: attachment.name,
-        sizeBytes: attachment.sizeInBytes,
-        policy: const UploadPolicy(
-          allowedExtensions: {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'},
-          maxSizeBytes: 10 * 1024 * 1024,
+      uploadedFiles.add(
+        await _uploadDocumentAttachment(
+          serviceRequestId: cleanServiceRequestId,
+          documentTitle: attachment.name,
+          documentType: attachment.extension ?? 'General',
+          attachment: attachment,
         ),
-        doctype: ApiConfig.serviceRequestUploadDoctype,
-        docname: cleanServiceRequestId,
       );
-
-      final uploadedFileUrl = _extractFileUrl(uploadResponse);
-      if (uploadedFileUrl == null) {
-        throw const ApiError(
-          message:
-              'Document uploaded but the server did not return a file URL.',
-        );
-      }
-
-      final data = {
-        'case_id': cleanServiceRequestId,
-        'request_id': cleanServiceRequestId,
-        'service_request': cleanServiceRequestId,
-        'name': cleanServiceRequestId,
-        'document_title': attachment.name,
-        'document_type': attachment.extension,
-        'file_url': uploadedFileUrl,
-        'attachment': uploadedFileUrl,
-        'status': 'Uploaded',
-        'source': 'Service Upload',
-      };
-      final intent = _uploadIntents.putIfAbsent(
-        '$cleanServiceRequestId:${attachment.id}',
-        MutationIntent.new,
-      );
-      final key = intent.keyFor({
-        'case_id': cleanServiceRequestId,
-        'attachment_id': attachment.id,
-        'file_name': attachment.name,
-        'file_size': attachment.sizeInBytes,
-      });
-      final response = await _frappeClient.postMethod(
-        ApiConfig.uploadServiceDocumentMethod,
-        data: {...data, 'idempotency_key': key},
-        idempotencyKey: key,
-      );
-
-      uploadedFiles.add(response);
-      intent.complete();
     }
 
     return uploadedFiles;
+  }
+
+  Future<Map<String, dynamic>> uploadRequiredDocument({
+    required String serviceRequestId,
+    required String documentTitle,
+    required String documentType,
+    required DocumentAttachment attachment,
+    String documentKey = '',
+  }) async {
+    final cleanServiceRequestId = serviceRequestId.trim();
+    final cleanDocumentKey = documentKey.trim();
+    final cleanDocumentTitle = documentTitle.trim();
+    final cleanDocumentType = documentType.trim();
+
+    if (cleanServiceRequestId.isEmpty) {
+      throw const ApiError(
+        message: 'Missing service request reference for upload.',
+      );
+    }
+
+    if (cleanDocumentTitle.isEmpty) {
+      throw const ApiError(message: 'Missing required document title.');
+    }
+
+    if (!attachment.hasUploadData) {
+      throw const ApiError(
+        message: 'Selected file is not available for upload on this device.',
+      );
+    }
+
+    return _uploadDocumentAttachment(
+      serviceRequestId: cleanServiceRequestId,
+      documentKey: cleanDocumentKey,
+      documentTitle: cleanDocumentTitle,
+      documentType: cleanDocumentType,
+      attachment: attachment,
+    );
+  }
+
+  Future<Map<String, dynamic>> _uploadDocumentAttachment({
+    required String serviceRequestId,
+    required String documentTitle,
+    required String documentType,
+    required DocumentAttachment attachment,
+    String documentKey = '',
+  }) async {
+    final cleanDocumentKey = documentKey.trim();
+    final cleanDocumentTitle = documentTitle.trim().isEmpty
+        ? attachment.name.trim()
+        : documentTitle.trim();
+    final cleanDocumentType = documentType.trim().isEmpty
+        ? (attachment.extension?.trim() ?? 'General')
+        : documentType.trim();
+
+    final uploadResponse = await _uploadCoordinator.upload(
+      filePath: attachment.path,
+      fileBytes: attachment.bytes,
+      fileName: attachment.name,
+      sizeBytes: attachment.sizeInBytes,
+      policy: const UploadPolicy(
+        allowedExtensions: {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'},
+        maxSizeBytes: 10 * 1024 * 1024,
+      ),
+      doctype: ApiConfig.serviceRequestUploadDoctype,
+      docname: serviceRequestId,
+    );
+
+    final uploadedFileUrl = _extractFileUrl(uploadResponse);
+    if (uploadedFileUrl == null) {
+      throw const ApiError(
+        message: 'Document uploaded but the server did not return a file URL.',
+      );
+    }
+
+    final data = <String, dynamic>{
+      'case_id': serviceRequestId,
+      'request_id': serviceRequestId,
+      'service_request': serviceRequestId,
+      'name': serviceRequestId,
+      if (cleanDocumentKey.isNotEmpty) 'document_key': cleanDocumentKey,
+      'document_title': cleanDocumentTitle,
+      'document_type': cleanDocumentType,
+      'file_url': uploadedFileUrl,
+      'attachment': uploadedFileUrl,
+      'status': 'Uploaded',
+      'source': 'Service Upload',
+    };
+
+    final identity = cleanDocumentKey.isNotEmpty
+        ? 'key:$cleanDocumentKey'
+        : 'legacy:$cleanDocumentTitle:$cleanDocumentType';
+
+    final intent = _uploadIntents.putIfAbsent(
+      '$serviceRequestId:$identity:${attachment.id}',
+      MutationIntent.new,
+    );
+
+    final key = intent.keyFor({
+      'case_id': serviceRequestId,
+      'document_key': cleanDocumentKey,
+      'document_title': cleanDocumentTitle,
+      'document_type': cleanDocumentType,
+      'attachment_id': attachment.id,
+      'file_name': attachment.name,
+      'file_size': attachment.sizeInBytes,
+    });
+
+    final response = await _frappeClient.postMethod(
+      ApiConfig.uploadServiceDocumentMethod,
+      data: {...data, 'idempotency_key': key},
+      idempotencyKey: key,
+    );
+
+    intent.complete();
+    return response;
   }
 
   String? _extractFileUrl(Map<String, dynamic> response) {
@@ -448,6 +515,7 @@ class DocumentsRepository {
     return DocumentItem(
       id: _stringValue(json['id'] ?? json['name'] ?? json['document_id']),
       title: title,
+      documentKey: _nullableString(json['document_key'] ?? json['key']),
       subtitle: _documentSubtitle(
         type: type,
         serviceTitle: serviceTitle,

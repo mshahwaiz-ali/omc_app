@@ -98,9 +98,120 @@ def _service_completion_time(service):
     )
 
 
-def _service_required_documents(service_name):
-    if not service_name or not _has_doctype("OMC Service Required Document"):
+def _service_request_creation(service_request):
+    """Resolve the immutable request creation time without changing state."""
+    if not service_request:
+        return None
+
+    request_name = ""
+
+    if isinstance(service_request, str):
+        request_name = service_request.strip()
+    elif isinstance(service_request, dict):
+        creation = service_request.get("creation")
+        if creation:
+            return creation
+
+        request_name = str(
+            service_request.get("name")
+            or service_request.get("id")
+            or service_request.get("case_id")
+            or ""
+        ).strip()
+    else:
+        creation = getattr(
+            service_request,
+            "creation",
+            None,
+        )
+        if creation:
+            return creation
+
+        request_name = str(
+            getattr(service_request, "name", None)
+            or ""
+        ).strip()
+
+    if not request_name:
+        return None
+
+    return frappe.db.get_value(
+        "OMC Service Request",
+        request_name,
+        "creation",
+    )
+
+
+def _required_document_applies_to_request(
+    requirement,
+    request_creation,
+):
+    """Return whether a template belongs to a request's document contract.
+
+    Legacy templates have no effective_from and therefore continue applying
+    to all existing requests. Newly provisioned templates receive an
+    effective_from timestamp and only apply to requests created at or after
+    that timestamp.
+
+    Invalid timestamps fail closed by keeping the requirement applicable.
+    """
+    if not request_creation:
+        return True
+
+    if isinstance(requirement, dict):
+        effective_from = requirement.get(
+            "effective_from"
+        )
+    else:
+        effective_from = getattr(
+            requirement,
+            "effective_from",
+            None,
+        )
+
+    if not effective_from:
+        return True
+
+    try:
+        return (
+            frappe.utils.get_datetime(request_creation)
+            >= frappe.utils.get_datetime(effective_from)
+        )
+    except Exception:
+        return True
+
+
+def _service_required_documents(
+    service_name,
+    service_request=None,
+):
+    if not service_name or not _has_doctype(
+        "OMC Service Required Document"
+    ):
         return []
+
+    fields = [
+        "name",
+        "document_title",
+        "document_type",
+        "is_required",
+        "instructions",
+        "allowed_extensions",
+        "max_size_mb",
+        "sort_order",
+    ]
+
+    if _doctype_has_field(
+        "OMC Service Required Document",
+        "document_key",
+    ):
+        fields.insert(1, "document_key")
+
+    if _doctype_has_field(
+        "OMC Service Required Document",
+        "effective_from",
+    ):
+        fields.insert(2, "effective_from")
 
     rows = frappe.get_all(
         "OMC Service Required Document",
@@ -108,37 +219,110 @@ def _service_required_documents(service_name):
             "service": service_name,
             "is_active": 1,
         },
-        fields=[
-            "name",
-            "document_title",
-            "document_type",
-            "is_required",
-            "instructions",
-            "allowed_extensions",
-            "max_size_mb",
-            "sort_order",
-        ],
+        fields=fields,
         order_by="sort_order asc, creation asc",
     )
+
+    request_creation = _service_request_creation(
+        service_request
+    )
+
+    rows = [
+        row
+        for row in rows
+        if _required_document_applies_to_request(
+            row,
+            request_creation,
+        )
+    ]
 
     return [
         {
             "name": row.name,
-            "title": row.document_title or "",
-            "document_title": row.document_title or "",
-            "type": row.document_type or "",
-            "document_type": row.document_type or "",
-            "is_required": int(row.is_required or 0),
-            "instructions": row.instructions or "",
-            "allowed_extensions": row.allowed_extensions or "",
-            "max_size_mb": row.max_size_mb or 10,
-            "sort_order": row.sort_order or 0,
-            "status": "Required" if row.is_required else "Optional",
+            "document_key": getattr(
+                row,
+                "document_key",
+                None,
+            )
+            or "",
+            "key": getattr(
+                row,
+                "document_key",
+                None,
+            )
+            or "",
+            "title": getattr(
+                row,
+                "document_title",
+                "",
+            )
+            or "",
+            "document_title": getattr(
+                row,
+                "document_title",
+                "",
+            )
+            or "",
+            "type": getattr(
+                row,
+                "document_type",
+                "",
+            )
+            or "",
+            "document_type": getattr(
+                row,
+                "document_type",
+                "",
+            )
+            or "",
+            "is_required": int(
+                getattr(
+                    row,
+                    "is_required",
+                    0,
+                )
+                or 0
+            ),
+            "instructions": getattr(
+                row,
+                "instructions",
+                "",
+            )
+            or "",
+            "allowed_extensions": getattr(
+                row,
+                "allowed_extensions",
+                "",
+            )
+            or "",
+            "max_size_mb": getattr(
+                row,
+                "max_size_mb",
+                10,
+            )
+            or 10,
+            "sort_order": getattr(
+                row,
+                "sort_order",
+                0,
+            )
+            or 0,
+            "status": (
+                "Required"
+                if int(
+                    getattr(
+                        row,
+                        "is_required",
+                        0,
+                    )
+                    or 0
+                )
+                else "Optional"
+            ),
             "file_url": "",
         }
         for row in rows
     ]
-
 
 def _service_category_identity(service):
     category_id = (getattr(service, "category", None) or "").strip()
@@ -1151,31 +1335,43 @@ def create_service(**kwargs):
 
 
 def _get_service_documents(service_request):
+    fields = [
+        "name",
+        "document_title",
+        "document_type",
+        "attachment",
+        "status",
+        "uploaded_on",
+        "uploaded_by",
+        "remarks",
+    ]
+    if _doctype_has_field(
+        "OMC Service Document",
+        "document_key",
+    ):
+        fields.insert(1, "document_key")
+
     docs = frappe.get_all(
         "OMC Service Document",
         filters={
             "service_request": service_request,
             "visible_to_customer": 1,
         },
-        fields=[
-            "name",
-            "document_title",
-            "document_type",
-            "attachment",
-            "status",
-            "uploaded_on",
-            "uploaded_by",
-            "remarks",
-        ],
+        fields=fields,
         order_by="uploaded_on asc, creation asc",
     )
 
     return [
         {
             "name": doc.name,
+            "document_key": getattr(doc, "document_key", None) or "",
+            "key": getattr(doc, "document_key", None) or "",
             "title": doc.document_title or "",
+            "document_title": doc.document_title or "",
             "type": doc.document_type or "",
+            "document_type": doc.document_type or "",
             "file_url": doc.attachment or "",
+            "attachment": doc.attachment or "",
             "status": doc.status or "",
             "uploaded_at": _format_datetime(doc.uploaded_on),
             "uploaded_by": doc.uploaded_by or "",
@@ -1257,19 +1453,61 @@ def _split_service_documents(documents, required_document_templates=None):
     return required_documents, submitted_documents, missing_documents
 
 
-def _document_match_identity(document):
-    def clean(value):
-        return " ".join(str(value or "").strip().lower().split())
+def _normalized_document_value(value):
+    return " ".join(
+        str(value or "").strip().lower().split()
+    )
 
-    title = clean(
+
+def _document_key(document):
+    document = document or {}
+    return _normalized_document_value(
+        document.get("document_key")
+        or document.get("key")
+    )
+
+
+def _document_match_identity(document):
+    """Return the legacy title/type identity.
+
+    Kept as a compatibility helper for older callers and records.
+    New matching should use _documents_match().
+    """
+    document = document or {}
+
+    title = _normalized_document_value(
         document.get("title")
         or document.get("document_title")
     )
-    document_type = clean(
+    document_type = _normalized_document_value(
         document.get("type")
         or document.get("document_type")
     )
     return title, document_type
+
+
+def _documents_match(template, document):
+    """Match a requirement template to an uploaded document safely.
+
+    When both records have a stable document_key, that key is authoritative.
+    A mismatched key must never fall back to display title/type.
+
+    During rollout, legacy rows without a key remain compatible through exact
+    normalized title + type matching.
+    """
+    template_key = _document_key(template)
+    document_key = _document_key(document)
+
+    if template_key and document_key:
+        return template_key == document_key
+
+    template_identity = _document_match_identity(template)
+    document_identity = _document_match_identity(document)
+
+    return (
+        all(template_identity)
+        and template_identity == document_identity
+    )
 
 
 def _required_documents_complete(
@@ -1300,17 +1538,12 @@ def _required_documents_complete(
     unused_indexes = set(range(len(approved_documents)))
 
     for template in required_templates:
-        template_identity = _document_match_identity(template)
-        if not all(template_identity):
-            return False
-
         matched_index = None
+
         for index in sorted(unused_indexes):
-            if (
-                _document_match_identity(
-                    approved_documents[index]
-                )
-                == template_identity
+            if _documents_match(
+                template,
+                approved_documents[index],
             ):
                 matched_index = index
                 break
@@ -1332,6 +1565,9 @@ def _required_documents_uploaded(
     Document review/approval is intentionally separate from payment
     eligibility. One uploaded document can satisfy only one required
     template.
+
+    Stable document_key identity is authoritative when both records have it.
+    Legacy records without a key retain exact title/type compatibility.
     """
     required_templates = [
         template
@@ -1353,15 +1589,12 @@ def _required_documents_uploaded(
     unused_indexes = set(range(len(uploaded_documents)))
 
     for template in required_templates:
-        template_identity = _document_match_identity(template)
-        if not all(template_identity):
-            return False
-
         matched_index = None
+
         for index in sorted(unused_indexes):
-            if (
-                _document_match_identity(uploaded_documents[index])
-                == template_identity
+            if _documents_match(
+                template,
+                uploaded_documents[index],
             ):
                 matched_index = index
                 break
@@ -1372,7 +1605,6 @@ def _required_documents_uploaded(
         unused_indexes.remove(matched_index)
 
     return True
-
 
 def _service_case_payment_contract(
     service_case,
@@ -1767,7 +1999,10 @@ def get_service_case(case_id=None):
             frappe.throw("You do not have permission to access this service request", frappe.PermissionError)
 
     documents = _get_service_documents(service_case.name)
-    required_document_templates = _service_required_documents(service_case.service)
+    required_document_templates = _service_required_documents(
+        service_case.service,
+        service_request=service_case,
+    )
     required_documents, submitted_documents, missing_documents = _split_service_documents(
         documents,
         required_document_templates,

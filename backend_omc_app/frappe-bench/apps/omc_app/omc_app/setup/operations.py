@@ -72,6 +72,33 @@ def sync_service_task_type_mappings(*, commit: bool = True) -> dict[str, object]
     return {"ok": True, "operation": "sync_service_task_type_mappings"}
 
 
+def preview_service_catalogue() -> dict[str, object]:
+    """Read-only preview of source-controlled OMC catalogue reconciliation."""
+    from omc_app.setup.service_catalogue.provisioner import (
+        preview_service_catalogue as preview,
+    )
+
+    return preview()
+
+
+def validate_service_catalogue() -> dict[str, object]:
+    """Read-only exact-state validation of the source-controlled catalogue."""
+    from omc_app.setup.service_catalogue.provisioner import (
+        validate_service_catalogue as validate,
+    )
+
+    return validate()
+
+
+def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
+    """Explicit atomic reconciliation of the source-controlled catalogue."""
+    from omc_app.setup.service_catalogue.provisioner import (
+        sync_service_catalogue as sync,
+    )
+
+    return sync(commit=commit)
+
+
 def initialize_site(*, commit: bool = True) -> dict[str, object]:
     """Explicit, idempotent OMC site initialization/repair entrypoint.
 

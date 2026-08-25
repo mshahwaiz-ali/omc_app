@@ -34,7 +34,9 @@ class _ServiceHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      detail.title.isEmpty ? 'OMC service request' : detail.title,
+                      detail.title.isEmpty
+                          ? 'OMC service request'
+                          : detail.title,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 20,
@@ -205,7 +207,9 @@ class _LifecycleCard extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            detail.currentStage.isEmpty ? 'Current status' : detail.currentStage,
+            detail.currentStage.isEmpty
+                ? 'Current status'
+                : detail.currentStage,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12.5,
@@ -268,7 +272,8 @@ class _MilestoneRow extends StatelessWidget {
         : 'pending';
 
     return Semantics(
-      label: '${milestone.label}, $semanticState${milestone.detail.isEmpty ? '' : ', ${milestone.detail}'}',
+      label:
+          '${milestone.label}, $semanticState${milestone.detail.isEmpty ? '' : ', ${milestone.detail}'}',
       excludeSemantics: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,6 +374,9 @@ class _NextStepCard extends StatelessWidget {
       canViewPayments: canViewPayments,
     );
     final sameCaseRoute = action.route.trim().startsWith('/my-services/');
+    final handledInline =
+        detail.documentsNeedingUpload > 0 &&
+        action.route.trim().startsWith('/documents');
 
     return PremiumCard(
       padding: const EdgeInsets.all(16),
@@ -433,7 +441,7 @@ class _NextStepCard extends StatelessWidget {
               ),
             ],
           ),
-          if (canOpen && !sameCaseRoute) ...[
+          if (canOpen && !sameCaseRoute && !handledInline) ...[
             const SizedBox(height: 14),
             FilledButton.icon(
               onPressed: () => _openAction(context, detail, action),

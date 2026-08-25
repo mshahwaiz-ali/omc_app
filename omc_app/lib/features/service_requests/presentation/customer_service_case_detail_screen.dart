@@ -9,6 +9,8 @@ import '../../../core/widgets/app_back_header.dart';
 import '../../../core/widgets/app_skeleton.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../documents/application/document_attachment_controller.dart';
+import '../../documents/data/documents_repository.dart';
 import '../../home/data/home_dashboard_repository.dart';
 import '../../support/application/support_launcher.dart';
 import '../data/customer_service_case_repository.dart';
@@ -34,7 +36,9 @@ class _CustomerServiceCaseDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    final detailAsync = ref.watch(customerServiceCaseDetailProvider(widget.caseId));
+    final detailAsync = ref.watch(
+      customerServiceCaseDetailProvider(widget.caseId),
+    );
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
 
     Future<void> refresh() async {
@@ -108,6 +112,7 @@ class _CustomerServiceCaseDetailScreenState
                         _DocumentsCard(
                           detail: detail,
                           canViewDocuments: capabilities.canViewDocuments,
+                          canUploadDocuments: capabilities.canUploadDocuments,
                         ),
                         const SizedBox(height: 14),
                         _PaymentCard(
@@ -118,7 +123,8 @@ class _CustomerServiceCaseDetailScreenState
                           const SizedBox(height: 14),
                           _RecentActivityCard(activities: detail.activities),
                         ],
-                        if (detail.canCancel && capabilities.canTrackRequests) ...[
+                        if (detail.canCancel &&
+                            capabilities.canTrackRequests) ...[
                           const SizedBox(height: 14),
                           _CancelRequestCard(
                             busy: _isCancelling,

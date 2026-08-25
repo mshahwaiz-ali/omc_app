@@ -5,6 +5,7 @@ class DocumentItem {
     required this.id,
     required this.title,
     required this.status,
+    this.documentKey,
     this.subtitle,
     this.fileName,
     this.fileUrl,
@@ -37,6 +38,7 @@ class DocumentItem {
 
   final String id;
   final String title;
+  final String? documentKey;
   final String? subtitle;
   final String? fileName;
   final String? fileUrl;

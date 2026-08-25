@@ -139,6 +139,10 @@ class TestCrossFlowRegressionSuite(FrappeTestCase):
                     "is_required": 1,
                 }
             ],
+        ), patch.object(
+            workflow_automation.mobile,
+            "_doctype_has_field",
+            return_value=True,
         ):
             with patch.object(
                 workflow_automation.frappe,
@@ -180,6 +184,10 @@ class TestCrossFlowRegressionSuite(FrappeTestCase):
                     "is_required": 1,
                 }
             ],
+        ), patch.object(
+            workflow_automation.mobile,
+            "_doctype_has_field",
+            return_value=True,
         ):
             with patch.object(
                 workflow_automation.frappe,

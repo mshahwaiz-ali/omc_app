@@ -443,8 +443,21 @@ def _activate_case_erp(service_case, service=None):
 
 def _uploaded_required_documents(service_case):
     required_templates = mobile._service_required_documents(
-        service_case.service
+        service_case.service,
+        service_request=service_case,
     )
+
+    fields = [
+        "document_title",
+        "document_type",
+        "status",
+        "attachment",
+    ]
+    if mobile._doctype_has_field(
+        "OMC Service Document",
+        "document_key",
+    ):
+        fields.insert(0, "document_key")
 
     uploaded_docs = frappe.get_all(
         "OMC Service Document",
@@ -452,16 +465,12 @@ def _uploaded_required_documents(service_case):
             "service_request": service_case.name,
             "visible_to_customer": 1,
         },
-        fields=[
-            "document_title",
-            "document_type",
-            "status",
-            "attachment",
-        ],
+        fields=fields,
     )
 
     documents = [
         {
+            "document_key": getattr(doc, "document_key", None) or "",
             "document_title": doc.document_title or "",
             "document_type": doc.document_type or "",
             "status": doc.status or "",

@@ -7,6 +7,7 @@ from omc_app.api.mobile import (
     _current_user,
     _document_extension,
     _find_uploaded_file,
+    _service_required_documents,
 )
 
 
@@ -48,13 +49,147 @@ def _document_identity(value):
     return " ".join(str(value or "").strip().lower().split())
 
 
+def _canonical_requirement_identity(
+    service_case,
+    document_key="",
+    document_title="",
+    document_type="",
+):
+    submitted_key = _document_identity(
+        document_key
+    )
+    submitted_title = str(
+        document_title or ""
+    ).strip()
+    submitted_type = str(
+        document_type or ""
+    ).strip()
+
+    service_name = str(
+        getattr(service_case, "service", None)
+        or ""
+    ).strip()
+
+    if not service_name:
+        return (
+            str(document_key or "").strip(),
+            submitted_title,
+            submitted_type,
+        )
+
+    if submitted_key and not _has_field(
+        "OMC Service Required Document",
+        "document_key",
+    ):
+        frappe.throw(
+            "Document requirement identity is not available on this site.",
+            frappe.ValidationError,
+        )
+
+    requirements = _service_required_documents(
+        service_name,
+        service_request=service_case,
+    )
+
+    if submitted_key:
+        matches = [
+            requirement
+            for requirement in requirements
+            if _document_identity(
+                requirement.get("document_key")
+                or requirement.get("key")
+            )
+            == submitted_key
+        ]
+
+        if len(matches) != 1:
+            frappe.throw(
+                (
+                    "The selected document requirement is not valid "
+                    "for this service request."
+                ),
+                frappe.ValidationError,
+            )
+
+        requirement = matches[0]
+
+        return (
+            requirement.get("document_key")
+            or requirement.get("key")
+            or "",
+            requirement.get("document_title")
+            or requirement.get("title")
+            or "",
+            requirement.get("document_type")
+            or requirement.get("type")
+            or "",
+        )
+
+    title_key = _document_identity(
+        submitted_title
+    )
+    type_key = _document_identity(
+        submitted_type
+    )
+
+    legacy_matches = [
+        requirement
+        for requirement in requirements
+        if (
+            _document_identity(
+                requirement.get("document_title")
+                or requirement.get("title")
+            )
+            == title_key
+            and _document_identity(
+                requirement.get("document_type")
+                or requirement.get("type")
+            )
+            == type_key
+        )
+    ]
+
+    if len(legacy_matches) == 1:
+        requirement = legacy_matches[0]
+
+        return (
+            requirement.get("document_key")
+            or requirement.get("key")
+            or "",
+            requirement.get("document_title")
+            or requirement.get("title")
+            or submitted_title,
+            requirement.get("document_type")
+            or requirement.get("type")
+            or submitted_type,
+        )
+
+    # Preserve generic/non-template upload compatibility.
+    return (
+        "",
+        submitted_title,
+        submitted_type,
+    )
+
 def _assert_document_submission_available(
     service_case,
     document_title,
     document_type,
+    document_key="",
 ):
     title_key = _document_identity(document_title)
     type_key = _document_identity(document_type)
+    stable_key = _document_identity(document_key)
+
+    fields = [
+        "name",
+        "document_title",
+        "document_type",
+        "status",
+        "is_archived",
+    ]
+    if _has_field("OMC Service Document", "document_key"):
+        fields.insert(1, "document_key")
 
     existing = frappe.get_all(
         "OMC Service Document",
@@ -62,23 +197,26 @@ def _assert_document_submission_available(
             "service_request": service_case.name,
             "visible_to_customer": 1,
         },
-        fields=[
-            "name",
-            "document_title",
-            "document_type",
-            "status",
-            "is_archived",
-        ],
+        fields=fields,
         order_by="creation desc",
     )
 
     for row in existing:
         if int(getattr(row, "is_archived", 0) or 0):
             continue
-        if _document_identity(row.document_title) != title_key:
-            continue
-        if _document_identity(row.document_type) != type_key:
-            continue
+
+        existing_key = _document_identity(
+            getattr(row, "document_key", None)
+        )
+
+        if stable_key and existing_key:
+            if existing_key != stable_key:
+                continue
+        else:
+            if _document_identity(row.document_title) != title_key:
+                continue
+            if _document_identity(row.document_type) != type_key:
+                continue
 
         status = (row.status or "").strip()
         if status in ACTIVE_DOCUMENT_STATUSES:
@@ -198,6 +336,7 @@ def upload_service_document(**kwargs):
         payload={
             "idempotency_key": kwargs.get("idempotency_key"),
             "case_id": kwargs.get("case_id") or kwargs.get("service_request"),
+            "document_key": kwargs.get("document_key") or kwargs.get("key"),
             "document_title": kwargs.get("document_title") or kwargs.get("title"),
             "document_type": kwargs.get("document_type") or kwargs.get("type"),
             "content_hash": getattr(uploaded_file, "content_hash", None)
@@ -235,9 +374,26 @@ def _upload_service_document(**kwargs):
     """
 
     case_id = kwargs.get("case_id") or kwargs.get("service_request")
-    document_title = (kwargs.get("document_title") or kwargs.get("title") or "").strip()
-    document_type = (kwargs.get("document_type") or kwargs.get("type") or "General").strip()
-    attachment = kwargs.get("attachment") or kwargs.get("file_url") or kwargs.get("file")
+    document_key = (
+        kwargs.get("document_key")
+        or kwargs.get("key")
+        or ""
+    ).strip()
+    document_title = (
+        kwargs.get("document_title")
+        or kwargs.get("title")
+        or ""
+    ).strip()
+    document_type = (
+        kwargs.get("document_type")
+        or kwargs.get("type")
+        or "General"
+    ).strip()
+    attachment = (
+        kwargs.get("attachment")
+        or kwargs.get("file_url")
+        or kwargs.get("file")
+    )
     remarks = kwargs.get("remarks") or ""
 
     if not case_id:
@@ -251,10 +407,22 @@ def _upload_service_document(**kwargs):
     _assert_service_request_accepts_documents(service_case)
     profile = frappe.get_doc("OMC Customer Profile", context.legacy_profile)
 
+    (
+        document_key,
+        document_title,
+        document_type,
+    ) = _canonical_requirement_identity(
+        service_case,
+        document_key=document_key,
+        document_title=document_title,
+        document_type=document_type,
+    )
+
     _assert_document_submission_available(
         service_case,
         document_title,
         document_type,
+        document_key=document_key,
     )
     attachment, uploaded_file, quarantine_status = _validate_uploaded_document(
         service_case,
@@ -265,6 +433,11 @@ def _upload_service_document(**kwargs):
     doc.service_request = service_case.name
     if _has_field("OMC Service Document", "customer_profile"):
         doc.customer_profile = service_case.customer_profile or (profile.name if profile else "")
+    if (
+        document_key
+        and _has_field("OMC Service Document", "document_key")
+    ):
+        doc.document_key = document_key
     doc.document_title = document_title
     doc.document_type = document_type
     doc.status = "Uploaded"
@@ -326,6 +499,8 @@ def _upload_service_document(**kwargs):
         "document": {
             "name": doc.name,
             "case_id": doc.service_request,
+            "document_key": getattr(doc, "document_key", None) or "",
+            "key": getattr(doc, "document_key", None) or "",
             "title": doc.document_title or "",
             "document_title": doc.document_title or "",
             "type": doc.document_type or "",
