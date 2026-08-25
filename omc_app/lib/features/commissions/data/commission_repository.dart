@@ -151,6 +151,13 @@ class CommissionEarning {
     required this.earnedOn,
     required this.settlement,
     required this.reversalReason,
+    this.provenance = 'Current OMC',
+    this.paymentEntry = '',
+    this.salesInvoice = '',
+    this.legacyJournalEntry = '',
+    this.evidenceStatus = '',
+    this.component = '',
+    this.structureSnapshot = '',
   });
   final String id;
   final String status;
@@ -164,6 +171,17 @@ class CommissionEarning {
   final String earnedOn;
   final String settlement;
   final String reversalReason;
+  final String provenance;
+  final String paymentEntry;
+  final String salesInvoice;
+  final String legacyJournalEntry;
+  final String evidenceStatus;
+  final String component;
+  final String structureSnapshot;
+
+  bool get isHistorical => provenance == 'Historical Legacy';
+  String get serviceLabel =>
+      service.isNotEmpty ? service : (isHistorical ? 'Historical commission' : 'Service');
 
   factory CommissionEarning.fromJson(Map<String, dynamic> json) =>
       CommissionEarning(
@@ -187,6 +205,15 @@ class CommissionEarning {
         earnedOn: _text(json['earned_on']),
         settlement: _text(json['settlement_reference']),
         reversalReason: _text(json['reversal_reason']),
+        provenance: _text(json['provenance'] ?? json['origin']).isEmpty
+            ? 'Current OMC'
+            : _text(json['provenance'] ?? json['origin']),
+        paymentEntry: _text(json['payment_entry'] ?? json['qualifying_payment']),
+        salesInvoice: _text(json['sales_invoice'] ?? json['qualifying_erp_invoice']),
+        legacyJournalEntry: _text(json['legacy_journal_entry']),
+        evidenceStatus: _text(json['accounting_evidence_status']),
+        component: _text(json['component']),
+        structureSnapshot: _text(json['structure_snapshot']),
       );
 }
 
