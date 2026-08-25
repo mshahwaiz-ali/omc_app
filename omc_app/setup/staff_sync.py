@@ -15,6 +15,19 @@ ERP_USER_TYPE_TO_PERSONA = {
     "Employee": "Employee",
 }
 
+REFERRAL_OWNER_PERSONAS = frozenset({
+    "Consultant",
+    "Business Partner",
+    "Tax Associates",
+})
+COMMISSION_BENEFICIARY_PERSONAS = frozenset({
+    "Consultant",
+    "Business Partner",
+    "Tax Associates",
+    "Employee",
+})
+LEGACY_OVERLOADED_CAPABILITY = "can_view_referral_commissions"
+
 
 def _text(value) -> str:
     return str(value or "").strip()
@@ -74,13 +87,28 @@ def _persona_source(user: str, mapped_persona: str) -> str:
     return "Reviewed"
 
 
+def _persona_capabilities(mapped_persona: str) -> set[str]:
+    capabilities = set(access.ROLE_CAPABILITIES.get(mapped_persona, set()))
+
+    # Retire the old overloaded capability from canonical staff provisioning.
+    # Existing rows are deterministically replaced by _ensure_staff_access().
+    capabilities.discard(LEGACY_OVERLOADED_CAPABILITY)
+
+    if mapped_persona in REFERRAL_OWNER_PERSONAS:
+        capabilities.add("can_own_referrals")
+    if mapped_persona in COMMISSION_BENEFICIARY_PERSONAS:
+        capabilities.add("can_view_own_commissions")
+
+    return capabilities
+
+
 def _ensure_staff_access(user: str, profile, mapped_persona: str):
     """Create or reconcile canonical OMC Staff Access for a trusted ERP user."""
 
     employee = _employee_for_user(user)
     persona_source = _persona_source(user, mapped_persona)
     capability_codes = sorted(
-        set(access.ROLE_CAPABILITIES.get(mapped_persona, set()))
+        _persona_capabilities(mapped_persona)
         | {
             "can_access_internal_workspace",
             "can_view_tasks",
