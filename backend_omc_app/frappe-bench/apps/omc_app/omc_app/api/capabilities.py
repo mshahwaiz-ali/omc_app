@@ -22,9 +22,18 @@ INTERNAL_CAPABILITY_KEYS = (
     "can_view_internal_notes", "can_manage_settings", "can_manage_staff",
     "can_review_registrations", "can_manage_business_settings",
     "can_reassign_service_cases", "can_retry_sync", "can_view_referral_commissions",
+    "can_own_referrals", "can_view_own_commissions",
     "can_approve_commissions", "can_mark_commissions_paid",
     "can_view_internal_notifications",
 )
+
+# These are personal/self-scoped entitlements, not broad administrative powers.
+# They are intentionally excluded from the framework Administrator shortcut so
+# Administrator does not receive fake My Referrals/My Commissions surfaces.
+SELF_SCOPED_CAPABILITY_KEYS = frozenset({
+    "can_own_referrals",
+    "can_view_own_commissions",
+})
 
 CUSTOMER_KEYS = (
     "can_view_public_catalogue", "can_view_public_content", "can_use_tax_calculator",
@@ -91,6 +100,8 @@ def effective(user: str | None = None) -> dict:
     if user == "Administrator":
         values = _base(access_state="internal")
         values.update({key: True for key in INTERNAL_CAPABILITY_KEYS})
+        for key in SELF_SCOPED_CAPABILITY_KEYS:
+            values[key] = False
         return values
 
     staff = identity.get_staff_access(user)
