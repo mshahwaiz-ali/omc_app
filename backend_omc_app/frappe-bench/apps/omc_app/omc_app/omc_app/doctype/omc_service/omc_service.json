@@ -95,8 +95,8 @@
    "fieldname": "default_assignment_role",
    "fieldtype": "Select",
    "label": "Default Assignment Role",
-   "options": "\nEmployee\nConsultant\nTax Associates\nBusiness Partner\nOMC Manager",
-   "description": "Fallback staff persona used for least-loaded automatic assignment. Source-controlled OMC services default to Employee."
+   "options": "\nEmployee\nConsultant\nTax Associates\nBusiness Partner\nOMC Manager\nOMC Consultant\nOMC Tax Associate\nOMC Business Partner",
+   "description": "Fallback staff persona used for least-loaded automatic assignment. Source-controlled OMC services default to Employee; legacy values remain selectable only for compatibility."
   },
   {
    "default": "0",
