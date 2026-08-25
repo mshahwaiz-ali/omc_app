@@ -73,31 +73,51 @@ def sync_service_task_type_mappings(*, commit: bool = True) -> dict[str, object]
 
 
 def preview_service_catalogue() -> dict[str, object]:
-    """Read-only preview of source-controlled OMC catalogue reconciliation."""
+    """Read-only preview of the complete source-controlled OMC catalogue.
+
+    Customer-facing copy and the Employee assignment default are sourced from
+    the same catalogue manifest and are surfaced here so operators see those
+    intended changes before any synchronization occurs.
+    """
+    from omc_app.setup.service_catalogue.presentation import (
+        preview_service_presentation,
+    )
     from omc_app.setup.service_catalogue.provisioner import (
         preview_service_catalogue as preview,
     )
 
-    return preview()
+    result = preview()
+    return {
+        **result,
+        "presentation": preview_service_presentation(),
+    }
 
 
 def validate_service_catalogue() -> dict[str, object]:
-    """Read-only exact-state validation of the source-controlled catalogue."""
+    """Read-only exact-state validation of catalogue rows and service copy."""
+    from omc_app.setup.service_catalogue.presentation import (
+        validate_service_presentation,
+    )
     from omc_app.setup.service_catalogue.provisioner import (
         validate_service_catalogue as validate,
     )
 
-    return validate()
+    result = validate()
+    presentation = validate_service_presentation()
+    return {
+        **result,
+        "valid": bool(result.get("valid") and presentation.get("valid")),
+        "presentation": presentation,
+    }
 
 
 def sync_service_catalogue(*, commit: bool = True) -> dict[str, object]:
-    """Atomically sync catalogue rows and their customer-facing presentation.
+    """Atomically sync catalogue rows, customer copy and Employee defaults.
 
-    The service catalogue remains authoritative for commercial/service identity
-    while the presentation module owns customer-facing short/long descriptions,
-    service support copy and the default Employee assignment role. Both writes
-    are committed together so a deployment cannot leave newly-created services
-    only partially configured.
+    All managed customer-facing presentation values originate in the catalogue
+    manifest. The compatibility presentation reconciler runs inside the same
+    transaction as the established catalogue provisioner so deployments cannot
+    leave newly-created services partially configured.
     """
     from omc_app.setup.service_catalogue.presentation import (
         sync_service_presentation,
