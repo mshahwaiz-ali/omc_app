@@ -1,433 +1,473 @@
-# OMC Flutter App Backend API Contract
+# OMC Flutter ↔ Frappe Backend API Contract
 
-This document lists the Frappe API methods expected by the Flutter mobile app.
+Source cross-check: **25 August 2026**, branch `main`.
 
-The app is backend-ready but keeps safe empty fallbacks where data is not available yet. Backend methods should return stable JSON shapes so Flutter screens can render without feature-specific parsing changes.
+This document describes the current API contract used by the Flutter application. Method-name source of truth is:
 
-## Base API
+```text
+lib/core/config/api_config.dart
+```
 
-Flutter calls Frappe methods through:
+> The backend remains authoritative for identity, capabilities, ownership, workflow state, pricing, document requirements, payment eligibility and protected mutations. Flutter must not infer authority from a route or local role label.
+
+---
+
+## 1. Base transport
+
+Flutter calls Frappe method APIs through:
 
 ```text
 /api/method/<method_name>
-Base URL is configured in:
+```
 
-lib/core/config/api_config.dart
+Production origin currently resolves to:
 
-Default environments currently point to:
-
+```text
 https://erp.omchouse.com
-General Response Rule
+```
 
-Preferred response shape:
+Build-time configuration:
 
-{
-  "message": {
-    "items": []
-  }
-}
+```text
+OMC_ENV
+OMC_API_BASE_URL
+OMC_LINK_BASE_URL
+OMC_SENTRY_DSN
+```
 
-For list endpoints, Flutter currently accepts these shapes:
+Release builds are validated by `ApiConfig.validateBuildProfile()` and must satisfy the production-origin/HTTPS/diagnostics requirements implemented in code.
 
-{
-  "message": []
-}
-{
-  "message": {
-    "items": []
-  }
-}
-{
-  "message": {
-    "data": []
-  }
-}
-{
-  "data": []
-}
+---
 
-Module-specific aliases such as leads, customers, tasks, documents, and payments are also accepted in their related repositories.
+## 2. General response rules
 
-Auth Methods
+Frappe method responses normally arrive under `message`.
+
+Repositories may accept legacy aliases for compatibility, but new backend work should prefer stable explicit objects and arrays.
+
+Guidelines:
+
+- list endpoints return arrays, not `null`;
+- IDs/names are stable strings;
+- user-facing date/time strings should be consistently parseable;
+- protected endpoints return permission errors rather than filtered fake success;
+- backend errors exposed to customers must be safe and non-sensitive;
+- pagination metadata should be returned where the endpoint supports paging;
+- compatibility aliases should not broaden permission or semantic authority.
+
+---
+
+# 3. Authentication and account security
+
+Current methods include:
+
+```text
 login
-
-Used by:
-
-lib/features/auth/data/auth_repository.dart
-
-Expected purpose:
-
-login user with email/password
-return authenticated user/session payload compatible with Frappe auth flow
+omc_app.api.auth_login.login
+logout
 omc_app.api.mobile.google_mobile_login
+omc_app.api.password_reset.request_reset
+omc_app.api.password_reset.reset_password
+omc_app.api.customer_activation.request_activation
+omc_app.api.customer_activation.complete_activation
+omc_app.api.account_security.verify_current_password
+omc_app.api.account_security.change_password
+```
 
-Expected purpose:
+Pending registration:
 
-login/signup with Google mobile token
-return authenticated user/session payload
-omc_app.api.access.sign_up
+```text
+omc_app.api.pending_registration.start_registration
+omc_app.api.pending_registration.resend_verification
+omc_app.api.pending_registration.verify_registration
+omc_app.api.access.suggest_username
+omc_app.api.access.check_username_availability
+omc_app.api.referrals.validate_referral_code
+```
 
-Expected purpose:
+Session/customer capability context:
 
-create/register customer user
-return success message and/or user data
-Home Dashboard
-omc_app.api.dashboard.get_dashboard_data
-
-Used by:
-
-lib/features/home/data/home_dashboard_repository.dart
-
-Preferred response:
-
-{
-  "message": {
-    "open_services": 0,
-    "documents": 0,
-    "payments_due": 0,
-    "notifications": 0,
-    "recent_activity": []
-  }
-}
-
-Notes:
-
-Keep missing values safe as 0 or empty arrays.
-recent_activity should include short user-facing activity rows.
-Service Catalogue
-omc_app.api.mobile.get_service_catalogue
-
-Used by:
-
-lib/features/service_catalogue/data/service_catalogue_repository.dart
-
-Preferred response:
-
-{
-  "message": {
-    "services": [
-      {
-        "id": "tax-filing",
-        "title": "Tax Filing",
-        "description": "Professional tax filing support",
-        "category": "Tax",
-        "icon": "receipt"
-      }
-    ]
-  }
-}
-
-Notes:
-
-If backend catalogue is unavailable, Flutter can use local asset catalogue.
-IDs must be stable because routes use service ID.
-Service Requests
-omc_app.api.service_requests.create_service
-
-Used by:
-
-lib/features/service_requests/data/service_request_repository.dart
-
-Expected purpose:
-
-create a new service request/case from mobile app
-support attached files uploaded through Frappe upload_file
-
-Preferred response:
-
-{
-  "message": {
-    "name": "SR-0001",
-    "status": "Open"
-  }
-}
-omc_app.api.mobile.get_service_cases
-
-Used by:
-
-lib/features/service_requests/data/service_case_repository.dart
-
-Preferred response:
-
-{
-  "message": {
-    "cases": [
-      {
-        "name": "SR-0001",
-        "title": "Tax Filing",
-        "status": "Open",
-        "service": "Tax Filing",
-        "created_at": "2026-07-05",
-        "updated_at": "2026-07-05"
-      }
-    ]
-  }
-}
-omc_app.api.mobile.get_service_case
-
-Expected purpose:
-
-return one service case detail by ID
-
-Preferred request argument:
-
-{
-  "case_id": "SR-0001"
-}
-
-Preferred response:
-
-{
-  "message": {
-    "name": "SR-0001",
-    "title": "Tax Filing",
-    "status": "Open",
-    "service": "Tax Filing",
-    "description": "",
-    "timeline": [],
-    "attachments": []
-  }
-}
-Documents
-omc_app.api.customer_documents.get_documents
-
-Used by:
-
-lib/features/documents/data/documents_repository.dart
-
-Preferred response:
-
-{
-  "message": {
-    "documents": [
-      {
-        "name": "DOC-0001",
-        "title": "Invoice.pdf",
-        "type": "PDF",
-        "status": "Available",
-        "file_url": "/files/invoice.pdf",
-        "created_at": "2026-07-05"
-      }
-    ]
-  }
-}
-Payments
-omc_app.api.payments.get_payments
-
-Used by:
-
-lib/features/payments/data/payments_repository.dart
-
-Preferred response:
-
-{
-  "message": {
-    "payments": [
-      {
-        "name": "PAY-0001",
-        "title": "Tax Filing Fee",
-        "amount": 10000,
-        "currency": "PKR",
-        "status": "Pending",
-        "due_date": "2026-07-10"
-      }
-    ]
-  }
-}
-Profile
+```text
+omc_app.api.access_v2.get_session_user
 omc_app.api.access_v2.get_profile
+```
 
-Used by:
+Public signup is customer-only; internal staff access is not granted by a public registration account type.
 
-lib/features/profile/data/profile_repository.dart
+---
 
-Preferred response:
+# 4. Guest sessions
 
+```text
+omc_app.api.guest_session.create_guest_session
+omc_app.api.guest_session.update_guest_activity
+```
+
+Guest endpoints must not expose customer or internal records.
+
+---
+
+# 5. Dashboard and quick actions
+
+```text
+omc_app.api.dashboard.get_dashboard_data
+omc_app.api.quick_actions.get_mobile_quick_actions
+omc_app.api.mobile.get_mobile_app_config
+```
+
+Dashboard data should reflect backend access/capability state. Missing backend sections should be represented as unavailable/empty states rather than invented customer data.
+
+---
+
+# 6. Service catalogue and templates
+
+```text
+omc_app.api.mobile.get_service_catalogue
+omc_app.api.service_templates.get_service_template
+```
+
+Service IDs are stable backend identities. Flutter must not derive the canonical service identity from a display title.
+
+The production catalogue is source controlled and currently maps only to exact existing ERP Task Types.
+
+---
+
+# 7. Service request creation
+
+Canonical create method:
+
+```text
+omc_app.api.service_requests.create_service
+```
+
+Assisted customer selection:
+
+```text
+omc_app.api.assisted_service.get_customer_selection_options
+```
+
+The backend is responsible for:
+
+- caller/customer authority;
+- active service validation;
+- pricing snapshot;
+- duplicate/parallel-request rules;
+- referral/assistance scope;
+- service form validation;
+- idempotency where applicable;
+- initial request/payment state.
+
+Flutter must not directly create ERP Service/Task records.
+
+---
+
+# 8. Customer service cases
+
+Canonical secured endpoints:
+
+```text
+omc_app.api.secured_mobile.get_service_cases
+omc_app.api.secured_mobile.get_service_case
+omc_app.api.secured_mobile.update_service_case_status
+omc_app.api.secured_mobile.cancel_service_request
+```
+
+Case detail can include:
+
+- request identity;
+- service identity/title;
+- canonical lifecycle/operational status;
+- pricing/payment contract;
+- required documents;
+- submitted documents;
+- timeline/progress;
+- customer next actions;
+- assignment context where customer-safe;
+- cancellation/action capability.
+
+Backend record ownership is authoritative.
+
+---
+
+# 9. Required-document contract
+
+Required-document entries can include stable identity fields:
+
+```json
 {
-  "message": {
-    "full_name": "Customer Name",
-    "email": "customer@example.com",
-    "phone": "",
-    "avatar_url": "",
-    "customer_id": ""
-  }
+  "document_key": "cnic_front_image",
+  "key": "cnic_front_image",
+  "title": "CNIC Front Image",
+  "document_title": "CNIC Front Image",
+  "type": "Identity",
+  "document_type": "Identity",
+  "is_required": 1,
+  "status": "Required"
 }
-Notifications
+```
+
+`document_key` is authoritative when both template and upload are keyed.
+
+New requirements may be request-grandfathered by backend `effective_from` logic; Flutter should consume the returned applicable requirement set and must not independently decide whether a requirement applies to an older request.
+
+---
+
+# 10. Documents
+
+List/detail:
+
+```text
+omc_app.api.customer_documents.get_documents
+omc_app.api.customer_documents.get_document
+```
+
+Required service upload:
+
+```text
+omc_app.api.document_upload.upload_service_document
+```
+
+Internal review/status path:
+
+```text
+omc_app.api.customer_documents.update_service_document_status
+```
+
+For a required-document upload, Flutter sends the selected requirement identity with the request/file data. The backend validates/canonicalises requirement identity before storage.
+
+A typical returned document can expose both:
+
+```text
+document_key
+key
+```
+
+for compatibility.
+
+Generic `upload_file` remains available for supported non-service-document upload flows, but required service documents should use the canonical service-document endpoint.
+
+---
+
+# 11. Payments
+
+```text
+omc_app.api.payments.get_payments
+omc_app.api.payments.get_payment
+omc_app.api.payment_read_guard.download_invoice_pdf
+omc_app.api.mobile.upload_payment_receipt
+omc_app.api.payments.upload_payment_receipt_file
+omc_app.api.payments.upload_payment_receipt_multipart
+omc_app.api.payments.review_payment_receipt
+```
+
+Customer payment/receipt state is not itself ERP settlement authority. Full-settlement service activation is gated by backend accounting evidence.
+
+Flutter should render backend-provided payment eligibility/action state and must not assume that a locally uploaded receipt means the service is activated.
+
+---
+
+# 12. Profile and contact
+
+```text
+omc_app.api.access_v2.get_profile
+omc_app.api.profile_self_service.update_profile
+omc_app.api.profile_self_service.update_work_address
+omc_app.api.profile_self_service.dismiss_work_address_prompt
+omc_app.api.mobile.update_contact_info
+omc_app.api.profile.upload_profile_image
+```
+
+Writable profile fields are backend controlled. Internal-user self-service does not require pretending the internal user is a customer.
+
+---
+
+# 13. Public content
+
+```text
+omc_app.api.mobile.get_knowledge
+omc_app.api.mobile.get_knowledge_article
+omc_app.api.mobile.get_app_banners
+omc_app.api.mobile.get_onboarding_slides
+omc_app.api.mobile.get_faqs
+```
+
+Public/guest availability is endpoint-specific and backend guarded.
+
+---
+
+# 14. Notifications and push
+
+```text
 omc_app.api.mobile.get_notifications
+omc_app.api.mobile.get_notification_detail
+omc_app.api.mobile.mark_notification_read
+omc_app.api.mobile.mark_all_notifications_read
+omc_app.api.mobile.dismiss_notification
+omc_app.api.mobile.restore_notification
+omc_app.api.mobile.mark_notification_unread
+omc_app.api.mobile.get_unread_notification_count
+omc_app.api.mobile.register_push_token
+omc_app.api.mobile.unregister_push_token
+```
 
-Used by:
+Notification navigation targets must still pass normal route/capability checks.
 
-lib/features/notifications/data/notifications_repository.dart
+---
 
-Preferred response:
+# 15. Settings
 
-{
-  "message": {
-    "notifications": [
-      {
-        "name": "NOTIF-0001",
-        "title": "Request updated",
-        "message": "Your service request has been updated.",
-        "is_read": false,
-        "created_at": "2026-07-05"
-      }
-    ]
-  }
-}
-Internal Workspace
-omc_app.api.mobile.get_internal_workspace_summary
+```text
+omc_app.api.mobile.get_settings_preferences
+omc_app.api.mobile.update_settings_preferences
+```
 
-Used by:
+---
 
-lib/features/internal_workspace/data/internal_workspace_repository.dart
+# 16. Support
 
-Preferred response:
+```text
+omc_app.api.support_chat.create_support_ticket
+omc_app.api.support_chat.get_support_tickets
+omc_app.api.support_chat.get_support_ticket
+omc_app.api.support_chat.get_active_support_ticket
+omc_app.api.support_chat.get_support_unread_count
+omc_app.api.support_chat.mark_support_ticket_read
+omc_app.api.support_chat.add_support_ticket_reply
+omc_app.api.support_chat.update_support_ticket_status
+omc_app.api.mobile.get_support_config
+```
 
-{
-  "message": {
-    "open_leads": 0,
-    "active_customers": 0,
-    "pending_tasks": 0,
-    "payments_due": 0
-  }
-}
-Leads
-omc_app.api.mobile.get_leads
+Support attachment upload may use Frappe `upload_file` where configured.
 
-Used by:
+Customer ticket visibility is ownership scoped; internal support actions require capability.
 
-lib/features/leads/data/leads_repository.dart
+---
 
-Preferred response:
+# 17. Tax calculator
 
-{
-  "message": {
-    "leads": [
-      {
-        "name": "LEAD-0001",
-        "title": "Website Inquiry",
-        "customer_name": "Customer Name",
-        "status": "New",
-        "phone": "",
-        "email": "",
-        "source": "Website",
-        "created_at": "2026-07-05"
-      }
-    ]
-  }
-}
+```text
+omc_app.api.tax_calculator.get_tax_calculator_config
+omc_app.api.tax_calculator.calculate_tax
+omc_app.api.tax_calculator.get_tax_calculation_history
+omc_app.api.tax_calculator.download_tax_estimate_pdf
+omc_app.api.tax_calculator.share_tax_estimate_with_consultant
+omc_app.api.tax_calculator.start_service_from_calculation
+```
 
-Accepted status examples:
+Tax configuration/calculation authority remains backend controlled.
 
-New
-Contacted
-Qualified
-Converted
-Lost
-Customers
+---
+
+# 18. Expense tools
+
+Current `ApiConfig` includes backend methods for expense configuration, categories, entries, CRUD/bulk sync, summaries and related budget flows.
+
+Flutter repositories should use the centralised constants rather than hardcoding method names.
+
+---
+
+# 19. Customers, leads and tasks
+
+```text
 omc_app.api.mobile.get_customers
-
-Used by:
-
-lib/features/customers/data/customers_repository.dart
-
-Preferred response:
-
-{
-  "message": {
-    "customers": [
-      {
-        "name": "CUST-0001",
-        "customer_name": "Customer Name",
-        "company_name": "Company Pvt Ltd",
-        "status": "Active",
-        "phone": "",
-        "email": "",
-        "city": "Karachi",
-        "last_activity": "2026-07-05"
-      }
-    ]
-  }
-}
-
-Accepted status examples:
-
-Active
-Inactive
-Prospect
-Blocked
-Tasks
-omc_app.api.mobile.get_tasks
-
-Used by:
-
-lib/features/tasks/data/tasks_repository.dart
-
-Preferred response:
-
-{
-  "message": {
-    "tasks": [
-      {
-        "name": "TASK-0001",
-        "subject": "Follow up with customer",
-        "status": "Open",
-        "priority": "Normal",
-        "due_date": "2026-07-10",
-        "assigned_to": "user@example.com"
-      }
-    ]
-  }
-}
-
-Accepted field aliases:
-
-title: subject, title, task_name
-due date: exp_end_date, due_date, date, deadline
-assigned user: assigned_to, owner
-Uploads
-upload_file
-
-Used for service request attachments.
-
-Expected behavior:
-
-upload file to Frappe
-return file URL or file document name
-uploaded file references can be passed to service request create method
-Future Detail Methods
-
-Recommended backend methods for upcoming detail screens:
-
-omc_app.api.mobile.get_lead
 omc_app.api.mobile.get_customer
+omc_app.api.mobile.get_leads
+omc_app.api.mobile.get_lead
+omc_app.api.mobile.get_tasks
 omc_app.api.mobile.get_task
+omc_app.api.mobile.create_lead
+```
 
-Recommended request shape:
+ERPNext Customer/Lead/Task remain ERP business records. OMC endpoints apply guarded mobile/internal access around them.
 
-{
-  "name": "DOCUMENT-ID"
-}
+---
 
-Recommended response shape:
+# 20. Internal workspace and admin operations
 
-{
-  "message": {
-    "name": "DOCUMENT-ID",
-    "title": "",
-    "status": "",
-    "details": {},
-    "timeline": [],
-    "attachments": []
-  }
-}
-Backend Implementation Notes
-Keep method names centralized and stable.
-Return empty arrays instead of null for list data.
-Return empty strings instead of null for display labels where practical.
-Avoid exposing raw internal errors to mobile users.
-Use permission checks on every method.
-Filter records by authenticated user/customer unless the user has internal roles.
-Keep date strings ISO-like where possible, for example 2026-07-05.
+```text
+omc_app.api.mobile.get_internal_workspace_summary
+omc_app.api.internal_workspace.get_service_cases
+omc_app.api.internal_workspace.create_service_request_for_customer
+omc_app.api.admin_control.get_admin_overview
+omc_app.api.admin_control.get_admin_operations
+omc_app.api.admin_control.review_registration
+omc_app.api.admin_control.invite_staff
+omc_app.api.admin_control.update_staff_account
+omc_app.api.admin_control.reassign_service_request
+omc_app.api.admin_control.get_case_admin_options
+omc_app.api.admin_control.retry_service_sync
+omc_app.api.admin_control.get_business_settings
+omc_app.api.admin_control.update_business_settings
+omc_app.api.admin_control.review_discount
+```
 
-> Compatibility note: legacy `omc_app.api.mobile.*` aliases remain available for older clients, but current integrations should use the canonical endpoints documented above.
+Endpoint existence does not imply permission. Each protected method must enforce canonical capability/scope.
+
+---
+
+# 21. Referrals and personal commissions
+
+Referral-owner analytics:
+
+```text
+omc_app.api.referral_analytics.get_my_referral_summary
+omc_app.api.referral_analytics.get_my_referrals
+omc_app.api.referral_analytics.get_my_referral_detail
+```
+
+Personal commission views:
+
+```text
+omc_app.api.referral_commissions.get_my_commission_summary
+omc_app.api.referral_commissions.get_my_commissions
+omc_app.api.referral_commissions.get_my_commission
+```
+
+Referral ownership and personal commission visibility are self-scoped capabilities and do not grant finance commission authority.
+
+Finance commission operations use separate guarded endpoints/capabilities in the backend.
+
+---
+
+# 22. Compatibility policy
+
+The backend may preserve legacy aliases for older clients, but new Flutter code should use canonical `ApiConfig` constants.
+
+Compatibility must not:
+
+- widen access;
+- change identity authority;
+- allow title-only matching when stable document keys are present;
+- let a legacy referral flag imply commission approval/payment authority;
+- bypass payment/accounting activation gates.
+
+---
+
+# 23. Error and retry behavior
+
+Flutter should distinguish:
+
+- authentication failure;
+- permission/access denial;
+- validation failure;
+- not-found/ownership-safe absence;
+- temporary network/server failure;
+- backend unavailable/partial section failure.
+
+Do not convert a protected 403 into a fabricated empty success merely to keep a screen populated.
+
+Mutating retry behavior must respect backend idempotency rules.
+
+---
+
+# 24. Contract maintenance
+
+When a new backend endpoint is added or renamed:
+
+1. add/update the method constant in `lib/core/config/api_config.dart`;
+2. update the relevant repository/model;
+3. preserve backend authority and safe response parsing;
+4. add/adjust contract tests;
+5. update this document if the public contract materially changed.
+
+The code is the final source of truth if this document ever diverges.
