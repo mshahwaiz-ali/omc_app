@@ -35,6 +35,11 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             is_active=1,
         )
         with (
+            patch.object(
+                assisted_service,
+                "_can_use_my_referrals",
+                return_value=True,
+            ),
             patch.object(assisted_service, "_profile", return_value=profile),
             self.assertRaises(frappe.PermissionError),
         ):
@@ -51,6 +56,11 @@ class TestAssistedServiceAuthority(FrappeTestCase):
             is_active=1,
         )
         with (
+            patch.object(
+                assisted_service,
+                "_can_use_my_referrals",
+                return_value=True,
+            ),
             patch.object(assisted_service, "_profile", return_value=profile),
             self.assertRaises(frappe.PermissionError),
         ):
@@ -219,9 +229,14 @@ class TestAssistedServiceAuthority(FrappeTestCase):
                 "_require_internal_assist",
                 return_value={
                     "can_create_service_for_customer": True,
-                    "can_view_referral_commissions": True,
+                    "can_own_referrals": True,
                     "can_view_all_customers": False,
                 },
+            ),
+            patch.object(
+                assisted_service.referrals,
+                "is_referral_owner",
+                return_value=True,
             ),
         ):
             result = assisted_service.get_customer_selection_options()
@@ -233,7 +248,7 @@ class TestAssistedServiceAuthority(FrappeTestCase):
         self.assertTrue(result["capabilities"]["can_use_my_referrals"])
         self.assertFalse(result["capabilities"]["can_search_all_customers"])
 
-    def test_referral_picker_is_scoped_and_consented(self):
+    def test_legacy_referral_capability_does_not_enable_picker(self):
         with (
             patch.object(
                 assisted_service,
@@ -247,6 +262,61 @@ class TestAssistedServiceAuthority(FrappeTestCase):
                     "can_create_service_for_customer": True,
                     "can_view_referral_commissions": True,
                 },
+            ),
+            patch.object(
+                assisted_service.referrals,
+                "is_referral_owner",
+                return_value=True,
+            ),
+        ):
+            result = assisted_service.get_customer_selection_options()
+
+        self.assertNotIn("My Referral", result["modes"])
+
+    def test_semantic_referral_capability_still_requires_canonical_owner(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="employee@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_require_internal_assist",
+                return_value={
+                    "can_create_service_for_customer": True,
+                    "can_own_referrals": True,
+                },
+            ),
+            patch.object(
+                assisted_service.referrals,
+                "is_referral_owner",
+                return_value=False,
+            ),
+        ):
+            result = assisted_service.get_customer_selection_options()
+
+        self.assertNotIn("My Referral", result["modes"])
+
+    def test_referral_picker_is_scoped_and_consented(self):
+        with (
+            patch.object(
+                assisted_service,
+                "_current_user",
+                return_value="consultant@example.com",
+            ),
+            patch.object(
+                assisted_service,
+                "_require_internal_assist",
+                return_value={
+                    "can_create_service_for_customer": True,
+                    "can_own_referrals": True,
+                },
+            ),
+            patch.object(
+                assisted_service.referrals,
+                "is_referral_owner",
+                return_value=True,
             ),
             patch.object(
                 assisted_service.frappe,
