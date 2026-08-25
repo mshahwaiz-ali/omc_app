@@ -2,76 +2,78 @@
 
 Source cross-check: **25 August 2026**, branch `main`.
 
-This runbook is for installing/updating the supplied `omc_app` on the client's existing **Frappe / ERPNext v14** site, then performing the controlled OMC data migration and service-catalogue reconciliation.
+This document is the operator handover for deploying the supplied `omc_app` to the client's existing **Frappe / ERPNext v14** environment, migrating supported existing ERP customers/staff into OMC application state, reconciling the production service catalogue, and safely retiring the old Lead/legacy app if applicable.
 
-> Replace `<site>` and `/path/to/frappe-bench` with the client's real values. Do not guess site names, app names, or paths.
+> Replace `<site>` and `/path/to/frappe-bench` with the client's real values. Never guess a site name, legacy app name, path, or production credential.
 
 ---
 
-## 1. Confirm the target environment
+# Part A — Clean Deployment Steps
+
+This section is the short execution sequence. Detailed reasoning for every stage is in **Part B**.
+
+## Step 1 — Open the correct Bench and identify the site
 
 ```bash
 cd /path/to/frappe-bench
+
 bench list-sites
 bench --site <site> list-apps
 bench version
 ```
 
-Before continuing, confirm:
+Confirm:
 
-- the correct client site;
-- Frappe/ERPNext v14 compatibility;
-- the existing ERP site is healthy;
-- the old/legacy app name, if one is still installed;
-- the supplied OMC app folder is the intended release.
+- correct client site;
+- Frappe/ERPNext v14;
+- existing site is healthy;
+- exact old/legacy app name if one is installed;
+- correct OMC release folder is available.
 
 ---
 
-## 2. Take a full backup
-
-Before installing, removing, or migrating applications:
+## Step 2 — Take the first full backup
 
 ```bash
 bench --site <site> backup --with-files
 ```
 
-Do not continue unless the backup succeeds and its location is known.
+Record the backup location before continuing.
 
 ---
 
-## 3. Place/register the OMC app
+## Step 3 — Copy/register the new OMC app
 
-Copy the supplied app folder to:
+Place the supplied folder at:
 
 ```text
 frappe-bench/apps/omc_app
 ```
 
-Then register/install the Python package in the existing Bench environment:
+Then:
 
 ```bash
 cd /path/to/frappe-bench
+
 ./env/bin/pip install -e apps/omc_app
 ./env/bin/python -c "import omc_app; print('OMC App import: OK')"
-```
 
-If the app is not present in `sites/apps.txt`, add exactly one line:
-
-```bash
 grep -qxF 'omc_app' sites/apps.txt || echo 'omc_app' >> sites/apps.txt
 ```
 
-Do not overwrite unrelated apps or reset the client's Bench.
-
 ---
 
-## 4. Install OMC App on the site
+## Step 4 — Install OMC App on the site
 
-For first installation:
+### First installation only
 
 ```bash
 bench --site <site> install-app omc_app
 ```
+
+### If OMC App is already installed
+
+Do **not** reinstall it. Continue with the updated source.
 
 Confirm:
 
@@ -79,113 +81,46 @@ Confirm:
 bench --site <site> list-apps
 ```
 
-`omc_app` must appear in the installed-app list.
-
-If this is an update to an already-installed OMC app, do not reinstall it; deploy the updated code and continue with migration.
+`omc_app` must appear.
 
 ---
 
-## 5. Run Frappe migration
+## Step 5 — Run Frappe migration and validate the ERP contract
 
 ```bash
 bench --site <site> migrate
 bench --site <site> clear-cache
+
+bench --site <site> execute \
+  omc_app.setup.erp_contract.validate_client_erp_contract
 ```
 
-`bench migrate` applies OMC DocTypes, fields, indexes, patches, and schema metadata required by the installed code.
-
-Important boundary:
-
-> **`bench migrate` does not publish the production service catalogue and does not perform the existing-customer business migration.**
-
-The current OMC lifecycle deliberately keeps normal migrate validation-only for OMC setup operations that would otherwise rewrite roles, branding, Desk metadata, or catalogue content.
+Do not continue if the ERP contract validation fails.
 
 ---
 
-## 6. Remove the old Lead/legacy app only if applicable
-
-First identify the exact installed app name:
-
-```bash
-bench --site <site> list-apps
-```
-
-Take another full backup before removal:
-
-```bash
-bench --site <site> backup --with-files
-```
-
-Then use the exact legacy app name:
-
-```bash
-bench --site <site> uninstall-app OLD_APP_NAME --yes
-```
-
-After successful uninstall:
-
-```bash
-bench --site <site> migrate
-bench --site <site> clear-cache
-```
-
-Do not guess `OLD_APP_NAME`. Do not delete ERPNext/Frappe source. If legacy metadata is still required by the client site, stop and investigate before deleting its app folder.
-
----
-
-# Existing-customer migration
-
-## 7. Run read-only migration preflight
+## Step 6 — Run the existing-customer/staff migration preflight
 
 ```bash
 bench --site <site> execute \
   omc_app.api.customer_migration.preflight
 ```
 
-Review the complete output before applying anything.
-
-The current migration classifies ERP Customer identity using this deterministic priority:
-
-```text
-1. unique valid Customer email
-2. unique linked-Lead CNIC
-3. unique safe resolved phone
-4. unique supported Customer tax ID / NTN
-5. identity review
-```
-
-The tax-ID/NTN rule is the final fallback; ambiguous records are not force-linked.
-
-Review especially:
-
-- total customer count;
-- safely identifiable/migratable count;
-- identity-review count and reasons;
-- create vs reuse profile/account actions;
-- activation-ready vs deferred claim cases;
-- staff/referral reconciliation counts;
-- blockers and warnings;
-- any reported login-user creation count.
-
-The migration must not bulk-create customer login users or shared/default passwords.
+Review the output fully. Do not apply until identity-review/blocker counts are understood.
 
 ---
 
-## 8. Take the final pre-migration backup
-
-Immediately before the write migration:
+## Step 7 — Take the final pre-data-migration backup
 
 ```bash
 bench --site <site> backup --with-files
 ```
 
-Record the backup path/time with the migration evidence.
+Record this backup separately. This is the recovery point immediately before the OMC historical-data write.
 
 ---
 
-## 9. Apply the controlled OMC data migration
-
-Use the current explicit-confirmation command:
+## Step 8 — Apply the controlled OMC data migration
 
 ```bash
 bench --site <site> execute \
@@ -193,49 +128,29 @@ bench --site <site> execute \
   --kwargs '{"confirm":"APPLY_CUSTOMER_MIGRATION","limit":0,"batch_size":100}'
 ```
 
-The migration is designed to reconcile supported phases such as:
-
-- eligible ERP staff into OMC staff/profile/access state;
-- canonical `OMC Staff Access` capability rows;
-- referral codes for eligible referral-capable staff;
-- safe OMC Customer Profile/account relationships;
-- historical referral/acquisition attribution where evidence exists;
-- review/quarantine paths for ambiguous data.
-
-It must not:
-
-- bulk-create customer Frappe Users;
-- generate shared/default passwords;
-- enable disabled users;
-- silently convert Website Users into System Users;
-- overwrite explicit suspended/rejected staff authority;
-- force-link ambiguous customers;
-- guess historical referrers or commission provenance.
-
-The migration is intended to be idempotent: a correct rerun should reuse/reconcile existing state rather than duplicate it.
+Do not manually force-link records that migration leaves for review.
 
 ---
 
-## 10. Re-run migration preflight
-
-After apply:
+## Step 9 — Re-run the migration preflight
 
 ```bash
 bench --site <site> execute \
   omc_app.api.customer_migration.preflight
 ```
 
-Confirm that completed records are now reported as reusable/current and that remaining review/blocker cases are expected exceptions.
-
-If supported by the installed release, use the migration's blocker/review detail command for unresolved identities rather than manually editing links.
+Confirm that successfully migrated records now reconcile/reuse correctly and remaining review cases are expected.
 
 ---
 
-# Production service catalogue
+## Step 10 — Preview the production service catalogue
 
-## 11. Preview the catalogue reconciliation
+```bash
+bench --site <site> execute \
+  omc_app.setup.operations.preview_service_catalogue
+```
 
-The catalogue is source controlled and currently expects:
+Expected catalogue baseline:
 
 ```text
 9 categories
@@ -247,46 +162,72 @@ Omc House
 Full Settlement default activation policy
 ```
 
-Run the read-only preview:
-
-```bash
-bench --site <site> execute \
-  omc_app.setup.operations.preview_service_catalogue
-```
-
-Stop if there are unexpected missing/ambiguous ERP Task Types, conflicts, unsafe price changes, or in-flight requirement blockers.
-
-OMC maps only to exact existing ERP Task Types; it must not create or fuzzy-match Task Types.
+Do not sync if preview reports unexpected blockers/conflicts, missing/ambiguous Task Types, unsafe price changes, or unsafe in-flight requirement changes.
 
 ---
 
-## 12. Apply catalogue sync explicitly
+## Step 11 — Sync and validate the service catalogue
 
-Only after a clean/reviewed preview:
+After a reviewed clean preview:
 
 ```bash
 bench --site <site> execute \
   omc_app.setup.operations.sync_service_catalogue
-```
 
-The sync is designed to be atomic, rollback on failure, protect in-flight/historical contracts, and be idempotent.
-
-Then validate:
-
-```bash
 bench --site <site> execute \
   omc_app.setup.operations.validate_service_catalogue
 ```
 
-For an already-reconciled production site, the desired validation state is no pending creates/updates/deactivations, no conflicts, and no blockers.
+A fully reconciled site should have no unexpected pending mutations, conflicts, or blockers.
 
 ---
 
-## 13. Optional deliberate OMC setup reconciliation
+## Step 12 — Retire/remove the old Lead/legacy app only after OMC migration
 
-Normal `bench migrate` does not silently rewrite OMC roles, Desk/workspace metadata, branding, or catalogue.
+**Do not remove the legacy app before the OMC historical-data migration unless its data ownership has been explicitly reviewed.**
 
-If the deployment specifically requires current source-controlled OMC setup to be reconciled, use deliberate operator commands such as:
+First confirm the exact app name:
+
+```bash
+bench --site <site> list-apps
+```
+
+Take another full backup:
+
+```bash
+bench --site <site> backup --with-files
+```
+
+Then uninstall using the exact name:
+
+```bash
+bench --site <site> uninstall-app OLD_APP_NAME --yes
+```
+
+After uninstall:
+
+```bash
+bench --site <site> migrate
+bench --site <site> clear-cache
+
+bench --site <site> execute \
+  omc_app.setup.erp_contract.validate_client_erp_contract
+
+bench --site <site> execute \
+  omc_app.setup.operations.validate_service_catalogue
+```
+
+Only delete the old app folder from `apps/` after successful uninstall and post-removal validation.
+
+If the ERP contract fails after uninstall, **stop**. Do not improvise or patch ERPNext source manually.
+
+---
+
+## Step 13 — Run any specifically approved OMC setup reconciliation
+
+Normal `bench migrate` does not intentionally rewrite all OMC Desk/permission/branding configuration.
+
+Only when required by the deployment plan, run explicit operations such as:
 
 ```bash
 bench --site <site> execute omc_app.setup.operations.repair_permissions
@@ -294,19 +235,19 @@ bench --site <site> execute omc_app.setup.operations.sync_desk_configuration
 bench --site <site> execute omc_app.setup.operations.apply_site_branding
 ```
 
-Run only the operations actually required by the deployment plan.
+Do not run extra mutation operations merely because they exist.
 
 ---
 
-## 14. Clear cache, build, restart
+## Step 14 — Build, clear cache and restart/reload services
 
 ```bash
-bench --site <site> clear-cache
 bench build --app omc_app
+bench --site <site> clear-cache
 bench restart
 ```
 
-If production uses Supervisor/nginx, validate/reload according to the client's deployment:
+For Supervisor/nginx production environments also verify:
 
 ```bash
 sudo supervisorctl status
@@ -316,71 +257,580 @@ sudo systemctl reload nginx
 
 ---
 
-## 15. Verification
-
-At minimum verify:
+## Step 15 — Final verification
 
 ```bash
 bench --site <site> list-apps
 bench --site <site> doctor
+
+bench --site <site> execute \
+  omc_app.setup.erp_contract.validate_client_erp_contract
+
 bench --site <site> execute \
   omc_app.setup.operations.validate_service_catalogue
 ```
 
-Then smoke-test the actual environment:
+Then perform controlled application smoke tests:
 
-- ERP/Frappe site loads;
-- login/session works;
-- OMC customer access resolves correctly;
+- ERP/Frappe site opens normally;
+- customer login/session works;
+- existing-customer activation works where applicable;
 - service catalogue loads;
-- a controlled test request can reach the expected document/payment state;
-- required-document upload works;
-- payment/receipt workflow behaves correctly;
-- protected internal workspace requires valid staff capability;
-- email/deep-link activation works if part of the release;
-- logs show no migration/bridge/schema errors.
-
-For release confidence, run the OMC backend regression suite in the target test/restored environment before or after deployment as appropriate.
+- required-document flow works;
+- payment/receipt flow works;
+- accounting/activation gate behaves correctly;
+- protected internal workspace requires valid Staff Access/capability;
+- support/notifications work;
+- background workers/scheduler are healthy;
+- logs contain no unresolved migration/schema/bridge failures.
 
 ---
 
-# Stop conditions
+# Part B — Why These Steps Are in This Order
 
-Stop and investigate if any of the following occurs:
+## 1. Why confirm the environment first?
 
-- app import or install fails;
+The client already has a working ERP site. This deployment must modify the intended existing site, not create a replacement site or new database.
+
+`bench list-sites`, `list-apps`, and `bench version` establish:
+
+- which site is being changed;
+- which apps are currently installed;
+- whether the runtime matches the supported v14 deployment;
+- whether a legacy app still needs controlled retirement.
+
+A wrong site name or wrong Bench is a deployment error, not something the migration should try to recover from.
+
+---
+
+## 2. Why take backups more than once?
+
+There are separate risk boundaries:
+
+1. before application installation/schema migration;
+2. immediately before historical OMC data migration;
+3. before legacy-app removal.
+
+Each backup corresponds to a different recovery point.
+
+A backup taken before installation does not replace the value of a backup taken immediately before a bulk data reconciliation.
+
+---
+
+## 3. What copying the OMC folder actually does
+
+Copying:
+
+```text
+omc_app -> frappe-bench/apps/omc_app
+```
+
+only places application source on the server.
+
+It does **not** automatically:
+
+- install the app on a site;
+- create OMC database tables;
+- execute patches;
+- migrate historical customers;
+- publish the service catalogue;
+- remove the legacy app.
+
+The editable Python install makes the package importable by the Bench environment, and `sites/apps.txt` registers the app with the Bench.
+
+---
+
+## 4. Why `install-app` and `bench migrate` are separate
+
+For a first installation:
+
+```text
+source copied
+    -> Python package registered
+    -> install-app
+    -> bench migrate
+```
+
+`install-app` installs the custom Frappe app on the selected site.
+
+`bench migrate` then brings the site's schema/metadata/patch state in line with the installed code.
+
+It applies things such as:
+
+- OMC DocTypes;
+- fields/schema changes;
+- indexes;
+- registered patches;
+- Frappe metadata migrations.
+
+Important:
+
+> `bench migrate` is **not** the historical customer migration and is **not** the production service-catalogue publisher.
+
+Those are deliberate separate operations.
+
+---
+
+## 5. Why validate the ERP contract after migrate
+
+OMC integrates with an existing client ERP schema instead of rewriting ERPNext source.
+
+The read-only ERP contract validation confirms required ERP business structures exist, including required Customer, Service, Task, Task Type, Sales Invoice and Payment Entry integration points and the specific required client fields/types.
+
+If that contract is incomplete, OMC deliberately fails rather than silently modifying ERPNext metadata.
+
+This is why the deployment should stop on contract failure.
+
+---
+
+## 6. Why the old app should normally remain until after historical OMC migration
+
+The current migration/reconciliation code can use existing ERP/legacy evidence to resolve historical identity and staff persona information.
+
+Examples include:
+
+- linked Lead information used for customer CNIC/phone identity fallback;
+- existing ERP User persona information used for staff reconciliation;
+- existing Customer relationships used for historical attribution.
+
+An app uninstall can remove app-owned metadata/custom fields depending on how that legacy app was built.
+
+Therefore the safe sequence is:
+
+```text
+install OMC
+    -> migrate OMC schema
+    -> validate ERP contract
+    -> read/migrate historical evidence
+    -> reconcile catalogue
+    -> only then retire legacy app
+    -> validate ERP contract again
+```
+
+This preserves evidence until OMC has completed the migration that may need it.
+
+If the client has independently proven that the old app owns no required migration/ERP-contract metadata, its removal can be evaluated separately. Do not assume that without evidence.
+
+---
+
+# Part C — Existing-Customer & Staff Migration Explained
+
+## 1. Purpose
+
+The client may have thousands of existing ERP customers. Manually recreating them as app customers is neither practical nor safe.
+
+The migration therefore reconciles existing ERP business identities into OMC application state without bulk-generating customer login accounts.
+
+## 2. Customer identity order
+
+The current migration resolves identity in this priority:
+
+```text
+1. unique valid Customer email
+2. unique linked-Lead CNIC
+3. unique safe resolved phone
+4. unique supported Customer tax ID / NTN
+5. identity review
+```
+
+The backend uses deterministic uniqueness checks rather than fuzzy matching.
+
+If a value is duplicated/ambiguous, migration does not guess.
+
+## 3. Why NTN/tax ID is last
+
+Customer tax identity can be useful, but established unique email/CNIC/phone evidence has higher priority in the current migration contract.
+
+A supported unique tax ID/NTN is therefore a deterministic fallback only.
+
+## 4. What migration may reconcile
+
+Depending on the data present, the migration can reconcile areas such as:
+
+- eligible existing ERP staff;
+- Staff Profile compatibility state;
+- canonical `OMC Staff Access`;
+- staff capabilities/persona evidence;
+- referral codes for eligible referral owners;
+- OMC Customer Profiles for safely identifiable ERP Customers;
+- canonical customer-account relationships where appropriate;
+- historical referral/acquisition attribution where evidence exists;
+- explicit review/quarantine state for unsafe/ambiguous cases.
+
+## 5. What migration intentionally does not do
+
+It must not:
+
+- create thousands of customer Frappe Users in advance;
+- create shared/default passwords;
+- guess duplicate identities;
+- automatically enable disabled users;
+- promote Website Users to System Users;
+- overwrite suspended/rejected Staff Access merely because sync runs again;
+- invent historical referrers;
+- invent commission provenance;
+- force-link an ambiguous ERP Customer.
+
+## 6. Why preflight is required
+
+The preflight is the review point before writes.
+
+Review:
+
+- total customers;
+- safely identifiable count;
+- identity-review count;
+- reasons for review;
+- create/reuse actions;
+- staff reconciliation state;
+- referral/history reconciliation;
+- blockers/warnings;
+- unexpected login-user creation behaviour.
+
+A materially unexpected preflight result means **stop**, not “apply and see what happens”.
+
+## 7. Why rerun preflight after apply
+
+The post-apply preflight verifies idempotent reconciliation.
+
+Successfully migrated records should now appear as existing/reusable/current rather than as new uncontrolled writes.
+
+Remaining identity-review cases should remain explicit review cases until separately resolved.
+
+---
+
+# Part D — Service Catalogue Explained
+
+## 1. Why catalogue sync is separate from `bench migrate`
+
+The production service catalogue is business data, not merely database schema.
+
+It contains:
+
+```text
+9 categories
+31 services
+17 active
+14 inactive/review-required
+```
+
+It also contains pricing, service identity, required documents, form fields and exact ERP Task Type mapping.
+
+Automatically rewriting that business data during every schema migration would be unsafe.
+
+Therefore catalogue publishing is explicit:
+
+```text
+preview -> review -> sync -> validate
+```
+
+## 2. Exact ERP Task Type rule
+
+OMC does not fuzzy-match or create ERP Task Types.
+
+A service maps to the exact existing client ERP Task Type identity.
+
+This prevents a similar-looking Task Type from silently receiving the wrong OMC service configuration.
+
+## 3. Why inactive services remain in the manifest
+
+A service can remain inactive when its commercial facts are not sufficiently verified, for example:
+
+- incomplete pricing;
+- unclear recurring fee structure;
+- incomplete scope;
+- uncertain completion timing;
+- incomplete requirements.
+
+Inactive does not mean deleted. It means not safe to publish as an active customer service yet.
+
+## 4. Catalogue protection for live customer requests
+
+The provisioner protects existing/in-flight requests from unsafe changes such as:
+
+- newly imposed required documents;
+- unsafe price changes;
+- ambiguous stable document keys;
+- destructive removal of managed requirements.
+
+New required-document definitions can use `effective_from` so older requests keep the contract they started with.
+
+## 5. Idempotency
+
+Once a site matches the source-controlled catalogue, repeating the sync should produce no new business mutations.
+
+A clean validation should show no unexpected:
+
+- creates;
+- updates;
+- deactivations;
+- conflicts;
+- blockers.
+
+---
+
+# Part E — Legacy App Retirement Explained
+
+## 1. Never guess the app name
+
+Use:
+
+```bash
+bench --site <site> list-apps
+```
+
+The uninstall command must use the exact installed app name.
+
+## 2. Why backup immediately before uninstall
+
+Frappe app uninstall can remove app-owned site metadata/data.
+
+A fresh backup creates a recovery point specifically for legacy-app retirement.
+
+## 3. Why ERP contract validation must run again afterward
+
+The OMC backend depends on a defined client ERP integration contract.
+
+If legacy-app uninstall removes any required field/metadata, the contract validation will expose it immediately.
+
+Do not hide that failure by manually patching ERPNext source.
+
+## 4. When to remove the old source folder
+
+Only after:
+
+```text
+uninstall-app succeeded
++ bench migrate succeeded
++ ERP contract validation succeeded
++ OMC catalogue validation succeeded
++ site remained healthy
+```
+
+Then the obsolete app source folder can be removed if the client no longer needs it.
+
+---
+
+# Part F — Payment, Accounting and ERP Activation Checks
+
+The current production architecture is payment/accounting-first.
+
+For a normal full-settlement service:
+
+```text
+Service Request
+    -> required documents
+    -> payment/receipt
+    -> ERP accounting settlement
+    -> Ready for Activation
+    -> durable bridge
+    -> ERP Service + ERP Task
+```
+
+A receipt upload alone is not accounting settlement.
+
+During smoke testing, verify that a paid service does not create/activate ERP operational records before the backend considers the request financially eligible.
+
+The durable bridge uses `OMC Bridge Operation` and is designed to safely retry without duplicating the business effect.
+
+---
+
+# Part G — Optional Setup Operations
+
+Normal migrate intentionally does not silently rewrite every OMC site setting.
+
+Explicit setup commands may exist for:
+
+- permission repair;
+- Desk/workspace configuration;
+- branding;
+- tax defaults;
+- catalogue reconciliation.
+
+Only run a mutation when it is part of the approved deployment plan.
+
+For example:
+
+```bash
+bench --site <site> execute omc_app.setup.operations.repair_permissions
+bench --site <site> execute omc_app.setup.operations.sync_desk_configuration
+bench --site <site> execute omc_app.setup.operations.apply_site_branding
+```
+
+---
+
+# Part H — Optional Separate Compatibility/Fix Script
+
+If the handover package includes a **separately supplied, approved compatibility/fix script**, treat it as a separate reviewed deployment action.
+
+Before running it:
+
+1. confirm the exact script filename;
+2. read its path assumptions;
+3. adjust only documented path variables if the client's Bench layout differs;
+4. take a backup if it mutates site data/metadata;
+5. run it from the directory required by that script;
+6. re-run `bench migrate`, ERP-contract validation and relevant tests/checks afterward if the script changes metadata.
+
+This runbook intentionally does not invent a script filename/path that is not present in the repository.
+
+---
+
+# Part I — Stop Conditions
+
+Stop and investigate if any of these occurs:
+
+- wrong site/Bench/runtime detected;
+- backup fails;
+- OMC Python import fails;
+- `install-app` fails;
 - `bench migrate` fails;
-- the ERP site stops loading;
+- ERP contract validation fails;
 - migration preflight differs materially from the reviewed expectation;
-- migration proposes unsafe identity linking or unexpected login-user creation;
-- staff reconciliation reports unexpected conflicts;
-- catalogue preview reports missing/ambiguous Task Types, unsafe in-flight changes, price conflicts, or blockers;
-- catalogue validation is not clean after a successful intended sync;
-- old-app removal breaks required client metadata;
-- ERP Service/Task activation begins before the expected payment/accounting gate;
-- production services/logs show unresolved failures.
+- migration proposes unexpected login-user creation;
+- identity ambiguity is being force-resolved;
+- staff reconciliation reports unexpected security conflicts;
+- catalogue preview reports missing/ambiguous ERP Task Types;
+- catalogue reports unsafe price/document changes;
+- catalogue validation remains conflicted/blocked after intended sync;
+- legacy-app uninstall removes required ERP integration metadata;
+- ERP site stops loading;
+- payment/accounting gate is bypassed;
+- ERP Service/Task duplication appears;
+- Supervisor/workers/scheduler are unhealthy;
+- logs show unresolved migration, schema, accounting or bridge failures.
 
-Do not manually force-link ambiguous identities or bypass catalogue/settlement safety checks.
+Do not continue simply to finish the checklist. Resolve the stop condition or restore the appropriate backup.
 
 ---
 
-# Final checklist
+# Part J — Final Evidence Checklist
 
-- [ ] Correct ERPNext v14 site confirmed
-- [ ] Full backup completed
-- [ ] Correct `omc_app` release copied/registered
-- [ ] OMC App installed or updated
+## Environment
+
+- [ ] Correct Bench confirmed
+- [ ] Correct client site confirmed
+- [ ] Frappe/ERPNext v14 confirmed
+- [ ] Exact old app name recorded if applicable
+
+## Safety
+
+- [ ] Initial full backup completed
+- [ ] Final pre-data-migration backup completed
+- [ ] Pre-legacy-removal backup completed if applicable
+
+## OMC code/schema
+
+- [ ] Correct `omc_app` source copied
+- [ ] Python import works
+- [ ] App registered in Bench
+- [ ] `omc_app` installed on the correct site
 - [ ] `bench migrate` completed
-- [ ] Legacy app removed only if explicitly required
+- [ ] ERP contract validation passed
+
+## Historical data
+
 - [ ] Migration preflight reviewed
-- [ ] Final pre-migration backup completed
-- [ ] OMC data migration applied with explicit confirmation
-- [ ] Post-migration preflight reviewed
+- [ ] Identity-review cases understood
+- [ ] OMC migration applied with explicit confirmation
+- [ ] Post-apply preflight reviewed
+- [ ] No ambiguous records force-linked
+
+## Catalogue
+
 - [ ] Catalogue preview reviewed
-- [ ] Catalogue sync applied if required
+- [ ] Exact ERP Task Type mappings accepted
+- [ ] Catalogue sync run if required
 - [ ] Catalogue validation clean
-- [ ] Cache cleared/assets built
-- [ ] Services restarted/reloaded
-- [ ] ERP site healthy
-- [ ] OMC smoke tests completed
-- [ ] Remaining identity/catalogue review cases recorded rather than force-fixed
+
+## Legacy app
+
+- [ ] Legacy app removed only if explicitly approved
+- [ ] Post-removal migrate completed
+- [ ] ERP contract validation still passes
+- [ ] Catalogue validation still passes
+
+## Runtime
+
+- [ ] OMC assets built
+- [ ] Cache cleared
+- [ ] Production processes restarted/reloaded
+- [ ] Scheduler/workers healthy
+- [ ] Nginx configuration valid
+
+## Functional smoke checks
+
+- [ ] ERP site opens normally
+- [ ] Customer login works
+- [ ] Existing-customer activation works where applicable
+- [ ] Service catalogue works
+- [ ] Required-document upload works
+- [ ] Payment/receipt workflow works
+- [ ] Accounting settlement gate works
+- [ ] ERP activation happens only when eligible
+- [ ] Staff internal workspace is capability-gated
+- [ ] Support/notifications work
+- [ ] No critical errors remain in logs
+
+---
+
+# Final Deployment Flow
+
+```text
+Existing healthy ERPNext v14 site
+        |
+        v
+Confirm site/apps/runtime
+        |
+        v
+Full backup
+        |
+        v
+Copy/register omc_app
+        |
+        v
+install-app (first install only)
+        |
+        v
+bench migrate
+        |
+        v
+Validate client ERP contract
+        |
+        v
+Customer/staff migration preflight
+        |
+        v
+Final pre-migration backup
+        |
+        v
+Apply OMC historical-data migration
+        |
+        v
+Post-migration preflight
+        |
+        v
+Catalogue preview
+        |
+        v
+Catalogue sync + validation
+        |
+        v
+Backup + retire legacy app if approved
+        |
+        v
+Migrate + revalidate ERP contract/catalogue
+        |
+        v
+Optional explicit OMC setup operations
+        |
+        v
+Build + clear cache + restart
+        |
+        v
+Final technical + functional verification
+```
+
+The essential deployment rule is:
+
+> **Preserve the working ERP site, migrate/reconcile OMC data deliberately, retain historical evidence until migration has consumed it, and validate every destructive boundary before proceeding.**
