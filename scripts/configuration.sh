@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 IFS=$'\n\t'
+umask 077
 
-SCRIPT_VERSION="1.0.1"
+SCRIPT_VERSION="1.2.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_BENCH_DIR="$(cd "$APP_ROOT/../.." 2>/dev/null && pwd || true)"
+REPORTER="$SCRIPT_DIR/configuration_report.py"
 
 BENCH_DIR="${BENCH_DIR:-}"
 SITE="${SITE_NAME:-}"
@@ -15,7 +17,7 @@ SKIP_LEGACY_APP=0
 NO_RESTART=0
 CURRENT_STEP="startup"
 LOG_FILE=""
-TEMP_DIR=""
+EVIDENCE_DIR=""
 BENCH_CMD=""
 BENCH_PYTHON=""
 INSTALLED_APPS=()
@@ -41,12 +43,12 @@ Environment alternatives:
   SITE_NAME=your.site.name
 
 The script is safe to rerun. It uses OMC's idempotent migration/catalogue
-operations and stops on failed compatibility or catalogue validation.
-USAGE
-}
+operations and stops on failed compatibility, migration, catalogue or service
+presentation validation.
 
-info() {
-    printf '\n==> %s\n' "$*"
+Human-readable summaries are written to the main log. Full raw JSON command
+outputs are preserved separately in a timestamped evidence directory.
+USAGE
 }
 
 warn() {
@@ -58,12 +60,6 @@ fail() {
     exit 1
 }
 
-cleanup() {
-    if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
-        rm -rf -- "$TEMP_DIR"
-    fi
-}
-
 on_error() {
     local rc=$?
     printf '\n============================================================\n' >&2
@@ -73,13 +69,15 @@ on_error() {
     if [[ -n "$LOG_FILE" ]]; then
         printf 'Log: %s\n' "$LOG_FILE" >&2
     fi
+    if [[ -n "$EVIDENCE_DIR" ]]; then
+        printf 'Raw evidence: %s\n' "$EVIDENCE_DIR" >&2
+    fi
     printf 'Fix the reported issue, then rerun the script.\n' >&2
     printf 'Do not bypass failed ERP/catalogue safety checks.\n' >&2
     printf '============================================================\n' >&2
     exit "$rc"
 }
 
-trap cleanup EXIT
 trap on_error ERR
 
 while (($#)); do
@@ -157,10 +155,11 @@ resolve_bench() {
     else
         fail "bench command is not available on PATH or at $HOME/.local/bin/bench"
     fi
+
+    [[ -f "$REPORTER" ]] || fail "Configuration report helper is missing: $REPORTER"
 }
 
 select_site() {
-    local configs=()
     local sites=()
     local config=""
     local choice=""
@@ -169,12 +168,11 @@ select_site() {
     if [[ -n "$SITE" ]]; then
         [[ -f "$BENCH_DIR/sites/$SITE/site_config.json" ]] ||
             fail "Site does not exist in this Bench: $SITE"
-        return
+        return 0
     fi
 
     while IFS= read -r config; do
         [[ -n "$config" ]] || continue
-        configs+=("$config")
         sites+=("$(basename "$(dirname "$config")")")
     done < <(
         find "$BENCH_DIR/sites" \
@@ -188,7 +186,7 @@ select_site() {
     if ((${#sites[@]} == 1)); then
         SITE="${sites[0]}"
         printf 'Detected site: %s\n' "$SITE"
-        return
+        return 0
     fi
 
     [[ -t 0 ]] || fail "Multiple sites found. Pass --site <site>."
@@ -205,7 +203,7 @@ select_site() {
         if [[ "$choice" =~ ^[0-9]+$ ]] &&
             ((choice >= 1 && choice <= ${#sites[@]})); then
             SITE="${sites[$((choice - 1))]}"
-            return
+            return 0
         fi
         printf 'Please enter a valid number.\n'
     done
@@ -235,8 +233,13 @@ app_is_installed() {
 }
 
 start_log() {
+    local stamp=""
+    stamp="$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$BENCH_DIR/logs"
-    LOG_FILE="$BENCH_DIR/logs/omc-configuration-${SITE}-$(date +%Y%m%d-%H%M%S).log"
+    LOG_FILE="$BENCH_DIR/logs/omc-configuration-${SITE}-${stamp}.log"
+    EVIDENCE_DIR="$BENCH_DIR/logs/omc-configuration-${SITE}-${stamp}-evidence"
+    mkdir -p "$EVIDENCE_DIR"
+    chmod 700 "$EVIDENCE_DIR"
     exec > >(tee -a "$LOG_FILE") 2>&1
 }
 
@@ -248,9 +251,13 @@ step() {
 }
 
 capture_json() {
-    local output_file="$1"
-    shift
-    "$@" | tee "$output_file"
+    local key="$1"
+    local report_kind="$2"
+    shift 2
+    local output_file="$EVIDENCE_DIR/${key}.json"
+
+    "$@" >"$output_file"
+    "$BENCH_PYTHON" "$REPORTER" "$report_kind" "$output_file"
 }
 
 json_value() {
@@ -267,8 +274,10 @@ text = open(filename, "r", encoding="utf-8", errors="replace").read().strip()
 value = None
 for line in reversed([line.strip() for line in text.splitlines() if line.strip()]):
     try:
-        value = json.loads(line)
-        break
+        parsed = json.loads(line)
+        if isinstance(parsed, dict):
+            value = parsed
+            break
     except Exception:
         pass
 
@@ -276,10 +285,9 @@ if value is None:
     start = text.find("{")
     end = text.rfind("}")
     if start >= 0 and end > start:
-        try:
-            value = json.loads(text[start:end + 1])
-        except Exception:
-            value = None
+        parsed = json.loads(text[start:end + 1])
+        if isinstance(parsed, dict):
+            value = parsed
 
 if value is None:
     print("Could not parse bench execute JSON output.", file=sys.stderr)
@@ -399,10 +407,9 @@ if ((ASSUME_YES == 0)); then
     }
 fi
 
-TEMP_DIR="$(mktemp -d)"
 start_log
-
-printf 'Log:   %s\n' "$LOG_FILE"
+printf 'Log:          %s\n' "$LOG_FILE"
+printf 'Raw evidence: %s\n' "$EVIDENCE_DIR"
 
 backup_site "before OMC post-install configuration"
 
@@ -411,16 +418,18 @@ step "Migrate OMC schema and clear cache"
 "$BENCH_CMD" --site "$SITE" clear-cache
 
 step "Validate client ERP contract"
-"$BENCH_CMD" --site "$SITE" execute \
+capture_json "01-erp-contract" "erp_contract" \
+    "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.erp_contract.validate_client_erp_contract
 
 step "Reconcile OMC-owned roles, Desk metadata, referral workspace and branding"
-"$BENCH_CMD" --site "$SITE" execute \
+capture_json "02-initialize-site" "initialize" \
+    "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.initialize_site
 
 step "Read-only customer/staff migration preflight"
-PRE_MIGRATION="$TEMP_DIR/customer-preflight-before.json"
-capture_json "$PRE_MIGRATION" \
+PRE_MIGRATION="$EVIDENCE_DIR/03-customer-preflight-before.json"
+capture_json "03-customer-preflight-before" "migration_preflight" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.api.customer_migration.preflight
 
@@ -428,18 +437,11 @@ USER_ACCOUNTS_TO_CREATE="$(json_value "$PRE_MIGRATION" "user_accounts_to_create"
 [[ "$USER_ACCOUNTS_TO_CREATE" == "0" ]] ||
     fail "Migration preflight proposed customer User creation: $USER_ACCOUNTS_TO_CREATE"
 
-printf '\nMigration preflight summary:\n'
-printf '  activation-ready imports: %s\n' "$(json_value "$PRE_MIGRATION" "activation_ready_import")"
-printf '  deferred claim-on-signup:  %s\n' "$(json_value "$PRE_MIGRATION" "deferred_claim_on_signup")"
-printf '  identity review:           %s\n' "$(json_value "$PRE_MIGRATION" "identity_review")"
-printf '  blocker counts:            %s\n' "$(json_value "$PRE_MIGRATION" "blocker_counts")"
-printf '  warning counts:            %s\n' "$(json_value "$PRE_MIGRATION" "warning_counts")"
-
 backup_site "immediately before OMC historical-data migration"
 
 step "Apply idempotent customer/staff/historical migration"
-MIGRATION_APPLY="$TEMP_DIR/customer-apply.json"
-capture_json "$MIGRATION_APPLY" \
+MIGRATION_APPLY="$EVIDENCE_DIR/04-customer-migration-apply.json"
+capture_json "04-customer-migration-apply" "migration_apply" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.api.customer_migration.apply \
     --kwargs '{"confirm":"APPLY_CUSTOMER_MIGRATION","limit":0,"batch_size":100}'
@@ -449,8 +451,8 @@ USER_ACCOUNTS_CREATED="$(json_value "$MIGRATION_APPLY" "user_accounts_created")"
     fail "Migration unexpectedly created customer Users: $USER_ACCOUNTS_CREATED"
 
 step "Post-migration read-only verification"
-POST_MIGRATION="$TEMP_DIR/customer-preflight-after.json"
-capture_json "$POST_MIGRATION" \
+POST_MIGRATION="$EVIDENCE_DIR/05-customer-preflight-after.json"
+capture_json "05-customer-preflight-after" "migration_preflight" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.api.customer_migration.preflight
 
@@ -459,28 +461,48 @@ POST_USER_ACCOUNTS="$(json_value "$POST_MIGRATION" "user_accounts_to_create")"
     fail "Post-migration preflight reports unexpected User creation: $POST_USER_ACCOUNTS"
 
 step "Preview production service catalogue"
-CATALOGUE_PREVIEW="$TEMP_DIR/catalogue-preview.json"
-capture_json "$CATALOGUE_PREVIEW" \
+CATALOGUE_PREVIEW="$EVIDENCE_DIR/06-catalogue-preview.json"
+capture_json "06-catalogue-preview" "catalogue_preview" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.preview_service_catalogue
 
 READY_TO_SYNC="$(json_value "$CATALOGUE_PREVIEW" "ready_to_sync")"
 [[ "$READY_TO_SYNC" == "true" ]] ||
-    fail "Catalogue preview is not safe to sync. Review the preview blockers/conflicts above."
+    fail "Catalogue preview is not safe to sync. Review the preview blockers/conflicts in raw evidence."
 
 step "Synchronize production service catalogue"
-"$BENCH_CMD" --site "$SITE" execute \
+capture_json "07-catalogue-sync" "catalogue_sync" \
+    "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.sync_service_catalogue
 
+step "Apply service descriptions, support copy and Employee assignment role"
+PRESENTATION_SYNC="$EVIDENCE_DIR/08-service-presentation-sync.json"
+capture_json "08-service-presentation-sync" "presentation_sync" \
+    "$BENCH_CMD" --site "$SITE" execute \
+    omc_app.setup.service_catalogue.presentation.sync_service_presentation
+
+PRESENTATION_OK="$(json_value "$PRESENTATION_SYNC" "validation.valid")"
+[[ "$PRESENTATION_OK" == "true" ]] ||
+    fail "Service presentation synchronization did not validate."
+
 step "Validate production service catalogue"
-CATALOGUE_VALIDATE="$TEMP_DIR/catalogue-validate.json"
-capture_json "$CATALOGUE_VALIDATE" \
+CATALOGUE_VALIDATE="$EVIDENCE_DIR/09-catalogue-validate.json"
+capture_json "09-catalogue-validate" "catalogue_validate" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.validate_service_catalogue
 
 CATALOGUE_VALID="$(json_value "$CATALOGUE_VALIDATE" "valid")"
 [[ "$CATALOGUE_VALID" == "true" ]] ||
     fail "Catalogue validation did not converge to a valid state."
+
+step "Validate service descriptions and assignment defaults"
+PRESENTATION_VALIDATE="$EVIDENCE_DIR/10-service-presentation-validate.json"
+capture_json "10-service-presentation-validate" "presentation_validate" \
+    "$BENCH_CMD" --site "$SITE" execute \
+    omc_app.setup.service_catalogue.presentation.validate_service_presentation
+
+[[ "$(json_value "$PRESENTATION_VALIDATE" "valid")" == "true" ]] ||
+    fail "Service presentation validation failed."
 
 step "Optional legacy app retirement selection"
 refresh_installed_apps
@@ -497,22 +519,32 @@ if [[ -n "$LEGACY_APP" ]]; then
     "$BENCH_CMD" --site "$SITE" clear-cache
 
     step "Revalidate ERP contract after legacy app removal"
-    "$BENCH_CMD" --site "$SITE" execute \
+    capture_json "11-post-legacy-erp-contract" "erp_contract" \
+        "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.erp_contract.validate_client_erp_contract
 
     step "Reconcile OMC-owned configuration after legacy app removal"
-    "$BENCH_CMD" --site "$SITE" execute \
+    capture_json "12-post-legacy-initialize" "initialize" \
+        "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.operations.initialize_site
 
     step "Revalidate catalogue after legacy app removal"
-    POST_LEGACY_VALIDATE="$TEMP_DIR/catalogue-after-legacy.json"
-    capture_json "$POST_LEGACY_VALIDATE" \
+    POST_LEGACY_VALIDATE="$EVIDENCE_DIR/13-catalogue-after-legacy.json"
+    capture_json "13-catalogue-after-legacy" "catalogue_validate" \
         "$BENCH_CMD" --site "$SITE" execute \
         omc_app.setup.operations.validate_service_catalogue
 
-    POST_LEGACY_VALID="$(json_value "$POST_LEGACY_VALIDATE" "valid")"
-    [[ "$POST_LEGACY_VALID" == "true" ]] ||
+    [[ "$(json_value "$POST_LEGACY_VALIDATE" "valid")" == "true" ]] ||
         fail "Catalogue became invalid after legacy app removal."
+
+    step "Revalidate service presentation after legacy app removal"
+    POST_LEGACY_PRESENTATION="$EVIDENCE_DIR/14-presentation-after-legacy.json"
+    capture_json "14-presentation-after-legacy" "presentation_validate" \
+        "$BENCH_CMD" --site "$SITE" execute \
+        omc_app.setup.service_catalogue.presentation.validate_service_presentation
+
+    [[ "$(json_value "$POST_LEGACY_PRESENTATION" "valid")" == "true" ]] ||
+        fail "Service presentation became invalid after legacy app removal."
 
     warn "Legacy app source folder was intentionally retained. Remove it only after confirming no other Bench site uses it."
 fi
@@ -535,23 +567,33 @@ fi
 
 step "Final application and site verification"
 refresh_installed_apps
-"$BENCH_CMD" --site "$SITE" execute \
+capture_json "15-final-erp-contract" "erp_contract" \
+    "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.erp_contract.validate_client_erp_contract
 
-FINAL_CATALOGUE="$TEMP_DIR/catalogue-final.json"
-capture_json "$FINAL_CATALOGUE" \
+FINAL_CATALOGUE="$EVIDENCE_DIR/16-final-catalogue.json"
+capture_json "16-final-catalogue" "catalogue_validate" \
     "$BENCH_CMD" --site "$SITE" execute \
     omc_app.setup.operations.validate_service_catalogue
 
-FINAL_VALID="$(json_value "$FINAL_CATALOGUE" "valid")"
-[[ "$FINAL_VALID" == "true" ]] || fail "Final catalogue validation failed."
+[[ "$(json_value "$FINAL_CATALOGUE" "valid")" == "true" ]] ||
+    fail "Final catalogue validation failed."
+
+FINAL_PRESENTATION="$EVIDENCE_DIR/17-final-service-presentation.json"
+capture_json "17-final-service-presentation" "presentation_validate" \
+    "$BENCH_CMD" --site "$SITE" execute \
+    omc_app.setup.service_catalogue.presentation.validate_service_presentation
+
+[[ "$(json_value "$FINAL_PRESENTATION" "valid")" == "true" ]] ||
+    fail "Final service presentation validation failed."
 
 "$BENCH_CMD" --site "$SITE" doctor
 
 printf '\n============================================================\n'
 printf 'OMC POST-INSTALL CONFIGURATION COMPLETED\n'
-printf 'Site: %s\n' "$SITE"
-printf 'Log:  %s\n' "$LOG_FILE"
+printf 'Site:         %s\n' "$SITE"
+printf 'Log:          %s\n' "$LOG_FILE"
+printf 'Raw evidence: %s\n' "$EVIDENCE_DIR"
 printf '============================================================\n'
 printf '\nStill required outside this script:\n'
 printf '  - controlled app/browser/device smoke test\n'
