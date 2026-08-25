@@ -170,39 +170,56 @@ def _classify():
     for row in rows:
         journal = journals.get(_text(row.parent))
         reason = ""
+        action = "allocate"
         payment = None
         beneficiary_user = ""
 
         if not journal or int(journal.docstatus or 0) != 1:
             reason = "legacy_journal_not_submitted"
+            action = "review"
         elif _text(row.reference_type) != "Payment Entry" or not _text(row.reference_name):
             reason = "legacy_durable_payment_reference_missing"
+            action = "review"
         else:
             payment = payments.get(_text(row.reference_name))
             if not payment:
                 reason = "legacy_payment_entry_missing"
+                action = "review"
             elif int(payment.docstatus or 0) != 1:
                 reason = "legacy_payment_entry_not_submitted"
+                action = "review"
             elif _is_house_direct(payment):
+                # Explicit legacy business evidence proves that this is a house
+                # customer and therefore not a missing commission liability.
                 reason = "legacy_house_direct_suppressed"
+                action = "exclude"
             elif _text(payment.get("party_type")) != "Customer" or not _text(payment.get("party")):
                 reason = "legacy_payment_customer_missing"
+                action = "review"
             elif not frappe.db.exists("Customer", _text(payment.get("party"))):
                 reason = "legacy_erp_customer_missing"
+                action = "review"
             elif not _text(payment.get("custom_structure_name")):
                 reason = "legacy_structure_snapshot_missing"
+                action = "review"
             elif not _text(payment.get("custom_source")) or not _text(payment.get("custom_sales_person")):
                 reason = "legacy_beneficiary_snapshot_missing"
+                action = "review"
             elif _money(payment.get("custom_sales_person_amount")) <= 0:
                 reason = "legacy_commission_amount_not_positive"
+                action = "review"
             elif _money(row.credit_in_account_currency) != _money(payment.get("custom_sales_person_amount")):
                 reason = "legacy_je_amount_mismatch"
+                action = "review"
             elif _text(row.party_type) != _text(payment.get("custom_source")):
                 reason = "legacy_je_party_type_mismatch"
+                action = "review"
             elif _text(row.party) != _text(payment.get("custom_sales_person")):
                 reason = "legacy_je_beneficiary_mismatch"
+                action = "review"
             elif _money(payment.get("paid_amount")) <= 0:
                 reason = "legacy_paid_amount_not_positive"
+                action = "review"
             else:
                 expected_amount = (
                     _money(payment.get("paid_amount"))
@@ -211,6 +228,7 @@ def _classify():
                 ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                 if expected_amount != _money(payment.get("custom_sales_person_amount")):
                     reason = "legacy_paid_amount_formula_mismatch"
+                    action = "review"
                 else:
                     beneficiary_user = _beneficiary_user(
                         _text(payment.get("custom_source")),
@@ -218,9 +236,10 @@ def _classify():
                     )
                     if not beneficiary_user:
                         reason = "legacy_beneficiary_user_unresolved"
+                        action = "review"
 
         decision = {
-            "action": "review" if reason else "allocate",
+            "action": action,
             "reason": reason,
             "journal_entry": _text(row.parent),
             "journal_row": _text(row.name),
@@ -229,12 +248,12 @@ def _classify():
             "beneficiary_user": beneficiary_user,
         }
         row_decisions.append(decision)
-        if not reason and payment:
+        if action == "allocate" and payment:
             exact_matches_by_payment.setdefault(payment.name, []).append(decision)
 
     # One frozen Payment Entry must map to exactly one safe legacy liability.
     # Duplicate matching JE rows are review-only rather than guessed/deduped.
-    for payment_name, decisions in exact_matches_by_payment.items():
+    for _payment_name, decisions in exact_matches_by_payment.items():
         if len(decisions) == 1:
             continue
         for decision in decisions:
@@ -287,8 +306,10 @@ def preflight():
     """Read-only historical commission classification."""
     decisions = _classify()
     safe = [decision for decision in decisions if decision["action"] == "allocate"]
-    review = [decision for decision in decisions if decision["action"] != "allocate"]
+    review = [decision for decision in decisions if decision["action"] == "review"]
+    excluded = [decision for decision in decisions if decision["action"] == "exclude"]
     reasons = Counter(decision["reason"] or "unknown" for decision in review)
+    excluded_reasons = Counter(decision["reason"] or "unknown" for decision in excluded)
     total = sum(
         (_money(decision["payment"].get("custom_sales_person_amount")) for decision in safe),
         Decimal("0.00"),
@@ -299,8 +320,10 @@ def preflight():
         "calculation_version": CALCULATION_VERSION,
         "safe_allocations": len(safe),
         "review_required": len(review),
+        "excluded": len(excluded),
         "safe_liability_total": float(total),
         "review_reason_counts": dict(sorted(reasons.items())),
+        "excluded_reason_counts": dict(sorted(excluded_reasons.items())),
         "safe_samples": [
             {
                 "payment_entry": decision["payment_entry"],
@@ -318,6 +341,14 @@ def preflight():
             }
             for decision in review[:20]
         ],
+        "excluded_samples": [
+            {
+                "journal_entry": decision["journal_entry"],
+                "payment_entry": decision["payment_entry"],
+                "reason": decision["reason"],
+            }
+            for decision in excluded[:20]
+        ],
     }
 
 
@@ -328,8 +359,10 @@ def apply(*, commit=False):
         "provenance": PROVENANCE,
         "created": 0,
         "existing": 0,
+        "excluded": 0,
         "review_queued": 0,
         "review_reason_counts": Counter(),
+        "excluded_reason_counts": Counter(),
         "changed": False,
     }
 
@@ -349,6 +382,11 @@ def apply(*, commit=False):
             continue
 
         reason = _text(decision.get("reason")) or "legacy_commission_review_required"
+        if decision["action"] == "exclude":
+            result["excluded"] += 1
+            result["excluded_reason_counts"][reason] += 1
+            continue
+
         source_name = decision["journal_entry"] or decision["journal_row"]
         source_version = _key(
             CALCULATION_VERSION,
@@ -375,6 +413,9 @@ def apply(*, commit=False):
 
     result["review_reason_counts"] = dict(
         sorted(result["review_reason_counts"].items())
+    )
+    result["excluded_reason_counts"] = dict(
+        sorted(result["excluded_reason_counts"].items())
     )
     if commit and result["changed"]:
         frappe.db.commit()
