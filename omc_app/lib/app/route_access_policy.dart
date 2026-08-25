@@ -105,6 +105,11 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
     return capabilities.canViewAnyPayment;
   }
 
+  if (location == '/internal-workspace/commissions') {
+    return capabilities.canApproveCommissions ||
+        capabilities.canMarkCommissionsPaid;
+  }
+
   // Unknown internal workspace sub-routes fail closed. New internal screens
   // must declare their capability rule explicitly above.
   if (location.startsWith('/internal-workspace/')) return false;
@@ -124,14 +129,12 @@ bool canAccessRoute(String location, AuthCapabilities capabilities) {
   }
 
   if (location == '/my-referrals' || location.startsWith('/my-referrals/')) {
-    return capabilities.isInternal &&
-        capabilities.canViewRelevantCustomers &&
-        !capabilities.canViewAllCustomers;
+    return capabilities.canOwnReferrals;
   }
 
   if (location == '/my-commissions' ||
       location.startsWith('/my-commissions/')) {
-    return capabilities.canViewReferralCommissions;
+    return capabilities.canViewOwnCommissions;
   }
 
   if (location == '/profile' ||
