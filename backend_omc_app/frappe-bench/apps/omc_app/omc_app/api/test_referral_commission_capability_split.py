@@ -31,6 +31,7 @@ class TestReferralCommissionCapabilitySplit(FrappeTestCase):
         values = access.ROLE_CAPABILITIES["OMC Finance Reviewer"]
         self.assertNotIn("can_own_referrals", values)
         self.assertNotIn("can_view_own_commissions", values)
+        self.assertNotIn("can_view_referral_commissions", values)
         self.assertIn("can_approve_commissions", values)
         self.assertIn("can_mark_commissions_paid", values)
 
@@ -49,3 +50,17 @@ class TestReferralCommissionCapabilitySplit(FrappeTestCase):
                 "can_view_referral_commissions",
                 staff_sync._persona_capabilities(persona),
             )
+
+    def test_role_templates_never_store_legacy_overloaded_capability(self):
+        for role, values in access.ROLE_CAPABILITIES.items():
+            self.assertNotIn(
+                "can_view_referral_commissions",
+                values,
+                role,
+            )
+
+    def test_non_owner_internal_templates_have_no_self_scoped_entitlements(self):
+        for role in ("OMC Admin", "OMC Manager", "OMC Finance Reviewer"):
+            values = access.ROLE_CAPABILITIES[role]
+            self.assertNotIn("can_own_referrals", values, role)
+            self.assertNotIn("can_view_own_commissions", values, role)

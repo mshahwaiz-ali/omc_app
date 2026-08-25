@@ -10,6 +10,7 @@ from omc_app.api import (
     idempotency,
     identity,
     mobile,
+    referrals,
     referral_attribution,
     security,
     service_assignment,
@@ -60,6 +61,17 @@ def _roles(user: str) -> set[str]:
 
 def _capabilities(user: str) -> dict:
     return access.get_mobile_capabilities(user=user)
+
+
+def _can_use_my_referrals(
+    user: str,
+    capabilities: dict | None = None,
+) -> bool:
+    values = capabilities if capabilities is not None else _capabilities(user)
+    return bool(
+        values.get("can_own_referrals")
+        and referrals.is_referral_owner(user)
+    )
 
 
 def _require_internal_assist(user: str) -> dict:
@@ -281,6 +293,12 @@ def _profile(customer_profile: str):
 
 
 def _resolve_my_referral(user: str, customer_profile: str):
+    if not _can_use_my_referrals(user):
+        frappe.throw(
+            "You do not have permission to use referral customers.",
+            frappe.PermissionError,
+        )
+
     profile = _profile(customer_profile)
     if _text(profile.referred_by) != user:
         frappe.throw(
@@ -546,7 +564,7 @@ def get_customer_selection_options(
     start, length = _pagination(limit_start, limit_page_length)
 
     modes = []
-    if capabilities.get("can_view_referral_commissions"):
+    if _can_use_my_referrals(user, capabilities):
         modes.append("My Referral")
     if capabilities.get("can_view_all_customers"):
         modes.append("Existing Customer")

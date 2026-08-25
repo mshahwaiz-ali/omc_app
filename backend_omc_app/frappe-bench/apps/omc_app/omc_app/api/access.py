@@ -24,16 +24,29 @@ INTERNAL_ROLES = set(ACTIVE_STAFF_ROLES)
 ADMIN_ROLES = {ADMIN_ROLE}
 
 INTERNAL_CAPABILITY_KEYS = capability_policy.INTERNAL_CAPABILITY_KEYS
+SELF_SCOPED_CAPABILITY_KEYS = frozenset({
+    "can_own_referrals",
+    "can_view_own_commissions",
+})
+LEGACY_OVERLOADED_CAPABILITY = "can_view_referral_commissions"
 
 ROLE_CAPABILITIES = {
-    ADMIN_ROLE: set(INTERNAL_CAPABILITY_KEYS),
-    MANAGER_ROLE: set(INTERNAL_CAPABILITY_KEYS)
-    - {
-        "can_manage_settings",
-        "can_manage_staff",
-        "can_review_registrations",
-        "can_manage_business_settings",
-    },
+    ADMIN_ROLE: (
+        set(INTERNAL_CAPABILITY_KEYS)
+        - SELF_SCOPED_CAPABILITY_KEYS
+        - {LEGACY_OVERLOADED_CAPABILITY}
+    ),
+    MANAGER_ROLE: (
+        set(INTERNAL_CAPABILITY_KEYS)
+        - SELF_SCOPED_CAPABILITY_KEYS
+        - {
+            LEGACY_OVERLOADED_CAPABILITY,
+            "can_manage_settings",
+            "can_manage_staff",
+            "can_review_registrations",
+            "can_manage_business_settings",
+        }
+    ),
     SUPPORT_AGENT_ROLE: {
         "can_access_internal_workspace",
         "can_manage_leads",
@@ -66,7 +79,6 @@ ROLE_CAPABILITIES = {
         "can_review_payments",
         "can_reconcile_settlement",
         "can_approve_post_paid",
-        "can_view_referral_commissions",
         "can_approve_commissions",
         "can_mark_commissions_paid",
         "can_view_relevant_customers",
@@ -84,7 +96,8 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
-        "can_view_referral_commissions",
+        "can_own_referrals",
+        "can_view_own_commissions",
     },
     TAX_ASSOCIATE_ROLE: {
         "can_access_internal_workspace",
@@ -96,7 +109,8 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
-        "can_view_referral_commissions",
+        "can_own_referrals",
+        "can_view_own_commissions",
     },
     BUSINESS_PARTNER_ROLE: {
         "can_access_internal_workspace",
@@ -108,7 +122,8 @@ ROLE_CAPABILITIES = {
         "can_view_document_summaries",
         "can_view_document_attachments",
         "can_view_internal_notes",
-        "can_view_referral_commissions",
+        "can_own_referrals",
+        "can_view_own_commissions",
     },
     "Employee": {
         "can_access_internal_workspace",
@@ -116,6 +131,7 @@ ROLE_CAPABILITIES = {
         "can_view_relevant_customers",
         "can_view_document_summaries",
         "can_view_document_attachments",
+        "can_view_own_commissions",
     },
 }
 
