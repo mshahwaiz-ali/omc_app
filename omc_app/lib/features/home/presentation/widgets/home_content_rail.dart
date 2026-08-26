@@ -3,10 +3,16 @@ import 'package:flutter/material.dart';
 import '../../data/home_content.dart';
 
 class HomeContentRail extends StatelessWidget {
-  const HomeContentRail({required this.items, required this.onTap, super.key});
+  const HomeContentRail({
+    required this.items,
+    required this.onTap,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    super.key,
+  });
 
   final List<HomeContentCard> items;
   final ValueChanged<HomeContentCard> onTap;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +21,7 @@ class HomeContentRail extends StatelessWidget {
     return SizedBox(
       height: 190,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: padding,
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: items.length,

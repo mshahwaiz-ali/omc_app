@@ -16,16 +16,21 @@ ALLOWED_FIELDS = {
     "phone": 40,
     "whatsapp_no": 40,
     "address": 500,
-    "company_name": 140,
 }
 SET_ONCE_FIELDS = {
+    "cnic": 40,
     "ntn": 40,
+    "company_name": 140,
+}
+SET_ONCE_FIELD_LABELS = {
+    "cnic": "CNIC",
+    "ntn": "NTN",
+    "company_name": "Company name",
 }
 LOCKED_FIELDS = {
     "email",
     "user",
     "username",
-    "cnic",
     "tax_id",
     "customer_type",
     "register_as",
@@ -85,6 +90,10 @@ def _normalise_phone(value: str) -> str:
 
 def _clean_payload(kwargs) -> dict[str, str]:
     data = dict(kwargs or {})
+    # Frappe includes the routed method name as transport metadata when
+    # whitelisted methods accept **kwargs. It is not a user-editable
+    # profile field and must not participate in profile validation.
+    data.pop("cmd", None)
     blocked = sorted(field for field in LOCKED_FIELDS if field in data)
     if blocked:
         frappe.throw(
@@ -132,11 +141,40 @@ def _clean_payload(kwargs) -> dict[str, str]:
     if "full_name" in cleaned and len(cleaned["full_name"]) < 2:
         frappe.throw(_("Full name is required."), ValidationError)
 
+
+    if "cnic" in cleaned and cleaned["cnic"]:
+        digits = re.sub(r"\D", "", cleaned["cnic"])
+        if len(digits) != 13:
+            frappe.throw(
+                _("CNIC must contain exactly 13 digits."),
+                ValidationError,
+            )
+
+    if "ntn" in cleaned and cleaned["ntn"]:
+        digits = re.sub(r"\D", "", cleaned["ntn"])
+        if len(digits) < 7 or len(digits) > 9:
+            frappe.throw(
+                _("NTN must contain 7 to 9 digits."),
+                ValidationError,
+            )
+
+    if (
+        "company_name" in cleaned
+        and cleaned["company_name"]
+        and len(cleaned["company_name"]) < 2
+    ):
+        frappe.throw(
+            _("Enter a valid company name."),
+            ValidationError,
+        )
+
     return cleaned
 
 
 def _clean_internal_payload(kwargs) -> dict[str, str]:
     data = dict(kwargs or {})
+    # Keep framework transport metadata out of staff-profile validation too.
+    data.pop("cmd", None)
     unsupported = sorted(set(data) - INTERNAL_ALLOWED_FIELDS)
     if unsupported:
         frappe.throw(
@@ -405,8 +443,12 @@ def update_profile(**kwargs):
 
         if fieldname in SET_ONCE_FIELDS and current_value:
             if current_value != value:
+                label = SET_ONCE_FIELD_LABELS.get(fieldname, fieldname)
                 frappe.throw(
-                    _("NTN can only be added once from the app. Contact OMC support for a verified correction."),
+                    _(
+                        "{0} can only be added once from the app. "
+                        "Contact OMC support for a verified correction."
+                    ).format(label),
                     ValidationError,
                 )
             continue

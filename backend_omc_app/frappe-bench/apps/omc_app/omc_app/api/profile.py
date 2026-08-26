@@ -138,6 +138,25 @@ def _internal_profile_payload(user):
     }
 
 
+def _profile_edit_policy(profile):
+    def field_policy(fieldname):
+        if not profile:
+            return {"can_edit": False, "mode": "unavailable"}
+
+        value = str(profile.get(fieldname) or "").strip()
+        if value:
+            return {"can_edit": False, "mode": "locked"}
+
+        return {"can_edit": True, "mode": "add"}
+
+    return {
+        "email": {"can_edit": False, "mode": "locked"},
+        "cnic": field_policy("cnic"),
+        "ntn": field_policy("ntn"),
+        "company_name": field_policy("company_name"),
+    }
+
+
 def _profile_payload(profile, user):
     user_image = _get_user_image_url(user)
     if not profile:
@@ -151,6 +170,7 @@ def _profile_payload(profile, user):
             "customer_status": "Guest" if user == "Guest" else "",
             "approval_status": "",
             "access_state": "guest" if user == "Guest" else "pending",
+            "profile_edit_policy": _profile_edit_policy(None),
         }
 
     return {
@@ -174,6 +194,7 @@ def _profile_payload(profile, user):
         "education": profile.get("education") or "",
         "experience": profile.get("experience") or "",
         "remarks": profile.get("remarks") or "",
+        "profile_edit_policy": _profile_edit_policy(profile),
         "access_state": "approved"
         if (profile.customer_status or "").lower() == "active"
         and (profile.approval_status or "").lower() == "approved"

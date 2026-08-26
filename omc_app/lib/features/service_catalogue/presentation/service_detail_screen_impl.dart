@@ -100,8 +100,13 @@ class ServiceDetailScreen extends ConsumerWidget {
         final service = matchedService;
         final tone = _serviceDetailTone(service);
         final String? wizardLabel = null;
-        final subtitle = (service.shortDescription ?? service.description ?? '')
-            .trim();
+        final heroSubtitle =
+            (service.shortDescription ?? service.description ?? '').trim();
+        final overview = (service.description ?? '').trim();
+        final showOverview =
+            overview.isNotEmpty &&
+            _normalizedServiceCopy(overview) !=
+                _normalizedServiceCopy(heroSubtitle);
 
         return Scaffold(
           body: Column(
@@ -118,33 +123,31 @@ class ServiceDetailScreen extends ConsumerWidget {
                   top: false,
                   child: ListView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 122),
                     children: [
                       _HeroCard(
                         service: service,
                         tone: tone,
                         wizardLabel: wizardLabel,
                       ),
-                      const SizedBox(height: 12),
-                      _ServiceMetaCard(service: service),
-                      const SizedBox(height: 14),
-                      _SectionCard(
-                        title: 'Overview',
-                        icon: Icons.notes_rounded,
-                        child: Text(
-                          subtitle.isEmpty
-                              ? 'OMC will share the service brief after review.'
-                              : subtitle,
-                          style: const TextStyle(
-                            color: _slate,
-                            fontSize: 13.5,
-                            height: 1.5,
-                            fontWeight: FontWeight.w600,
+                      if (showOverview) ...[
+                        const SizedBox(height: 12),
+                        _SectionCard(
+                          title: 'Overview',
+                          icon: Icons.notes_rounded,
+                          child: Text(
+                            overview,
+                            style: const TextStyle(
+                              color: _slate,
+                              fontSize: 13.5,
+                              height: 1.5,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                       if (service.requirements.isNotEmpty) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _ChecklistCard(
                           title: 'Requirements',
                           subtitle:
@@ -152,11 +155,12 @@ class ServiceDetailScreen extends ConsumerWidget {
                           emptyMessage: '',
                           items: service.requirements,
                           icon: Icons.fact_check_outlined,
+                          itemIcon: Icons.check_rounded,
                           accent: _ink,
                         ),
                         const SizedBox(height: 12),
                       ] else
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                       _ChecklistCard(
                         title: 'Required documents',
                         subtitle:
@@ -165,6 +169,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                             'OMC will confirm required documents after reviewing your case.',
                         items: service.requiredDocuments,
                         icon: Icons.description_outlined,
+                        itemIcon: Icons.description_outlined,
                         accent: _ink,
                       ),
                       const SizedBox(height: 12),
@@ -173,9 +178,9 @@ class ServiceDetailScreen extends ConsumerWidget {
                         accent: _ink,
                         isInternal: false,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       _SupportCard(service: service, tone: tone),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -540,7 +545,7 @@ class _ServiceDetailLoadingView extends StatelessWidget {
       top: false,
       child: ListView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 122),
         children: [
           PremiumCard(
             padding: const EdgeInsets.all(22),
@@ -677,7 +682,7 @@ class _HeroCard extends StatelessWidget {
         .trim();
 
     return PremiumCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -685,16 +690,16 @@ class _HeroCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 58,
-                height: 58,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: tone.soft,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: tone.border),
                 ),
                 child: Icon(tone.icon, color: tone.color, size: 26),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -733,7 +738,7 @@ class _HeroCard extends StatelessWidget {
             ],
           ),
           if (subtitle.isNotEmpty) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Text(
               subtitle,
               style: const TextStyle(
@@ -744,7 +749,7 @@ class _HeroCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -821,7 +826,7 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -847,103 +852,8 @@ class _SectionCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           child,
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceMetaCard extends StatelessWidget {
-  const _ServiceMetaCard({required this.service});
-
-  final ServiceItem service;
-
-  @override
-  Widget build(BuildContext context) {
-    final governmentFee = service.governmentFeeLabel?.trim();
-
-    return PremiumCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Column(
-        children: [
-          _MetaRow(
-            icon: Icons.payments_outlined,
-            label: 'Service fee',
-            value: service.priceLabel,
-          ),
-          const Divider(height: 1, color: _border),
-          _MetaRow(
-            icon: Icons.schedule_outlined,
-            label: 'Expected timeline',
-            value: service.completionTime,
-          ),
-          if (governmentFee != null && governmentFee.isNotEmpty) ...[
-            const Divider(height: 1, color: _border),
-            _MetaRow(
-              icon: Icons.account_balance_outlined,
-              label: 'Government fee',
-              value: governmentFee,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MetaRow extends StatelessWidget {
-  const _MetaRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: _border),
-            ),
-            child: Icon(icon, color: _slate, size: 18),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: _slate,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 13.5,
-                height: 1.25,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -957,6 +867,7 @@ class _ChecklistCard extends StatelessWidget {
     required this.emptyMessage,
     required this.items,
     required this.icon,
+    required this.itemIcon,
     required this.accent,
   });
 
@@ -965,6 +876,7 @@ class _ChecklistCard extends StatelessWidget {
   final String emptyMessage;
   final List<String> items;
   final IconData icon;
+  final IconData itemIcon;
   final Color accent;
 
   @override
@@ -988,11 +900,11 @@ class _ChecklistCard extends StatelessWidget {
           if (items.isEmpty)
             _NoticePill(label: emptyMessage, accent: accent)
           else
-            for (final item in items)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _ChecklistRow(label: item, accent: accent),
-              ),
+            for (var i = 0; i < items.length; i++) ...[
+              _ChecklistRow(label: items[i], accent: accent, icon: itemIcon),
+              if (i != items.length - 1)
+                const Divider(height: 17, color: _border),
+            ],
         ],
       ),
     );
@@ -1007,34 +919,66 @@ class _SupportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Need help',
-      icon: Icons.support_agent_rounded,
+    final message = service.supportMessage?.trim().isNotEmpty == true
+        ? service.supportMessage!.trim()
+        : 'Message the OMC team if any step is unclear or missing.';
+
+    return PremiumCard(
+      padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(
-            child: Text(
-              service.supportMessage?.trim().isNotEmpty == true
-                  ? service.supportMessage!.trim()
-                  : 'Message the OMC team if any step is unclear or missing.',
-              style: const TextStyle(
-                color: _slate,
-                fontSize: 13.5,
-                height: 1.45,
-                fontWeight: FontWeight.w600,
-              ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: tone.soft,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: tone.border),
+            ),
+            child: Icon(
+              Icons.support_agent_rounded,
+              color: tone.color,
+              size: 19,
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton.filledTonal(
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Need help?',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _slate,
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
             tooltip: 'WhatsApp support',
             onPressed: () => SupportLauncher.openWhatsApp(context),
             style: IconButton.styleFrom(
-              backgroundColor: _primary.withValues(alpha: 0.08),
+              backgroundColor: _primary.withValues(alpha: 0.06),
               foregroundColor: _primary,
-              shape: const CircleBorder(),
             ),
-            icon: const Icon(Icons.support_agent_rounded),
+            icon: const Icon(Icons.arrow_forward_rounded, size: 19),
           ),
         ],
       ),
@@ -1043,42 +987,45 @@ class _SupportCard extends StatelessWidget {
 }
 
 class _ChecklistRow extends StatelessWidget {
-  const _ChecklistRow({required this.label, required this.accent});
+  const _ChecklistRow({
+    required this.label,
+    required this.accent,
+    required this.icon,
+  });
 
   final String label;
   final Color accent;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 18,
-            height: 18,
+            width: 22,
+            height: 22,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.09),
-              shape: BoxShape.circle,
+              color: accent.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(7),
             ),
-            child: Icon(Icons.check_rounded, color: accent, size: 13),
+            alignment: Alignment.center,
+            child: Icon(icon, color: accent, size: 14),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _slate,
-                fontSize: 13,
-                height: 1.3,
-                fontWeight: FontWeight.w700,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: _slate,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -1145,48 +1092,43 @@ class _ProcessRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              index.toString(),
-              style: TextStyle(
-                color: accent,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+            border: Border.all(color: accent.withValues(alpha: 0.10)),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            index.toString(),
+            style: TextStyle(
+              color: accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 3),
             child: Text(
               label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: _slate,
                 fontSize: 13,
-                height: 1.3,
+                height: 1.35,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1283,6 +1225,10 @@ class _Tone {
 
   Color get soft => color.withValues(alpha: 0.09);
   Color get border => color.withValues(alpha: 0.16);
+}
+
+String _normalizedServiceCopy(String value) {
+  return value.trim().replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
 }
 
 _Tone _serviceDetailTone(ServiceItem service) {

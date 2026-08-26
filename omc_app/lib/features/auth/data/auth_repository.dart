@@ -89,7 +89,14 @@ class AuthRepository {
         (profile is Map<String, dynamic> ? profile['user_id'] : null);
 
     final text = user?.toString().trim();
-    if (text == null || text.isEmpty) return null;
+    final isGuest =
+        text == null ||
+        text.isEmpty ||
+        text.toLowerCase() == 'guest' ||
+        data['is_guest'] == true ||
+        data['access_state']?.toString().trim().toLowerCase() == 'guest';
+
+    if (isGuest) return null;
 
     final capabilities = _capabilitiesFromResponse(data);
 
@@ -214,10 +221,7 @@ class AuthRepository {
   }) {
     return _frappeClient.postMethod(
       _completeRegistrationMethod,
-      data: {
-        'token': token.trim(),
-        'password': password,
-      },
+      data: {'token': token.trim(), 'password': password},
     );
   }
 

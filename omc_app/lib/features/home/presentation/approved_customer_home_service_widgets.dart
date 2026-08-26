@@ -158,8 +158,10 @@ class _CurrentServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final action = service.nextAction;
-    final progressPercent =
-        (service.progress * 100).round().clamp(0, 100).toInt();
+    final progressPercent = (service.progress * 100)
+        .round()
+        .clamp(0, 100)
+        .toInt();
 
     return PremiumCard(
       padding: const EdgeInsets.all(18),
@@ -188,7 +190,9 @@ class _CurrentServiceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 7),
                     Text(
-                      service.title.isEmpty ? 'OMC service request' : service.title,
+                      service.title.isEmpty
+                          ? 'OMC service request'
+                          : service.title,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 21,
@@ -513,7 +517,10 @@ class _CompactServiceCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.textSecondary,
+          ),
         ],
       ),
     );
@@ -535,42 +542,122 @@ class _NoActiveServiceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppTheme.primarySoft,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: const Icon(Icons.check_circle_outline_rounded),
-          ),
-          const SizedBox(height: 15),
-          const Text(
-            'No active service requests',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            completedCases > 0
-                ? 'You have $completedCases completed service request${completedCases == 1 ? '' : 's'}. Start another service whenever you need it.'
-                : 'Start an OMC service when you are ready. Your next steps will appear here.',
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const OmcIconBadge(
+                icon: Icons.check_circle_outline_rounded,
+                color: OmcPremium.track,
+                size: 50,
+                iconSize: 24,
+                radius: 15,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'No active service requests',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 19,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      completedCases > 0
+                          ? 'You have $completedCases completed service request${completedCases == 1 ? '' : 's'}. Start another whenever you need it.'
+                          : 'Start an OMC service when you are ready. Your next steps will appear here.',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           if (onStartService != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 17),
             FilledButton.icon(
               onPressed: onStartService,
-              icon: const Icon(Icons.add_rounded),
+              icon: const Icon(Icons.grid_view_rounded),
               label: const Text('Explore services'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ActiveServiceCountCard extends StatelessWidget {
+  const _ActiveServiceCountCard({
+    required this.activeCases,
+    required this.onTrackServices,
+  });
+
+  final int activeCases;
+  final VoidCallback? onTrackServices;
+
+  @override
+  Widget build(BuildContext context) {
+    final label =
+        '$activeCases active service request${activeCases == 1 ? '' : 's'}';
+
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const OmcIconBadge(
+                icon: Icons.pending_actions_rounded,
+                color: OmcPremium.track,
+                size: 50,
+                iconSize: 24,
+                radius: 15,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 19,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Open My requests to view the tracking information currently available for your active work.',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (onTrackServices != null) ...[
+            const SizedBox(height: 17),
+            FilledButton.icon(
+              onPressed: onTrackServices,
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: const Text('View my requests'),
             ),
           ],
         ],

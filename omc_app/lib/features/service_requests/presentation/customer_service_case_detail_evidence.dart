@@ -26,6 +26,9 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
     final hasUploadedDocuments = documents.any(
       (document) => document.fileUrl.trim().isNotEmpty,
     );
+    final isHistorical =
+        detail.requestState.trim().toLowerCase() == 'historical';
+    final isReadOnly = detail.isTerminal || detail.isCompleted;
 
     return PremiumCard(
       padding: const EdgeInsets.all(17),
@@ -56,7 +59,13 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
             )
           else ...[
             Text(
-              needsUpload
+              isReadOnly && needsUpload
+                  ? isHistorical
+                        ? '${detail.documentsNeedingUpload} required document${detail.documentsNeedingUpload == 1 ? '' : 's'} ${detail.documentsNeedingUpload == 1 ? 'was' : 'were'} not recorded for this historical service.'
+                        : detail.isCompleted
+                        ? '${detail.documentsNeedingUpload} required document${detail.documentsNeedingUpload == 1 ? '' : 's'} ${detail.documentsNeedingUpload == 1 ? 'is' : 'are'} not recorded for this completed service.'
+                        : 'This request is no longer active. Missing documents are shown for reference only.'
+                  : needsUpload
                   ? '${detail.documentsNeedingUpload} required document${detail.documentsNeedingUpload == 1 ? '' : 's'} still need attention.'
                   : 'Your required document checklist is up to date.',
               style: const TextStyle(
@@ -70,9 +79,10 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
             for (final document in documents) ...[
               _DocumentRow(
                 document: document,
+                readOnly: isReadOnly,
                 canUpload:
                     widget.canUploadDocuments &&
-                    !detail.isTerminal &&
+                    !isReadOnly &&
                     document.needsUpload,
                 isUploading: _uploading.contains(document.uploadIdentity),
                 onUpload: () => _uploadRequiredDocument(document),
@@ -168,49 +178,55 @@ class _DocumentsCardState extends ConsumerState<_DocumentsCard> {
 class _DocumentRow extends StatelessWidget {
   const _DocumentRow({
     required this.document,
+    required this.readOnly,
     required this.canUpload,
     required this.isUploading,
     required this.onUpload,
   });
 
   final CustomerServiceCaseDocument document;
+  final bool readOnly;
   final bool canUpload;
   final bool isUploading;
   final VoidCallback onUpload;
 
   @override
   Widget build(BuildContext context) {
-    final (
-      label,
-      icon,
-      foreground,
-      background,
-    ) = switch (document.normalizedStatus) {
-      'approved' || 'verified' => (
-        'Approved',
-        Icons.check_circle_outline_rounded,
-        const Color(0xFF16864B),
-        const Color(0xFFEAF7EF),
-      ),
-      'rejected' => (
-        'Needs correction',
-        Icons.error_outline_rounded,
-        AppTheme.danger,
-        AppTheme.dangerSoft,
-      ),
-      'uploaded' || 'submitted' || 'under review' => (
-        'Under review',
-        Icons.hourglass_top_rounded,
-        const Color(0xFFA85C00),
-        const Color(0xFFFFF4E4),
-      ),
-      _ => (
-        'Required',
-        Icons.description_outlined,
-        AppTheme.textSecondary,
-        AppTheme.background,
-      ),
-    };
+    final isUnrecorded = readOnly && document.needsUpload;
+
+    final (label, icon, foreground, background) = isUnrecorded
+        ? (
+            'Not recorded',
+            Icons.description_outlined,
+            AppTheme.textSecondary,
+            AppTheme.background,
+          )
+        : switch (document.normalizedStatus) {
+            'approved' || 'verified' => (
+              'Approved',
+              Icons.check_circle_outline_rounded,
+              const Color(0xFF16864B),
+              const Color(0xFFEAF7EF),
+            ),
+            'rejected' => (
+              'Needs correction',
+              Icons.error_outline_rounded,
+              AppTheme.danger,
+              AppTheme.dangerSoft,
+            ),
+            'uploaded' || 'submitted' || 'under review' => (
+              'Under review',
+              Icons.hourglass_top_rounded,
+              const Color(0xFFA85C00),
+              const Color(0xFFFFF4E4),
+            ),
+            _ => (
+              'Required',
+              Icons.description_outlined,
+              AppTheme.textSecondary,
+              AppTheme.background,
+            ),
+          };
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -273,24 +289,45 @@ class _DocumentRow extends StatelessWidget {
                 const SizedBox(height: 6),
                 SizedBox(
                   height: 34,
-                  child: OutlinedButton(
-                    onPressed: isUploading ? null : onUpload,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                    ),
-                    child: isUploading
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(
-                            document.isRejected ? 'Replace' : 'Upload',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
+                  child: Semantics(
+                    button: true,
+                    enabled: !isUploading,
+                    label: document.isRejected
+                        ? 'Replace document'
+                        : 'Upload document',
+                    child: Material(
+                      color: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: AppTheme.border),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: isUploading ? null : onUpload,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Center(
+                            widthFactor: 1,
+                            child: isUploading
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    document.isRejected ? 'Replace' : 'Upload',
+                                    style: const TextStyle(
+                                      color: AppTheme.primary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                           ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],

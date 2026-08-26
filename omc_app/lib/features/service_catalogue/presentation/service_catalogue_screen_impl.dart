@@ -91,10 +91,11 @@ class _ServiceCatalogueScreenState
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 122),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
                 const _PageHeading(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _SearchField(
                   controller: _searchController,
                   query: _query,
@@ -107,20 +108,20 @@ class _ServiceCatalogueScreenState
                   },
                   onFilterTap: () => _openFilterSheet(context, categories),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 _CategoryStrip(
                   categories: categories,
                   selectedCategory: _selectedCategory,
                   onSelected: (category) =>
                       setState(() => _selectedCategory = category),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 _SectionHeader(
                   resultCount: filteredServices.length,
                   isFiltered:
                       _query.isNotEmpty || _selectedCategory != _allCategory,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 9),
                 if (services.isEmpty)
                   const _ServiceListEmptyState(
                     icon: Icons.inventory_2_outlined,
@@ -155,9 +156,9 @@ class _ServiceCatalogueScreenState
                         itemCount: filteredServices.length,
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 18,
-                          childAspectRatio: 0.92,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          mainAxisExtent: 114,
                         ),
                         itemBuilder: (context, index) {
                           final service = filteredServices[index];
@@ -373,71 +374,75 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: controller,
-            onChanged: onChanged,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: 'Search services',
-              prefixIcon: const Icon(Icons.search_rounded, size: 21),
-              suffixIcon: query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear search',
-                      onPressed: onClear,
-                      icon: const Icon(Icons.close_rounded, size: 19),
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Search services',
+        prefixIcon: const Icon(Icons.search_rounded, size: 21),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
+        ),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (query.isNotEmpty)
+              IconButton(
+                tooltip: 'Clear search',
+                onPressed: onClear,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close_rounded, size: 19),
+              ),
+            IconButton(
+              tooltip: 'Filter services',
+              onPressed: onFilterTap,
+              visualDensity: VisualDensity.compact,
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    Icons.tune_rounded,
+                    size: 20,
+                    color: hasActiveCategory ? AppTheme.primary : _slate,
+                  ),
+                  if (hasActiveCategory)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                     ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 15,
-                vertical: 14,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: _border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: _border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: _primary, width: 1.4),
+                ],
               ),
             ),
-          ),
+            const SizedBox(width: 4),
+          ],
         ),
-        const SizedBox(width: 10),
-        Material(
-          color: hasActiveCategory
-              ? AppTheme.primary.withValues(alpha: 0.08)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            onTap: onFilterTap,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: hasActiveCategory
-                      ? AppTheme.primary.withValues(alpha: 0.32)
-                      : _border,
-                ),
-              ),
-              child: Icon(
-                Icons.tune_rounded,
-                size: 20,
-                color: hasActiveCategory ? AppTheme.primary : _slate,
-              ),
-            ),
-          ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 15,
+          vertical: 13,
         ),
-      ],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _primary, width: 1.4),
+        ),
+      ),
     );
   }
 }
@@ -456,12 +461,12 @@ class _CategoryStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 36,
+      height: 34,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 7),
         itemBuilder: (context, index) {
           final category = categories[index];
 
@@ -503,10 +508,10 @@ class _ServiceFilterChip extends StatelessWidget {
         borderRadius: radius,
         child: Container(
           alignment: Alignment.center,
-          constraints: BoxConstraints(minHeight: compact ? 36 : 40),
+          constraints: BoxConstraints(minHeight: compact ? 34 : 40),
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 13 : 14,
-            vertical: compact ? 8 : 10,
+            horizontal: compact ? 11 : 14,
+            vertical: compact ? 7 : 10,
           ),
           decoration: BoxDecoration(
             borderRadius: radius,
@@ -580,43 +585,52 @@ class _ServiceIconTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final visual = serviceVisualFor(service);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Column(
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: visual.color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: visual.color.withValues(alpha: 0.16),
+    return Semantics(
+      button: true,
+      label: service.title,
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onOpen,
+          borderRadius: BorderRadius.circular(16),
+          splashColor: visual.color.withValues(alpha: 0.07),
+          highlightColor: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: visual.color.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: visual.color.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(visual.icon, color: visual.color, size: 30),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  service.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 12.25,
+                    height: 1.18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.1,
                   ),
                 ),
-                alignment: Alignment.center,
-                child: Icon(visual.icon, color: visual.color, size: 30),
-              ),
-              const SizedBox(height: 9),
-              Text(
-                service.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _ink,
-                  fontSize: 12.5,
-                  height: 1.22,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.1,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/config/env.dart';
 import '../../../core/forms/dirty_form_controller.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/resilience/app_failure.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/premium_card.dart';
@@ -443,7 +444,7 @@ class _IdentityBusinessCard extends StatelessWidget {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Protected account and tax details. Eligible fields can be corrected once after signup.',
+                        'Add missing identity or business details once. Saved values are locked for self-service changes.',
                         style: TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 12,
@@ -517,9 +518,9 @@ class _IdentityBusinessRow extends StatelessWidget {
 
     final actionLabel = switch (policy.mode) {
       ProfileEditMode.add => 'Add',
-      ProfileEditMode.correct => 'Correct once',
+      ProfileEditMode.correct => 'Update once',
       ProfileEditMode.locked => 'Locked',
-      ProfileEditMode.unavailable => 'Locked',
+      ProfileEditMode.unavailable => 'Unavailable',
     };
 
     return InkWell(
@@ -650,21 +651,27 @@ Future<void> _openContactSheet(
   WidgetRef ref,
   ProfileSummary profile,
 ) async {
-  final phone = TextEditingController(text: profile.phone ?? '');
-  final whatsapp = TextEditingController(text: profile.whatsappNo ?? '');
+  final initialPhone = (profile.phone ?? '').trim();
+  final initialWhatsapp = (profile.whatsappNo ?? '').trim();
+  final phone = TextEditingController(text: initialPhone);
+  final whatsapp = TextEditingController(text: initialWhatsapp);
   final isInternal =
       profile.capabilities.canAccessInternalWorkspace ||
       profile.capabilities.isInternal;
   final useLegacyAddress = isInternal || !Env.workAddressMapsEnabled;
-  final address = useLegacyAddress
-      ? TextEditingController(text: profile.address ?? '')
+  final initialAddress = useLegacyAddress
+      ? (profile.address ?? '').trim()
       : null;
+  final address = initialAddress == null
+      ? null
+      : TextEditingController(text: initialAddress);
 
   await _showEditSheet(
     context: context,
     ref: ref,
     title: 'Contact information',
-    subtitle: 'Keep your service and document contact details current.',
+    subtitle:
+        'Update only the details you need. Unchanged fields will stay as they are.',
     fields: [
       _SheetTextField(
         controller: phone,
@@ -688,10 +695,25 @@ Future<void> _openContactSheet(
           maxLines: 4,
         ),
     ],
-    payloadBuilder: () => {
-      'phone': phone.text.trim(),
-      'whatsapp_no': whatsapp.text.trim(),
-      if (address != null) 'address': address.text.trim(),
+    payloadBuilder: () {
+      final payload = <String, dynamic>{};
+      final nextPhone = phone.text.trim();
+      final nextWhatsapp = whatsapp.text.trim();
+
+      if (nextPhone != initialPhone) {
+        payload['phone'] = nextPhone;
+      }
+      if (nextWhatsapp != initialWhatsapp) {
+        payload['whatsapp_no'] = nextWhatsapp;
+      }
+      if (address != null) {
+        final nextAddress = address.text.trim();
+        if (nextAddress != initialAddress) {
+          payload['address'] = nextAddress;
+        }
+      }
+
+      return payload;
     },
   );
 
@@ -705,15 +727,19 @@ Future<void> _openProfessionalSheet(
   WidgetRef ref,
   ProfileSummary profile,
 ) async {
-  final education = TextEditingController(text: profile.education ?? '');
-  final experience = TextEditingController(text: profile.experience ?? '');
-  final remarks = TextEditingController(text: profile.remarks ?? '');
+  final initialEducation = (profile.education ?? '').trim();
+  final initialExperience = (profile.experience ?? '').trim();
+  final initialRemarks = (profile.remarks ?? '').trim();
+  final education = TextEditingController(text: initialEducation);
+  final experience = TextEditingController(text: initialExperience);
+  final remarks = TextEditingController(text: initialRemarks);
 
   await _showEditSheet(
     context: context,
     ref: ref,
     title: 'Professional information',
-    subtitle: 'Keep your qualifications and working profile up to date.',
+    subtitle:
+        'Update only the details you need. Unchanged fields will stay as they are.',
     fields: [
       _SheetTextField(
         controller: education,
@@ -740,10 +766,23 @@ Future<void> _openProfessionalSheet(
         maxLines: 5,
       ),
     ],
-    payloadBuilder: () => {
-      'education': education.text.trim(),
-      'experience': experience.text.trim(),
-      'remarks': remarks.text.trim(),
+    payloadBuilder: () {
+      final payload = <String, dynamic>{};
+      final nextEducation = education.text.trim();
+      final nextExperience = experience.text.trim();
+      final nextRemarks = remarks.text.trim();
+
+      if (nextEducation != initialEducation) {
+        payload['education'] = nextEducation;
+      }
+      if (nextExperience != initialExperience) {
+        payload['experience'] = nextExperience;
+      }
+      if (nextRemarks != initialRemarks) {
+        payload['remarks'] = nextRemarks;
+      }
+
+      return payload;
     },
   );
 
@@ -824,10 +863,10 @@ Future<void> _openProtectedProfileFieldSheet(
     await _showEditSheet(
       context: context,
       ref: ref,
-      title: isAdd ? 'Add $label' : 'Correct $label',
+      title: isAdd ? 'Add $label' : 'Update $label',
       subtitle: isAdd
-          ? 'Add this detail carefully. After saving, it will be protected from further self-service changes.'
-          : 'This is your one post-signup correction. Review it carefully before saving because this field will be locked afterwards.',
+          ? 'Enter this detail carefully. After you confirm and save it, it will be locked for self-service changes.'
+          : 'Enter this detail carefully. After you confirm and save it, it will be locked for self-service changes.',
       fields: [
         _SheetTextField(
           controller: controller,
@@ -843,6 +882,9 @@ Future<void> _openProtectedProfileFieldSheet(
         ),
       ],
       payloadBuilder: () => {fieldName: controller.text.trim()},
+      confirmationTitle: 'Confirm $label',
+      confirmationMessage:
+          'Please verify your $label carefully. Once saved, you will not be able to change it from the app.',
     );
   } finally {
     controller.dispose();
@@ -856,6 +898,8 @@ Future<void> _showEditSheet({
   required String subtitle,
   required List<Widget> fields,
   required Map<String, dynamic> Function() payloadBuilder,
+  String? confirmationTitle,
+  String? confirmationMessage,
 }) async {
   await showModalBottomSheet<void>(
     context: context,
@@ -867,6 +911,8 @@ Future<void> _showEditSheet({
       subtitle: subtitle,
       fields: fields,
       payloadBuilder: payloadBuilder,
+      confirmationTitle: confirmationTitle,
+      confirmationMessage: confirmationMessage,
       ref: ref,
     ),
   );
@@ -879,6 +925,8 @@ class _ProfileEditSheet extends StatefulWidget {
     required this.fields,
     required this.payloadBuilder,
     required this.ref,
+    this.confirmationTitle,
+    this.confirmationMessage,
   });
 
   final String title;
@@ -886,6 +934,8 @@ class _ProfileEditSheet extends StatefulWidget {
   final List<Widget> fields;
   final Map<String, dynamic> Function() payloadBuilder;
   final WidgetRef ref;
+  final String? confirmationTitle;
+  final String? confirmationMessage;
 
   @override
   State<_ProfileEditSheet> createState() => _ProfileEditSheetState();
@@ -907,6 +957,30 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
     if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
 
     FocusScope.of(context).unfocus();
+
+    final confirmationMessage = widget.confirmationMessage?.trim() ?? '';
+    if (confirmationMessage.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.lock_outline_rounded),
+          title: Text(widget.confirmationTitle ?? 'Confirm details'),
+          content: Text(confirmationMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Review'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Confirm & save'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true || !mounted) return;
+    }
     _dirtyFormController.beginSubmitting();
     setState(() {
       _saving = true;
@@ -942,8 +1016,14 @@ class _ProfileEditSheetState extends State<_ProfileEditSheet> {
         fallbackTitle: 'Profile not updated',
         fallbackMessage: 'Your profile details could not be updated right now.',
       );
+      final errorMessage =
+          error is ApiError &&
+              failure.type == AppFailureType.validation &&
+              error.message.trim().isNotEmpty
+          ? error.message.trim()
+          : failure.message;
       _dirtyFormController.submissionFailed();
-      setState(() => _error = failure.message);
+      setState(() => _error = errorMessage);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

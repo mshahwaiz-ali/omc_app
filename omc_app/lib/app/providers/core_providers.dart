@@ -37,7 +37,11 @@ final preferencesServiceProvider = FutureProvider<PreferencesService>((ref) {
 });
 
 final dioClientProvider = Provider<DioClient>((ref) {
-  ref.watch(sessionEpochProvider);
+  // DioClient reads the current session cookie/API credentials from secure
+  // storage on every request. Recreating the whole network/provider graph on
+  // auth transitions causes session-bound FutureProviders to refresh while
+  // routes are mounting or after logout, producing build-phase Riverpod
+  // assertions and stale 403 dashboard requests.
   final secureStorageService = ref.watch(secureStorageServiceProvider);
 
   return DioClient(

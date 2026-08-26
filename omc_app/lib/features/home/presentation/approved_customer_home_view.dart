@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/design_tokens.dart';
 import '../../../app/providers/effective_capabilities_provider.dart';
+import '../../../app/route_access_policy.dart';
 import '../../../app/theme.dart';
 import '../../../core/resilience/app_failure.dart';
+import '../../../core/widgets/app_skeleton.dart';
 import '../../../core/widgets/app_state.dart';
 import '../../../core/widgets/omc_premium.dart';
 import '../../../core/widgets/premium_card.dart';
 import '../../profile/data/profile_repository.dart';
+import '../data/home_content.dart';
+import '../data/home_content_repository.dart';
 import '../data/home_dashboard_repository.dart';
+import 'widgets/home_content_rail.dart';
+import 'widgets/home_featured_carousel.dart';
 
 part 'approved_customer_home_actions.dart';
+part 'approved_customer_home_content.dart';
 part 'approved_customer_home_service_widgets.dart';
 part 'approved_customer_home_support.dart';
 
@@ -33,6 +41,7 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(homeDashboardSummaryProvider);
+    final homeContentAsync = ref.watch(homeContentProvider);
     final capabilities = ref.watch(effectiveCapabilitiesProvider);
     final profileAsync = ref.watch(profileSummaryProvider);
     final profileName = profileAsync.maybeWhen(
@@ -42,8 +51,61 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
 
     Future<void> refresh() async {
       ref.invalidate(homeDashboardSummaryProvider);
+      ref.invalidate(homeContentProvider);
       ref.invalidate(profileSummaryProvider);
       await ref.read(homeDashboardSummaryProvider.future);
+    }
+
+    void pushAllowed(String rawRoute) {
+      final route = rawRoute.startsWith('/') ? rawRoute : '/$rawRoute';
+      if (!canAccessRoute(route, capabilities)) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('This item is not available for your account.'),
+            ),
+          );
+        return;
+      }
+      context.push(route);
+    }
+
+    void openHomeContent(HomeContentCard item) {
+      final mobileRoute = item.mobileRoute?.trim();
+      if (mobileRoute != null && mobileRoute.isNotEmpty) {
+        pushAllowed(mobileRoute);
+        return;
+      }
+
+      final id = item.id.trim();
+      if (id.isEmpty) return;
+      pushAllowed('/knowledge/${Uri.encodeComponent(id)}');
+    }
+
+    void openHomeBanner(HomeBanner banner) {
+      final target = banner.action.target.trim();
+      if (target.isEmpty) return;
+
+      switch (banner.action.type) {
+        case HomeBannerActionType.none:
+          return;
+        case HomeBannerActionType.route:
+          pushAllowed(target);
+          return;
+        case HomeBannerActionType.knowledgeArticle:
+          pushAllowed('/knowledge/${Uri.encodeComponent(target)}');
+          return;
+        case HomeBannerActionType.service:
+          pushAllowed('/services/${Uri.encodeComponent(target)}');
+          return;
+        case HomeBannerActionType.externalUrl:
+          final uri = Uri.tryParse(target);
+          if (uri != null && (uri.scheme == 'https' || uri.scheme == 'http')) {
+            launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+          return;
+      }
     }
 
     return Scaffold(
@@ -85,6 +147,7 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
             onRefresh: refresh,
             child: _CustomerHomeContent(
               summary: summary,
+              homeContentAsync: homeContentAsync,
               customerName: profileName,
               onNotifications: capabilities.canViewCustomerNotifications
                   ? () => _openNotifications(context)
@@ -105,6 +168,9 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
               onTrackServices: capabilities.canTrackRequests
                   ? () => context.go('/my-services')
                   : null,
+              onBannerTap: openHomeBanner,
+              onContentTap: openHomeContent,
+              onRetryHomeContent: () => ref.invalidate(homeContentProvider),
               canStartService: capabilities.canCreateServiceRequest,
             ),
           ),
@@ -125,6 +191,7 @@ class ApprovedCustomerHomeView extends ConsumerWidget {
 class _CustomerHomeContent extends StatelessWidget {
   const _CustomerHomeContent({
     required this.summary,
+    required this.homeContentAsync,
     required this.customerName,
     required this.onNotifications,
     required this.onProfile,
@@ -134,10 +201,14 @@ class _CustomerHomeContent extends StatelessWidget {
     required this.onOpenDocuments,
     required this.onOpenPayments,
     required this.onTrackServices,
+    required this.onBannerTap,
+    required this.onContentTap,
+    required this.onRetryHomeContent,
     required this.canStartService,
   });
 
   final HomeDashboardSummary summary;
+  final AsyncValue<HomeContent> homeContentAsync;
   final String customerName;
   final VoidCallback? onNotifications;
   final VoidCallback onProfile;
@@ -147,6 +218,9 @@ class _CustomerHomeContent extends StatelessWidget {
   final VoidCallback? onOpenDocuments;
   final VoidCallback? onOpenPayments;
   final VoidCallback? onTrackServices;
+  final ValueChanged<HomeBanner> onBannerTap;
+  final ValueChanged<HomeContentCard> onContentTap;
+  final VoidCallback onRetryHomeContent;
   final bool canStartService;
 
   @override
@@ -173,6 +247,11 @@ class _CustomerHomeContent extends StatelessWidget {
         const SizedBox(height: 20),
         if (current != null)
           _CurrentServiceCard(service: current)
+        else if (summary.activeCases > 0)
+          _ActiveServiceCountCard(
+            activeCases: summary.activeCases,
+            onTrackServices: onTrackServices,
+          )
         else
           _NoActiveServiceCard(
             completedCases: summary.completedCases,
@@ -202,6 +281,12 @@ class _CustomerHomeContent extends StatelessWidget {
           onOpenPayments: onOpenPayments,
           onOpenSupport: onOpenSupport,
           onOpenServices: canStartService ? onOpenServices : null,
+        ),
+        _CustomerHomeContentSections(
+          contentAsync: homeContentAsync,
+          onBannerTap: onBannerTap,
+          onContentTap: onContentTap,
+          onRetry: onRetryHomeContent,
         ),
         const SizedBox(height: 24),
         const OmcSectionHeader(title: 'Explore OMC'),
